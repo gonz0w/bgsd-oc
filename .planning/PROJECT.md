@@ -2,11 +2,22 @@
 
 ## What This Is
 
-A comprehensive improvement pass on the GSD (Get Shit Done) planning plugin for Claude Code. The plugin is a zero-dependency, single-file Node.js CLI built from 15 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows. This project addressed performance bottlenecks, code quality gaps, and unwired features — the plugin is now fully tested, observable, discoverable, and fast.
+A zero-dependency, single-file Node.js CLI built from 15 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows. v1.0 established the test suite, module split, and observability layer. v1.1 focuses on reducing context consumption across all workflow layers and resolving remaining tech debt.
 
 ## Core Value
 
 Every improvement must make the plugin more reliable and faster for developers using GSD to plan and execute real projects — no regressions, no breaking changes.
+
+## Current Milestone: v1.1 Context Reduction & Tech Debt
+
+**Goal:** Reduce token/context consumption across workflows, planning doc reads, research outputs, and CLI output while resolving remaining tech debt items.
+
+**Target features:**
+- Research and implement context reduction techniques across all layers (workflow prompts, doc loading, CLI output, research files)
+- Measurable token reduction (30%+ target) with before/after benchmarks
+- Fix broken `roadmap analyze` test (pre-existing failure)
+- Add missing `--help` text for remaining 36 commands
+- Create plan template files (deferred TMPL-01 from v1.0)
 
 ## Requirements
 
@@ -44,7 +55,13 @@ Every improvement must make the plugin more reliable and faster for developers u
 
 ### Active
 
-(No active requirements — next milestone will define these via `/gsd-new-milestone`)
+<!-- v1.1 scope — details in REQUIREMENTS.md -->
+
+- [ ] Context reduction across workflow prompts, doc loading, CLI output, research files
+- [ ] Token usage measurement (before/after benchmarks)
+- [ ] Fix broken `roadmap analyze` test
+- [ ] Complete `--help` coverage (36 remaining commands)
+- [ ] Plan template files
 
 ### Out of Scope
 
@@ -61,11 +78,12 @@ Shipped v1.0 with 153+ tests, 15 src/ modules, esbuild bundler.
 Tech stack: Node.js 18+, node:test, esbuild, zero runtime dependencies.
 Source split into `src/lib/` (7 modules) and `src/commands/` (7 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
+New Node.js dev dependencies are allowed for v1.1 if they improve context handling (must stay zero runtime deps in bundle).
 
-Known tech debt:
-- 1 pre-existing test failure (`roadmap analyze` expects 50%, gets 33%) — not introduced by v1.0
-- Plan template files not yet created (deferred to v2 as TMPL-01)
-- Not all 79 commands have --help text (43 of 79 covered, remainder deferred as DOC-02)
+Known tech debt (v1.1 targets):
+- 1 pre-existing test failure (`roadmap analyze` expects 50%, gets 33%)
+- Plan template files not yet created (deferred from v1.0 as TMPL-01)
+- 36 of 79 commands missing --help text (deferred from v1.0 as DOC-02)
 
 ## Constraints
 
@@ -89,4 +107,4 @@ Known tech debt:
 | Batch grep: fixed-string vs regex split | Different grep flags needed; 1-2 calls max regardless of pattern count | ✓ Good — eliminates per-pattern spawn overhead |
 
 ---
-*Last updated: 2026-02-22 after v1.0 milestone*
+*Last updated: 2026-02-22 after v1.1 milestone start*
