@@ -14,7 +14,7 @@ Requirements for v2.0 Quality & Intelligence milestone. Each maps to roadmap pha
 - [x] **SVAL-03**: Plugin can detect when STATE.md Last activity is older than recent git commits to .planning/ (stale activity detection)
 - [x] **SVAL-04**: Plugin can auto-correct unambiguous drift with --fix flag when exactly one correct resolution exists (auto-repair)
 - [x] **SVAL-05**: Plugin can detect blockers and todos that have been open for N plans without resolution (blocker staleness)
-- [ ] **SVAL-06**: Plugin runs state validation automatically before execute-phase starts as pre-flight check (pre-execution validation)
+- [x] **SVAL-06**: Plugin runs state validation automatically before execute-phase starts as pre-flight check (pre-execution validation)
 
 ### Atomic Plan Decomposition
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SVAL-03 | Phase 10 | Complete |
 | SVAL-04 | Phase 10 | Complete |
 | SVAL-05 | Phase 10 | Complete |
-| SVAL-06 | Phase 10 | Pending |
+| SVAL-06 | Phase 10 | Complete |
 | PLAN-01 | Phase 12 | Pending |
 | PLAN-02 | Phase 12 | Pending |
 | PLAN-03 | Phase 12 | Pending |
