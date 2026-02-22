@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Every improvement must make the plugin more reliable and faster for developers using GSD to plan and execute real projects
-**Current focus:** PROJECT COMPLETE — All 5 phases delivered
+**Current focus:** v1.0 shipped — planning next milestone
 
 ## Current Position
 
 Phase: 5 of 5 (Performance & Polish) — COMPLETE
 Plan: 2 of 2 in current phase — ALL DONE
-Status: Project Complete
-Last activity: 2026-02-22 — Phase 5 complete, all requirements delivered
+Status: v1.0 Milestone Shipped
+Last activity: 2026-02-22 — v1.0 milestone archived
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 4 min
+- Total plans completed: 14
+- Average duration: 3 min
 - Total execution time: 0.73 hours
 
 **By Phase:**
@@ -29,41 +29,15 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 01-foundation | 4 | 13 min | 3 min |
 | 02-error-handling | 2 | 11 min | 5 min |
-| 03-developer-experience | 2 | 4 min | 2 min |
+| 03-developer-experience | 3 | 4 min | 1 min |
 | 04-build-system | 3 | 13 min | 4 min |
 | 05-performance-polish | 2 | 7 min | 3 min |
-
-**Recent Trend:**
-- Last 5 plans: 04-01 (4 min), 04-02 (8 min), 04-03 (1 min), 05-01 (5 min), 05-02 (2 min)
-- Trend: Steady
-
-*Updated after each plan completion*
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Roadmap]: 5-phase structure derived from requirements — Foundation/tests first, then error handling, then DX, then build system, then performance
-- [Roadmap]: DOC-01 (line count fix) grouped with Phase 1 to avoid a single-requirement phase
-- [Research]: esbuild confirmed as bundler, lru-cache v10 for caching, both minimal additions
-- [01-01]: private:true, version 1.0.0, placeholder build script until Phase 4
-- [01-02]: New configs include all 16 fields (was 9), alias support in loadConfig, brave_search auto-detect kept as runtime override
-- [01-03]: Shared STATE_FIXTURE for all 8 mutation tests; section-scoped placeholder assertions
-- [01-04]: Semantic round-trip verification (JSON equality after extract→merge→extract); documented array-of-objects parser limitation as stable
-- [02-01]: debugLog(context, message, err) helper with GSD_DEBUG=1 gating; all 55 catch blocks instrumented
-- [02-02]: sanitizeShellArg() and isValidDateString() helpers; --fixed-strings for grep; _tmpFiles cleanup on exit
-- [03-02]: Slash commands follow existing workflow pattern with <process>/<step> structure; visualization uses box-drawing chars, reads pre-computed data
-- [03-03]: All workflow integrations are non-blocking soft warnings in yolo/auto mode; validate-deps between validate_phase and discover_and_group_plans; search-lessons before planner spawn; context-budget before parse_segments
-- [Phase 03]: Help text to stderr via COMMAND_HELP map; config-migrate uses CONFIG_SCHEMA.nested for correct key placement
-- [04-01]: Strip-shebang esbuild plugin for monolith bundling; packages:'external' keeps Node builtins as require(); bundle output to .bundle.cjs during proof-of-concept
-- [04-02]: 15-module split (6 lib + 7 commands + router + index); bin/gsd-tools.cjs now a build artifact from src/; variable shadowing fixes in extracted modules
-- [04-03]: Smoke test uses current-timestamp --raw; || true prevents set -e from aborting before rollback; src/ copied to dest for debug access
-- [05-01]: Plain Map cache instead of lru-cache — CLI processes are short-lived, no eviction needed; cachedReadFile is opt-in, safeReadFile unchanged
-- [05-01]: Batch grep splits fixed-string vs regex patterns into 1-2 calls max
-- [05-02]: context_window/context_target_percent as flat config keys with number type; CONFIG_SCHEMA single source of truth pattern continues
+All v1.0 decisions have been reviewed and recorded in PROJECT.md Key Decisions table with outcomes.
 
 ### Pending Todos
 
@@ -71,15 +45,14 @@ None.
 
 ### Pre-existing Issues
 
-- 1 test failure in `roadmap analyze > parses phases with goals and disk status` (expects 50%, gets 33%) — predates Phase 1
+- 1 test failure in `roadmap analyze > parses phases with goals and disk status` (expects 50%, gets 33%) — predates v1.0
 
 ### Blockers/Concerns
 
-- ~~Phase 1 needs config field alias mapping (3-way comparison) before CONFIG_SCHEMA extraction~~ — RESOLVED in 01-02
-- ~~Golden fixture selection from event-pipeline needed before state mutation tests~~ — RESOLVED in 01-03 (used universal STATE_FIXTURE covering all 8 section patterns)
+None — all v1.0 blockers resolved.
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Project complete — all 5 phases delivered, 21 requirements satisfied, 153 tests passing
+Stopped at: v1.0 milestone shipped and archived
 Resume file: None
