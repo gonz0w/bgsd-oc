@@ -13,7 +13,7 @@ Incremental improvement of the GSD planning plugin (gsd-tools.cjs) from a workin
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Safety Nets** - Tests, package.json, config schema extraction — build the safety net before touching anything risky
-- [ ] **Phase 2: Error Handling & Hardening** - Debug logging across 55 catch blocks, shell sanitization, temp file cleanup
+- [x] **Phase 2: Error Handling & Hardening** - Debug logging across 55 catch blocks, shell sanitization, temp file cleanup
 - [ ] **Phase 3: Developer Experience & Discoverability** - --help support, 11 slash commands, config migration, workflow integrations
 - [ ] **Phase 4: Build System & Module Split** - esbuild bundler pipeline, source split into src/, deploy.sh updated atomically
 - [ ] **Phase 5: Performance & Polish** - In-memory file cache, batch grep optimization, configurable context window
@@ -46,10 +46,10 @@ Plans:
   2. With `GSD_DEBUG` unset, the tool behaves identically to before — no output changes, no behavioral changes
   3. Git command arguments containing shell metacharacters (quotes, semicolons, backticks) are safely escaped and do not execute arbitrary commands
   4. No `gsd-*.json` temp files remain in the system tmpdir after the CLI process exits (normal or error)
-**Plans**: 2 plans
+**Plans**: 2/2 plans executed
 Plans:
-- [ ] 02-01-PLAN.md — Debug logging helper + instrument all catch blocks
-- [ ] 02-02-PLAN.md — Shell sanitization + temp file cleanup
+- [x] 02-01-PLAN.md — Debug logging helper + instrument all catch blocks
+- [x] 02-02-PLAN.md — Shell sanitization + temp file cleanup
 
 ### Phase 3: Developer Experience & Discoverability
 **Goal**: All 15 feature commands are discoverable and reachable — via slash commands in Claude Code, via --help in the CLI, and via automatic integration in planning/execution workflows
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Safety Nets | 4/4 | Complete | 2026-02-22 |
-| 2. Error Handling & Hardening | 0/? | Not started | - |
+| 2. Error Handling & Hardening | 2/2 | Complete | 2026-02-22 |
 | 3. Developer Experience & Discoverability | 0/? | Not started | - |
 | 4. Build System & Module Split | 0/? | Not started | - |
 | 5. Performance & Polish | 0/? | Not started | - |
