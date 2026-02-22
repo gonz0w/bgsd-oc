@@ -9,13 +9,13 @@ Requirements for context reduction and tech debt cleanup. Each maps to roadmap p
 
 ### Measurement & Baselines
 
-- [ ] **MEAS-01**: CLI provides accurate token estimation for any text input using tokenx library
-- [ ] **MEAS-02**: Token baselines are measured for each of the 32 workflow invocations
-- [ ] **MEAS-03**: User can run before/after comparison showing token reduction per workflow
+- [x] **MEAS-01**: CLI provides accurate token estimation for any text input using tokenx library
+- [x] **MEAS-02**: Token baselines are measured for each of the 32 workflow invocations
+- [x] **MEAS-03**: User can run before/after comparison showing token reduction per workflow
 
 ### CLI Output Reduction
 
-- [ ] **CLIP-01**: User can pass `--fields` flag to any JSON command to return only specified fields
+- [x] **CLIP-01**: User can pass `--fields` flag to any JSON command to return only specified fields
 - [ ] **CLIP-02**: Init commands support `--compact` flag returning essential-only data (38-50% smaller)
 - [ ] **CLIP-03**: Init commands return context manifests telling agents which files/sections to load
 
@@ -61,10 +61,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MEAS-01 | Phase 6: Token Measurement & Output Infrastructure | Pending |
-| MEAS-02 | Phase 6: Token Measurement & Output Infrastructure | Pending |
-| MEAS-03 | Phase 6: Token Measurement & Output Infrastructure | Pending |
-| CLIP-01 | Phase 6: Token Measurement & Output Infrastructure | Pending |
+| MEAS-01 | Phase 6: Token Measurement & Output Infrastructure | ✅ Complete |
+| MEAS-02 | Phase 6: Token Measurement & Output Infrastructure | ✅ Complete |
+| MEAS-03 | Phase 6: Token Measurement & Output Infrastructure | ✅ Complete |
+| CLIP-01 | Phase 6: Token Measurement & Output Infrastructure | ✅ Complete |
 | CLIP-02 | Phase 7: Init Command Compaction | Pending |
 | CLIP-03 | Phase 7: Init Command Compaction | Pending |
 | WKFL-01 | Phase 8: Workflow & Reference Compression | Pending |

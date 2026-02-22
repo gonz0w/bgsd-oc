@@ -1,0 +1,308 @@
+{
+  "timestamp": "2026-02-22T17:24:00.766Z",
+  "workflow_count": 43,
+  "total_tokens": 119835,
+  "workflows": [
+    {
+      "name": "execute-phase.md",
+      "workflow_tokens": 5362,
+      "ref_count": 4,
+      "ref_tokens": 17477,
+      "total_tokens": 22839
+    },
+    {
+      "name": "verify-phase.md",
+      "workflow_tokens": 2812,
+      "ref_count": 2,
+      "ref_tokens": 7393,
+      "total_tokens": 10205
+    },
+    {
+      "name": "new-project.md",
+      "workflow_tokens": 8560,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 8560
+    },
+    {
+      "name": "execute-plan.md",
+      "workflow_tokens": 5839,
+      "ref_count": 1,
+      "ref_tokens": 1864,
+      "total_tokens": 7703
+    },
+    {
+      "name": "verify-work.md",
+      "workflow_tokens": 3753,
+      "ref_count": 2,
+      "ref_tokens": 3324,
+      "total_tokens": 7077
+    },
+    {
+      "name": "complete-milestone.md",
+      "workflow_tokens": 5445,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 5445
+    },
+    {
+      "name": "plan-phase.md",
+      "workflow_tokens": 4167,
+      "ref_count": 1,
+      "ref_tokens": 725,
+      "total_tokens": 4892
+    },
+    {
+      "name": "discuss-phase.md",
+      "workflow_tokens": 4122,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 4122
+    },
+    {
+      "name": "help.md",
+      "workflow_tokens": 3769,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3769
+    },
+    {
+      "name": "new-milestone.md",
+      "workflow_tokens": 3510,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3510
+    },
+    {
+      "name": "quick.md",
+      "workflow_tokens": 3488,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3488
+    },
+    {
+      "name": "transition.md",
+      "workflow_tokens": 3402,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3402
+    },
+    {
+      "name": "resume-project.md",
+      "workflow_tokens": 2237,
+      "ref_count": 1,
+      "ref_tokens": 1134,
+      "total_tokens": 3371
+    },
+    {
+      "name": "progress.md",
+      "workflow_tokens": 2652,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2652
+    },
+    {
+      "name": "audit-milestone.md",
+      "workflow_tokens": 2483,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2483
+    },
+    {
+      "name": "map-codebase.md",
+      "workflow_tokens": 2426,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2426
+    },
+    {
+      "name": "discovery-phase.md",
+      "workflow_tokens": 2226,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2226
+    },
+    {
+      "name": "plan-milestone-gaps.md",
+      "workflow_tokens": 1814,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1814
+    },
+    {
+      "name": "diagnose-issues.md",
+      "workflow_tokens": 1683,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1683
+    },
+    {
+      "name": "settings.md",
+      "workflow_tokens": 1597,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1597
+    },
+    {
+      "name": "update.md",
+      "workflow_tokens": 1397,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1397
+    },
+    {
+      "name": "research-phase.md",
+      "workflow_tokens": 568,
+      "ref_count": 2,
+      "ref_tokens": 807,
+      "total_tokens": 1375
+    },
+    {
+      "name": "check-todos.md",
+      "workflow_tokens": 1274,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1274
+    },
+    {
+      "name": "add-todo.md",
+      "workflow_tokens": 1198,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1198
+    },
+    {
+      "name": "remove-phase.md",
+      "workflow_tokens": 1142,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1142
+    },
+    {
+      "name": "health.md",
+      "workflow_tokens": 1117,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1117
+    },
+    {
+      "name": "list-phase-assumptions.md",
+      "workflow_tokens": 1097,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1097
+    },
+    {
+      "name": "insert-phase.md",
+      "workflow_tokens": 979,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 979
+    },
+    {
+      "name": "cleanup.md",
+      "workflow_tokens": 968,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 968
+    },
+    {
+      "name": "pause-work.md",
+      "workflow_tokens": 884,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 884
+    },
+    {
+      "name": "add-phase.md",
+      "workflow_tokens": 765,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 765
+    },
+    {
+      "name": "set-profile.md",
+      "workflow_tokens": 526,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 526
+    },
+    {
+      "name": "cmd-trace-requirement.md",
+      "workflow_tokens": 434,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 434
+    },
+    {
+      "name": "cmd-context-budget.md",
+      "workflow_tokens": 429,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 429
+    },
+    {
+      "name": "cmd-validate-deps.md",
+      "workflow_tokens": 379,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 379
+    },
+    {
+      "name": "cmd-codebase-impact.md",
+      "workflow_tokens": 364,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 364
+    },
+    {
+      "name": "cmd-rollback-info.md",
+      "workflow_tokens": 354,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 354
+    },
+    {
+      "name": "cmd-validate-config.md",
+      "workflow_tokens": 352,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 352
+    },
+    {
+      "name": "cmd-velocity.md",
+      "workflow_tokens": 352,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 352
+    },
+    {
+      "name": "cmd-test-run.md",
+      "workflow_tokens": 324,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 324
+    },
+    {
+      "name": "cmd-search-decisions.md",
+      "workflow_tokens": 321,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 321
+    },
+    {
+      "name": "cmd-search-lessons.md",
+      "workflow_tokens": 318,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 318
+    },
+    {
+      "name": "cmd-session-diff.md",
+      "workflow_tokens": 222,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 222
+    }
+  ]
+}

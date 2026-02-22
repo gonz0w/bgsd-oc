@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 6 of 9 (Token Measurement & Output Infrastructure)
-Plan: 1 of 3
-Status: Ready to execute
-Last activity: 2026-02-22 — Phase 6 planned (3 plans)
+Phase: 6 of 9 (Token Measurement & Output Infrastructure) — COMPLETE
+Plan: 3 of 3
+Status: Phase 6 complete, ready for Phase 7
+Last activity: 2026-02-22 — Phase 6 executed (3/3 plans complete)
 
-Progress: [░░░░░░░░░░] 0% (0/4 phases)
+Progress: [██▌░░░░░░░] 25% (1/4 phases)
 
 ## Accumulated Context
 
@@ -26,6 +26,10 @@ v1.1 decisions:
 - tokenx 1.3.0 selected for token estimation (4.5KB bundled, ~96% accuracy, zero deps)
 - Build config change needed: `packages: 'external'` → selective externals so tokenx bundles
 - Layered reduction strategy: measure → CLI output → workflows → templates
+- Bundle npm deps via esbuild (ESM→CJS conversion works automatically)
+- Keep heuristic_tokens alongside accurate counts for comparison
+- Sort baselines by total_tokens desc, comparisons by delta asc
+- Added baseline_file to baseline output for tooling integration
 
 ### Pending Todos
 
@@ -42,5 +46,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Phase 6 planned, ready to execute Plan 06-01
-Resume file: .planning/phases/06-token-measurement-output-infrastructure/06-01-PLAN.md
+Stopped at: Phase 6 complete (3/3 plans), ready for Phase 7 planning
+Resume file: .planning/ROADMAP.md
