@@ -169,7 +169,8 @@ const CONFIG_SCHEMA = {
 function safeReadFile(filePath) {
   try {
     return fs.readFileSync(filePath, 'utf-8');
-  } catch {
+  } catch (e) {
+    debugLog('file.read', 'read failed', e);
     return null;
   }
 }
@@ -212,7 +213,8 @@ function loadConfig(cwd) {
       }
     }
     return result;
-  } catch {
+  } catch (e) {
+    debugLog('config.load', 'parse config.json failed, using defaults', e);
     return defaults;
   }
 }
@@ -224,7 +226,8 @@ function isGitIgnored(cwd, targetPath) {
       stdio: 'pipe',
     });
     return true;
-  } catch {
+  } catch (e) {
+    debugLog('git.checkIgnore', 'exec failed', e);
     return false;
   }
 }
@@ -242,6 +245,7 @@ function execGit(cwd, args) {
     });
     return { exitCode: 0, stdout: stdout.trim(), stderr: '' };
   } catch (err) {
+    debugLog('git.exec', 'exec failed', err);
     return {
       exitCode: err.status ?? 1,
       stdout: (err.stdout ?? '').toString().trim(),
@@ -496,6 +500,13 @@ function error(message) {
   process.exit(1);
 }
 
+function debugLog(context, message, err) {
+  if (!process.env.GSD_DEBUG) return;
+  let line = `[GSD_DEBUG] ${context}: ${message}`;
+  if (err) line += ` | ${err.message || err}`;
+  process.stderr.write(line + '\n');
+}
+
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 function cmdGenerateSlug(text, raw) {
@@ -561,9 +572,9 @@ function cmdListTodos(cwd, area, raw) {
           area: todoArea,
           path: path.join('.planning', 'todos', 'pending', file),
         });
-      } catch {}
+      } catch (e) { debugLog('feature.listTodos', 'read todo file failed', e); }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.listTodos', 'read pending dir failed', e); }
 
   const result = { count, todos };
   output(result, raw, count.toString());
@@ -581,7 +592,8 @@ function cmdVerifyPathExists(cwd, targetPath, raw) {
     const type = stats.isDirectory() ? 'directory' : stats.isFile() ? 'file' : 'other';
     const result = { exists: true, type };
     output(result, raw, 'true');
-  } catch {
+  } catch (e) {
+    debugLog('file.stat', 'stat failed', e);
     const result = { exists: false, type: null };
     output(result, raw, 'false');
   }
@@ -597,6 +609,7 @@ function cmdConfigEnsureSection(cwd, raw) {
       fs.mkdirSync(planningDir, { recursive: true });
     }
   } catch (err) {
+    debugLog('config.ensure', 'mkdir failed', err);
     error('Failed to create .planning directory: ' + err.message);
   }
 
@@ -620,6 +633,7 @@ function cmdConfigEnsureSection(cwd, raw) {
       userDefaults = JSON.parse(fs.readFileSync(globalDefaultsPath, 'utf-8'));
     }
   } catch (err) {
+    debugLog('config.ensure', 'read failed', err);
     // Ignore malformed global defaults, fall back to hardcoded
   }
 
@@ -646,6 +660,7 @@ function cmdConfigEnsureSection(cwd, raw) {
     const result = { created: true, path: '.planning/config.json' };
     output(result, raw, 'created');
   } catch (err) {
+    debugLog('config.ensure', 'write failed', err);
     error('Failed to create config.json: ' + err.message);
   }
 }
@@ -670,6 +685,7 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
       config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     }
   } catch (err) {
+    debugLog('config.set', 'read failed', err);
     error('Failed to read config.json: ' + err.message);
   }
 
@@ -691,6 +707,7 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
     const result = { updated: true, key: keyPath, value: parsedValue };
     output(result, raw, `${keyPath}=${parsedValue}`);
   } catch (err) {
+    debugLog('config.set', 'write failed', err);
     error('Failed to write config.json: ' + err.message);
   }
 }
@@ -710,6 +727,7 @@ function cmdConfigGet(cwd, keyPath, raw) {
       error('No config.json found at ' + configPath);
     }
   } catch (err) {
+    debugLog('config.get', 'read failed', err);
     if (err.message.startsWith('No config.json')) throw err;
     error('Failed to read config.json: ' + err.message);
   }
@@ -754,7 +772,7 @@ function cmdHistoryDigest(cwd, raw) {
       for (const dir of currentDirs) {
         allPhaseDirs.push({ name: dir, fullPath: path.join(phasesDir, dir), milestone: null });
       }
-    } catch {}
+    } catch (e) { debugLog('feature.historyDigest', 'readdir failed', e); }
   }
 
   if (allPhaseDirs.length === 0) {
@@ -813,6 +831,7 @@ function cmdHistoryDigest(cwd, raw) {
           }
 
         } catch (e) {
+          debugLog('feature.historyDigest', 'skip malformed summary', e);
           // Skip malformed summaries
         }
       }
@@ -828,6 +847,7 @@ function cmdHistoryDigest(cwd, raw) {
 
     output(digest, raw);
   } catch (e) {
+    debugLog('feature.historyDigest', 'digest generation failed', e);
     error('Failed to generate history digest: ' + e.message);
   }
 }
@@ -908,6 +928,7 @@ function cmdPhasesList(cwd, options, raw) {
     // Default: list directories
     output({ directories: dirs, count: dirs.length }, raw, dirs.join('\n'));
   } catch (e) {
+    debugLog('phase.list', 'list phases failed', e);
     error('Failed to list phases: ' + e.message);
   }
 }
@@ -992,6 +1013,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
       section
     );
   } catch (e) {
+    debugLog('roadmap.getPhase', 'read roadmap failed', e);
     error('Failed to read ROADMAP.md: ' + e.message);
   }
 }
@@ -1061,6 +1083,7 @@ function cmdPhaseNextDecimal(cwd, basePhase, raw) {
       nextDecimal
     );
   } catch (e) {
+    debugLog('phase.nextDecimal', 'calculate next decimal failed', e);
     error('Failed to calculate next decimal phase: ' + e.message);
   }
 }
@@ -1072,7 +1095,7 @@ function cmdStateLoad(cwd, raw) {
   let stateRaw = '';
   try {
     stateRaw = fs.readFileSync(path.join(planningDir, 'STATE.md'), 'utf-8');
-  } catch {}
+  } catch (e) { debugLog('state.load', 'read failed', e); }
 
   const configExists = fs.existsSync(path.join(planningDir, 'config.json'));
   const roadmapExists = fs.existsSync(path.join(planningDir, 'ROADMAP.md'));
@@ -1140,7 +1163,8 @@ function cmdStateGet(cwd, section, raw) {
     }
 
     output({ error: `Section or field "${section}" not found` }, raw, '');
-  } catch {
+  } catch (e) {
+    debugLog('state.get', 'read STATE.md failed', e);
     error('STATE.md not found');
   }
 }
@@ -1168,7 +1192,8 @@ function cmdStatePatch(cwd, patches, raw) {
     }
 
     output(results, raw, results.updated.length > 0 ? 'true' : 'false');
-  } catch {
+  } catch (e) {
+    debugLog('state.patch', 'write failed', e);
     error('STATE.md not found');
   }
 }
@@ -1190,7 +1215,8 @@ function cmdStateUpdate(cwd, field, value) {
     } else {
       output({ updated: false, reason: `Field "${field}" not found in STATE.md` });
     }
-  } catch {
+  } catch (e) {
+    debugLog('state.update', 'write failed', e);
     output({ updated: false, reason: 'STATE.md not found' });
   }
 }
@@ -1490,7 +1516,8 @@ function cmdFindPhase(cwd, phase, raw) {
     };
 
     output(result, raw, result.directory);
-  } catch {
+  } catch (e) {
+    debugLog('phase.find', 'readdir failed', e);
     output(notFound, raw, '');
   }
 }
@@ -1680,6 +1707,7 @@ function cmdTemplateSelect(cwd, planPath, raw) {
     const result = { template, type, taskCount, fileCount, hasDecisions };
     output(result, raw, template);
   } catch (e) {
+    debugLog('template.pick', 'template selection failed', e);
     // Fallback to standard
     output({ template: 'templates/summary-standard.md', type: 'standard', error: e.message }, raw, 'templates/summary-standard.md');
   }
@@ -1870,7 +1898,8 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
       phaseDir = path.join(phasesDir, match);
       phaseDirName = match;
     }
-  } catch {
+  } catch (e) {
+    debugLog('phase.planIndex', 'readdir failed', e);
     // phases dir doesn't exist
   }
 
@@ -2175,6 +2204,7 @@ async function cmdWebsearch(query, options, raw) {
       results
     }, raw, results.map(r => `${r.title}\n${r.url}\n${r.description}`).join('\n\n'));
   } catch (err) {
+    debugLog('feature.webSearch', 'search request failed', err);
     output({ available: false, error: err.message }, raw, '');
   }
 }
@@ -2203,7 +2233,7 @@ function cmdFrontmatterSet(cwd, filePath, field, value, raw) {
   const content = fs.readFileSync(fullPath, 'utf-8');
   const fm = extractFrontmatter(content);
   let parsedValue;
-  try { parsedValue = JSON.parse(value); } catch { parsedValue = value; }
+  try { parsedValue = JSON.parse(value); } catch (e) { debugLog('frontmatter.set', 'JSON parse value failed, using string', e); parsedValue = value; }
   fm[field] = parsedValue;
   const newContent = spliceFrontmatter(content, fm);
   fs.writeFileSync(fullPath, newContent, 'utf-8');
@@ -2217,7 +2247,7 @@ function cmdFrontmatterMerge(cwd, filePath, data, raw) {
   const content = fs.readFileSync(fullPath, 'utf-8');
   const fm = extractFrontmatter(content);
   let mergeData;
-  try { mergeData = JSON.parse(data); } catch { error('Invalid JSON for --data'); return; }
+  try { mergeData = JSON.parse(data); } catch (e) { debugLog('frontmatter.merge', 'JSON parse --data failed', e); error('Invalid JSON for --data'); return; }
   Object.assign(fm, mergeData);
   const newContent = spliceFrontmatter(content, fm);
   fs.writeFileSync(fullPath, newContent, 'utf-8');
@@ -2320,7 +2350,7 @@ function cmdVerifyPhaseCompleteness(cwd, phase, raw) {
 
   // List plans and summaries
   let files;
-  try { files = fs.readdirSync(phaseDir); } catch { output({ error: 'Cannot read phase directory' }, raw); return; }
+  try { files = fs.readdirSync(phaseDir); } catch (e) { debugLog('verify.phaseComplete', 'readdir phase failed', e); output({ error: 'Cannot read phase directory' }, raw); return; }
 
   const plans = files.filter(f => f.match(/-PLAN\.md$/i));
   const summaries = files.filter(f => f.match(/-SUMMARY\.md$/i));
@@ -2510,7 +2540,8 @@ function cmdVerifyKeyLinks(cwd, planFilePath, raw) {
             check.detail = `Pattern "${link.pattern}" not found in source or target`;
           }
         }
-      } catch {
+      } catch (e) {
+        debugLog('verify.keyLinks', 'read failed', e);
         check.detail = `Invalid regex pattern: ${link.pattern}`;
       }
     } else {
@@ -2597,7 +2628,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
         else if (hasContext) diskStatus = 'discussed';
         else diskStatus = 'empty';
       }
-    } catch {}
+    } catch (e) { debugLog('roadmap.analyze', 'readdir failed', e); }
 
     // Check ROADMAP checkbox status
     const checkboxPattern = new RegExp(`-\\s*\\[(x| )\\]\\s*.*Phase\\s+${phaseNum.replace('.', '\\.')}`, 'i');
@@ -2762,7 +2793,7 @@ function cmdPhaseInsert(cwd, afterPhase, description, raw) {
       const dm = dir.match(decimalPattern);
       if (dm) existingDecimals.push(parseInt(dm[1], 10));
     }
-  } catch {}
+  } catch (e) { debugLog('phase.insert', 'readdir failed', e); }
 
   const nextDecimal = existingDecimals.length === 0 ? 1 : Math.max(...existingDecimals) + 1;
   const decimalPhase = `${normalizedBase}.${nextDecimal}`;
@@ -2833,7 +2864,7 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
     const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
     targetDir = dirs.find(d => d.startsWith(normalized + '-') || d === normalized);
-  } catch {}
+  } catch (e) { debugLog('phase.remove', 'readdir failed', e); }
 
   // Check for executed work (SUMMARY.md files)
   if (targetDir && !force) {
@@ -2901,7 +2932,7 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
           }
         }
       }
-    } catch {}
+    } catch (e) { debugLog('phase.remove', 'rename failed', e); }
 
   } else {
     // Integer removal: renumber all subsequent integer phases
@@ -2959,7 +2990,7 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
           }
         }
       }
-    } catch {}
+    } catch (e) { debugLog('phase.remove', 'rename failed', e); }
   }
 
   // Update ROADMAP.md
@@ -3315,7 +3346,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('phase.complete', 'find next phase failed', e); }
 
   // Update STATE.md
   if (fs.existsSync(statePath)) {
@@ -3424,10 +3455,10 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
           // Count tasks
           const taskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
           totalTasks += taskMatches.length;
-        } catch {}
+        } catch (e) { debugLog('milestone.complete', 'frontmatter extraction failed', e); }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('milestone.complete', 'frontmatter extraction failed', e); }
 
   // Archive ROADMAP.md
   if (fs.existsSync(roadmapPath)) {
@@ -3507,7 +3538,7 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
     // Check if anything was archived
     const archivedEntries = fs.readdirSync(phaseArchiveDir);
     phasesArchived = archivedEntries.length > 0;
-  } catch {}
+  } catch (e) { debugLog('milestone.complete', 'readdir failed', e); }
 
   const result = {
     version,
@@ -3564,7 +3595,7 @@ function cmdValidateConsistency(cwd, raw) {
       const dm = dir.match(/^(\d+(?:\.\d+)?)/);
       if (dm) diskPhases.add(dm[1]);
     }
-  } catch {}
+  } catch (e) { debugLog('validate.consistency', 'readdir failed', e); }
 
   // Check: phases in ROADMAP but not on disk
   for (const p of roadmapPhases) {
@@ -3626,7 +3657,7 @@ function cmdValidateConsistency(cwd, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('validate.consistency', 'check plan numbering failed', e); }
 
   // Check: frontmatter in plans has required fields
   try {
@@ -3646,7 +3677,7 @@ function cmdValidateConsistency(cwd, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('validate.consistency', 'frontmatter extraction failed', e); }
 
   const passed = errors.length === 0;
   output({ passed, errors, warnings, warning_count: warnings.length }, raw, passed ? 'passed' : 'failed');
@@ -3724,7 +3755,7 @@ function cmdValidateHealth(cwd, options, raw) {
           if (m) diskPhases.add(m[1]);
         }
       }
-    } catch {}
+    } catch (e) { debugLog('validate.health', 'readdir failed', e); }
     // Check for invalid references
     for (const ref of phaseRefs) {
       const normalizedRef = String(parseInt(ref, 10)).padStart(2, '0');
@@ -3752,6 +3783,7 @@ function cmdValidateHealth(cwd, options, raw) {
         addIssue('warning', 'W004', `config.json: invalid model_profile "${parsed.model_profile}"`, `Valid values: ${validProfiles.join(', ')}`);
       }
     } catch (err) {
+      debugLog('validate.health', 'JSON parse failed', err);
       addIssue('error', 'E005', `config.json: JSON parse error - ${err.message}`, 'Run /gsd:health --repair to reset to defaults', true);
       repairs.push('resetConfig');
     }
@@ -3765,7 +3797,7 @@ function cmdValidateHealth(cwd, options, raw) {
         addIssue('warning', 'W005', `Phase directory "${e.name}" doesn't follow NN-name format`, 'Rename to match pattern (e.g., 01-setup)');
       }
     }
-  } catch {}
+  } catch (e) { debugLog('validate.health', 'readdir failed', e); }
 
   // ─── Check 7: Orphaned plans (PLAN without SUMMARY) ───────────────────────
   try {
@@ -3784,7 +3816,7 @@ function cmdValidateHealth(cwd, options, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('validate.health', 'readdir failed', e); }
 
   // ─── Check 8: Run existing consistency checks ─────────────────────────────
   // Inline subset of cmdValidateConsistency
@@ -3806,7 +3838,7 @@ function cmdValidateHealth(cwd, options, raw) {
           if (dm) diskPhases.add(dm[1]);
         }
       }
-    } catch {}
+    } catch (e) { debugLog('validate.health', 'readdir failed', e); }
 
     // Phases in ROADMAP but not on disk
     for (const p of roadmapPhases) {
@@ -3872,6 +3904,7 @@ function cmdValidateHealth(cwd, options, raw) {
           }
         }
       } catch (err) {
+        debugLog('validate.health', 'write failed', err);
         repairActions.push({ action: repair, success: false, error: err.message });
       }
     }
@@ -3938,7 +3971,7 @@ function cmdProgressRender(cwd, format, raw) {
 
       phases.push({ number: phaseNum, name: phaseName, plans, summaries, status });
     }
-  } catch {}
+  } catch (e) { debugLog('progress.render', 'readdir failed', e); }
 
   const percent = totalPlans > 0 ? Math.round((totalSummaries / totalPlans) * 100) : 0;
 
@@ -4112,7 +4145,7 @@ function getArchivedPhaseDirs(cwd) {
         });
       }
     }
-  } catch {}
+  } catch (e) { debugLog('phase.getArchived', 'readdir failed', e); }
 
   return results;
 }
@@ -4157,7 +4190,8 @@ function searchPhaseInDir(baseDir, relBase, normalized) {
       has_context: hasContext,
       has_verification: hasVerification,
     };
-  } catch {
+  } catch (e) {
+    debugLog('phase.searchDir', 'search directory failed', e);
     return null;
   }
 }
@@ -4194,7 +4228,7 @@ function findPhaseInternal(cwd, phase) {
         return result;
       }
     }
-  } catch {}
+  } catch (e) { debugLog('phase.findInternal', 'search archived phases failed', e); }
 
   return null;
 }
@@ -4228,7 +4262,8 @@ function getRoadmapPhaseInternal(cwd, phaseNum) {
       goal,
       section,
     };
-  } catch {
+  } catch (e) {
+    debugLog('roadmap.getPhaseInternal', 'read roadmap phase failed', e);
     return null;
   }
 }
@@ -4238,7 +4273,8 @@ function pathExistsInternal(cwd, targetPath) {
   try {
     fs.statSync(fullPath);
     return true;
-  } catch {
+  } catch (e) {
+    debugLog('file.exists', 'stat failed', e);
     return false;
   }
 }
@@ -4312,7 +4348,8 @@ function getMilestoneInfo(cwd) {
     }
 
     return { version, name, phaseRange };
-  } catch {
+  } catch (e) {
+    debugLog('milestone.info', 'read roadmap for milestone failed', e);
     return { version: 'v1.0', name: 'milestone', phaseRange: null };
   }
 }
@@ -4446,7 +4483,7 @@ function cmdInitPlanPhase(cwd, phase, raw) {
       if (uatFile) {
         result.uat_path = path.join(phaseInfo.directory, uatFile);
       }
-    } catch {}
+    } catch (e) { debugLog('init.planPhase', 'read phase files failed', e); }
   }
 
   output(result, raw);
@@ -4470,7 +4507,7 @@ function cmdInitNewProject(cwd, raw) {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     hasCode = files.trim().length > 0;
-  } catch {}
+  } catch (e) { debugLog('init.newProject', 'exec failed', e); }
 
   hasPackageFile = pathExistsInternal(cwd, 'package.json') ||
                    pathExistsInternal(cwd, 'requirements.txt') ||
@@ -4559,7 +4596,7 @@ function cmdInitQuick(cwd, description, raw) {
     if (existing.length > 0) {
       nextNum = Math.max(...existing) + 1;
     }
-  } catch {}
+  } catch (e) { debugLog('init.quick', 'readdir failed', e); }
 
   const result = {
     // Models
@@ -4600,7 +4637,7 @@ function cmdInitResume(cwd, raw) {
   let interruptedAgentId = null;
   try {
     interruptedAgentId = fs.readFileSync(path.join(cwd, '.planning', 'current-agent-id.txt'), 'utf-8').trim();
-  } catch {}
+  } catch (e) { debugLog('init.resume', 'read failed', e); }
 
   const result = {
     // File existence
@@ -4729,7 +4766,7 @@ function cmdInitPhaseOp(cwd, phase, raw) {
       if (uatFile) {
         result.uat_path = path.join(phaseInfo.directory, uatFile);
       }
-    } catch {}
+    } catch (e) { debugLog('init.phaseOp', 'read phase files failed', e); }
   }
 
   output(result, raw);
@@ -4764,9 +4801,9 @@ function cmdInitTodos(cwd, area, raw) {
           area: todoArea,
           path: path.join('.planning', 'todos', 'pending', file),
         });
-      } catch {}
+      } catch (e) { debugLog('init.todos', 'read todo file failed', e); }
     }
-  } catch {}
+  } catch (e) { debugLog('init.todos', 'read pending dir failed', e); }
 
   const result = {
     // Config
@@ -4813,9 +4850,9 @@ function cmdInitMilestoneOp(cwd, raw) {
         const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
         const hasSummary = phaseFiles.some(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
         if (hasSummary) completedPhases++;
-      } catch {}
+      } catch (e) { debugLog('init.milestoneOp', 'readdir failed', e); }
     }
-  } catch {}
+  } catch (e) { debugLog('init.milestoneOp', 'readdir failed', e); }
 
   // Check archive
   const archiveDir = path.join(cwd, '.planning', 'archive');
@@ -4824,7 +4861,7 @@ function cmdInitMilestoneOp(cwd, raw) {
     archivedMilestones = fs.readdirSync(archiveDir, { withFileTypes: true })
       .filter(e => e.isDirectory())
       .map(e => e.name);
-  } catch {}
+  } catch (e) { debugLog('init.milestoneOp', 'readdir failed', e); }
 
   const result = {
     // Config
@@ -4863,7 +4900,7 @@ function cmdInitMapCodebase(cwd, raw) {
   let existingMaps = [];
   try {
     existingMaps = fs.readdirSync(codebaseDir).filter(f => f.endsWith('.md'));
-  } catch {}
+  } catch (e) { debugLog('init.mapCodebase', 'readdir failed', e); }
 
   const result = {
     // Models
@@ -4945,7 +4982,7 @@ function cmdInitProgress(cwd, raw) {
         nextPhase = phaseInfo;
       }
     }
-  } catch {}
+  } catch (e) { debugLog('init.progress', 'read phases failed', e); }
 
   // Check for paused work
   let pausedAt = null;
@@ -4953,7 +4990,7 @@ function cmdInitProgress(cwd, raw) {
     const state = fs.readFileSync(path.join(cwd, '.planning', 'STATE.md'), 'utf-8');
     const pauseMatch = state.match(/\*\*Paused At:\*\*\s*(.+)/);
     if (pauseMatch) pausedAt = pauseMatch[1].trim();
-  } catch {}
+  } catch (e) { debugLog('init.progress', 'read failed', e); }
 
   const result = {
     // Models
@@ -5011,7 +5048,8 @@ function getSessionDiffSummary(cwd) {
     }).trim();
     const commits = log ? log.split('\n').filter(Boolean) : [];
     return { since, commit_count: commits.length, recent: commits.slice(0, 5) };
-  } catch {
+  } catch (e) {
+    debugLog('feature.sessionDiff', 'exec failed', e);
     return null;
   }
 }
@@ -5028,7 +5066,7 @@ function cmdSessionDiff(cwd, raw) {
     // Also check session timestamp
     const sessionMatch = state.match(/\*\*Last session:\*\*\s*(\S+)/);
     if (sessionMatch && sessionMatch[1] > (since || '')) since = sessionMatch[1].split('T')[0];
-  } catch {}
+  } catch (e) { debugLog('feature.sessionDiff', 'read failed', e); }
 
   if (!since) {
     output({ error: 'No last activity found in STATE.md', changes: [] }, raw);
@@ -5047,7 +5085,7 @@ function cmdSessionDiff(cwd, raw) {
         if (match) changes.push({ sha: match[1], message: match[2] });
       }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.sessionDiff', 'exec failed', e); }
 
   // Get file-level changes since last activity
   const filesChanged = [];
@@ -5058,7 +5096,8 @@ function cmdSessionDiff(cwd, raw) {
     if (result) {
       filesChanged.push(...result.split('\n').filter(Boolean));
     }
-  } catch {
+  } catch (e) {
+    debugLog('feature.sessionDiff', 'exec failed', e);
     // Fallback: use log-based diffstat
     try {
       const result = execSync(`git log --since="${since}" --name-only --pretty=format: -- .planning/`, {
@@ -5068,7 +5107,7 @@ function cmdSessionDiff(cwd, raw) {
         const unique = [...new Set(result.split('\n').filter(Boolean))];
         filesChanged.push(...unique);
       }
-    } catch {}
+    } catch (e) { debugLog('feature.sessionDiff', 'exec failed', e); }
   }
 
   // Categorize changes
@@ -5117,7 +5156,8 @@ function cmdContextBudget(cwd, planPath, raw) {
         const lines = fileContent.split('\n').length;
         totalLines += lines;
         fileDetails.push({ path: file, lines, exists: true });
-      } catch {
+      } catch (e) {
+        debugLog('feature.contextBudget', 'read failed', e);
         fileDetails.push({ path: file, lines: 0, exists: true, error: 'unreadable' });
       }
     } else {
@@ -5232,6 +5272,7 @@ function cmdTestRun(cwd, raw) {
         ...parsed,
       };
     } catch (err) {
+      debugLog('feature.testRun', 'exec failed', err);
       const duration = Date.now() - start;
       allPassed = false;
       const stderr = err.stderr || '';
@@ -5299,7 +5340,7 @@ function cmdSearchDecisions(cwd, query, raw) {
       const score = scoreDecision(d.text, queryWords);
       if (score > 0) results.push({ ...d, score, source: 'STATE.md' });
     }
-  } catch {}
+  } catch (e) { debugLog('feature.searchDecisions', 'read failed', e); }
 
   // Search archived milestone roadmaps for decisions in their STATE sections
   try {
@@ -5316,7 +5357,7 @@ function cmdSearchDecisions(cwd, query, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.searchDecisions', 'read failed', e); }
 
   // Sort by relevance score
   results.sort((a, b) => b.score - a.score);
@@ -5376,7 +5417,7 @@ function cmdValidateDependencies(cwd, phase, raw) {
     fullPhaseDir = path.join(cwd, phaseInfo.directory);
     try {
       planFiles = fs.readdirSync(fullPhaseDir).filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
-    } catch {}
+    } catch (e) { debugLog('validate.dependencies', 'readdir failed', e); }
   }
 
   if (planFiles.length === 0) {
@@ -5412,12 +5453,12 @@ function cmdValidateDependencies(cwd, phase, raw) {
                   depCheck.status = 'satisfied';
                 }
               }
-            } catch { depCheck.status = 'error'; issues.push(depCheck); }
+            } catch (e) { debugLog('validate.dependencies', 'readdir failed', e); depCheck.status = 'error'; issues.push(depCheck); }
             checked.push(depCheck);
           }
         }
       }
-    } catch {}
+    } catch (e) { debugLog('validate.dependencies', 'read roadmap deps failed', e); }
 
     output({ phase, valid: issues.length === 0, issue_count: issues.length, issues, checked, note: 'Phase has no plans yet — checked ROADMAP-level dependencies only' }, raw);
     return;
@@ -5471,7 +5512,8 @@ function cmdValidateDependencies(cwd, phase, raw) {
             depCheck.status = 'satisfied';
           }
         }
-      } catch {
+      } catch (e) {
+        debugLog('validate.dependencies', `check dependency phase ${depPhaseNum} failed`, e);
         depCheck.status = 'error';
         depCheck.message = `Error checking dependency phase ${depPhaseNum}`;
         issues.push(depCheck);
@@ -5498,7 +5540,7 @@ function cmdValidateDependencies(cwd, phase, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('validate.dependencies', 'read failed', e); }
 
   output({
     phase,
@@ -5616,7 +5658,7 @@ function cmdCodebaseImpact(cwd, filePaths, raw) {
           // Also full module name for import/use
           if (!searchPatterns.includes(defmodMatch[1])) searchPatterns.push(defmodMatch[1]);
         }
-      } catch {}
+      } catch (e) { debugLog('feature.codebaseImpact', 'read failed', e); }
     } else if (ext === '.go') {
       // Go: package imports — search for directory name
       const dirName = path.dirname(filePath).split('/').pop();
@@ -5644,7 +5686,7 @@ function cmdCodebaseImpact(cwd, filePaths, raw) {
             }
           }
         }
-      } catch {}
+      } catch (e) { debugLog('feature.codebaseImpact', 'exec failed', e); }
     }
 
     results.push({
@@ -5695,7 +5737,7 @@ function cmdRollbackInfo(cwd, planId, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.rollbackInfo', 'read failed', e); }
 
   if (!summaryContent) {
     output({ found: false, plan_id: planId, message: 'No SUMMARY found for this plan' }, raw);
@@ -5718,7 +5760,7 @@ function cmdRollbackInfo(cwd, planId, raw) {
       if (!bodyCommits.includes(sha) && !commits.includes(sha)) {
         bodyCommits.push(sha);
       }
-    } catch {}
+    } catch (e) { debugLog('feature.rollbackInfo', 'exec failed', e); }
   }
 
   const allCommits = [...commits, ...bodyCommits];
@@ -5735,7 +5777,7 @@ function cmdRollbackInfo(cwd, planId, raw) {
         cwd, encoding: 'utf-8', timeout: 5000
       }).trim().split('\n').filter(Boolean);
       commitDetails.push({ sha: hash.slice(0, 7), subject, author, date, files });
-    } catch {}
+    } catch (e) { debugLog('feature.rollbackInfo', 'exec failed', e); }
   }
 
   output({
@@ -5775,7 +5817,7 @@ function cmdVelocity(cwd, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.velocity', 'read STATE.md metrics failed', e); }
 
   // Get git log for planning activity
   let plansPerDay = {};
@@ -5794,7 +5836,7 @@ function cmdVelocity(cwd, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.velocity', 'exec failed', e); }
 
   const daysList = Object.entries(plansPerDay).sort((a, b) => a[0].localeCompare(b[0]));
   const totalDays = daysList.length || 1;
@@ -5807,7 +5849,7 @@ function cmdVelocity(cwd, raw) {
     const roadmap = fs.readFileSync(path.join(cwd, '.planning', 'ROADMAP.md'), 'utf-8');
     const unchecked = (roadmap.match(/- \[ \] \*\*Phase/g) || []).length;
     remainingPhases = unchecked;
-  } catch {}
+  } catch (e) { debugLog('feature.velocity', 'read failed', e); }
 
   // Estimate plans per phase (average of completed phases)
   const avgPlansPerPhase = metrics.length > 0 ? Math.ceil(metrics.length / Math.max(1, metrics.length / 4)) : 4;
@@ -5855,7 +5897,7 @@ function cmdTraceRequirement(cwd, reqId, raw) {
       const reqLine = roadmap.match(new RegExp(`Phase\\s+(\\d+)[\\s\\S]*?Requirements:?\\*\\*:?\\s*[^\\n]*${reqUpper}`, 'i'));
       if (reqLine) trace.phase = reqLine[1];
     }
-  } catch {}
+  } catch (e) { debugLog('feature.traceRequirement', 'read failed', e); }
 
   if (!trace.phase) {
     output({ ...trace, status: 'unmapped', message: `${reqUpper} not found in ROADMAP.md coverage map` }, raw);
@@ -5904,7 +5946,7 @@ function cmdTraceRequirement(cwd, reqId, raw) {
     } else {
       trace.status = 'not_started';
     }
-  } catch {}
+  } catch (e) { debugLog('feature.traceRequirement', 'search phase plans failed', e); }
 
   // Deduplicate files
   trace.files = [...new Set(trace.files)];
@@ -5932,6 +5974,7 @@ function cmdValidateConfig(cwd, raw) {
   try {
     config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   } catch (e) {
+    debugLog('feature.validateConfig', 'read failed', e);
     output({ exists: true, valid_json: false, error: e.message }, raw);
     return;
   }
@@ -6018,7 +6061,7 @@ function cmdQuickTaskSummary(cwd, raw) {
         }
       }
     }
-  } catch {}
+  } catch (e) { debugLog('feature.quickSummary', 'parse STATE.md quick tasks failed', e); }
 
   output({
     milestone: milestone.version,
