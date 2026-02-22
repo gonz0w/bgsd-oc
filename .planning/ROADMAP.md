@@ -53,7 +53,10 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   1. All 12 init commands accept `--compact` flag returning essential-only data (38-50% smaller than full output, measured by token count)
   2. Init commands in `--compact` mode include a context manifest telling agents which files and sections to load next
   3. Existing workflows continue to work identically without `--compact` flag (backward compatible)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — --compact flag + compact profiles for all 12 init commands [CLIP-02]
+- [ ] 07-02-PLAN.md — Context manifests in compact mode + reduction verification [CLIP-03]
 
 ### Phase 8: Workflow & Reference Compression
 **Goal**: Workflow prompts and reference files consume significantly fewer tokens while preserving agent behavior quality
@@ -87,6 +90,6 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 4. Build System & Module Split | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 5. Performance & Polish | v1.0 | 2/2 | Complete | 2026-02-22 |
 | 6. Token Measurement & Output Infrastructure | v1.1 | 3/3 | Complete | 2026-02-22 |
-| 7. Init Command Compaction | v1.1 | 0/? | Not started | - |
+| 7. Init Command Compaction | v1.1 | 0/2 | Not started | - |
 | 8. Workflow & Reference Compression | v1.1 | 0/? | Not started | - |
 | 9. Tech Debt Cleanup | v1.1 | 0/? | Not started | - |
