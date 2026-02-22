@@ -32,9 +32,9 @@ Requirements for this improvement pass. Each maps to roadmap phases.
 
 ### Workflow Integration
 
-- [ ] **WFLOW-01**: Wire `validate-dependencies` into `execute-phase` workflow as pre-flight check before phase execution begins
-- [ ] **WFLOW-02**: Wire `search-lessons` into `plan-phase` workflow to auto-surface relevant lessons from completed phases
-- [ ] **WFLOW-03**: Wire `context-budget` into `execute-plan` workflow to warn agents when plan is too large for context window
+- [x] **WFLOW-01**: Wire `validate-dependencies` into `execute-phase` workflow as pre-flight check before phase execution begins
+- [x] **WFLOW-02**: Wire `search-lessons` into `plan-phase` workflow to auto-surface relevant lessons from completed phases
+- [x] **WFLOW-03**: Wire `context-budget` into `execute-plan` workflow to warn agents when plan is too large for context window
 
 ### Build System
 
@@ -96,9 +96,9 @@ Explicitly excluded. Documented to prevent scope creep.
 | DX-02 | Phase 3 | Complete |
 | DX-03 | Phase 3 | Complete |
 | DX-04 | Phase 3 | Complete |
-| WFLOW-01 | Phase 3 | Pending |
-| WFLOW-02 | Phase 3 | Pending |
-| WFLOW-03 | Phase 3 | Pending |
+| WFLOW-01 | Phase 3 | Complete |
+| WFLOW-02 | Phase 3 | Complete |
+| WFLOW-03 | Phase 3 | Complete |
 | BUILD-01 | Phase 4 | Pending |
 | BUILD-02 | Phase 4 | Pending |
 | BUILD-03 | Phase 4 | Pending |
