@@ -21,8 +21,8 @@ Requirements for context reduction and tech debt cleanup. Each maps to roadmap p
 
 ### Workflow Compression
 
-- [ ] **WKFL-01**: Large reference files are split so agents load only relevant sections
-- [ ] **WKFL-02**: CLI supports selective markdown section extraction (load specific headers from files)
+- [x] **WKFL-01**: Large reference files are split so agents load only relevant sections
+- [x] **WKFL-02**: CLI supports selective markdown section extraction (load specific headers from files)
 - [ ] **WKFL-03**: Repeated boilerplate across workflow files is deduplicated into shared references
 - [ ] **WKFL-04**: Research output supports summary/detail tiers for context-aware loading
 
@@ -67,8 +67,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLIP-01 | Phase 6: Token Measurement & Output Infrastructure | ✅ Complete |
 | CLIP-02 | Phase 7: Init Command Compaction | ✅ Complete |
 | CLIP-03 | Phase 7: Init Command Compaction | Complete |
-| WKFL-01 | Phase 8: Workflow & Reference Compression | Pending |
-| WKFL-02 | Phase 8: Workflow & Reference Compression | Pending |
+| WKFL-01 | Phase 8: Workflow & Reference Compression | ✅ Complete |
+| WKFL-02 | Phase 8: Workflow & Reference Compression | ✅ Complete |
 | WKFL-03 | Phase 8: Workflow & Reference Compression | Pending |
 | WKFL-04 | Phase 8: Workflow & Reference Compression | Pending |
 | DEBT-01 | Phase 9: Tech Debt Cleanup | Pending |

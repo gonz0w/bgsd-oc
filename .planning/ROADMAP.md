@@ -71,7 +71,7 @@ Plans:
   5. Before/after token measurement shows 30%+ reduction averaged across the top 6 workflows by size
 **Plans**: 3 plans
 Plans:
-- [ ] 08-01-PLAN.md — extractSections CLI command + section markers on large reference files [WKFL-01, WKFL-02]
+- [x] 08-01-PLAN.md — extractSections CLI command + section markers on large reference files [WKFL-01, WKFL-02] — completed 2026-02-22
 - [ ] 08-02-PLAN.md — Compress top 8 workflows via deduplication, prose tightening, selective loading [WKFL-03]
 - [ ] 08-03-PLAN.md — Research output summary/detail tiers + before/after baseline measurement [WKFL-04]
 

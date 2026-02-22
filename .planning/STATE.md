@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Every improvement must make the plugin more reliable and faster for developers using GSD to plan and execute real projects
-**Current focus:** v1.1 Context Reduction & Tech Debt — Phase 7: Init Command Compaction
+**Current focus:** v1.1 Context Reduction & Tech Debt — Phase 8: Workflow & Reference Compression
 
 ## Current Position
 
-Phase: 7 of 9 (Init Command Compaction) — COMPLETE
-Plan: 3 of 3
-Status: Phase complete — all plans executed (including gap closure plan 03)
-Last activity: 2026-02-22 — Plan 07-03 executed (split --manifest flag, gap closure)
+Phase: 8 of 9 (Workflow & Reference Compression)
+Plan: 1 of 3 — complete
+Status: Executing Phase 8
+Last activity: 2026-02-22 — Plan 08-01 executed (extract-sections CLI + reference file markers)
 
 Progress: [█████░░░░░] 50% (2/4 phases)
 
@@ -35,6 +35,9 @@ v1.1 decisions:
 - Context manifests built dynamically — only reference files that exist on disk
 - Manifest entries use path/sections/required structure for selective section loading
 - Split --compact into --compact (fields only, 46.7% avg reduction) + --manifest (opt-in guidance) to fix manifest overhead gap
+- Section markers use HTML comments (<!-- section: name -->) — invisible to markdown rendering, machine-parseable
+- extract-sections supports dual-boundary parsing: ## headers and <!-- section --> markers in same file
+- Case-insensitive section matching for ergonomic CLI usage
 
 ### Pending Todos
 
@@ -51,5 +54,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 07-03-PLAN.md (split --manifest flag, gap closure)
+Stopped at: Completed 08-01-PLAN.md (extract-sections CLI + reference file markers)
 Resume file: None
