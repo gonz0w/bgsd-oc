@@ -3910,3 +3910,132 @@ describe('token estimation', () => {
     assert.ok(data.estimates.total_tokens > 0, 'total_tokens should be positive');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// extractAtReferences
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('extractAtReferences', () => {
+  test('extracts absolute path references', () => {
+    const { extractAtReferences } = require('../src/lib/helpers');
+    const content = 'Load @/home/cam/.config/opencode/workflows/execute-plan.md for context.';
+    const refs = extractAtReferences(content);
+    assert.ok(refs.includes('/home/cam/.config/opencode/workflows/execute-plan.md'), 'should extract absolute path');
+  });
+
+  test('extracts relative .planning/ references', () => {
+    const { extractAtReferences } = require('../src/lib/helpers');
+    const content = 'See @.planning/STATE.md and @.planning/ROADMAP.md for details.';
+    const refs = extractAtReferences(content);
+    assert.ok(refs.includes('.planning/STATE.md'), 'should extract .planning/STATE.md');
+    assert.ok(refs.includes('.planning/ROADMAP.md'), 'should extract .planning/ROADMAP.md');
+  });
+
+  test('extracts references from context blocks', () => {
+    const { extractAtReferences } = require('../src/lib/helpers');
+    const content = `<context>
+@.planning/PROJECT.md
+@src/lib/output.js
+@src/router.js
+</context>`;
+    const refs = extractAtReferences(content);
+    assert.ok(refs.includes('.planning/PROJECT.md'), 'should extract .planning/PROJECT.md');
+    assert.ok(refs.includes('src/lib/output.js'), 'should extract src/lib/output.js');
+    assert.ok(refs.includes('src/router.js'), 'should extract src/router.js');
+  });
+
+  test('ignores email addresses and non-path mentions', () => {
+    const { extractAtReferences } = require('../src/lib/helpers');
+    const content = 'Contact @user or email user@example.com for help.';
+    const refs = extractAtReferences(content);
+    assert.strictEqual(refs.length, 0, 'should ignore non-path @mentions');
+  });
+
+  test('deduplicates references', () => {
+    const { extractAtReferences } = require('../src/lib/helpers');
+    const content = 'See @.planning/STATE.md and again @.planning/STATE.md here.';
+    const refs = extractAtReferences(content);
+    const stateRefs = refs.filter(r => r === '.planning/STATE.md');
+    assert.strictEqual(stateRefs.length, 1, 'should deduplicate references');
+  });
+
+  test('returns empty array for null/empty input', () => {
+    const { extractAtReferences } = require('../src/lib/helpers');
+    assert.deepStrictEqual(extractAtReferences(''), [], 'empty string returns empty array');
+    assert.deepStrictEqual(extractAtReferences(null), [], 'null returns empty array');
+    assert.deepStrictEqual(extractAtReferences(undefined), [], 'undefined returns empty array');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// context-budget baseline
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('context-budget baseline', () => {
+  test('baseline output has required fields', () => {
+    const result = runGsdTools('context-budget baseline --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok('timestamp' in data, 'should have timestamp');
+    assert.ok('workflow_count' in data, 'should have workflow_count');
+    assert.ok('total_tokens' in data, 'should have total_tokens');
+    assert.ok('workflows' in data, 'should have workflows array');
+    assert.ok(Array.isArray(data.workflows), 'workflows should be an array');
+  });
+
+  test('each workflow entry has required measurement fields', () => {
+    const result = runGsdTools('context-budget baseline --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.workflows.length > 0, 'should have at least 1 workflow');
+
+    const w = data.workflows[0];
+    assert.ok('name' in w, 'should have name');
+    assert.ok('workflow_tokens' in w, 'should have workflow_tokens');
+    assert.ok('ref_count' in w, 'should have ref_count');
+    assert.ok('ref_tokens' in w, 'should have ref_tokens');
+    assert.ok('total_tokens' in w, 'should have total_tokens');
+  });
+
+  test('workflows are sorted by total_tokens descending', () => {
+    const result = runGsdTools('context-budget baseline --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    for (let i = 1; i < data.workflows.length; i++) {
+      assert.ok(
+        data.workflows[i - 1].total_tokens >= data.workflows[i].total_tokens,
+        `workflow ${i - 1} (${data.workflows[i - 1].total_tokens}) should be >= workflow ${i} (${data.workflows[i].total_tokens})`
+      );
+    }
+  });
+
+  test('baseline file is created in .planning/baselines/', () => {
+    // Clean up any existing baselines first
+    const baselinesDir = path.join(process.cwd(), '.planning', 'baselines');
+    if (fs.existsSync(baselinesDir)) {
+      for (const f of fs.readdirSync(baselinesDir)) {
+        fs.unlinkSync(path.join(baselinesDir, f));
+      }
+    }
+
+    const result = runGsdTools('context-budget baseline --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    assert.ok(fs.existsSync(baselinesDir), 'baselines directory should exist');
+    const files = fs.readdirSync(baselinesDir).filter(f => f.startsWith('baseline-'));
+    assert.ok(files.length >= 1, 'should have at least 1 baseline file');
+  });
+
+  test('context-budget <path> still works (backward compat)', () => {
+    const result = runGsdTools('context-budget .planning/ROADMAP.md --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok('plan' in data, 'should have plan field');
+    assert.ok('estimates' in data, 'should have estimates field');
+    assert.strictEqual(data.plan, '.planning/ROADMAP.md', 'plan should be the file path');
+  });
+});
