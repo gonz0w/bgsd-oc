@@ -73,7 +73,7 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md — extractSections CLI command + section markers on large reference files [WKFL-01, WKFL-02] — completed 2026-02-22
 - [ ] 08-02-PLAN.md — Compress top 8 workflows via deduplication, prose tightening, selective loading [WKFL-03]
-- [ ] 08-03-PLAN.md — Research output summary/detail tiers + before/after baseline measurement [WKFL-04]
+- [x] 08-03-PLAN.md — Research output summary/detail tiers + before/after baseline measurement [WKFL-04] — completed 2026-02-22
 
 ### Phase 9: Tech Debt Cleanup
 **Goal**: Pre-existing tech debt items from v1.0 are resolved — broken test fixed, help coverage complete, plan templates created
@@ -96,5 +96,5 @@ Plans:
 | 5. Performance & Polish | v1.0 | 2/2 | Complete | 2026-02-22 |
 | 6. Token Measurement & Output Infrastructure | v1.1 | 3/3 | Complete | 2026-02-22 |
 | 7. Init Command Compaction | v1.1 | 3/3 | Complete | 2026-02-22 |
-| 8. Workflow & Reference Compression | v1.1 | 0/3 | Not started | - |
+| 8. Workflow & Reference Compression | v1.1 | 2/3 | In Progress | - |
 | 9. Tech Debt Cleanup | v1.1 | 0/? | Not started | - |

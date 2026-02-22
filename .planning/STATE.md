@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 8 of 9 (Workflow & Reference Compression)
-Plan: 1 of 3 — complete
+Plan: 3 of 3 — complete
 Status: Executing Phase 8
-Last activity: 2026-02-22 — Plan 08-01 executed (extract-sections CLI + reference file markers)
+Last activity: 2026-02-22 — Plan 08-03 executed (research template tiers + baseline comparison)
 
-Progress: [█████░░░░░] 50% (2/4 phases)
+Progress: [████████░░] 75% (3/4 phases)
 
 ## Accumulated Context
 
@@ -38,6 +38,8 @@ v1.1 decisions:
 - Section markers use HTML comments (<!-- section: name -->) — invisible to markdown rendering, machine-parseable
 - extract-sections supports dual-boundary parsing: ## headers and <!-- section --> markers in same file
 - Case-insensitive section matching for ergonomic CLI usage
+- Research templates use compact XML tags (<research_compact>, <compact_summary>) as default planner view
+- Top 6 workflow avg reduction -35.7% exceeds 30% Phase 8 target
 
 ### Pending Todos
 
@@ -54,5 +56,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 08-01-PLAN.md (extract-sections CLI + reference file markers)
+Stopped at: Completed 08-03-PLAN.md (research template tiers + baseline comparison)
 Resume file: None
