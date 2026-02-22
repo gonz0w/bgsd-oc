@@ -10,8 +10,10 @@
   },
   "scripts": {
     "test": "node --test bin/gsd-tools.test.cjs",
-    "build": "echo 'Build system not yet configured — see Phase 4 (BUILD-01)'"
+    "build": "node build.js"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.27.3"
+  },
   "private": true
 }
