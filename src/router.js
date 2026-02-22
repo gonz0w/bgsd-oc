@@ -70,6 +70,13 @@ async function main() {
     }
   }
 
+  // Parse --compact global flag for init command output reduction
+  const compactIdx = args.indexOf('--compact');
+  if (compactIdx !== -1) {
+    global._gsdCompactMode = true;
+    args.splice(compactIdx, 1);
+  }
+
   const command = args[0];
   const cwd = process.cwd();
 

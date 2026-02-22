@@ -136,7 +136,7 @@ Subcommands:
 Examples:
   gsd-tools milestone complete v1.0 --name "Initial Release" --archive-phases`,
 
-  'init': `Usage: gsd-tools init <workflow> [args] [--raw]
+  'init': `Usage: gsd-tools init <workflow> [args] [--raw] [--compact]
 
 Compound initialization commands for workflows.
 
@@ -154,9 +154,12 @@ Workflows:
   map-codebase            Codebase mapping context
   progress                Progress overview
 
+Flags:
+  --compact  Return essential-only fields (38-50% smaller)
+
 Examples:
   gsd-tools init execute-phase 03
-  gsd-tools init progress --raw`,
+  gsd-tools init progress --compact --raw`,
 
   'commit': `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend] [--raw]
 

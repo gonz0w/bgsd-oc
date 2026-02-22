@@ -151,7 +151,7 @@ Subcommands:
 
 Examples:
   gsd-tools milestone complete v1.0 --name "Initial Release" --archive-phases`,
-      "init": `Usage: gsd-tools init <workflow> [args] [--raw]
+      "init": `Usage: gsd-tools init <workflow> [args] [--raw] [--compact]
 
 Compound initialization commands for workflows.
 
@@ -169,9 +169,12 @@ Workflows:
   map-codebase            Codebase mapping context
   progress                Progress overview
 
+Flags:
+  --compact  Return essential-only fields (38-50% smaller)
+
 Examples:
   gsd-tools init execute-phase 03
-  gsd-tools init progress --raw`,
+  gsd-tools init progress --compact --raw`,
       "commit": `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend] [--raw]
 
 Commit planning documents to git.
@@ -3206,6 +3209,21 @@ var require_init = __commonJS({
         roadmap_path: ".planning/ROADMAP.md",
         config_path: ".planning/config.json"
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          phase_found: result.phase_found,
+          phase_dir: result.phase_dir,
+          phase_number: result.phase_number,
+          phase_name: result.phase_name,
+          plans: (result.plans || []).map((p) => typeof p === "string" ? p : p.file || p),
+          incomplete_plans: (result.incomplete_plans || []).map((p) => typeof p === "string" ? p : p.file || p),
+          plan_count: result.plan_count,
+          incomplete_count: result.incomplete_count,
+          branch_name: result.branch_name,
+          verifier_enabled: result.verifier_enabled
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitPlanPhase(cwd, phase, raw) {
@@ -3267,6 +3285,27 @@ var require_init = __commonJS({
           debugLog("init.planPhase", "read phase files failed", e);
         }
       }
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          phase_found: result.phase_found,
+          phase_dir: result.phase_dir,
+          phase_number: result.phase_number,
+          phase_name: result.phase_name,
+          phase_slug: result.phase_slug,
+          padded_phase: result.padded_phase,
+          has_research: result.has_research,
+          has_context: result.has_context,
+          has_plans: result.has_plans,
+          plan_count: result.plan_count,
+          research_enabled: result.research_enabled,
+          plan_checker_enabled: result.plan_checker_enabled
+        };
+        if (result.context_path) compactResult.context_path = result.context_path;
+        if (result.research_path) compactResult.research_path = result.research_path;
+        if (result.verification_path) compactResult.verification_path = result.verification_path;
+        if (result.uat_path) compactResult.uat_path = result.uat_path;
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitNewProject(cwd, raw) {
@@ -3310,6 +3349,20 @@ var require_init = __commonJS({
         // File paths
         project_path: ".planning/PROJECT.md"
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          is_brownfield: result.is_brownfield,
+          needs_codebase_map: result.needs_codebase_map,
+          has_existing_code: result.has_existing_code,
+          has_package_file: result.has_package_file,
+          project_exists: result.project_exists,
+          has_codebase_map: result.has_codebase_map,
+          planning_exists: result.planning_exists,
+          has_git: result.has_git,
+          brave_search_available: result.brave_search_available
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitNewMilestone(cwd, raw) {
@@ -3335,6 +3388,17 @@ var require_init = __commonJS({
         roadmap_path: ".planning/ROADMAP.md",
         state_path: ".planning/STATE.md"
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          current_milestone: result.current_milestone,
+          current_milestone_name: result.current_milestone_name,
+          project_exists: result.project_exists,
+          roadmap_exists: result.roadmap_exists,
+          state_exists: result.state_exists,
+          research_enabled: result.research_enabled
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitQuick(cwd, description, raw) {
@@ -3373,6 +3437,17 @@ var require_init = __commonJS({
         roadmap_exists: pathExistsInternal(cwd, ".planning/ROADMAP.md"),
         planning_exists: pathExistsInternal(cwd, ".planning")
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          next_num: result.next_num,
+          slug: result.slug,
+          description: result.description,
+          task_dir: result.task_dir,
+          date: result.date,
+          planning_exists: result.planning_exists
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitResume(cwd, raw) {
@@ -3399,6 +3474,15 @@ var require_init = __commonJS({
         // Config
         commit_docs: config.commit_docs
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          state_exists: result.state_exists,
+          planning_exists: result.planning_exists,
+          has_interrupted_agent: result.has_interrupted_agent,
+          interrupted_agent_id: result.interrupted_agent_id
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitVerifyWork(cwd, phase, raw) {
@@ -3421,6 +3505,16 @@ var require_init = __commonJS({
         // Existing artifacts
         has_verification: phaseInfo?.has_verification || false
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          phase_found: result.phase_found,
+          phase_dir: result.phase_dir,
+          phase_number: result.phase_number,
+          phase_name: result.phase_name,
+          has_verification: result.has_verification
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitPhaseOp(cwd, phase, raw) {
@@ -3494,6 +3588,26 @@ var require_init = __commonJS({
           debugLog("init.phaseOp", "read phase files failed", e);
         }
       }
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          phase_found: result.phase_found,
+          phase_dir: result.phase_dir,
+          phase_number: result.phase_number,
+          phase_name: result.phase_name,
+          phase_slug: result.phase_slug,
+          padded_phase: result.padded_phase,
+          has_research: result.has_research,
+          has_context: result.has_context,
+          has_plans: result.has_plans,
+          has_verification: result.has_verification,
+          plan_count: result.plan_count
+        };
+        if (result.context_path) compactResult.context_path = result.context_path;
+        if (result.research_path) compactResult.research_path = result.research_path;
+        if (result.verification_path) compactResult.verification_path = result.verification_path;
+        if (result.uat_path) compactResult.uat_path = result.uat_path;
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitTodos(cwd, area, raw) {
@@ -3545,6 +3659,16 @@ var require_init = __commonJS({
         todos_dir_exists: pathExistsInternal(cwd, ".planning/todos"),
         pending_dir_exists: pathExistsInternal(cwd, ".planning/todos/pending")
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          todo_count: result.todo_count,
+          todos: result.todos,
+          area_filter: result.area_filter,
+          date: result.date,
+          pending_dir_exists: result.pending_dir_exists
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitMilestoneOp(cwd, raw) {
@@ -3597,6 +3721,18 @@ var require_init = __commonJS({
         archive_exists: pathExistsInternal(cwd, ".planning/archive"),
         phases_dir_exists: pathExistsInternal(cwd, ".planning/phases")
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          milestone_version: result.milestone_version,
+          milestone_name: result.milestone_name,
+          phase_count: result.phase_count,
+          completed_phases: result.completed_phases,
+          all_phases_complete: result.all_phases_complete,
+          archived_milestones: result.archived_milestones,
+          archive_count: result.archive_count
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitMapCodebase(cwd, raw) {
@@ -3624,6 +3760,16 @@ var require_init = __commonJS({
         planning_exists: pathExistsInternal(cwd, ".planning"),
         codebase_dir_exists: pathExistsInternal(cwd, ".planning/codebase")
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          existing_maps: result.existing_maps,
+          has_maps: result.has_maps,
+          planning_exists: result.planning_exists,
+          codebase_dir_exists: result.codebase_dir_exists,
+          parallelization: result.parallelization
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function cmdInitProgress(cwd, raw) {
@@ -3709,6 +3855,21 @@ var require_init = __commonJS({
         // Session diff (what changed since last session)
         session_diff: getSessionDiffSummary(cwd)
       };
+      if (global._gsdCompactMode) {
+        const compactResult = {
+          milestone_version: result.milestone_version,
+          milestone_name: result.milestone_name,
+          phases: result.phases,
+          phase_count: result.phase_count,
+          completed_count: result.completed_count,
+          in_progress_count: result.in_progress_count,
+          current_phase: result.current_phase,
+          next_phase: result.next_phase,
+          has_work_in_progress: result.has_work_in_progress,
+          session_diff: result.session_diff
+        };
+        return output(compactResult, raw);
+      }
       output(result, raw);
     }
     function getSessionDiffSummary(cwd) {
@@ -6527,6 +6688,11 @@ var require_router = __commonJS({
         if (requestedFields) {
           global._gsdRequestedFields = requestedFields;
         }
+      }
+      const compactIdx = args.indexOf("--compact");
+      if (compactIdx !== -1) {
+        global._gsdCompactMode = true;
+        args.splice(compactIdx, 1);
       }
       const command = args[0];
       const cwd = process.cwd();
