@@ -3732,8 +3732,8 @@ describe('codebase-impact batch grep', () => {
 
 describe('configurable context window', () => {
   test('context-budget uses default context window (200K)', () => {
-    // Our config.json does not set context_window, so defaults should apply
-    const result = runGsdTools('context-budget .planning/phases/05-performance-polish/05-01-PLAN.md --raw');
+    // Use a plan file that exists in current milestone
+    const result = runGsdTools('context-budget .planning/phases/06-token-measurement-output-infrastructure/06-01-PLAN.md --raw');
     assert.ok(result.success, `context-budget should succeed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.estimates.context_window, 200000, 'should default to 200K context window');
@@ -3741,7 +3741,7 @@ describe('configurable context window', () => {
   });
 
   test('context-budget output includes context_window field', () => {
-    const result = runGsdTools('context-budget .planning/phases/05-performance-polish/05-02-PLAN.md --raw');
+    const result = runGsdTools('context-budget .planning/phases/06-token-measurement-output-infrastructure/06-02-PLAN.md --raw');
     assert.ok(result.success, `context-budget should succeed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.ok('context_window' in data.estimates, 'estimates should contain context_window');
@@ -3844,5 +3844,69 @@ describe('--fields flag', () => {
       { goal: 'x' },
       { goal: 'z' },
     ], 'should filter nested array fields via dot-notation');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// token estimation (context.js)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('token estimation', () => {
+  test('estimateTokens returns a number for text input', () => {
+    const { estimateTokens } = require('../src/lib/context');
+    const tokens = estimateTokens('Hello world, this is a test string for token counting.');
+    assert.ok(typeof tokens === 'number', 'should return a number');
+    assert.ok(tokens > 0, 'should be positive');
+    // "Hello world, this is a test string for token counting." is ~13 tokens with cl100k_base
+    assert.ok(tokens >= 8 && tokens <= 20, `token count should be reasonable (got ${tokens})`);
+  });
+
+  test('estimateTokens returns 0 for empty/null input', () => {
+    const { estimateTokens } = require('../src/lib/context');
+    assert.strictEqual(estimateTokens(''), 0, 'empty string should be 0');
+    assert.strictEqual(estimateTokens(null), 0, 'null should be 0');
+    assert.strictEqual(estimateTokens(undefined), 0, 'undefined should be 0');
+  });
+
+  test('estimateJsonTokens works on objects', () => {
+    const { estimateJsonTokens } = require('../src/lib/context');
+    const tokens = estimateJsonTokens({ name: 'test', count: 42, items: ['a', 'b', 'c'] });
+    assert.ok(typeof tokens === 'number', 'should return a number');
+    assert.ok(tokens > 0, 'should be positive for non-empty object');
+  });
+
+  test('checkBudget returns correct structure', () => {
+    const { checkBudget } = require('../src/lib/context');
+    const result = checkBudget(50000, { context_window: 200000, context_target_percent: 50 });
+    assert.strictEqual(result.tokens, 50000, 'tokens should match input');
+    assert.strictEqual(result.percent, 25, 'percent should be 25');
+    assert.strictEqual(result.warning, false, 'should not warn at 25%');
+    assert.strictEqual(result.recommendation, null, 'no recommendation at 25%');
+  });
+
+  test('checkBudget warns when over target', () => {
+    const { checkBudget } = require('../src/lib/context');
+    const result = checkBudget(120000, { context_window: 200000, context_target_percent: 50 });
+    assert.strictEqual(result.percent, 60, 'percent should be 60');
+    assert.strictEqual(result.warning, true, 'should warn at 60%');
+    assert.ok(result.recommendation !== null, 'should have recommendation');
+  });
+
+  test('context-budget uses tokenx-based estimates (not lines*4)', () => {
+    const result = runGsdTools('context-budget .planning/phases/06-token-measurement-output-infrastructure/06-01-PLAN.md --raw');
+    assert.ok(result.success, `context-budget should succeed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    // Should have both tokenx estimates and heuristic for comparison
+    assert.ok('plan_tokens' in data.estimates, 'should have plan_tokens');
+    assert.ok('heuristic_tokens' in data.estimates, 'should have heuristic_tokens');
+    assert.ok(typeof data.estimates.plan_tokens === 'number', 'plan_tokens should be number');
+    assert.ok(typeof data.estimates.heuristic_tokens === 'number', 'heuristic_tokens should be number');
+
+    // tokenx estimate should differ from lines*4 heuristic (they use different algorithms)
+    // The heuristic counts lines and multiplies by 4. tokenx actually estimates BPE tokens.
+    // They should both be > 0 but usually different values
+    assert.ok(data.estimates.plan_tokens > 0, 'plan_tokens should be positive');
+    assert.ok(data.estimates.total_tokens > 0, 'total_tokens should be positive');
   });
 });

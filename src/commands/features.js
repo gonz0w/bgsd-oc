@@ -9,6 +9,7 @@ const { CONFIG_SCHEMA } = require('../lib/constants');
 const { safeReadFile, findPhaseInternal, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, getMilestoneInfo } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
+const { estimateTokens, estimateJsonTokens, checkBudget } = require('../lib/context');
 
 function cmdSessionDiff(cwd, raw) {
   // Get last activity from STATE.md
@@ -99,9 +100,11 @@ function cmdContextBudget(cwd, planPath, raw) {
   const content = fs.readFileSync(path.join(cwd, planPath), 'utf-8');
   const fm = extractFrontmatter(content);
 
-  // Count files and estimate sizes
+  // Count files and estimate sizes using tokenx (accurate) and old heuristic (for comparison)
   const filesModified = fm.files_modified || [];
   let totalLines = 0;
+  let fileReadTokens = 0;
+  let heuristicFileReadTokens = 0;
   let existingFiles = 0;
   let newFiles = 0;
   const fileDetails = [];
@@ -113,15 +116,18 @@ function cmdContextBudget(cwd, planPath, raw) {
       try {
         const fileContent = fs.readFileSync(fullPath, 'utf-8');
         const lines = fileContent.split('\n').length;
+        const tokens = estimateTokens(fileContent);
         totalLines += lines;
-        fileDetails.push({ path: file, lines, exists: true });
+        fileReadTokens += tokens;
+        heuristicFileReadTokens += lines * 4;
+        fileDetails.push({ path: file, lines, tokens, exists: true });
       } catch (e) {
         debugLog('feature.contextBudget', 'read failed', e);
-        fileDetails.push({ path: file, lines: 0, exists: true, error: 'unreadable' });
+        fileDetails.push({ path: file, lines: 0, tokens: 0, exists: true, error: 'unreadable' });
       }
     } else {
       newFiles++;
-      fileDetails.push({ path: file, lines: 0, exists: false });
+      fileDetails.push({ path: file, lines: 0, tokens: 0, exists: false });
     }
   }
 
@@ -129,12 +135,13 @@ function cmdContextBudget(cwd, planPath, raw) {
   const taskMatches = content.match(/<task\s/gi) || [];
   const taskCount = taskMatches.length;
 
-  // Estimate context consumption
-  const planTokens = content.split('\n').length * 4;
-  const fileReadTokens = totalLines * 4;
-  const executionTokens = taskCount * 3500;
-  const testTokens = taskCount * 750;
+  // Estimate context consumption using tokenx for text content
+  const planTokens = estimateTokens(content);
+  const heuristicPlanTokens = content.split('\n').length * 4;
+  const executionTokens = taskCount * 3500; // Heuristic for execution overhead (not text)
+  const testTokens = taskCount * 750;       // Heuristic for test overhead (not text)
   const totalEstimate = planTokens + fileReadTokens + executionTokens + testTokens;
+  const heuristicTotal = heuristicPlanTokens + heuristicFileReadTokens + executionTokens + testTokens;
 
   // Read context window settings from config (defaults: 200K tokens, 50% target)
   const config = loadConfig(cwd);
@@ -176,6 +183,7 @@ function cmdContextBudget(cwd, planPath, raw) {
       execution_tokens: executionTokens,
       test_tokens: testTokens,
       total_tokens: totalEstimate,
+      heuristic_tokens: heuristicTotal,
       context_window: contextWindow,
       context_percent: estimatedPercent,
       target_percent: targetPercent,
