@@ -76,9 +76,9 @@ Plans:
   2. Source code in `src/` follows strict `router -> commands -> lib` dependency direction with no circular imports
   3. `deploy.sh` calls the build step before copying and runs a smoke test that verifies the deployed artifact can execute `current-timestamp --raw` successfully
   4. All existing tests pass against the bundled output with zero behavioral differences from the pre-split monolith
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 Plans:
-- [ ] 04-01-PLAN.md — esbuild pipeline setup (proof-of-concept bundling)
+- [x] 04-01-PLAN.md — esbuild pipeline setup (proof-of-concept bundling)
 - [ ] 04-02-PLAN.md — Source module split into src/
 - [ ] 04-03-PLAN.md — Deploy script update with build + smoke test
 
@@ -102,5 +102,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation & Safety Nets | 4/4 | Complete | 2026-02-22 |
 | 2. Error Handling & Hardening | 2/2 | Complete | 2026-02-22 |
 | 3. Developer Experience & Discoverability | 3/3 | Complete | 2026-02-22 |
-| 4. Build System & Module Split | 0/? | Not started | - |
+| 4. Build System & Module Split | 1/3 | In Progress | - |
 | 5. Performance & Polish | 0/? | Not started | - |
