@@ -1,0 +1,17 @@
+{
+  "name": "gsd-tools",
+  "version": "1.0.0",
+  "description": "CLI utility for GSD workflow operations",
+  "bin": {
+    "gsd-tools": "./bin/gsd-tools.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test bin/gsd-tools.test.cjs",
+    "build": "echo 'Build system not yet configured — see Phase 4 (BUILD-01)'"
+  },
+  "devDependencies": {},
+  "private": true
+}
