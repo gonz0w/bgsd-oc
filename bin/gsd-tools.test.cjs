@@ -3319,7 +3319,7 @@ describe('temp file cleanup', () => {
     // by checking the source code directly (the handler is at module level)
     const source = fs.readFileSync(TOOLS_PATH, 'utf-8');
     assert.ok(
-      source.includes("process.on('exit'"),
+      source.includes("process.on('exit'") || source.includes('process.on("exit"'),
       'gsd-tools.cjs should register a process.on(exit) handler'
     );
     assert.ok(
@@ -3550,74 +3550,62 @@ describe('config-migrate command', () => {
 // Build System Tests (Phase 4, Plan 01)
 // ============================================================
 
-const BUNDLE_PATH = path.join(__dirname, 'gsd-tools.bundle.cjs');
+// Build output is now bin/gsd-tools.cjs (same as TOOLS_PATH) — built from src/index.js
+const BUILD_OUTPUT_PATH = TOOLS_PATH;  // bin/gsd-tools.cjs is now the build artifact
 
 describe('build system', () => {
-  afterEach(() => {
-    // Clean up bundled file after tests
-    try { fs.unlinkSync(BUNDLE_PATH); } catch (_) { /* ignore */ }
-  });
-
   test('npm run build succeeds with exit code 0', () => {
     const result = execSync('npm run build', {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf-8',
       timeout: 15000,
     });
-    assert.ok(result.includes('Built bin/gsd-tools.bundle.cjs'), `Expected build output, got: ${result.slice(0, 200)}`);
+    assert.ok(result.includes('Built bin/gsd-tools.cjs'), `Expected build output, got: ${result.slice(0, 200)}`);
     assert.ok(result.includes('Smoke test passed'), `Expected smoke test pass, got: ${result.slice(0, 200)}`);
   });
 
-  test('build produces bin/gsd-tools.bundle.cjs', () => {
+  test('build produces bin/gsd-tools.cjs from src/', () => {
     execSync('npm run build', {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf-8',
       timeout: 15000,
     });
-    assert.ok(fs.existsSync(BUNDLE_PATH), 'bundle file should exist after build');
-    const stat = fs.statSync(BUNDLE_PATH);
-    assert.ok(stat.size > 10000, `bundle should be substantial (got ${stat.size} bytes)`);
+    assert.ok(fs.existsSync(BUILD_OUTPUT_PATH), 'build output file should exist after build');
+    const stat = fs.statSync(BUILD_OUTPUT_PATH);
+    assert.ok(stat.size > 10000, `build output should be substantial (got ${stat.size} bytes)`);
   });
 
-  test('bundled file has working shebang on line 1', () => {
+  test('built file has working shebang on line 1', () => {
     execSync('npm run build', {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf-8',
       timeout: 15000,
     });
-    const content = fs.readFileSync(BUNDLE_PATH, 'utf-8');
-    assert.ok(content.startsWith('#!/usr/bin/env node\n'), 'bundle should start with shebang');
+    const content = fs.readFileSync(BUILD_OUTPUT_PATH, 'utf-8');
+    assert.ok(content.startsWith('#!/usr/bin/env node\n'), 'build output should start with shebang');
     // Verify no double shebang
     const lines = content.split('\n');
     const shebangCount = lines.filter(l => l.startsWith('#!')).length;
     assert.strictEqual(shebangCount, 1, `Expected exactly 1 shebang, found ${shebangCount}`);
   });
 
-  test('bundled current-timestamp matches original output format', () => {
+  test('built current-timestamp outputs valid ISO format', () => {
     execSync('npm run build', {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf-8',
       timeout: 15000,
     });
 
-    const bundleResult = execSync(`node "${BUNDLE_PATH}" current-timestamp --raw`, {
+    const result = execSync(`node "${BUILD_OUTPUT_PATH}" current-timestamp --raw`, {
       encoding: 'utf-8',
       timeout: 5000,
     }).trim();
 
-    const originalResult = execSync(`node "${TOOLS_PATH}" current-timestamp --raw`, {
-      encoding: 'utf-8',
-      timeout: 5000,
-    }).trim();
-
-    // Both should be ISO timestamps
-    assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(bundleResult),
-      `Bundle timestamp should be ISO format, got: ${bundleResult}`);
-    assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(originalResult),
-      `Original timestamp should be ISO format, got: ${originalResult}`);
+    assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(result),
+      `Build output timestamp should be ISO format, got: ${result}`);
   });
 
-  test('bundled state load matches original output in temp project', () => {
+  test('built state load works in temp project', () => {
     execSync('npm run build', {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf-8',
@@ -3643,26 +3631,15 @@ Progress: [████░░░░░░] 40%
         model_profile: 'balanced',
       }));
 
-      // state load outputs key=value format, not JSON — compare directly
-      const bundleResult = execSync(`node "${BUNDLE_PATH}" state load --raw`, {
+      const result = execSync(`node "${BUILD_OUTPUT_PATH}" state load --raw`, {
         cwd: tmpDir,
         encoding: 'utf-8',
         timeout: 5000,
       }).trim();
-
-      const originalResult = execSync(`node "${TOOLS_PATH}" state load --raw`, {
-        cwd: tmpDir,
-        encoding: 'utf-8',
-        timeout: 5000,
-      }).trim();
-
-      // Both outputs should be identical key=value format
-      assert.strictEqual(bundleResult, originalResult,
-        'bundled state load output should be identical to original');
 
       // Verify key fields are present in output
-      assert.ok(bundleResult.includes('model_profile=balanced'), 'should contain config value');
-      assert.ok(bundleResult.includes('state_exists=true'), 'should detect STATE.md');
+      assert.ok(result.includes('model_profile=balanced'), 'should contain config value');
+      assert.ok(result.includes('state_exists=true'), 'should detect STATE.md');
     } finally {
       cleanup(tmpDir);
     }

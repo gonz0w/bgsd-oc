@@ -12,7 +12,7 @@ const { execSync } = require('child_process');
 const stripShebangPlugin = {
   name: 'strip-shebang',
   setup(build) {
-    build.onLoad({ filter: /\.cjs$/ }, async (args) => {
+    build.onLoad({ filter: /\.c?js$/ }, async (args) => {
       let contents = fs.readFileSync(args.path, 'utf-8');
       if (contents.startsWith('#!')) {
         contents = contents.replace(/^#!.*\n/, '');
@@ -26,8 +26,8 @@ async function build() {
   const start = Date.now();
 
   await esbuild.build({
-    entryPoints: ['bin/gsd-tools.cjs'],
-    outfile: 'bin/gsd-tools.bundle.cjs',
+    entryPoints: ['src/index.js'],
+    outfile: 'bin/gsd-tools.cjs',
     bundle: true,
     platform: 'node',
     format: 'cjs',
@@ -42,11 +42,11 @@ async function build() {
   });
 
   const elapsed = Date.now() - start;
-  console.log(`Built bin/gsd-tools.bundle.cjs in ${elapsed}ms`);
+  console.log(`Built bin/gsd-tools.cjs in ${elapsed}ms`);
 
   // Smoke test
   try {
-    const result = execSync('node bin/gsd-tools.bundle.cjs current-timestamp --raw', {
+    const result = execSync('node bin/gsd-tools.cjs current-timestamp --raw', {
       encoding: 'utf-8',
       timeout: 5000,
     });
