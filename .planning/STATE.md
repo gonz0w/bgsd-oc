@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 1 of 5 (Foundation & Safety Nets)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-22 — Completed 01-01-PLAN.md (project scaffolding)
+Last activity: 2026-02-22 — Completed 01-02-PLAN.md (CONFIG_SCHEMA extraction)
 
-Progress: [█░░░░░░░░░] 5%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 2 min
-- Total execution time: 0.03 hours
+- Total plans completed: 2
+- Average duration: 2.5 min
+- Total execution time: 0.08 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1 | 2 min | 2 min |
+| 01-foundation | 2 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (3 min)
 - Trend: Starting
 
 *Updated after each plan completion*
@@ -46,6 +46,7 @@ Recent decisions affecting current work:
 - [Roadmap]: DOC-01 (line count fix) grouped with Phase 1 to avoid a single-requirement phase
 - [Research]: esbuild confirmed as bundler, lru-cache v10 for caching, both minimal additions
 - [01-01]: private:true, version 1.0.0, placeholder build script until Phase 4
+- [01-02]: New configs include all 16 fields (was 9), alias support in loadConfig, brave_search auto-detect kept as runtime override
 
 ### Pending Todos
 
@@ -57,11 +58,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 1 needs config field alias mapping (3-way comparison) before CONFIG_SCHEMA extraction — research flagged this as a gap
+- ~~Phase 1 needs config field alias mapping (3-way comparison) before CONFIG_SCHEMA extraction~~ — RESOLVED in 01-02
 - Golden fixture selection from event-pipeline needed before state mutation tests
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-01-PLAN.md (project scaffolding)
+Stopped at: Completed 01-02-PLAN.md (CONFIG_SCHEMA extraction)
 Resume file: None

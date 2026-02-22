@@ -10,7 +10,7 @@ Requirements for this improvement pass. Each maps to roadmap phases.
 ### Foundation & Safety
 
 - [ ] **FOUND-01**: Debug logging via `GSD_DEBUG` env var — a single `debugLog(context, message)` helper replaces all 55 silent catch blocks with gated stderr logging, no behavioral change when env var unset
-- [ ] **FOUND-02**: Single `CONFIG_SCHEMA` constant extracted — `loadConfig()`, `cmdConfigEnsureSection()`, and `cmdValidateConfig()` all derive from one canonical schema with alias mappings
+- [x] **FOUND-02**: Single `CONFIG_SCHEMA` constant extracted — `loadConfig()`, `cmdConfigEnsureSection()`, and `cmdValidateConfig()` all derive from one canonical schema with alias mappings
 - [ ] **FOUND-03**: State mutation tests — round-trip tests for all 8 state mutation commands (`state update`, `state patch`, `state add-decision`, `state add-blocker`, `state resolve-blocker`, `state record-session`, `state advance-plan`, `state record-metric`)
 - [ ] **FOUND-04**: Frontmatter round-trip tests — `extractFrontmatter()` → `reconstructFrontmatter()` cycle verified lossless for edge cases (nested objects, arrays, quoted strings with colons)
 - [x] **FOUND-05**: `package.json` created with `name`, `version`, `engines: { node: ">=18" }`, `scripts: { test, build }`, devDependencies for esbuild
@@ -83,7 +83,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FOUND-01 | Phase 2 | Pending |
-| FOUND-02 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Complete |
 | FOUND-03 | Phase 1 | Pending |
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Complete |
