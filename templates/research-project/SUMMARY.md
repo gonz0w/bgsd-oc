@@ -12,6 +12,30 @@ Template for `.planning/research/SUMMARY.md` — executive summary of project re
 **Researched:** [date]
 **Confidence:** [HIGH/MEDIUM/LOW]
 
+<!-- section: compact -->
+<compact_summary>
+<!-- The compact summary is the DEFAULT view for orchestrators and planners.
+     Keep it under 30 lines. Synthesizes all 4 research areas.
+     Full sections below are loaded on-demand via extract-sections. -->
+
+**Summary:** [2-3 sentence overview: what was researched, primary recommendation, key risk]
+
+**Recommended stack:** [comma-separated list of core technologies with purposes]
+
+**Architecture:** [one-liner: primary pattern and major components]
+
+**Top pitfalls:**
+1. [Pitfall] — [how to avoid]
+2. [Pitfall] — [how to avoid]
+3. [Pitfall] — [how to avoid]
+
+**Suggested phases:** [numbered list of phase names, one-liner rationale each]
+
+**Confidence:** [overall level] | **Gaps:** [any unresolved areas]
+</compact_summary>
+<!-- /section -->
+
+<!-- section: executive_summary -->
 ## Executive Summary
 
 [2-3 paragraph overview of research findings]
@@ -19,7 +43,9 @@ Template for `.planning/research/SUMMARY.md` — executive summary of project re
 - What type of product this is and how experts build it
 - The recommended approach based on research
 - Key risks and how to mitigate them
+<!-- /section -->
 
+<!-- section: key_findings -->
 ## Key Findings
 
 ### Recommended Stack
@@ -62,7 +88,9 @@ Template for `.planning/research/SUMMARY.md` — executive summary of project re
 1. **[Pitfall]** — [how to avoid]
 2. **[Pitfall]** — [how to avoid]
 3. **[Pitfall]** — [how to avoid]
+<!-- /section -->
 
+<!-- section: roadmap_implications -->
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
@@ -99,7 +127,9 @@ Phases likely needing deeper research during planning:
 
 Phases with standard patterns (skip research-phase):
 - **Phase [X]:** [reason — e.g., "well-documented, established patterns"]
+<!-- /section -->
 
+<!-- section: confidence -->
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
@@ -117,7 +147,9 @@ Phases with standard patterns (skip research-phase):
 
 - [Gap]: [how to handle during planning/execution]
 - [Gap]: [how to handle during planning/execution]
+<!-- /section -->
 
+<!-- section: sources -->
 ## Sources
 
 ### Primary (HIGH confidence)

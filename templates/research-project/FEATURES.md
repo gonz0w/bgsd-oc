@@ -11,6 +11,26 @@ Template for `.planning/research/FEATURES.md` — feature landscape for the proj
 **Researched:** [date]
 **Confidence:** [HIGH/MEDIUM/LOW]
 
+<!-- section: compact -->
+<features_compact>
+<!-- Compact view for planners. Keep under 30 lines. -->
+
+**Table stakes (must have):**
+- [Feature] — [why expected]
+- [Feature] — [why expected]
+- [Feature] — [why expected]
+
+**Differentiators:**
+- [Feature] — [value proposition]
+- [Feature] — [value proposition]
+
+**Defer (v2+):** [comma-separated list of deferred features]
+
+**Key dependencies:** [Feature A] requires [Feature B]; [Feature E] conflicts with [Feature F]
+</features_compact>
+<!-- /section -->
+
+<!-- section: feature_landscape -->
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
@@ -41,7 +61,9 @@ Features that seem good but create problems.
 |---------|---------------|-----------------|-------------|
 | [feature] | [surface appeal] | [actual problems] | [better approach] |
 | [feature] | [surface appeal] | [actual problems] | [better approach] |
+<!-- /section -->
 
+<!-- section: dependencies -->
 ## Feature Dependencies
 
 ```
@@ -59,7 +81,9 @@ Features that seem good but create problems.
 - **[Feature A] requires [Feature B]:** [why the dependency exists]
 - **[Feature D] enhances [Feature A]:** [how they work together]
 - **[Feature E] conflicts with [Feature F]:** [why they're incompatible]
+<!-- /section -->
 
+<!-- section: mvp -->
 ## MVP Definition
 
 ### Launch With (v1)
@@ -83,7 +107,9 @@ Features to defer until product-market fit is established.
 
 - [ ] [Feature] — [why defer]
 - [ ] [Feature] — [why defer]
+<!-- /section -->
 
+<!-- section: prioritization -->
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
@@ -96,7 +122,9 @@ Features to defer until product-market fit is established.
 - P1: Must have for launch
 - P2: Should have, add when possible
 - P3: Nice to have, future consideration
+<!-- /section -->
 
+<!-- section: competitors -->
 ## Competitor Feature Analysis
 
 | Feature | Competitor A | Competitor B | Our Approach |

@@ -11,6 +11,26 @@ Template for `.planning/research/PITFALLS.md` — common mistakes to avoid in th
 **Researched:** [date]
 **Confidence:** [HIGH/MEDIUM/LOW]
 
+<!-- section: compact -->
+<pitfalls_compact>
+<!-- Compact view for planners. Keep under 25 lines. -->
+
+**Top pitfalls:**
+1. **[Pitfall name]** — [how to avoid] (Phase [X])
+2. **[Pitfall name]** — [how to avoid] (Phase [X])
+3. **[Pitfall name]** — [how to avoid] (Phase [X])
+
+**Tech debt traps:** [comma-separated list of shortcuts to avoid]
+
+**Security risks:** [comma-separated list of domain-specific security issues]
+
+**"Looks done but isn't" checks:**
+- [Feature]: verify [check]
+- [Feature]: verify [check]
+</pitfalls_compact>
+<!-- /section -->
+
+<!-- section: critical_pitfalls -->
 ## Critical Pitfalls
 
 ### Pitfall 1: [Name]
@@ -71,7 +91,9 @@ Template for `.planning/research/PITFALLS.md` — common mistakes to avoid in th
 ---
 
 [Continue for all critical pitfalls...]
+<!-- /section -->
 
+<!-- section: tech_debt -->
 ## Technical Debt Patterns
 
 Shortcuts that seem reasonable but create long-term problems.
@@ -91,7 +113,9 @@ Common mistakes when connecting to external services.
 | [service] | [what people do wrong] | [what to do instead] |
 | [service] | [what people do wrong] | [what to do instead] |
 | [service] | [what people do wrong] | [what to do instead] |
+<!-- /section -->
 
+<!-- section: performance -->
 ## Performance Traps
 
 Patterns that work at small scale but fail as usage grows.
@@ -101,7 +125,9 @@ Patterns that work at small scale but fail as usage grows.
 | [trap] | [how you notice] | [how to avoid] | [scale threshold] |
 | [trap] | [how you notice] | [how to avoid] | [scale threshold] |
 | [trap] | [how you notice] | [how to avoid] | [scale threshold] |
+<!-- /section -->
 
+<!-- section: security -->
 ## Security Mistakes
 
 Domain-specific security issues beyond general web security.
@@ -111,7 +137,9 @@ Domain-specific security issues beyond general web security.
 | [mistake] | [what could happen] | [how to avoid] |
 | [mistake] | [what could happen] | [how to avoid] |
 | [mistake] | [what could happen] | [how to avoid] |
+<!-- /section -->
 
+<!-- section: ux -->
 ## UX Pitfalls
 
 Common user experience mistakes in this domain.
@@ -121,7 +149,9 @@ Common user experience mistakes in this domain.
 | [pitfall] | [how users suffer] | [what to do instead] |
 | [pitfall] | [how users suffer] | [what to do instead] |
 | [pitfall] | [how users suffer] | [what to do instead] |
+<!-- /section -->
 
+<!-- section: looks_done -->
 ## "Looks Done But Isn't" Checklist
 
 Things that appear complete but are missing critical pieces.
@@ -130,7 +160,9 @@ Things that appear complete but are missing critical pieces.
 - [ ] **[Feature]:** Often missing [thing] — verify [check]
 - [ ] **[Feature]:** Often missing [thing] — verify [check]
 - [ ] **[Feature]:** Often missing [thing] — verify [check]
+<!-- /section -->
 
+<!-- section: recovery -->
 ## Recovery Strategies
 
 When pitfalls occur despite prevention, how to recover.
@@ -150,7 +182,9 @@ How roadmap phases should address these pitfalls.
 | [pitfall] | Phase [X] | [how to verify prevention worked] |
 | [pitfall] | Phase [X] | [how to verify prevention worked] |
 | [pitfall] | Phase [X] | [how to verify prevention worked] |
+<!-- /section -->
 
+<!-- section: sources -->
 ## Sources
 
 - [Post-mortems referenced]

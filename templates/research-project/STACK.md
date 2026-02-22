@@ -11,6 +11,27 @@ Template for `.planning/research/STACK.md` — recommended technologies for the 
 **Researched:** [date]
 **Confidence:** [HIGH/MEDIUM/LOW]
 
+<!-- section: compact -->
+<stack_compact>
+<!-- Compact view for planners. Keep under 25 lines. -->
+
+**Core stack:**
+
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| [name] | [what it does] | [ver] |
+| [name] | [what it does] | [ver] |
+| [name] | [what it does] | [ver] |
+
+**Key supporting libs:** [comma-separated: name (purpose)]
+
+**Avoid:** [comma-separated list of technologies to not use, with one-word reason]
+
+**Install:** `npm install [core packages]`
+</stack_compact>
+<!-- /section -->
+
+<!-- section: recommended_stack -->
 ## Recommended Stack
 
 ### Core Technologies
@@ -48,7 +69,9 @@ npm install [packages]
 # Dev dependencies
 npm install -D [packages]
 ```
+<!-- /section -->
 
+<!-- section: alternatives -->
 ## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
@@ -62,7 +85,9 @@ npm install -D [packages]
 |-------|-----|-------------|
 | [technology] | [specific problem] | [recommended alternative] |
 | [technology] | [specific problem] | [recommended alternative] |
+<!-- /section -->
 
+<!-- section: patterns -->
 ## Stack Patterns by Variant
 
 **If [condition]:**
@@ -72,7 +97,9 @@ npm install -D [packages]
 **If [condition]:**
 - Use [variation]
 - Because [reason]
+<!-- /section -->
 
+<!-- section: compatibility -->
 ## Version Compatibility
 
 | Package A | Compatible With | Notes |

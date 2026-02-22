@@ -15,6 +15,41 @@ Template for `.planning/phases/XX-name/{phase_num}-RESEARCH.md` - comprehensive 
 **Domain:** [primary technology/problem domain]
 **Confidence:** [HIGH/MEDIUM/LOW]
 
+<!-- section: compact -->
+<research_compact>
+<!-- The compact section is the DEFAULT view for planners.
+     Keep it under 60 lines. Include only what affects planning decisions.
+     Full sections below are loaded on-demand via extract-sections. -->
+
+## Quick Reference
+
+**Summary:** [2-3 sentence overview of research findings and primary recommendation]
+
+**Primary recommendation:** [one-liner actionable guidance]
+
+### Key Stack Decisions
+
+| Library | Purpose | Version |
+|---------|---------|---------|
+| [name] | [what it does] | [ver] |
+| [name] | [what it does] | [ver] |
+| [name] | [what it does] | [ver] |
+
+### Top Pitfalls
+
+1. **[Pitfall name]** — [one-liner: how to avoid]
+2. **[Pitfall name]** — [one-liner: how to avoid]
+3. **[Pitfall name]** — [one-liner: how to avoid]
+
+### User Constraints
+
+[If CONTEXT.md exists: list locked decisions only, one-liner each]
+[If no CONTEXT.md: "No user constraints — all decisions at Claude's discretion"]
+
+</research_compact>
+<!-- /section -->
+
+<!-- section: user_constraints -->
 <user_constraints>
 ## User Constraints (from CONTEXT.md)
 
@@ -37,7 +72,9 @@ Template for `.planning/phases/XX-name/{phase_num}-RESEARCH.md` - comprehensive 
 
 **If no CONTEXT.md exists:** Write "No user constraints - all decisions at Claude's discretion"
 </user_constraints>
+<!-- /section -->
 
+<!-- section: research_summary -->
 <research_summary>
 ## Summary
 
@@ -48,7 +85,9 @@ Template for `.planning/phases/XX-name/{phase_num}-RESEARCH.md` - comprehensive 
 
 **Primary recommendation:** [one-liner actionable guidance]
 </research_summary>
+<!-- /section -->
 
+<!-- section: standard_stack -->
 <standard_stack>
 ## Standard Stack
 
@@ -78,7 +117,9 @@ npm install [packages]
 yarn add [packages]
 ```
 </standard_stack>
+<!-- /section -->
 
+<!-- section: architecture -->
 <architecture_patterns>
 ## Architecture Patterns
 
@@ -110,7 +151,9 @@ src/
 - **[Anti-pattern]:** [why it's bad, what to do instead]
 - **[Anti-pattern]:** [why it's bad, what to do instead]
 </architecture_patterns>
+<!-- /section -->
 
+<!-- section: dont_hand_roll -->
 <dont_hand_roll>
 ## Don't Hand-Roll
 
@@ -124,7 +167,9 @@ Problems that look simple but have existing solutions:
 
 **Key insight:** [why custom solutions are worse in this domain]
 </dont_hand_roll>
+<!-- /section -->
 
+<!-- section: pitfalls -->
 <common_pitfalls>
 ## Common Pitfalls
 
@@ -146,7 +191,9 @@ Problems that look simple but have existing solutions:
 **How to avoid:** [prevention strategy]
 **Warning signs:** [how to detect early]
 </common_pitfalls>
+<!-- /section -->
 
+<!-- section: code_examples -->
 <code_examples>
 ## Code Examples
 
@@ -170,7 +217,9 @@ Verified patterns from official sources:
 [code]
 ```
 </code_examples>
+<!-- /section -->
 
+<!-- section: sota -->
 <sota_updates>
 ## State of the Art (2024-2025)
 
@@ -187,6 +236,7 @@ What's changed recently:
 **Deprecated/outdated:**
 - [Thing]: [why it's outdated, what replaced it]
 </sota_updates>
+<!-- /section -->
 
 <open_questions>
 ## Open Questions

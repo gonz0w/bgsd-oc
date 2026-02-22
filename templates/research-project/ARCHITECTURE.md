@@ -11,6 +11,29 @@ Template for `.planning/research/ARCHITECTURE.md` — system structure patterns 
 **Researched:** [date]
 **Confidence:** [HIGH/MEDIUM/LOW]
 
+<!-- section: compact -->
+<architecture_compact>
+<!-- Compact view for planners. Keep under 30 lines. -->
+
+**Architecture:** [one-liner: primary pattern (e.g., "layered monolith with service modules")]
+
+**Major components:**
+
+| Component | Responsibility |
+|-----------|----------------|
+| [name] | [what it owns] |
+| [name] | [what it owns] |
+| [name] | [what it owns] |
+
+**Key patterns:** [comma-separated list of recommended patterns]
+
+**Anti-patterns:** [comma-separated list of things to avoid]
+
+**Scaling priority:** [what breaks first, how to fix]
+</architecture_compact>
+<!-- /section -->
+
+<!-- section: standard_architecture -->
 ## Standard Architecture
 
 ### System Overview
@@ -63,7 +86,9 @@ src/
 
 - **[folder]/:** [why organized this way]
 - **[folder]/:** [why organized this way]
+<!-- /section -->
 
+<!-- section: patterns -->
 ## Architectural Patterns
 
 ### Pattern 1: [Pattern Name]
@@ -94,6 +119,9 @@ src/
 **When to use:** [conditions]
 **Trade-offs:** [pros and cons]
 
+<!-- /section -->
+
+<!-- section: data_flow -->
 ## Data Flow
 
 ### Request Flow
@@ -118,7 +146,9 @@ src/
 
 1. **[Flow name]:** [description of how data moves]
 2. **[Flow name]:** [description of how data moves]
+<!-- /section -->
 
+<!-- section: scaling -->
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
@@ -131,7 +161,9 @@ src/
 
 1. **First bottleneck:** [what breaks first, how to fix]
 2. **Second bottleneck:** [what breaks next, how to fix]
+<!-- /section -->
 
+<!-- section: anti_patterns -->
 ## Anti-Patterns
 
 ### Anti-Pattern 1: [Name]
@@ -145,7 +177,9 @@ src/
 **What people do:** [the mistake]
 **Why it's wrong:** [the problem it causes]
 **Do this instead:** [the correct approach]
+<!-- /section -->
 
+<!-- section: integration -->
 ## Integration Points
 
 ### External Services
