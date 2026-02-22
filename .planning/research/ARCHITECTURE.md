@@ -1,404 +1,654 @@
-# Architecture Research
+# Architecture Research: Context Reduction Integration
 
-**Domain:** Node.js CLI tool refactoring — single-file to bundled modules
+**Domain:** Context reduction for Node.js CLI-driven AI workflow orchestration
 **Researched:** 2026-02-22
 **Confidence:** HIGH
 
-## Standard Architecture
-
-### System Overview
+## System Overview
 
 ```
- Development (src/)                        Build                    Deploy (bin/)
-┌──────────────────────────────────────┐   ┌──────────┐   ┌──────────────────────┐
-│  ┌──────────┐  ┌──────────────────┐  │   │          │   │                      │
-│  │ index.js │  │ commands/        │  │   │  esbuild │   │  gsd-tools.cjs       │
-│  │ (entry)  │  │  state.js        │  │──▶│  bundle  │──▶│  (single file,       │
-│  │          │  │  roadmap.js      │  │   │  + banner │   │   ~6500 lines,       │
-│  └────┬─────┘  │  phase.js        │  │   │          │   │   zero runtime deps) │
-│       │        │  verify.js       │  │   └──────────┘   │                      │
-│       │        │  init.js         │  │                   └──────────────────────┘
-│       │        │  features.js     │  │                            │
-│       │        │  scaffold.js     │  │                            │
-│       │        │  frontmatter.js  │  │                   ┌──────────────────────┐
-│       │        └──────────────────┘  │                   │  deploy.sh           │
-│  ┌────┴─────┐  ┌──────────────────┐  │                   │  copies bin/ to      │
-│  │ router.js│  │ lib/             │  │                   │  ~/.config/opencode/ │
-│  │ (switch) │  │  config.js       │  │                   └──────────────────────┘
-│  │          │  │  frontmatter.js  │  │
-│  └──────────┘  │  git.js          │  │
-│                │  markdown.js     │  │
-│                │  output.js       │  │
-│                │  cache.js        │  │
-│                │  constants.js    │  │
-│                └──────────────────┘  │
-└──────────────────────────────────────┘
+CONTEXT REDUCTION INTEGRATION POINTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ Layer 1: CLI Tool (bin/gsd-tools.cjs)
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  src/lib/                              src/commands/                      │
+│  ┌──────────────────┐                  ┌────────────────────┐            │
+│  │ [NEW] context.js │◀─── used by ────│ init.js            │            │
+│  │  - tokenEstimate │                  │  - init commands   │            │
+│  │  - sectionFilter │                  │  now return LESS   │            │
+│  │  - outputTrimmer │                  │  data by default   │            │
+│  └──────────────────┘                  ├────────────────────┤            │
+│  ┌──────────────────┐                  │ features.js        │            │
+│  │ [MOD] output.js  │                  │  - context-budget  │            │
+│  │  - output() now  │◀─── used by ────│    enhanced        │            │
+│  │  supports field  │                  ├────────────────────┤            │
+│  │  filtering via   │                  │ misc.js            │            │
+│  │  --fields flag   │                  │  - summary-extract │            │
+│  └──────────────────┘                  │    enhanced        │            │
+│  ┌──────────────────┐                  └────────────────────┘            │
+│  │ [MOD] helpers.js │                                                    │
+│  │  - section       │                                                    │
+│  │  extraction gets │                                                    │
+│  │  selective read   │                                                    │
+│  └──────────────────┘                                                    │
+│                                                                          │
+│  [MOD] router.js — adds --fields and --sections global flags             │
+│  [MOD] constants.js — adds SECTION_WEIGHTS, TOKEN_ESTIMATES              │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+ Layer 2: Workflow Prompts (workflows/*.md)
+┌──────────────────────────────────────────────────────────────────────────┐
+│  [MOD] Reduce redundant instructions, remove duplicated references       │
+│  [MOD] Tighten init JSON parsing — request only needed fields            │
+│  [MOD] Add context-budget checks to more workflows                       │
+│  Target: 30%+ token reduction across workflow prompt layer               │
+└──────────────────────────────────────────────────────────────────────────┘
+
+ Layer 3: Templates & References (templates/*.md, references/*.md)
+┌──────────────────────────────────────────────────────────────────────────┐
+│  [MOD] Tighten templates — remove verbose examples, keep structure       │
+│  [MOD] Deduplicate reference material loaded by multiple workflows       │
+│  [MOD] Research output templates — produce compact research files        │
+└──────────────────────────────────────────────────────────────────────────┘
+
+ Layer 4: Planning Docs (.planning/ in target projects)
+┌──────────────────────────────────────────────────────────────────────────┐
+│  [INDIRECT] Smaller templates → smaller generated documents              │
+│  [INDIRECT] summary-extract enhanced → agents read less from summaries   │
+│  [INDIRECT] Selective section reads → agents don't load full files       │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Responsibilities
+## Component Responsibilities
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| `src/index.js` | Entry point: imports router, calls `main()` | 5-10 lines, shebang handled by esbuild banner |
-| `src/router.js` | CLI argv parsing + command dispatch switch | Extracted from current lines 6022-6492 |
-| `src/commands/*.js` | Command functions grouped by domain | One file per section marker in current code |
-| `src/lib/config.js` | `loadConfig()`, `CONFIG_SCHEMA`, config defaults | Single source of truth for all config shape |
-| `src/lib/frontmatter.js` | `extractFrontmatter()`, `reconstructFrontmatter()` | YAML subset parser, shared across commands |
-| `src/lib/git.js` | `execGit()`, `isGitIgnored()`, `cmdCommit()` | All `child_process` git operations |
-| `src/lib/markdown.js` | Shared regex patterns, section extraction helpers | `safeReadFile()`, heading parsers, field extractors |
-| `src/lib/output.js` | `output()`, `error()`, large-output tmpfile handling | JSON-to-stdout, stderr error helper |
-| `src/lib/cache.js` | In-memory `Map`-based file read cache | `cachedReadFile()` wrapping `fs.readFileSync` |
-| `src/lib/constants.js` | `MODEL_PROFILES`, shared constants | Static lookup tables |
+| Component | Current Responsibility | Context Reduction Change |
+|-----------|----------------------|--------------------------|
+| `src/lib/output.js` | JSON-to-stdout, tmpfile overflow | Add field filtering support to `output()` |
+| `src/lib/helpers.js` | File reads, phase helpers, milestone detection | Add selective markdown section extraction |
+| `src/lib/constants.js` | MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP | Add TOKEN_ESTIMATES, SECTION_WEIGHTS constants |
+| `src/commands/init.js` | Compound context gathering for workflows | Reduce default payloads, add `--compact` flag |
+| `src/commands/features.js` | 12 feature commands including context-budget | Enhance context-budget with workflow-level estimation |
+| `src/commands/misc.js` | summary-extract, history-digest, etc. | Enhance summary-extract with field-level selection |
+| `src/router.js` | CLI argv parsing + command dispatch | Parse `--fields` and `--sections` global flags |
+| `workflows/*.md` (32 files) | Orchestration prompts for AI agents | Reduce verbosity, deduplicate, tighten instructions |
+| `templates/*.md` (24+ files) | Document structure definitions | Remove verbose examples, compact structure guidance |
+| `references/*.md` (13 files) | Behavioral rules for agents | Deduplicate cross-referenced content |
 
-## Recommended Project Structure
+## Recommended Architecture: Where Context Reduction Happens
+
+### Decision 1: Token counting — CLI side, not caller side
+
+**Recommendation: CLI side.** Token counting belongs in `src/lib/context.js` (new module).
+
+**Rationale:**
+- The CLI already has file access and caching infrastructure
+- Token estimation is a pure computation (chars/4 approximation, or line-count × 4)
+- Callers (workflow prompts) are markdown — they can't do math
+- The existing `cmdContextBudget()` already does this for individual plans
+- Extending it to cover init command payloads and workflow prompts is natural
+
+**Implementation:** A new `src/lib/context.js` module with:
+```javascript
+// Token estimation for any string content
+function estimateTokens(text) {
+  // Simple heuristic: ~4 chars per token for English text
+  // More accurate than line-count × 4 for mixed content
+  return Math.ceil(text.length / 4);
+}
+
+// Estimate tokens for a JSON payload (before stringification)
+function estimateJsonTokens(obj) {
+  return estimateTokens(JSON.stringify(obj));
+}
+
+// Budget check: returns { tokens, percent, warning, recommendation }
+function checkBudget(tokens, config) {
+  const window = config.context_window || 200000;
+  const target = config.context_target_percent || 50;
+  const percent = Math.round((tokens / window) * 100);
+  return {
+    tokens,
+    percent,
+    warning: percent > target,
+    recommendation: percent > 60 ? 'split' : percent > target ? 'trim' : 'ok',
+  };
+}
+```
+
+**What NOT to do:** Don't use tiktoken or any tokenizer library. The CLI has zero runtime dependencies. The chars/4 heuristic is accurate enough for budgeting (±15%), and the actual token count doesn't matter — what matters is detecting "this is too big" vs "this is fine."
+
+### Decision 2: Selective section extraction — extend existing markdown parser
+
+**Recommendation: Add to `src/lib/helpers.js` as section-aware read functions.**
+
+**Rationale:**
+- The existing `getRoadmapPhaseInternal()` already extracts sections by heading
+- The pattern generalizes: extract section(s) from any markdown file by heading
+- This reduces context when agents only need one section (e.g., "Current Position" from STATE.md)
+- Fits the existing "commands → lib" dependency direction
+
+**Implementation:**
+```javascript
+// In src/lib/helpers.js
+
+/**
+ * Extract specific sections from markdown content by heading text.
+ * Returns only matched sections, dramatically reducing token count.
+ * 
+ * @param {string} content - Full markdown file content
+ * @param {string[]} sections - Heading texts to extract (case-insensitive)
+ * @param {object} options - { level: 2, includeSubheadings: true }
+ * @returns {string} Extracted sections concatenated
+ */
+function extractSections(content, sections, options = {}) {
+  const level = options.level || 2;
+  const includeSubheadings = options.includeSubheadings !== false;
+  // ... heading-based extraction using existing regex patterns
+}
+```
+
+**Integration with existing commands:**
+- `cmdStateGet(cwd, field, raw)` — already does field extraction; generalize to section extraction
+- `summary-extract --fields key1,key2` — already supports field filtering; works as-is
+- New: `state load --sections "Current Position,Blockers"` — return only those STATE.md sections
+
+**What NOT to do:** Don't build a markdown AST parser. The regex approach works for section extraction (heading-delimited text blocks are structurally simple). The PROJECT.md explicitly says "Markdown AST parser — Would add heavy dependencies" is out of scope.
+
+### Decision 3: JSON output filtering — CLI flag, not caller side
+
+**Recommendation: CLI-side `--fields` flag parsed in router.js.**
+
+**Rationale:**
+- Callers (workflow prompts) already parse specific fields from JSON output
+- But the full JSON is still transmitted through stdout → Bash variable → agent parsing
+- A `--fields` flag lets the CLI return only requested fields, reducing stdout bytes
+- This is the single highest-impact change for init commands (which return 20-40 fields)
+
+**Implementation:**
+```javascript
+// In src/router.js — parse --fields before dispatch
+const fieldsIdx = args.indexOf('--fields');
+const requestedFields = fieldsIdx !== -1 
+  ? args.splice(fieldsIdx, 2)[1].split(',')
+  : null;
+
+// In src/lib/output.js — filter before serialization
+function output(result, raw, rawValue) {
+  let filtered = result;
+  if (global._gsdRequestedFields && typeof result === 'object' && result !== null) {
+    filtered = {};
+    for (const field of global._gsdRequestedFields) {
+      if (field in result) filtered[field] = result[field];
+    }
+  }
+  // ... existing output logic
+}
+```
+
+**Impact analysis for init commands:**
+
+| Command | Current Fields | Typical Usage | Reduction with --fields |
+|---------|---------------|---------------|------------------------|
+| `init execute-phase` | 24 fields | Workflow uses 15 | ~38% JSON reduction |
+| `init plan-phase` | 22 fields | Workflow uses 12 | ~45% JSON reduction |
+| `init progress` | 20 fields + phases[] | Workflow uses 10 | ~50% JSON reduction |
+| `init new-project` | 16 fields | Workflow uses 10 | ~38% JSON reduction |
+| `init quick` | 16 fields | Workflow uses 8 | ~50% JSON reduction |
+
+**Backward compatibility:** Without `--fields`, behavior is identical. This is additive.
+
+**What NOT to do:** Don't filter on the caller side (in workflow markdown). The full JSON still flows through stdout and Bash variable assignment — filtering after that doesn't save context. The filtering must happen before serialization.
+
+### Decision 4: Workflow prompt compression — structured rewriting
+
+**Recommendation: Manual rewrite of each workflow, targeting 30%+ reduction without losing agent clarity.**
+
+**Rationale:**
+- Workflows are the single largest context consumer (11,050 lines across 32 files)
+- They're loaded into agent context at the start of every invocation
+- Reduction techniques: remove redundant `<required_reading>` refs, inline short references instead of @-loading separate files, deduplicate instructions repeated across workflows, tighten verbose step descriptions
+- This is NOT automated — each workflow needs human judgment about what's essential
+
+**Approach — three compression techniques:**
+
+1. **Dedup cross-workflow instructions:** Several workflows repeat identical blocks (error handling, banner display, config parsing). Extract to a shared preamble pattern loaded once.
+
+2. **Tighten step descriptions:** Many steps have 10+ lines of explanation where 3-4 would suffice. Agents don't need prose — they need clear instructions.
+
+3. **Reduce @-file references:** `checkpoints.md` (776 lines) is loaded by 3+ workflows. Most workflows only need 1-2 checkpoint types. Either split the reference or inline the relevant checkpoint definition.
+
+**Estimated impact by file size:**
+
+| Workflow | Current Lines | Estimated After | Savings |
+|----------|--------------|-----------------|---------|
+| new-project.md | 1,116 | ~780 | ~30% |
+| complete-milestone.md | 700 | ~490 | ~30% |
+| verify-work.md | 569 | ~400 | ~30% |
+| execute-phase.md | 529 | ~370 | ~30% |
+| execute-plan.md | 485 | ~340 | ~30% |
+| plan-phase.md | 455 | ~320 | ~30% |
+| quick.md | 453 | ~320 | ~30% |
+| **Total (all 32)** | **11,050** | **~7,700** | **~30%** |
+
+**What NOT to do:** Don't use automated summarization or templating to compress workflows. Each workflow is a carefully structured prompt — compression requires understanding what each instruction does and whether agents need it. Lossy compression = broken workflows.
+
+### Decision 5: Context budgeting integration pattern
+
+**Recommendation: Enhance `cmdContextBudget()` to estimate full workflow context, not just plan files.**
+
+**Current state:** `cmdContextBudget()` (in `src/commands/features.js`) only estimates tokens for a single PLAN.md file. It counts `<task>` blocks, files_modified, and line counts.
+
+**Enhanced design:** A new `context-budget-workflow` command (or enhancement to existing) that estimates the total context load for an entire workflow invocation:
+
+```javascript
+// Estimate context for a workflow invocation
+function cmdContextBudgetWorkflow(cwd, workflowName, phase, raw) {
+  const workflowPath = path.join(PLUGIN_DIR, 'workflows', `${workflowName}.md`);
+  const workflowContent = safeReadFile(workflowPath);
+  
+  let total = 0;
+  const breakdown = {};
+  
+  // 1. Workflow prompt itself
+  const workflowTokens = estimateTokens(workflowContent);
+  breakdown.workflow_prompt = workflowTokens;
+  total += workflowTokens;
+  
+  // 2. @-referenced files (extract from <required_reading>)
+  const refs = extractAtReferences(workflowContent);
+  let refTokens = 0;
+  for (const ref of refs) {
+    const refContent = safeReadFile(ref);
+    if (refContent) refTokens += estimateTokens(refContent);
+  }
+  breakdown.referenced_files = refTokens;
+  total += refTokens;
+  
+  // 3. Init command JSON output
+  const initResult = simulateInit(cwd, workflowName, phase);
+  const initTokens = estimateJsonTokens(initResult);
+  breakdown.init_json = initTokens;
+  total += initTokens;
+  
+  // 4. Files the workflow will read (STATE.md, ROADMAP.md, etc.)
+  const fileReads = estimateFileReads(cwd, workflowName, phase);
+  breakdown.file_reads = fileReads;
+  total += fileReads;
+  
+  // Budget check
+  const config = loadConfig(cwd);
+  const budget = checkBudget(total, config);
+  
+  output({ workflow: workflowName, breakdown, ...budget }, raw);
+}
+```
+
+**Integration point:** This can be called by workflows at initialization:
+```bash
+# In any workflow's first step
+BUDGET=$(node gsd-tools.cjs context-budget-workflow "${WORKFLOW_NAME}" "${PHASE}" --raw 2>/dev/null)
+```
+
+### Decision 6: --compact flag for init commands
+
+**Recommendation: Add `--compact` flag to init commands that returns a minimal payload.**
+
+**Rationale:**
+- Init commands currently return everything a workflow might need
+- Many fields are only used in edge cases (e.g., `session_diff` in `init progress`, `branch_name` in `init execute-phase` when `branching_strategy` is "none")
+- A `--compact` flag returns only the fields the workflow always uses
+- The workflow can request additional fields only when needed
+
+**Implementation pattern:**
+```javascript
+function cmdInitExecutePhase(cwd, phase, raw, compact = false) {
+  // ... existing setup ...
+  
+  const result = {
+    // Always included (minimal set)
+    phase_found: !!phaseInfo,
+    phase_dir: phaseInfo?.directory || null,
+    phase_number: phaseInfo?.phase_number || null,
+    plan_count: phaseInfo?.plans?.length || 0,
+    incomplete_count: phaseInfo?.incomplete_plans?.length || 0,
+    commit_docs: config.commit_docs,
+    parallelization: config.parallelization,
+    executor_model: resolveModelInternal(cwd, 'gsd-executor'),
+  };
+  
+  if (!compact) {
+    // Extended fields (only when not compact)
+    result.verifier_model = resolveModelInternal(cwd, 'gsd-verifier');
+    result.branching_strategy = config.branching_strategy;
+    result.branch_name = /* ... */;
+    result.plans = phaseInfo?.plans || [];
+    result.summaries = phaseInfo?.summaries || [];
+    result.milestone_version = milestone.version;
+    result.milestone_name = milestone.name;
+    // ... etc
+  }
+  
+  output(result, raw);
+}
+```
+
+**Router change:**
+```javascript
+// In router.js, for init commands
+const compact = args.includes('--compact');
+if (compact) args.splice(args.indexOf('--compact'), 1);
+```
+
+## Data Flow Changes
+
+### Current Flow (no context reduction)
 
 ```
-gsd-opencode/
-├── src/                      # Source modules (development)
-│   ├── index.js              # Entry point: require('./router').main()
-│   ├── router.js             # CLI arg parsing + command dispatch
-│   ├── commands/             # Command implementations by domain
-│   │   ├── state.js          # State progression engine (lines 1191-2110)
-│   │   ├── roadmap.js        # Roadmap analysis + updates (lines 2531-2662, 3057-3131)
-│   │   ├── phase.js          # Phase add/insert/remove/complete (lines 2663-3056, 3202-3372)
-│   │   ├── milestone.js      # Milestone complete + archive (lines 3373-3525)
-│   │   ├── verify.js         # Verification suite (lines 2239-2530)
-│   │   ├── validate.js       # Consistency + health validation (lines 3526-3895)
-│   │   ├── scaffold.js       # Scaffolding + template fill (lines 3999-4058)
-│   │   ├── init.js           # Compound init commands (lines 4059-5010)
-│   │   ├── features.js       # Extended features: session-diff through quick-summary (lines 5012-6018)
-│   │   ├── atomic.js         # Simple commands: slug, timestamp, todos, etc. (lines 488-1190)
-│   │   ├── frontmatter-cmd.js # Frontmatter CRUD commands (lines 2175-2237)
-│   │   ├── requirements.js   # Requirements mark-complete (lines 3133-3201)
-│   │   └── websearch.js      # Brave API search (lines 2111-2174)
-│   └── lib/                  # Shared internal libraries
-│       ├── config.js          # loadConfig(), CONFIG_SCHEMA, CONFIG_DEFAULTS
-│       ├── frontmatter.js     # extractFrontmatter(), reconstructFrontmatter()
-│       ├── git.js             # execGit(), isGitIgnored()
-│       ├── markdown.js        # safeReadFile(), heading parsers, field extractors
-│       ├── output.js          # output(), error(), tmpfile handling
-│       ├── cache.js           # FileCache class (Map-based)
-│       └── constants.js       # MODEL_PROFILES, static tables
-├── bin/                      # Build output (committed, deployed)
-│   ├── gsd-tools.cjs         # Bundled single file (generated by esbuild)
-│   └── gsd-tools.test.cjs    # Tests (NOT bundled, stays as-is)
-├── build.js                  # esbuild build script
-├── package.json              # engines, scripts (build, test), devDependencies
-├── deploy.sh                 # Unchanged: copies bin/ to live install
-├── workflows/                # Workflow prompts (unchanged)
-├── templates/                # Document templates (unchanged)
-├── references/               # Reference docs (unchanged)
-├── AGENTS.md                 # Dev workspace docs (unchanged)
-└── VERSION                   # Version tracking (unchanged)
+Workflow loads:
+  workflow.md                    ~500 lines    (~2,000 tokens)
+  + @references/checkpoints.md   776 lines    (~3,100 tokens)
+  + @references/ui-brand.md      160 lines    (~640 tokens)
+  + @references/git-integration.md 248 lines  (~992 tokens)
+                                              ─────────────
+                                              ~6,732 tokens just in prompt
+
+  + init command JSON output                  (~800-2,000 tokens)
+  + STATE.md full read                        (~400-1,200 tokens)
+  + ROADMAP.md full read                      (~200-800 tokens)
+  + PLAN.md files read                        (~800-2,400 tokens)
+                                              ─────────────
+                                              ~8,932-13,132 tokens per invocation
 ```
 
-### Structure Rationale
+### Proposed Flow (with context reduction)
 
-- **`src/commands/` by domain, not by command:** Grouping by the existing section markers (State Progression Engine, Verification Suite, etc.) keeps related commands together. Each file exports named functions that the router imports. This mirrors how the file is already organized with `// ───` section headers.
-- **`src/lib/` for shared internals:** These are pure utility modules with no CLI-specific logic. They can be tested independently. Every command file imports from `lib/` but never from other `commands/` files — this enforces a strict dependency direction.
-- **`bin/` as build output:** The bundled `gsd-tools.cjs` stays in `bin/` exactly where it is now. `deploy.sh` copies `bin/` unchanged. No deploy workflow changes needed.
-- **Tests stay unbundled:** `bin/gsd-tools.test.cjs` tests the bundled output (black-box), not source modules. This validates that the bundle works identically to the old single file. Module-level unit tests can be added separately in `src/**/*.test.js` later if wanted, but are not required for the refactor.
+```
+Workflow loads:
+  workflow.md (compressed)       ~350 lines    (~1,400 tokens) ← 30% smaller
+  + @references/checkpoints.md   (inlined)     (~200 tokens)  ← only relevant type
+  + @references/ui-brand.md      (inlined)     (~200 tokens)  ← only banner pattern
+  + @references/git-integration.md (inlined)   (~200 tokens)  ← only commit pattern
+                                              ─────────────
+                                              ~2,000 tokens in prompt (70% reduction)
+
+  + init command JSON (--compact) (~400-800 tokens)   ← 50% smaller
+  + STATE.md section read         (~100-300 tokens)   ← selective sections
+  + ROADMAP.md section read       (~100-200 tokens)   ← selective sections
+  + PLAN.md files read            (~800-2,400 tokens) ← unchanged (needed in full)
+                                              ─────────────
+                                              ~3,400-5,700 tokens per invocation
+```
+
+**Estimated total reduction: 50-60% per workflow invocation.**
+
+## Module Integration Map
+
+### New Module: `src/lib/context.js`
+
+```
+Dependencies: src/lib/helpers.js (for safeReadFile), src/lib/config.js (for loadConfig)
+Used by:      src/commands/features.js (context-budget), src/commands/init.js (compact mode)
+Exports:      estimateTokens(), estimateJsonTokens(), checkBudget(), extractSections()
+```
+
+### Modified Modules
+
+| Module | What Changes | Why | Risk |
+|--------|-------------|-----|------|
+| `src/lib/output.js` | `output()` respects `global._gsdRequestedFields` | Field filtering before serialization | LOW — additive, no-op when flag absent |
+| `src/lib/helpers.js` | Add `extractSections()` | Section-level markdown extraction | LOW — new function, no existing code changed |
+| `src/lib/constants.js` | Add `TOKEN_ESTIMATES`, `SECTION_WEIGHTS` | Static data for budget estimation | LOW — additive constants |
+| `src/router.js` | Parse `--fields`, `--compact`, `--sections` flags | Global flag support | LOW — flag parsing before dispatch |
+| `src/commands/init.js` | Support `--compact` in all 12 init commands | Reduce default payload sizes | MEDIUM — modifies 12 functions |
+| `src/commands/features.js` | Enhance `cmdContextBudget()` | Workflow-level budget estimation | LOW — extends existing function |
+| `src/commands/misc.js` | Enhance `cmdSummaryExtract()` | Better field-level selection | LOW — extends existing function |
+
+### Unchanged Modules
+
+| Module | Why Unchanged |
+|--------|---------------|
+| `src/lib/config.js` | Config loading doesn't change (already has `context_window`, `context_target_percent`) |
+| `src/lib/frontmatter.js` | Frontmatter parsing is already lean |
+| `src/lib/git.js` | Git operations unaffected by context reduction |
+| `src/commands/state.js` | State mutations are write operations, not context consumers |
+| `src/commands/roadmap.js` | Roadmap operations are already targeted |
+| `src/commands/phase.js` | Phase operations don't load unnecessary context |
+| `src/commands/verify.js` | Verification suite reads specific files |
 
 ## Architectural Patterns
 
-### Pattern 1: Barrel Exports per Command Module
+### Pattern 1: Progressive Disclosure in Init Commands
 
-**What:** Each command module exports a flat object of named command functions. The router imports all barrels and dispatches by command name.
-**When to use:** When you have many functions that need to be addressable by a string key (CLI command name) at a central dispatch point.
-**Trade-offs:** Simple and grep-friendly. No dynamic `require()` needed. esbuild tree-shakes nothing (all commands are reachable from router), but that's fine — we want the full CLI in the bundle.
-
-**Example:**
-```javascript
-// src/commands/state.js
-const { loadConfig } = require('../lib/config');
-const { safeReadFile } = require('../lib/markdown');
-const { output, error } = require('../lib/output');
-
-function cmdStateLoad(cwd, raw) { /* ... */ }
-function cmdStateUpdate(cwd, field, value) { /* ... */ }
-function cmdStatePatch(cwd, patches, raw) { /* ... */ }
-// ... all state commands
-
-module.exports = {
-  cmdStateLoad,
-  cmdStateUpdate,
-  cmdStatePatch,
-  // ...
-};
-```
-
-```javascript
-// src/router.js
-const state = require('./commands/state');
-const roadmap = require('./commands/roadmap');
-const phase = require('./commands/phase');
-// ...
-
-async function main() {
-  const args = process.argv.slice(2);
-  // ... parse args ...
-  switch (command) {
-    case 'state': {
-      if (subcommand === 'update') state.cmdStateUpdate(cwd, args[2], args[3]);
-      else if (subcommand === 'get') state.cmdStateGet(cwd, args[2], raw);
-      // ...
-      break;
-    }
-    // ...
-  }
-}
-module.exports = { main };
-```
-
-### Pattern 2: Module-level File Cache (Map-based)
-
-**What:** A singleton `Map` that caches `fs.readFileSync` results by absolute path. All file reads go through `cachedReadFile()`. Cache lives for the duration of one CLI invocation (single `main()` call) — no TTL needed.
-**When to use:** Short-lived CLI processes that read the same files multiple times within a single invocation (e.g., `init progress` reads `ROADMAP.md` and `STATE.md` through multiple internal functions).
-**Trade-offs:** Zero-dependency, zero-config. Adds ~30 lines of code. Eliminates redundant `readFileSync` calls. No invalidation complexity because the process exits after each command. Only risk: stale reads within a single invocation if a command writes then re-reads the same file — solved by busting the cache entry on write.
+**What:** Init commands return a minimal "compact" payload by default, with the full payload available via explicit request.
+**When to use:** For any command whose JSON output exceeds ~1KB. The workflow parses the compact response for its critical path, then requests extended data only when conditional branches need it.
+**Trade-offs:** Slightly more complex workflow logic (two CLI calls in edge cases) vs significantly reduced default context consumption. The second call is rare — most workflow runs follow the happy path.
 
 **Example:**
-```javascript
-// src/lib/cache.js
-const fs = require('fs');
-const path = require('path');
+```bash
+# Workflow step 1: Get compact context
+INIT=$(node gsd-tools.cjs init execute-phase "${PHASE}" --compact)
+# Parse: phase_found, phase_dir, plan_count, incomplete_count, parallelization
 
-const _cache = new Map();
-
-function cachedReadFile(filePath) {
-  const abs = path.resolve(filePath);
-  if (_cache.has(abs)) return _cache.get(abs);
-  try {
-    const content = fs.readFileSync(abs, 'utf-8');
-    _cache.set(abs, content);
-    return content;
-  } catch {
-    _cache.set(abs, null);
-    return null;
-  }
-}
-
-function invalidate(filePath) {
-  _cache.delete(path.resolve(filePath));
-}
-
-function invalidateAll() {
-  _cache.clear();
-}
-
-module.exports = { cachedReadFile, invalidate, invalidateAll };
+# Workflow step 2: Only if branching needed
+if [ "$BRANCHING_STRATEGY" != "none" ]; then
+  BRANCH=$(node gsd-tools.cjs init execute-phase "${PHASE}" --fields branch_name,milestone_version)
+fi
 ```
 
-**Usage in write paths:**
-```javascript
-// In any command that writes a file
-const { invalidate } = require('../lib/cache');
+### Pattern 2: Section-Aware File Reads
 
-function cmdStateUpdate(cwd, field, value) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
-  // ... modify content ...
-  fs.writeFileSync(statePath, newContent);
-  invalidate(statePath); // bust cache so subsequent reads see the update
-}
+**What:** Instead of loading a full markdown file into agent context, extract only the sections the agent needs.
+**When to use:** When workflows read STATE.md, ROADMAP.md, or SUMMARY.md but only use specific sections.
+**Trade-offs:** Requires knowing which sections you need upfront. If a workflow needs "most" of a file, just read the whole file.
+
+**Example — reading only Current Position from STATE.md:**
+```bash
+# Instead of: Read STATE.md (the agent reads the full 100+ line file)
+# Do: Extract just the section needed
+POSITION=$(node gsd-tools.cjs state get "Current Phase" --raw)
 ```
 
-### Pattern 3: esbuild Single-File Bundle with Shebang
+The existing `state get <field>` command already does this for single fields. The enhancement is supporting multiple fields or section-level extraction.
 
-**What:** A `build.js` script that uses esbuild's JavaScript API to bundle all `src/` modules into a single `bin/gsd-tools.cjs` file. Node.js builtins (`fs`, `path`, `child_process`) are automatically excluded via `platform: 'node'`. The shebang line is injected via esbuild's `banner` option.
-**When to use:** When you need multi-file development with single-file deployment.
-**Trade-offs:** Adds esbuild as a devDependency (~9MB install). Build step is fast (<100ms for ~6500 lines). The output is a single readable (non-minified) CJS file. Source maps are optional but helpful for debugging stack traces.
+### Pattern 3: Inline Short References Instead of @-Loading
 
-**Example:**
-```javascript
-// build.js
-const esbuild = require('esbuild');
+**What:** For reference files under ~50 lines, inline the relevant content directly in the workflow rather than @-loading the full file.
+**When to use:** When a workflow only needs a small portion of a reference file. `ui-brand.md` (160 lines) is loaded by 5+ workflows, but each only needs the banner pattern (~15 lines).
+**Trade-offs:** Duplicates content across workflows (maintenance burden) vs saves ~600 tokens per workflow invocation.
 
-esbuild.buildSync({
-  entryPoints: ['src/index.js'],
-  bundle: true,
-  platform: 'node',
-  target: 'node18',
-  format: 'cjs',
-  outfile: 'bin/gsd-tools.cjs',
-  banner: { js: '#!/usr/bin/env node' },
-  sourcemap: false,       // optional: 'linked' for debugging
-  minify: false,           // keep output readable for debugging
-  keepNames: true,         // preserve function names in stack traces
-  logLevel: 'warning',
-});
+**Mitigation:** Only inline truly stable content (banner format, checkpoint types). Keep @-loading for content that changes frequently.
+
+## Build Order
+
+The features should be built in this order based on dependencies between them:
+
+### Phase 1: Foundation — Token Estimation & Measurement (build first)
+
+**What:** Create `src/lib/context.js` with token estimation utilities. Enhance `context-budget` to measure workflow-level context consumption. Add `--fields` flag support to router and output.
+
+**Why first:** Everything else depends on being able to measure impact. Without measurement, you can't verify 30%+ reduction target. The `--fields` flag is also foundational — it's used by every subsequent optimization.
+
+**Modules touched:**
+- `src/lib/context.js` (NEW)
+- `src/lib/output.js` (MODIFY — field filtering)
+- `src/lib/constants.js` (MODIFY — token estimates)
+- `src/router.js` (MODIFY — parse --fields flag)
+- `src/commands/features.js` (MODIFY — enhance context-budget)
+
+**Dependencies:** None — this is the foundation.
+
+**Deliverables:**
+- `context-budget` command can estimate workflow-level token usage
+- `--fields` flag works on any command
+- Baseline measurements for all 32 workflows documented
+
+### Phase 2: CLI Output Reduction — Init Command Compaction
+
+**What:** Add `--compact` flag to all 12 init commands. Reduce default payloads. Document which fields are "compact" vs "extended" for each init command.
+
+**Why second:** Init commands are the primary data source for workflows. Reducing their output directly reduces context consumption. Depends on Phase 1 for measurement.
+
+**Modules touched:**
+- `src/commands/init.js` (MODIFY — all 12 init commands)
+- `src/router.js` (MODIFY — parse --compact flag)
+
+**Dependencies:** Phase 1 (for --fields infrastructure and measurement).
+
+**Deliverables:**
+- All 12 init commands support `--compact`
+- Measured token reduction per init command (target: 40-50% per command)
+
+### Phase 3: Workflow Prompt Compression
+
+**What:** Rewrite all 32 workflow files for token efficiency. Deduplicate cross-workflow instructions. Inline short references. Tighten step descriptions.
+
+**Why third:** Workflows are the largest context consumer (11,050 lines). This phase has the highest absolute token savings. Depends on Phase 1 for measurement (before/after), and Phase 2 so workflow changes can leverage `--compact` init calls.
+
+**Files touched:**
+- `workflows/*.md` (ALL 32 files)
+- `references/*.md` (potentially split or trim some)
+
+**Dependencies:** Phase 1 (measurement), Phase 2 (--compact flag availability).
+
+**Deliverables:**
+- All 32 workflows rewritten for reduced context
+- Measured before/after token counts (target: 30%+ reduction in prompt tokens)
+- No behavioral regression (workflows produce identical outcomes)
+
+### Phase 4: Template & Research Output Reduction
+
+**What:** Tighten document templates to produce smaller generated documents. Compact research output templates. Add section-aware reading for generated documents.
+
+**Why fourth:** Templates control the size of documents created by GSD. Smaller templates → smaller STATE.md, SUMMARY.md, RESEARCH.md → less context when agents read these files. Less urgent than workflow compression because template impact is indirect.
+
+**Files touched:**
+- `templates/*.md` (MODIFY — tighten structure guidance)
+- `templates/research-project/*.md` (MODIFY — produce compact research)
+- `src/lib/helpers.js` (MODIFY — add extractSections())
+
+**Dependencies:** Phase 1 (measurement). Independent of Phases 2-3, but logically follows them.
+
+**Deliverables:**
+- Templates produce 20-30% smaller documents
+- `extractSections()` available for selective file reads
+- Before/after measurements for document sizes
+
+### Phase 5: Tech Debt Cleanup (parallel-safe)
+
+**What:** Fix broken `roadmap analyze` test. Add missing --help text for 36 commands. Create plan template files.
+
+**Why last/parallel:** These are independent tech debt items that don't depend on context reduction features. They can be done in parallel with any phase, or deferred to the end.
+
+**Modules touched:**
+- `src/commands/roadmap.js` (FIX — test expectation)
+- `src/lib/constants.js` (ADD — 36 help entries)
+- `templates/plans/` (NEW — plan template files)
+
+**Dependencies:** None — fully independent.
+
+### Build Order Dependency Graph
+
+```
+Phase 1: Foundation
+  └──▶ Phase 2: CLI Output Reduction
+  │     └──▶ Phase 3: Workflow Compression
+  └──▶ Phase 4: Template Reduction (can start after Phase 1)
+
+Phase 5: Tech Debt (independent, can run in parallel with any phase)
 ```
 
-## Data Flow
+## Anti-Patterns
 
-### Build Flow
+### Anti-Pattern 1: Lossy Workflow Compression
 
-```
-Developer edits src/**/*.js
-        ↓
-npm run build  (or: node build.js)
-        ↓
-esbuild reads src/index.js
-        ↓
-esbuild resolves all require() calls → traverses src/ tree
-        ↓
-esbuild excludes Node builtins (fs, path, child_process) via platform: 'node'
-        ↓
-esbuild concatenates all modules → single IIFE in CJS format
-        ↓
-esbuild prepends shebang via banner option
-        ↓
-Writes bin/gsd-tools.cjs  (single file, ~6500 lines, zero runtime deps)
-        ↓
-Developer runs: node bin/gsd-tools.cjs <command>  (same as before)
-```
+**What people do:** Use automated summarization or aggressive deletion to shrink workflow files, removing "obvious" instructions.
+**Why it's wrong:** Workflow prompts are precision instruments — each instruction exists because an agent previously did the wrong thing without it. Removing "you must read STATE.md first" seems safe until an agent skips it and corrupts project state. Every deleted line must be individually evaluated for necessity.
+**Do this instead:** Rewrite for conciseness, don't delete for brevity. "Read STATE.md before any operation to load project context" → "Read STATE.md first." Same instruction, fewer tokens.
 
-### Runtime Data Flow (unchanged from current architecture)
+### Anti-Pattern 2: Dynamic Token Counting with External Libraries
 
-```
-Workflow invokes: node gsd-tools.cjs init execute-phase 3
-        ↓
-src/index.js → main()
-        ↓
-src/router.js → parse argv → dispatch to command module
-        ↓
-src/commands/init.js → cmdInitExecutePhase()
-        ↓
-  reads .planning/config.json    ← via lib/config.js → lib/cache.js
-  reads .planning/STATE.md       ← via lib/markdown.js → lib/cache.js
-  reads .planning/ROADMAP.md     ← via lib/markdown.js → lib/cache.js
-  reads .planning/phases/03-*/   ← via lib/markdown.js → lib/cache.js
-        ↓
-  assembles JSON result object
-        ↓
-src/lib/output.js → JSON.stringify → stdout (or tmpfile if >50KB)
-```
+**What people do:** Import tiktoken or similar tokenizer for accurate token counts.
+**Why it's wrong:** Adds a runtime dependency (violates zero-dependency constraint), requires model-specific tokenizer data, and the precision isn't needed. Context budgeting is about "is this too big?" not "exactly how many tokens."
+**Do this instead:** Use chars/4 heuristic. It's consistently within ±15% for English text and mixed code/markdown. For JSON, it's even more predictable.
 
-### Cache Data Flow
+### Anti-Pattern 3: Caller-Side JSON Filtering
 
-```
-                  First read of STATE.md
-cmdInitProgress() ──────────────────────────▶ cachedReadFile()
-                                                   │
-                                          ┌────────┴────────┐
-                                          │ Map.has(path)?   │
-                                          │   NO → readFile  │
-                                          │   cache result   │
-                                          │   return content │
-                                          └─────────────────┘
+**What people do:** Let the CLI output full JSON, then filter in the workflow with `jq` or string manipulation.
+**Why it's wrong:** The full JSON is already in the agent's context by the time it's assigned to a Bash variable. The agent parsed it. Filtering after assignment doesn't reduce context consumption — the damage is done.
+**Do this instead:** Filter at the CLI level with `--fields` so the JSON never enters context.
 
-                  Second read of STATE.md (from different internal function)
-getSessionDiffSummary() ────────────────────▶ cachedReadFile()
-                                                   │
-                                          ┌────────┴────────┐
-                                          │ Map.has(path)?   │
-                                          │   YES → return   │
-                                          │   cached content │
-                                          └─────────────────┘
+### Anti-Pattern 4: Splitting Workflow Files into Smaller Pieces
 
-                  Write to STATE.md
-cmdStateUpdateProgress() ───────────────────▶ writeFileSync() + invalidate(path)
-                                                   │
-                                          ┌────────┴────────┐
-                                          │ Map.delete(path) │
-                                          │ Next read will   │
-                                          │ hit disk again   │
-                                          └─────────────────┘
-```
+**What people do:** Split a 500-line workflow into 5 files of 100 lines, loaded with @-references.
+**Why it's wrong:** @-references are loaded into context too — there's no lazy loading. Five 100-line files consume the same tokens as one 500-line file. Splitting adds indirection without saving context.
+**Do this instead:** Make the single file shorter through rewriting, not splitting.
 
-### Key Data Flows
+### Anti-Pattern 5: Removing @-References Without Inlining Critical Content
 
-1. **Build flow:** `src/**/*.js` → esbuild → `bin/gsd-tools.cjs`. Developer runs `npm run build` (or it runs automatically via a watcher). Output file replaces the current hand-maintained single file.
-2. **Runtime flow:** Identical to current. `bin/gsd-tools.cjs` is invoked the same way. All consumers (workflows, commands, agents) see no change.
-3. **Cache flow:** Within a single CLI invocation, `cachedReadFile()` deduplicates disk reads. Write operations bust their own cache entries.
-4. **Deploy flow:** `deploy.sh` unchanged — copies `bin/` to live install. The bundled file is in `bin/` just like before.
+**What people do:** Remove `@references/checkpoints.md` from a workflow to save ~3,100 tokens.
+**Why it's wrong:** The agent now doesn't know about checkpoint types and will skip human-verify checkpoints, leading to unchecked phase completions.
+**Do this instead:** Inline only the checkpoint type(s) relevant to this specific workflow (~50 tokens instead of 3,100).
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| Current (~6,500 lines) | Split into ~15 source files. esbuild bundles in <100ms. No issues. |
-| ~15,000 lines | Same approach scales fine. May want to split `features.js` into individual command files. |
-| ~30,000+ lines | Consider code-splitting by command group if startup parsing becomes measurable. Unlikely for a CLI. |
+| Current (32 workflows, ~11K lines) | Manual compression + --fields/--compact flags handles this |
+| 50+ workflows (~20K lines) | Consider a "workflow preprocessor" that strips comments and whitespace at build time |
+| 100+ workflows (~40K lines) | Consider workflow inheritance (base workflow + overrides) to eliminate duplication |
 
 ### Scaling Priorities
 
-1. **First bottleneck: file I/O in compound commands.** `init` commands read 5-10 files each. The cache eliminates redundant reads within a single invocation. This is the only real performance issue today.
-2. **Second bottleneck: grep-based codebase-impact.** Multiple `child_process` spawns per file. Fix by batching grep patterns (orthogonal to the module refactor).
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Circular Dependencies Between Command Modules
-
-**What people do:** Command module A imports a function from command module B, which imports from A.
-**Why it's wrong:** Creates hard-to-debug initialization order issues in CJS. esbuild handles it but the code becomes fragile and hard to reason about.
-**Do this instead:** If two command modules need the same function, extract it to `lib/`. Command modules only import from `lib/`, never from each other. The dependency graph is strictly: `router → commands → lib`.
-
-### Anti-Pattern 2: Dynamic require() Based on Command Name
-
-**What people do:** `require('./commands/' + commandName)` to lazily load command modules.
-**Why it's wrong:** esbuild cannot statically analyze dynamic `require()` paths. The command module won't be included in the bundle. You'd need to manually configure `external` or inject, defeating the purpose.
-**Do this instead:** Static imports in `router.js`. All command modules are imported at the top of the file. esbuild bundles everything. The cold-start cost of parsing ~6500 lines of JS is <5ms in V8 — laziness is unnecessary.
-
-### Anti-Pattern 3: Introducing Runtime Dependencies
-
-**What people do:** `npm install node-cache` or `npm install yaml` as runtime dependencies, then try to bundle them.
-**Why it's wrong:** Adds supply chain risk, increases bundle size, and some npm packages use native bindings or dynamic requires that break bundling. The current zero-runtime-dependency constraint is valuable.
-**Do this instead:** Use native `Map` for caching (30 lines vs a library). Keep the hand-rolled YAML subset parser (it handles the project's actual usage). Only add devDependencies (esbuild itself).
-
-### Anti-Pattern 4: Minifying the Bundle
-
-**What people do:** Enable `minify: true` in esbuild to reduce file size.
-**Why it's wrong:** The output file is a dev tool, not a production web bundle. Minification destroys readability (needed for debugging), mangles function names in stack traces, and makes `git diff` useless for reviewing build output changes. The 6500-line file is ~200KB — size is irrelevant.
-**Do this instead:** `minify: false`, `keepNames: true`. The bundle should be readable. Optionally commit it to git so changes are reviewable.
+1. **First bottleneck: Workflow prompt size.** At 11,050 lines, this is already the primary context consumer. The 30% compression target addresses this directly.
+2. **Second bottleneck: @-referenced files.** `checkpoints.md` (776 lines) and `verification-patterns.md` (612 lines) are loaded by multiple workflows. Inlining relevant excerpts is the fix.
+3. **Third bottleneck: Init command payloads.** Currently returning 16-24 fields when 8-15 are used. The `--compact` / `--fields` approach addresses this.
 
 ## Integration Points
 
-### External Services
+### How Context Reduction Integrates With Each Existing Module
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Git (child_process) | `execGit()` in `lib/git.js` — all git ops go through one helper | Escapes arguments, returns `{exitCode, stdout, stderr}` |
-| Brave Search API | `cmdWebsearch()` in `commands/websearch.js` — async `fetch()` | Only async command. Requires Node 18+ global `fetch` |
-| Filesystem (.planning/) | `cachedReadFile()` in `lib/cache.js` — all reads via cache | `safeReadFile()` wraps cache, returns null on error |
+| Existing Module | Integration | Effort |
+|-----------------|-------------|--------|
+| `src/lib/output.js` (47 lines) | Add ~15 lines for field filtering in `output()` | LOW |
+| `src/lib/helpers.js` (420 lines) | Add ~40 lines for `extractSections()` | LOW |
+| `src/lib/constants.js` (528 lines) | Add ~20 lines for TOKEN_ESTIMATES | LOW |
+| `src/router.js` (546 lines) | Add ~10 lines for --fields/--compact flag parsing | LOW |
+| `src/commands/init.js` (730 lines) | Modify all 12 init functions for --compact | MEDIUM |
+| `src/commands/features.js` (1045 lines) | Enhance cmdContextBudget ~50 lines | LOW |
+| `src/commands/misc.js` | Enhance summary-extract ~20 lines | LOW |
+| `workflows/*.md` (32 files, 11K lines) | Rewrite each for 30% reduction | HIGH (effort) |
+| `templates/*.md` (24+ files) | Tighten each by 20-30% | MEDIUM |
+| `references/*.md` (13 files) | Split or trim for selective loading | MEDIUM |
 
-### Internal Boundaries
+### New Components Summary
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `router → commands` | Direct function calls via static `require()` | Router is the only consumer of command modules |
-| `commands → lib` | Direct function calls via static `require()` | One-way dependency. Commands never import from other commands |
-| `lib → lib` | Direct function calls | Allowed (e.g., `cache.js` uses `path`, `config.js` uses `markdown.js`) |
-| `build.js → src/` | esbuild file resolution | Build script is a dev tool, not part of the runtime |
+| Component | Type | Location | Lines (est.) | Purpose |
+|-----------|------|----------|-------------|---------|
+| `src/lib/context.js` | NEW module | `src/lib/` | ~60 | Token estimation, budget checking |
+| `--fields` flag | MODIFY router | `src/router.js` | ~10 | Global output field filtering |
+| `--compact` flag | MODIFY router | `src/router.js` | ~5 | Init command payload reduction |
+| `extractSections()` | NEW function | `src/lib/helpers.js` | ~40 | Selective markdown section reading |
+| Context measurement script | NEW dev tool | `scripts/measure-context.js` | ~100 | Before/after token measurement for benchmarks |
 
-### Build Integration
+### Backward Compatibility
 
-| Step | Tool | Input | Output |
-|------|------|-------|--------|
-| Bundle | esbuild (`build.js`) | `src/index.js` + all imports | `bin/gsd-tools.cjs` |
-| Test | `node --test` | `bin/gsd-tools.test.cjs` | Pass/fail |
-| Deploy | `deploy.sh` | `bin/`, `workflows/`, `templates/`, `references/` | `~/.config/opencode/get-shit-done/` |
-
-### How deploy.sh Changes
-
-**It doesn't.** The deploy script copies `bin/` to the live install. Since the bundled output lands in `bin/gsd-tools.cjs` — the same path as the current single file — deploy.sh works without modification. The only change is that `bin/gsd-tools.cjs` is now generated rather than hand-edited, but deploy.sh doesn't care about that.
-
-### Build Order Implications for Phases
-
-The refactor should proceed in this order to maintain a working CLI at every step:
-
-1. **Add package.json + build.js first** — Create the build infrastructure. The initial `src/index.js` can just `require('../bin/gsd-tools.cjs')` as a passthrough. Verify `npm run build` produces the same output.
-2. **Extract `lib/` modules** — Pull out shared utilities (`config.js`, `frontmatter.js`, `git.js`, `markdown.js`, `output.js`, `constants.js`). These are leaf dependencies with no command logic. After each extraction, run `npm run build && npm test` to verify identical behavior.
-3. **Extract `commands/` modules one at a time** — Start with the simplest (atomic commands), then state, roadmap, phase, etc. Each extraction is a small, testable change. The order doesn't matter much because commands don't depend on each other.
-4. **Extract router last** — The router imports all command modules. Extract it after all commands are in separate files.
-5. **Add cache layer** — Once the module structure is in place, replace `safeReadFile()` calls with `cachedReadFile()`. This is an independent change that can happen at any point after `lib/cache.js` exists.
+Every change is additive:
+- Without `--fields`: output is identical to current
+- Without `--compact`: init commands return full payloads
+- Compressed workflows: produce identical outcomes, just fewer tokens in prompt
+- Templates: generate compatible documents (same headings, same frontmatter)
+- No changes to JSON output schema — fields are never removed, only made optional
 
 ## Sources
 
-- esbuild official documentation: `platform: 'node'` auto-externalizes Node builtins, `banner` option for shebang, `format: 'cjs'` for CommonJS output — **HIGH confidence** (Context7 + official docs)
-- esbuild changelog (0.7.0): Output files starting with shebang are auto-marked executable — **HIGH confidence** (Context7, verified in esbuild changelog)
-- esbuild API: `buildSync()` with `bundle: true`, `outfile` for single output, `keepNames: true` for stack traces — **HIGH confidence** (Context7)
-- Node.js `Map` for in-memory caching: Native V8 data structure, O(1) lookups, no dependencies — **HIGH confidence** (Node.js built-in, well-established pattern)
-- Current codebase analysis: Section markers at 34 positions identify natural module boundaries — **HIGH confidence** (direct code inspection of `bin/gsd-tools.cjs`)
+- **Current codebase analysis** — Direct inspection of 15 source modules, 32 workflow files, 24+ templates, 13 references — **HIGH confidence**
+- **Token estimation heuristics** — OpenAI tokenizer documentation confirms ~4 chars/token for English; anthropic documentation confirms similar for Claude models — **HIGH confidence**
+- **Context window sizes** — Claude Opus/Sonnet: 200K tokens, configurable via `context_window` in config.json — **HIGH confidence** (existing implementation)
+- **Workflow line counts** — Measured via `wc -l` across all files — **HIGH confidence** (exact measurements)
 
 ---
-*Architecture research for: Node.js CLI tool refactoring — single-file to bundled modules*
+*Architecture research for: Context reduction integration with GSD plugin*
 *Researched: 2026-02-22*
