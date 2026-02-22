@@ -13,7 +13,7 @@ Requirements for this improvement pass. Each maps to roadmap phases.
 - [ ] **FOUND-02**: Single `CONFIG_SCHEMA` constant extracted — `loadConfig()`, `cmdConfigEnsureSection()`, and `cmdValidateConfig()` all derive from one canonical schema with alias mappings
 - [ ] **FOUND-03**: State mutation tests — round-trip tests for all 8 state mutation commands (`state update`, `state patch`, `state add-decision`, `state add-blocker`, `state resolve-blocker`, `state record-session`, `state advance-plan`, `state record-metric`)
 - [ ] **FOUND-04**: Frontmatter round-trip tests — `extractFrontmatter()` → `reconstructFrontmatter()` cycle verified lossless for edge cases (nested objects, arrays, quoted strings with colons)
-- [ ] **FOUND-05**: `package.json` created with `name`, `version`, `engines: { node: ">=18" }`, `scripts: { test, build }`, devDependencies for esbuild
+- [x] **FOUND-05**: `package.json` created with `name`, `version`, `engines: { node: ">=18" }`, `scripts: { test, build }`, devDependencies for esbuild
 - [ ] **FOUND-06**: Shell interpolation sanitized — centralized `sanitizeShellArg()` function, strict date regex for `--since`, `--fixed-strings` for grep patterns
 - [ ] **FOUND-07**: Temp file cleanup — `process.on('exit')` handler cleans `gsd-*.json` from tmpdir, or fixed filename that gets overwritten
 
@@ -44,7 +44,7 @@ Requirements for this improvement pass. Each maps to roadmap phases.
 
 ### Documentation
 
-- [ ] **DOC-01**: Fix stale line count in AGENTS.md (says 5400+, actual is 6,495+)
+- [x] **DOC-01**: Fix stale line count in AGENTS.md (says 5400+, actual is 6,495+)
 
 ## v2 Requirements
 
@@ -86,7 +86,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | FOUND-02 | Phase 1 | Pending |
 | FOUND-03 | Phase 1 | Pending |
 | FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 2 | Pending |
 | FOUND-07 | Phase 2 | Pending |
 | PERF-01 | Phase 5 | Pending |
@@ -102,7 +102,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | BUILD-01 | Phase 4 | Pending |
 | BUILD-02 | Phase 4 | Pending |
 | BUILD-03 | Phase 4 | Pending |
-| DOC-01 | Phase 1 | Pending |
+| DOC-01 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total
