@@ -1265,6 +1265,82 @@ function cmdConfigGet(cwd, keyPath, raw) {
   output(current, raw, String(current));
 }
 
+function cmdConfigMigrate(cwd, raw) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  const backupPath = configPath + '.bak';
+
+  // Read existing config
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    } else {
+      error('No config.json found at ' + configPath + '. Run config-ensure-section first.');
+    }
+  } catch (err) {
+    debugLog('config.migrate', 'read failed', err);
+    if (err.message.startsWith('No config.json')) throw err;
+    error('Failed to read config.json: ' + err.message);
+  }
+
+  const migratedKeys = [];
+  const unchangedKeys = [];
+
+  // Walk CONFIG_SCHEMA and add missing keys with defaults
+  for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
+    if (def.nested) {
+      // Nested key: e.g., workflow.research lives in config.workflow.research
+      const section = def.nested.section;
+      const field = def.nested.field;
+      if (config[section] && config[section][field] !== undefined) {
+        unchangedKeys.push(`${section}.${field}`);
+      } else {
+        // Ensure section object exists
+        if (!config[section] || typeof config[section] !== 'object') {
+          config[section] = {};
+        }
+        config[section][field] = def.default;
+        migratedKeys.push(`${section}.${field}`);
+      }
+    } else {
+      // Top-level key
+      if (config[key] !== undefined) {
+        unchangedKeys.push(key);
+      } else {
+        config[key] = def.default;
+        migratedKeys.push(key);
+      }
+    }
+  }
+
+  // Only write if there are changes
+  if (migratedKeys.length > 0) {
+    // Create backup before modifying
+    try {
+      fs.copyFileSync(configPath, backupPath);
+    } catch (err) {
+      debugLog('config.migrate', 'backup failed', err);
+      error('Failed to create backup: ' + err.message);
+    }
+
+    // Write updated config
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    } catch (err) {
+      debugLog('config.migrate', 'write failed', err);
+      error('Failed to write config.json: ' + err.message);
+    }
+  }
+
+  const result = {
+    migrated_keys: migratedKeys,
+    unchanged_keys: unchangedKeys,
+    config_path: '.planning/config.json',
+    backup_path: migratedKeys.length > 0 ? '.planning/config.json.bak' : null,
+  };
+  output(result, raw);
+}
+
 function cmdHistoryDigest(cwd, raw) {
   const phasesDir = path.join(cwd, '.planning', 'phases');
   const digest = { phases: {}, decisions: [], tech_stack: new Set() };
@@ -6815,6 +6891,11 @@ async function main() {
 
     case 'config-get': {
       cmdConfigGet(cwd, args[1], raw);
+      break;
+    }
+
+    case 'config-migrate': {
+      cmdConfigMigrate(cwd, raw);
       break;
     }
 

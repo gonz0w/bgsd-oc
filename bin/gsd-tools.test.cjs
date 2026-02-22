@@ -3372,3 +3372,176 @@ describe('temp file cleanup', () => {
     assert.ok(!fs.existsSync(tmpPath), 'Temp file should be removed after cleanup');
   });
 });
+
+// Helper that captures both stdout and stderr separately (for --help tests)
+function runGsdToolsFull(args, cwd = process.cwd()) {
+  try {
+    const stdout = execSync(`node "${TOOLS_PATH}" ${args}`, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { success: true, stdout: stdout.trim(), stderr: '' };
+  } catch (err) {
+    return {
+      success: err.status === 0,
+      stdout: (err.stdout || '').trim(),
+      stderr: (err.stderr || '').trim(),
+      exitCode: err.status,
+    };
+  }
+}
+
+// ─── --help flag tests ──────────────────────────────────────────────────────
+
+describe('--help flag', () => {
+  test('known command prints help to stderr', () => {
+    // --help exits 0 which execSync treats as success; stderr goes to pipe
+    const result = execSync(`node "${TOOLS_PATH}" state --help 2>&1`, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.ok(result.includes('Usage: gsd-tools state'), `Expected state help, got: ${result.slice(0, 80)}`);
+    assert.ok(result.includes('Subcommands:'), 'Should list subcommands');
+  });
+
+  test('unknown command lists available commands', () => {
+    const result = execSync(`node "${TOOLS_PATH}" nonexistent --help 2>&1`, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.ok(result.includes('No help available'), `Expected "no help", got: ${result.slice(0, 80)}`);
+    assert.ok(result.includes('state'), 'Should list state in available commands');
+    assert.ok(result.includes('config-migrate'), 'Should list config-migrate in available commands');
+  });
+
+  test('help text does not contaminate stdout', () => {
+    // Run with stderr redirected to /dev/null — stdout should be empty
+    const stdout = execSync(`node "${TOOLS_PATH}" current-timestamp --help 2>/dev/null`, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.strictEqual(stdout, '', 'stdout should be empty when --help is used');
+  });
+
+  test('COMMAND_HELP covers major commands', () => {
+    const result = execSync(`node "${TOOLS_PATH}" nonexistent --help 2>&1`, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    const line = result.split('\n').find(l => !l.startsWith('No help'));
+    const commands = line.split(', ').map(c => c.trim());
+    // Verify at least 30 commands are documented
+    assert.ok(commands.length >= 30, `Expected 30+ commands, found ${commands.length}`);
+  });
+});
+
+// ─── config-migrate command tests ───────────────────────────────────────────
+
+describe('config-migrate command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('adds missing keys with schema defaults', () => {
+    // Create a minimal config missing most keys
+    const configPath = path.join(tmpDir, '.planning', 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({
+      model_profile: 'quality',
+    }, null, 2));
+
+    const result = runGsdTools('config-migrate', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.ok(parsed.migrated_keys.length > 0, 'Should have migrated keys');
+    assert.ok(parsed.unchanged_keys.includes('model_profile'), 'model_profile should be unchanged');
+    assert.ok(!parsed.migrated_keys.includes('model_profile'), 'model_profile should not be migrated');
+
+    // Verify the written config has the new keys
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    assert.strictEqual(config.model_profile, 'quality', 'Existing value preserved');
+    assert.strictEqual(config.test_gate, true, 'Missing key added with default');
+  });
+
+  test('existing values are never overwritten', () => {
+    const configPath = path.join(tmpDir, '.planning', 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({
+      model_profile: 'budget',
+      mode: 'yolo',
+      brave_search: true,
+      workflow: { research: false },
+    }, null, 2));
+
+    const result = runGsdTools('config-migrate', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    assert.strictEqual(config.model_profile, 'budget', 'model_profile preserved');
+    assert.strictEqual(config.mode, 'yolo', 'mode preserved');
+    assert.strictEqual(config.brave_search, true, 'brave_search preserved');
+    assert.strictEqual(config.workflow.research, false, 'nested workflow.research preserved');
+  });
+
+  test('backup file is created before writing', () => {
+    const configPath = path.join(tmpDir, '.planning', 'config.json');
+    const backupPath = configPath + '.bak';
+    const original = { model_profile: 'balanced' };
+    fs.writeFileSync(configPath, JSON.stringify(original, null, 2));
+
+    const result = runGsdTools('config-migrate', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    // Should have migrated keys since original only has 1 key
+    assert.ok(parsed.migrated_keys.length > 0, 'Should migrate missing keys');
+    assert.ok(parsed.backup_path !== null, 'backup_path should be set');
+
+    // Verify backup exists and contains original content
+    assert.ok(fs.existsSync(backupPath), 'Backup file should exist');
+    const backup = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
+    assert.strictEqual(backup.model_profile, 'balanced', 'Backup has original value');
+    assert.strictEqual(backup.test_gate, undefined, 'Backup should not have migrated keys');
+  });
+
+  test('already-complete config returns empty migrated_keys', () => {
+    // Build a config with ALL schema keys present
+    const configPath = path.join(tmpDir, '.planning', 'config.json');
+    const fullConfig = {
+      model_profile: 'balanced',
+      brave_search: false,
+      mode: 'interactive',
+      parallelization: true,
+      model_profiles: {},
+      depth: 'standard',
+      test_commands: {},
+      test_gate: true,
+      planning: { commit_docs: true, search_gitignored: false },
+      git: { branching_strategy: 'none', phase_branch_template: 'gsd/phase-{phase}-{slug}', milestone_branch_template: 'gsd/{milestone}-{slug}' },
+      workflow: { research: true, plan_check: true, verifier: true },
+    };
+    fs.writeFileSync(configPath, JSON.stringify(fullConfig, null, 2));
+
+    const result = runGsdTools('config-migrate', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.deepStrictEqual(parsed.migrated_keys, [], 'No keys should be migrated');
+    assert.strictEqual(parsed.backup_path, null, 'No backup needed when nothing migrated');
+  });
+
+  test('config-migrate help text available', () => {
+    const result = execSync(`node "${TOOLS_PATH}" config-migrate --help 2>&1`, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.ok(result.includes('Usage: gsd-tools config-migrate'), `Expected config-migrate help, got: ${result.slice(0, 80)}`);
+    assert.ok(result.includes('CONFIG_SCHEMA'), 'Should mention CONFIG_SCHEMA');
+  });
+});
