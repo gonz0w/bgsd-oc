@@ -72,17 +72,25 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const planPaths = (result.plans || []).map(p => typeof p === 'string' ? p : p.file || p);
     const compactResult = {
       phase_found: result.phase_found,
       phase_dir: result.phase_dir,
       phase_number: result.phase_number,
       phase_name: result.phase_name,
-      plans: (result.plans || []).map(p => typeof p === 'string' ? p : p.file || p),
+      plans: planPaths,
       incomplete_plans: (result.incomplete_plans || []).map(p => typeof p === 'string' ? p : p.file || p),
       plan_count: result.plan_count,
       incomplete_count: result.incomplete_count,
       branch_name: result.branch_name,
       verifier_enabled: result.verifier_enabled,
+      _manifest: {
+        files: [
+          ...planPaths.map(p => ({ path: result.phase_dir ? `${result.phase_dir}/${p}` : p, required: true })),
+          ...(result.state_exists ? [{ path: '.planning/STATE.md', sections: ['Current Position'], required: true }] : []),
+          ...(result.roadmap_exists ? [{ path: '.planning/ROADMAP.md', sections: [`Phase ${result.phase_number || ''}`], required: true }] : []),
+        ],
+      },
     };
     return output(compactResult, raw);
   }
@@ -176,6 +184,17 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     if (result.research_path) compactResult.research_path = result.research_path;
     if (result.verification_path) compactResult.verification_path = result.verification_path;
     if (result.uat_path) compactResult.uat_path = result.uat_path;
+
+    const manifestFiles = [
+      { path: '.planning/STATE.md', sections: ['Current Position', 'Accumulated Context'], required: true },
+      { path: '.planning/ROADMAP.md', sections: [`Phase ${result.phase_number || ''}`], required: true },
+      { path: '.planning/REQUIREMENTS.md', required: true },
+    ];
+    if (result.context_path) manifestFiles.push({ path: result.context_path, required: false });
+    if (result.research_path) manifestFiles.push({ path: result.research_path, required: false });
+    if (result.verification_path) manifestFiles.push({ path: result.verification_path, required: false });
+    compactResult._manifest = { files: manifestFiles };
+
     return output(compactResult, raw);
   }
 
@@ -239,6 +258,10 @@ function cmdInitNewProject(cwd, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    if (result.project_exists) manifestFiles.push({ path: '.planning/PROJECT.md', required: false });
+    if (pathExistsInternal(cwd, 'CLAUDE.md')) manifestFiles.push({ path: 'CLAUDE.md', required: false });
+
     const compactResult = {
       is_brownfield: result.is_brownfield,
       needs_codebase_map: result.needs_codebase_map,
@@ -249,6 +272,7 @@ function cmdInitNewProject(cwd, raw) {
       planning_exists: result.planning_exists,
       has_git: result.has_git,
       brave_search_available: result.brave_search_available,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -286,6 +310,11 @@ function cmdInitNewMilestone(cwd, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    if (result.project_exists) manifestFiles.push({ path: '.planning/PROJECT.md', required: true });
+    if (result.roadmap_exists) manifestFiles.push({ path: '.planning/ROADMAP.md', sections: ['Milestones', 'Progress'], required: true });
+    if (result.state_exists) manifestFiles.push({ path: '.planning/STATE.md', sections: ['Accumulated Context'], required: true });
+
     const compactResult = {
       current_milestone: result.current_milestone,
       current_milestone_name: result.current_milestone_name,
@@ -293,6 +322,7 @@ function cmdInitNewMilestone(cwd, raw) {
       roadmap_exists: result.roadmap_exists,
       state_exists: result.state_exists,
       research_enabled: result.research_enabled,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -348,6 +378,9 @@ function cmdInitQuick(cwd, description, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    if (pathExistsInternal(cwd, '.planning/STATE.md')) manifestFiles.push({ path: '.planning/STATE.md', sections: ['Current Position'], required: false });
+
     const compactResult = {
       next_num: result.next_num,
       slug: result.slug,
@@ -355,6 +388,7 @@ function cmdInitQuick(cwd, description, raw) {
       task_dir: result.task_dir,
       date: result.date,
       planning_exists: result.planning_exists,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -392,11 +426,16 @@ function cmdInitResume(cwd, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    if (result.state_exists) manifestFiles.push({ path: '.planning/STATE.md', required: true });
+    if (result.roadmap_exists) manifestFiles.push({ path: '.planning/ROADMAP.md', sections: ['Progress'], required: true });
+
     const compactResult = {
       state_exists: result.state_exists,
       planning_exists: result.planning_exists,
       has_interrupted_agent: result.has_interrupted_agent,
       interrupted_agent_id: result.interrupted_agent_id,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -431,12 +470,30 @@ function cmdInitVerifyWork(cwd, phase, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    // Include plan and summary files from phase dir
+    if (phaseInfo?.directory) {
+      try {
+        const phaseFiles = fs.readdirSync(path.join(cwd, phaseInfo.directory));
+        phaseFiles.filter(f => f.endsWith('-PLAN.md')).forEach(f => {
+          manifestFiles.push({ path: `${phaseInfo.directory}/${f}`, required: true });
+        });
+        phaseFiles.filter(f => f.endsWith('-SUMMARY.md')).forEach(f => {
+          manifestFiles.push({ path: `${phaseInfo.directory}/${f}`, required: true });
+        });
+      } catch (e) { debugLog('init.verifyWork', 'manifest scan failed', e); }
+    }
+    if (pathExistsInternal(cwd, '.planning/ROADMAP.md')) {
+      manifestFiles.push({ path: '.planning/ROADMAP.md', sections: [`Phase ${result.phase_number || ''}`], required: true });
+    }
+
     const compactResult = {
       phase_found: result.phase_found,
       phase_dir: result.phase_dir,
       phase_number: result.phase_number,
       phase_name: result.phase_name,
       has_verification: result.has_verification,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -540,6 +597,16 @@ function cmdInitPhaseOp(cwd, phase, raw) {
     if (result.research_path) compactResult.research_path = result.research_path;
     if (result.verification_path) compactResult.verification_path = result.verification_path;
     if (result.uat_path) compactResult.uat_path = result.uat_path;
+
+    const manifestFiles = [
+      { path: '.planning/STATE.md', sections: ['Current Position'], required: true },
+      { path: '.planning/ROADMAP.md', sections: [`Phase ${result.phase_number || ''}`], required: true },
+    ];
+    if (pathExistsInternal(cwd, '.planning/REQUIREMENTS.md')) manifestFiles.push({ path: '.planning/REQUIREMENTS.md', required: false });
+    if (result.context_path) manifestFiles.push({ path: result.context_path, required: false });
+    if (result.research_path) manifestFiles.push({ path: result.research_path, required: false });
+    compactResult._manifest = { files: manifestFiles };
+
     return output(compactResult, raw);
   }
 
@@ -603,12 +670,15 @@ function cmdInitTodos(cwd, area, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = result.todos.map(t => ({ path: t.path, required: true }));
+
     const compactResult = {
       todo_count: result.todo_count,
       todos: result.todos,
       area_filter: result.area_filter,
       date: result.date,
       pending_dir_exists: result.pending_dir_exists,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -675,6 +745,10 @@ function cmdInitMilestoneOp(cwd, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    if (result.roadmap_exists) manifestFiles.push({ path: '.planning/ROADMAP.md', sections: ['Milestones', 'Progress'], required: true });
+    if (result.state_exists) manifestFiles.push({ path: '.planning/STATE.md', sections: ['Current Position'], required: true });
+
     const compactResult = {
       milestone_version: result.milestone_version,
       milestone_name: result.milestone_name,
@@ -683,6 +757,7 @@ function cmdInitMilestoneOp(cwd, raw) {
       all_phases_complete: result.all_phases_complete,
       archived_milestones: result.archived_milestones,
       archive_count: result.archive_count,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -722,12 +797,16 @@ function cmdInitMapCodebase(cwd, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = result.existing_maps.map(m => ({ path: `.planning/codebase/${m}`, required: false }));
+    if (pathExistsInternal(cwd, '.planning/PROJECT.md')) manifestFiles.push({ path: '.planning/PROJECT.md', sections: ['Tech Stack'], required: false });
+
     const compactResult = {
       existing_maps: result.existing_maps,
       has_maps: result.has_maps,
       planning_exists: result.planning_exists,
       codebase_dir_exists: result.codebase_dir_exists,
       parallelization: result.parallelization,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
@@ -840,6 +919,10 @@ function cmdInitProgress(cwd, raw) {
   };
 
   if (global._gsdCompactMode) {
+    const manifestFiles = [];
+    if (result.state_exists) manifestFiles.push({ path: '.planning/STATE.md', sections: ['Current Position'], required: false });
+    if (result.roadmap_exists) manifestFiles.push({ path: '.planning/ROADMAP.md', sections: ['Progress'], required: false });
+
     const compactResult = {
       milestone_version: result.milestone_version,
       milestone_name: result.milestone_name,
@@ -851,6 +934,7 @@ function cmdInitProgress(cwd, raw) {
       next_phase: result.next_phase,
       has_work_in_progress: result.has_work_in_progress,
       session_diff: result.session_diff,
+      _manifest: { files: manifestFiles },
     };
     return output(compactResult, raw);
   }
