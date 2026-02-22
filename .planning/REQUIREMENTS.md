@@ -39,7 +39,7 @@ Requirements for this improvement pass. Each maps to roadmap phases.
 ### Build System
 
 - [x] **BUILD-01**: esbuild bundler pipeline — `build.js` script using esbuild API, `--platform=node`, `--format=cjs`, `--banner` for shebang, produces single-file output at `bin/gsd-tools.cjs`
-- [ ] **BUILD-02**: Source module split — split `gsd-tools.cjs` into `src/` directory with `src/lib/` (config, frontmatter, git, markdown, output, cache, constants) and `src/commands/` (grouped by domain), strict `router → commands → lib` dependency direction
+- [x] **BUILD-02**: Source module split — split `gsd-tools.cjs` into `src/` directory with `src/lib/` (config, frontmatter, git, markdown, output, cache, constants) and `src/commands/` (grouped by domain), strict `router → commands → lib` dependency direction
 - [ ] **BUILD-03**: Deploy script updated — `deploy.sh` calls `npm run build` before copying, with smoke test that verifies deployed artifact executes
 
 ### Documentation
@@ -99,8 +99,8 @@ Explicitly excluded. Documented to prevent scope creep.
 | WFLOW-01 | Phase 3 | Complete |
 | WFLOW-02 | Phase 3 | Complete |
 | WFLOW-03 | Phase 3 | Complete |
-| BUILD-01 | Phase 4 | Pending |
-| BUILD-02 | Phase 4 | Pending |
+| BUILD-01 | Phase 4 | Complete |
+| BUILD-02 | Phase 4 | Complete |
 | BUILD-03 | Phase 4 | Pending |
 | DOC-01 | Phase 1 | Complete |
 
