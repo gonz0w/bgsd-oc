@@ -1,20 +1,24 @@
-# GSD Plugin Performance & Quality Improvement
+# GSD Plugin for OpenCode
 
 ## What This Is
 
-A zero-dependency, single-file Node.js CLI built from 15 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows. v1.0 established the test suite, module split, and observability layer. v1.1 added context reduction across all workflow layers (46.7% CLI output reduction, 54.6% workflow compression, 67% reference file reduction) and resolved all remaining tech debt.
+A zero-dependency, single-file Node.js CLI built from 15 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in OpenCode. v1.0 established the test suite, module split, and observability layer. v1.1 added context reduction across all workflow layers (46.7% CLI output reduction, 54.6% workflow compression, 67% reference file reduction). v2.0 targets smarter state management, atomic planning, cross-session memory, comprehensive verification, integration testing, and dependency optimization.
 
 ## Core Value
 
-Every improvement must make the plugin more reliable and faster for developers using GSD to plan and execute real projects — no regressions, no breaking changes.
+Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current State: v1.1 Shipped
+## Current Milestone: v2.0 Quality & Intelligence
 
-**Shipped:** 2026-02-22
-**Milestones completed:** v1.0 (Performance & Quality), v1.1 (Context Reduction & Tech Debt)
-**Total phases:** 9 (Phases 1-9) | **Total plans:** 24
+**Goal:** Make the GSD plugin smarter — validate its own state, decompose plans atomically, remember across sessions, verify deliverables comprehensively, and optimize its dependency/token footprint.
 
-All requirements validated. No known tech debt. 202 tests passing. Ready for next milestone.
+**Target features:**
+- State validation (detect drift between STATE.md and reality)
+- Atomic plan decomposition (single-responsibility plans, not 3+ things bundled)
+- Cross-session memory (preserve decisions, position, codebase knowledge across /clear)
+- Comprehensive verification (auto-test, requirement checking, regression detection)
+- Integration test suite (end-to-end workflow tests: init → plan → execute → verify)
+- Dependency & token optimization (evaluate Node.js modules for performance/context gains)
 
 ## Requirements
 
@@ -62,23 +66,34 @@ All requirements validated. No known tech debt. 202 tests passing. Ready for nex
 - ✓ Complete --help coverage (44 commands) — v1.1
 - ✓ Plan templates (execute, tdd, discovery) — v1.1
 
+### Active
+
+<!-- Current scope for v2.0. Building toward these. -->
+
+- [ ] State validation — detect when STATE.md drifts from git/filesystem reality
+- [ ] Atomic plan decomposition — enforce single-responsibility per plan
+- [ ] Cross-session memory — persist decisions, position, codebase knowledge across /clear
+- [ ] Comprehensive verification — auto-test execution, requirement delivery checks, regression detection
+- [ ] Integration tests — end-to-end workflow tests (init → plan → execute → verify)
+- [ ] Dependency & token optimization — evaluate modules for performance/context reduction
+
 ### Out of Scope
 
 - Async I/O rewrite — Synchronous I/O is appropriate for CLI tool, not a real bottleneck
 - npm package publishing — This is a plugin deployed via file copy, not a library
-- Markdown AST parser — Would add heavy dependencies, regex approach is workable with better tests
 - Multi-process file locking — Only one AI session runs per project, race conditions are theoretical
-- Full argument parsing library (commander/yargs) — Manual router is well-suited to subcommand-heavy pattern
 - ESM output format — CJS avoids __dirname/require rewriting, keep CJS
 - RAG / vector search — Wrong architecture for a CLI tool
 - LLM-based summarization — Deterministic compression outperforms (JetBrains NeurIPS 2025)
 
 ## Context
 
-Shipped v1.0 + v1.1. 202 tests, 15 src/ modules, esbuild bundler.
+Shipped v1.0 + v1.1. 202 tests, 15 src/ modules, esbuild bundler. Now targeting v2.0.
+Platform: OpenCode (no longer targeting Claude Code).
 Tech stack: Node.js 18+, node:test, esbuild, tokenx (bundled), zero runtime dependencies.
 Source split into `src/lib/` (7 modules) and `src/commands/` (7 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
+v2.0 may introduce bundled dependencies if they demonstrably reduce tokens or improve quality.
 
 No known tech debt.
 
@@ -108,4 +123,4 @@ No known tech debt.
 | Prose tightening over structural changes | AI agents don't need persuasion; imperative instructions are sufficient | Good — 54.6% avg workflow compression |
 
 ---
-*Last updated: 2026-02-22 after v1.1 milestone completion*
+*Last updated: 2026-02-22 after v2.0 milestone started*
