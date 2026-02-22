@@ -6913,7 +6913,7 @@ var require_router = __commonJS({
       const command = args[0];
       const cwd = process.cwd();
       if (!command) {
-        error("Usage: gsd-tools <command> [args] [--raw]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, init, session-diff, context-budget, test-run, search-decisions, validate-dependencies, search-lessons, codebase-impact, rollback-info, velocity, trace-requirement, validate-config, quick-summary, config-migrate");
+        error("Usage: gsd-tools <command> [args] [--raw]\nCommands: codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, extract-sections, find-phase, frontmatter, generate-slug, history-digest, init, list-todos, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-run, todo, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const helpKey = command || "";

@@ -1511,7 +1511,8 @@ describe('roadmap analyze command', () => {
     assert.strictEqual(output.completed_phases, 1, '1 phase complete');
     assert.strictEqual(output.total_plans, 2, '2 total plans');
     assert.strictEqual(output.total_summaries, 1, '1 total summary');
-    assert.strictEqual(output.progress_percent, 50, '50% complete');
+    assert.strictEqual(output.progress_percent, 33, '33% complete (1 of 3 phases)');
+    assert.strictEqual(output.plan_progress_percent, 50, '50% plan progress (1 summary / 2 plans)');
     assert.strictEqual(output.current_phase, '2', 'current phase is 2');
   });
 
