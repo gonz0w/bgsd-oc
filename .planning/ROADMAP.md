@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Safety Nets** - Tests, package.json, config schema extraction — build the safety net before touching anything risky
 - [x] **Phase 2: Error Handling & Hardening** - Debug logging across 55 catch blocks, shell sanitization, temp file cleanup
-- [ ] **Phase 3: Developer Experience & Discoverability** - --help support, 11 slash commands, config migration, workflow integrations
+- [x] **Phase 3: Developer Experience & Discoverability** - --help support, 11 slash commands, config migration, workflow integrations
 - [ ] **Phase 4: Build System & Module Split** - esbuild bundler pipeline, source split into src/, deploy.sh updated atomically
 - [ ] **Phase 5: Performance & Polish** - In-memory file cache, batch grep optimization, configurable context window
 
