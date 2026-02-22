@@ -82,33 +82,33 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase ? | Pending |
-| FOUND-02 | Phase ? | Pending |
-| FOUND-03 | Phase ? | Pending |
-| FOUND-04 | Phase ? | Pending |
-| FOUND-05 | Phase ? | Pending |
-| FOUND-06 | Phase ? | Pending |
-| FOUND-07 | Phase ? | Pending |
-| PERF-01 | Phase ? | Pending |
-| PERF-02 | Phase ? | Pending |
-| PERF-03 | Phase ? | Pending |
-| DX-01 | Phase ? | Pending |
-| DX-02 | Phase ? | Pending |
-| DX-03 | Phase ? | Pending |
-| DX-04 | Phase ? | Pending |
-| WFLOW-01 | Phase ? | Pending |
-| WFLOW-02 | Phase ? | Pending |
-| WFLOW-03 | Phase ? | Pending |
-| BUILD-01 | Phase ? | Pending |
-| BUILD-02 | Phase ? | Pending |
-| BUILD-03 | Phase ? | Pending |
-| DOC-01 | Phase ? | Pending |
+| FOUND-01 | Phase 2 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 2 | Pending |
+| FOUND-07 | Phase 2 | Pending |
+| PERF-01 | Phase 5 | Pending |
+| PERF-02 | Phase 5 | Pending |
+| PERF-03 | Phase 5 | Pending |
+| DX-01 | Phase 3 | Pending |
+| DX-02 | Phase 3 | Pending |
+| DX-03 | Phase 3 | Pending |
+| DX-04 | Phase 3 | Pending |
+| WFLOW-01 | Phase 3 | Pending |
+| WFLOW-02 | Phase 3 | Pending |
+| WFLOW-03 | Phase 3 | Pending |
+| BUILD-01 | Phase 4 | Pending |
+| BUILD-02 | Phase 4 | Pending |
+| BUILD-03 | Phase 4 | Pending |
+| DOC-01 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 (pending roadmap creation)
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap phase mapping*
