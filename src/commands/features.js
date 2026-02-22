@@ -1167,6 +1167,7 @@ function cmdContextBudgetBaseline(cwd, raw) {
   process.stderr.write(`${'TOTAL'.padEnd(maxNameLen)} | ${String(measurement.total_tokens).padStart(7)} |      |            |\n`);
   process.stderr.write(`\nBaseline saved: ${path.relative(cwd, baselinePath)}\n\n`);
 
+  measurement.baseline_file = path.relative(cwd, baselinePath);
   output(measurement, raw);
 }
 

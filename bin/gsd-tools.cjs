@@ -285,16 +285,24 @@ Show git commits since last recorded session activity.
 Uses the last activity date from STATE.md to find recent commits.
 
 Output: { commits, since_date, count }`,
-      "context-budget": `Usage: gsd-tools context-budget <plan-path> [--raw]
+      "context-budget": `Usage: gsd-tools context-budget <subcommand|path> [options] [--raw]
 
-Estimate token count for a plan file and its @-referenced files.
-Warns if total exceeds 50% of context window.
+Measure and compare token consumption across GSD workflows.
 
-Arguments:
-  plan-path   Path to the plan file to analyze
+Subcommands:
+  <path>                    Estimate tokens for a single file (existing behavior)
+  baseline                  Measure all workflows, save baseline to .planning/baselines/
+  compare [baseline-path]   Compare current vs saved baseline (default: most recent)
+
+Options:
+  --fields <fields>         Return only specified JSON fields (comma-separated)
+  --raw                     Output raw JSON
 
 Examples:
-  gsd-tools context-budget .planning/phases/03-developer-experience/03-01-PLAN.md`,
+  gsd-tools context-budget .planning/ROADMAP.md
+  gsd-tools context-budget baseline
+  gsd-tools context-budget compare
+  gsd-tools context-budget compare .planning/baselines/baseline-2026-02-22.json`,
       "test-run": `Usage: gsd-tools test-run [--raw]
 
 Run project test commands (from config.json test_commands) and parse output.
@@ -4967,6 +4975,7 @@ var require_features = __commonJS({
 Baseline saved: ${path.relative(cwd, baselinePath)}
 
 `);
+      measurement.baseline_file = path.relative(cwd, baselinePath);
       output(measurement, raw);
     }
     function cmdContextBudgetCompare(cwd, baselinePath, raw) {

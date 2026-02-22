@@ -4039,3 +4039,112 @@ describe('context-budget baseline', () => {
     assert.strictEqual(data.plan, '.planning/ROADMAP.md', 'plan should be the file path');
   });
 });
+
+// ─── Context Budget Compare Tests ─────────────────────────────────────────────
+describe('context-budget compare', () => {
+  test('compare with no baseline dir returns error', () => {
+    // Use a temp dir with no baselines
+    const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-compare-'));
+    const planDir = path.join(tmpDir, '.planning');
+    fs.mkdirSync(planDir, { recursive: true });
+    // Create minimal config
+    fs.writeFileSync(path.join(planDir, 'config.json'), JSON.stringify({}));
+
+    const result = runGsdTools('context-budget compare --raw', tmpDir);
+    assert.strictEqual(result.success, false, 'should fail without baselines');
+    // Check error mentions running baseline first
+    const combined = (result.output + ' ' + result.error).toLowerCase();
+    assert.ok(combined.includes('baseline'), 'error should mention baseline');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('compare JSON has required fields', () => {
+    // Ensure a baseline exists first
+    runGsdTools('context-budget baseline --raw');
+    const result = runGsdTools('context-budget compare --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok('baseline_file' in data, 'should have baseline_file');
+    assert.ok('baseline_date' in data, 'should have baseline_date');
+    assert.ok('current_date' in data, 'should have current_date');
+    assert.ok('summary' in data, 'should have summary');
+    assert.ok('workflows' in data, 'should have workflows');
+
+    // Summary fields
+    const s = data.summary;
+    assert.ok('before_total' in s, 'summary should have before_total');
+    assert.ok('after_total' in s, 'summary should have after_total');
+    assert.ok('delta' in s, 'summary should have delta');
+    assert.ok('percent_change' in s, 'summary should have percent_change');
+    assert.ok('workflows_improved' in s, 'summary should have workflows_improved');
+    assert.ok('workflows_unchanged' in s, 'summary should have workflows_unchanged');
+    assert.ok('workflows_worsened' in s, 'summary should have workflows_worsened');
+  });
+
+  test('compare shows zero delta when run immediately after baseline', () => {
+    // Create a fresh baseline then immediately compare
+    runGsdTools('context-budget baseline --raw');
+    const result = runGsdTools('context-budget compare --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.summary.delta, 0, 'delta should be 0 with no changes');
+    assert.strictEqual(data.summary.percent_change, 0, 'percent_change should be 0');
+    assert.strictEqual(data.summary.before_total, data.summary.after_total, 'before and after should match');
+  });
+
+  test('compare workflows sorted by delta ascending (biggest reductions first)', () => {
+    runGsdTools('context-budget baseline --raw');
+    const result = runGsdTools('context-budget compare --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    for (let i = 1; i < data.workflows.length; i++) {
+      assert.ok(
+        data.workflows[i].delta >= data.workflows[i - 1].delta,
+        `workflow ${i - 1} delta (${data.workflows[i - 1].delta}) should be <= workflow ${i} delta (${data.workflows[i].delta})`
+      );
+    }
+  });
+
+  test('compare with explicit baseline path works', () => {
+    // Create baseline, then find the file on disk
+    const baselineResult = runGsdTools('context-budget baseline --raw');
+    assert.ok(baselineResult.success, `Baseline failed: ${baselineResult.error}`);
+
+    // Find the most recent baseline file
+    const baselinesDir = path.join(process.cwd(), '.planning', 'baselines');
+    const files = fs.readdirSync(baselinesDir)
+      .filter(f => f.startsWith('baseline-') && f.endsWith('.json'))
+      .sort()
+      .reverse();
+    assert.ok(files.length > 0, 'should have at least one baseline file');
+    const baselineFile = path.join('.planning', 'baselines', files[0]);
+
+    const result = runGsdTools(`context-budget compare ${baselineFile} --raw`);
+    assert.ok(result.success, `Compare failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.baseline_file.includes('baseline-'), 'should reference baseline file');
+    assert.strictEqual(data.summary.delta, 0, 'delta should be 0');
+  });
+
+  test('compare each workflow has required fields', () => {
+    runGsdTools('context-budget baseline --raw');
+    const result = runGsdTools('context-budget compare --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.workflows.length > 0, 'should have workflows');
+
+    for (const w of data.workflows) {
+      assert.ok('name' in w, 'workflow should have name');
+      assert.ok('before' in w, 'workflow should have before');
+      assert.ok('after' in w, 'workflow should have after');
+      assert.ok('delta' in w, 'workflow should have delta');
+      assert.ok('percent_change' in w, 'workflow should have percent_change');
+    }
+  });
+});
