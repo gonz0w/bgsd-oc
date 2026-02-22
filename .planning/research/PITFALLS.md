@@ -1,391 +1,413 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Context/token reduction for AI agent CLI tool pipeline (GSD plugin v1.1)
+**Domain:** Adding state validation, cross-session memory, atomic planning, verification, integration testing, and dependency optimization to an existing Node.js CLI tool (GSD Plugin v2.0)
 **Researched:** 2026-02-22
-**Confidence:** HIGH (codebase analysis + verified industry patterns from Manus/LangChain/community)
+**Confidence:** HIGH — based on codebase analysis (15 src/ modules, 202 tests, 309+ regex patterns), industry context engineering patterns (Manus, Philschmid, Inkeep, LangChain), and testing anti-pattern research (Codepipes, Google Testing Blog)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Over-Aggressive Compression Strips Agent-Critical Information
-
-**What goes wrong:**
-Reducing token output from CLI commands (init, roadmap analyze, state-snapshot) by removing "redundant" fields causes downstream workflow prompts to silently degrade. The workflow markdown files reference specific JSON fields by name (`phase_dir`, `commit_docs`, `plans`, `incomplete_plans`). If a context-reduction pass removes a field that seems redundant from a human perspective — like `phase_slug` when `phase_name` exists — a workflow step that uses `phase_slug` for branch naming (`gsd/phase-{phase}-{slug}`) silently gets `null` and creates a branch named `gsd/phase-3-null`.
-
-The most dangerous variant: removing fields from `init` commands that are only used by one workflow. For example, `cmdInitExecutePhase()` returns `verifier_model`, `verifier_enabled`, `branching_strategy`, `branch_name`, `milestone_version`, `milestone_name`, `milestone_slug`. Someone optimizing for "smaller JSON output" may remove `milestone_slug` because it can be derived from `milestone_name`. But the workflow expects it pre-computed — if it's missing, the LLM agent either hallucates a slug algorithm or uses `milestone_name` verbatim (with spaces and special characters) in a path.
-
-**Why it happens:**
-Context reduction is driven by token counts, not by tracing field usage through 43 workflow files. The developer sees a JSON blob with 30+ fields and removes the ones that look derivable. But derivability for a human ("I can compute the slug from the name") is not the same as derivability for an LLM agent consuming the JSON in a prompt. Agents are unreliable at computing derived values — they hallucinate algorithms.
-
-**How to avoid:**
-1. **Trace every field to its consumers before removing it.** For each init command, grep all 43 workflow `.md` files for every field name in the output JSON. Create a field→workflow matrix. Only remove fields with zero consumers.
-2. **Distinguish "must-have" from "optional" fields.** Mark fields in the JSON output as core (always included) vs. extended (included only in verbose mode). Add a `--compact` flag to init commands that omits optional fields, but never omit core fields.
-3. **Never remove pre-computed derived values.** If the CLI returns `milestone_slug` computed from `milestone_name`, keep it. The 12 extra tokens are cheaper than the LLM hallucinating a slugify algorithm.
-4. **Test with the actual workflow prompts:** After reducing init output, run the complete `execute-phase` and `plan-phase` workflows against a real project and verify the output hasn't changed.
-
-**Warning signs:**
-- Workflow starts using `null` values where it previously had strings
-- Branch names contain spaces, "null", or "undefined"
-- Agent asks "I don't have the X field" during workflow execution
-- Phase operations silently scope to wrong directory because a path component was removed from init output
-
-**Phase to address:**
-CLI output reduction phase. Must establish the field→consumer mapping as the first task, before any output trimming.
+Mistakes that cause rewrites, data corruption, or features that make the system worse.
 
 ---
 
-### Pitfall 2: Changing JSON Output Shape Breaks Existing Workflow Prompts
+### Pitfall 1: State Validation That Creates More Problems Than State Drift
 
 **What goes wrong:**
-The 43 workflow markdown files contain hard-coded references to JSON field names from `gsd-tools.cjs` commands. They say things like "Parse JSON for: `executor_model`, `commit_docs`, `phase_dir`..." (line 22 of `execute-phase.md`). If context reduction restructures the JSON (e.g., nesting flat fields into groups: `{ models: { executor: "...", verifier: "..." }, flags: { commit_docs: true } }`) or renames fields for brevity (`phase_dir` → `dir`, `commit_docs` → `docs`), every workflow that references the old names breaks.
+You add a `state validate` command that compares STATE.md against git/filesystem reality (e.g., "STATE.md says Phase 3, plan 2 is current, but no 03-02-PLAN.md exists on disk"). The validation fires false positives in legitimate scenarios:
 
-This is the "API contract" problem. The JSON output of each CLI command is an implicit API consumed by workflow prompts. Unlike typed APIs, these consumers can't be found by a compiler — they're inside markdown prose.
+1. **Mid-execution false positives.** A plan is being executed right now — the plan file exists but the SUMMARY.md hasn't been written yet. Validation reports "plan incomplete" during active work, interrupting the agent with a false alarm.
+2. **Archive blindness.** After `milestone complete`, completed phase directories are archived to `.planning/milestones/vX.Y-phases/`. STATE.md still references "Phase 5 completed" but the directory moved. Validation reports "Phase 5 directory not found" — a false positive because archival is a correct state transition.
+3. **Stale detection that fires on legitimate pauses.** You add "stale state detection" — if STATE.md's `Last activity` is >24h old, warn the user. But weekend breaks, multi-project developers, and vacation returns all trigger the warning. The first interaction after a break starts with a false alarm instead of useful context.
+4. **Git history mismatch.** STATE.md says "3 commits in current plan" but `git log` returns 5 (because the developer made manual commits outside GSD). The validation reports "unexpected commits" which are actually legitimate.
+
+The worst outcome: the agent starts "fixing" false positives. If the workflow says "Resolve all state validation warnings before proceeding," and validation reports phantom issues, the agent begins modifying STATE.md to silence warnings — corrupting the real state to satisfy a buggy validator.
 
 **Why it happens:**
-Restructuring JSON for "cleaner" output or "reduced nesting" is a natural refactoring instinct. It feels like improving the code. But the consumers aren't code — they're LLM prompts in markdown files. The LLM reads "Parse JSON for: `executor_model`" as an instruction and looks for that exact key. Renaming it to `exec_model` doesn't cause a parse error — it causes the LLM to hallucinate a value or use null.
+State drift detection requires an accurate model of ALL valid states and ALL valid transitions. The GSD system has at least 12 state transitions (plan start, plan complete, phase complete, milestone complete, blocker added, blocker resolved, session recorded, decision added, etc.) plus external events (manual git commits, file moves, archival). Missing even one legitimate transition in the validator produces false positives that erode trust.
 
-**How to avoid:**
-1. **Treat JSON field names as a frozen public API.** v1.1 context reduction must NOT rename or restructure existing fields. Only add new compact alternatives alongside existing ones.
-2. **If you must change output format, update all 43 workflow files in the same commit.** Use grep to find every reference: `grep -rn 'field_name' workflows/` for each field.
-3. **Add a `--format=compact` flag** rather than changing the default output. Workflows can opt in to the new compact format when they're updated. This provides a migration path.
-4. **Write snapshot tests** for the output of every `init` command. Before any context reduction, capture the current JSON output as golden files. After changes, diff against golden files to detect unintended shape changes.
+**Consequences:**
+- Agent wastes tokens diagnosing and "fixing" phantom issues
+- User loses trust in state validation and ignores it (including real warnings)
+- STATE.md corruption from automated "fixes" to false positives
+- Workflows stall on validation gates that block legitimate work
+
+**Prevention:**
+1. **Start with read-only advisory mode.** The validator reports issues but NEVER blocks workflows or triggers automated fixes. Log warnings to `_validation` field in STATE.md JSON output — don't make them workflow-blocking gates.
+2. **Enumerate every valid state transition before writing the validator.** Create a state machine diagram: `{current_state} + {event} → {next_state}`. Include archival, manual commits, paused states, and fresh starts. Only flag transitions that aren't in the machine.
+3. **Require 3+ violations before triggering a warning.** A single mismatch between STATE.md and reality should be INFO level (logged), not WARNING (shown to agent). Only escalate to WARNING when multiple independent signals agree: wrong phase AND wrong plan count AND missing expected files.
+4. **Test the validator against the real event-pipeline `.planning/` directory**, including after milestone completion, mid-execution, and fresh-start scenarios. If it fires false positives on the real project, it's not ready.
+5. **Never auto-correct state.** The validator identifies drift; a separate explicit command (`state repair`) fixes it, and only with user confirmation.
 
 **Warning signs:**
-- `git diff` of a context-reduction commit shows changes in `workflows/*.md` files — this means the output shape changed and required workflow updates
-- Any field rename in `src/commands/init.js` that isn't accompanied by workflow file changes
-- Test passes but workflow execution fails with "I couldn't find the field..." agent messages
+- Validator fires on first run against a project that was working fine
+- Agent spends >30 seconds on "state validation" before starting real work
+- STATE.md gets modified by the validation process itself
+- Developer adds exceptions/ignores to suppress specific warnings
 
-**Phase to address:**
-Must be established as a constraint in the measurement/benchmarking phase: define the output contract before reducing. The workflow update phase (if needed) must be separate from the CLI reduction phase.
+**Phase to address:** State Validation phase — must be the FIRST task: design the state machine before writing any validation code.
 
 ---
 
-### Pitfall 3: Token Counting Overhead Exceeds Token Savings
+### Pitfall 2: Cross-Session Memory That Bloats Context Instead of Reducing It
 
 **What goes wrong:**
-Adding accurate token counting (for measurement, budgeting, or adaptive loading) to every CLI command introduces per-invocation overhead. The existing `cmdContextBudget()` uses a crude `Math.ceil(text.length / 4)` estimation (4 chars ≈ 1 token). Replacing this with accurate tokenizer counting (e.g., a bundled tokenizer library) adds:
-- **Startup cost:** Loading a tokenizer library on every CLI invocation (the CLI is a short-lived process that starts fresh each time)
-- **Runtime cost:** Tokenizing large markdown files (a 50KB ROADMAP.md = ~12,500 tokens = measurable CPU time)
-- **Bundle size cost:** A tokenizer like `tiktoken` is ~2MB of WASM or JS — this would balloon the 200KB CLI bundle by 10x
+You implement cross-session memory to survive `/clear` — persisting decisions, codebase knowledge, and position to a file (e.g., `.planning/.memory/session.md`). But the memory accumulates without bounds and eventually consumes MORE context than the problem it solved:
 
-For a CLI tool that runs 3-15 times per workflow invocation, adding 50-200ms per invocation for token counting means 150-3000ms of added overhead per workflow. If the context reduction saves 10,000 tokens (≈ $0.003 at Claude pricing), but the token counting adds 2 seconds of wall-clock time across invocations, you've traded invisible cost for visible latency.
+1. **Accumulation without decay.** Every decision, every file path, every architectural observation gets saved. After 20 sessions, the memory file is 8,000 tokens — 4% of context window consumed before any work begins. This is exactly the Manus `todo.md` problem: "~30% of tokens wasted on constant rewriting" of a growing working memory.
+2. **Stale memories pollute context.** Session 5 recorded "STATE.md uses flat keys." Session 12 migrated to nested keys. Both facts exist in memory. The agent now has contradictory context — the definition of "Context Pollution" per Philschmid (2025): "too much irrelevant, redundant, or conflicting information that distracts the LLM."
+3. **Memory becomes a second STATE.md.** Cross-session memory stores "current phase: 3, current plan: 2, last blocker: API timeout." But STATE.md already stores this. Now two sources of truth diverge, and the agent can't tell which is authoritative. This is the "retention without understanding" anti-pattern (Sphere Inc., 2025): persisting everything without semantic awareness of what's current.
+4. **Resumption overhead exceeds benefit.** The init command loads memory file + STATE.md + ROADMAP.md + config.json. If memory adds 2,000 tokens, but the information was already in STATE.md (or obsolete), you've added 2,000 tokens of noise for zero information gain.
 
 **Why it happens:**
-"We need to measure tokens to prove we reduced them." Accurate measurement is valuable for benchmarking but becomes a trap if baked into the hot path of every command. The measurement overhead can exceed the benefit of the reduction.
+Memory feels like a pure win — "persist knowledge across sessions." But memory management requires TWO operations: writing AND forgetting. Without controlled forgetting, memory degrades from signal to noise. As Ajith Vallath Prabhakar (2025) noted: "If controlled forgetting is not implemented, memory bloat can occur, leading to decreased reasoning efficiency."
 
-**How to avoid:**
-1. **Keep the `chars/4` heuristic for runtime estimation.** It's fast (zero overhead), good enough for budget warnings (within ~20% accuracy for English text), and requires no dependencies.
-2. **Use accurate token counting only in dedicated measurement commands,** not in every init command. Add a `context-measure` command that does full tokenization — this runs once for benchmarking, not on every workflow invocation.
-3. **If a tokenizer must be bundled,** gate it behind lazy loading: `let tokenizer; function getTokenizer() { if (!tokenizer) tokenizer = require('./tokenizer'); return tokenizer; }`. Only pay the cost when someone actually calls `context-budget` or `context-measure`.
-4. **Measure CLI invocation time before and after.** Set a budget: context reduction must not add more than 50ms per invocation. Use `time node gsd-tools.cjs init execute-phase 1 --raw` as the benchmark.
-5. **Never add a runtime dependency for tokenization** — it violates the zero-dependency constraint. Use the heuristic at runtime and accurate counting only in dev/test scripts.
+**Consequences:**
+- Context window consumed by stale/redundant memory, leaving less room for actual work
+- Contradictory memories cause agent confusion and hallucinated reasoning
+- Two sources of truth (memory vs STATE.md) diverge, causing decision errors
+- "Context Rot" threshold hit earlier because memory fills the window faster
+
+**Prevention:**
+1. **Memory must have explicit categories with TTL (time-to-live).** Three categories:
+   - **Position** (current phase/plan/status): overwritten each session, never accumulated. 50-100 tokens max.
+   - **Decisions** (architectural choices, resolved blockers): kept until milestone completion, then archived. Each decision is ONE line.
+   - **Codebase knowledge** (file locations, module relationships): refreshed by hashing `src/` directory listing; invalidated when hash changes.
+2. **Hard token budget for memory: 500 tokens max.** If memory exceeds 500 tokens, the oldest non-position entries are evicted. This prevents unbounded growth.
+3. **Memory is DERIVED from STATE.md, not a parallel store.** The `state record-session` command already records session continuity. Cross-session memory should be a curated SUBSET of STATE.md, not a separate document. Specifically: extract `Current Position` + `Decisions` (last 5) + `Blockers` into a compact format.
+4. **Test memory after 10 simulated sessions.** Write a test that calls `state record-session` 10 times with varying data and verifies the memory file stays under 500 tokens. If it grows unbounded, the design is wrong.
+5. **Use Manus's pattern: "Share context by communicating, not communicate by sharing context."** Don't inject memory into every workflow. Have workflows explicitly request memory when resuming (`init resume` returns memory; `init execute-phase` does not).
 
 **Warning signs:**
-- `package.json` gains a new runtime dependency for tokenization
-- `gsd-tools.cjs` bundle grows from ~200KB to >500KB
-- `time node gsd-tools.cjs current-timestamp --raw` takes >200ms (currently ~80-100ms)
-- A workflow that previously took 5 seconds now takes 8 seconds with no functional change
+- `.planning/.memory/` directory grows beyond 5KB
+- `init resume` output exceeds 1,000 tokens
+- Agent asks "Should I use the memory or STATE.md?" — two sources of truth detected
+- Session start time increases as memory file grows
 
-**Phase to address:**
-Measurement/benchmarking phase. Decide on estimation strategy (heuristic vs. accurate) before implementing. Default to heuristic at runtime, accurate for benchmarks only.
+**Phase to address:** Cross-Session Memory phase — establish the 500-token budget and 3-category structure in the first task, before implementing persistence.
 
 ---
 
-### Pitfall 4: Workflow Prompt Trimming Removes Agent Behavioral Instructions
+### Pitfall 3: Atomic Plan Decomposition Rules That Are Too Rigid or Too Loose
 
 **What goes wrong:**
-The 43 workflow files total ~12,000+ lines of markdown. They consume significant context when loaded by the host LLM (OpenCode). An obvious context-reduction target is trimming the workflow prompts themselves — shorter instructions, fewer examples, condensed step descriptions. But workflow prompts are not documentation — they are executable instructions that control agent behavior with nuance.
+You add rules for plan granularity — "each plan should do one thing." But defining "one thing" is the hard part:
 
-Concrete example: `execute-plan.md` (485 lines) includes handling for yolo mode vs. interactive mode, context budget warnings, error recovery, checkpoint protocols, and summary generation. Removing "verbose" instructions like the yolo mode fallback ("⚠️ Proceeding with large plan (yolo mode) — {estimated_percent}% estimated context usage") seems like free tokens saved. But the LLM agent uses these exact strings as templates for its output. Removing them changes the agent's visible behavior.
-
-The worst case: removing a `<required_reading>` reference to `references/git-integration.md` to save ~248 lines of loaded context. The agent then commits with wrong message format, wrong file staging, or triggers git operations in the wrong order.
+1. **Too rigid: trivial plans.** Rules say "max 3 files modified per plan." A simple rename that touches 5 import statements across 5 files now requires 2 plans, with a dependency between them. The planning overhead exceeds the work itself. You've created bureaucratic overhead that slows the agent.
+2. **Too loose: bundled plans.** Rules say "one logical change per plan." An agent interprets "add state validation" as one logical change and produces a single 800-line plan that modifies 12 files. The plan exceeds context budget and fails mid-execution.
+3. **Decomposition rules conflict with wave/dependency system.** The existing PLAN.md frontmatter has `wave` and `depends_on` fields for parallel execution. If atomic decomposition creates 8 plans where 3 existed, the wave assignments become complex, and `validate-dependencies` starts finding circular dependencies in what was previously a simple linear chain.
+4. **Verification complexity scales with plan count.** Each plan gets a VERIFICATION.md. If decomposition triples plan count (3→9 plans), verification time triples too. A phase that previously took 4 sessions now takes 12 — most of it verifying trivial changes.
 
 **Why it happens:**
-Workflow prompts look like verbose documentation that "could be shorter." But LLM prompts aren't documentation — their verbosity is load-bearing. Specific phrasing, examples, and edge-case handling directly control agent behavior. There's no type system or compiler to tell you which instructions are critical.
+Plan decomposition is a spectrum, not a binary. "Atomic" plans sound good in theory but the optimal granularity depends on context: a complex algorithm is better as one plan with internal steps; a broad refactoring is better as multiple plans. Fixed rules can't capture this.
 
-**How to avoid:**
-1. **Never trim workflow prompts by removing content blindly.** Instead, identify sections that are loaded but never reached (dead code paths) and remove only those.
-2. **Measure which parts of each workflow are actually executed** by adding debug markers: `debugLog('workflow', 'reached step: preflight_dependency_check')`. Trim only unreached steps.
-3. **Use progressive loading instead of trimming.** Instead of loading the full 485-line `execute-plan.md` upfront, restructure workflows to load steps on demand. Steps 1-3 load first; step 4+ loads only when step 3 completes. This is an architecture change, not a content removal.
-4. **Separate behavioral instructions from format examples.** Move literal output templates (like checkpoint format strings) to `references/` files that are loaded only when that step executes, not upfront.
-5. **A/B test prompt changes** by running the same workflow before and after trimming and comparing the agent's output quality. If the agent starts asking more clarifying questions, it means instructions were lost.
+**Consequences:**
+- Agent spends more time planning and verifying than executing
+- Plan dependencies become tangled, blocking parallel execution
+- Context budget consumed by plan overhead (frontmatter, verification criteria, must_haves for each plan)
+- Developer frustration: "Why is this trivial change split into 3 plans?"
+
+**Prevention:**
+1. **Use heuristics, not hard rules.** Instead of "max N files" or "max N lines," provide the planner with a decision framework:
+   - Is this change independently verifiable? → Yes = one plan. No = split.
+   - Will this plan exceed 50% of context budget? → Yes = must split.
+   - Can any part of this change be done in parallel? → Yes = split into parallel plans with wave assignments.
+2. **Set a context-budget threshold, not a file-count limit.** Use the existing `context-budget` command: estimate tokens for the plan + all referenced files + workflow overhead. If >60% of context window, recommend splitting. This is objective and measurable.
+3. **Keep existing plans working.** The decomposition rules should be guidance for the `plan-phase` workflow, not a validation gate that rejects existing plans. v1.0/v1.1 plans that work fine should NOT be flagged as "not atomic enough."
+4. **Test with real plans.** Take 5 existing PLAN.md files from v1.0/v1.1 and run the decomposition rules against them. If any working plan gets rejected or requires splitting, the rules are too rigid.
 
 **Warning signs:**
-- Agent starts asking questions it previously handled autonomously
-- Git commits use wrong message format (lost `git-integration.md` reference)
-- Agent generates output without GSD UI branding (lost `ui-brand.md` reference)
-- Checkpoint interactions change format or frequency
-- Agent skips steps it previously performed (verification, dependency check)
+- Planner produces plans with <100 lines of actual work but 200 lines of metadata
+- Phase plan count jumps from 2-3 to 7-8 for equivalent scope
+- `validate-dependencies` finds issues in plans that the decomposition created
+- Agent requests "Can I merge these plans?" during execution
 
-**Phase to address:**
-Workflow optimization phase. Must come AFTER CLI output reduction (lower-hanging fruit, lower risk) and AFTER establishing measurement baselines.
+**Phase to address:** Atomic Planning phase — first task: define the decomposition heuristics as workflow guidance, not validation gates. Test against existing real plans.
 
 ---
 
-### Pitfall 5: Cache Invalidation Bugs When Adding Context-Aware Loading
+### Pitfall 4: Verification That Takes Longer Than the Work It Verifies
 
 **What goes wrong:**
-v1.0 added an in-memory file cache (`Map`-based, read-only) to eliminate repeated `fs.readFileSync` calls within a single CLI invocation. v1.1 context reduction may extend this with "smart loading" — reading only parts of files, caching parsed results, or conditionally loading sections. This introduces cache coherency problems that don't exist with the simple read-once-cache-whole-file approach.
+"Comprehensive verification" sounds responsible. In practice, it can become the dominant cost of every phase:
 
-Example scenario: A new "selective section loader" reads and caches only the first 3 phases from ROADMAP.md for a compact init response. Later in the same invocation, `cmdRoadmapAnalyze()` requests the full roadmap. If it gets the cached partial instead of re-reading, it reports 3 phases instead of 7. The `safeReadFile()` cache returns stale/partial data.
-
-Another scenario: Adding a "file freshness check" (stat mtime before reading from cache) to support workflows that modify files between CLI invocations. This makes the cache non-deterministic — the same invocation can get cached or fresh data depending on timing.
+1. **Auto-test execution on every plan.** Adding `npm test` (or `node --test`) as a mandatory verification step after every plan sounds good. But the test suite (202 tests) takes ~8 seconds to run. In a phase with 5 plans, that's 5 runs = 40 seconds of test execution, plus the agent reading and reasoning about each test result (~500 tokens of output per run × 5 = 2,500 tokens of verification overhead). For trivial plans (update a help string), this is disproportionate.
+2. **Requirement tracing on every plan.** Checking "does this plan satisfy requirement X from REQUIREMENTS.md?" requires loading the requirements file (300+ tokens), the plan file, and the summary — then reasoning about the mapping. For 5 plans in a phase, that's 5 separate requirement-tracing operations consuming 1,500+ tokens total. The tracing itself doesn't find bugs; it confirms alignment that the planner already established.
+3. **Regression detection via `session-diff`.** After each plan, comparing git state to expected state to detect regressions. But "expected state" is undefined for most plans — what file SHOULDN'T have changed? Without a clear expectation, regression detection becomes "did anything unexpected happen?" which is computationally expensive and prone to false positives.
+4. **Verification of verification.** Adding `verify plan-structure` before execution AND `verify phase-completeness` after AND `verify artifacts` after AND `verify key-links` after. Four verification passes per plan × 5 plans = 20 verification calls. The existing verify commands total ~668 lines of code — more than many feature commands.
 
 **Why it happens:**
-The current cache is trivially correct: read whole file once, return cached version for subsequent reads within the same process. Any change that introduces partial reads, conditional caching, or freshness checks breaks the "trivially correct" property. In a short-lived CLI process (~2s lifespan), cache invalidation bugs manifest as one-in-ten wrong answers rather than consistent failures.
+Verification is the one area where "more is always better" feels true. But verification has diminishing returns just like test coverage. The first check catches 80% of issues; each additional check catches exponentially fewer.
 
-**How to avoid:**
-1. **Keep the file cache as whole-file, read-once.** Don't add partial caching or freshness checking. The CLI process lives <5 seconds — stale data within a single invocation is not a real problem.
-2. **Add selective loading as a layer ABOVE the cache,** not inside it. The cache stores complete file contents; a new `extractSection(filepath, sectionName)` function reads from the cache and returns a substring. Cache stays dumb, extraction stays pure.
-3. **If adding context-aware loading for init commands,** compute the reduced output from the full file data (already cached). Don't skip reading the file — skip including parts of its content in the JSON output.
-4. **Never add mtime-based invalidation.** A CLI that starts, reads files, and exits in 2 seconds has no staleness problem. Freshness checking adds filesystem syscalls (stat) on every cached read — overhead with no benefit.
+**Consequences:**
+- Phase execution time doubles or triples from verification overhead
+- Token budget consumed by verification results instead of actual work
+- Agent becomes "verification-bound" — spending more time checking than doing
+- Developer disables verification ("too slow") and loses all benefit
+
+**Prevention:**
+1. **Tiered verification: light/standard/deep.** 
+   - **Light** (default for plans <200 lines): `verify plan-structure` before, `verify phase-completeness` after. No test execution, no requirement tracing.
+   - **Standard** (default for phases): test suite runs once at PHASE end, not per-plan. Requirement tracing at phase level.
+   - **Deep** (opt-in via `config.json`): full verification suite per plan. Reserved for critical phases (foundation, security).
+2. **Test execution: once per phase, not per plan.** Run `node --test` after all plans in a phase complete, not after each individual plan. If tests fail, bisect which plan broke them. This cuts test execution from 5× to 1× per phase.
+3. **Budget verification itself.** Verification should consume <10% of total phase tokens. Use `context-budget` to measure: if verification output exceeds 10% of the phase's total context consumption, reduce verification scope.
+4. **Make regression detection opt-in.** Don't add regression detection as a default — it requires defining "expected unchanged files" which is plan-specific overhead. Let the planner declare `expect_unchanged: [file1, file2]` in frontmatter; regression detection only runs when this field exists.
 
 **Warning signs:**
-- Same CLI command returns different results when run twice in rapid succession
-- `roadmap analyze` returns fewer phases than `ls .planning/phases/` shows
-- State operations that read→modify→read-back show stale data on the second read
-- Tests pass individually but fail when run as a suite (cache leaks between tests)
+- Agent output contains more verification summaries than code changes
+- Phase takes 3+ sessions where the work itself fits in 1
+- Developer asks "Can we skip verification?" frequently
+- Verification finds zero issues for 10 consecutive plans (ROI is zero)
 
-**Phase to address:**
-CLI output reduction phase. The cache architecture decision (keep simple vs. add intelligence) must be made upfront. Recommendation: keep the v1.0 simple cache unchanged.
+**Phase to address:** Comprehensive Verification phase — first task: design the light/standard/deep tiers. Default to light. Prove standard is necessary with data before mandating it.
 
 ---
 
-### Pitfall 6: False Economy — Reducing Per-Command Tokens While Increasing API Calls
+### Pitfall 5: Integration Tests That Test Implementation Details of a CLI Tool
 
 **What goes wrong:**
-Context reduction makes each CLI output smaller, but to compensate for missing data, the LLM agent makes more tool calls. Example: the `init execute-phase` command currently returns a comprehensive JSON with 30+ fields — models, config flags, phase info, plan inventory, branch names, milestone info, file paths. If context reduction strips this to 10 essential fields, the workflow must make additional calls to get the missing data:
-- `config-get commit_docs`
-- `config-get branching_strategy`
-- `resolve-model gsd-verifier`
-- Etc.
+You add end-to-end integration tests (init → plan → execute → verify) and they become the most expensive part of the codebase to maintain:
 
-Each additional tool call costs: (1) a round-trip to the CLI (~80ms), (2) LLM context to describe the call, (3) LLM context to parse the result, (4) the output tokens of the response. Five extra tool calls can easily consume more total tokens than the 20 fields removed from the init command.
-
-This is documented in the industry as the "context vs. calls" tradeoff. Manus's team wrote that their todo.md approach "wasted ~30% of tokens" not from the file content itself, but from the repeated read-modify-write cycle of updating it. The GSD init commands were specifically designed to frontload data to minimize round-trips (ARCHITECTURE.md documents this as the "Compound Init" pattern).
+1. **Snapshot fragility.** You snapshot the JSON output of `init execute-phase 1` as a golden file. Any change to output format — adding a field, changing a date, updating version number — breaks the snapshot. node:test has snapshot support but it requires `--test-update-snapshots` after every change, which defeats the purpose of regression detection.
+2. **Git-dependent tests are non-deterministic.** Integration tests that call `session-diff`, `commit`, or `rollback-info` depend on git state. If a test creates commits, the SHA changes every run. If it checks commit count, parallel test execution can see commits from other tests. The Codepipes blog (2018) identifies flaky tests as the #1 reason teams abandon test suites: "even a small number of flaky tests is enough to destroy the credibility of the rest."
+3. **Multi-step workflow tests are order-dependent.** A test for "init → plan → execute → verify" requires each step to succeed before the next. If step 2 fails, you get a cascade of 3 failures — all showing "execute failed" or "verify failed" when the root cause was in planning. Debugging requires understanding the full chain.
+4. **Temp directory explosion.** Each integration test creates a full `.planning/` directory structure with ROADMAP.md, STATE.md, config.json, phase directories, and plan files. A 10-test integration suite creates 10 temp directories with dozens of files each. Test setup is 50+ lines per test; the actual assertion is 5 lines. The test code becomes harder to read than the feature code.
+5. **Real project coupling.** The AGENTS.md directive says "Always test against `/mnt/raid/DEV/event-pipeline/.planning/`." Integration tests that rely on a specific real project are non-portable (they fail on any other developer's machine) and non-deterministic (the real project changes over time).
 
 **Why it happens:**
-Token counting is done per-output but not per-workflow. A developer sees "this init command returns 800 tokens of JSON" and reduces it to 400 tokens. Success! But the workflow now makes 3 more CLI calls (at ~200 tokens each including the tool-call overhead), for a net increase of 200 tokens. The per-command metric improved while the per-workflow metric worsened.
+Integration tests for a CLI tool that processes files are inherently I/O-heavy. The black-box testing approach (run CLI as subprocess, check output) means every test pays the Node.js startup cost (~80ms), file creation cost, and JSON parsing cost. This is the correct approach for API contract testing, but it's expensive for behavioral testing.
 
-**How to avoid:**
-1. **Measure at the workflow level, not the command level.** A token budget must account for the total tokens consumed by a complete workflow execution (init + all subsequent commands + workflow prompt + agent output).
-2. **Keep the "compound init" pattern.** The init commands exist specifically to frontload context and eliminate round-trips. Context reduction should slim the data within init commands, not remove fields that force additional calls.
-3. **Use selective verbosity,** not field removal. Instead of removing fields, return them in shorter form: `plans: ["01-01-PLAN.md", "01-02-PLAN.md"]` instead of full path strings, `phase_dir: "phases/01-foundation"` instead of `".planning/phases/01-foundation"`.
-4. **Count tool-call overhead.** Each CLI invocation adds ~150-200 tokens of overhead (bash code block in prompt + JSON parsing). If removing 100 tokens from init output causes one more tool call, that's a net loss.
-5. **Profile a complete workflow** with the `context-budget` command before and after changes to verify net reduction.
+**Consequences:**
+- Test suite takes 30+ seconds, discouraging frequent runs
+- Snapshot updates become a ritual chore after every change
+- Git-dependent tests fail randomly on CI, eroding trust
+- Team avoids writing new tests because the setup cost is high
+
+**Prevention:**
+1. **Separate integration tests from unit tests by directory.** Keep the existing `gsd-tools.test.cjs` (202 tests, fast, temp-dir-based) as the primary suite. Create `gsd-tools.integration.test.cjs` for workflow-level tests. Run integration tests only on `npm run test:integration`, not on every change.
+2. **Don't snapshot full JSON output.** Instead, assert specific fields that define the contract: `assert.ok(output.phase_found)`, `assert.strictEqual(output.plan_count, 3)`. This survives field additions without breaking.
+3. **Mock git for integration tests.** Create a helper that initializes a git repo in the temp directory with a known initial commit. Tests that need git history create deterministic commits with fixed messages/dates. Never depend on the real project's git history.
+4. **Use test fixtures, not inline file creation.** Create a `test/fixtures/basic-project/` directory with a canonical `.planning/` structure. Copy it into temp directories at test start. This eliminates the 50-line setup blocks and makes tests readable.
+5. **No real project dependencies in automated tests.** The event-pipeline testing is for manual validation. Automated tests must use self-contained fixtures. Add a comment: "// Manual: test against real project per AGENTS.md."
+6. **Limit integration tests to 5-10 per feature area.** They validate the critical paths only. Business logic is tested by the existing unit tests. Integration tests confirm: "Can the CLI parse this input format?" and "Does the multi-command workflow produce the expected state transition?"
 
 **Warning signs:**
-- After context reduction, workflow scripts show more `$(node gsd-tools.cjs ...)` calls than before
-- Total execution time for a workflow increases despite smaller per-command output
-- Agent output includes phrases like "Let me check..." or "I need to get..." indicating it's making additional calls to compensate for missing data
-- `GSD_DEBUG=1` logs show more file reads than before the "reduction"
+- `npm test` takes >15 seconds (currently ~8 seconds for 202 tests)
+- A code change breaks >10 tests that are unrelated to the change
+- Tests contain `sleep()`, `setTimeout()`, or retry loops
+- Test file exceeds 5,000 lines (current test file is 4,591 lines — already large)
 
-**Phase to address:**
-Measurement phase. Establish per-workflow token baselines before any reduction. Verify net reduction at the workflow level, not command level.
+**Phase to address:** Integration Testing phase — first task: create the test infrastructure (fixtures directory, git mock helper, integration test runner). Don't write tests until infrastructure is solid.
 
 ---
 
-### Pitfall 7: Context Reduction Makes Debugging Harder
+### Pitfall 6: Adding Dependencies That Break the Zero-Runtime-Dep Constraint or Bloat the Bundle
 
 **What goes wrong:**
-Reduced CLI output means less information visible in agent conversation history. When a workflow fails, the debugging path is: look at what data the agent received, trace the decision back to the CLI output, identify the wrong/missing data. If the CLI output was aggressively reduced, the conversation history shows a minimal JSON blob that's hard to trace.
+v2.0 says "may introduce bundled dependencies if they demonstrably reduce tokens or improve quality." This opens the door to dependency creep:
 
-Specific to GSD: the `state-snapshot` command outputs the full STATE.md as structured JSON. If context reduction summarizes this to "Phase 3, 2/5 plans complete, no blockers," a debugging session trying to understand why a decision was wrong has no access to the full state — the decisions, blockers, and session history that were loaded but then compressed away.
-
-This also affects the `session-diff` data. Currently it returns complete git log information. If reduced to "3 commits since last session," debugging a regression requires re-running the command with a verbose flag, which wasn't available when the agent initially loaded context.
+1. **WASM dependencies that don't bundle.** A YAML parser like `js-yaml` (72KB) bundles fine via esbuild. A tokenizer with WASM binaries (e.g., `tiktoken` at ~2MB) does NOT bundle cleanly — esbuild can't tree-shake WASM, and the binary needs to be deployed alongside the JS bundle. This violates the single-file deploy constraint.
+2. **ESM-only packages.** The project outputs CJS (`gsd-tools.cjs`). Adding an ESM-only dependency requires esbuild to transpile it, which usually works but occasionally fails for packages with complex dynamic imports. The `tokenx` library (already bundled, 4.5KB) was chosen specifically because it works with CJS; many newer libraries don't.
+3. **Bundle size regression.** The current bundle is ~200KB. Each added dependency increases startup time. If the bundle grows to 500KB, Node.js cold-start goes from ~80ms to ~150ms. Multiply by 10 CLI invocations per workflow = 700ms added latency. This was already identified as a pitfall in v1.1 (Pitfall 3) — it's more dangerous in v2.0 because the scope of "allowed dependencies" is wider.
+4. **Transitive dependency explosion.** Adding one library pulls its dependencies. Even with bundling, esbuild includes all transitive code. A library that looks like 10KB might bundle to 100KB because of transitive dependencies. Example from the wild: `esbuild-based tools tend to have less accurate tree shaking, resulting in larger bundle sizes` (ryoppippi, 2025).
+5. **Test dependency vs runtime dependency confusion.** v2.0 adds integration tests that may need test helpers (a YAML assertion library, a git mock library). These should be devDependencies only. If they leak into the bundle (because esbuild resolves all requires), the production CLI carries test-only code.
 
 **Why it happens:**
-Context reduction optimizes for the happy path — the agent gets what it needs and proceeds. But debugging is the unhappy path, and it needs MORE context, not less. If the only record of what the agent saw is the reduced output, post-mortem analysis becomes impossible.
+The "bundled dependency" permission feels like freedom. But the single-file constraint means EVERY byte of every dependency ships in the CLI. There's no tree-shaking for unused features; there's no lazy loading of separate modules.
 
-**How to avoid:**
-1. **Always support a verbose/full mode alongside compact mode.** Every command that gets a compact variant must retain its full-output capability. Use `--compact` as the opt-in for reduced output, not as the default.
-2. **Log full output to a debug file,** not just to stdout. When `GSD_DEBUG=1`, write the full (unreduced) JSON to `.planning/.debug/last-init.json` so it's available for post-mortem analysis even if the agent conversation only shows the compact version.
-3. **Include a `_meta` field in compact output** that records what was omitted: `"_meta": { "compact": true, "omitted_fields": ["session_history", "decision_log", "blocker_details"] }`. This tells debuggers what to re-request.
-4. **Never reduce STATE.md loading.** STATE.md is the project's memory — reducing it loses the debugging trail. Instead, reduce how much of it is included in agent prompts while keeping the full data available.
+**Consequences:**
+- Bundle exceeds 500KB; CLI startup becomes noticeably slow
+- WASM dependency breaks single-file deploy
+- ESM-only package causes build failure that blocks deployment
+- Test code accidentally included in production bundle
+
+**Prevention:**
+1. **Bundle size budget: 300KB max.** Currently ~200KB. Allow 100KB growth for v2.0. If a dependency would push past 300KB, it needs explicit justification with measured benefit.
+2. **Pre-check every dependency before adding it:**
+   - `du -sh node_modules/<pkg>` — raw size
+   - `esbuild --bundle --analyze src/index.js` — bundled size with tree shaking
+   - Check for WASM/native binaries: `find node_modules/<pkg> -name "*.wasm" -o -name "*.node"`
+   - Check for ESM-only: `grep '"type": "module"' node_modules/<pkg>/package.json`
+3. **Prefer micro-libraries over full frameworks.** `tokenx` (4.5KB) over `tiktoken` (2MB). `yaml-tiny` (3KB) over `js-yaml` (72KB). If no micro-library exists, copy the 50 lines you need into `src/lib/` instead.
+4. **Mark devDependencies correctly in package.json** and configure esbuild with `--external` for test-only packages. Verify with `node -e "require('./bin/gsd-tools.cjs')"` after build — if it throws a missing module error, a test dep leaked.
+5. **Test startup time in CI.** Add to build pipeline: `time node bin/gsd-tools.cjs current-timestamp --raw`. If it exceeds 150ms, investigate.
 
 **Warning signs:**
-- Debugging sessions require multiple "can you re-read the full file?" requests
-- Agent says "I don't have enough context to diagnose this" during debugging workflows
-- `.planning/` state looks correct but agent made wrong decisions (couldn't trace why because context was reduced)
-- `diagnose-issues.md` workflow stops working effectively
+- `ls -la bin/gsd-tools.cjs` shows >300KB
+- `npm run build` emits esbuild warnings about unresolved imports
+- `node bin/gsd-tools.cjs current-timestamp` takes >150ms
+- `deploy.sh` copies more than one JS file
 
-**Phase to address:**
-Should be addressed in the first phase as a design principle: "all reduction must be reversible." Establish the compact/full duality before implementing any specific reduction.
+**Phase to address:** Dependency & Token Optimization phase — first task: establish the 300KB budget and pre-check protocol. Every subsequent dependency addition must pass the check.
 
 ---
 
-### Pitfall 8: Workflow Template/Reference Reduction Creates Context Confusion
+## Moderate Pitfalls
 
-**What goes wrong:**
-The GSD plugin loads `references/*.md` files (13 files, ~2,500+ lines total) into agent context via `<required_reading>` blocks. These contain behavioral rules like UI branding, checkpoint formats, git commit conventions, and model profile resolution. Reducing these creates "context confusion" — the LLM receives partial instructions that contradict each other or leave gaps that it fills with hallucinated behavior.
-
-Specific risk: `references/checkpoints.md` (776 lines) defines 3 checkpoint types (human-verify, decision, action) with specific formatting, trigger conditions, and escalation rules. Summarizing this to "use checkpoints at decision points" loses the distinction between types. The agent then uses a single generic checkpoint format, breaking the interactive experience.
-
-Another risk: `references/ui-brand.md` (160 lines) defines banner formats, progress symbols (✅🔵⏳), and section dividers. The LLM treats these as arbitrary examples if the full context isn't loaded. Removing "redundant" examples causes the LLM to improvise similar-but-different formatting, making GSD output inconsistent.
-
-**Why it happens:**
-Reference files look like documentation — verbose, repetitive, full of examples. But LLMs learn behavior from examples far more reliably than from abstract rules. Removing examples while keeping rules is the opposite of what works for LLMs.
-
-**How to avoid:**
-1. **Don't compress reference files — make them loadable on demand instead.** Rather than a 776-line checkpoint reference loaded for every workflow, load only the checkpoint types relevant to the current step.
-2. **Split reference files by usage pattern.** `checkpoints.md` → `checkpoint-human-verify.md`, `checkpoint-decision.md`, `checkpoint-action.md`. Workflows load only the ones they need. This reduces context without losing content.
-3. **Keep examples, trim explanations.** If reducing, remove the "why" text and keep the "what" examples. LLMs use examples as templates more effectively than they follow abstract instructions.
-4. **Measure reference file token cost per workflow.** Some workflows load all 13 references; others load 2-3. Focus reduction on the references that appear in the most workflows.
-
-**Warning signs:**
-- Agent output stops using GSD formatting (banners, symbols, section dividers)
-- Checkpoint interactions become generic ("Do you approve?") instead of type-specific
-- Git commits lose the `docs:` / `chore:` prefix convention
-- Agent generates PLAN.md or SUMMARY.md files that don't match template structure
-
-**Phase to address:**
-Reference/template optimization phase. Should come AFTER CLI output reduction and workflow measurement, as reference loading is the second-largest context consumer after the workflow prompts themselves.
+Mistakes that cause rework or significant wasted effort, but not rewrites.
 
 ---
 
-### Pitfall 9: Regex Pattern Changes During Output Format Optimization
+### Pitfall 7: Memory and State Validation Creating Circular Dependencies
 
 **What goes wrong:**
-Context reduction for CLI output may involve changing how parsed data is formatted — shorter field names, condensed progress strings, compact milestone representation. If these formatting changes touch any of the 309+ regex patterns (even indirectly), backward compatibility breaks. This is v1.0 Pitfall 3 amplified: context reduction provides motivation to change patterns that were previously stable.
+Cross-session memory needs state validation to know if memory is stale. State validation needs memory to know what the last validated state was. You create a bootstrap problem: validating state requires loading memory, but loading memory requires validated state.
 
-Specific example: The current `cmdRoadmapAnalyze()` returns `disk_status` as full strings: `"complete"`, `"partial"`, `"planned"`, `"empty"`, `"no_directory"`. A context reduction might change these to single characters: `"C"`, `"P"`, `"L"`, `"E"`, `"N"`. This saves ~50 tokens per roadmap analysis. But if any workflow or downstream command regex-matches on the string `"complete"`, the abbreviation breaks the match.
+Concrete scenario: `init resume` loads memory file to restore position. Memory says "Phase 3, plan 2." It then validates state: STATE.md says "Phase 3, plan 1." Which is correct — memory (last session's snapshot) or STATE.md (current truth)? The answer should be STATE.md, but memory was loaded first, and the agent has already used memory's "plan 2" to orient itself.
 
-Another example: The progress percentage display. Currently returned as `"progress_percent": 40`. If reformatted as `"progress": "40%"`, any downstream parsing that does `parseInt(result.progress_percent)` now fails because the value is a string with a `%` sign.
+**Prevention:**
+1. **STATE.md is always authoritative.** Memory is advisory only. Memory says "I think we were at..." State says "We are at..." If they disagree, state wins, memory updates.
+2. **Load order: STATE.md first, memory second, then reconcile.** Never load memory before state. The `init resume` command should: (1) load STATE.md, (2) load memory, (3) diff and warn if they disagree, (4) return STATE.md values with memory annotations.
+3. **Test the bootstrap: fresh project, stale memory, corrupted memory, missing memory.** Four test cases that validate the load-order contract.
 
-**Why it happens:**
-Format changes feel safe because "it's just the output, not the parsing." But in a system where CLI output becomes LLM prompt input, output format IS parsing input for the next stage. The field values are matched by regex patterns in workflow prompts and by LLM pattern recognition.
-
-**How to avoid:**
-1. **Never change the TYPE of an existing JSON field** (number→string, string→array, etc.). Add new fields with new types alongside existing ones.
-2. **Never abbreviate existing string values.** Add a separate compact representation if needed: `"disk_status": "complete", "disk_status_short": "C"`.
-3. **Run the full test suite after ANY output format change,** even seemingly harmless ones. The test suite covers 153+ patterns that may depend on exact output format.
-4. **Check workflow files for string literals** that match the value being changed: `grep -rn '"complete"' workflows/` before changing `disk_status` values.
-
-**Warning signs:**
-- Test that previously checked `disk_status === "complete"` now fails
-- Workflow logs show "unknown status" or default-case behavior
-- Agent reports unexpected phase status
-- `progress.md` workflow routes to the wrong action
-
-**Phase to address:**
-CLI output reduction phase. Establish the rule "add new compact fields, never modify existing fields" as a hard constraint in the first planning task.
+**Phase to address:** Cross-Session Memory phase AND State Validation phase — define the precedence rule in the first task of whichever ships first.
 
 ---
 
-## Technical Debt Patterns
+### Pitfall 8: Verification Suite Testing Its Own Output Format Instead of Behavior
 
-Shortcuts that seem reasonable but create long-term problems.
+**What goes wrong:**
+The existing verification commands (`verify plan-structure`, `verify phase-completeness`, `verify references`, etc.) return structured JSON with `errors`, `warnings`, and `valid` fields. When adding "comprehensive verification," you write tests that assert the exact JSON structure of verification output — not whether verification catches real problems.
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Using chars/4 heuristic instead of real tokenizer | Zero overhead, zero dependencies, <20% error margin | Under-counts structured data (JSON, code blocks use more tokens per char); over-counts repeated English words | Acceptable for runtime estimation; use accurate counting only for benchmarking |
-| Compacting output by removing fields rather than adding `--compact` flag | Simpler implementation, fewer code paths | Breaking change for any workflow referencing removed fields; no way to debug with full output | Never acceptable — always add opt-in compact mode |
-| Reducing reference files by removing examples | Smaller context, faster workflow loading | LLMs degrade on abstract rules without examples; output format becomes inconsistent | Never acceptable — examples are load-bearing |
-| Hardcoding context window size (200K) instead of making it configurable | Simpler code, one less config key | Wrong estimation when new models have different window sizes; already an issue noted in CONCERNS.md | Acceptable for v1.1 if `context_window` config key exists (already added in v1.0) |
-| Measuring only command-level token savings, not workflow-level | Easy to measure, clear metric | Misses the false-economy trap of reduced commands causing more tool calls | Never acceptable — always measure at workflow level |
+Example test: `assert.deepStrictEqual(output.errors, ['Missing required frontmatter field: phase'])`. This breaks when you rename the error message string, even though the verification still works correctly. This is the "testing internal implementation" anti-pattern from Codepipes: "tests were instructed to verify internal implementation which is always a recipe for disaster."
+
+**Prevention:**
+1. **Test verification by behavior:** Create a plan with a known defect → run verify → assert `valid === false`. Create a good plan → run verify → assert `valid === true`. Don't assert error message strings.
+2. **Test error categories, not messages:** `assert.ok(output.errors.length > 0, 'should find errors')` and `assert.ok(output.errors.some(e => e.includes('frontmatter')), 'should mention frontmatter')` — contains-check, not exact-match.
+3. **Use regression tests from real bugs.** When verification misses a real issue (false negative) or flags a good file (false positive), capture that file as a test fixture. These are the highest-value tests.
+
+**Phase to address:** Comprehensive Verification phase AND Integration Testing phase — establish the behavioral testing pattern before writing verification tests.
+
+---
+
+### Pitfall 9: Integration Tests That Require Specific Node.js Version Features
+
+**What goes wrong:**
+node:test in Node.js 18 supports basic `describe`/`test`/`assert`. Node.js 20+ adds snapshot testing, `mock`, and `test.plan()`. Node.js 22+ adds `--test-isolation`. Writing integration tests that use Node 22+ features locks out Node 18 users (the minimum version in package.json `engines`).
+
+**Prevention:**
+1. **Test only with features available in Node.js 18.** No `t.mock()`, no `assert.snapshot()`, no `--test-isolation`. The project constraint is `>=18`.
+2. **If mocking is needed, use manual mocking patterns:** inject dependencies via function parameters or environment variables, not framework-level mocking.
+3. **Document node:test version compatibility** in TESTING.md: "Tests must work on Node.js 18. Do not use: mock, snapshot, plan, isolation features."
+
+**Phase to address:** Integration Testing phase — document in the first task before anyone writes tests.
+
+---
+
+### Pitfall 10: Atomic Decomposition Inflating the Phase Directory Structure
+
+**What goes wrong:**
+Current phases have 1-4 plans each (e.g., Phase 1 had 4 plans, Phase 8 had 3 plans). Atomic decomposition could inflate this to 6-10 plans per phase. Each plan requires:
+- `XX-NN-PLAN.md` (the plan file)
+- `XX-NN-SUMMARY.md` (the completion record)
+- Wave/dependency frontmatter
+- Verification criteria in must_haves
+
+A phase directory grows from 6-8 files to 12-20 files. The `phase-plan-index` command that inventories plans now returns a larger JSON blob. The `init execute-phase` output grows. Wave visualization becomes complex. The overhead per phase increases even when the actual work stays the same.
+
+**Prevention:**
+1. **Allow "tasks within plans" as an alternative to splitting.** A plan can contain multiple `<task>` elements. Atomic decomposition should prefer task-level splitting within a single plan file over creating separate plans. Only create separate plans when tasks need different waves or have different dependencies.
+2. **Set a plan-count guideline: 2-5 plans per phase.** If decomposition produces >5 plans, reconsider whether the phase scope is too large (split the phase) rather than adding more plans.
+3. **Measure overhead: total metadata tokens per phase.** For each phase, sum frontmatter + must_haves + verification criteria tokens across all plans. If metadata exceeds 25% of total plan content, the decomposition is too fine-grained.
+
+**Phase to address:** Atomic Planning phase — second task: test decomposition rules against v1.0/v1.1 phases and verify plan counts stay in 2-5 range.
+
+---
+
+## Minor Pitfalls
+
+Annoyances that waste time but don't derail the project.
+
+---
+
+### Pitfall 11: Verification Commands Duplicating Logic From Verify Suite
+
+The existing verify suite has 5 commands in `src/commands/verify.js` (668 lines). "Comprehensive verification" adds new checks (auto-test, requirement tracing, regression detection). If these are added as separate commands rather than extending existing ones, you get two verify paths: the old `verify plan-structure` and the new `verify comprehensive` that partially overlap. Agents don't know which to call.
+
+**Prevention:** Extend existing verify commands with new capabilities. Add `--deep` flag to existing commands rather than creating new top-level commands. The verify suite should remain a single entry point.
+
+---
+
+### Pitfall 12: Integration Test File Becoming Larger Than the Source It Tests
+
+The existing test file is 4,591 lines (vs source bundle at ~6,500 lines). Integration tests with their extensive setup blocks could easily add 2,000+ lines. A test file larger than the source is a maintenance smell — it means tests are doing more work than the feature.
+
+**Prevention:** Use shared fixtures and helper functions. A well-designed `test/helpers.js` with `createBasicProject()`, `createProjectWithPhases(3)`, `createProjectWithState({phase: 3, plan: 2})` can reduce per-test setup from 50 lines to 1 line.
+
+---
+
+### Pitfall 13: Dependency Optimization Finding Savings That Don't Survive the Bundle
+
+You profile tokenx and find a "better" tokenizer that's 2KB smaller. You replace it. But esbuild's bundling adds overhead (CJS wrappers, module resolution) that negates the 2KB savings. Net bundle size is the same or larger.
+
+**Prevention:** Always measure bundle size, not package size. `esbuild --bundle --analyze` shows actual contribution per module. Only pursue savings >10KB net bundle impact.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| State Validation | False positives on legitimate state transitions (archival, manual commits, mid-execution) | Advisory-only mode first; enumerate all valid transitions before coding |
+| Atomic Plan Decomposition | Plans too granular, verification overhead per plan, wave complexity explosion | Context-budget threshold, not file-count limits; tasks-within-plans over separate plans |
+| Cross-Session Memory | Unbounded growth, stale facts, second source of truth vs STATE.md | 500-token budget, 3-category TTL system, STATE.md always authoritative |
+| Comprehensive Verification | Takes longer than the work; per-plan test execution wasteful for trivial plans | Light/standard/deep tiers; tests run per-phase not per-plan |
+| Integration Tests | Snapshot fragility, git non-determinism, multi-step cascade failures | Behavioral assertions, git mock helper, separate test runner |
+| Dependency/Token Optimization | Bundle bloat, WASM breaks single-file deploy, ESM-only packages | 300KB budget, pre-check protocol, prefer micro-libraries |
 
 ## Integration Gotchas
 
-Common mistakes when adding context reduction to existing tool/workflow pipeline.
+Cross-cutting mistakes when these features interact with each other.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| `init` commands → workflow prompts | Removing JSON fields from init output without updating workflow instructions that reference them | Trace every field to its consumers (43 workflow files) before any removal |
-| `--compact` flag → output function | Adding compact mode to `output()` globally instead of per-command | Each command defines its own compact representation; `output()` only handles JSON serialization |
-| Token estimation → context-budget | Bundling a tokenizer library as a runtime dependency | Keep heuristic at runtime; tokenizer only for dev-time benchmarking scripts |
-| Reference file splitting → `<required_reading>` | Splitting references but not updating `<required_reading>` blocks to load the new sub-files | Update every workflow's `<required_reading>` block when splitting a reference file |
-| File cache → selective section loading | Adding partial-file caching that returns incomplete data to full-file readers | Keep cache as whole-file only; add section extraction as a layer above the cache |
-| Workflow prompt trimming → agent behavior | Removing "verbose" instructions that are actually behavioral templates | A/B test workflow output before and after prompt changes; never remove examples |
-
-## Performance Traps
-
-Patterns that work at small scale but fail as usage grows.
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Token counting on every CLI invocation | CLI startup time increases 50-200ms; workflows that call CLI 5-15 times feel sluggish | Gate token counting behind dedicated command or `--measure` flag; use chars/4 heuristic otherwise | Breaks when workflow has >10 CLI calls (total overhead >1.5s) |
-| Compacting JSON by removing whitespace (`JSON.stringify(data)` instead of `JSON.stringify(data, null, 2)`) | Saves ~30% bytes but LLM agents parse formatted JSON better than minified; debugging impossible | Use formatted JSON for agent output; minified only for machine-to-machine data | Breaks agent parsing reliability on complex nested objects |
-| Loading all references at workflow start "just in case" | 2,500+ lines of reference content loaded for workflows that use 1-2 references | Audit which workflows load which references; reduce to only what's needed | Already breaking — this is the current state, ~30% of context may be unnecessary references |
-| Re-reading entire STATE.md when only one field needed | `state load` returns everything (40+ fields parsed) when agent only needs `current_phase` | Add `state get <field>` for single-field access (already exists); prefer it in workflows | Breaks when STATE.md grows beyond ~100 lines (accumulates decisions, blockers, session history) |
-
-## Security Mistakes
-
-Domain-specific security issues for context reduction.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Debug dump of full context to a temp file that persists | Planning data (decisions, blockers, API keys in config) written to `/tmp/gsd-*.json` without cleanup | v1.0 added temp file cleanup on exit; ensure context-reduction debug files also get cleaned up |
-| Compact mode leaks internal field names that reveal architecture | `_meta.omitted_fields` tells an observer what data exists in the system | Only include `_meta` when `GSD_DEBUG=1`, not in normal compact output |
-| Token measurement logs expose prompt content | Benchmark scripts that log "token count for workflow X: {content}" to a file | Log token counts only, never the content being counted |
-
-## UX Pitfalls
-
-Common user experience mistakes when reducing context for AI agents.
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Compact output as default, verbose as opt-in | Every existing workflow breaks on upgrade; debugging requires remembering `--verbose` flag | Compact as opt-in (`--compact`); existing behavior is default. Workflows migrate individually. |
-| Reducing `progress.md` workflow output to save tokens | Progress reports become terse and unhelpful; user loses situational awareness | Progress output is user-facing, not agent-internal. Reduce agent-internal data, not user-facing reports. |
-| Removing `<required_reading>` blocks to "save context" | Agent behavior degrades gradually — format inconsistencies, wrong checkpoint types, git commit style drift | Split references for selective loading; never remove the requirement to load them |
-| Making context reduction configurable (50 knobs) | User overwhelmed by config options they don't understand; wrong settings cause subtle workflow degradation | Provide 2-3 presets (minimal, standard, full) with sensible defaults. Only expose individual knobs for power users. |
+| Feature A | Feature B | What Goes Wrong | Prevention |
+|-----------|-----------|----------------|------------|
+| State Validation | Cross-Session Memory | Circular dependency: validation needs memory for baseline, memory needs validation for freshness | STATE.md is authoritative; memory is advisory; load STATE.md first always |
+| Atomic Decomposition | Verification | 3× more plans = 3× more verification calls; overhead dominates | Verification at phase level, not plan level (except for deep mode) |
+| Integration Tests | Dependencies | Test helpers become runtime dependencies via bundler mistake | Separate test infrastructure; `--external` flags for test packages in esbuild |
+| Cross-Session Memory | Atomic Decomposition | Memory tracks "last plan" but decomposition changes plan numbering between sessions | Memory references phase + plan by content hash or description, not by number |
+| State Validation | Integration Tests | Testing validation requires many fixture states; test setup becomes complex | Shared fixture library with pre-built states: valid, drifted, archived, mid-execution |
+| Verification | Dependencies | Adding a test framework dependency (assertion library) gets bundled into production | Use only `node:assert` and `node:test`; no external test frameworks |
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
+Things that appear complete but have critical gaps.
 
-- [ ] **Init output reduction:** Fields removed — verify every workflow still works by running `execute-phase` and `plan-phase` against a real project (event-pipeline)
-- [ ] **Workflow prompt trimming:** Instructions shortened — run the full workflow and compare agent output format with before-trimming output. Check banners, checkpoints, commit messages.
-- [ ] **Reference file splitting:** Files split into smaller pieces — verify every workflow's `<required_reading>` was updated. Run `grep -rn 'references/' workflows/` and confirm each referenced file exists.
-- [ ] **Token measurement:** Benchmarks show 30% reduction — verify this is measured at the WORKFLOW level (total tokens across all CLI calls + prompt + agent output), not just individual command output.
-- [ ] **Backward compatibility:** Compact mode added — verify existing behavior is UNCHANGED when `--compact` is NOT passed. Run full test suite WITHOUT the flag.
-- [ ] **Debug path:** Compact output deployed — verify `GSD_DEBUG=1` still produces full output for debugging. Test that `.planning/.debug/last-init.json` captures unreduced data.
-- [ ] **Help text:** New flags added (`--compact`, `--format`) — verify `--help` for affected commands documents the new options.
-- [ ] **Deploy test:** `./deploy.sh && node ~/.config/opencode/get-shit-done/bin/gsd-tools.cjs init execute-phase 1 --raw` produces same output as before context reduction (unless `--compact` flag is used).
+- [ ] **State validation "works":** Run it against event-pipeline mid-phase-execution, after milestone-complete, after manual commit, and with stale STATE.md. All 4 scenarios must either pass or produce accurate warnings.
+- [ ] **Cross-session memory "persists":** After 10 sessions, memory file is under 500 tokens. After a codebase change that restructures files, memory invalidates stale knowledge.
+- [ ] **Atomic decomposition "enforced":** Existing v1.0/v1.1 PLAN.md files pass the decomposition validator without changes. New plans that genuinely need splitting are detected.
+- [ ] **Verification "comprehensive":** Light mode adds <5% overhead to phase execution. Deep mode is opt-in. Test execution runs once at phase end, not per-plan.
+- [ ] **Integration tests "stable":** 50+ consecutive runs with zero flaky failures. No dependency on real project paths. Run time under 30 seconds for the integration suite.
+- [ ] **Dependencies "optimized":** Bundle under 300KB. `time node bin/gsd-tools.cjs current-timestamp --raw` under 150ms. `deploy.sh` still deploys a single JS file.
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Init output field removed, workflow breaks | LOW | Add field back to init command output. Workflow continues working. No data loss. |
-| JSON output shape changed, 43 workflows affected | HIGH | Revert the output change. If already deployed, must update all 43 workflow files to match new format — or revert to old format and add new format alongside. |
-| Token counting overhead visible | LOW | Remove tokenizer from runtime path, revert to chars/4 heuristic. Move accurate counting to benchmark-only scripts. |
-| Workflow prompt trimmed, agent behavior degraded | MEDIUM | Revert workflow file from git. A/B test more carefully. Require side-by-side comparison for all future prompt changes. |
-| Cache returns partial data | MEDIUM | Revert cache changes. Return to v1.0 whole-file cache. Add section extraction as pure function above cache. |
-| False economy (more tool calls than before) | MEDIUM | Profile the workflow end-to-end. Restore fields that cause extra tool calls. Measure net tokens, not per-command tokens. |
-| Debugging impossible due to compact output | LOW | Add `--verbose` flag, add debug file output, add `_meta` omission list. No data loss — just visibility loss that's easily restored. |
-| Reference reduction causes inconsistent agent behavior | MEDIUM | Revert reference files from git. Split rather than summarize. Keep all examples intact. |
-| Regex patterns broken by output format change | MEDIUM | `git bisect` to find the breaking change. Revert. Add golden file tests for the specific output. Re-apply change with backward compatibility. |
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Over-aggressive compression | Measurement phase (field→consumer mapping first) | Every init command field traced to ≥1 workflow consumer; untraced fields documented |
-| JSON output shape change | CLI output reduction phase (frozen API constraint) | Snapshot tests for all init commands; `git diff` of workflows/ is empty in output-reduction commits |
-| Token counting overhead | Measurement phase (decide heuristic vs. accurate) | `time node gsd-tools.cjs init execute-phase 1 --raw` stays under 200ms |
-| Workflow prompt trimming | Workflow optimization phase (after CLI reduction) | Side-by-side workflow execution comparison; agent output format unchanged |
-| Cache invalidation | CLI output reduction phase (architecture decision) | Cache stays whole-file read-once; no partial caching |
-| False economy | Measurement phase (workflow-level baselines) | Per-workflow token count is LOWER than baseline, not just per-command |
-| Debugging harder | Design phase (compact/full duality principle) | `GSD_DEBUG=1` produces full output; `.debug/` capture works |
-| Reference/template reduction | Reference optimization phase (split, don't summarize) | All reference files still exist (possibly split); no removed examples; agent output format unchanged |
-| Regex pattern breakage | CLI output reduction phase (add, don't modify) | Full test suite passes; existing field types/values unchanged; new compact fields added alongside |
+| State validation false positives | LOW | Add the missing state transition to the validator. Switch to advisory mode. |
+| Memory bloat | LOW | Truncate memory file to 500 tokens, add eviction logic. |
+| Plans too granular | MEDIUM | Merge plans back; relax decomposition rules to heuristics. |
+| Verification too slow | LOW | Switch from deep to light mode as default. |
+| Integration tests flaky | MEDIUM | Delete flaky tests. Rebuild with deterministic fixtures. Separate from main test suite. |
+| Bundle too large | MEDIUM | Remove the offending dependency. Replace with micro-library or inline code. |
+| Memory contradicts state | LOW | Delete memory file. Regenerate from STATE.md. |
+| Decomposition breaks wave system | MEDIUM | Revert to pre-decomposition plan structure. Re-plan with looser rules. |
 
 ## Sources
 
-- Codebase analysis: `src/commands/init.js` (730 lines, 12 init commands), 43 workflow files, 13 reference files, `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/CONCERNS.md`
-- `.planning/PROJECT.md` — v1.1 scope, constraints, backward compatibility rules
-- Manus context engineering (Philschmid, Dec 2025): Context Rot, Context Pollution, Context Confusion terminology; "prefer compaction over summarization"; "keep toolset small" principle — https://www.philschmid.de/context-engineering-part-2
-- Agenta LLM context management techniques (Jul 2025): Truncation must-have/optional distinction; compression information loss risk; RAG selective loading — https://agenta.ai/blog/top-6-techniques-to-manage-context-length-in-llms
-- Elementor token optimization (Medium): "return structured, helpful [error] messages" to reduce retries; "more tokens ≠ better output" — https://medium.com/elementor-engineers/optimizing-token-usage-in-agent-based-assistants-ffd1822ece9c
-- Speakeasy MCP token reduction: "MCP is a context hog" — dynamic toolset reduction reduced token usage 100x — https://www.speakeasy.com/blog/how-we-reduced-token-usage-by-100x-dynamic-toolsets-v2
-- Stevens Online hidden economics: Quadratic token growth in multi-turn conversations; false economy of additional API calls — https://online.stevens.edu/blog/hidden-economics-ai-agents-token-costs-latency/
-- Galileo tiktoken guide: "10% token count errors translate to massive budget overruns" — measurement accuracy matters for benchmarking — https://galileo.ai/blog/tiktoken-guide-production-ai
-- DigitalOcean context management best practices: "Insufficient context causes AI agents to hallucinate" — the risk of over-reduction — https://docs.digitalocean.com/products/gradient-ai-platform/concepts/context-management/
-- Datagrid context window optimization: "Dynamic pruning clears out outdated context automatically — pruning the wrong information can break your agent" — https://datagrid.com/blog/optimize-ai-agent-context-windows-attention
+- **Codebase analysis:** `src/commands/state.js` (390 lines), `src/commands/verify.js` (668 lines), `src/commands/features.js` (1,461 lines), `bin/gsd-tools.test.cjs` (4,591 lines), `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/CONCERNS.md`, `.planning/codebase/TESTING.md`
+- **PROJECT.md:** v2.0 scope, constraints, key decisions
+- **Manus context engineering:** (Philschmid, Dec 2025) — Context Rot, Context Pollution, Context Confusion; todo.md wasted ~30% tokens; "share context by communicating, not communicate by sharing context"; prefer compaction > summarization — https://www.philschmid.de/context-engineering-part-2
+- **Inkeep context rot analysis** (Oct 2025) — "Every unnecessary token actively degrades performance"; just-in-time retrieval over upfront loading; attention budget concept — https://inkeep.com/blog/fighting-context-rot
+- **AI-native memory** (Ajith Vallath Prabhakar, Jun 2025) — "If controlled forgetting is not implemented, memory bloat can occur, leading to decreased reasoning efficiency" — https://ajithp.com/2025/06/30/ai-native-memory-persistent-agents-second-me/
+- **Mem0 production memory** (2025) — "the absence of persistence, prioritization, and salience makes [large context] insufficient for true intelligence" — https://mem0.ai/blog/memory-in-agents-what-why-and-how
+- **Cross-session agent memory** (MGX.dev, 2025) — "Intelligent Filtering: Using priority scoring and contextual tagging to store only highly relevant information, preventing memory bloat" — https://mgx.dev/insights/cross-session-agent-memory-foundations-implementations-challenges-and-future-directions/
+- **Sphere Inc memory vs context** (2025) — "2025 was the year of retention without understanding — vendors rushed to add retention features" — https://www.sphereinc.com/blogs/ai-memory-and-context/
+- **OpenAI Agents SDK session memory** (2025) — "prevents context bloat by discarding older turns wholesale" — https://cookbook.openai.com/examples/agents_sdk/session_memory
+- **Software testing anti-patterns** (Codepipes, 2018, updated 2026) — integration test complexity/debugging, testing implementation vs behavior, flaky tests destroying suite credibility — https://blog.codepipes.com/testing/software-testing-antipatterns.html
+- **Node.js CLI bundle concerns** (ryoppippi, 2025) — "esbuild-based tools tend to have less accurate tree shaking, resulting in larger bundle sizes" — https://ryoppippi.com/blog/2025-08-12-my-js-cli-stack-2025-en
+- **esbuild FAQ** — startup performance characteristics for bundled CLI tools — https://esbuild.github.io/faq/
+- **Configuration drift detection** (multiple 2025 sources) — false positive prevention techniques, drift detection lifecycle — https://www.josys.com/article/understanding-the-lifecycle-of-configuration-drift-detection-remediation-and-prevention
 
 ---
-*Pitfalls research for: GSD Plugin v1.1 Context Reduction & Tech Debt*
+*Pitfalls research for: GSD Plugin v2.0 Quality & Intelligence*
 *Researched: 2026-02-22*

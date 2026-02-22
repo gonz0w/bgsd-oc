@@ -1,233 +1,223 @@
-# Technology Stack: Context Reduction for GSD Plugin v1.1
+# Technology Stack: v2.0 Quality & Intelligence
 
-**Project:** GSD Plugin — Context Reduction & Tech Debt
+**Project:** GSD Plugin — State Validation, Cross-Session Memory, Verification, Integration Testing, Dependency Optimization
 **Researched:** 2026-02-22
-**Confidence:** HIGH (verified via Context7, npm, esbuild bundling tests)
+**Confidence:** HIGH (verified via Context7, esbuild bundle measurements, Node.js docs, npm package analysis)
 
 ## Scope
 
-This research covers ONLY stack additions for v1.1 context reduction. The existing validated stack (Node.js 18+, esbuild 0.27.3, node:test, zero runtime deps, 15 src/ modules, 79 CLI commands, 309+ regex patterns) is unchanged and not re-evaluated here.
+This research covers ONLY stack additions for v2.0 capabilities. The existing validated stack (Node.js 18+, esbuild 0.27.3, node:test, tokenx 1.3.0, zero runtime deps, 15 src/ modules, 79 CLI commands, 202 tests, 309+ regex patterns) is unchanged and not re-evaluated here.
 
-## Executive Decision: Two-Tier Token Counting Strategy
+## Executive Decision: Zero New Runtime Dependencies
 
-**Primary (Tier 1): Improved built-in heuristic** — zero-dependency `chars/N` with content-type-aware ratios. Replaces the current `lines * 4` heuristic which underestimates by 20-50%.
+**v2.0 adds NO new npm packages.** Every capability is achievable with Node.js built-ins plus hand-written code that bundles smaller than any library alternative.
 
-**Secondary (Tier 2): `tokenx` library** — 2kB pure JS token estimator. ~95-98% accuracy for English prose, adds only 4.5KB to the esbuild bundle. Use for `context-budget` command and any future precise estimation needs.
-
-**NOT recommended: Full BPE tokenizer** — `gpt-tokenizer` cl100k_base adds 1.1MB to the 257KB bundle (4.3x increase). Unnecessary when the goal is context reduction optimization, not billing-accurate token counting.
+**Rationale:** The current bundle is 303KB (non-minified). Adding AJV would increase it 79% (+238KB); Zod would add 50% (+150KB). Hand-written validators for GSD's known, fixed schemas cost 1-3KB — a 100x size advantage. Cross-session memory needs simple JSON file persistence, not SQLite. Integration tests use the existing `node:test` + `execSync` pattern already proven in 202 tests.
 
 ## Recommended Stack Additions
 
-### Token Estimation
+### No New npm Dependencies Required
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| tokenx | 1.3.0 | Fast token estimation (~96% accuracy) | **2kB bundle, zero deps, MIT license.** Pure JS heuristic with multi-language support, `isWithinTokenLimit()`, `sliceByTokens()`, and `splitByTokens()` utilities. Bundles to 4.5KB via esbuild. 661 dependents on npm. |
+Every v2.0 capability maps to existing tools or hand-written code:
 
-**Import pattern (CJS via esbuild):**
-```javascript
-// tokenx is ESM-only, but esbuild converts it to CJS during bundling
-import { estimateTokenCount, isWithinTokenLimit, splitByTokens } from 'tokenx';
-```
+| Capability | Implementation | Why No Library | Bundle Impact |
+|-----------|----------------|----------------|---------------|
+| State validation | Hand-written schema validators + `node:crypto` SHA-256 checksums | Known fixed schemas (STATE.md, config.json, PLAN.md) — 5-10 fields each. Custom validators: ~1-3KB vs AJV 238KB or Zod 150KB. AJV standalone compilation is interesting (2.3KB/schema) but adds 238KB build-time dep for marginal gain over hand-code. | +1-3KB |
+| Cross-session memory | JSON files with atomic write (write-to-temp + `fs.renameSync`) | CLI tool runs <5s per invocation. No concurrent access. JSON persistence via `fs.writeFileSync` + `fs.renameSync` is atomic on same filesystem. No need for SQLite, better-sqlite3 (native addon, ~5MB, can't bundle with esbuild), or node-persist. | +0.5-1KB |
+| Integration tests | `node:test` + `execSync` subprocess spawning (existing pattern) | Already have 202 tests using this exact pattern. `node:test` has `describe`, `it`, `beforeEach`, `afterEach`, `mock.fn()`, `mock.method()`, `mock.timers`. Integration tests spawn the CLI as subprocess — no new framework needed. | +0KB (test-only) |
+| Verification automation | Hand-written requirement checking + `node:crypto` hashing + `execSync` git queries | Verification = "does STATE.md match reality?" + "do tests pass?" + "are requirements met?". All answerable with existing `execSync` (git), `fs` (file existence), and regex matching (requirement tracing). | +1-2KB |
+| Token optimization | tokenx (already bundled) + improved content-aware heuristics | tokenx already provides ~96% accurate BPE estimation at 4.5KB bundled. Further optimization = smarter content selection, not better counting. | +0KB |
+| Atomic plan decomposition | Pure logic (plan parsing + complexity scoring) | Plan decomposition is markdown parsing (existing strength: 309+ regex patterns) + heuristic scoring. No library does this — it's domain-specific to GSD. | +1-2KB |
+| Snapshot comparison for drift detection | `node:assert.deepStrictEqual` + `structuredClone` (Node 18+ built-in) | Deep comparison with diff output is built into Node.js. `structuredClone` (available since Node 17) provides zero-cost deep cloning for before/after comparison. | +0KB |
 
-### No Additional Libraries Required
-
-The following context reduction capabilities are implemented with **zero new dependencies**:
-
-| Capability | Implementation | Why No Library |
-|-----------|----------------|----------------|
-| Markdown section extraction | Regex-based heading parser (extend existing 309+ patterns) | The project already has battle-tested markdown regex parsing. Adding an AST parser (remark/unified) would add ~500KB+ and change the parsing paradigm. |
-| JSON output filtering/projection | Native `JSON.parse` + field selection | Trivial to implement with destructuring. No library needed. |
-| Text truncation by token budget | `tokenx.sliceByTokens()` or built-in `chars * ratio` | Already have the math; just need better constants. |
-| Selective file loading | Enhanced `readFileCached()` with section-aware loading | Extend existing file cache with section extraction. |
-| Content deduplication | Map-based fingerprinting (already have in-memory Map cache) | Simple string hashing. No library needed. |
+### Total estimated bundle size increase: ~4-8KB (1-3% of current 303KB)
 
 ## Detailed Technology Evaluations
 
-### Token Counting Libraries — Comparison Matrix
+### State Validation — Schema Library vs Hand-Written
 
-| Library | Bundle Size (esbuild) | Accuracy | Dependencies | CJS Support | Verdict |
-|---------|----------------------|----------|--------------|-------------|---------|
-| **tokenx@1.3.0** | **4.5KB** | ~95-98% (prose), ~80-90% (structured content) | Zero | Via esbuild (ESM→CJS) | **✅ RECOMMENDED** |
-| gpt-tokenizer@3.4.0 (cl100k_base) | 1.1MB | 100% (exact BPE) | Zero | Native CJS | ❌ Too large |
-| gpt-tokenizer@3.4.0 (o200k_base) | 2.9MB | 100% (exact BPE) | Zero | Native CJS | ❌ Way too large |
-| js-tiktoken@1.0.18 | 5.4MB | 100% (exact BPE) | Zero | Native CJS | ❌ Includes all encodings |
-| @dqbd/tiktoken | ~2MB + WASM | 100% (exact BPE) | WASM binary | Needs WASM init | ❌ WASM complexity |
-| Built-in heuristic (chars/3.3) | 0KB | ~85-90% for GSD content | Zero | N/A | ✅ Baseline |
+| Approach | Bundle Size (non-minified) | Accuracy | Complexity | Verdict |
+|----------|---------------------------|----------|------------|---------|
+| **Hand-written validators** | **~1-3KB** | Perfect for known schemas | Low — GSD has 3-5 fixed schemas | **✅ USE THIS** |
+| AJV standalone (pre-compiled) | ~2.3KB/schema runtime, 238KB build-time | Perfect (JSON Schema spec) | Medium — build step + code generation | ❌ Overkill for 3-5 simple schemas |
+| AJV full | ~238KB non-minified | Perfect (JSON Schema spec) | Low — declarative schemas | ❌ 79% bundle increase |
+| Zod | ~150KB non-minified | Perfect (TypeScript-first) | Low — fluent API | ❌ 50% bundle increase, TypeScript-centric |
+| Zod Mini (v4) | Not available via CJS export | — | — | ❌ ESM-only, no CJS path for v4/mini |
 
-**Source:** Bundle sizes verified by actual esbuild runs (not bundlephobia estimates). Accuracy tested against `gpt-tokenizer/encoding/cl100k_base` countTokens() with GSD-typical content.
+**Why hand-written wins:** GSD has exactly 3-5 document schemas (STATE.md structure, config.json, PLAN.md frontmatter, ROADMAP.md phase structure, memory.json). These schemas are:
+- **Fixed and known at development time** (not user-defined)
+- **Simple** (5-15 fields, 1-2 levels deep, mostly strings/enums)
+- **Stable** (change rarely, maybe once per milestone)
 
-### Token Estimation Accuracy — GSD Content Types
+A hand-written validator for a typical GSD schema:
 
-Tested against real cl100k_base BPE tokenizer with content representative of GSD plugin output:
-
-| Content Type | Actual Tokens | tokenx | tokenx Error | Current (lines\*4) | L\*4 Error | chars/3.3 | c/3.3 Error |
-|-------------|--------------|--------|-------------|-------------------|-----------|-----------|------------|
-| Markdown Plan | 181 | ~180 | ~0% | 128 | **-29%** | 207 | +14% |
-| STATE.md | 120 | ~115 | -4% | 92 | **-23%** | 128 | +7% |
-| ROADMAP.md | 197 | ~180 | -9% | 96 | **-51%** | 176 | -11% |
-| JSON Output | 153 | ~140 | -8% | 104 | **-32%** | 153 | 0% |
-| Code block | 77 | ~85 | +10% | 56 | **-27%** | 90 | +17% |
-
-**Key finding:** The current `lines * 4` heuristic **dramatically underestimates** token counts (20-50% low), which means context budget warnings trigger too late. Both `tokenx` and `chars/3.3` are significantly more accurate.
-
-### Why tokenx Over gpt-tokenizer
-
-1. **Bundle size is decisive.** The current `bin/gsd-tools.cjs` is 257KB. Adding gpt-tokenizer's cl100k_base encoding adds 1.1MB (4.3x bloat). tokenx adds 4.5KB (1.7% increase). For a CLI tool deployed via file copy, bundle size directly impacts deploy speed and disk usage.
-
-2. **Accuracy is "good enough."** Context reduction decisions (split plan? trim output? skip section?) don't need exact BPE token counts. A ~5% estimation error on a 200K context window is ~10K tokens — negligible when the reduction target is 30%+.
-
-3. **No encoding data files to ship.** gpt-tokenizer requires BPE rank data files (cl100k_base.tiktoken = 1.6MB, o200k_base.tiktoken = 3.4MB). These get embedded in the bundle. tokenx is pure heuristic — no data files.
-
-4. **gpt-tokenizer is available as a fallback.** If precise counting is ever needed (e.g., API cost estimation), it can be added as an optional `--precise` flag that lazy-loads the BPE data. Not needed for v1.1 scope.
-
-### Build System Changes
-
-The current `build.js` uses `packages: 'external'`, which externalizes ALL npm packages. To bundle `tokenx`:
-
-**Option A (Recommended): Selective external** — Change to explicitly external only node builtins:
 ```javascript
-await esbuild.build({
-  // ... existing options ...
-  packages: undefined,  // Remove 'external' — let esbuild resolve normally
-  external: ['fs', 'path', 'child_process', 'os', 'node:*'],  // Only external node builtins
+function validateStateShape(obj) {
+  const errors = [];
+  if (typeof obj !== 'object' || obj === null) return ['Root must be an object'];
+  if (typeof obj.milestone_version !== 'string') errors.push('milestone_version: must be string');
+  if (typeof obj.phase !== 'string') errors.push('phase: must be string');
+  if (typeof obj.status !== 'string') errors.push('status: must be string');
+  const validStatuses = ['idle', 'planning', 'executing', 'blocked', 'verifying'];
+  if (obj.status && !validStatuses.includes(obj.status)) errors.push(`status: must be one of ${validStatuses.join(', ')}`);
+  return errors;
+}
+```
+
+This is ~500 bytes, self-documenting, zero-dependency, and produces specific error messages. AJV standalone for the same schema: ~2.3KB of generated code with generic error objects.
+
+### Cross-Session Memory — Persistence Strategy
+
+| Approach | Bundle Impact | Complexity | Durability | Verdict |
+|----------|--------------|------------|------------|---------|
+| **JSON file + atomic write** | **~0.5-1KB** | Trivial | Good (atomic rename) | **✅ USE THIS** |
+| better-sqlite3 | Can't bundle (native .node addon) | Medium | Excellent | ❌ Native addon breaks single-file deploy |
+| sql.js (WASM SQLite) | ~1.2MB WASM binary | Medium | Excellent | ❌ 4x current bundle size for unnecessary SQL |
+| node-persist | ~15KB | Low | Good | ❌ Unnecessary abstraction over fs |
+| Flat file (non-atomic) | 0KB | Trivial | Risk of corruption on crash | ❌ Data loss risk |
+
+**Why JSON + atomic write wins:**
+
+1. **No concurrent access** — Only one AI session runs per project at a time (stated in PROJECT.md Out of Scope)
+2. **Small data** — Cross-session memory is decisions (10-50 entries), position (1 object), codebase knowledge (10-30 entries). Total: <50KB JSON
+3. **Atomic write is built-in** — `fs.writeFileSync` to temp file + `fs.renameSync` to target is atomic on POSIX (same filesystem). Node.js docs confirm rename is atomic on most filesystems.
+4. **Human-readable** — JSON files can be inspected, edited, and committed to git. SQLite cannot.
+5. **esbuild-compatible** — No native addons, no WASM loading, no special bundler config.
+
+**Implementation pattern:**
+
+```javascript
+const { writeFileSync, renameSync, readFileSync, mkdirSync } = require('fs');
+const { join, dirname } = require('path');
+const { randomBytes } = require('crypto');
+
+function atomicWriteJSON(filePath, data) {
+  const dir = dirname(filePath);
+  mkdirSync(dir, { recursive: true });
+  const tmpPath = join(dir, `.${randomBytes(6).toString('hex')}.tmp`);
+  writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+  renameSync(tmpPath, filePath);
+}
+
+function readJSON(filePath, fallback = null) {
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf-8'));
+  } catch {
+    return fallback;
+  }
+}
+```
+
+**Storage location:** `.planning/memory.json` — lives alongside STATE.md, committed to git, project-scoped.
+
+### Integration Testing — Framework Evaluation
+
+| Approach | Dependencies | Capabilities | Verdict |
+|----------|-------------|--------------|---------|
+| **node:test + execSync (existing pattern)** | **0 (built-in)** | describe/it/beforeEach/afterEach, mock.fn(), subprocess spawning, assertion library | **✅ USE THIS** |
+| Jest | ~5MB node_modules | Snapshots, mocking, coverage, parallel | ❌ Massive dependency, different testing paradigm |
+| Vitest | ~3MB node_modules | Fast, ESM-native, Jest-compatible API | ❌ Unnecessary — node:test does everything needed |
+| Playwright/Puppeteer | ~100MB+ | Browser automation | ❌ Wrong tool — GSD is a CLI, not a web app |
+
+**Why existing pattern wins:** The project already has a proven integration test pattern:
+
+```javascript
+// From existing bin/gsd-tools.test.cjs
+function runGsdTools(args, cwd = process.cwd()) {
+  const result = execSync(`node "${TOOLS_PATH}" ${args}`, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+  return { success: true, output: result.trim() };
+}
+```
+
+Integration tests for v2.0 extend this pattern to multi-step workflows:
+
+```javascript
+describe('init → plan → execute → verify workflow', () => {
+  let tmpDir;
+  beforeEach(() => { tmpDir = createTempProject(); setupMilestoneFiles(tmpDir); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('full workflow produces valid state transitions', () => {
+    // Step 1: init
+    const init = runGsdTools('init progress --compact --raw', tmpDir);
+    assert.ok(init.success);
+    // Step 2: simulate plan creation
+    createPlanFile(tmpDir, 'test-plan');
+    // Step 3: state transition
+    const setPlan = runGsdTools('state set-plan "test-plan"', tmpDir);
+    assert.ok(setPlan.success);
+    // Step 4: verify state consistency
+    const validate = runGsdTools('state validate --raw', tmpDir);
+    const result = JSON.parse(validate.output);
+    assert.strictEqual(result.valid, true);
+  });
 });
 ```
 
-**Option B: Keep external, copy tokenx** — Ship tokenx alongside bundle. Rejected: adds deployment complexity.
+**node:test capabilities available in Node 18+ (sufficient for all v2.0 needs):**
+- `describe()`, `it()`, `test()` — test organization ✅
+- `beforeEach()`, `afterEach()`, `before()`, `after()` — setup/teardown ✅
+- `mock.fn()`, `mock.method()` — mocking ✅
+- `assert.deepStrictEqual()` — deep comparison with diff output ✅
+- `execSync` subprocess spawning — CLI integration testing ✅
+- Code coverage via `--experimental-test-coverage` — available ✅
 
-**Recommendation: Option A.** This also properly bundles any future npm dependencies. The existing project has no npm runtime dependencies (in-memory cache uses plain `Map`), so this change has zero side effects today while enabling tokenx bundling.
+**NOT available in Node 18 (but not needed):**
+- `t.assert.snapshot()` — Added in Node 22.3.0. Not needed; integration tests assert specific values, not snapshots.
+- `test.run()` programmatic API — Added in Node 18.9.0 ✅ (within our >=18 requirement)
+- `mock.module()` — Node 22.3.0+. Not needed; we mock via subprocess boundaries.
+- `mock.timers` — Node 20.4.0+. Not needed; GSD CLI doesn't use timers.
 
-**Impact:** Build output grows from 257KB to ~262KB. Build time unchanged (<500ms).
+### Verification Automation — Built-in Capabilities
 
-### Markdown Section Extraction — Built-In Approach
+Verification needs map entirely to Node.js built-ins:
 
-**No library recommended.** The project already has 309+ regex patterns for markdown parsing. Section extraction is:
+| Verification Need | Node.js Built-in | How |
+|-------------------|-----------------|-----|
+| File existence checks | `fs.existsSync()` | Verify deliverables exist on disk |
+| Content matching | `String.prototype.match()` + existing 309+ regex patterns | Verify requirements are implemented |
+| Git state queries | `execSync('git ...')` | Verify commits, diffs, branch state |
+| Test execution | `execSync('node --test ...')` | Run tests and parse exit code |
+| State drift detection | `node:crypto` SHA-256 + `fs.readFileSync()` | Hash files to detect changes since last validation |
+| Deep comparison | `node:assert.deepStrictEqual()` | Compare expected vs actual state objects with diff output |
+| Deep cloning | `structuredClone()` (Node 17+) | Snapshot state before operations for before/after comparison |
 
-```javascript
-/**
- * Extract a specific section from markdown by heading.
- * Returns content from the heading to the next heading of same or higher level.
- */
-function extractMarkdownSection(content, headingText, level = 2) {
-  const headingPrefix = '#'.repeat(level);
-  const regex = new RegExp(
-    `^${headingPrefix}\\s+${escapeRegex(headingText)}\\s*$`,
-    'm'
-  );
-  const match = content.match(regex);
-  if (!match) return null;
+### Token/Dependency Optimization — What NOT to Add
 
-  const start = match.index + match[0].length;
-  // Find next heading of same or higher level
-  const nextHeading = content.slice(start).search(
-    new RegExp(`^#{1,${level}}\\s`, 'm')
-  );
+These libraries were evaluated and **explicitly rejected**:
 
-  return nextHeading === -1
-    ? content.slice(start).trim()
-    : content.slice(start, start + nextHeading).trim();
-}
-```
+| Library | Why Evaluated | Why Rejected | Bundle Cost |
+|---------|--------------|-------------|-------------|
+| **AJV** (v8.18.0) | Schema validation | 238KB non-minified (79% bundle increase). Hand-written validators for 3-5 fixed schemas cost 1-3KB. | +238KB |
+| **Zod** (v3.24.2) | Schema validation | 150KB non-minified (50% increase). TypeScript-first design adds no value in CJS project. Zod Mini (v4) has no CJS export path. | +150KB |
+| **better-sqlite3** (v12.6.2) | Cross-session persistence | Native .node addon cannot be bundled by esbuild. Breaks single-file deploy constraint. Requires platform-specific binary. | Unbundleable |
+| **sql.js** (v1.12.0) | Cross-session persistence (WASM SQLite) | ~1.2MB WASM binary. 4x current bundle for a CLI that writes <50KB of JSON. | +1,200KB |
+| **node-persist** (v4.0.3) | Cross-session persistence | Thin wrapper over fs.writeFileSync + JSON.parse. Adds TTL, cleanup intervals — features GSD doesn't need. 15KB is small but unnecessary. | +15KB |
+| **write-file-atomic** (v6.0.0) | Atomic file writes | Does `write temp + rename` — which is 4 lines of code. The library adds worker thread ID handling and chown options we don't need. | +8KB |
+| **fast-json-stable-stringify** | Deterministic JSON output | `JSON.stringify` with sorted keys is achievable in 10 lines. Library is 2KB but adds an unnecessary dependency. | +2KB |
+| **deep-diff** | State comparison | `node:assert.deepStrictEqual` already provides detailed diff output. For structured diffs, a hand-written recursive comparator is ~50 lines. | +12KB |
+| **gpt-tokenizer** | Better token counting | 1.1MB bundle (3.6x increase). tokenx at 4.5KB provides ~96% accuracy — sufficient for context budget estimation. | +1,100KB |
 
-**Why not remark/unified/markdown-tree-parser:**
-- remark ecosystem adds ~500KB+ of dependencies (remark-parse, unified, unist-util-*)
-- AST parsing is overkill for "find heading, extract content to next heading"
-- The project explicitly avoids "Markdown AST parser" per PROJECT.md Out of Scope
-- Regex approach is consistent with the existing 309+ pattern codebase
+## Node.js Built-in Capabilities for v2.0
 
-### JSON Output Projection — Built-In Approach
+These Node.js modules are already available and sufficient:
 
-**No library needed.** JSON field filtering for CLI output:
+| Built-in Module | v2.0 Use | Available Since |
+|----------------|----------|----------------|
+| `node:test` | Integration test suite (describe, it, mock, beforeEach) | Node 18.0.0 (stable in 20.0.0) |
+| `node:assert` | Deep comparison with diff output for state validation | Node 0.1.21 |
+| `node:crypto` | SHA-256 checksums for drift detection | Node 0.1.92 |
+| `node:fs` | Atomic JSON persistence (writeFileSync + renameSync) | Node 0.1.8 |
+| `structuredClone` | Deep cloning for state snapshots | Node 17.0.0 |
+| `node:child_process` | execSync for git queries, test execution, integration tests | Node 0.1.90 |
+| `node:path` | File path manipulation (already used extensively) | Node 0.1.16 |
 
-```javascript
-/**
- * Project JSON output to only include specified fields.
- * Reduces token consumption when workflows only need specific data.
- */
-function projectFields(obj, fields) {
-  if (!fields || fields.length === 0) return obj;
-  const result = {};
-  for (const field of fields) {
-    if (field.includes('.')) {
-      // Support dot-notation for nested fields
-      const parts = field.split('.');
-      let source = obj;
-      let target = result;
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (source[parts[i]] === undefined) break;
-        source = source[parts[i]];
-        target[parts[i]] = target[parts[i]] || {};
-        target = target[parts[i]];
-      }
-      const lastKey = parts[parts.length - 1];
-      if (source[lastKey] !== undefined) target[lastKey] = source[lastKey];
-    } else if (obj[field] !== undefined) {
-      result[field] = obj[field];
-    }
-  }
-  return result;
-}
-```
+## esbuild Integration
 
-Usage: `gsd-tools init progress --raw --fields=milestone_version,progress_percent,phase_count`
-
-### Text Summarization — NOT Recommended
-
-**Explicitly NOT adding any NLP/summarization library.** Here's why:
-
-| Library | Size | Problem |
-|---------|------|---------|
-| compromise | ~200KB | NLP focused, not token reduction |
-| natural | ~2MB | Full NLP toolkit, massive |
-| node-summarizer | ~50KB | Extractive summary, low quality for structured content |
-| LLMLingua-style | N/A | Requires ML model, way out of scope |
-
-**Instead:** Context reduction for GSD is achieved through:
-1. **Selective loading** — Only read sections of STATE.md/ROADMAP.md that workflows need
-2. **Output filtering** — `--fields` flag for JSON projection
-3. **Truncation budgets** — `tokenx.sliceByTokens()` to cap output at token budget
-4. **Template optimization** — Rewrite verbose workflow prompts (non-code change)
-5. **Deduplication** — Don't re-read files already in context
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Token estimation | tokenx | gpt-tokenizer | 1.1MB bundle for exact counting we don't need |
-| Token estimation | tokenx | Custom chars/3.3 heuristic | tokenx provides `sliceByTokens()` and `splitByTokens()` utilities that would need reimplementing |
-| Token estimation | tokenx | js-tiktoken | 5.4MB bundle (includes all encodings). Even lite mode requires loading encoding JSON. |
-| Markdown parsing | Built-in regex | remark/unified | 500KB+ dependency, AST overkill, project explicitly excludes markdown AST parser |
-| Markdown parsing | Built-in regex | @kayvan/markdown-tree-parser | Wraps remark/unified, same dependency concern |
-| JSON filtering | Built-in | jmespath / json-path | Over-engineered for field selection. Standard JS destructuring is sufficient. |
-| Text compression | Not needed | compromise/natural | NLP libraries don't help with structured markdown. Selective loading is the right approach. |
-
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| gpt-tokenizer (bundled) | 1.1MB+ bundle bloat for exact BPE counting | tokenx (4.5KB) for estimation |
-| tiktoken / @dqbd/tiktoken | WASM binary, complex init, needs `free()` cleanup | tokenx |
-| remark / unified | 500KB+ AST parser ecosystem, out of scope per PROJECT.md | Built-in regex section extraction |
-| compromise / natural | NLP libraries irrelevant to structured markdown context reduction | Selective loading + truncation |
-| LLMLingua / prompt compression | ML model-based compression, requires Python/GPU, out of scope | Template optimization + field projection |
-| node-summarizer | Low quality extractive summaries, unmaintained | Manual section selection |
-| marked / markdown-it | Full markdown-to-HTML renderers, wrong tool | Regex heading extraction |
-| lru-cache (reconsidered) | v1.0 research recommended it, but v1.0 implementation used plain Map instead. Plain Map is sufficient for short-lived CLI. Don't change what works. | Keep existing Map cache |
-
-## Installation
-
-```bash
-# Add tokenx as a runtime dependency (will be bundled by esbuild)
-npm install tokenx@1.3.0
-
-# No other new dependencies needed
-```
-
-## Build System Update
+**No build pipeline changes required.** All v2.0 code is pure JavaScript using Node.js built-ins. The existing `build.js` configuration handles everything:
 
 ```javascript
-// build.js — change packages config
+// Existing build.js — NO CHANGES NEEDED
 await esbuild.build({
   entryPoints: ['src/index.js'],
   outfile: 'bin/gsd-tools.cjs',
@@ -235,89 +225,77 @@ await esbuild.build({
   platform: 'node',
   format: 'cjs',
   target: 'node18',
-  // CHANGED: was 'external' which externalizes ALL npm packages
-  // Now explicitly external only node builtins so tokenx gets bundled
-  external: ['fs', 'path', 'child_process', 'os', 'module'],
-  banner: {
-    js: '#!/usr/bin/env node',
-  },
+  external: ['node:*', 'child_process', 'fs', 'path', ...], // Externalize built-ins
   minify: false,
-  sourcemap: false,
   plugins: [stripShebangPlugin],
 });
 ```
 
-**Expected bundle size:** ~262KB (from 257KB). Negligible increase.
+**Why no changes:** v2.0 adds only:
+- New source files in `src/lib/` (validators, memory, verification) — esbuild bundles these automatically
+- New source files in `src/commands/` (validate, memory commands) — same
+- New test files in `test/` or `bin/` — not bundled (test-only)
 
-## Version Compatibility
+## New Source Module Recommendations
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| tokenx@1.3.0 | Node >=18 | ESM source, but esbuild converts to CJS for bundling. Latest release Jan 2026. |
-| esbuild@0.27.3 | Node >=18 | Already installed. Handles tokenx's ESM→CJS conversion automatically. |
+Based on the v2.0 feature set, these new modules should be added to the existing `src/` structure:
 
-## Implementation Integration Points
+| New Module | Location | Purpose | Estimated Size |
+|-----------|----------|---------|----------------|
+| `validators.js` | `src/lib/validators.js` | State/config/plan schema validators, drift detection | ~2-3KB |
+| `memory.js` | `src/lib/memory.js` | Cross-session JSON persistence (atomic write/read, memory schema) | ~1-2KB |
+| `verification.js` | `src/lib/verification.js` | Requirement checking, test execution, regression detection | ~2-3KB |
+| `decomposition.js` | `src/lib/decomposition.js` | Plan complexity scoring, atomic plan enforcement | ~1-2KB |
+| `validate-cmd.js` | `src/commands/validate-cmd.js` | CLI commands for state validate, memory read/write | ~2-3KB |
 
-### Where token estimation plugs in:
+**Total new code estimate:** ~8-13KB across 5 modules → bundles to ~10-15KB additional in `gsd-tools.cjs`.
 
-| Existing Module | What Changes | New Capability |
-|----------------|-------------|----------------|
-| `src/commands/features.js` → `cmdContextBudget()` | Replace `lines * 4` with `tokenx.estimateTokenCount()` | Accurate context budget warnings |
-| `src/lib/output.js` → `output()` | Add optional `--fields` param for JSON projection | Reduce output token consumption |
-| `src/lib/helpers.js` | Add `extractMarkdownSection()` function | Selective section loading |
-| `src/router.js` | Pass `--fields` flag to output functions | CLI interface for filtering |
-| `src/commands/init.js` | Use section extraction for selective STATE.md/ROADMAP.md reads | Reduce data sent to workflows |
+## Installation
 
-### New `src/lib/tokens.js` module:
+```bash
+# No new packages to install!
+# Existing dependencies are sufficient:
+npm install  # installs esbuild (dev) + tokenx (bundled)
 
-```javascript
-/**
- * Token estimation utilities.
- * Wraps tokenx with GSD-specific defaults and fallback heuristic.
- */
-const { estimateTokenCount, isWithinTokenLimit, sliceByTokens, splitByTokens } = require('tokenx');
+# Build (unchanged):
+npm run build
 
-// Re-export tokenx functions with GSD defaults
-module.exports = {
-  estimateTokenCount,
-  isWithinTokenLimit,
-  sliceByTokens,
-  splitByTokens,
-
-  /**
-   * Quick heuristic when tokenx is overkill (e.g., single-line strings).
-   * Uses chars/3.3 ratio, which is within ~15% for GSD markdown content.
-   */
-  quickEstimate(text) {
-    if (!text) return 0;
-    return Math.ceil(text.length / 3.3);
-  },
-};
+# Test (unchanged + new integration tests):
+npm test
 ```
 
-## Confidence Assessment
+## Alternatives Considered
 
-| Decision | Confidence | Source | Verification |
-|----------|-----------|--------|-------------|
-| tokenx over gpt-tokenizer | **HIGH** | Bundled both with esbuild, measured sizes, tested accuracy | 4.5KB vs 1.1MB verified by actual esbuild output |
-| tokenx accuracy for GSD content | **HIGH** | Compared against cl100k_base countTokens() on 6 representative samples | ~5% avg error for prose, ~15% for structured content |
-| Built-in regex over remark | **HIGH** | PROJECT.md explicitly excludes AST parser; 309 existing regex patterns | Consistent with project architecture |
-| No NLP libraries | **HIGH** | NLP summarization irrelevant to structured markdown; selective loading is more effective | Context reduction via loading less, not compressing what's loaded |
-| Build config change (external → selective) | **HIGH** | Tested esbuild with both configs; tokenx bundles correctly | Verified: output works, size increase <5KB |
-| lines\*4 heuristic is broken | **HIGH** | Measured 20-50% underestimation on GSD content types | Direct comparison with BPE tokenizer |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Schema validation | Hand-written validators | AJV / Zod | 50-80x size penalty for 3-5 simple, fixed schemas. AJV standalone is closest competitor at ~2.3KB/schema but requires 238KB build-time dep. |
+| Persistence | JSON + atomic write | SQLite (better-sqlite3 / sql.js) | Native addon breaks bundling (better-sqlite3) or adds 1.2MB WASM (sql.js). JSON is human-readable, git-committable, sufficient for <50KB data. |
+| Integration testing | node:test + execSync | Jest / Vitest | Zero benefit — existing pattern already works for 202 tests. Adding a framework adds deps and changes paradigm for no gain. |
+| State drift detection | SHA-256 checksums (node:crypto) | File watching (chokidar) | CLI is ephemeral (<5s). File watching is for long-running processes. Drift detection = compare checksums at CLI invocation time. |
+| Deep comparison | node:assert.deepStrictEqual | deep-diff / lodash.isEqual | Built-in provides diff output. 12KB library for what's already free. |
+| Atomic writes | fs.writeFileSync + fs.renameSync | write-file-atomic | 4 lines of code vs 8KB library. We don't need worker_threads IDs or chown. |
 
 ## Sources
 
-- Context7 `/niieani/gpt-tokenizer` — API docs, encoding imports, isWithinTokenLimit, countTokens — **HIGH confidence**
-- Context7 `/dqbd/tiktoken` — Lite mode, WASM bindings, CJS import patterns — **HIGH confidence**
-- GitHub `transitive-bullshit/compare-tokenizers` — Benchmark: gpt-tokenizer 26ms, js-tiktoken 35ms, tiktoken WASM 13ms — **HIGH confidence**
-- GitHub `johannschopplich/tokenx` — README, API docs, accuracy benchmarks (96% for prose) — **HIGH confidence**
-- npm registry: gpt-tokenizer@3.4.0, js-tiktoken@1.0.18, tokenx@1.3.0 — Version and size verification — **HIGH confidence**
-- Actual esbuild bundling tests (run in `/tmp/tokenizer-test/`) — Bundle sizes: tokenx 4.5KB, gpt-tokenizer cl100k 1.1MB, gpt-tokenizer o200k 2.9MB, js-tiktoken 5.4MB — **HIGH confidence**
-- Actual accuracy comparison tests (cl100k_base countTokens vs tokenx estimateTokenCount vs lines\*4 vs chars/3.3) — Run on GSD-representative content — **HIGH confidence**
-- OpenAI tokenizer encodings: cl100k_base (GPT-4), o200k_base (GPT-4o) — **HIGH confidence**
+- **Context7 /nodejs/node** — Node.js test runner API (snapshots, mocking, run(), coverage) [HIGH confidence]
+- **Context7 /evanw/esbuild** — Bundling native addons, external modules, .node files [HIGH confidence]
+- **Context7 /wiselibs/better-sqlite3** — SQLite performance, WAL mode, sync API [HIGH confidence]
+- **Context7 /ajv-validator/ajv** — Standalone code generation, bundle optimization [HIGH confidence]
+- **Node.js v25.6.1 docs** — test runner features, fs atomicity, crypto hashing [HIGH confidence]
+- **npm package measurements** — Actual esbuild bundle sizes measured locally (AJV 238KB, Zod 150KB, tokenx 7.3KB) [HIGH confidence]
+- **Bundlephobia** — Bundle size cross-reference [MEDIUM confidence — rendering issues]
+- **Stack Overflow / npm** — Atomic write patterns, persistence approaches [MEDIUM confidence]
+
+## Confidence Assessment
+
+| Area | Confidence | Reason |
+|------|------------|--------|
+| No new deps needed | HIGH | Measured bundle sizes, verified Node.js built-in capabilities, proven test pattern |
+| Hand-written validators | HIGH | Measured: 808 bytes vs 238KB (AJV) / 150KB (Zod). Verified AJV standalone at 2.3KB is closest but still overkill. |
+| JSON persistence | HIGH | Verified: fs.renameSync is atomic on POSIX. No concurrent access (PROJECT.md out-of-scope). Data volume <50KB. |
+| Integration testing | HIGH | 202 tests already use node:test + execSync. Pattern proven. node:test has mock, describe, before/after hooks. |
+| State drift detection | HIGH | node:crypto SHA-256 is trivial. structuredClone available since Node 17. deepStrictEqual provides diffs. |
+| esbuild compatibility | HIGH | No native addons, no WASM, no new npm packages → zero build pipeline changes. |
 
 ---
-*Stack research for: GSD Plugin v1.1 Context Reduction*
-*Researched: 2026-02-22*
-*Previous STACK.md (v1.0 build tooling) superseded by this v1.1 context-reduction-focused research*
+*Last updated: 2026-02-22 for v2.0 milestone research*

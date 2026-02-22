@@ -1,654 +1,830 @@
-# Architecture Research: Context Reduction Integration
+# Architecture Research: v2.0 Integration with Existing Module Structure
 
-**Domain:** Context reduction for Node.js CLI-driven AI workflow orchestration
+**Domain:** CLI plugin architecture — new capability integration into existing 16-module structure
 **Researched:** 2026-02-22
-**Confidence:** HIGH
+**Confidence:** HIGH (based on direct codebase analysis of all source files, not external sources)
 
-## System Overview
+<!-- section: compact -->
+<architecture_compact>
+
+**Architecture:** Layered CLI with `lib/` foundation (7 modules) → `commands/` business logic (7 modules) → router dispatch → esbuild bundle → single-file deploy. 16 source modules, 8,208 LOC, 202 tests.
+
+**Current module structure:**
+
+| Layer | Module | Lines | Responsibility |
+|-------|--------|-------|----------------|
+| lib | constants.js | 560 | CONFIG_SCHEMA, MODEL_PROFILES, COMMAND_HELP |
+| lib | helpers.js | 452 | File I/O cache, phase lookup, milestone detection |
+| lib | frontmatter.js | 151 | YAML frontmatter extract/reconstruct/splice |
+| lib | output.js | 112 | JSON output, field filtering, tmpfile, debug |
+| lib | context.js | 97 | Token estimation (tokenx), budget checking |
+| lib | config.js | 66 | Config loading with schema defaults |
+| lib | git.js | 28 | execSync git wrapper |
+| cmd | features.js | 1,461 | 15 feature commands (session-diff, velocity, etc.) |
+| cmd | misc.js | 1,422 | 25 utility commands (slug, scaffold, etc.) |
+| cmd | init.js | 1,008 | 12 workflow init commands (context builders) |
+| cmd | phase.js | 901 | Phase CRUD, milestone, requirements |
+| cmd | verify.js | 668 | 8 verification commands |
+| cmd | state.js | 390 | 11 state commands |
+| cmd | roadmap.js | 302 | 3 roadmap commands |
+| core | router.js | 585 | Argv parsing, flag extraction, dispatch |
+| core | index.js | 5 | Entry point |
+
+**v2.0 integration strategy:** Add 2 new lib modules + 1 new command module. Extend 3 existing command modules + 3 lib modules. No structural changes to router pattern, index, or build pipeline.
+
+**Key patterns to preserve:**
+- Commands import from lib, NEVER from other commands
+- Every command: `(cwd, ...args, raw)` → `output(result, raw)` → `process.exit(0)`
+- Config-driven thresholds via CONFIG_SCHEMA
+- Tests exercise bundled binary via subprocess
+
+**Key constraint:** All changes bundle to single CJS file. Zero new runtime dependencies.
+</architecture_compact>
+<!-- /section -->
+
+<!-- section: standard_architecture -->
+## Current System Architecture
+
+### Module Dependency Graph (strict direction: commands → lib, never commands → commands)
 
 ```
-CONTEXT REDUCTION INTEGRATION POINTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
- Layer 1: CLI Tool (bin/gsd-tools.cjs)
-┌──────────────────────────────────────────────────────────────────────────┐
-│                                                                          │
-│  src/lib/                              src/commands/                      │
-│  ┌──────────────────┐                  ┌────────────────────┐            │
-│  │ [NEW] context.js │◀─── used by ────│ init.js            │            │
-│  │  - tokenEstimate │                  │  - init commands   │            │
-│  │  - sectionFilter │                  │  now return LESS   │            │
-│  │  - outputTrimmer │                  │  data by default   │            │
-│  └──────────────────┘                  ├────────────────────┤            │
-│  ┌──────────────────┐                  │ features.js        │            │
-│  │ [MOD] output.js  │                  │  - context-budget  │            │
-│  │  - output() now  │◀─── used by ────│    enhanced        │            │
-│  │  supports field  │                  ├────────────────────┤            │
-│  │  filtering via   │                  │ misc.js            │            │
-│  │  --fields flag   │                  │  - summary-extract │            │
-│  └──────────────────┘                  │    enhanced        │            │
-│  ┌──────────────────┐                  └────────────────────┘            │
-│  │ [MOD] helpers.js │                                                    │
-│  │  - section       │                                                    │
-│  │  extraction gets │                                                    │
-│  │  selective read   │                                                    │
-│  └──────────────────┘                                                    │
-│                                                                          │
-│  [MOD] router.js — adds --fields and --sections global flags             │
-│  [MOD] constants.js — adds SECTION_WEIGHTS, TOKEN_ESTIMATES              │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-
- Layer 2: Workflow Prompts (workflows/*.md)
-┌──────────────────────────────────────────────────────────────────────────┐
-│  [MOD] Reduce redundant instructions, remove duplicated references       │
-│  [MOD] Tighten init JSON parsing — request only needed fields            │
-│  [MOD] Add context-budget checks to more workflows                       │
-│  Target: 30%+ token reduction across workflow prompt layer               │
-└──────────────────────────────────────────────────────────────────────────┘
-
- Layer 3: Templates & References (templates/*.md, references/*.md)
-┌──────────────────────────────────────────────────────────────────────────┐
-│  [MOD] Tighten templates — remove verbose examples, keep structure       │
-│  [MOD] Deduplicate reference material loaded by multiple workflows       │
-│  [MOD] Research output templates — produce compact research files        │
-└──────────────────────────────────────────────────────────────────────────┘
-
- Layer 4: Planning Docs (.planning/ in target projects)
-┌──────────────────────────────────────────────────────────────────────────┐
-│  [INDIRECT] Smaller templates → smaller generated documents              │
-│  [INDIRECT] summary-extract enhanced → agents read less from summaries   │
-│  [INDIRECT] Selective section reads → agents don't load full files       │
-└──────────────────────────────────────────────────────────────────────────┘
+                         index.js (5 LOC)
+                            │
+                         router.js (585 LOC)
+                            │
+            ┌───────────────┼───────────────┬───────────────┐
+            │               │               │               │
+       commands/        commands/       commands/       commands/
+        init.js         state.js       verify.js      features.js
+        (1008)          (390)           (668)          (1461)
+            │               │               │               │
+       commands/        commands/       commands/            │
+        phase.js        roadmap.js      misc.js             │
+        (901)           (302)           (1422)              │
+            │               │               │               │
+            └───────┬───────┴───────┬───────┴───────────────┘
+                    │               │
+                    ▼               ▼
+               lib/helpers.js  lib/frontmatter.js  lib/git.js
+                  (452)            (151)             (28)
+                    │
+                    ▼
+               lib/config.js   lib/context.js   lib/constants.js
+                  (66)            (97)              (560)
+                    │               │               │
+                    └───────┬───────┘               │
+                            ▼                       │
+                       lib/output.js ◄──────────────┘
+                          (112)
 ```
 
-## Component Responsibilities
+### Data Flow: CLI Invocation
 
-| Component | Current Responsibility | Context Reduction Change |
-|-----------|----------------------|--------------------------|
-| `src/lib/output.js` | JSON-to-stdout, tmpfile overflow | Add field filtering support to `output()` |
-| `src/lib/helpers.js` | File reads, phase helpers, milestone detection | Add selective markdown section extraction |
-| `src/lib/constants.js` | MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP | Add TOKEN_ESTIMATES, SECTION_WEIGHTS constants |
-| `src/commands/init.js` | Compound context gathering for workflows | Reduce default payloads, add `--compact` flag |
-| `src/commands/features.js` | 12 feature commands including context-budget | Enhance context-budget with workflow-level estimation |
-| `src/commands/misc.js` | summary-extract, history-digest, etc. | Enhance summary-extract with field-level selection |
-| `src/router.js` | CLI argv parsing + command dispatch | Parse `--fields` and `--sections` global flags |
-| `workflows/*.md` (32 files) | Orchestration prompts for AI agents | Reduce verbosity, deduplicate, tighten instructions |
-| `templates/*.md` (24+ files) | Document structure definitions | Remove verbose examples, compact structure guidance |
-| `references/*.md` (13 files) | Behavioral rules for agents | Deduplicate cross-referenced content |
+```
+User/AI invokes:  node gsd-tools.cjs <command> [args] [--raw] [--compact] [--fields]
 
-## Recommended Architecture: Where Context Reduction Happens
-
-### Decision 1: Token counting — CLI side, not caller side
-
-**Recommendation: CLI side.** Token counting belongs in `src/lib/context.js` (new module).
-
-**Rationale:**
-- The CLI already has file access and caching infrastructure
-- Token estimation is a pure computation (chars/4 approximation, or line-count × 4)
-- Callers (workflow prompts) are markdown — they can't do math
-- The existing `cmdContextBudget()` already does this for individual plans
-- Extending it to cover init command payloads and workflow prompts is natural
-
-**Implementation:** A new `src/lib/context.js` module with:
-```javascript
-// Token estimation for any string content
-function estimateTokens(text) {
-  // Simple heuristic: ~4 chars per token for English text
-  // More accurate than line-count × 4 for mixed content
-  return Math.ceil(text.length / 4);
-}
-
-// Estimate tokens for a JSON payload (before stringification)
-function estimateJsonTokens(obj) {
-  return estimateTokens(JSON.stringify(obj));
-}
-
-// Budget check: returns { tokens, percent, warning, recommendation }
-function checkBudget(tokens, config) {
-  const window = config.context_window || 200000;
-  const target = config.context_target_percent || 50;
-  const percent = Math.round((tokens / window) * 100);
-  return {
-    tokens,
-    percent,
-    warning: percent > target,
-    recommendation: percent > 60 ? 'split' : percent > target ? 'trim' : 'ok',
-  };
-}
+                    ┌──────────────────────────────────┐
+                    │          router.js                 │
+                    │  1. Parse global flags (--raw,     │
+                    │     --fields, --compact, --manifest)│
+                    │  2. Switch on command name          │
+                    │  3. Delegate to command function    │
+                    └──────────────┬───────────────────┘
+                                   │
+                    ┌──────────────▼───────────────────┐
+                    │       commands/<module>.js         │
+                    │  1. Validate args                  │
+                    │  2. Load config (lib/config)       │
+                    │  3. Read files (lib/helpers cache)  │
+                    │  4. Parse markdown (lib/frontmatter)│
+                    │  5. Query git (lib/git)             │
+                    │  6. Compute result object           │
+                    └──────────────┬───────────────────┘
+                                   │
+                    ┌──────────────▼───────────────────┐
+                    │         lib/output.js              │
+                    │  1. Apply --fields filter           │
+                    │  2. JSON.stringify result            │
+                    │  3. If >50KB: write tmpfile          │
+                    │  4. stdout → process.exit(0)        │
+                    └──────────────────────────────────┘
 ```
 
-**What NOT to do:** Don't use tiktoken or any tokenizer library. The CLI has zero runtime dependencies. The chars/4 heuristic is accurate enough for budgeting (±15%), and the actual token count doesn't matter — what matters is detecting "this is too big" vs "this is fine."
+### Data Flow: AI Workflow Integration
 
-### Decision 2: Selective section extraction — extend existing markdown parser
-
-**Recommendation: Add to `src/lib/helpers.js` as section-aware read functions.**
-
-**Rationale:**
-- The existing `getRoadmapPhaseInternal()` already extracts sections by heading
-- The pattern generalizes: extract section(s) from any markdown file by heading
-- This reduces context when agents only need one section (e.g., "Current Position" from STATE.md)
-- Fits the existing "commands → lib" dependency direction
-
-**Implementation:**
-```javascript
-// In src/lib/helpers.js
-
-/**
- * Extract specific sections from markdown content by heading text.
- * Returns only matched sections, dramatically reducing token count.
- * 
- * @param {string} content - Full markdown file content
- * @param {string[]} sections - Heading texts to extract (case-insensitive)
- * @param {object} options - { level: 2, includeSubheadings: true }
- * @returns {string} Extracted sections concatenated
- */
-function extractSections(content, sections, options = {}) {
-  const level = options.level || 2;
-  const includeSubheadings = options.includeSubheadings !== false;
-  // ... heading-based extraction using existing regex patterns
-}
 ```
-
-**Integration with existing commands:**
-- `cmdStateGet(cwd, field, raw)` — already does field extraction; generalize to section extraction
-- `summary-extract --fields key1,key2` — already supports field filtering; works as-is
-- New: `state load --sections "Current Position,Blockers"` — return only those STATE.md sections
-
-**What NOT to do:** Don't build a markdown AST parser. The regex approach works for section extraction (heading-delimited text blocks are structurally simple). The PROJECT.md explicitly says "Markdown AST parser — Would add heavy dependencies" is out of scope.
-
-### Decision 3: JSON output filtering — CLI flag, not caller side
-
-**Recommendation: CLI-side `--fields` flag parsed in router.js.**
-
-**Rationale:**
-- Callers (workflow prompts) already parse specific fields from JSON output
-- But the full JSON is still transmitted through stdout → Bash variable → agent parsing
-- A `--fields` flag lets the CLI return only requested fields, reducing stdout bytes
-- This is the single highest-impact change for init commands (which return 20-40 fields)
-
-**Implementation:**
-```javascript
-// In src/router.js — parse --fields before dispatch
-const fieldsIdx = args.indexOf('--fields');
-const requestedFields = fieldsIdx !== -1 
-  ? args.splice(fieldsIdx, 2)[1].split(',')
-  : null;
-
-// In src/lib/output.js — filter before serialization
-function output(result, raw, rawValue) {
-  let filtered = result;
-  if (global._gsdRequestedFields && typeof result === 'object' && result !== null) {
-    filtered = {};
-    for (const field of global._gsdRequestedFields) {
-      if (field in result) filtered[field] = result[field];
-    }
-  }
-  // ... existing output logic
-}
+Workflow .md prompt (loaded into AI context)
+    │
+    │ instructs AI to run:
+    │ node gsd-tools.cjs init execute-phase "03" --compact
+    │
+    ▼
+AI reads JSON from stdout ──► AI parses fields ──► AI makes decisions
+    │                                                    │
+    │                                                    ▼
+    │                                          AI reads plan files
+    │                                                    │
+    │                                                    ▼
+    │                                          AI executes plan tasks
+    │                                                    │
+    ├─────────────────────────────────► AI calls gsd-tools state/verify
+    │                                                    │
+    ▼                                                    ▼
+gsd-tools writes STATE.md ◄────────── gsd-tools verify artifacts/commits
 ```
+<!-- /section -->
 
-**Impact analysis for init commands:**
+<!-- section: integration_map -->
+## v2.0 Feature → Module Integration Map
 
-| Command | Current Fields | Typical Usage | Reduction with --fields |
-|---------|---------------|---------------|------------------------|
-| `init execute-phase` | 24 fields | Workflow uses 15 | ~38% JSON reduction |
-| `init plan-phase` | 22 fields | Workflow uses 12 | ~45% JSON reduction |
-| `init progress` | 20 fields + phases[] | Workflow uses 10 | ~50% JSON reduction |
-| `init new-project` | 16 fields | Workflow uses 10 | ~38% JSON reduction |
-| `init quick` | 16 fields | Workflow uses 8 | ~50% JSON reduction |
+### Feature 1: State Validation
 
-**Backward compatibility:** Without `--fields`, behavior is identical. This is additive.
+**What:** Detect when STATE.md drifts from git/filesystem reality.
+**Example drift:** STATE.md says "Phase 10, Plan 02" but no phase 10 directory exists, or plan 02 already has a SUMMARY.md (i.e., it's complete, not in-progress).
 
-**What NOT to do:** Don't filter on the caller side (in workflow markdown). The full JSON still flows through stdout and Bash variable assignment — filtering after that doesn't save context. The filtering must happen before serialization.
+#### New module: `src/lib/validation.js` (~150-200 lines)
 
-### Decision 4: Workflow prompt compression — structured rewriting
-
-**Recommendation: Manual rewrite of each workflow, targeting 30%+ reduction without losing agent clarity.**
-
-**Rationale:**
-- Workflows are the single largest context consumer (11,050 lines across 32 files)
-- They're loaded into agent context at the start of every invocation
-- Reduction techniques: remove redundant `<required_reading>` refs, inline short references instead of @-loading separate files, deduplicate instructions repeated across workflows, tighten verbose step descriptions
-- This is NOT automated — each workflow needs human judgment about what's essential
-
-**Approach — three compression techniques:**
-
-1. **Dedup cross-workflow instructions:** Several workflows repeat identical blocks (error handling, banner display, config parsing). Extract to a shared preamble pattern loaded once.
-
-2. **Tighten step descriptions:** Many steps have 10+ lines of explanation where 3-4 would suffice. Agents don't need prose — they need clear instructions.
-
-3. **Reduce @-file references:** `checkpoints.md` (776 lines) is loaded by 3+ workflows. Most workflows only need 1-2 checkpoint types. Either split the reference or inline the relevant checkpoint definition.
-
-**Estimated impact by file size:**
-
-| Workflow | Current Lines | Estimated After | Savings |
-|----------|--------------|-----------------|---------|
-| new-project.md | 1,116 | ~780 | ~30% |
-| complete-milestone.md | 700 | ~490 | ~30% |
-| verify-work.md | 569 | ~400 | ~30% |
-| execute-phase.md | 529 | ~370 | ~30% |
-| execute-plan.md | 485 | ~340 | ~30% |
-| plan-phase.md | 455 | ~320 | ~30% |
-| quick.md | 453 | ~320 | ~30% |
-| **Total (all 32)** | **11,050** | **~7,700** | **~30%** |
-
-**What NOT to do:** Don't use automated summarization or templating to compress workflows. Each workflow is a carefully structured prompt — compression requires understanding what each instruction does and whether agents need it. Lossy compression = broken workflows.
-
-### Decision 5: Context budgeting integration pattern
-
-**Recommendation: Enhance `cmdContextBudget()` to estimate full workflow context, not just plan files.**
-
-**Current state:** `cmdContextBudget()` (in `src/commands/features.js`) only estimates tokens for a single PLAN.md file. It counts `<task>` blocks, files_modified, and line counts.
-
-**Enhanced design:** A new `context-budget-workflow` command (or enhancement to existing) that estimates the total context load for an entire workflow invocation:
+Reusable validation primitives consumed by multiple command modules.
 
 ```javascript
-// Estimate context for a workflow invocation
-function cmdContextBudgetWorkflow(cwd, workflowName, phase, raw) {
-  const workflowPath = path.join(PLUGIN_DIR, 'workflows', `${workflowName}.md`);
-  const workflowContent = safeReadFile(workflowPath);
-  
-  let total = 0;
-  const breakdown = {};
-  
-  // 1. Workflow prompt itself
-  const workflowTokens = estimateTokens(workflowContent);
-  breakdown.workflow_prompt = workflowTokens;
-  total += workflowTokens;
-  
-  // 2. @-referenced files (extract from <required_reading>)
-  const refs = extractAtReferences(workflowContent);
-  let refTokens = 0;
-  for (const ref of refs) {
-    const refContent = safeReadFile(ref);
-    if (refContent) refTokens += estimateTokens(refContent);
-  }
-  breakdown.referenced_files = refTokens;
-  total += refTokens;
-  
-  // 3. Init command JSON output
-  const initResult = simulateInit(cwd, workflowName, phase);
-  const initTokens = estimateJsonTokens(initResult);
-  breakdown.init_json = initTokens;
-  total += initTokens;
-  
-  // 4. Files the workflow will read (STATE.md, ROADMAP.md, etc.)
-  const fileReads = estimateFileReads(cwd, workflowName, phase);
-  breakdown.file_reads = fileReads;
-  total += fileReads;
-  
-  // Budget check
-  const config = loadConfig(cwd);
-  const budget = checkBudget(total, config);
-  
-  output({ workflow: workflowName, breakdown, ...budget }, raw);
-}
+// Core validation functions
+function validateStatePosition(cwd, stateContent)        // → {valid, issues[]}
+function validatePhaseExists(cwd, phaseNum)               // → {exists, directory}
+function validatePlanStatus(cwd, phaseDir, planId)        // → {status, hasSummary, isActive}
+function validateMilestoneAlignment(cwd, state, roadmap)  // → {valid, issues[]}
+function validateProgressAccuracy(cwd)                    // → {valid, drift, issues[]}
 ```
 
-**Integration point:** This can be called by workflows at initialization:
-```bash
-# In any workflow's first step
-BUDGET=$(node gsd-tools.cjs context-budget-workflow "${WORKFLOW_NAME}" "${PHASE}" --raw 2>/dev/null)
+#### Modifications to existing modules:
+
+| Module | Change | Lines Added | Rationale |
+|--------|--------|-------------|-----------|
+| `commands/state.js` | Add `cmdStateValidate(cwd, raw)` | ~60 | Entry point for `gsd-tools state validate` |
+| `commands/verify.js` | Extend `cmdValidateHealth()` to call validation.js | ~15 | Health check should include drift detection |
+| `commands/init.js` | Add `validation_warnings[]` to init outputs | ~20 | Workflows see drift warnings upfront |
+| `lib/helpers.js` | Extract `parseStatePosition(content)` | ~25 | Both state.js and validation.js need position parsing |
+| `router.js` | Add `state validate` subcommand route | ~3 | Wire new command |
+| `lib/constants.js` | Add COMMAND_HELP for `state validate` | ~15 | --help support |
+
+#### Data flow change:
+
+```
+Before:  AI reads STATE.md → trusts content → may act on stale data
+
+After:   gsd-tools state validate → {valid: false, issues: [
+           "STATE says plan 02 but 02-SUMMARY.md exists (plan complete)",
+           "STATE says phase 10 but no phase-10 directory"
+         ]}
+         init commands include validation_warnings[] → AI warned upfront
 ```
 
-### Decision 6: --compact flag for init commands
+#### Why a new lib module (not inline in commands/state.js):
+- Validation logic is consumed by `state.js`, `verify.js`, AND `init.js`
+- Putting it in any one command module creates a cross-command dependency (currently commands NEVER import from each other — this is a strict invariant)
+- `helpers.js` is already 452 lines and validation is a distinct concern
 
-**Recommendation: Add `--compact` flag to init commands that returns a minimal payload.**
+---
 
-**Rationale:**
-- Init commands currently return everything a workflow might need
-- Many fields are only used in edge cases (e.g., `session_diff` in `init progress`, `branch_name` in `init execute-phase` when `branching_strategy` is "none")
-- A `--compact` flag returns only the fields the workflow always uses
-- The workflow can request additional fields only when needed
+### Feature 2: Atomic Plan Decomposition
 
-**Implementation pattern:**
+**What:** Enforce single-responsibility per plan. Detect when a plan bundles too many unrelated concerns.
+
+#### Extends: `commands/verify.js` (add ~100-150 lines)
+
 ```javascript
-function cmdInitExecutePhase(cwd, phase, raw, compact = false) {
-  // ... existing setup ...
-  
-  const result = {
-    // Always included (minimal set)
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    plan_count: phaseInfo?.plans?.length || 0,
-    incomplete_count: phaseInfo?.incomplete_plans?.length || 0,
-    commit_docs: config.commit_docs,
-    parallelization: config.parallelization,
-    executor_model: resolveModelInternal(cwd, 'gsd-executor'),
-  };
-  
-  if (!compact) {
-    // Extended fields (only when not compact)
-    result.verifier_model = resolveModelInternal(cwd, 'gsd-verifier');
-    result.branching_strategy = config.branching_strategy;
-    result.branch_name = /* ... */;
-    result.plans = phaseInfo?.plans || [];
-    result.summaries = phaseInfo?.summaries || [];
-    result.milestone_version = milestone.version;
-    result.milestone_name = milestone.name;
-    // ... etc
-  }
-  
-  output(result, raw);
-}
+function cmdVerifyPlanAtomicity(cwd, planFilePath, raw)
+// Checks:
+//   1. Task count > config.max_tasks_per_plan (default 8) → warning
+//   2. files_modified spans > N unrelated directories → warning
+//   3. must_haves.artifacts span > N unrelated paths → warning
+//   4. Plan has tasks touching both src/ and workflows/ → warning (scope mixing)
 ```
 
-**Router change:**
+#### Modifications:
+
+| Module | Change | Lines Added | Rationale |
+|--------|--------|-------------|-----------|
+| `commands/verify.js` | Add `cmdVerifyPlanAtomicity()` | ~120 | New verify subcommand |
+| `router.js` | Add `verify plan-atomicity` route | ~3 | Wire command |
+| `lib/constants.js` | Add `max_tasks_per_plan` to CONFIG_SCHEMA | ~2 | Configurable threshold |
+| `lib/constants.js` | Add COMMAND_HELP entry | ~10 | --help |
+
+#### Data flow change:
+
+```
+Before:  Planner generates plan → executor runs it (may be too large)
+After:   Planner generates plan → atomicity check → split recommendation → focused plan
+```
+
+#### Why extend verify.js (not new module):
+- It's a verification concern — fits alongside plan-structure and phase-completeness checks
+- verify.js is 668 lines; adding 120 keeps it under 800 (reasonable)
+- No new cross-module dependencies needed (uses existing frontmatter + helpers)
+
+---
+
+### Feature 3: Cross-Session Memory
+
+**What:** Persist decisions, codebase patterns, position, and contextual knowledge across `/clear` or session restart. Currently STATE.md captures position but loses rich context.
+
+#### New module: `src/lib/memory.js` (~200-250 lines)
+
+Structured memory persistence and token-budgeted retrieval.
+
 ```javascript
-// In router.js, for init commands
-const compact = args.includes('--compact');
-if (compact) args.splice(args.indexOf('--compact'), 1);
+// Storage: .planning/memory.json (JSON, not markdown)
+function loadMemory(cwd)                                // → {decisions[], patterns[], codebase{}, lessons[]}
+function saveMemory(cwd, memory)                        // → writes .planning/memory.json
+function addMemoryEntry(cwd, category, entry)           // → appends to category array
+function queryMemory(cwd, category, query)              // → filtered entries (substring match)
+function pruneMemory(cwd, options)                      // → remove old entries, enforce maxEntries/maxTokens
+function getMemoryDigest(cwd, tokenBudget)              // → compressed summary within token limit
 ```
 
+#### New module: `src/commands/memory.js` (~250-300 lines)
+
+CLI interface for memory operations.
+
+```javascript
+function cmdMemoryLoad(cwd, raw)                        // gsd-tools memory load
+function cmdMemoryAdd(cwd, category, entry, raw)        // gsd-tools memory add --category decisions --entry "..."
+function cmdMemoryQuery(cwd, category, query, raw)      // gsd-tools memory query --category codebase --query "auth"
+function cmdMemoryPrune(cwd, options, raw)              // gsd-tools memory prune [--max-tokens 5000]
+function cmdMemoryDigest(cwd, options, raw)             // gsd-tools memory digest [--budget 3000]
+```
+
+#### Modifications:
+
+| Module | Change | Lines Added | Rationale |
+|--------|--------|-------------|-----------|
+| `commands/init.js` | Include `memory_digest` in init outputs | ~25 | Workflows get context automatically |
+| `commands/state.js` | `cmdStateRecordSession()` dual-writes to memory | ~10 | Session context flows to both stores |
+| `lib/context.js` | Add `compressForBudget(entries, maxTokens)` | ~35 | Memory digest respects token limits |
+| `router.js` | Add `memory` command with 5 subcommand routes | ~30 | Wire all memory commands |
+| `lib/constants.js` | Add COMMAND_HELP for `memory` + CONFIG_SCHEMA entries | ~40 | --help + config for max_memory_entries, memory_digest_budget |
+
+#### Data flow change:
+
+```
+Before:  Session ends → STATE.md gets position + session log
+         Session starts → reads STATE.md → limited context (position only)
+
+After:   Session ends → STATE.md + memory.json both updated
+         Session starts → init command outputs include memory_digest field
+         AI reads digest → has decisions, patterns, codebase knowledge
+```
+
+#### Why memory.json (not extending STATE.md):
+- STATE.md is markdown parsed by regex — poor for structured data queries
+- JSON enables fast key-based lookups, category filtering, token-budget pruning
+- STATE.md stays human-readable; memory.json is machine-optimized
+- memory.json can grow large without bloating AI context (digest extracts what fits)
+
+#### Why a new command module (not extending features.js):
+- features.js is already 1,461 lines — the largest command module
+- Memory is a distinct domain (5+ commands) deserving its own module
+- Follows the pattern: one command module per domain (state, verify, phase, roadmap, memory)
+
+---
+
+### Feature 4: Comprehensive Verification
+
+**What:** Auto-test execution with regression detection, requirement delivery tracing, combined deliverables verdict.
+
+#### Extends: `commands/verify.js` (add ~250-300 lines)
+
+```javascript
+function cmdVerifyRequirements(cwd, phase, raw)      // Trace requirement IDs → deliverable files
+function cmdVerifyRegression(cwd, options, raw)       // Compare test results with stored baseline
+function cmdVerifyDeliverables(cwd, phase, raw)       // Combined: artifacts + key-links + requirements + tests
+```
+
+#### Extends: `commands/features.js` (modify existing `cmdTestRun`)
+
+```javascript
+// Enhanced cmdTestRun:
+// 1. After running tests, stores results in .planning/baselines/{phase}-{timestamp}.json
+// 2. On next run, compares with most recent baseline
+// 3. Detects regressions: tests that passed before but fail now
+// 4. Returns: { pass_count, fail_count, regressions[], new_failures[] }
+```
+
+#### Modifications:
+
+| Module | Change | Lines Added | Rationale |
+|--------|--------|-------------|-----------|
+| `commands/verify.js` | Add 3 new verify subcommands | ~280 | Comprehensive verification suite |
+| `commands/features.js` | Enhance `cmdTestRun` with baseline storage + comparison | ~80 | Regression detection |
+| `lib/helpers.js` | Add `parseRequirementIds(content)` | ~20 | Used by verify + roadmap for requirement tracing |
+| `router.js` | Add `verify requirements`, `verify regression`, `verify deliverables` | ~10 | Wire commands |
+| `lib/constants.js` | Add help text for 3 new commands | ~30 | --help |
+
+#### Data flow change:
+
+```
+Before:  Verification = manual UAT + artifact/key-link existence checks
+
+After:   Full verification pipeline:
+         1. gsd-tools test-run → stores baseline → regression comparison
+         2. gsd-tools verify requirements {phase} → trace IDs to files
+         3. gsd-tools verify artifacts {plan}     → (existing, unchanged)
+         4. gsd-tools verify key-links {plan}     → (existing, unchanged)
+         5. gsd-tools verify deliverables {phase} → combined verdict JSON
+```
+
+---
+
+### Feature 5: Integration Tests
+
+**What:** End-to-end workflow tests exercising command chains: init → plan → execute → verify.
+
+#### New file: `bin/gsd-integration.test.cjs` (~400-600 lines)
+
+```javascript
+describe('init → execute → verify workflow', () => {
+  // Creates temp project with ROADMAP, STATE, config, phase dirs, plans
+  // Runs init execute-phase → verifies JSON output structure
+  // Runs state patch → verifies state mutation
+  // Runs verify phase-completeness → checks verdict
+});
+
+describe('state validation detects drift', () => {
+  // Creates temp project with valid STATE.md
+  // Corrupts STATE.md (wrong phase number, completed plan marked active)
+  // Runs state validate → expects issues array
+});
+
+describe('memory persistence and retrieval', () => {
+  // Creates temp project
+  // Runs memory add → memory load → verifies entry
+  // Runs memory prune → verifies size reduction
+  // Runs memory digest → verifies token budget respected
+});
+
+describe('comprehensive verification pipeline', () => {
+  // Creates temp project with plans + fake test output
+  // Runs test-run → stores baseline
+  // Runs verify requirements → checks trace
+  // Runs verify deliverables → checks combined verdict
+});
+```
+
+#### Modifications:
+
+| Module | Change | Rationale |
+|--------|--------|-----------|
+| `package.json` | Add `"test:integration": "node --test bin/gsd-integration.test.cjs"` | Separate test command |
+
+**No source module changes** — integration tests exercise the bundled binary via subprocess, same as existing unit tests.
+
+**Test isolation:** Each test creates ephemeral temp directory, scaffolds `.planning/` structure, runs `bin/gsd-tools.cjs` as subprocess, parses JSON stdout, cleans up with `fs.rmSync(recursive)`.
+
+---
+
+### Feature 6: Dependency & Token Optimization
+
+**What:** Analysis task — evaluate Node.js modules for bundle size/token reduction. May produce zero code changes.
+
+#### Minor modifications:
+
+| Module | Change | Lines Added | Rationale |
+|--------|--------|-------------|-----------|
+| `build.js` | Add `metafile: true` to esbuild config | ~5 | Bundle analysis reporting |
+| `commands/features.js` | Enhance `cmdContextBudgetCompare` | ~20 | Better optimization visibility |
+
+This feature is primarily research/analysis, not new code. Output is decisions documented in PROJECT.md.
+
+<!-- /section -->
+
+<!-- section: new_modules -->
+## New vs. Modified Module Summary
+
+### New modules (3)
+
+| Module | Location | Lines (est.) | Purpose | Imports From | Imported By |
+|--------|----------|-------------|---------|--------------|-------------|
+| `validation.js` | src/lib/ | 150-200 | State drift detection, position validation | helpers, config, output | commands/state, commands/verify, commands/init |
+| `memory.js` | src/lib/ | 200-250 | Structured memory CRUD, token-budgeted digest | helpers, context, output | commands/memory, commands/init, commands/state |
+| `memory.js` | src/commands/ | 250-300 | CLI interface: memory load/add/query/prune/digest | lib/memory, lib/output | router.js |
+
+### New files (1)
+
+| File | Location | Lines (est.) | Purpose |
+|------|----------|-------------|---------|
+| `gsd-integration.test.cjs` | bin/ | 400-600 | End-to-end workflow chain tests |
+
+### Modified modules
+
+| Module | Nature of Change | Est. Lines Added |
+|--------|-----------------|-----------------|
+| `commands/verify.js` (668→~1,060) | 4 new functions: plan-atomicity, requirements, regression, deliverables | +350-400 |
+| `commands/features.js` (1,461→~1,560) | Enhanced test-run with baseline storage/comparison | +80-100 |
+| `commands/state.js` (390→~460) | New validate subcommand + memory dual-write | +50-80 |
+| `commands/init.js` (1,008→~1,060) | validation_warnings + memory_digest in outputs | +40-60 |
+| `lib/helpers.js` (452→~500) | parseStatePosition + parseRequirementIds extractions | +30-50 |
+| `lib/context.js` (97→~135) | compressForBudget() for memory digest | +30-40 |
+| `lib/constants.js` (560→~680) | CONFIG_SCHEMA entries + COMMAND_HELP for 9 new commands | +80-120 |
+| `router.js` (585→~660) | New routes: state validate, verify (3), memory (5) | +40-60 |
+| `build.js` (63→~70) | metafile option | +5-10 |
+| `package.json` | test:integration script | +1 |
+
+### Size projection
+
+| Metric | Current | After v2.0 | Change |
+|--------|---------|------------|--------|
+| Source modules | 16 | 19 | +3 |
+| Source LOC | 8,208 | ~10,000-10,500 | +22-28% |
+| Bundle size (LOC) | 7,367 | ~8,800-9,200 | +19-25% |
+| Unit tests | 202 | ~230-250 | +14-24% |
+| Integration tests | 0 | ~30-50 | new |
+| Commands (total) | ~79 | ~90 | +11 |
+
+<!-- /section -->
+
+<!-- section: data_flow -->
 ## Data Flow Changes
 
-### Current Flow (no context reduction)
+### Current State Read/Write
 
 ```
-Workflow loads:
-  workflow.md                    ~500 lines    (~2,000 tokens)
-  + @references/checkpoints.md   776 lines    (~3,100 tokens)
-  + @references/ui-brand.md      160 lines    (~640 tokens)
-  + @references/git-integration.md 248 lines  (~992 tokens)
-                                              ─────────────
-                                              ~6,732 tokens just in prompt
-
-  + init command JSON output                  (~800-2,000 tokens)
-  + STATE.md full read                        (~400-1,200 tokens)
-  + ROADMAP.md full read                      (~200-800 tokens)
-  + PLAN.md files read                        (~800-2,400 tokens)
-                                              ─────────────
-                                              ~8,932-13,132 tokens per invocation
+                    ┌─────────────────────────────────┐
+                    │          STATE.md                 │
+                    │  (markdown, regex-parsed)         │
+                    │                                   │
+                    │  **Current phase:** 10             │
+                    │  **Plan:** 02                      │
+                    │  **Status:** executing             │
+                    │  ## Decisions                      │
+                    │  ## Blockers                       │
+                    └──────────┬──────────────────────┘
+                               │
+            ┌──────────────────┼──────────────────┐
+            │                  │                   │
+      state load         state get           state patch
+      (full parse)     (field parse)       (regex replace)
 ```
 
-### Proposed Flow (with context reduction)
+### v2.0 Dual-Store Flow
 
 ```
-Workflow loads:
-  workflow.md (compressed)       ~350 lines    (~1,400 tokens) ← 30% smaller
-  + @references/checkpoints.md   (inlined)     (~200 tokens)  ← only relevant type
-  + @references/ui-brand.md      (inlined)     (~200 tokens)  ← only banner pattern
-  + @references/git-integration.md (inlined)   (~200 tokens)  ← only commit pattern
-                                              ─────────────
-                                              ~2,000 tokens in prompt (70% reduction)
-
-  + init command JSON (--compact) (~400-800 tokens)   ← 50% smaller
-  + STATE.md section read         (~100-300 tokens)   ← selective sections
-  + ROADMAP.md section read       (~100-200 tokens)   ← selective sections
-  + PLAN.md files read            (~800-2,400 tokens) ← unchanged (needed in full)
-                                              ─────────────
-                                              ~3,400-5,700 tokens per invocation
+                    ┌──────────────────┐    ┌──────────────────────┐
+                    │    STATE.md       │    │    memory.json        │
+                    │ (human-readable)  │    │ (machine-optimized)   │
+                    │ position, status  │    │ {                     │
+                    │ session log       │    │   decisions: [...],   │
+                    └────────┬─────────┘    │   patterns: [...],    │
+                             │              │   codebase: {...},     │
+                             │              │   lessons: [...]       │
+                             │              │ }                      │
+                             │              └────────┬──────────────┘
+         ┌───────────────────┼──────────┐            │
+         │                   │          │            │
+    state validate     state load    memory load   memory digest
+    (cross-reference)  (existing)    (JSON parse)  (budget-limited)
+         │                   │          │            │
+         ▼                   ▼          ▼            ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │                  init command output                       │
+    │  {                                                        │
+    │    ...existing fields...,                                 │
+    │    validation_warnings: ["plan 02 already complete"],     │
+    │    memory_digest: {                                       │
+    │      decisions: ["Chose esbuild", "CJS over ESM"],        │
+    │      patterns: ["lib→cmd dependency direction"],          │
+    │      budget_used: 1240  // tokens                         │
+    │    }                                                      │
+    │  }                                                        │
+    └──────────────────────────────────────────────────────────┘
 ```
 
-**Estimated total reduction: 50-60% per workflow invocation.**
-
-## Module Integration Map
-
-### New Module: `src/lib/context.js`
+### v2.0 Verification Pipeline
 
 ```
-Dependencies: src/lib/helpers.js (for safeReadFile), src/lib/config.js (for loadConfig)
-Used by:      src/commands/features.js (context-budget), src/commands/init.js (compact mode)
-Exports:      estimateTokens(), estimateJsonTokens(), checkBudget(), extractSections()
+AI completes plan execution
+         │
+         ▼
+gsd-tools test-run          ──► .planning/baselines/{phase}-{timestamp}.json
+         │                                    │
+         ▼                                    ▼
+gsd-tools verify regression  ◄── compare with most recent baseline
+         │                        {regressions: [...], new_failures: [...]}
+         ▼
+gsd-tools verify requirements {phase}  ──► trace PROJECT.md requirement IDs
+         │                                  → deliverable files on disk
+         ▼
+gsd-tools verify artifacts {plan}      ──► existing (unchanged)
+         │
+         ▼
+gsd-tools verify key-links {plan}      ──► existing (unchanged)
+         │
+         ▼
+gsd-tools verify deliverables {phase}  ──► combined verdict:
+         │                                  {complete: bool, tests, requirements,
+         │                                   artifacts, key_links, overall}
+         ▼
+AI reads verdict → decides: advance / fix / flag
 ```
 
-### Modified Modules
+### File System Touchpoints
 
-| Module | What Changes | Why | Risk |
-|--------|-------------|-----|------|
-| `src/lib/output.js` | `output()` respects `global._gsdRequestedFields` | Field filtering before serialization | LOW — additive, no-op when flag absent |
-| `src/lib/helpers.js` | Add `extractSections()` | Section-level markdown extraction | LOW — new function, no existing code changed |
-| `src/lib/constants.js` | Add `TOKEN_ESTIMATES`, `SECTION_WEIGHTS` | Static data for budget estimation | LOW — additive constants |
-| `src/router.js` | Parse `--fields`, `--compact`, `--sections` flags | Global flag support | LOW — flag parsing before dispatch |
-| `src/commands/init.js` | Support `--compact` in all 12 init commands | Reduce default payload sizes | MEDIUM — modifies 12 functions |
-| `src/commands/features.js` | Enhance `cmdContextBudget()` | Workflow-level budget estimation | LOW — extends existing function |
-| `src/commands/misc.js` | Enhance `cmdSummaryExtract()` | Better field-level selection | LOW — extends existing function |
+| File | Read By | Written By | v2.0 Change |
+|------|---------|------------|-------------|
+| `.planning/STATE.md` | state, init, features, verify | state | + read by validation.js |
+| `.planning/memory.json` | — | — | **NEW** — read by memory.js, init.js; written by memory.js, state.js |
+| `.planning/baselines/*.json` | — | — | **NEW DIR** — read by verify.js; written by features.js (test-run) |
+| `.planning/config.json` | config.js | misc.js | + new CONFIG_SCHEMA entries |
+| `.planning/ROADMAP.md` | helpers, roadmap, init, verify | roadmap, phase | + read by validation.js |
+| `.planning/phases/*/` | helpers, phase, verify, init | phase | + read by validation.js |
 
-### Unchanged Modules
+<!-- /section -->
 
-| Module | Why Unchanged |
-|--------|---------------|
-| `src/lib/config.js` | Config loading doesn't change (already has `context_window`, `context_target_percent`) |
-| `src/lib/frontmatter.js` | Frontmatter parsing is already lean |
-| `src/lib/git.js` | Git operations unaffected by context reduction |
-| `src/commands/state.js` | State mutations are write operations, not context consumers |
-| `src/commands/roadmap.js` | Roadmap operations are already targeted |
-| `src/commands/phase.js` | Phase operations don't load unnecessary context |
-| `src/commands/verify.js` | Verification suite reads specific files |
+<!-- section: patterns -->
+## Architectural Patterns (to follow)
 
-## Architectural Patterns
+### Pattern 1: Lib Module as Shared Foundation
 
-### Pattern 1: Progressive Disclosure in Init Commands
-
-**What:** Init commands return a minimal "compact" payload by default, with the full payload available via explicit request.
-**When to use:** For any command whose JSON output exceeds ~1KB. The workflow parses the compact response for its critical path, then requests extended data only when conditional branches need it.
-**Trade-offs:** Slightly more complex workflow logic (two CLI calls in edge cases) vs significantly reduced default context consumption. The second call is rare — most workflow runs follow the happy path.
-
-**Example:**
-```bash
-# Workflow step 1: Get compact context
-INIT=$(node gsd-tools.cjs init execute-phase "${PHASE}" --compact)
-# Parse: phase_found, phase_dir, plan_count, incomplete_count, parallelization
-
-# Workflow step 2: Only if branching needed
-if [ "$BRANCHING_STRATEGY" != "none" ]; then
-  BRANCH=$(node gsd-tools.cjs init execute-phase "${PHASE}" --fields branch_name,milestone_version)
-fi
-```
-
-### Pattern 2: Section-Aware File Reads
-
-**What:** Instead of loading a full markdown file into agent context, extract only the sections the agent needs.
-**When to use:** When workflows read STATE.md, ROADMAP.md, or SUMMARY.md but only use specific sections.
-**Trade-offs:** Requires knowing which sections you need upfront. If a workflow needs "most" of a file, just read the whole file.
-
-**Example — reading only Current Position from STATE.md:**
-```bash
-# Instead of: Read STATE.md (the agent reads the full 100+ line file)
-# Do: Extract just the section needed
-POSITION=$(node gsd-tools.cjs state get "Current Phase" --raw)
-```
-
-The existing `state get <field>` command already does this for single fields. The enhancement is supporting multiple fields or section-level extraction.
-
-### Pattern 3: Inline Short References Instead of @-Loading
-
-**What:** For reference files under ~50 lines, inline the relevant content directly in the workflow rather than @-loading the full file.
-**When to use:** When a workflow only needs a small portion of a reference file. `ui-brand.md` (160 lines) is loaded by 5+ workflows, but each only needs the banner pattern (~15 lines).
-**Trade-offs:** Duplicates content across workflows (maintenance burden) vs saves ~600 tokens per workflow invocation.
-
-**Mitigation:** Only inline truly stable content (banner format, checkpoint types). Keep @-loading for content that changes frequently.
-
-## Build Order
-
-The features should be built in this order based on dependencies between them:
-
-### Phase 1: Foundation — Token Estimation & Measurement (build first)
-
-**What:** Create `src/lib/context.js` with token estimation utilities. Enhance `context-budget` to measure workflow-level context consumption. Add `--fields` flag support to router and output.
-
-**Why first:** Everything else depends on being able to measure impact. Without measurement, you can't verify 30%+ reduction target. The `--fields` flag is also foundational — it's used by every subsequent optimization.
-
-**Modules touched:**
-- `src/lib/context.js` (NEW)
-- `src/lib/output.js` (MODIFY — field filtering)
-- `src/lib/constants.js` (MODIFY — token estimates)
-- `src/router.js` (MODIFY — parse --fields flag)
-- `src/commands/features.js` (MODIFY — enhance context-budget)
-
-**Dependencies:** None — this is the foundation.
-
-**Deliverables:**
-- `context-budget` command can estimate workflow-level token usage
-- `--fields` flag works on any command
-- Baseline measurements for all 32 workflows documented
-
-### Phase 2: CLI Output Reduction — Init Command Compaction
-
-**What:** Add `--compact` flag to all 12 init commands. Reduce default payloads. Document which fields are "compact" vs "extended" for each init command.
-
-**Why second:** Init commands are the primary data source for workflows. Reducing their output directly reduces context consumption. Depends on Phase 1 for measurement.
-
-**Modules touched:**
-- `src/commands/init.js` (MODIFY — all 12 init commands)
-- `src/router.js` (MODIFY — parse --compact flag)
-
-**Dependencies:** Phase 1 (for --fields infrastructure and measurement).
-
-**Deliverables:**
-- All 12 init commands support `--compact`
-- Measured token reduction per init command (target: 40-50% per command)
-
-### Phase 3: Workflow Prompt Compression
-
-**What:** Rewrite all 32 workflow files for token efficiency. Deduplicate cross-workflow instructions. Inline short references. Tighten step descriptions.
-
-**Why third:** Workflows are the largest context consumer (11,050 lines). This phase has the highest absolute token savings. Depends on Phase 1 for measurement (before/after), and Phase 2 so workflow changes can leverage `--compact` init calls.
-
-**Files touched:**
-- `workflows/*.md` (ALL 32 files)
-- `references/*.md` (potentially split or trim some)
-
-**Dependencies:** Phase 1 (measurement), Phase 2 (--compact flag availability).
-
-**Deliverables:**
-- All 32 workflows rewritten for reduced context
-- Measured before/after token counts (target: 30%+ reduction in prompt tokens)
-- No behavioral regression (workflows produce identical outcomes)
-
-### Phase 4: Template & Research Output Reduction
-
-**What:** Tighten document templates to produce smaller generated documents. Compact research output templates. Add section-aware reading for generated documents.
-
-**Why fourth:** Templates control the size of documents created by GSD. Smaller templates → smaller STATE.md, SUMMARY.md, RESEARCH.md → less context when agents read these files. Less urgent than workflow compression because template impact is indirect.
-
-**Files touched:**
-- `templates/*.md` (MODIFY — tighten structure guidance)
-- `templates/research-project/*.md` (MODIFY — produce compact research)
-- `src/lib/helpers.js` (MODIFY — add extractSections())
-
-**Dependencies:** Phase 1 (measurement). Independent of Phases 2-3, but logically follows them.
-
-**Deliverables:**
-- Templates produce 20-30% smaller documents
-- `extractSections()` available for selective file reads
-- Before/after measurements for document sizes
-
-### Phase 5: Tech Debt Cleanup (parallel-safe)
-
-**What:** Fix broken `roadmap analyze` test. Add missing --help text for 36 commands. Create plan template files.
-
-**Why last/parallel:** These are independent tech debt items that don't depend on context reduction features. They can be done in parallel with any phase, or deferred to the end.
-
-**Modules touched:**
-- `src/commands/roadmap.js` (FIX — test expectation)
-- `src/lib/constants.js` (ADD — 36 help entries)
-- `templates/plans/` (NEW — plan template files)
-
-**Dependencies:** None — fully independent.
-
-### Build Order Dependency Graph
+**What:** New reusable logic goes in `src/lib/`. New CLI surface goes in `src/commands/`. Commands import from lib, NEVER from other commands.
+**When to use:** Always. This is the strict invariant.
 
 ```
-Phase 1: Foundation
-  └──▶ Phase 2: CLI Output Reduction
-  │     └──▶ Phase 3: Workflow Compression
-  └──▶ Phase 4: Template Reduction (can start after Phase 1)
-
-Phase 5: Tech Debt (independent, can run in parallel with any phase)
+commands/* → lib/*      ✅ (all commands import from lib)
+lib/* → lib/*           ✅ (lib modules can import other lib)
+commands/* → commands/*  ✗ NEVER (no cross-command imports)
+router.js → commands/*  ✅ (router imports command functions)
+router.js → lib/*       ✅ (router imports constants)
 ```
 
-## Anti-Patterns
+**v2.0 implication:** State validation logic needed by both `commands/state.js` and `commands/verify.js` MUST live in `lib/validation.js`.
 
-### Anti-Pattern 1: Lossy Workflow Compression
+### Pattern 2: Command Output Protocol
 
-**What people do:** Use automated summarization or aggressive deletion to shrink workflow files, removing "obvious" instructions.
-**Why it's wrong:** Workflow prompts are precision instruments — each instruction exists because an agent previously did the wrong thing without it. Removing "you must read STATE.md first" seems safe until an agent skips it and corrupts project state. Every deleted line must be individually evaluated for necessity.
-**Do this instead:** Rewrite for conciseness, don't delete for brevity. "Read STATE.md before any operation to load project context" → "Read STATE.md first." Same instruction, fewer tokens.
+**What:** Every command function: `(cwd, ...args, raw)` → `output(result, raw)` → exits.
+**When to use:** Every new command. No exceptions.
 
-### Anti-Pattern 2: Dynamic Token Counting with External Libraries
+```javascript
+function cmdMemoryLoad(cwd, raw) {
+  const memory = loadMemory(cwd);            // lib function
+  if (!memory) {
+    output({ entries: 0, categories: {} }, raw);
+    return;
+  }
+  output({
+    entries: Object.values(memory).flat().length,
+    categories: Object.keys(memory),
+    ...memory,
+  }, raw);
+}
+```
 
-**What people do:** Import tiktoken or similar tokenizer for accurate token counts.
-**Why it's wrong:** Adds a runtime dependency (violates zero-dependency constraint), requires model-specific tokenizer data, and the precision isn't needed. Context budgeting is about "is this too big?" not "exactly how many tokens."
-**Do this instead:** Use chars/4 heuristic. It's consistently within ±15% for English text and mixed code/markdown. For JSON, it's even more predictable.
+### Pattern 3: Config-Driven Thresholds
 
-### Anti-Pattern 3: Caller-Side JSON Filtering
+**What:** Configurable values go in CONFIG_SCHEMA with defaults. Commands read via `loadConfig()`.
+**When to use:** Any threshold, toggle, or limit that users might want to customize.
 
-**What people do:** Let the CLI output full JSON, then filter in the workflow with `jq` or string manipulation.
-**Why it's wrong:** The full JSON is already in the agent's context by the time it's assigned to a Bash variable. The agent parsed it. Filtering after assignment doesn't reduce context consumption — the damage is done.
-**Do this instead:** Filter at the CLI level with `--fields` so the JSON never enters context.
+```javascript
+// In constants.js — single source of truth
+const CONFIG_SCHEMA = {
+  max_tasks_per_plan:     { type: 'number',  default: 8,    description: 'Max tasks before atomicity warning', ... },
+  max_memory_entries:     { type: 'number',  default: 100,  description: 'Max entries per memory category', ... },
+  memory_digest_budget:   { type: 'number',  default: 3000, description: 'Token budget for memory digest', ... },
+};
+```
 
-### Anti-Pattern 4: Splitting Workflow Files into Smaller Pieces
+### Pattern 4: Graceful Degradation for New Files
 
-**What people do:** Split a 500-line workflow into 5 files of 100 lines, loaded with @-references.
-**Why it's wrong:** @-references are loaded into context too — there's no lazy loading. Five 100-line files consume the same tokens as one 500-line file. Splitting adds indirection without saving context.
-**Do this instead:** Make the single file shorter through rewriting, not splitting.
+**What:** New features that depend on new files (memory.json, baselines/) must gracefully handle their absence.
+**When to use:** Every feature that reads a file that may not exist yet.
 
-### Anti-Pattern 5: Removing @-References Without Inlining Critical Content
+```javascript
+function loadMemory(cwd) {
+  const memPath = path.join(cwd, '.planning', 'memory.json');
+  try {
+    const raw = fs.readFileSync(memPath, 'utf-8');
+    return JSON.parse(raw);
+  } catch (e) {
+    debugLog('memory.load', 'no memory file, returning empty', e);
+    return { decisions: [], patterns: [], codebase: {}, lessons: [] };
+  }
+}
+```
 
-**What people do:** Remove `@references/checkpoints.md` from a workflow to save ~3,100 tokens.
-**Why it's wrong:** The agent now doesn't know about checkpoint types and will skip human-verify checkpoints, leading to unchecked phase completions.
-**Do this instead:** Inline only the checkpoint type(s) relevant to this specific workflow (~50 tokens instead of 3,100).
+**Critical:** Existing projects that upgrade to v2.0 won't have memory.json. All memory reads MUST return sensible defaults. All init commands MUST work identically when memory.json is absent.
 
+<!-- /section -->
+
+<!-- section: build_order -->
+## Suggested Build Order
+
+### Dependency Graph Between v2.0 Features
+
+```
+1. State Validation  ◄── foundation: everything benefits from validated state
+        │
+        ▼
+2. Cross-Session Memory  ◄── depends: should persist only validated state
+        │
+        ▼
+3. Comprehensive Verification  ◄── uses: validation (drift check) + memory (baselines)
+        │
+        ▼
+4. Integration Tests  ◄── requires: all features exist to test end-to-end
+
+5. Atomic Plan Decomposition  ◄── independent: can parallel with 4
+6. Dependency & Token Optimization  ◄── independent: research task, parallel with 4-5
+```
+
+### Phase 1: State Validation (foundation)
+
+**Build:**
+1. Create `src/lib/validation.js` — core validation functions
+2. Extract `parseStatePosition()` into `lib/helpers.js`
+3. Add `cmdStateValidate()` to `commands/state.js`
+4. Wire in `router.js` + `constants.js` (route + help)
+5. Extend `cmdValidateHealth()` in verify.js to use validation
+6. Add `validation_warnings[]` to 3-4 key init command outputs
+7. Unit tests for validation functions
+
+**Why first:** Every subsequent feature benefits from knowing if STATE.md is accurate. Memory should persist validated state. Verification should detect drift. Integration tests need validation to be testable.
+
+**Estimated effort:** 1 phase, 2-3 plans
+
+### Phase 2: Cross-Session Memory
+
+**Build:**
+1. Create `src/lib/memory.js` — persistence, query, pruning, digest
+2. Create `src/commands/memory.js` — 5 CLI commands
+3. Add `compressForBudget()` to `lib/context.js`
+4. Wire in `router.js` + `constants.js`
+5. Modify `cmdStateRecordSession()` for dual-write to memory.json
+6. Add `memory_digest` field to key init command outputs
+7. Unit tests for memory CRUD and token budgeting
+
+**Why second:** Memory depends on validated state (don't persist invalid state). Comprehensive verification uses memory (baseline storage builds on session knowledge).
+
+**Estimated effort:** 1 phase, 2-3 plans
+
+### Phase 3: Comprehensive Verification
+
+**Build:**
+1. Add `cmdVerifyRequirements()` to verify.js
+2. Add `cmdVerifyRegression()` to verify.js
+3. Add `cmdVerifyDeliverables()` to verify.js
+4. Enhance `cmdTestRun()` in features.js with baseline storage
+5. Add `parseRequirementIds()` to helpers.js
+6. Wire routes + help text
+7. Update `workflows/verify-work.md` to call comprehensive verification
+8. Unit tests for each new verify command
+
+**Why third:** Uses validation (for state accuracy) and memory (for baseline storage). Must exist before integration tests can verify the full pipeline.
+
+**Estimated effort:** 1 phase, 2-3 plans
+
+### Phase 4: Integration Tests
+
+**Build:**
+1. Create `bin/gsd-integration.test.cjs`
+2. Add `test:integration` to package.json
+3. Write test chains: init → validate → execute → verify
+4. Write memory persistence tests
+5. Write drift detection tests
+6. Write regression detection tests
+
+**Why fourth:** Integration tests exercise the assembled system. All features must exist first.
+
+**Estimated effort:** 1 phase, 1-2 plans
+
+### Phase 5: Atomic Plan Decomposition (can parallel with Phase 4)
+
+**Build:**
+1. Add `cmdVerifyPlanAtomicity()` to verify.js
+2. Add `max_tasks_per_plan` to CONFIG_SCHEMA
+3. Wire route + help text
+4. Update `workflows/plan-phase.md` to include atomicity check
+5. Unit tests
+
+**Why late:** Purely additive. No dependencies on other v2.0 features. Can parallel with integration tests.
+
+**Estimated effort:** 1 plan (within a larger phase)
+
+### Phase 6: Dependency & Token Optimization (parallel with 4-5)
+
+**Build:**
+1. Add esbuild metafile analysis
+2. Benchmark token cost per command
+3. Evaluate optimization opportunities
+4. Implement any with clear benefit
+5. Document decisions in PROJECT.md
+
+**Why late:** Research/analysis task. May produce zero code changes. Low risk.
+
+**Estimated effort:** 1 plan (within a larger phase)
+
+### Practical Phase Grouping for Roadmap
+
+The 6 features group naturally into 4 phases:
+
+| Roadmap Phase | Features | Plans (est.) | Rationale |
+|---------------|----------|-------------|-----------|
+| Phase 10: State Intelligence | State Validation | 2-3 | Foundation for everything else |
+| Phase 11: Session Continuity | Cross-Session Memory | 2-3 | Builds on validated state |
+| Phase 12: Quality Gates | Comprehensive Verification + Atomic Decomposition | 3-4 | Both are verification concerns |
+| Phase 13: Test Infrastructure + Polish | Integration Tests + Token Optimization | 2-3 | Final quality gate + cleanup |
+
+<!-- /section -->
+
+<!-- section: anti_patterns -->
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Cross-Command Imports
+
+**What people do:** Import helpers from `commands/state.js` into `commands/verify.js` to avoid duplication.
+**Why it's wrong:** Creates tangled dependencies, makes modules hard to test independently, risk of circular imports. Currently zero cross-command imports — this is a strict invariant.
+**Do this instead:** Extract shared logic to a `lib/` module. That's exactly why `lib/validation.js` exists for v2.0.
+
+### Anti-Pattern 2: Markdown as Structured Database
+
+**What people do:** Store complex structured data in STATE.md and parse it with regex.
+**Why it's wrong:** Regex is fragile for nested data, slow for queries, prone to drift between write format and read regex.
+**Do this instead:** Use JSON for machine-optimized data (`memory.json`). Keep markdown for human-readable state (`STATE.md`). Dual-store pattern: write to both, each optimized for its consumer.
+
+### Anti-Pattern 3: Growing the Largest Module
+
+**What people do:** Add new commands to `features.js` because "it has feature commands."
+**Why it's wrong:** features.js is 1,461 lines — already the largest module. Adding 250+ lines for memory commands would push it past 1,700.
+**Do this instead:** Create `commands/memory.js` for the new domain. Follow the pattern: one module per distinct domain.
+
+### Anti-Pattern 4: Testing Internal Functions Directly
+
+**What people do:** Import and test helper functions from source modules by requiring the source file.
+**Why it's wrong:** Couples tests to implementation details, breaks when functions move between modules. The source structure can change freely if the CLI interface is stable.
+**Do this instead:** Test via the CLI binary (subprocess). Tests call `node bin/gsd-tools.cjs <command>`, parse JSON output, assert on results. This is the existing pattern (all 202 tests work this way).
+
+### Anti-Pattern 5: Unbounded Memory Growth
+
+**What people do:** Append to memory.json indefinitely, accumulating every decision from every session.
+**Why it's wrong:** memory.json grows without bound. Digest function can't compress arbitrarily large input within token budget. Old entries become irrelevant noise.
+**Do this instead:** Implement pruning in `lib/memory.js` — configurable `max_memory_entries` per category (default 100). The `getMemoryDigest()` function enforces the `memory_digest_budget` token limit by prioritizing recent entries.
+
+### Anti-Pattern 6: Validation That Blocks
+
+**What people do:** Make state validation a hard gate — refuse to run commands if validation fails.
+**Why it's wrong:** Sometimes STATE.md is intentionally out of sync (user manually edited, different tool wrote it, mid-migration). Hard blocking frustrates users.
+**Do this instead:** Validation is advisory — returns warnings, never blocks. Init commands include `validation_warnings[]` for the AI to consider. The AI decides whether to self-correct or proceed. Explicit `state validate` command for intentional validation.
+
+<!-- /section -->
+
+<!-- section: scaling -->
 ## Scaling Considerations
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| Current (32 workflows, ~11K lines) | Manual compression + --fields/--compact flags handles this |
-| 50+ workflows (~20K lines) | Consider a "workflow preprocessor" that strips comments and whitespace at build time |
-| 100+ workflows (~40K lines) | Consider workflow inheritance (base workflow + overrides) to eliminate duplication |
+| Concern | Current | After v2.0 | Mitigation |
+|---------|---------|------------|------------|
+| Module count | 16 | 19 | Still small; esbuild handles easily |
+| Bundle size | 7,367 LOC | ~9,000 LOC | <200KB; no performance impact |
+| Build time | <500ms | <600ms | esbuild is fast; 3 more modules are trivial |
+| Test time (unit) | ~3s | ~4s | Still fast enough for pre-commit |
+| Test time (integration) | 0s | ~30-60s | Run separately via `npm run test:integration` |
+| memory.json size | N/A | Bounded by pruning | max_memory_entries config (default 100/category) |
+| baselines/ dir | N/A | One file per test run | Prune old baselines (keep last 10) |
 
-### Scaling Priorities
+### What Breaks First
 
-1. **First bottleneck: Workflow prompt size.** At 11,050 lines, this is already the primary context consumer. The 30% compression target addresses this directly.
-2. **Second bottleneck: @-referenced files.** `checkpoints.md` (776 lines) and `verification-patterns.md` (612 lines) are loaded by multiple workflows. Inlining relevant excerpts is the fix.
-3. **Third bottleneck: Init command payloads.** Currently returning 16-24 fields when 8-15 are used. The `--compact` / `--fields` approach addresses this.
+1. **features.js size** — At 1,461 lines, it's already the largest module. v2.0 adds ~80 lines to it. If it grows further in v3.0, consider splitting into `features-analysis.js` and `features-tools.js`.
+2. **CONFIG_SCHEMA size** — Currently 18 entries. v2.0 adds 3 more (21 total). At 30+ entries, consider grouping by domain with sections.
+3. **COMMAND_HELP size** — Already 460 lines of help text. Adding 9 more commands adds ~90 lines. Manageable but approaching the point where a help generator might be worthwhile.
 
-## Integration Points
+<!-- /section -->
 
-### How Context Reduction Integrates With Each Existing Module
+<!-- section: integration -->
+## Build Pipeline Impact
 
-| Existing Module | Integration | Effort |
-|-----------------|-------------|--------|
-| `src/lib/output.js` (47 lines) | Add ~15 lines for field filtering in `output()` | LOW |
-| `src/lib/helpers.js` (420 lines) | Add ~40 lines for `extractSections()` | LOW |
-| `src/lib/constants.js` (528 lines) | Add ~20 lines for TOKEN_ESTIMATES | LOW |
-| `src/router.js` (546 lines) | Add ~10 lines for --fields/--compact flag parsing | LOW |
-| `src/commands/init.js` (730 lines) | Modify all 12 init functions for --compact | MEDIUM |
-| `src/commands/features.js` (1045 lines) | Enhance cmdContextBudget ~50 lines | LOW |
-| `src/commands/misc.js` | Enhance summary-extract ~20 lines | LOW |
-| `workflows/*.md` (32 files, 11K lines) | Rewrite each for 30% reduction | HIGH (effort) |
-| `templates/*.md` (24+ files) | Tighten each by 20-30% | MEDIUM |
-| `references/*.md` (13 files) | Split or trim for selective loading | MEDIUM |
+| Concern | Impact |
+|---------|--------|
+| esbuild bundle | ~1,500 new LOC → ~3-4KB increase (trivial) |
+| New npm dependencies | None (memory uses fs.readFileSync/writeFileSync, not a database) |
+| Build time | Negligible increase (<100ms) |
+| Deploy footprint | Unchanged — still `bin/gsd-tools.cjs` + workflows + templates |
+| `deploy.sh` changes | None needed — already copies `src/` directory |
 
-### New Components Summary
+## Backward Compatibility
 
-| Component | Type | Location | Lines (est.) | Purpose |
-|-----------|------|----------|-------------|---------|
-| `src/lib/context.js` | NEW module | `src/lib/` | ~60 | Token estimation, budget checking |
-| `--fields` flag | MODIFY router | `src/router.js` | ~10 | Global output field filtering |
-| `--compact` flag | MODIFY router | `src/router.js` | ~5 | Init command payload reduction |
-| `extractSections()` | NEW function | `src/lib/helpers.js` | ~40 | Selective markdown section reading |
-| Context measurement script | NEW dev tool | `scripts/measure-context.js` | ~100 | Before/after token measurement for benchmarks |
-
-### Backward Compatibility
-
-Every change is additive:
-- Without `--fields`: output is identical to current
-- Without `--compact`: init commands return full payloads
-- Compressed workflows: produce identical outcomes, just fewer tokens in prompt
-- Templates: generate compatible documents (same headings, same frontmatter)
-- No changes to JSON output schema — fields are never removed, only made optional
+| Concern | Mitigation |
+|---------|------------|
+| memory.json doesn't exist | All memory reads return `{ decisions: [], patterns: [], ... }` |
+| baselines/ directory doesn't exist | Created on first `test-run` with `--baseline` flag |
+| New CONFIG_SCHEMA keys | CONFIG_SCHEMA defaults mean old config.json files work unchanged |
+| New validation_warnings field | Only present when issues found; absent = no warnings (falsy) |
+| New memory_digest field | Only present when memory.json exists; absent = no digest |
+| New router commands | Strictly additive — no existing routes changed |
+| Existing test suite | Unchanged — all 202 tests continue to pass (new code doesn't modify tested paths) |
 
 ## Sources
 
-- **Current codebase analysis** — Direct inspection of 15 source modules, 32 workflow files, 24+ templates, 13 references — **HIGH confidence**
-- **Token estimation heuristics** — OpenAI tokenizer documentation confirms ~4 chars/token for English; anthropic documentation confirms similar for Claude models — **HIGH confidence**
-- **Context window sizes** — Claude Opus/Sonnet: 200K tokens, configurable via `context_window` in config.json — **HIGH confidence** (existing implementation)
-- **Workflow line counts** — Measured via `wc -l` across all files — **HIGH confidence** (exact measurements)
+- Direct source analysis: all 16 modules (8,208 LOC), `bin/gsd-tools.test.cjs` (4,591 LOC, 202 tests)
+- `build.js` and `deploy.sh` analysis for pipeline constraints
+- 43 workflow files analyzed for integration patterns
+- `package.json` and `node_modules` for dependency constraints
+- All line counts measured via `wc -l` (exact, not estimated)
 
 ---
-*Architecture research for: Context reduction integration with GSD plugin*
+*Architecture research for: GSD Plugin v2.0 — Integration with existing module structure*
 *Researched: 2026-02-22*
