@@ -47,6 +47,49 @@ From init JSON: `phase_dir`, `plan_count`, `incomplete_count`.
 Report: "Found {plan_count} plans in {phase_dir} ({incomplete_count} incomplete)"
 </step>
 
+<step name="preflight_dependency_check">
+Validate phase dependencies before execution begins. This is a soft check — it warns on unmet dependencies but does not block execution in yolo/auto mode.
+
+```bash
+DEPS=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs validate-dependencies "${PHASE_NUMBER}" --raw 2>/dev/null)
+```
+
+Parse the JSON result for `valid` (boolean) and `issues` (array of dependency problems).
+
+**If `valid` is true (or command fails/returns empty):** Continue silently — all dependencies satisfied.
+
+**If `valid` is false (issues array is non-empty):**
+
+Display warning:
+```
+⚠️ Pre-flight Dependency Check
+
+Unmet dependencies for Phase {PHASE_NUMBER}:
+{For each issue in issues array:}
+  • {issue description}
+
+Satisfied dependencies:
+  {List satisfied deps, or "None required" if no depends_on}
+```
+
+**In yolo/auto mode:** Log warning and continue execution:
+```
+⚠️ Proceeding despite unmet dependencies (yolo mode)
+```
+
+**In interactive mode:** Present the dependency issues and ask:
+```
+Unmet dependencies found. Options:
+1. Proceed anyway — execute despite missing dependencies
+2. Stop — fix dependencies first
+```
+
+If user selects "Stop": exit workflow with dependency list.
+If user selects "Proceed": continue to next step.
+
+**Note:** This check uses data already available from the roadmap — it does not add significant overhead.
+</step>
+
 <step name="discover_and_group_plans">
 Load plan inventory with wave grouping in one call:
 
