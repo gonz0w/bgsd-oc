@@ -71,6 +71,62 @@ Report:
 ```
 </step>
 
+<step name="visualize_execution_plan">
+After discovering plans and computing waves, display an ASCII wave/dependency diagram before execution begins. This makes parallel execution opportunities and dependencies immediately visible.
+
+**Build the visualization from `$PLAN_INDEX` JSON data:**
+
+For each wave, group its plans and show their structure:
+
+```
+📊 Execution Plan:
+
+{For each wave in order:}
+Wave {N} {plans.length > 1 ? "(parallel)" : "(sequential)"}:
+  {If single plan in wave:}
+    ── {plan_id}-PLAN.md ({objective, 5-8 words})
+  {If multiple plans in wave:}
+    ┌─ {first_plan_id}-PLAN.md ({objective, 5-8 words})
+    {For middle plans:}
+    ├─ {plan_id}-PLAN.md ({objective, 5-8 words})
+    {For last plan:}
+    └─ {last_plan_id}-PLAN.md ({objective, 5-8 words})
+
+Dependencies:
+  {For each plan with depends_on:}
+  {plan_id} depends on: {depends_on list}
+  {If no plan has depends_on: "None — all plans are independent"}
+```
+
+**Example output:**
+
+```
+📊 Execution Plan:
+
+Wave 1 (parallel): ┌─ 03-01-PLAN.md (--help support + config migration)
+                    └─ 03-02-PLAN.md (slash commands + visualization)
+Wave 2 (sequential): ── 03-03-PLAN.md (workflow integrations)
+
+Dependencies:
+  03-03 depends on: 03-01, 03-02
+```
+
+**Rules:**
+1. Read plan frontmatter `wave` and `depends_on` fields from `$PLAN_INDEX`
+2. Group plans by wave number
+3. Use box-drawing characters: `┌─` (first), `├─` (middle), `└─` (last) for parallel plans in a wave
+4. Use `──` for single-plan waves
+5. Summarize each plan's objective in 5-8 words (from `objective` field)
+6. List all cross-plan dependencies at the bottom
+7. Skip plans that are already complete (`has_summary: true`)
+
+**Display timing:**
+- In interactive mode: show before asking user to proceed
+- In yolo/auto mode: show before launching first wave executor
+
+This is presentation only — it reads data already computed by `phase-plan-index`, not new computation.
+</step>
+
 <step name="execute_waves">
 Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`, sequential if `false`.
 
