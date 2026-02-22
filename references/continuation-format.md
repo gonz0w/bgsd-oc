@@ -2,6 +2,7 @@
 
 Standard format for presenting next steps after completing a command or workflow.
 
+<!-- section: format -->
 ## Core Structure
 
 ```
@@ -33,6 +34,9 @@ Standard format for presenting next steps after completing a command or workflow
 5. **"Also available" not "Other options"** — sounds more app-like
 6. **Visual separators** — `---` above and below to make it stand out
 
+<!-- /section -->
+
+<!-- section: examples -->
 ## Variants
 
 ### Execute Next Plan
@@ -247,3 +251,4 @@ Sounds like an afterthought. Use "Also available:" instead.
 ```
 
 Fenced blocks inside templates create nesting ambiguity. Use inline backticks instead.
+<!-- /section -->

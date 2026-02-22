@@ -4407,3 +4407,174 @@ describe('context-budget compare', () => {
     }
   });
 });
+
+// ─── Extract Sections Tests ──────────────────────────────────────────────────
+
+describe('extract-sections command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('extract-sections lists available sections from markdown file', () => {
+    // Create a temp markdown file with ## headers
+    const mdContent = [
+      '# Title',
+      '',
+      '## Introduction',
+      'Some intro text here.',
+      '',
+      '## Configuration',
+      'Config details here.',
+      'More config.',
+      '',
+      '## Usage',
+      'Usage instructions.',
+    ].join('\n');
+    const mdPath = path.join(tmpDir, 'test-doc.md');
+    fs.writeFileSync(mdPath, mdContent);
+
+    const result = runGsdTools(`extract-sections ${mdPath} --raw`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(Array.isArray(data.available_sections), 'should have available_sections array');
+    assert.ok(data.available_sections.includes('Introduction'), 'should list Introduction section');
+    assert.ok(data.available_sections.includes('Configuration'), 'should list Configuration section');
+    assert.ok(data.available_sections.includes('Usage'), 'should list Usage section');
+  });
+
+  test('extract-sections extracts specific section by header name', () => {
+    const mdContent = [
+      '## First Section',
+      'Line 1 of first.',
+      'Line 2 of first.',
+      '',
+      '## Second Section',
+      'Line 1 of second.',
+      '',
+      '## Third Section',
+      'Line 1 of third.',
+    ].join('\n');
+    const mdPath = path.join(tmpDir, 'test-extract.md');
+    fs.writeFileSync(mdPath, mdContent);
+
+    const result = runGsdTools(`extract-sections ${mdPath} "Second Section" --raw`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.deepStrictEqual(data.sections_found, ['Second Section'], 'should find the section');
+    assert.deepStrictEqual(data.sections_missing, [], 'no sections should be missing');
+    assert.ok(data.content.includes('Line 1 of second'), 'content should include section text');
+    assert.ok(!data.content.includes('Line 1 of first'), 'content should not include other sections');
+    assert.ok(!data.content.includes('Line 1 of third'), 'content should not include other sections');
+  });
+
+  test('extract-sections handles section markers (HTML comments)', () => {
+    const mdContent = [
+      '# Doc Title',
+      '',
+      'Some preamble text.',
+      '',
+      '<!-- section: config -->',
+      'Configuration block line 1.',
+      'Configuration block line 2.',
+      '<!-- /section -->',
+      '',
+      '<!-- section: examples -->',
+      'Example 1: hello world.',
+      'Example 2: goodbye world.',
+      '<!-- /section -->',
+      '',
+      'Trailing content.',
+    ].join('\n');
+    const mdPath = path.join(tmpDir, 'test-markers.md');
+    fs.writeFileSync(mdPath, mdContent);
+
+    // Discovery mode should find marker sections
+    const discResult = runGsdTools(`extract-sections ${mdPath} --raw`, tmpDir);
+    assert.ok(discResult.success, `Discovery failed: ${discResult.error}`);
+    const discData = JSON.parse(discResult.output);
+    assert.ok(discData.available_sections.includes('config'), 'should find config marker section');
+    assert.ok(discData.available_sections.includes('examples'), 'should find examples marker section');
+
+    // Extract a marker section
+    const result = runGsdTools(`extract-sections ${mdPath} "config" --raw`, tmpDir);
+    assert.ok(result.success, `Extract failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+    assert.deepStrictEqual(data.sections_found, ['config'], 'should find config section');
+    assert.ok(data.content.includes('Configuration block line 1'), 'should include marker section content');
+    assert.ok(!data.content.includes('Example 1'), 'should not include other marker section');
+  });
+
+  test('extract-sections returns sections_missing for unknown sections', () => {
+    const mdContent = [
+      '## Existing Section',
+      'Some content.',
+    ].join('\n');
+    const mdPath = path.join(tmpDir, 'test-missing.md');
+    fs.writeFileSync(mdPath, mdContent);
+
+    const result = runGsdTools(`extract-sections ${mdPath} "Existing Section" "NonexistentSection" --raw`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.deepStrictEqual(data.sections_found, ['Existing Section'], 'should find the existing one');
+    assert.deepStrictEqual(data.sections_missing, ['NonexistentSection'], 'should report the missing one');
+    assert.ok(data.content.includes('Some content'), 'should still return found section content');
+  });
+
+  test('extract-sections handles multiple section extraction', () => {
+    const mdContent = [
+      '## Alpha',
+      'Alpha content.',
+      '',
+      '## Beta',
+      'Beta content.',
+      '',
+      '## Gamma',
+      'Gamma content.',
+    ].join('\n');
+    const mdPath = path.join(tmpDir, 'test-multi.md');
+    fs.writeFileSync(mdPath, mdContent);
+
+    const result = runGsdTools(`extract-sections ${mdPath} "Alpha" "Gamma" --raw`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.deepStrictEqual(data.sections_found, ['Alpha', 'Gamma'], 'should find both sections');
+    assert.deepStrictEqual(data.sections_missing, [], 'no sections should be missing');
+    assert.ok(data.content.includes('Alpha content'), 'should include Alpha content');
+    assert.ok(data.content.includes('Gamma content'), 'should include Gamma content');
+    assert.ok(!data.content.includes('Beta content'), 'should not include Beta (not requested)');
+  });
+
+  test('extract-sections works on real reference files', () => {
+    // Run against actual references/checkpoints.md in the project root
+    const projectRoot = path.join(__dirname, '..');
+    const result = runGsdTools('extract-sections references/checkpoints.md --raw', projectRoot);
+    assert.ok(result.success, `Discovery failed: ${result.error}`);
+
+    const discData = JSON.parse(result.output);
+    assert.ok(discData.available_sections.includes('types'), 'checkpoints.md should have types section');
+    assert.ok(discData.available_sections.includes('guidelines'), 'checkpoints.md should have guidelines section');
+    assert.ok(discData.available_sections.includes('authentication'), 'checkpoints.md should have authentication section');
+
+    // Extract types section — should be much shorter than full file
+    const extractResult = runGsdTools('extract-sections references/checkpoints.md "types" --raw', projectRoot);
+    assert.ok(extractResult.success, `Extract failed: ${extractResult.error}`);
+
+    const data = JSON.parse(extractResult.output);
+    assert.deepStrictEqual(data.sections_found, ['types'], 'should find types section');
+    const sectionLines = data.content.split('\n').length;
+    const fullFile = fs.readFileSync(path.join(projectRoot, 'references', 'checkpoints.md'), 'utf-8');
+    const fullLines = fullFile.split('\n').length;
+    assert.ok(sectionLines < fullLines, `types section (${sectionLines} lines) should be shorter than full file (${fullLines} lines)`);
+    assert.ok(sectionLines > 10, `types section should have substantial content (got ${sectionLines} lines)`);
+  });
+});

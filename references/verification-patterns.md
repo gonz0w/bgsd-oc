@@ -2,6 +2,7 @@
 
 How to verify different types of artifacts are real implementations, not stubs or placeholders.
 
+<!-- section: must-haves -->
 <core_principle>
 **Existence ≠ Implementation**
 
@@ -53,7 +54,9 @@ grep -E "\\\$\d+\.\d{2}|\d+ items" "$file"  # Hardcoded display values
 ```
 
 </stub_detection>
+<!-- /section -->
 
+<!-- section: artifact-verification -->
 <react_components>
 
 ## React/Next.js Components
@@ -343,7 +346,9 @@ grep -E "$VAR_NAME" src/env.ts src/env.mjs 2>/dev/null
 ```
 
 </environment_config>
+<!-- /section -->
 
+<!-- section: key-links -->
 <wiring_verification>
 
 ## Wiring Verification Patterns
@@ -465,7 +470,9 @@ return <div>{otherData.map(...)}</div>  // Uses different data
 ```
 
 </wiring_verification>
+<!-- /section -->
 
+<!-- section: report-format -->
 <verification_checklist>
 
 ## Quick Verification Checklist
@@ -610,3 +617,4 @@ Key principles:
 - Error handling: fix broken environment before checkpoint, never present checkpoint with failed setup
 
 </checkpoint_automation_reference>
+<!-- /section -->

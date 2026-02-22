@@ -11,6 +11,7 @@ Plans execute autonomously. Checkpoints formalize interaction points where human
 5. **Auto-mode bypasses verification/decision checkpoints** — When `workflow.auto_advance` is true in config: human-verify auto-approves, decision auto-selects first option, human-action still stops (auth gates cannot be automated)
 </overview>
 
+<!-- section: types -->
 <checkpoint_types>
 
 <type name="human-verify">
@@ -268,7 +269,9 @@ Plans execute autonomously. Checkpoints formalize interaction points where human
 **Key distinction:** Auth gates are created dynamically when Claude encounters auth errors. NOT pre-planned — Claude automates first, asks for credentials only when blocked.
 </type>
 </checkpoint_types>
+<!-- /section -->
 
+<!-- section: guidelines -->
 <execution_protocol>
 
 When Claude encounters `type="checkpoint:*"`:
@@ -357,6 +360,7 @@ I'll verify: vercel whoami returns your account
 ```
 </execution_protocol>
 
+<!-- section: authentication -->
 <authentication_gates>
 
 **Auth gate = Claude tried CLI/API, got auth error.** Not a failure — a gate requiring human input to unblock.
@@ -377,6 +381,7 @@ I'll verify: vercel whoami returns your account
 - Auth gate: "I tried to automate X but need credentials" (correct - unblocks automation)
 
 </authentication_gates>
+<!-- /section -->
 
 <automation_reference>
 
@@ -774,3 +779,4 @@ Checkpoints formalize human-in-the-loop points for verification and decisions, n
 - Code correctness (tests and static analysis)
 - Anything automatable via CLI/API
 </summary>
+<!-- /section -->
