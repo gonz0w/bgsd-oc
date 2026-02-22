@@ -3545,3 +3545,140 @@ describe('config-migrate command', () => {
     assert.ok(result.includes('CONFIG_SCHEMA'), 'Should mention CONFIG_SCHEMA');
   });
 });
+
+// ============================================================
+// Build System Tests (Phase 4, Plan 01)
+// ============================================================
+
+const BUNDLE_PATH = path.join(__dirname, 'gsd-tools.bundle.cjs');
+
+describe('build system', () => {
+  afterEach(() => {
+    // Clean up bundled file after tests
+    try { fs.unlinkSync(BUNDLE_PATH); } catch (_) { /* ignore */ }
+  });
+
+  test('npm run build succeeds with exit code 0', () => {
+    const result = execSync('npm run build', {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 15000,
+    });
+    assert.ok(result.includes('Built bin/gsd-tools.bundle.cjs'), `Expected build output, got: ${result.slice(0, 200)}`);
+    assert.ok(result.includes('Smoke test passed'), `Expected smoke test pass, got: ${result.slice(0, 200)}`);
+  });
+
+  test('build produces bin/gsd-tools.bundle.cjs', () => {
+    execSync('npm run build', {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 15000,
+    });
+    assert.ok(fs.existsSync(BUNDLE_PATH), 'bundle file should exist after build');
+    const stat = fs.statSync(BUNDLE_PATH);
+    assert.ok(stat.size > 10000, `bundle should be substantial (got ${stat.size} bytes)`);
+  });
+
+  test('bundled file has working shebang on line 1', () => {
+    execSync('npm run build', {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 15000,
+    });
+    const content = fs.readFileSync(BUNDLE_PATH, 'utf-8');
+    assert.ok(content.startsWith('#!/usr/bin/env node\n'), 'bundle should start with shebang');
+    // Verify no double shebang
+    const lines = content.split('\n');
+    const shebangCount = lines.filter(l => l.startsWith('#!')).length;
+    assert.strictEqual(shebangCount, 1, `Expected exactly 1 shebang, found ${shebangCount}`);
+  });
+
+  test('bundled current-timestamp matches original output format', () => {
+    execSync('npm run build', {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 15000,
+    });
+
+    const bundleResult = execSync(`node "${BUNDLE_PATH}" current-timestamp --raw`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+    }).trim();
+
+    const originalResult = execSync(`node "${TOOLS_PATH}" current-timestamp --raw`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+    }).trim();
+
+    // Both should be ISO timestamps
+    assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(bundleResult),
+      `Bundle timestamp should be ISO format, got: ${bundleResult}`);
+    assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(originalResult),
+      `Original timestamp should be ISO format, got: ${originalResult}`);
+  });
+
+  test('bundled state load matches original output in temp project', () => {
+    execSync('npm run build', {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 15000,
+    });
+
+    // Create a temp project with STATE.md and config.json
+    const tmpDir = createTempProject();
+    try {
+      const stateContent = `# Project State
+
+## Current Position
+
+Phase: 2 of 3 (Testing)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-01-15
+
+Progress: [████░░░░░░] 40%
+`;
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), stateContent);
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({
+        model_profile: 'balanced',
+      }));
+
+      // state load outputs key=value format, not JSON — compare directly
+      const bundleResult = execSync(`node "${BUNDLE_PATH}" state load --raw`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
+
+      const originalResult = execSync(`node "${TOOLS_PATH}" state load --raw`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
+
+      // Both outputs should be identical key=value format
+      assert.strictEqual(bundleResult, originalResult,
+        'bundled state load output should be identical to original');
+
+      // Verify key fields are present in output
+      assert.ok(bundleResult.includes('model_profile=balanced'), 'should contain config value');
+      assert.ok(bundleResult.includes('state_exists=true'), 'should detect STATE.md');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('build completes in under 500ms', () => {
+    // Run build and parse timing from output
+    const result = execSync('npm run build', {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      timeout: 15000,
+    });
+
+    const match = result.match(/in (\d+)ms/);
+    assert.ok(match, `Expected timing in output, got: ${result.slice(0, 200)}`);
+    const elapsed = parseInt(match[1], 10);
+    assert.ok(elapsed < 500, `Build took ${elapsed}ms, should be under 500ms`);
+  });
+});
