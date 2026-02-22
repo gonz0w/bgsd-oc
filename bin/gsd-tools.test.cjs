@@ -2736,3 +2736,205 @@ describe('state record-metric command', () => {
     assert.ok(output.error, 'JSON should contain error when required fields missing');
   });
 });
+
+// ---------------------------------------------------------------
+// frontmatter round-trip tests
+// ---------------------------------------------------------------
+
+describe('frontmatter round-trip', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  // Helper: write a file, extract frontmatter, merge it back, extract again, compare
+  function assertSemanticRoundTrip(filePath, description) {
+    // Extract A
+    const resultA = runGsdTools(`frontmatter get ${filePath} --raw`, tmpDir);
+    assert.ok(resultA.success, `First extract failed for ${description}: ${resultA.error}`);
+    const jsonA = JSON.parse(resultA.output);
+
+    // Merge A back — need to escape JSON for shell
+    const dataStr = JSON.stringify(jsonA);
+    const mergeResult = runGsdTools(`frontmatter merge ${filePath} --data '${dataStr}' --raw`, tmpDir);
+    assert.ok(mergeResult.success, `Merge failed for ${description}: ${mergeResult.error}`);
+
+    // Extract B
+    const resultB = runGsdTools(`frontmatter get ${filePath} --raw`, tmpDir);
+    assert.ok(resultB.success, `Second extract failed for ${description}: ${resultB.error}`);
+    const jsonB = JSON.parse(resultB.output);
+
+    // Semantic round-trip: A and B must be identical
+    assert.deepStrictEqual(jsonA, jsonB, `Semantic round-trip failed for ${description}`);
+    return jsonA;
+  }
+
+  test('simple key-value pairs round-trip losslessly', () => {
+    const filePath = path.join('.planning', 'test-simple.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'title: My Plan',
+      'phase: 03',
+      'status: active',
+      '---',
+      '# Content body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, 'simple key-value');
+    assert.strictEqual(fm.title, 'My Plan', 'title should be preserved');
+    assert.strictEqual(fm.phase, '03', 'phase should be preserved');
+    assert.strictEqual(fm.status, 'active', 'status should be preserved');
+  });
+
+  test('inline arrays round-trip losslessly', () => {
+    const filePath = path.join('.planning', 'test-arrays.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'tags: [foo, bar, baz]',
+      'depends_on: [01-01, 01-02]',
+      '---',
+      '# Body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, 'inline arrays');
+    assert.deepStrictEqual(fm.tags, ['foo', 'bar', 'baz'], 'tags array should be preserved');
+    assert.deepStrictEqual(fm.depends_on, ['01-01', '01-02'], 'depends_on array should be preserved');
+  });
+
+  test('nested objects (2 levels) round-trip losslessly', () => {
+    const filePath = path.join('.planning', 'test-nested.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'must_haves:',
+      '  truths:',
+      '    - "User can login"',
+      '    - "User can logout"',
+      '---',
+      '# Body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, 'nested objects');
+    assert.ok(fm.must_haves, 'must_haves should exist');
+    assert.deepStrictEqual(fm.must_haves.truths, ['User can login', 'User can logout'], 'nested arrays should be preserved');
+  });
+
+  test('quoted strings with colons round-trip losslessly', () => {
+    const filePath = path.join('.planning', 'test-colons.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'name: "Phase: Setup and Config"',
+      'description: "Goal: Build the safety net"',
+      '---',
+      '# Body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, 'quoted strings with colons');
+    assert.strictEqual(fm.name, 'Phase: Setup and Config', 'colon-containing value should be preserved');
+    assert.strictEqual(fm.description, 'Goal: Build the safety net', 'colon-containing value should be preserved');
+  });
+
+  test('empty arrays round-trip losslessly', () => {
+    const filePath = path.join('.planning', 'test-empty-arrays.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'depends_on: []',
+      'files_modified: []',
+      'tags: [one]',
+      '---',
+      '# Body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, 'empty arrays');
+    assert.deepStrictEqual(fm.depends_on, [], 'empty array should be [] not null');
+    assert.deepStrictEqual(fm.files_modified, [], 'empty array should be [] not null');
+    assert.deepStrictEqual(fm.tags, ['one'], 'single-element array should be preserved');
+  });
+
+  test('boolean and number strings round-trip losslessly', () => {
+    // Note: the parser does NOT coerce types — booleans/numbers stay as strings
+    const filePath = path.join('.planning', 'test-types.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'autonomous: true',
+      'wave: 1',
+      'plan: 02',
+      'type: execute',
+      '---',
+      '# Body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, 'booleans and numbers');
+    // Values are strings (known parser behavior — no type coercion)
+    assert.strictEqual(fm.autonomous, 'true', 'boolean should be preserved as string');
+    assert.strictEqual(fm.wave, '1', 'number should be preserved as string');
+    assert.strictEqual(fm.plan, '02', 'zero-padded number should be preserved as string');
+    assert.strictEqual(fm.type, 'execute', 'string type should be preserved');
+  });
+
+  test('multi-level nesting (3 levels) round-trips losslessly', () => {
+    const filePath = path.join('.planning', 'test-3level.md');
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'config:',
+      '  database:',
+      '    host: localhost',
+      '    port: 5432',
+      '  cache:',
+      '    enabled: true',
+      '---',
+      '# Body',
+      '',
+    ].join('\n'));
+
+    const fm = assertSemanticRoundTrip(filePath, '3-level nesting');
+    assert.ok(fm.config, 'config should exist');
+    assert.ok(fm.config.database, 'config.database should exist');
+    assert.strictEqual(fm.config.database.host, 'localhost', 'deep nested value should be preserved');
+    assert.strictEqual(fm.config.database.port, '5432', 'deep nested value should be preserved');
+    assert.strictEqual(fm.config.cache.enabled, 'true', 'deep nested value should be preserved');
+  });
+
+  test('body content is preserved after frontmatter merge', () => {
+    const filePath = path.join('.planning', 'test-body.md');
+    const bodyContent = [
+      '# Important Document',
+      '',
+      'This is the body content with **markdown** formatting.',
+      '',
+      '## Section Two',
+      '',
+      '- Item 1',
+      '- Item 2',
+      '',
+      'Final paragraph.',
+      '',
+    ].join('\n');
+
+    fs.writeFileSync(path.join(tmpDir, filePath), [
+      '---',
+      'title: Test',
+      'phase: 01',
+      '---',
+      bodyContent,
+    ].join('\n'));
+
+    // Merge some data
+    const mergeResult = runGsdTools(`frontmatter merge ${filePath} --data '{"title":"Test","phase":"01"}' --raw`, tmpDir);
+    assert.ok(mergeResult.success, `Merge failed: ${mergeResult.error}`);
+
+    // Read back and check body
+    const content = fs.readFileSync(path.join(tmpDir, filePath), 'utf-8');
+    assert.ok(content.includes(bodyContent), 'body content should be completely preserved after merge');
+  });
+});
