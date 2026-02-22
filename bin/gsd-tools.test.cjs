@@ -5074,3 +5074,275 @@ None.
     assert.ok(output.summary.includes('error'), 'summary should mention errors');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// state validate pre-flight integration
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('state validate pre-flight', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('init execute-phase includes pre_flight_validation field', () => {
+    // Set up minimal valid phase structure
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+## Milestones
+
+- 🔵 **v1.0: Foundation**
+  - Phase 1: Foundation
+
+### Phase 1: Foundation
+**Goal:** Set up basics
+**Plans:** 1 plans
+`
+    );
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '---\nphase: 01-foundation\nplan: 01\n---\n# Plan 1\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+## Current Position
+
+**Phase:** 1 of 1 (Foundation)
+**Status:** In progress
+`
+    );
+
+    const result = runGsdTools('init execute-phase 1 --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok('pre_flight_validation' in output, 'should have pre_flight_validation field');
+    assert.strictEqual(typeof output.pre_flight_validation, 'boolean', 'should be a boolean');
+    assert.strictEqual(output.pre_flight_validation, true, 'should default to true');
+  });
+
+  test('pre_flight_validation respects config gates.pre_flight_validation: false', () => {
+    // Set up minimal valid phase structure with config that disables pre-flight
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+## Milestones
+
+- 🔵 **v1.0: Foundation**
+  - Phase 1: Foundation
+
+### Phase 1: Foundation
+**Goal:** Set up basics
+**Plans:** 1 plans
+`
+    );
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '---\nphase: 01-foundation\nplan: 01\n---\n# Plan 1\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+## Current Position
+
+**Phase:** 1 of 1 (Foundation)
+**Status:** In progress
+`
+    );
+
+    // Config with pre_flight_validation disabled
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'config.json'),
+      JSON.stringify({ gates: { pre_flight_validation: false } }, null, 2)
+    );
+
+    const result = runGsdTools('init execute-phase 1 --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.pre_flight_validation, false, 'should be false when config disables it');
+  });
+
+  test('state validate --fix then validate returns clean for plan count drift', () => {
+    // Initialize git repo for --fix auto-commit
+    try {
+      execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+      execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
+      execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
+    } catch (e) {
+      return; // Git not available, skip
+    }
+
+    // ROADMAP says 2 plans but disk has 3
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+### Phase 1: Foundation
+**Goal:** Set up basics
+**Plans:** 2 plans
+`
+    );
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan 1\n');
+    fs.writeFileSync(path.join(phaseDir, '01-02-PLAN.md'), '# Plan 2\n');
+    fs.writeFileSync(path.join(phaseDir, '01-03-PLAN.md'), '# Plan 3\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+## Current Position
+
+**Phase:** 1 of 1 (Foundation)
+**Current Plan:** 2
+**Total Plans in Phase:** 3
+**Status:** In progress
+**Last Activity:** ${new Date().toISOString().split('T')[0]}
+
+## Accumulated Context
+
+### Blockers/Concerns
+
+None.
+`
+    );
+
+    // Initial commit so git add/commit works
+    try {
+      execSync('git add .', { cwd: tmpDir, stdio: 'pipe' });
+      execSync('git commit -m "initial"', { cwd: tmpDir, stdio: 'pipe' });
+    } catch (e) {
+      return;
+    }
+
+    // Step 1: Run --fix to auto-correct plan count drift
+    const fixResult = runGsdTools('state validate --fix --raw', tmpDir);
+    assert.ok(fixResult.success, `Fix command failed: ${fixResult.error}`);
+
+    const fixOutput = JSON.parse(fixResult.output);
+    assert.ok(fixOutput.fixes_applied.length > 0, 'should have fixes applied');
+    assert.strictEqual(fixOutput.fixes_applied[0].old, '2');
+    assert.strictEqual(fixOutput.fixes_applied[0].new, '3');
+
+    // Step 2: Run validate again — should be clean (or at least no plan_count_drift)
+    const validateResult = runGsdTools('state validate --raw', tmpDir);
+    assert.ok(validateResult.success, `Validate command failed: ${validateResult.error}`);
+
+    const validateOutput = JSON.parse(validateResult.output);
+    const driftIssues = validateOutput.issues.filter(i => i.type === 'plan_count_drift');
+    assert.strictEqual(driftIssues.length, 0, 'plan_count_drift should be gone after fix');
+  });
+
+  test('state validate with multiple issue types returns mixed severities', () => {
+    // Set up: plan count drift (error) + completed position (warn) + stale blockers (warn)
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+### Phase 1: Foundation
+**Goal:** Set up basics
+**Plans:** 5 plans
+`
+    );
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan 1\n');
+    fs.writeFileSync(path.join(phaseDir, '01-02-PLAN.md'), '# Plan 2\n');
+    fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary 1\n');
+    fs.writeFileSync(path.join(phaseDir, '01-02-SUMMARY.md'), '# Summary 2\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+## Current Position
+
+**Phase:** 1 of 1 (Foundation)
+**Current Plan:** 2
+**Status:** In progress
+**Last Activity:** ${new Date().toISOString().split('T')[0]}
+
+## Accumulated Context
+
+### Blockers/Concerns
+
+- Legacy blocker from long ago
+
+### Pending Todos
+
+None.
+`
+    );
+
+    const result = runGsdTools('state validate --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok(output.issues.length >= 2, `should have at least 2 issues, got ${output.issues.length}`);
+
+    // Check for different severity levels
+    const severities = new Set(output.issues.map(i => i.severity));
+    const hasError = severities.has('error');
+    const hasWarn = severities.has('warn');
+
+    // Plan count drift should be "error", completed position or stale blocker should be "warn"
+    assert.ok(hasError, 'should have at least one error severity issue');
+    assert.ok(hasWarn, 'should have at least one warn severity issue');
+
+    // Verify specific types present
+    const issueTypes = output.issues.map(i => i.type);
+    assert.ok(issueTypes.includes('plan_count_drift'), 'should include plan_count_drift');
+  });
+
+  test('init execute-phase compact mode includes pre_flight_validation', () => {
+    // Set up minimal valid phase structure
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+## Milestones
+
+- 🔵 **v1.0: Foundation**
+  - Phase 1: Foundation
+
+### Phase 1: Foundation
+**Goal:** Set up basics
+**Plans:** 1 plans
+`
+    );
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '---\nphase: 01-foundation\nplan: 01\n---\n# Plan 1\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+## Current Position
+
+**Phase:** 1 of 1 (Foundation)
+**Status:** In progress
+`
+    );
+
+    const result = runGsdTools('init execute-phase 1 --compact --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok('pre_flight_validation' in output, 'compact mode should have pre_flight_validation field');
+    assert.strictEqual(output.pre_flight_validation, true, 'should default to true in compact mode');
+  });
+});

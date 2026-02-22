@@ -3425,6 +3425,12 @@ var require_init = __commonJS({
       const config = loadConfig(cwd);
       const phaseInfo = findPhaseInternal(cwd, phase);
       const milestone = getMilestoneInfo(cwd);
+      let rawConfig = {};
+      try {
+        rawConfig = JSON.parse(fs.readFileSync(path.join(cwd, ".planning", "config.json"), "utf-8"));
+      } catch (e) {
+        debugLog("init.executePhase", "raw config read failed", e);
+      }
       const result = {
         // Models
         executor_model: resolveModelInternal(cwd, "gsd-executor"),
@@ -3455,7 +3461,7 @@ var require_init = __commonJS({
         milestone_name: milestone.name,
         milestone_slug: generateSlugInternal(milestone.name),
         // Gates
-        pre_flight_validation: config.gates?.pre_flight_validation !== false,
+        pre_flight_validation: rawConfig.gates?.pre_flight_validation !== false,
         // File existence
         state_exists: pathExistsInternal(cwd, ".planning/STATE.md"),
         roadmap_exists: pathExistsInternal(cwd, ".planning/ROADMAP.md"),

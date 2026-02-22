@@ -18,6 +18,12 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   const phaseInfo = findPhaseInternal(cwd, phase);
   const milestone = getMilestoneInfo(cwd);
 
+  // Read raw config for gates (not in CONFIG_SCHEMA)
+  let rawConfig = {};
+  try {
+    rawConfig = JSON.parse(fs.readFileSync(path.join(cwd, '.planning', 'config.json'), 'utf-8'));
+  } catch (e) { debugLog('init.executePhase', 'raw config read failed', e); }
+
   const result = {
     // Models
     executor_model: resolveModelInternal(cwd, 'gsd-executor'),
@@ -62,7 +68,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     milestone_slug: generateSlugInternal(milestone.name),
 
     // Gates
-    pre_flight_validation: config.gates?.pre_flight_validation !== false,
+    pre_flight_validation: rawConfig.gates?.pre_flight_validation !== false,
 
     // File existence
     state_exists: pathExistsInternal(cwd, '.planning/STATE.md'),
