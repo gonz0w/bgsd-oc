@@ -70,7 +70,12 @@ Plans:
   3. Decisions made during execution persist durably in memory.json and are never pruned (only compacted)
   4. Codebase mapping knowledge (architecture, conventions) is surfaced during execution via section extraction from .planning/codebase/ files
   5. Old memory entries are deterministically compressed to prevent STATE.md and memory.json from growing unbounded
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Memory store infrastructure with CRUD commands (decisions, bookmarks, lessons, todos)
+- [ ] 11-02-PLAN.md — Init memory command with workflow-aware digest and codebase knowledge surfacing
+- [ ] 11-03-PLAN.md — Bookmark auto-save in workflows and deterministic memory compaction
 
 ### Phase 12: Quality Gates
 **Goal**: Plugin verifies that work was done correctly (test gating, requirement checking, regression detection) and that plans are structured correctly (single-responsibility, clean dependencies)
@@ -110,6 +115,6 @@ Plans:
 | 8. Workflow & Reference Compression | v1.1 | 3/3 | Complete | 2026-02-22 |
 | 9. Tech Debt Cleanup | v1.1 | 1/1 | Complete | 2026-02-22 |
 | 10. State Intelligence | 2/2 | Complete    | 2026-02-22 | - |
-| 11. Session Continuity | v2.0 | 0/? | Not started | - |
+| 11. Session Continuity | v2.0 | 0/3 | Planned | - |
 | 12. Quality Gates | v2.0 | 0/? | Not started | - |
 | 13. Test Infrastructure & Polish | v2.0 | 0/? | Not started | - |
