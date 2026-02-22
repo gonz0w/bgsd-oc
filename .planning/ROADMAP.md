@@ -27,7 +27,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 6: Token Measurement & Output Infrastructure** (3 plans) - Accurate token counting, workflow baselines, and `--fields` flag for all commands — completed 2026-02-22
 - [x] **Phase 7: Init Command Compaction** (3 plans) - `--compact` flag with 46.7% avg reduction, opt-in `--manifest` for context guidance — completed 2026-02-22
 - [x] **Phase 8: Workflow & Reference Compression** (3 plans) - Rewrite workflows for 30%+ reduction, deduplicate shared content, add selective section loading — completed 2026-02-22
-- [ ] **Phase 9: Tech Debt Cleanup** (1 plan) - Fix broken test, complete --help coverage, create generic plan templates
+- [x] **Phase 9: Tech Debt Cleanup** (1 plan) - Fix broken test, complete --help coverage, create generic plan templates — completed 2026-02-22
 
 ## Phase Details
 
@@ -83,9 +83,9 @@ Plans:
   1. `npm test` passes with zero failures (the `roadmap analyze` test that currently expects 50% but gets 33% is fixed)
   2. All 44 top-level commands respond to `--help` with usage text, and the no-command usage string lists all commands
   3. Generic plan template files exist in `templates/plans/` for GSD plan types (execute, tdd, discovery)
-**Plans**: 1 plan
+**Plans**: 1/1 Complete
 Plans:
-- [ ] 09-01-PLAN.md — Fix test, complete help coverage, create generic plan templates [DEBT-01, DEBT-02, DEBT-03]
+- [x] 09-01-PLAN.md — Fix test, complete help coverage, create generic plan templates [DEBT-01, DEBT-02, DEBT-03] — completed 2026-02-22
 
 ## Progress
 
@@ -99,4 +99,4 @@ Plans:
 | 6. Token Measurement & Output Infrastructure | v1.1 | 3/3 | Complete | 2026-02-22 |
 | 7. Init Command Compaction | v1.1 | 3/3 | Complete | 2026-02-22 |
 | 8. Workflow & Reference Compression | v1.1 | 3/3 | Complete | 2026-02-22 |
-| 9. Tech Debt Cleanup | v1.1 | 0/1 | Not started | - |
+| 9. Tech Debt Cleanup | v1.1 | 1/1 | Complete | 2026-02-22 |

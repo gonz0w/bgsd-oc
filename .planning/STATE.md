@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Every improvement must make the plugin more reliable and faster for developers using GSD to plan and execute real projects
-**Current focus:** v1.1 Context Reduction & Tech Debt — Phase 8: Workflow & Reference Compression
+**Current focus:** v1.1 Context Reduction & Tech Debt — Phase 9: Tech Debt Cleanup (Complete)
 
 ## Current Position
 
-Phase: 8 of 9 (Workflow & Reference Compression)
-Plan: 3 of 3 — complete
-Status: Phase 8 Complete
-Last activity: 2026-02-22 — Plan 08-02 executed (compress top 8 workflows — 54.6% avg token reduction)
+Phase: 9 of 9 (Tech Debt Cleanup)
+Plan: 1 of 1 — complete
+Status: Phase 9 Complete — Milestone v1.1 Complete
+Last activity: 2026-02-22 — Plan 09-01 executed (fix test, update usage string, create plan templates)
 
-Progress: [████████░░] 75% (3/4 phases)
+Progress: [██████████] 100% (4/4 phases)
 
 ## Accumulated Context
 
@@ -43,6 +43,7 @@ v1.1 decisions:
 - Top 8 workflow compression achieved 54.6% avg token reduction (39,426→15,542 tokens)
 - Replaced unconditional @-reference loading with conditional extract-sections instructions
 - Restored dropped Task() calls in verify-work.md and plan-phase.md during compression quality fix
+- [Phase 09]: DEBT-03 scope: generic GSD plan templates (execute, tdd, discovery) instead of project-specific templates
 
 ### Pending Todos
 
@@ -50,7 +51,7 @@ None.
 
 ### Pre-existing Issues
 
-- 1 test failure in `roadmap analyze > parses phases with goals and disk status` (expects 50%, gets 33%) — targeted in Phase 9 (DEBT-01)
+None — all pre-existing issues resolved in Phase 9.
 
 ### Blockers/Concerns
 
@@ -59,5 +60,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 08-02-PLAN.md (compress top 8 workflows) — Phase 8 complete
+Stopped at: Completed 09-01-PLAN.md (fix test, update usage, create templates) — Phase 9 complete, v1.1 milestone complete
 Resume file: None

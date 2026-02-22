@@ -28,9 +28,9 @@ Requirements for context reduction and tech debt cleanup. Each maps to roadmap p
 
 ### Tech Debt
 
-- [ ] **DEBT-01**: `roadmap analyze` test passes (fix expected vs actual percentage)
-- [ ] **DEBT-02**: All 44 top-level commands have `--help` text and no-command usage string is complete
-- [ ] **DEBT-03**: Generic plan template files exist in `templates/plans/` (execute, tdd, discovery)
+- [x] **DEBT-01**: `roadmap analyze` test passes (fix expected vs actual percentage)
+- [x] **DEBT-02**: All 44 top-level commands have `--help` text and no-command usage string is complete
+- [x] **DEBT-03**: Generic plan template files exist in `templates/plans/` (execute, tdd, discovery)
 
 ## Future Requirements
 
@@ -71,9 +71,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WKFL-02 | Phase 8: Workflow & Reference Compression | ✅ Complete |
 | WKFL-03 | Phase 8: Workflow & Reference Compression | ✅ Complete |
 | WKFL-04 | Phase 8: Workflow & Reference Compression | ✅ Complete |
-| DEBT-01 | Phase 9: Tech Debt Cleanup | Pending |
-| DEBT-02 | Phase 9: Tech Debt Cleanup | Pending |
-| DEBT-03 | Phase 9: Tech Debt Cleanup | Pending |
+| DEBT-01 | Phase 9: Tech Debt Cleanup | Complete |
+| DEBT-02 | Phase 9: Tech Debt Cleanup | Complete |
+| DEBT-03 | Phase 9: Tech Debt Cleanup | Complete |
 
 **Coverage:**
 - v1.1 requirements: 13 total
