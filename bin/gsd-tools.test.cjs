@@ -5955,3 +5955,907 @@ describe('memory compact', () => {
     assert.strictEqual(output2.summaries_created.bookmarks, 15, 'should create 15 summaries (25 - 10 kept)');
   });
 });
+
+// ─── verify analyze-plan ─────────────────────────────────────────────────────
+
+describe('verify analyze-plan', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('scores well-structured plan (2 tasks, shared files) as 4-5', () => {
+    const planContent = `---
+phase: "12"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/commands/verify.js, src/router.js]
+autonomous: true
+must_haves: []
+---
+# Plan 12-01: Add verification
+
+<task id="1">
+<name>Add verify function</name>
+<files>
+src/commands/verify.js
+src/lib/helpers.js
+</files>
+<action>Add the function</action>
+</task>
+
+<task id="2">
+<name>Wire into router</name>
+<files>
+src/router.js
+src/commands/verify.js
+</files>
+<action>Wire it up</action>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'test-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify analyze-plan ${planPath} --raw`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.sr_score >= 4, `Expected score >= 4, got ${data.sr_score}`);
+    assert.strictEqual(data.task_count, 2);
+    assert.ok(data.concern_count <= 2, `Expected <= 2 concerns, got ${data.concern_count}`);
+    assert.strictEqual(data.split_suggestion, null);
+  });
+
+  test('scores multi-concern plan (4+ tasks in unrelated dirs) as 1-2', () => {
+    const planContent = `---
+phase: "05"
+plan: "02"
+type: execute
+wave: 1
+depends_on: []
+files_modified: []
+autonomous: true
+must_haves: []
+---
+# Plan 05-02: Kitchen sink
+
+<task id="1">
+<name>Database migration</name>
+<files>
+db/migrations/001_create_users.sql
+db/migrations/002_create_orders.sql
+</files>
+<action>Create migrations</action>
+</task>
+
+<task id="2">
+<name>Frontend components</name>
+<files>
+frontend/components/Header.tsx
+frontend/components/Footer.tsx
+</files>
+<action>Build UI</action>
+</task>
+
+<task id="3">
+<name>API endpoints</name>
+<files>
+api/routes/users.go
+api/routes/orders.go
+</files>
+<action>Add endpoints</action>
+</task>
+
+<task id="4">
+<name>Deploy config</name>
+<files>
+infra/terraform/main.tf
+infra/docker/Dockerfile
+</files>
+<action>Configure deploy</action>
+</task>
+
+<task id="5">
+<name>Documentation</name>
+<files>
+docs/api/README.md
+docs/setup/INSTALL.md
+</files>
+<action>Write docs</action>
+</task>
+
+<task id="6">
+<name>CI pipeline</name>
+<files>
+ci/pipeline.yml
+ci/scripts/test.sh
+</files>
+<action>Set up CI</action>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'kitchen-sink-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify analyze-plan ${planPath} --raw`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.sr_score <= 2, `Expected score <= 2, got ${data.sr_score}`);
+    assert.ok(data.concern_count >= 4, `Expected >= 4 concerns, got ${data.concern_count}`);
+    assert.ok(data.task_count >= 5, `Expected >= 5 tasks, got ${data.task_count}`);
+  });
+
+  test('detects concern groups correctly', () => {
+    const planContent = `---
+phase: "03"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: []
+autonomous: true
+must_haves: []
+---
+# Plan 03-01: Two concerns
+
+<task id="1">
+<name>Router update</name>
+<files>
+src/router.js
+src/commands/init.js
+</files>
+<action>Update router</action>
+</task>
+
+<task id="2">
+<name>Init command</name>
+<files>
+src/commands/init.js
+src/lib/helpers.js
+</files>
+<action>Add init</action>
+</task>
+
+<task id="3">
+<name>Write tests</name>
+<files>
+tests/unit/router.test.js
+tests/unit/init.test.js
+</files>
+<action>Add tests</action>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'two-concern-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify analyze-plan ${planPath} --raw`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    // Tasks 1 and 2 share src/commands/ directory, so they merge.
+    // Task 3 is in tests/unit/ - separate concern.
+    assert.strictEqual(data.concern_count, 2, `Expected 2 concerns, got ${data.concern_count}`);
+    assert.strictEqual(data.task_count, 3);
+
+    // Verify concern structure
+    const srcConcern = data.concerns.find(c => c.tasks.length === 2);
+    const testConcern = data.concerns.find(c => c.tasks.length === 1);
+    assert.ok(srcConcern, 'Should have a concern with 2 tasks');
+    assert.ok(testConcern, 'Should have a concern with 1 task');
+    assert.ok(testConcern.tasks.includes('Write tests'), 'Test concern should contain Write tests');
+  });
+
+  test('suggests splits for poor plans (score <= 3)', () => {
+    const planContent = `---
+phase: "07"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: []
+autonomous: true
+must_haves: []
+---
+# Plan 07-01: Overloaded
+
+<task id="1">
+<name>Database work</name>
+<files>
+db/schema.sql
+db/seeds.sql
+</files>
+<action>DB stuff</action>
+</task>
+
+<task id="2">
+<name>Frontend work</name>
+<files>
+web/pages/index.tsx
+web/components/Nav.tsx
+</files>
+<action>UI stuff</action>
+</task>
+
+<task id="3">
+<name>Backend work</name>
+<files>
+server/routes.go
+server/handlers.go
+</files>
+<action>Server stuff</action>
+</task>
+
+<task id="4">
+<name>Infra work</name>
+<files>
+deploy/nomad.hcl
+deploy/consul.hcl
+</files>
+<action>Infra stuff</action>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'overloaded-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify analyze-plan ${planPath} --raw`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.sr_score <= 3, `Expected score <= 3, got ${data.sr_score}`);
+    assert.ok(data.split_suggestion !== null, 'Should have split suggestion');
+    assert.strictEqual(data.split_suggestion.recommended_splits, data.concern_count);
+    assert.ok(data.split_suggestion.proposed_plans.length >= 2, 'Should propose at least 2 plans');
+
+    // Each proposed plan should have tasks and files
+    for (const plan of data.split_suggestion.proposed_plans) {
+      assert.ok(plan.tasks.length > 0, 'Proposed plan should have tasks');
+      assert.ok(plan.files.length > 0, 'Proposed plan should have files');
+      assert.ok(plan.area, 'Proposed plan should have area label');
+    }
+  });
+
+  test('handles single-task plan (score 5)', () => {
+    const planContent = `---
+phase: "01"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/index.js]
+autonomous: true
+must_haves: []
+---
+# Plan 01-01: Simple task
+
+<task id="1">
+<name>Initialize project</name>
+<files>
+src/index.js
+</files>
+<action>Set up entry point</action>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'simple-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify analyze-plan ${planPath} --raw`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.sr_score, 5);
+    assert.strictEqual(data.sr_label, 'Excellent');
+    assert.strictEqual(data.concern_count, 1);
+    assert.strictEqual(data.task_count, 1);
+    assert.strictEqual(data.split_suggestion, null);
+    assert.strictEqual(data.plan, '1-01');
+  });
+
+  test('handles missing file gracefully', () => {
+    const result = runGsdTools('verify analyze-plan /nonexistent/path/PLAN.md --raw');
+    assert.ok(result.success, `Command should not throw`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.error, 'File not found');
+  });
+});
+
+// ─── verify deliverables ─────────────────────────────────────────────────────
+
+describe('verify deliverables', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('returns structured result when npm test runs', () => {
+    // Create temp dir with a passing test command
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-pass',
+      scripts: { test: 'echo "5 passing"' },
+    }));
+
+    const result = runGsdTools('verify deliverables', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.test_result, 'pass', 'test_result should be pass');
+    assert.strictEqual(data.framework, 'npm', 'should detect npm framework');
+    assert.strictEqual(data.verdict, 'pass', 'verdict should be pass');
+    assert.strictEqual(data.tests_passed, 5, 'should parse 5 passing');
+  });
+
+  test('returns fail when test command fails', () => {
+    // Create a temp dir with a package.json that has a failing test command
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-fail',
+      scripts: { test: 'exit 1' },
+    }));
+
+    const result = runGsdTools('verify deliverables', tmpDir);
+    assert.ok(result.success, `Command should not throw: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.test_result, 'fail', 'test_result should be fail');
+    assert.strictEqual(data.verdict, 'fail', 'verdict should be fail');
+  });
+
+  test('auto-detects test framework from package.json', () => {
+    // Create temp dir with package.json that echoes pass info
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-detect',
+      scripts: { test: 'echo "3 passing"' },
+    }));
+
+    const result = runGsdTools('verify deliverables', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.framework, 'npm', 'should detect npm from package.json');
+    assert.strictEqual(data.test_result, 'pass', 'test should pass');
+  });
+});
+
+// ─── verify requirements ─────────────────────────────────────────────────────
+
+describe('verify requirements', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('returns all addressed when all reqs marked [x]', () => {
+    const reqContent = `# Requirements
+
+- [x] **DX-01** Developer experience
+- [x] **DX-02** CLI tooling
+- [x] **PERF-01** Performance optimization
+
+## Traceability
+
+| ID | Phase |
+| DX-01 | Phase 01 |
+| DX-02 | Phase 02 |
+| PERF-01 | Phase 03 |
+`;
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), reqContent);
+
+    const result = runGsdTools('verify requirements', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.total, 3, 'should find 3 requirements');
+    assert.strictEqual(data.addressed, 3, 'all should be addressed');
+    assert.strictEqual(data.unaddressed, 0, 'none unaddressed');
+  });
+
+  test('detects unaddressed req when phase has no summaries', () => {
+    // Create phase dir without summaries
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-tooling'), { recursive: true });
+
+    const reqContent = `# Requirements
+
+- [x] **DX-01** Done item
+- [ ] **DX-02** Needs work
+
+## Traceability
+
+| ID | Phase |
+| DX-01 | Phase 01 |
+| DX-02 | Phase 02 |
+`;
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), reqContent);
+
+    const result = runGsdTools('verify requirements', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.total, 2, 'should find 2 requirements');
+    assert.strictEqual(data.addressed, 1, 'only 1 addressed (the [x] one)');
+    assert.strictEqual(data.unaddressed, 1, '1 unaddressed');
+    assert.strictEqual(data.unaddressed_list[0].id, 'DX-02');
+    assert.strictEqual(data.unaddressed_list[0].phase, '02');
+  });
+
+  test('handles missing REQUIREMENTS.md gracefully', () => {
+    const result = runGsdTools('verify requirements', tmpDir);
+    assert.ok(result.success, `Command should not throw: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.total, 0, 'should have 0 total');
+    assert.ok(data.error, 'should have error message');
+  });
+});
+
+// ─── verify regression ───────────────────────────────────────────────────────
+
+describe('verify regression', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('detects regression when test goes pass to fail', () => {
+    const beforeData = {
+      tests: [
+        { name: 'test-a', status: 'pass' },
+        { name: 'test-b', status: 'pass' },
+        { name: 'test-c', status: 'fail' },
+      ],
+    };
+    const afterData = {
+      tests: [
+        { name: 'test-a', status: 'pass' },
+        { name: 'test-b', status: 'fail' },
+        { name: 'test-c', status: 'fail' },
+      ],
+    };
+
+    const beforePath = path.join(tmpDir, 'before.json');
+    const afterPath = path.join(tmpDir, 'after.json');
+    fs.writeFileSync(beforePath, JSON.stringify(beforeData));
+    fs.writeFileSync(afterPath, JSON.stringify(afterData));
+
+    const result = runGsdTools(`verify regression --before before.json --after after.json`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.regression_count, 1, 'should detect 1 regression');
+    assert.strictEqual(data.regressions[0].test_name, 'test-b', 'test-b regressed');
+    assert.strictEqual(data.verdict, 'fail', 'verdict should be fail');
+  });
+
+  test('returns clean when no regressions', () => {
+    const beforeData = {
+      tests: [
+        { name: 'test-a', status: 'pass' },
+        { name: 'test-b', status: 'fail' },
+      ],
+    };
+    const afterData = {
+      tests: [
+        { name: 'test-a', status: 'pass' },
+        { name: 'test-b', status: 'pass' },
+      ],
+    };
+
+    const beforePath = path.join(tmpDir, 'before.json');
+    const afterPath = path.join(tmpDir, 'after.json');
+    fs.writeFileSync(beforePath, JSON.stringify(beforeData));
+    fs.writeFileSync(afterPath, JSON.stringify(afterData));
+
+    const result = runGsdTools(`verify regression --before before.json --after after.json`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.regression_count, 0, 'no regressions');
+    assert.strictEqual(data.verdict, 'pass', 'verdict should be pass');
+  });
+
+  test('handles missing baseline gracefully', () => {
+    const result = runGsdTools('verify regression', tmpDir);
+    assert.ok(result.success, `Command should not throw: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.regression_count, 0, 'should be 0');
+    assert.strictEqual(data.verdict, 'pass', 'verdict should be pass');
+    assert.ok(data.note, 'should have a note about missing baseline');
+  });
+});
+
+// ─── verify plan-wave ────────────────────────────────────────────────────────
+
+describe('verify plan-wave', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('detects file conflicts within a wave', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '12-quality');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '12-01-PLAN.md'), `---
+phase: "12"
+plan: "01"
+wave: 1
+files_modified: [src/commands/verify.js, src/router.js]
+---
+# Plan 12-01
+`);
+    fs.writeFileSync(path.join(phaseDir, '12-03-PLAN.md'), `---
+phase: "12"
+plan: "03"
+wave: 1
+files_modified: [src/commands/verify.js, src/lib/helpers.js]
+---
+# Plan 12-03
+`);
+    fs.writeFileSync(path.join(phaseDir, '12-02-PLAN.md'), `---
+phase: "12"
+plan: "02"
+wave: 2
+files_modified: [src/commands/verify.js]
+---
+# Plan 12-02
+`);
+
+    const result = runGsdTools(`verify plan-wave ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.phase, '12');
+    assert.strictEqual(data.verdict, 'conflicts_found');
+    assert.strictEqual(data.conflicts.length, 1);
+    assert.strictEqual(data.conflicts[0].wave, 1);
+    assert.strictEqual(data.conflicts[0].file, 'src/commands/verify.js');
+    assert.ok(data.conflicts[0].plans.includes('12-01'));
+    assert.ok(data.conflicts[0].plans.includes('12-03'));
+    // Wave 2 should not be in conflicts (only one plan)
+    assert.ok(!data.conflicts.some(c => c.wave === 2));
+  });
+
+  test('returns clean when no conflicts', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '05-features');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '05-01-PLAN.md'), `---
+phase: "05"
+plan: "01"
+wave: 1
+files_modified: [src/a.js]
+---
+# Plan
+`);
+    fs.writeFileSync(path.join(phaseDir, '05-02-PLAN.md'), `---
+phase: "05"
+plan: "02"
+wave: 1
+files_modified: [src/b.js]
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify plan-wave ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.verdict, 'clean');
+    assert.strictEqual(data.conflicts.length, 0);
+    assert.deepStrictEqual(data.waves['1'], ['05-01', '05-02']);
+  });
+
+  test('handles single-plan phase', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-init');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), `---
+phase: "01"
+plan: "01"
+wave: 1
+files_modified: [src/index.js]
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify plan-wave ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.verdict, 'clean');
+    assert.strictEqual(data.conflicts.length, 0);
+    assert.deepStrictEqual(data.waves['1'], ['01-01']);
+  });
+});
+
+// ─── verify plan-deps ────────────────────────────────────────────────────────
+
+describe('verify plan-deps', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('detects dependency cycle', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '03-01-PLAN.md'), `---
+phase: "03"
+plan: "01"
+wave: 1
+depends_on: [03-02]
+---
+# Plan
+`);
+    fs.writeFileSync(path.join(phaseDir, '03-02-PLAN.md'), `---
+phase: "03"
+plan: "02"
+wave: 1
+depends_on: [03-01]
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify plan-deps ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.verdict, 'issues_found');
+    const cycleIssues = data.issues.filter(i => i.type === 'cycle');
+    assert.ok(cycleIssues.length > 0, 'should find cycle issue');
+  });
+
+  test('detects unreachable dependency', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '04-ui');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '04-01-PLAN.md'), `---
+phase: "04"
+plan: "01"
+wave: 1
+depends_on: [04-99]
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify plan-deps ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.verdict, 'issues_found');
+    const unreachable = data.issues.filter(i => i.type === 'unreachable');
+    assert.ok(unreachable.length > 0, 'should find unreachable dep');
+    assert.strictEqual(unreachable[0].dep, '99');
+  });
+
+  test('returns clean for valid graph', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '06-infra');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '06-01-PLAN.md'), `---
+phase: "06"
+plan: "01"
+wave: 1
+depends_on: []
+---
+# Plan
+`);
+    fs.writeFileSync(path.join(phaseDir, '06-02-PLAN.md'), `---
+phase: "06"
+plan: "02"
+wave: 2
+depends_on: [06-01]
+---
+# Plan
+`);
+    fs.writeFileSync(path.join(phaseDir, '06-03-PLAN.md'), `---
+phase: "06"
+plan: "03"
+wave: 1
+depends_on: []
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify plan-deps ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.verdict, 'clean');
+    assert.strictEqual(data.plan_count, 3);
+    assert.strictEqual(data.issues.length, 0);
+    assert.deepStrictEqual(data.dependency_graph['01'], []);
+    assert.deepStrictEqual(data.dependency_graph['02'], ['01']);
+    assert.deepStrictEqual(data.dependency_graph['03'], []);
+  });
+
+  test('detects unnecessary serialization', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '07-test');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(path.join(phaseDir, '07-01-PLAN.md'), `---
+phase: "07"
+plan: "01"
+wave: 1
+depends_on: []
+---
+# Plan
+`);
+    fs.writeFileSync(path.join(phaseDir, '07-02-PLAN.md'), `---
+phase: "07"
+plan: "02"
+wave: 2
+depends_on: []
+---
+# Plan — in wave 2 but no deps, could be wave 1
+`);
+
+    const result = runGsdTools(`verify plan-deps ${phaseDir}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.verdict, 'issues_found');
+    const serialization = data.issues.filter(i => i.type === 'unnecessary_serialization');
+    assert.ok(serialization.length > 0, 'should find unnecessary serialization');
+    assert.strictEqual(serialization[0].plan, '02');
+    assert.strictEqual(serialization[0].wave, 2);
+  });
+});
+
+// ─── verify plan-structure template compliance ───────────────────────────────
+
+describe('verify plan-structure template compliance', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('detects missing required frontmatter fields', () => {
+    const planContent = `---
+phase: "01"
+plan: "01"
+type: execute
+---
+# Plan with minimal frontmatter
+
+<task id="1">
+<name>Do something</name>
+<action>Act</action>
+<verify>Check</verify>
+<done>Done criteria</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'minimal-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.template_compliance, 'should have template_compliance');
+    assert.strictEqual(data.template_compliance.valid, false, 'should not be valid');
+    assert.ok(data.template_compliance.missing_fields.length > 0, 'should have missing fields');
+    assert.ok(data.template_compliance.missing_fields.includes('wave'), 'should be missing wave');
+    assert.ok(data.template_compliance.missing_fields.includes('depends_on'), 'should be missing depends_on');
+    assert.ok(data.template_compliance.missing_fields.includes('files_modified'), 'should be missing files_modified');
+  });
+
+  test('validates requirements is non-empty', () => {
+    const planContent = `---
+phase: "01"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/a.js]
+autonomous: true
+requirements: []
+must_haves: []
+---
+# Plan with empty requirements
+
+<task id="1">
+<name>Do something</name>
+<action>Act</action>
+<verify>Check</verify>
+<done>Done criteria</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'empty-reqs-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.template_compliance, 'should have template_compliance');
+    assert.ok(data.template_compliance.type_issues.some(i => i.includes('requirements is empty')),
+      'should flag empty requirements');
+  });
+
+  test('returns valid for well-formed plan', () => {
+    const planContent = `---
+phase: "12"
+plan: "04"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/commands/verify.js, src/router.js]
+autonomous: true
+requirements: [DX-01, PLAN-04]
+must_haves:
+  artifacts:
+    - path: src/commands/verify.js
+---
+# Plan 12-04: Well-formed
+
+<task id="1">
+<name>Implement feature</name>
+<files>
+src/commands/verify.js
+</files>
+<action>Add the cmdVerifyPlanWave function</action>
+<verify>npm test passes</verify>
+<done>Function exported and wired into router</done>
+</task>
+
+<task id="2">
+<name>Wire into router</name>
+<files>
+src/router.js
+</files>
+<action>Add plan-wave subcommand</action>
+<verify>gsd-tools verify plan-wave works</verify>
+<done>Command accessible via CLI</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'good-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.template_compliance, 'should have template_compliance');
+    assert.strictEqual(data.template_compliance.valid, true, 'should be valid');
+    assert.strictEqual(data.template_compliance.missing_fields.length, 0, 'no missing fields');
+    assert.strictEqual(data.template_compliance.type_issues.length, 0, 'no type issues');
+  });
+});

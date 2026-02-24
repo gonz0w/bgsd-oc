@@ -24,7 +24,9 @@ const {
 const {
   cmdVerifyPlanStructure, cmdVerifyPhaseCompleteness, cmdVerifyReferences,
   cmdVerifyCommits, cmdVerifyArtifacts, cmdVerifyKeyLinks,
-  cmdValidateConsistency, cmdValidateHealth,
+  cmdValidateConsistency, cmdValidateHealth, cmdAnalyzePlan,
+  cmdVerifyDeliverables, cmdVerifyRequirements, cmdVerifyRegression,
+  cmdVerifyPlanWave, cmdVerifyPlanDeps,
 } = require('./commands/verify');
 
 const {
@@ -263,8 +265,28 @@ async function main() {
         cmdVerifyArtifacts(cwd, args[2], raw);
       } else if (subcommand === 'key-links') {
         cmdVerifyKeyLinks(cwd, args[2], raw);
+      } else if (subcommand === 'analyze-plan') {
+        cmdAnalyzePlan(cwd, args[2], raw);
+      } else if (subcommand === 'deliverables') {
+        const planIdx = args.indexOf('--plan');
+        cmdVerifyDeliverables(cwd, {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        }, raw);
+      } else if (subcommand === 'requirements') {
+        cmdVerifyRequirements(cwd, {}, raw);
+      } else if (subcommand === 'regression') {
+        const beforeIdx = args.indexOf('--before');
+        const afterIdx = args.indexOf('--after');
+        cmdVerifyRegression(cwd, {
+          before: beforeIdx !== -1 ? args[beforeIdx + 1] : null,
+          after: afterIdx !== -1 ? args[afterIdx + 1] : null,
+        }, raw);
+      } else if (subcommand === 'plan-wave') {
+        cmdVerifyPlanWave(cwd, args[2], raw);
+      } else if (subcommand === 'plan-deps') {
+        cmdVerifyPlanDeps(cwd, args[2], raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, analyze-plan, deliverables, requirements, regression, plan-wave, plan-deps');
       }
       break;
     }

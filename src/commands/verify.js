@@ -58,6 +58,51 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     errors.push('Has checkpoint tasks but autonomous is not false');
   }
 
+  // Template compliance checks
+  const templateCompliance = { valid: true, missing_fields: [], type_issues: [] };
+  const planType = fm.type || 'execute';
+
+  // Required fields by plan type
+  const typeRequiredFields = {
+    execute: ['wave', 'depends_on', 'files_modified', 'autonomous', 'requirements', 'must_haves'],
+    tdd: ['wave', 'depends_on', 'files_modified', 'autonomous', 'requirements'],
+  };
+
+  const requiredForType = typeRequiredFields[planType] || typeRequiredFields.execute;
+  for (const field of requiredForType) {
+    if (fm[field] === undefined) {
+      templateCompliance.missing_fields.push(field);
+    }
+  }
+
+  // Check requirements is non-empty
+  if (fm.requirements !== undefined) {
+    const reqEmpty = (Array.isArray(fm.requirements) && fm.requirements.length === 0) ||
+                     (typeof fm.requirements === 'string' && fm.requirements.trim() === '') ||
+                     (typeof fm.requirements === 'object' && !Array.isArray(fm.requirements) && Object.keys(fm.requirements).length === 0);
+    if (reqEmpty) {
+      templateCompliance.type_issues.push('requirements is empty — every plan should map to requirements');
+    }
+  }
+
+  // TDD type: check for <feature> block
+  if (planType === 'tdd') {
+    if (!/<feature>/.test(content)) {
+      templateCompliance.type_issues.push('TDD plan missing <feature> block');
+    }
+  }
+
+  // Check task elements have required sub-elements
+  for (const task of tasks) {
+    if (!task.hasAction) templateCompliance.type_issues.push(`Task '${task.name}' missing <action>`);
+    if (!task.hasVerify) templateCompliance.type_issues.push(`Task '${task.name}' missing <verify>`);
+    if (!task.hasDone) templateCompliance.type_issues.push(`Task '${task.name}' missing <done>`);
+  }
+
+  if (templateCompliance.missing_fields.length > 0 || templateCompliance.type_issues.length > 0) {
+    templateCompliance.valid = false;
+  }
+
   output({
     valid: errors.length === 0,
     errors,
@@ -65,6 +110,7 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     task_count: tasks.length,
     tasks,
     frontmatter_fields: Object.keys(fm),
+    template_compliance: templateCompliance,
   }, raw, errors.length === 0 ? 'valid' : 'invalid');
 }
 
@@ -656,6 +702,664 @@ function cmdValidateHealth(cwd, options, raw) {
   }, raw);
 }
 
+function cmdAnalyzePlan(cwd, planPath, raw) {
+  if (!planPath) { error('plan file path required'); }
+  const fullPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+  const content = safeReadFile(fullPath);
+  if (!content) { output({ error: 'File not found', path: planPath }, raw); return; }
+
+  const fm = extractFrontmatter(content);
+
+  // Derive plan identifier from frontmatter or filename
+  const planId = (fm.phase && fm.plan)
+    ? `${String(fm.phase).replace(/^0+/, '')}-${String(fm.plan).replace(/^0+/, '').padStart(2, '0')}`
+    : path.basename(planPath, '.md').replace(/-PLAN$/i, '');
+
+  // Parse task blocks
+  const taskPattern = /<task[^>]*>([\s\S]*?)<\/task>/g;
+  const tasks = [];
+  let taskMatch;
+  while ((taskMatch = taskPattern.exec(content)) !== null) {
+    const taskContent = taskMatch[1];
+    const nameMatch = taskContent.match(/<name>([\s\S]*?)<\/name>/);
+    const filesMatch = taskContent.match(/<files>([\s\S]*?)<\/files>/);
+    const taskName = nameMatch ? nameMatch[1].trim() : 'unnamed';
+    const taskFiles = filesMatch
+      ? filesMatch[1].split('\n').map(f => f.trim()).filter(f => f.length > 0)
+      : [];
+    tasks.push({ name: taskName, files: taskFiles });
+  }
+
+  // Collect all files and directories
+  const allFiles = [];
+  const dirSet = new Set();
+  for (const task of tasks) {
+    for (const file of task.files) {
+      allFiles.push(file);
+      const dir = path.dirname(file);
+      dirSet.add(dir === '.' ? '(root)' : dir);
+    }
+  }
+
+  // Extract directories per task for concern grouping
+  const taskDirs = tasks.map(t => {
+    const dirs = new Set();
+    for (const f of t.files) {
+      const dir = path.dirname(f);
+      dirs.add(dir === '.' ? '(root)' : dir);
+    }
+    return dirs;
+  });
+
+  // Union-find for concern clustering
+  const parent = tasks.map((_, i) => i);
+  function find(x) {
+    while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+    return x;
+  }
+  function union(a, b) {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  }
+
+  // Merge tasks that share any directory
+  for (let i = 0; i < tasks.length; i++) {
+    for (let j = i + 1; j < tasks.length; j++) {
+      for (const dir of taskDirs[i]) {
+        if (taskDirs[j].has(dir)) {
+          union(i, j);
+          break;
+        }
+      }
+    }
+  }
+
+  // Build concern groups
+  const groups = {};
+  for (let i = 0; i < tasks.length; i++) {
+    const root = find(i);
+    if (!groups[root]) groups[root] = { tasks: [], files: new Set(), dirs: new Set() };
+    groups[root].tasks.push(tasks[i].name);
+    for (const f of tasks[i].files) groups[root].files.add(f);
+    for (const d of taskDirs[i]) groups[root].dirs.add(d);
+  }
+
+  const concerns = Object.values(groups).map((g, idx) => {
+    const dirsArr = [...g.dirs];
+    // Derive area label from most common directory prefix
+    const area = dirsArr.length > 0
+      ? dirsArr[0].split('/').filter(s => s !== '(root)')[0] || '(root)'
+      : '(none)';
+    return {
+      group: idx + 1,
+      tasks: g.tasks,
+      files: [...g.files],
+      area,
+    };
+  });
+
+  const concernCount = concerns.length;
+  const taskCount = tasks.length;
+  const dirCount = dirSet.size;
+
+  // SR scoring
+  let base = 5;
+  if (concernCount > 1) base -= 1;
+  if (concernCount > 2) base -= 1;
+  if (concernCount > 3) base -= 1;
+  if (taskCount > 3) base -= 1;
+  if (taskCount > 5) base -= 1;
+  const srScore = Math.max(1, Math.min(5, base));
+
+  const labels = { 5: 'Excellent', 4: 'Good', 3: 'Acceptable', 2: 'Poor', 1: 'Bad' };
+  const srLabel = labels[srScore];
+
+  // Split suggestions for score <= 3
+  let splitSuggestion = null;
+  if (srScore <= 3 && concernCount > 1) {
+    splitSuggestion = {
+      recommended_splits: concernCount,
+      proposed_plans: concerns.map((c, idx) => ({
+        plan_suffix: String(idx + 1).padStart(2, '0'),
+        area: c.area,
+        tasks: c.tasks,
+        files: c.files,
+      })),
+    };
+  }
+
+  // Flags for notable conditions
+  const flags = [];
+  if (taskCount === 0) flags.push('no_tasks_found');
+  if (dirCount > 5) flags.push('high_directory_spread');
+  if (concernCount > 3) flags.push('many_concerns');
+
+  output({
+    plan: planId,
+    sr_score: srScore,
+    sr_label: srLabel,
+    concern_count: concernCount,
+    concerns,
+    task_count: taskCount,
+    files_total: allFiles.length,
+    directories_touched: dirCount,
+    split_suggestion: splitSuggestion,
+    flags,
+  }, raw);
+}
+
+// ─── Verify Deliverables (VRFY-01) ──────────────────────────────────────────
+
+function cmdVerifyDeliverables(cwd, options, raw) {
+  const { execSync } = require('child_process');
+  const { loadConfig } = require('../lib/config');
+
+  let testCommand = null;
+  let framework = null;
+
+  // Check config for test_commands override
+  const config = loadConfig(cwd);
+  if (config.test_commands && typeof config.test_commands === 'object') {
+    const keys = Object.keys(config.test_commands);
+    if (keys.length > 0) {
+      framework = keys[0];
+      testCommand = config.test_commands[framework];
+    }
+  }
+
+  // Auto-detect test framework if no config override
+  if (!testCommand) {
+    if (fs.existsSync(path.join(cwd, 'package.json'))) {
+      framework = 'npm';
+      testCommand = 'npm test';
+    } else if (fs.existsSync(path.join(cwd, 'mix.exs'))) {
+      framework = 'mix';
+      testCommand = 'mix test';
+    } else if (fs.existsSync(path.join(cwd, 'go.mod'))) {
+      framework = 'go';
+      testCommand = 'go test ./...';
+    }
+  }
+
+  if (!testCommand) {
+    output({
+      test_result: 'skip',
+      tests_passed: 0,
+      tests_failed: 0,
+      tests_total: 0,
+      framework: null,
+      verdict: 'skip',
+      reason: 'No test framework detected',
+    }, raw, 'skip');
+    return;
+  }
+
+  let testOutput = '';
+  let testExitCode = 0;
+  try {
+    testOutput = execSync(testCommand, {
+      cwd,
+      encoding: 'utf-8',
+      timeout: 60000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    testExitCode = err.status || 1;
+    testOutput = (err.stdout || '') + '\n' + (err.stderr || '');
+  }
+
+  // Parse test output for results
+  let testsPassed = 0;
+  let testsFailed = 0;
+  let testsTotal = 0;
+
+  // Common patterns across frameworks
+  // Handles: "258 passing", "pass 258", "ℹ pass 258"
+  const passMatch = testOutput.match(/(\d+)\s+pass(?:ing|ed)?/i) || testOutput.match(/pass\s+(\d+)/i);
+  const failMatch = testOutput.match(/(\d+)\s+fail(?:ing|ed|ure)?/i) || testOutput.match(/fail\s+(\d+)/i);
+  const totalMatch = testOutput.match(/(?:tests?|suites?)\s+(\d+)/i) || testOutput.match(/(\d+)\s+tests?/i);
+
+  if (passMatch) testsPassed = parseInt(passMatch[1], 10);
+  if (failMatch) testsFailed = parseInt(failMatch[1], 10);
+  if (totalMatch) testsTotal = parseInt(totalMatch[1], 10);
+
+  // If we got pass/fail but no total, compute it
+  if (testsTotal === 0 && (testsPassed > 0 || testsFailed > 0)) {
+    testsTotal = testsPassed + testsFailed;
+  }
+
+  const testResult = testExitCode === 0 ? 'pass' : 'fail';
+
+  // If plan provided, verify artifacts and key_links too
+  let artifactsOk = true;
+  let keyLinksOk = true;
+  if (options && options.plan) {
+    const planPath = path.isAbsolute(options.plan) ? options.plan : path.join(cwd, options.plan);
+    const planContent = safeReadFile(planPath);
+    if (planContent) {
+      const artifacts = parseMustHavesBlock(planContent, 'artifacts');
+      if (artifacts.length > 0) {
+        for (const artifact of artifacts) {
+          if (typeof artifact === 'string') continue;
+          const artPath = artifact.path;
+          if (!artPath) continue;
+          if (!fs.existsSync(path.join(cwd, artPath))) {
+            artifactsOk = false;
+            break;
+          }
+        }
+      }
+
+      const keyLinks = parseMustHavesBlock(planContent, 'key_links');
+      if (keyLinks.length > 0) {
+        for (const link of keyLinks) {
+          if (typeof link === 'string') continue;
+          const sourceContent = safeReadFile(path.join(cwd, link.from || ''));
+          if (!sourceContent) {
+            keyLinksOk = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  const verdict = testResult === 'pass' && artifactsOk && keyLinksOk ? 'pass' : 'fail';
+
+  output({
+    test_result: testResult,
+    tests_passed: testsPassed,
+    tests_failed: testsFailed,
+    tests_total: testsTotal,
+    framework,
+    artifacts_ok: artifactsOk,
+    key_links_ok: keyLinksOk,
+    verdict,
+  }, raw, verdict);
+}
+
+// ─── Verify Requirements (VRFY-02) ─────────────────────────────────────────
+
+function cmdVerifyRequirements(cwd, options, raw) {
+  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const content = safeReadFile(reqPath);
+  if (!content) {
+    output({
+      total: 0,
+      addressed: 0,
+      unaddressed: 0,
+      unaddressed_list: [],
+      error: 'REQUIREMENTS.md not found',
+    }, raw, 'skip');
+    return;
+  }
+
+  // Parse requirement lines: - [x] **REQ-01** or - [ ] **REQ-01**
+  const reqPattern = /- \[(x| )\] \*\*(\w+-\d+)\*\*/g;
+  const requirements = [];
+  let match;
+  while ((match = reqPattern.exec(content)) !== null) {
+    requirements.push({
+      id: match[2],
+      checked: match[1] === 'x',
+    });
+  }
+
+  // Parse traceability table: | REQ-01 | Phase 03 |
+  const tracePattern = /\| (\w+-\d+) \| Phase (\d+)/g;
+  const traceMap = {};
+  while ((match = tracePattern.exec(content)) !== null) {
+    traceMap[match[1]] = match[2];
+  }
+
+  const unaddressedList = [];
+  let addressedCount = 0;
+
+  for (const req of requirements) {
+    if (req.checked) {
+      addressedCount++;
+      continue;
+    }
+
+    // Check if the phase has summaries
+    const phase = traceMap[req.id];
+    if (phase) {
+      const phasePadded = phase.padStart(2, '0');
+      const phasesDir = path.join(cwd, '.planning', 'phases');
+      let hasSummaries = false;
+
+      try {
+        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory() && entry.name.startsWith(phasePadded)) {
+            const phaseFiles = fs.readdirSync(path.join(phasesDir, entry.name));
+            if (phaseFiles.some(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md')) {
+              hasSummaries = true;
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        debugLog('verify.requirements', 'readdir failed', e);
+      }
+
+      if (hasSummaries) {
+        addressedCount++;
+      } else {
+        unaddressedList.push({ id: req.id, phase, reason: 'Phase has no summaries' });
+      }
+    } else {
+      unaddressedList.push({ id: req.id, phase: null, reason: 'Not in traceability table' });
+    }
+  }
+
+  output({
+    total: requirements.length,
+    addressed: addressedCount,
+    unaddressed: unaddressedList.length,
+    unaddressed_list: unaddressedList,
+  }, raw, unaddressedList.length === 0 ? 'pass' : 'fail');
+}
+
+// ─── Verify Regression (VRFY-03) ────────────────────────────────────────────
+
+function cmdVerifyRegression(cwd, options, raw) {
+  const memoryDir = path.join(cwd, '.planning', 'memory');
+  const baselinePath = path.join(memoryDir, 'test-baseline.json');
+
+  let beforeData = null;
+  let afterData = null;
+
+  if (options && options.before && options.after) {
+    // Explicit before/after files
+    const beforePath = path.isAbsolute(options.before) ? options.before : path.join(cwd, options.before);
+    const afterPath = path.isAbsolute(options.after) ? options.after : path.join(cwd, options.after);
+
+    const beforeContent = safeReadFile(beforePath);
+    const afterContent = safeReadFile(afterPath);
+
+    if (!beforeContent) {
+      output({ error: 'Before file not found', path: options.before }, raw, 'error');
+      return;
+    }
+    if (!afterContent) {
+      output({ error: 'After file not found', path: options.after }, raw, 'error');
+      return;
+    }
+
+    try {
+      beforeData = JSON.parse(beforeContent);
+      afterData = JSON.parse(afterContent);
+    } catch (e) {
+      debugLog('verify.regression', 'JSON parse failed', e);
+      output({ error: 'Invalid JSON in before/after files' }, raw, 'error');
+      return;
+    }
+  } else {
+    // Check for stored baseline
+    const baselineContent = safeReadFile(baselinePath);
+    if (!baselineContent) {
+      output({
+        regressions: [],
+        regression_count: 0,
+        verdict: 'pass',
+        note: 'No baseline found. Save a baseline with --before/--after or store test-baseline.json in .planning/memory/',
+      }, raw, 'pass');
+      return;
+    }
+
+    try {
+      beforeData = JSON.parse(baselineContent);
+    } catch (e) {
+      debugLog('verify.regression', 'baseline parse failed', e);
+      output({ error: 'Invalid JSON in test-baseline.json' }, raw, 'error');
+      return;
+    }
+
+    // Need after data
+    if (!afterData) {
+      output({
+        regressions: [],
+        regression_count: 0,
+        verdict: 'pass',
+        note: 'Baseline found but no current results provided. Pass --after to compare.',
+      }, raw, 'pass');
+      return;
+    }
+  }
+
+  // Build lookup from before tests
+  const beforeMap = {};
+  if (beforeData.tests && Array.isArray(beforeData.tests)) {
+    for (const t of beforeData.tests) {
+      beforeMap[t.name] = t.status;
+    }
+  }
+
+  // Find regressions: pass in before, fail in after
+  const regressions = [];
+  if (afterData.tests && Array.isArray(afterData.tests)) {
+    for (const t of afterData.tests) {
+      const beforeStatus = beforeMap[t.name];
+      if (beforeStatus === 'pass' && t.status === 'fail') {
+        regressions.push({
+          test_name: t.name,
+          before: 'pass',
+          after: 'fail',
+        });
+      }
+    }
+  }
+
+  output({
+    regressions,
+    regression_count: regressions.length,
+    verdict: regressions.length === 0 ? 'pass' : 'fail',
+  }, raw, regressions.length === 0 ? 'pass' : 'fail');
+}
+
+// ─── Verify Plan Wave (PLAN-04) ─────────────────────────────────────────────
+
+function cmdVerifyPlanWave(cwd, phasePath, raw) {
+  if (!phasePath) { error('phase directory path required'); }
+  const fullPath = path.isAbsolute(phasePath) ? phasePath : path.join(cwd, phasePath);
+
+  let files;
+  try { files = fs.readdirSync(fullPath); } catch (e) {
+    debugLog('verify.planWave', 'readdir failed', e);
+    output({ error: 'Cannot read phase directory', path: phasePath }, raw);
+    return;
+  }
+
+  const planFiles = files.filter(f => f.match(/-PLAN\.md$/i)).sort();
+
+  // Extract phase number from directory name
+  const dirName = path.basename(fullPath);
+  const phaseMatch = dirName.match(/^(\d+(?:\.\d+)?)/);
+  const phaseNum = phaseMatch ? phaseMatch[1] : dirName;
+
+  // Read each plan and extract wave + files_modified
+  const plansByWave = {};
+  for (const planFile of planFiles) {
+    const content = safeReadFile(path.join(fullPath, planFile));
+    if (!content) continue;
+    const fm = extractFrontmatter(content);
+
+    const wave = fm.wave ? String(fm.wave) : '1';
+    const planId = planFile.replace(/-PLAN\.md$/i, '');
+
+    let filesModified = [];
+    if (Array.isArray(fm.files_modified)) {
+      filesModified = fm.files_modified;
+    } else if (typeof fm.files_modified === 'string' && fm.files_modified.trim()) {
+      filesModified = [fm.files_modified];
+    }
+
+    if (!plansByWave[wave]) plansByWave[wave] = [];
+    plansByWave[wave].push({ id: planId, files: filesModified });
+  }
+
+  // Build waves output
+  const waves = {};
+  for (const [wave, plans] of Object.entries(plansByWave)) {
+    waves[wave] = plans.map(p => p.id);
+  }
+
+  // Check for file conflicts within each wave
+  const conflicts = [];
+  for (const [wave, plans] of Object.entries(plansByWave)) {
+    const fileMap = {}; // file -> [planIds]
+    for (const plan of plans) {
+      for (const file of plan.files) {
+        if (!fileMap[file]) fileMap[file] = [];
+        fileMap[file].push(plan.id);
+      }
+    }
+    for (const [file, planIds] of Object.entries(fileMap)) {
+      if (planIds.length > 1) {
+        conflicts.push({ wave: parseInt(wave, 10), file, plans: planIds });
+      }
+    }
+  }
+
+  const verdict = conflicts.length > 0 ? 'conflicts_found' : 'clean';
+
+  output({
+    phase: phaseNum,
+    waves,
+    conflicts,
+    verdict,
+  }, raw, verdict);
+}
+
+// ─── Verify Plan Dependencies (PLAN-05) ─────────────────────────────────────
+
+function cmdVerifyPlanDeps(cwd, phasePath, raw) {
+  if (!phasePath) { error('phase directory path required'); }
+  const fullPath = path.isAbsolute(phasePath) ? phasePath : path.join(cwd, phasePath);
+
+  let files;
+  try { files = fs.readdirSync(fullPath); } catch (e) {
+    debugLog('verify.planDeps', 'readdir failed', e);
+    output({ error: 'Cannot read phase directory', path: phasePath }, raw);
+    return;
+  }
+
+  const planFiles = files.filter(f => f.match(/-PLAN\.md$/i)).sort();
+
+  // Extract phase number from directory name
+  const dirName = path.basename(fullPath);
+  const phaseMatch = dirName.match(/^(\d+(?:\.\d+)?)/);
+  const phaseNum = phaseMatch ? phaseMatch[1] : dirName;
+
+  // Read each plan: extract plan ID, depends_on, wave
+  const plans = {};
+  for (const planFile of planFiles) {
+    const content = safeReadFile(path.join(fullPath, planFile));
+    if (!content) continue;
+    const fm = extractFrontmatter(content);
+
+    // Extract plan number from filename: "12-03-PLAN.md" -> "03"
+    const planIdMatch = planFile.match(/(\d{2})-PLAN\.md$/i);
+    const planId = planIdMatch ? planIdMatch[1] : fm.plan || planFile.replace(/-PLAN\.md$/i, '');
+
+    let dependsOn = [];
+    if (Array.isArray(fm.depends_on)) {
+      dependsOn = fm.depends_on;
+    } else if (typeof fm.depends_on === 'string' && fm.depends_on.trim()) {
+      dependsOn = [fm.depends_on];
+    }
+
+    // Normalize deps: "12-01" -> "01", "01" stays "01"
+    const normalizedDeps = dependsOn.map(d => {
+      const depMatch = d.match(/(?:\d+-)?(\d+)$/);
+      return depMatch ? depMatch[1] : d;
+    }).filter(d => d.trim());
+
+    const wave = fm.wave ? parseInt(fm.wave, 10) : 1;
+    plans[planId] = { deps: normalizedDeps, wave };
+  }
+
+  const planIds = new Set(Object.keys(plans));
+  const dependencyGraph = {};
+  for (const [id, info] of Object.entries(plans)) {
+    dependencyGraph[id] = info.deps;
+  }
+
+  const issues = [];
+
+  // 1. Unreachable dependencies: deps referencing plan IDs not in the phase
+  for (const [id, info] of Object.entries(plans)) {
+    for (const dep of info.deps) {
+      if (!planIds.has(dep)) {
+        issues.push({ type: 'unreachable', plan: id, dep, message: `Plan ${id} depends on ${dep} which is not in this phase` });
+      }
+    }
+  }
+
+  // 2. Cycle detection using DFS with three states
+  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const color = {};
+  for (const id of planIds) color[id] = WHITE;
+
+  function dfs(node, pathStack) {
+    color[node] = GRAY;
+    pathStack.push(node);
+
+    const deps = plans[node] ? plans[node].deps : [];
+    for (const dep of deps) {
+      if (!planIds.has(dep)) continue; // skip unreachable (already reported)
+      if (color[dep] === GRAY) {
+        // Found cycle: extract the cycle path
+        const cycleStart = pathStack.indexOf(dep);
+        const cycle = pathStack.slice(cycleStart).concat(dep);
+        issues.push({ type: 'cycle', plans: cycle, message: `Dependency cycle: ${cycle.join(' → ')}` });
+        return;
+      }
+      if (color[dep] === WHITE) {
+        dfs(dep, pathStack);
+      }
+    }
+
+    pathStack.pop();
+    color[node] = BLACK;
+  }
+
+  for (const id of planIds) {
+    if (color[id] === WHITE) {
+      dfs(id, []);
+    }
+  }
+
+  // 3. Unnecessary serialization: plan in wave > 1 that doesn't depend on any plan in a lower wave
+  for (const [id, info] of Object.entries(plans)) {
+    if (info.wave > 1) {
+      const hasLowerWaveDep = info.deps.some(dep => {
+        return planIds.has(dep) && plans[dep] && plans[dep].wave < info.wave;
+      });
+      if (!hasLowerWaveDep && info.deps.length === 0) {
+        issues.push({
+          type: 'unnecessary_serialization',
+          plan: id,
+          wave: info.wave,
+          message: `Plan ${id} is in wave ${info.wave} but has no dependencies on lower waves — could be wave 1`,
+        });
+      }
+    }
+  }
+
+  const verdict = issues.length > 0 ? 'issues_found' : 'clean';
+
+  output({
+    phase: phaseNum,
+    plan_count: planIds.size,
+    dependency_graph: dependencyGraph,
+    issues,
+    verdict,
+  }, raw, verdict);
+}
+
 module.exports = {
   cmdVerifyPlanStructure,
   cmdVerifyPhaseCompleteness,
@@ -665,4 +1369,10 @@ module.exports = {
   cmdVerifyKeyLinks,
   cmdValidateConsistency,
   cmdValidateHealth,
+  cmdAnalyzePlan,
+  cmdVerifyDeliverables,
+  cmdVerifyRequirements,
+  cmdVerifyRegression,
+  cmdVerifyPlanWave,
+  cmdVerifyPlanDeps,
 };

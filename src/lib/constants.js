@@ -114,10 +114,60 @@ Subcommands:
   commits <h1> [h2] ...       Batch verify commit hashes exist
   artifacts <plan-file>        Check must_haves.artifacts from plan
   key-links <plan-file>        Check must_haves.key_links from plan
+  analyze-plan <plan-file>     Analyze plan complexity, SR score, split suggestions
+  deliverables [--plan file]   Run tests + verify plan deliverables
+  requirements                 Check REQUIREMENTS.md coverage
+  regression [--before f] [--after f]  Detect test regressions
+  plan-wave <phase-dir>        Check for file conflicts within waves
+  plan-deps <phase-dir>        Check dependency graph for cycles/issues
 
 Examples:
   gsd-tools verify plan-structure .planning/phases/01-foundation/01-01-PLAN.md
-  gsd-tools verify phase-completeness 01`,
+  gsd-tools verify phase-completeness 01
+  gsd-tools verify analyze-plan .planning/phases/12-quality/12-03-PLAN.md
+  gsd-tools verify deliverables --plan .planning/phases/01/01-01-PLAN.md
+  gsd-tools verify requirements
+  gsd-tools verify regression --before before.json --after after.json
+  gsd-tools verify plan-wave .planning/phases/12-quality
+  gsd-tools verify plan-deps .planning/phases/12-quality`,
+
+  'verify deliverables': `Usage: gsd-tools verify deliverables [--plan <file>] [--raw]
+
+Run project tests and optionally verify plan deliverables (artifacts + key_links).
+
+Auto-detects test framework: package.json → npm test, mix.exs → mix test, go.mod → go test ./...
+Override via config.json test_commands.
+
+Options:
+  --plan <file>   Plan file to check must_haves.artifacts and key_links
+
+Output: { test_result, tests_passed, tests_failed, tests_total, framework, verdict }
+
+Examples:
+  gsd-tools verify deliverables
+  gsd-tools verify deliverables --plan .planning/phases/01-foundation/01-01-PLAN.md`,
+
+  'verify requirements': `Usage: gsd-tools verify requirements [--raw]
+
+Check REQUIREMENTS.md coverage. Parses requirement checkboxes and traceability table.
+A requirement is "addressed" if marked [x] or its mapped phase has SUMMARY.md files.
+
+Output: { total, addressed, unaddressed, unaddressed_list }
+
+Examples:
+  gsd-tools verify requirements --raw`,
+
+  'verify regression': `Usage: gsd-tools verify regression [--before <file>] [--after <file>] [--raw]
+
+Detect test regressions by comparing before/after test result files.
+Each file: { tests: [{name, status: "pass"|"fail"}] }
+
+Without --before/--after, checks .planning/memory/test-baseline.json.
+
+Output: { regressions, regression_count, verdict }
+
+Examples:
+  gsd-tools verify regression --before baseline.json --after current.json`,
 
   'roadmap': `Usage: gsd-tools roadmap <subcommand> [args] [--raw]
 
