@@ -6859,3 +6859,170 @@ src/router.js
     assert.strictEqual(data.template_compliance.type_issues.length, 0, 'no type issues');
   });
 });
+
+// ─── verify quality ──────────────────────────────────────────────────────────
+
+describe('verify quality', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('returns composite score with all dimensions', () => {
+    // Create a project with passing tests and REQUIREMENTS.md
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-quality',
+      scripts: { test: 'echo "10 passing"' },
+    }));
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), `# Requirements
+
+- [x] **REQ-01** First requirement
+- [x] **REQ-02** Second requirement
+`);
+
+    // Create plan with must_haves (4-space indent for parseMustHavesBlock)
+    const planDir = path.join(tmpDir, '.planning', 'phases', '12-quality');
+    fs.mkdirSync(planDir, { recursive: true });
+    const planPath = path.join(planDir, '12-01-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: "12"
+plan: "01"
+must_haves:
+    artifacts:
+      - path: package.json
+    key_links: []
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify quality --plan ${planPath} --phase 12`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(typeof data.score === 'number', 'score should be a number');
+    assert.ok(data.score >= 0 && data.score <= 100, 'score should be 0-100');
+    assert.ok(['A', 'B', 'C', 'D', 'F'].includes(data.grade), 'grade should be A-F');
+    assert.ok(data.dimensions, 'should have dimensions');
+    assert.ok(data.dimensions.tests, 'should have tests dimension');
+    assert.ok(data.dimensions.must_haves, 'should have must_haves dimension');
+    assert.ok(data.dimensions.requirements, 'should have requirements dimension');
+    assert.ok(data.dimensions.regression, 'should have regression dimension');
+    assert.ok(data.trend, 'should have trend');
+  });
+
+  test('grade mapping thresholds are correct', () => {
+    // Project with passing tests only (no plan, no requirements)
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-grade',
+      scripts: { test: 'echo "5 passing"' },
+    }));
+
+    const result = runGsdTools('verify quality', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    // Only tests dimension active (100), so score = 100, grade = A
+    assert.strictEqual(data.dimensions.tests.score, 100, 'tests should score 100');
+    assert.strictEqual(data.score, 100, 'composite score should be 100 with only passing tests');
+    assert.strictEqual(data.grade, 'A', 'grade should be A for score 100');
+  });
+
+  test('must-haves checks file existence and scores correctly', () => {
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-musthaves',
+      scripts: { test: 'echo "1 passing"' },
+    }));
+
+    // Create one file that exists, reference one that doesn't
+    fs.writeFileSync(path.join(tmpDir, 'existing.js'), 'module.exports = {}');
+
+    const planDir = path.join(tmpDir, '.planning', 'phases', '12-quality');
+    fs.mkdirSync(planDir, { recursive: true });
+    const planPath = path.join(planDir, '12-02-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: "12"
+plan: "02"
+must_haves:
+    artifacts:
+      - path: existing.js
+      - path: nonexistent.js
+    key_links: []
+---
+# Plan
+`);
+
+    const result = runGsdTools(`verify quality --plan ${planPath}`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.dimensions.must_haves.score, 50, 'must_haves should be 50% (1/2)');
+    assert.strictEqual(data.dimensions.must_haves.detail, '1/2 verified', 'detail should reflect counts');
+  });
+
+  test('stores score in quality-scores.json', () => {
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-store',
+      scripts: { test: 'echo "1 passing"' },
+    }));
+
+    const result = runGsdTools('verify quality', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const scoresPath = path.join(tmpDir, '.planning', 'memory', 'quality-scores.json');
+    assert.ok(fs.existsSync(scoresPath), 'quality-scores.json should be created');
+
+    const scores = JSON.parse(fs.readFileSync(scoresPath, 'utf-8'));
+    assert.ok(Array.isArray(scores), 'scores should be an array');
+    assert.ok(scores.length >= 1, 'should have at least 1 entry');
+    assert.ok(typeof scores[0].score === 'number', 'entry should have score');
+    assert.ok(scores[0].grade, 'entry should have grade');
+    assert.ok(scores[0].timestamp, 'entry should have timestamp');
+  });
+
+  test('trend tracking detects improving scores', () => {
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-trend',
+      scripts: { test: 'echo "1 passing"' },
+    }));
+
+    // Write 2 previous scores (ascending)
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    fs.writeFileSync(path.join(memDir, 'quality-scores.json'), JSON.stringify([
+      { phase: '12', plan: '12-01', score: 60, grade: 'D', timestamp: '2026-01-01T00:00:00Z' },
+      { phase: '12', plan: '12-01', score: 80, grade: 'B', timestamp: '2026-01-02T00:00:00Z' },
+    ]));
+
+    // Run quality check (tests pass = 100, should produce score 100)
+    const result = runGsdTools('verify quality', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.trend, 'improving', 'trend should be improving (60 → 80 → 100)');
+
+    // Verify 3 entries now in file
+    const scores = JSON.parse(fs.readFileSync(path.join(memDir, 'quality-scores.json'), 'utf-8'));
+    assert.strictEqual(scores.length, 3, 'should have 3 entries');
+  });
+
+  test('handles missing plan gracefully with phase-only', () => {
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-noplan',
+      scripts: { test: 'echo "3 passing"' },
+    }));
+
+    const result = runGsdTools('verify quality --phase 12', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(typeof data.score === 'number', 'score should still be a number');
+    assert.strictEqual(data.dimensions.must_haves.score, null, 'must_haves should be null without plan');
+    assert.strictEqual(data.dimensions.tests.score, 100, 'tests should still score');
+    assert.strictEqual(data.phase, '12', 'phase should be set from option');
+  });
+});

@@ -138,6 +138,7 @@ Subcommands:
   regression [--before f] [--after f]  Detect test regressions
   plan-wave <phase-dir>        Check for file conflicts within waves
   plan-deps <phase-dir>        Check dependency graph for cycles/issues
+  quality [--plan f] [--phase N]  Composite quality score with trend
 
 Examples:
   gsd-tools verify plan-structure .planning/phases/01-foundation/01-01-PLAN.md
@@ -183,6 +184,31 @@ Output: { regressions, regression_count, verdict }
 
 Examples:
   gsd-tools verify regression --before baseline.json --after current.json`,
+      "verify quality": `Usage: gsd-tools verify quality [--plan <file>] [--phase <N>] [--raw]
+
+Composite quality score across 4 dimensions with trend tracking.
+
+Dimensions (weighted):
+  tests (30%)          Run test suite, 100 if pass, 0 if fail
+  must_haves (30%)     Check plan artifacts + key_links (requires --plan)
+  requirements (20%)   REQUIREMENTS.md coverage (filterable by --phase)
+  regression (20%)     Check test-baseline.json for regressions
+
+Skipped dimensions (null score) are excluded from the weighted average.
+Grade: A (90+), B (80+), C (70+), D (60+), F (<60)
+
+Scores are stored in .planning/memory/quality-scores.json for trend tracking.
+Trend: "improving" (last 3 ascending), "declining" (descending), "stable" (mixed).
+
+Options:
+  --plan <file>   Plan file for must_haves checking
+  --phase <N>     Filter requirements to specific phase
+
+Output: { score, grade, dimensions, trend, plan, phase }
+
+Examples:
+  gsd-tools verify quality --raw
+  gsd-tools verify quality --plan .planning/phases/12-quality/12-02-PLAN.md --phase 12 --raw`,
       "roadmap": `Usage: gsd-tools roadmap <subcommand> [args] [--raw]
 
 Roadmap operations.
@@ -4123,6 +4149,238 @@ var require_verify = __commonJS({
         verdict
       }, raw, verdict);
     }
+    function cmdVerifyQuality(cwd, options, raw) {
+      const { execSync } = require("child_process");
+      const { loadConfig } = require_config();
+      const phaseNum = options.phase || null;
+      const planPath = options.plan || null;
+      let testsScore = null;
+      let testsDetail = "no test framework detected";
+      const config = loadConfig(cwd);
+      let testCommand = null;
+      let framework = null;
+      if (config.test_commands && typeof config.test_commands === "object") {
+        const keys = Object.keys(config.test_commands);
+        if (keys.length > 0) {
+          framework = keys[0];
+          testCommand = config.test_commands[framework];
+        }
+      }
+      if (!testCommand) {
+        if (fs.existsSync(path.join(cwd, "package.json"))) {
+          framework = "npm";
+          testCommand = "npm test";
+        } else if (fs.existsSync(path.join(cwd, "mix.exs"))) {
+          framework = "mix";
+          testCommand = "mix test";
+        } else if (fs.existsSync(path.join(cwd, "go.mod"))) {
+          framework = "go";
+          testCommand = "go test ./...";
+        }
+      }
+      if (testCommand) {
+        let testExitCode = 0;
+        let testOutput = "";
+        try {
+          testOutput = execSync(testCommand, {
+            cwd,
+            encoding: "utf-8",
+            timeout: 12e4,
+            stdio: ["pipe", "pipe", "pipe"]
+          });
+        } catch (err) {
+          testExitCode = err.status || 1;
+          testOutput = (err.stdout || "") + "\n" + (err.stderr || "");
+        }
+        if (testExitCode === 0) {
+          testsScore = 100;
+          const passMatch = testOutput.match(/(\d+)\s+pass(?:ing|ed)?/i) || testOutput.match(/pass\s+(\d+)/i);
+          const count = passMatch ? passMatch[1] : "?";
+          testsDetail = `all ${count} pass`;
+        } else {
+          testsScore = 0;
+          const failMatch = testOutput.match(/(\d+)\s+fail(?:ing|ed|ure)?/i) || testOutput.match(/fail\s+(\d+)/i);
+          const count = failMatch ? failMatch[1] : "?";
+          testsDetail = `${count} failing`;
+        }
+      }
+      let mustHavesScore = null;
+      let mustHavesDetail = "no plan specified";
+      if (planPath) {
+        const fullPlanPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+        const planContent = safeReadFile(fullPlanPath);
+        if (planContent) {
+          const artifacts = parseMustHavesBlock(planContent, "artifacts");
+          const keyLinks = parseMustHavesBlock(planContent, "key_links");
+          let total = 0;
+          let verified = 0;
+          for (const artifact of artifacts) {
+            if (typeof artifact === "string") continue;
+            if (!artifact.path) continue;
+            total++;
+            const artFullPath = path.join(cwd, artifact.path);
+            if (fs.existsSync(artFullPath)) {
+              let ok = true;
+              if (artifact.contains) {
+                const fileContent = safeReadFile(artFullPath) || "";
+                if (!fileContent.includes(artifact.contains)) ok = false;
+              }
+              if (ok) verified++;
+            }
+          }
+          for (const link of keyLinks) {
+            if (typeof link === "string") continue;
+            total++;
+            const sourceContent = safeReadFile(path.join(cwd, link.from || ""));
+            if (sourceContent) {
+              if (link.pattern) {
+                try {
+                  const regex = new RegExp(link.pattern);
+                  if (regex.test(sourceContent)) {
+                    verified++;
+                  }
+                } catch (e) {
+                  debugLog("verify.quality", "regex failed", e);
+                }
+              } else {
+                verified++;
+              }
+            }
+          }
+          if (total > 0) {
+            mustHavesScore = Math.round(verified / total * 100);
+            mustHavesDetail = `${verified}/${total} verified`;
+          } else {
+            mustHavesDetail = "no must_haves defined";
+          }
+        } else {
+          mustHavesDetail = "plan file not found";
+        }
+      }
+      let reqScore = null;
+      let reqDetail = "no REQUIREMENTS.md";
+      const reqPath = path.join(cwd, ".planning", "REQUIREMENTS.md");
+      const reqContent = safeReadFile(reqPath);
+      if (reqContent) {
+        const reqPattern = /- \[(x| )\] \*\*(\w+-\d+)\*\*/g;
+        const requirements = [];
+        let reqMatch;
+        while ((reqMatch = reqPattern.exec(reqContent)) !== null) {
+          requirements.push({ id: reqMatch[2], checked: reqMatch[1] === "x" });
+        }
+        let filteredReqs = requirements;
+        if (phaseNum) {
+          const tracePattern = /\| (\w+-\d+) \| Phase (\d+)/g;
+          const traceMap = {};
+          let tm;
+          while ((tm = tracePattern.exec(reqContent)) !== null) {
+            traceMap[tm[1]] = tm[2];
+          }
+          const pn = String(parseInt(phaseNum, 10));
+          filteredReqs = requirements.filter((r) => {
+            const mapped = traceMap[r.id];
+            return mapped && String(parseInt(mapped, 10)) === pn;
+          });
+        }
+        if (filteredReqs.length > 0) {
+          const addressed = filteredReqs.filter((r) => r.checked).length;
+          reqScore = Math.round(addressed / filteredReqs.length * 100);
+          reqDetail = `${addressed}/${filteredReqs.length} addressed`;
+        } else {
+          reqDetail = phaseNum ? `no requirements mapped to phase ${phaseNum}` : "no requirements found";
+        }
+      }
+      let regressionScore = null;
+      let regressionDetail = "no baseline";
+      const baselinePath = path.join(cwd, ".planning", "memory", "test-baseline.json");
+      const baselineContent = safeReadFile(baselinePath);
+      if (baselineContent) {
+        try {
+          const baseline = JSON.parse(baselineContent);
+          if (baseline.tests_total !== void 0 && baseline.tests_failed !== void 0) {
+            regressionScore = baseline.tests_failed === 0 ? 100 : 0;
+            regressionDetail = baseline.tests_failed === 0 ? "no regressions" : `${baseline.tests_failed} regressions`;
+          } else if (baseline.tests && Array.isArray(baseline.tests)) {
+            const failures = baseline.tests.filter((t) => t.status === "fail").length;
+            regressionScore = failures === 0 ? 100 : 0;
+            regressionDetail = failures === 0 ? "no regressions" : `${failures} regressions`;
+          }
+        } catch (e) {
+          debugLog("verify.quality", "baseline parse failed", e);
+          regressionDetail = "invalid baseline JSON";
+        }
+      }
+      const dimensions = {
+        tests: { score: testsScore, weight: 30, detail: testsDetail },
+        must_haves: { score: mustHavesScore, weight: 30, detail: mustHavesDetail },
+        requirements: { score: reqScore, weight: 20, detail: reqDetail },
+        regression: { score: regressionScore, weight: 20, detail: regressionDetail }
+      };
+      let totalWeight = 0;
+      let weightedSum = 0;
+      for (const dim of Object.values(dimensions)) {
+        if (dim.score !== null) {
+          totalWeight += dim.weight;
+          weightedSum += dim.score * dim.weight;
+        }
+      }
+      const score = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+      let grade;
+      if (score >= 90) grade = "A";
+      else if (score >= 80) grade = "B";
+      else if (score >= 70) grade = "C";
+      else if (score >= 60) grade = "D";
+      else grade = "F";
+      let planId = null;
+      if (planPath) {
+        const planBase = path.basename(planPath, ".md").replace(/-PLAN$/i, "");
+        planId = planBase;
+      }
+      const memoryDir = path.join(cwd, ".planning", "memory");
+      const scoresPath = path.join(memoryDir, "quality-scores.json");
+      let scores = [];
+      const scoresContent = safeReadFile(scoresPath);
+      if (scoresContent) {
+        try {
+          scores = JSON.parse(scoresContent);
+          if (!Array.isArray(scores)) scores = [];
+        } catch (e) {
+          debugLog("verify.quality", "scores parse failed", e);
+          scores = [];
+        }
+      }
+      const entry = {
+        phase: phaseNum || (planId ? planId.split("-")[0] : null),
+        plan: planId,
+        score,
+        grade,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      scores.push(entry);
+      try {
+        if (!fs.existsSync(memoryDir)) {
+          fs.mkdirSync(memoryDir, { recursive: true });
+        }
+        fs.writeFileSync(scoresPath, JSON.stringify(scores, null, 2), "utf-8");
+      } catch (e) {
+        debugLog("verify.quality", "write scores failed", e);
+      }
+      let trend = "stable";
+      if (scores.length >= 3) {
+        const last3 = scores.slice(-3);
+        const s = last3.map((e) => e.score);
+        if (s[0] < s[1] && s[1] < s[2]) trend = "improving";
+        else if (s[0] > s[1] && s[1] > s[2]) trend = "declining";
+      }
+      output({
+        score,
+        grade,
+        dimensions,
+        trend,
+        plan: planId,
+        phase: phaseNum || (planId ? planId.split("-")[0] : null)
+      }, raw);
+    }
     module2.exports = {
       cmdVerifyPlanStructure,
       cmdVerifyPhaseCompleteness,
@@ -4137,7 +4395,8 @@ var require_verify = __commonJS({
       cmdVerifyRequirements,
       cmdVerifyRegression,
       cmdVerifyPlanWave,
-      cmdVerifyPlanDeps
+      cmdVerifyPlanDeps,
+      cmdVerifyQuality
     };
   }
 });
@@ -8224,7 +8483,8 @@ var require_router = __commonJS({
       cmdVerifyRequirements,
       cmdVerifyRegression,
       cmdVerifyPlanWave,
-      cmdVerifyPlanDeps
+      cmdVerifyPlanDeps,
+      cmdVerifyQuality
     } = require_verify();
     var {
       cmdInitExecutePhase,
@@ -8501,8 +8761,15 @@ var require_router = __commonJS({
             cmdVerifyPlanWave(cwd, args[2], raw);
           } else if (subcommand === "plan-deps") {
             cmdVerifyPlanDeps(cwd, args[2], raw);
+          } else if (subcommand === "quality") {
+            const planIdx = args.indexOf("--plan");
+            const phaseIdx = args.indexOf("--phase");
+            cmdVerifyQuality(cwd, {
+              plan: planIdx !== -1 ? args[planIdx + 1] : null,
+              phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null
+            }, raw);
           } else {
-            error("Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, analyze-plan, deliverables, requirements, regression, plan-wave, plan-deps");
+            error("Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, analyze-plan, deliverables, requirements, regression, plan-wave, plan-deps, quality");
           }
           break;
         }

@@ -1360,6 +1360,283 @@ function cmdVerifyPlanDeps(cwd, phasePath, raw) {
   }, raw, verdict);
 }
 
+// ─── Verify Quality (VRFY-04, VRFY-05, VRFY-06) ────────────────────────────
+
+function cmdVerifyQuality(cwd, options, raw) {
+  const { execSync } = require('child_process');
+  const { loadConfig } = require('../lib/config');
+
+  const phaseNum = options.phase || null;
+  const planPath = options.plan || null;
+
+  // ── 1. Tests dimension (weight 30%) ──────────────────────────────────────
+  let testsScore = null;
+  let testsDetail = 'no test framework detected';
+
+  const config = loadConfig(cwd);
+  let testCommand = null;
+  let framework = null;
+
+  if (config.test_commands && typeof config.test_commands === 'object') {
+    const keys = Object.keys(config.test_commands);
+    if (keys.length > 0) {
+      framework = keys[0];
+      testCommand = config.test_commands[framework];
+    }
+  }
+  if (!testCommand) {
+    if (fs.existsSync(path.join(cwd, 'package.json'))) {
+      framework = 'npm';
+      testCommand = 'npm test';
+    } else if (fs.existsSync(path.join(cwd, 'mix.exs'))) {
+      framework = 'mix';
+      testCommand = 'mix test';
+    } else if (fs.existsSync(path.join(cwd, 'go.mod'))) {
+      framework = 'go';
+      testCommand = 'go test ./...';
+    }
+  }
+
+  if (testCommand) {
+    let testExitCode = 0;
+    let testOutput = '';
+    try {
+      testOutput = execSync(testCommand, {
+        cwd,
+        encoding: 'utf-8',
+        timeout: 120000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      testExitCode = err.status || 1;
+      testOutput = (err.stdout || '') + '\n' + (err.stderr || '');
+    }
+
+    if (testExitCode === 0) {
+      testsScore = 100;
+      // Try to parse count
+      const passMatch = testOutput.match(/(\d+)\s+pass(?:ing|ed)?/i) || testOutput.match(/pass\s+(\d+)/i);
+      const count = passMatch ? passMatch[1] : '?';
+      testsDetail = `all ${count} pass`;
+    } else {
+      testsScore = 0;
+      const failMatch = testOutput.match(/(\d+)\s+fail(?:ing|ed|ure)?/i) || testOutput.match(/fail\s+(\d+)/i);
+      const count = failMatch ? failMatch[1] : '?';
+      testsDetail = `${count} failing`;
+    }
+  }
+
+  // ── 2. Must-haves dimension (weight 30%) ─────────────────────────────────
+  let mustHavesScore = null;
+  let mustHavesDetail = 'no plan specified';
+
+  if (planPath) {
+    const fullPlanPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+    const planContent = safeReadFile(fullPlanPath);
+
+    if (planContent) {
+      const artifacts = parseMustHavesBlock(planContent, 'artifacts');
+      const keyLinks = parseMustHavesBlock(planContent, 'key_links');
+      let total = 0;
+      let verified = 0;
+
+      // Check artifacts
+      for (const artifact of artifacts) {
+        if (typeof artifact === 'string') continue;
+        if (!artifact.path) continue;
+        total++;
+        const artFullPath = path.join(cwd, artifact.path);
+        if (fs.existsSync(artFullPath)) {
+          let ok = true;
+          if (artifact.contains) {
+            const fileContent = safeReadFile(artFullPath) || '';
+            if (!fileContent.includes(artifact.contains)) ok = false;
+          }
+          if (ok) verified++;
+        }
+      }
+
+      // Check key_links
+      for (const link of keyLinks) {
+        if (typeof link === 'string') continue;
+        total++;
+        const sourceContent = safeReadFile(path.join(cwd, link.from || ''));
+        if (sourceContent) {
+          if (link.pattern) {
+            try {
+              const regex = new RegExp(link.pattern);
+              if (regex.test(sourceContent)) {
+                verified++;
+              }
+            } catch (e) {
+              debugLog('verify.quality', 'regex failed', e);
+            }
+          } else {
+            verified++;
+          }
+        }
+      }
+
+      if (total > 0) {
+        mustHavesScore = Math.round((verified / total) * 100);
+        mustHavesDetail = `${verified}/${total} verified`;
+      } else {
+        mustHavesDetail = 'no must_haves defined';
+      }
+    } else {
+      mustHavesDetail = 'plan file not found';
+    }
+  }
+
+  // ── 3. Requirements dimension (weight 20%) ───────────────────────────────
+  let reqScore = null;
+  let reqDetail = 'no REQUIREMENTS.md';
+
+  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const reqContent = safeReadFile(reqPath);
+  if (reqContent) {
+    const reqPattern = /- \[(x| )\] \*\*(\w+-\d+)\*\*/g;
+    const requirements = [];
+    let reqMatch;
+    while ((reqMatch = reqPattern.exec(reqContent)) !== null) {
+      requirements.push({ id: reqMatch[2], checked: reqMatch[1] === 'x' });
+    }
+
+    // If phase filter, also get traceability
+    let filteredReqs = requirements;
+    if (phaseNum) {
+      const tracePattern = /\| (\w+-\d+) \| Phase (\d+)/g;
+      const traceMap = {};
+      let tm;
+      while ((tm = tracePattern.exec(reqContent)) !== null) {
+        traceMap[tm[1]] = tm[2];
+      }
+      const pn = String(parseInt(phaseNum, 10));
+      filteredReqs = requirements.filter(r => {
+        const mapped = traceMap[r.id];
+        return mapped && String(parseInt(mapped, 10)) === pn;
+      });
+    }
+
+    if (filteredReqs.length > 0) {
+      const addressed = filteredReqs.filter(r => r.checked).length;
+      reqScore = Math.round((addressed / filteredReqs.length) * 100);
+      reqDetail = `${addressed}/${filteredReqs.length} addressed`;
+    } else {
+      reqDetail = phaseNum ? `no requirements mapped to phase ${phaseNum}` : 'no requirements found';
+    }
+  }
+
+  // ── 4. Regression dimension (weight 20%) ─────────────────────────────────
+  let regressionScore = null;
+  let regressionDetail = 'no baseline';
+
+  const baselinePath = path.join(cwd, '.planning', 'memory', 'test-baseline.json');
+  const baselineContent = safeReadFile(baselinePath);
+  if (baselineContent) {
+    try {
+      const baseline = JSON.parse(baselineContent);
+      if (baseline.tests_total !== undefined && baseline.tests_failed !== undefined) {
+        regressionScore = baseline.tests_failed === 0 ? 100 : 0;
+        regressionDetail = baseline.tests_failed === 0 ? 'no regressions' : `${baseline.tests_failed} regressions`;
+      } else if (baseline.tests && Array.isArray(baseline.tests)) {
+        const failures = baseline.tests.filter(t => t.status === 'fail').length;
+        regressionScore = failures === 0 ? 100 : 0;
+        regressionDetail = failures === 0 ? 'no regressions' : `${failures} regressions`;
+      }
+    } catch (e) {
+      debugLog('verify.quality', 'baseline parse failed', e);
+      regressionDetail = 'invalid baseline JSON';
+    }
+  }
+
+  // ── Composite score ──────────────────────────────────────────────────────
+  const dimensions = {
+    tests: { score: testsScore, weight: 30, detail: testsDetail },
+    must_haves: { score: mustHavesScore, weight: 30, detail: mustHavesDetail },
+    requirements: { score: reqScore, weight: 20, detail: reqDetail },
+    regression: { score: regressionScore, weight: 20, detail: regressionDetail },
+  };
+
+  let totalWeight = 0;
+  let weightedSum = 0;
+  for (const dim of Object.values(dimensions)) {
+    if (dim.score !== null) {
+      totalWeight += dim.weight;
+      weightedSum += dim.score * dim.weight;
+    }
+  }
+
+  const score = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+
+  let grade;
+  if (score >= 90) grade = 'A';
+  else if (score >= 80) grade = 'B';
+  else if (score >= 70) grade = 'C';
+  else if (score >= 60) grade = 'D';
+  else grade = 'F';
+
+  // Derive plan identifier
+  let planId = null;
+  if (planPath) {
+    const planBase = path.basename(planPath, '.md').replace(/-PLAN$/i, '');
+    planId = planBase;
+  }
+
+  // ── Trend tracking ───────────────────────────────────────────────────────
+  const memoryDir = path.join(cwd, '.planning', 'memory');
+  const scoresPath = path.join(memoryDir, 'quality-scores.json');
+
+  let scores = [];
+  const scoresContent = safeReadFile(scoresPath);
+  if (scoresContent) {
+    try {
+      scores = JSON.parse(scoresContent);
+      if (!Array.isArray(scores)) scores = [];
+    } catch (e) {
+      debugLog('verify.quality', 'scores parse failed', e);
+      scores = [];
+    }
+  }
+
+  const entry = {
+    phase: phaseNum || (planId ? planId.split('-')[0] : null),
+    plan: planId,
+    score,
+    grade,
+    timestamp: new Date().toISOString(),
+  };
+  scores.push(entry);
+
+  // Write scores (ensure directory exists)
+  try {
+    if (!fs.existsSync(memoryDir)) {
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
+    fs.writeFileSync(scoresPath, JSON.stringify(scores, null, 2), 'utf-8');
+  } catch (e) {
+    debugLog('verify.quality', 'write scores failed', e);
+  }
+
+  // Compute trend from last 3 scores
+  let trend = 'stable';
+  if (scores.length >= 3) {
+    const last3 = scores.slice(-3);
+    const s = last3.map(e => e.score);
+    if (s[0] < s[1] && s[1] < s[2]) trend = 'improving';
+    else if (s[0] > s[1] && s[1] > s[2]) trend = 'declining';
+  }
+
+  output({
+    score,
+    grade,
+    dimensions,
+    trend,
+    plan: planId,
+    phase: phaseNum || (planId ? planId.split('-')[0] : null),
+  }, raw);
+}
+
 module.exports = {
   cmdVerifyPlanStructure,
   cmdVerifyPhaseCompleteness,
@@ -1375,4 +1652,5 @@ module.exports = {
   cmdVerifyRegression,
   cmdVerifyPlanWave,
   cmdVerifyPlanDeps,
+  cmdVerifyQuality,
 };

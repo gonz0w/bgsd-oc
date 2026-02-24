@@ -26,7 +26,7 @@ const {
   cmdVerifyCommits, cmdVerifyArtifacts, cmdVerifyKeyLinks,
   cmdValidateConsistency, cmdValidateHealth, cmdAnalyzePlan,
   cmdVerifyDeliverables, cmdVerifyRequirements, cmdVerifyRegression,
-  cmdVerifyPlanWave, cmdVerifyPlanDeps,
+  cmdVerifyPlanWave, cmdVerifyPlanDeps, cmdVerifyQuality,
 } = require('./commands/verify');
 
 const {
@@ -285,8 +285,15 @@ async function main() {
         cmdVerifyPlanWave(cwd, args[2], raw);
       } else if (subcommand === 'plan-deps') {
         cmdVerifyPlanDeps(cwd, args[2], raw);
+      } else if (subcommand === 'quality') {
+        const planIdx = args.indexOf('--plan');
+        const phaseIdx = args.indexOf('--phase');
+        cmdVerifyQuality(cwd, {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+        }, raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, analyze-plan, deliverables, requirements, regression, plan-wave, plan-deps');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, analyze-plan, deliverables, requirements, regression, plan-wave, plan-deps, quality');
       }
       break;
     }

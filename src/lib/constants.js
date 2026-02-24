@@ -120,6 +120,7 @@ Subcommands:
   regression [--before f] [--after f]  Detect test regressions
   plan-wave <phase-dir>        Check for file conflicts within waves
   plan-deps <phase-dir>        Check dependency graph for cycles/issues
+  quality [--plan f] [--phase N]  Composite quality score with trend
 
 Examples:
   gsd-tools verify plan-structure .planning/phases/01-foundation/01-01-PLAN.md
@@ -168,6 +169,32 @@ Output: { regressions, regression_count, verdict }
 
 Examples:
   gsd-tools verify regression --before baseline.json --after current.json`,
+
+  'verify quality': `Usage: gsd-tools verify quality [--plan <file>] [--phase <N>] [--raw]
+
+Composite quality score across 4 dimensions with trend tracking.
+
+Dimensions (weighted):
+  tests (30%)          Run test suite, 100 if pass, 0 if fail
+  must_haves (30%)     Check plan artifacts + key_links (requires --plan)
+  requirements (20%)   REQUIREMENTS.md coverage (filterable by --phase)
+  regression (20%)     Check test-baseline.json for regressions
+
+Skipped dimensions (null score) are excluded from the weighted average.
+Grade: A (90+), B (80+), C (70+), D (60+), F (<60)
+
+Scores are stored in .planning/memory/quality-scores.json for trend tracking.
+Trend: "improving" (last 3 ascending), "declining" (descending), "stable" (mixed).
+
+Options:
+  --plan <file>   Plan file for must_haves checking
+  --phase <N>     Filter requirements to specific phase
+
+Output: { score, grade, dimensions, trend, plan, phase }
+
+Examples:
+  gsd-tools verify quality --raw
+  gsd-tools verify quality --plan .planning/phases/12-quality/12-02-PLAN.md --phase 12 --raw`,
 
   'roadmap': `Usage: gsd-tools roadmap <subcommand> [args] [--raw]
 
