@@ -52,12 +52,12 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
   - Unknown servers estimated at 150 tokens/tool average
   - Total context cost shown as absolute tokens and % of context window
 
-- [ ] **MCP-03**: CLI scores server relevance to current project
+- [x] **MCP-03**: CLI scores server relevance to current project
   - Match server type to project file indicators (Postgres → migrations/, schema.prisma)
   - Score: relevant / possibly-relevant / not-relevant
   - Low-cost servers (< 1K tokens) always marked relevant
 
-- [ ] **MCP-04**: CLI recommends disabling irrelevant servers with token savings
+- [x] **MCP-04**: CLI recommends disabling irrelevant servers with token savings
   - Per-server recommendation: keep / disable / review
   - Total potential savings in tokens and % of context window
   - Reasoning per recommendation
@@ -177,8 +177,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENV-06 | Phase 18 | Complete |
 | MCP-01 | Phase 19 | Complete |
 | MCP-02 | Phase 19 | Complete |
-| MCP-03 | Phase 19 | Pending |
-| MCP-04 | Phase 19 | Pending |
+| MCP-03 | Phase 19 | Complete |
+| MCP-04 | Phase 19 | Complete |
 | MCP-05 | Phase 19 | Pending |
 | SREQ-01 | Phase 20 | Pending |
 | SREQ-02 | Phase 20 | Pending |

@@ -10,7 +10,7 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 **Phase:** 19 of 22 (MCP Server Profiling)
-**Current Plan:** 1 of 3
+**Current Plan:** 2 of 3
 **Status:** In progress
 **Last Activity:** 2026-02-25
 
@@ -35,6 +35,7 @@ Progress: [████░░░░░░] 40% (2/5 phases)
 | Phase 18 P02 | 11 min | 2 tasks | 6 files |
 | Phase 18 P03 | 8 min | 2 tasks | 5 files |
 | Phase 19 P01 | 9 min | 2 tasks | 5 files |
+| Phase 19 P02 | 4 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -54,6 +55,10 @@ v4.0 decisions:
 - [Phase 19]: 20-server known-DB with regex pattern matching for token estimation
 - [Phase 19]: Deduplication by name: .mcp.json > opencode.json > user-level config
 - [Phase 19]: HOME env var isolation in tests to prevent user-config interference
+- [Phase 19]: Fuzzy name matching for server→indicator mapping (contains check both directions)
+- [Phase 19]: Low-cost threshold at 1000 tokens — always marked relevant
+- [Phase 19]: Env hints checked in .env, .env.local, .env.development, docker-compose.yml/yaml
+- [Phase 19]: Compact RELEVANCE_INDICATORS format to stay within 500KB bundle budget
 
 ### Pending Todos
 
@@ -66,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 19-01-PLAN.md
+Stopped at: Completed 19-02-PLAN.md
 Resume file: None

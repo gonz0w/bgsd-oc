@@ -93,7 +93,7 @@ Plans:
   2. `mcp-profile` shows per-server token cost estimate and total context window percentage (e.g., "GitHub: ~46K tokens, 23% of 200K window")
   3. `mcp-profile` scores each server as relevant/possibly-relevant/not-relevant based on project files and recommends keep/disable/review with reasoning
   4. `mcp-profile --apply` disables recommended servers in config with backup, and `--restore` undoes the change
-**Plans**: 1/3 plans complete
+**Plans**: 2/3 plans executed
 Plans:
 - [x] 19-01-PLAN.md — Server discovery from .mcp.json/opencode.json + known-server token estimation database
 - [ ] 19-02-PLAN.md — Project-aware relevance scoring + keep/disable/review recommendations
@@ -153,7 +153,7 @@ Plans:
 | 16. Workflow Integration & Self-Application | v3.0 | 3/3 | Complete | 2026-02-25 |
 | 17. Intent Enhancement | v3.0 | 2/2 | Complete | 2026-02-25 |
 | 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
-| 19. MCP Server Profiling | v4.0 | 1/3 | In progress | - |
+| 19. MCP Server Profiling | 2/3 | In Progress|  | - |
 | 20. Structured Requirements | v4.0 | 0/? | Not started | - |
 | 21. Worktree Parallelism | v4.0 | 0/? | Not started | - |
 | 22. Workflow Polish | v4.0 | 0/? | Not started | - |
