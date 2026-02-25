@@ -61,6 +61,8 @@ const {
 const {
   cmdIntentCreate,
   cmdIntentShow,
+  cmdIntentUpdate,
+  cmdIntentValidate,
 } = require('./commands/intent');
 
 
@@ -688,8 +690,12 @@ async function main() {
       } else if (subcommand === 'read') {
         // 'read' is syntactic sugar for 'show --raw' per user decision
         cmdIntentShow(cwd, args.slice(2), true);
+      } else if (subcommand === 'update') {
+        cmdIntentUpdate(cwd, args.slice(2), raw);
+      } else if (subcommand === 'validate') {
+        cmdIntentValidate(cwd, args.slice(2), raw);
       } else {
-        error('Unknown intent subcommand. Available: create, show, read');
+        error('Unknown intent subcommand. Available: create, show, read, update, validate');
       }
       break;
     }
