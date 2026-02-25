@@ -29,7 +29,7 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
   - Includes detection source for each value (e.g., "source": "mise.toml")
   - Gitignored (machine-specific, not committed)
 
-- [ ] **ENV-05**: Init commands inject manifest summary into output for agent context
+- [x] **ENV-05**: Init commands inject manifest summary into output for agent context
   - `init progress`, `init execute`, etc. include available tools
   - Compact format: "Tools: node@20 (npm), mix@1.16, go@1.21, docker@24"
   - Only inject if manifest exists and is fresh
@@ -173,7 +173,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENV-02 | Phase 18 | Complete |
 | ENV-03 | Phase 18 | Complete |
 | ENV-04 | Phase 18 | Complete |
-| ENV-05 | Phase 18 | Pending |
+| ENV-05 | Phase 18 | Complete |
 | ENV-06 | Phase 18 | Complete |
 | MCP-01 | Phase 19 | Pending |
 | MCP-02 | Phase 19 | Pending |
