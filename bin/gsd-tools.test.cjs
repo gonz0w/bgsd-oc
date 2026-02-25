@@ -11846,3 +11846,325 @@ files_modified:
     });
   });
 });
+
+// ─── Init Execute-Phase Worktree Integration Tests ────────────────────────────
+
+describe('init execute-phase worktree fields', () => {
+  let tmpDir;
+  let worktreeBase;
+
+  function createGitProject(configOverrides = {}) {
+    tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-init-wt-'));
+    worktreeBase = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-init-wt-base-'));
+
+    execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
+    fs.writeFileSync(path.join(tmpDir, 'README.md'), '# Test\n');
+
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '21-worktree-parallelism'), { recursive: true });
+
+    // Create minimal ROADMAP.md (needed by getMilestoneInfo)
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap
+
+## Milestones
+
+- 🔵 v1.0 — Test Milestone
+
+### Phase 21: Worktree Parallelism
+- Plans: TBD
+`);
+
+    // Create minimal STATE.md
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State
+
+## Current Position
+
+**Phase:** 21 of 21 (Worktree Parallelism)
+**Current Plan:** Plan 01 next
+**Status:** In progress
+**Last Activity:** 2026-02-25
+
+Progress: [████████░░] 80% (4/5 phases)
+
+## Accumulated Context
+
+### Decisions
+
+None.
+
+### Pending Todos
+
+None.
+
+### Blockers/Concerns
+
+None.
+
+## Session Continuity
+
+Last session: 2026-02-25
+Stopped at: N/A
+`);
+
+    const config = {
+      mode: 'yolo',
+      worktree: {
+        enabled: true,
+        base_path: worktreeBase,
+        sync_files: ['.env', '.env.local', '.planning/config.json'],
+        setup_hooks: [],
+        max_concurrent: 5,
+        ...configOverrides,
+      },
+    };
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'config.json'),
+      JSON.stringify(config, null, 2)
+    );
+
+    execSync('git add . && git commit -m "init"', { cwd: tmpDir, stdio: 'pipe' });
+    return tmpDir;
+  }
+
+  function cleanupAll() {
+    if (tmpDir && fs.existsSync(tmpDir)) {
+      try {
+        execSync('git worktree prune', { cwd: tmpDir, stdio: 'pipe' });
+        const listOutput = execSync('git worktree list --porcelain', {
+          cwd: tmpDir, encoding: 'utf-8', stdio: 'pipe',
+        });
+        const blocks = listOutput.split('\n\n');
+        for (const block of blocks) {
+          const pathMatch = block.match(/^worktree (.+)$/m);
+          if (pathMatch && pathMatch[1] !== tmpDir) {
+            try {
+              execSync(`git worktree remove "${pathMatch[1]}" --force`, { cwd: tmpDir, stdio: 'pipe' });
+            } catch { /* ignore */ }
+          }
+        }
+        execSync('git worktree prune', { cwd: tmpDir, stdio: 'pipe' });
+      } catch { /* ignore */ }
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+    if (worktreeBase && fs.existsSync(worktreeBase)) {
+      fs.rmSync(worktreeBase, { recursive: true, force: true });
+    }
+  }
+
+  afterEach(() => {
+    cleanupAll();
+  });
+
+  test('worktree fields present when enabled', () => {
+    createGitProject();
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.strictEqual(data.worktree_enabled, true, 'worktree_enabled should be true');
+    assert.ok(data.worktree_config, 'worktree_config should exist');
+    assert.strictEqual(data.worktree_config.base_path, worktreeBase, 'base_path should match config');
+    assert.strictEqual(data.worktree_config.max_concurrent, 5, 'max_concurrent should be 5');
+    assert.ok(Array.isArray(data.worktree_active), 'worktree_active should be array');
+    assert.ok(Array.isArray(data.file_overlaps), 'file_overlaps should be array');
+  });
+
+  test('worktree fields default when disabled', () => {
+    tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-init-wt-'));
+    worktreeBase = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-init-wt-base-'));
+
+    execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
+    fs.writeFileSync(path.join(tmpDir, 'README.md'), '# Test\n');
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '21-worktree-parallelism'), { recursive: true });
+
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap
+
+## Milestones
+
+- 🔵 v1.0 — Test
+
+### Phase 21: Worktree Parallelism
+- Plans: TBD
+`);
+
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State
+
+## Current Position
+
+**Phase:** 21 of 21
+**Status:** In progress
+**Last Activity:** 2026-02-25
+
+Progress: [████████░░] 80%
+
+## Accumulated Context
+
+### Decisions
+
+None.
+
+### Pending Todos
+
+None.
+
+### Blockers/Concerns
+
+None.
+
+## Session Continuity
+
+Last session: 2026-02-25
+Stopped at: N/A
+`);
+
+    // Config WITHOUT worktree section
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'config.json'),
+      JSON.stringify({ mode: 'yolo' }, null, 2)
+    );
+
+    execSync('git add . && git commit -m "init"', { cwd: tmpDir, stdio: 'pipe' });
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.strictEqual(data.worktree_enabled, false, 'worktree_enabled should be false');
+    assert.ok(data.worktree_config, 'worktree_config should exist with defaults');
+    assert.strictEqual(data.worktree_config.base_path, '/tmp/gsd-worktrees', 'default base_path');
+    assert.strictEqual(data.worktree_config.max_concurrent, 3, 'default max_concurrent');
+    assert.deepStrictEqual(data.worktree_active, [], 'worktree_active should be empty');
+    assert.deepStrictEqual(data.file_overlaps, [], 'file_overlaps should be empty');
+  });
+
+  test('file overlaps detected in init output', () => {
+    createGitProject();
+
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '21-worktree-parallelism');
+
+    // Two plans in same wave with overlapping files
+    fs.writeFileSync(path.join(phaseDir, '21-01-PLAN.md'), `---
+phase: 21-worktree-parallelism
+plan: 01
+wave: 1
+files_modified:
+  - src/shared.js
+  - src/a.js
+---
+
+# Plan 01
+`);
+
+    fs.writeFileSync(path.join(phaseDir, '21-02-PLAN.md'), `---
+phase: 21-worktree-parallelism
+plan: 02
+wave: 1
+files_modified:
+  - src/shared.js
+  - src/b.js
+---
+
+# Plan 02
+`);
+
+    execSync('git add . && git commit -m "add plans"', { cwd: tmpDir, stdio: 'pipe' });
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.ok(data.file_overlaps.length > 0, 'should detect file overlaps');
+    assert.ok(data.file_overlaps[0].files.includes('src/shared.js'), 'should include shared.js');
+    assert.deepStrictEqual(data.file_overlaps[0].plans, ['21-01', '21-02'], 'should identify overlapping plans');
+  });
+
+  test('no overlap when plans are in different waves', () => {
+    createGitProject();
+
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '21-worktree-parallelism');
+
+    fs.writeFileSync(path.join(phaseDir, '21-01-PLAN.md'), `---
+phase: 21-worktree-parallelism
+plan: 01
+wave: 1
+files_modified:
+  - src/shared.js
+---
+
+# Plan 01
+`);
+
+    fs.writeFileSync(path.join(phaseDir, '21-02-PLAN.md'), `---
+phase: 21-worktree-parallelism
+plan: 02
+wave: 2
+files_modified:
+  - src/shared.js
+---
+
+# Plan 02
+`);
+
+    execSync('git add . && git commit -m "add plans"', { cwd: tmpDir, stdio: 'pipe' });
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.deepStrictEqual(data.file_overlaps, [], 'different waves should not have overlaps');
+  });
+
+  test('active worktrees included when they exist', () => {
+    createGitProject();
+
+    // Create a worktree for plan 21-01
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '21-worktree-parallelism');
+    fs.writeFileSync(path.join(phaseDir, '21-01-PLAN.md'), `---
+phase: 21-worktree-parallelism
+plan: 01
+wave: 1
+---
+
+# Plan 01
+`);
+    execSync('git add . && git commit -m "add plan"', { cwd: tmpDir, stdio: 'pipe' });
+
+    const createResult = runGsdTools('worktree create 21-01', tmpDir);
+    assert.ok(createResult.success, `Worktree create failed: ${createResult.error}`);
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.ok(data.worktree_active.length > 0, 'should have active worktrees');
+    assert.strictEqual(data.worktree_active[0].plan_id, '21-01', 'should include plan 21-01');
+    assert.ok(data.worktree_active[0].branch, 'should include branch name');
+    assert.ok(data.worktree_active[0].path, 'should include worktree path');
+  });
+
+  test('init graceful when worktree base_path does not exist yet', () => {
+    createGitProject({ base_path: '/tmp/gsd-wt-nonexistent-test-dir-' + Date.now() });
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command should succeed even with non-existent base_path: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.strictEqual(data.worktree_enabled, true, 'worktree_enabled should still be true');
+    assert.deepStrictEqual(data.worktree_active, [], 'worktree_active should be empty');
+  });
+
+  test('config max_concurrent surfaces in init output', () => {
+    createGitProject({ max_concurrent: 7 });
+
+    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+
+    assert.strictEqual(data.worktree_config.max_concurrent, 7, 'max_concurrent should be 7');
+  });
+});
