@@ -752,6 +752,7 @@ Subcommands:
   update      Update INTENT.md sections (--add, --remove, --set-priority, --value)
   validate    Validate INTENT.md structure (exit 0=valid, 1=issues)
   trace       Traceability matrix: desired outcomes \u2192 plans (--gaps for uncovered only)
+  drift       Drift analysis: detect misalignment with 4 signals + numeric score
 
 Examples:
   gsd-tools intent create
@@ -759,7 +760,8 @@ Examples:
   gsd-tools intent read outcomes --raw
   gsd-tools intent validate --raw
   gsd-tools intent trace --raw
-  gsd-tools intent trace --gaps`,
+  gsd-tools intent trace --gaps
+  gsd-tools intent drift --raw`,
       "intent create": `Usage: gsd-tools intent create [options] [--raw]
 
 Create a new INTENT.md in .planning/ with 6 structured sections.
@@ -854,6 +856,35 @@ Examples:
   gsd-tools intent trace
   gsd-tools intent trace --gaps
   gsd-tools intent trace --raw`,
+      "intent drift": `Usage: gsd-tools intent drift [--raw]
+
+Analyze intent drift: detect misalignment between work and stated intent.
+
+Computes a numeric drift score (0-100, 0=perfect alignment, 100=total drift)
+from 4 weighted signals:
+
+Signals:
+  Coverage Gaps (40 pts)     Outcomes with no plans addressing them
+                             P1 gaps weighted 3x, P2 weighted 2x, P3 weighted 1x
+  Objective Mismatch (25 pts) Plans with no intent section in frontmatter
+  Feature Creep (15 pts)      Plans referencing non-existent outcome IDs
+  Priority Inversion (20 pts) Uncovered P1 outcomes while P2/P3 are covered
+
+Score interpretation:
+  0-15:  excellent (all work aligned)
+  16-35: good (minor gaps)
+  36-60: moderate (review recommended)
+  61-100: poor (significant drift)
+
+Output (default):
+  Human-readable analysis with per-signal breakdown and summary.
+
+Output (--raw):
+  JSON with drift_score, alignment, signals (4 objects), outcome/plan counts.
+
+Examples:
+  gsd-tools intent drift
+  gsd-tools intent drift --raw`,
       "extract-sections": `Usage: gsd-tools extract-sections <file-path> [section1] [section2] ... [--raw]
 
 Extract specific named sections from a markdown file.
@@ -9781,12 +9812,254 @@ var require_intent = __commonJS({
       }
       output(null, true, lines.join("\n") + "\n");
     }
+    function calculateDriftScore(data) {
+      const { outcomes, plans, signalData } = data;
+      const totalOutcomes = outcomes.length;
+      const totalPlans = plans.length;
+      let coverageGap = 0;
+      if (totalOutcomes > 0) {
+        let weightedGapSum = 0;
+        let weightedTotal = 0;
+        for (const o of outcomes) {
+          const weight = o.priority === "P1" ? 3 : o.priority === "P2" ? 2 : 1;
+          weightedTotal += weight;
+          if (!signalData.coveredOutcomeIds.has(o.id)) {
+            weightedGapSum += weight;
+          }
+        }
+        coverageGap = weightedTotal > 0 ? weightedGapSum / weightedTotal * 40 : 0;
+      }
+      let objectiveMismatch = 0;
+      if (totalPlans > 0) {
+        const untracedCount = signalData.untracedPlans.length;
+        objectiveMismatch = untracedCount / totalPlans * 25;
+      }
+      let featureCreep = 0;
+      const totalRefs = signalData.totalOutcomeRefs;
+      if (totalRefs > 0) {
+        featureCreep = signalData.invalidRefs.length / totalRefs * 15;
+      }
+      const priorityInversion = signalData.inversions.length > 0 ? 20 : 0;
+      const score = Math.round(Math.min(100, Math.max(0, coverageGap + objectiveMismatch + featureCreep + priorityInversion)));
+      return {
+        score,
+        components: {
+          coverage_gap: Math.round(coverageGap * 10) / 10,
+          objective_mismatch: Math.round(objectiveMismatch * 10) / 10,
+          feature_creep: Math.round(featureCreep * 10) / 10,
+          priority_inversion: Math.round(priorityInversion * 10) / 10
+        }
+      };
+    }
+    function getAlignmentLabel(score) {
+      if (score <= 15) return "excellent";
+      if (score <= 35) return "good";
+      if (score <= 60) return "moderate";
+      return "poor";
+    }
+    function getIntentDriftData(cwd) {
+      const planningDir = path.join(cwd, ".planning");
+      const intentPath = path.join(planningDir, "INTENT.md");
+      if (!fs.existsSync(intentPath)) return null;
+      const intentContent = fs.readFileSync(intentPath, "utf-8");
+      const intentData = parseIntentMd(intentContent);
+      if (!intentData.outcomes || intentData.outcomes.length === 0) return null;
+      const outcomes = intentData.outcomes;
+      const validOutcomeIds = new Set(outcomes.map((o) => o.id));
+      const milestone = getMilestoneInfo(cwd);
+      const phaseRange = milestone.phaseRange;
+      const phasesDir = path.join(planningDir, "phases");
+      const plans = [];
+      if (fs.existsSync(phasesDir)) {
+        try {
+          const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+          const phaseDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+          for (const dir of phaseDirs) {
+            const phaseNumMatch = dir.match(/^(\d+)/);
+            if (phaseNumMatch && phaseRange) {
+              const phaseNum = parseInt(phaseNumMatch[1], 10);
+              if (phaseNum < phaseRange.start || phaseNum > phaseRange.end) continue;
+            }
+            const phaseDir = path.join(phasesDir, dir);
+            const files = fs.readdirSync(phaseDir);
+            const planFiles = files.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md").sort();
+            for (const planFile of planFiles) {
+              const planPath = path.join(phaseDir, planFile);
+              const planContent = fs.readFileSync(planPath, "utf-8");
+              const fm = extractFrontmatter(planContent);
+              const intentInfo = parsePlanIntent(planContent);
+              const planPhase = fm.phase || dir;
+              const planNum = fm.plan || planFile.replace(/-PLAN\.md$/, "").split("-").pop() || "01";
+              const paddedPhase = normalizePhaseName(planPhase);
+              const paddedPlan = String(planNum).padStart(2, "0");
+              const planId = `${paddedPhase}-${paddedPlan}`;
+              plans.push({
+                plan_id: planId,
+                phase: planPhase,
+                outcome_ids: intentInfo ? intentInfo.outcome_ids : []
+              });
+            }
+          }
+        } catch (e) {
+          debugLog("intent.drift", "scan phase dirs failed", e);
+        }
+      }
+      const coveredOutcomeIds = /* @__PURE__ */ new Set();
+      for (const plan of plans) {
+        for (const id of plan.outcome_ids) {
+          if (validOutcomeIds.has(id)) {
+            coveredOutcomeIds.add(id);
+          }
+        }
+      }
+      const coverageGapDetails = outcomes.filter((o) => !coveredOutcomeIds.has(o.id)).sort((a, b) => {
+        const pa = parseInt(a.priority.replace("P", ""), 10);
+        const pb = parseInt(b.priority.replace("P", ""), 10);
+        return pa - pb;
+      }).map((o) => ({ outcome_id: o.id, priority: o.priority, text: o.text }));
+      const untracedPlans = plans.filter((p) => p.outcome_ids.length === 0).map((p) => p.plan_id);
+      const invalidRefs = [];
+      let totalOutcomeRefs = 0;
+      for (const plan of plans) {
+        for (const id of plan.outcome_ids) {
+          totalOutcomeRefs++;
+          if (!validOutcomeIds.has(id)) {
+            invalidRefs.push({ plan_id: plan.plan_id, invalid_id: id });
+          }
+        }
+      }
+      const inversions = [];
+      const uncoveredP1 = outcomes.filter((o) => o.priority === "P1" && !coveredOutcomeIds.has(o.id));
+      const coveredP2P3 = outcomes.filter(
+        (o) => (o.priority === "P2" || o.priority === "P3") && coveredOutcomeIds.has(o.id)
+      );
+      for (const p1 of uncoveredP1) {
+        for (const lower of coveredP2P3) {
+          const lowerPlanCount = plans.filter((p) => p.outcome_ids.includes(lower.id)).length;
+          inversions.push({
+            uncovered: { outcome_id: p1.id, priority: p1.priority, text: p1.text },
+            covered: { outcome_id: lower.id, priority: lower.priority, text: lower.text, plan_count: lowerPlanCount }
+          });
+        }
+      }
+      const signalData = {
+        coveredOutcomeIds,
+        untracedPlans,
+        invalidRefs,
+        totalOutcomeRefs,
+        inversions
+      };
+      const { score, components } = calculateDriftScore({ outcomes, plans, signalData });
+      const alignment = getAlignmentLabel(score);
+      return {
+        drift_score: score,
+        alignment,
+        signals: {
+          coverage_gap: {
+            score: components.coverage_gap,
+            details: coverageGapDetails
+          },
+          objective_mismatch: {
+            score: components.objective_mismatch,
+            plans: untracedPlans
+          },
+          feature_creep: {
+            score: components.feature_creep,
+            invalid_refs: invalidRefs
+          },
+          priority_inversion: {
+            score: components.priority_inversion,
+            inversions: inversions.map((inv) => ({
+              uncovered_id: inv.uncovered.outcome_id,
+              uncovered_priority: inv.uncovered.priority,
+              covered_id: inv.covered.outcome_id,
+              covered_priority: inv.covered.priority,
+              covered_plan_count: inv.covered.plan_count
+            }))
+          }
+        },
+        total_outcomes: outcomes.length,
+        covered_outcomes: coveredOutcomeIds.size,
+        total_plans: plans.length,
+        traced_plans: plans.length - untracedPlans.length
+      };
+    }
+    function cmdIntentDrift(cwd, args, raw) {
+      const planningDir = path.join(cwd, ".planning");
+      const intentPath = path.join(planningDir, "INTENT.md");
+      if (!fs.existsSync(intentPath)) {
+        error("No INTENT.md found. Run `intent create` first.");
+      }
+      const data = getIntentDriftData(cwd);
+      if (!data) {
+        error("INTENT.md has no desired outcomes defined.");
+      }
+      if (raw) {
+        output(data, false);
+        return;
+      }
+      const isTTY = process.stdout.isTTY;
+      const lines = [];
+      let scoreLabel = `${data.drift_score}/100 (${data.alignment})`;
+      if (isTTY) {
+        if (data.alignment === "excellent") scoreLabel = `\x1B[32m${scoreLabel}\x1B[0m`;
+        else if (data.alignment === "moderate") scoreLabel = `\x1B[33m${scoreLabel}\x1B[0m`;
+        else if (data.alignment === "poor") scoreLabel = `\x1B[31m${scoreLabel}\x1B[0m`;
+      }
+      lines.push("Intent Drift Analysis");
+      lines.push(`Score: ${scoreLabel}`);
+      lines.push("");
+      const cg = data.signals.coverage_gap;
+      lines.push(`Coverage Gaps (${cg.score} pts):`);
+      if (cg.details.length === 0) {
+        lines.push("  \u2713 All outcomes have plans");
+      } else {
+        for (const gap of cg.details) {
+          lines.push(`  \u2717 ${gap.outcome_id} [${gap.priority}]: ${gap.text} \u2014 no plans`);
+        }
+      }
+      lines.push("");
+      const om = data.signals.objective_mismatch;
+      lines.push(`Objective Mismatch (${om.score} pts):`);
+      if (om.plans.length === 0) {
+        lines.push("  \u2713 All plans have intent sections");
+      } else {
+        for (const planId of om.plans) {
+          lines.push(`  \u2717 ${planId}: no intent section in frontmatter`);
+        }
+      }
+      lines.push("");
+      const fc = data.signals.feature_creep;
+      lines.push(`Feature Creep (${fc.score} pts):`);
+      if (fc.invalid_refs.length === 0) {
+        lines.push("  \u2713 No invalid outcome references");
+      } else {
+        for (const ref of fc.invalid_refs) {
+          lines.push(`  \u2717 ${ref.plan_id}: references non-existent ${ref.invalid_id}`);
+        }
+      }
+      lines.push("");
+      const pi = data.signals.priority_inversion;
+      lines.push(`Priority Inversion (${pi.score} pts):`);
+      if (pi.inversions.length === 0) {
+        lines.push("  \u2713 No priority inversions");
+      } else {
+        for (const inv of pi.inversions) {
+          lines.push(`  \u26A0 ${inv.uncovered_id} [${inv.uncovered_priority}] uncovered, but ${inv.covered_id} [${inv.covered_priority}] has ${inv.covered_plan_count} plan${inv.covered_plan_count !== 1 ? "s" : ""}`);
+        }
+      }
+      lines.push("");
+      lines.push(`Summary: ${data.covered_outcomes}/${data.total_outcomes} outcomes covered, ${data.traced_plans}/${data.total_plans} plans traced`);
+      output(null, true, lines.join("\n") + "\n");
+    }
     module2.exports = {
       cmdIntentCreate,
       cmdIntentShow,
       cmdIntentUpdate,
       cmdIntentValidate,
-      cmdIntentTrace
+      cmdIntentTrace,
+      cmdIntentDrift,
+      getIntentDriftData
     };
   }
 });
@@ -9917,7 +10190,9 @@ var require_router = __commonJS({
       cmdIntentShow,
       cmdIntentUpdate,
       cmdIntentValidate,
-      cmdIntentTrace
+      cmdIntentTrace,
+      cmdIntentDrift,
+      getIntentDriftData
     } = require_intent();
     async function main2() {
       const args = process.argv.slice(2);
@@ -10489,8 +10764,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             cmdIntentValidate(cwd, args.slice(2), raw);
           } else if (subcommand === "trace") {
             cmdIntentTrace(cwd, args.slice(2), raw);
+          } else if (subcommand === "drift") {
+            cmdIntentDrift(cwd, args.slice(2), raw);
           } else {
-            error("Unknown intent subcommand. Available: create, show, read, update, validate, trace");
+            error("Unknown intent subcommand. Available: create, show, read, update, validate, trace, drift");
           }
           break;
         }

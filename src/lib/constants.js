@@ -786,6 +786,7 @@ Subcommands:
   update      Update INTENT.md sections (--add, --remove, --set-priority, --value)
   validate    Validate INTENT.md structure (exit 0=valid, 1=issues)
   trace       Traceability matrix: desired outcomes → plans (--gaps for uncovered only)
+  drift       Drift analysis: detect misalignment with 4 signals + numeric score
 
 Examples:
   gsd-tools intent create
@@ -793,7 +794,8 @@ Examples:
   gsd-tools intent read outcomes --raw
   gsd-tools intent validate --raw
   gsd-tools intent trace --raw
-  gsd-tools intent trace --gaps`,
+  gsd-tools intent trace --gaps
+  gsd-tools intent drift --raw`,
 
   'intent create': `Usage: gsd-tools intent create [options] [--raw]
 
@@ -893,6 +895,36 @@ Examples:
   gsd-tools intent trace
   gsd-tools intent trace --gaps
   gsd-tools intent trace --raw`,
+
+  'intent drift': `Usage: gsd-tools intent drift [--raw]
+
+Analyze intent drift: detect misalignment between work and stated intent.
+
+Computes a numeric drift score (0-100, 0=perfect alignment, 100=total drift)
+from 4 weighted signals:
+
+Signals:
+  Coverage Gaps (40 pts)     Outcomes with no plans addressing them
+                             P1 gaps weighted 3x, P2 weighted 2x, P3 weighted 1x
+  Objective Mismatch (25 pts) Plans with no intent section in frontmatter
+  Feature Creep (15 pts)      Plans referencing non-existent outcome IDs
+  Priority Inversion (20 pts) Uncovered P1 outcomes while P2/P3 are covered
+
+Score interpretation:
+  0-15:  excellent (all work aligned)
+  16-35: good (minor gaps)
+  36-60: moderate (review recommended)
+  61-100: poor (significant drift)
+
+Output (default):
+  Human-readable analysis with per-signal breakdown and summary.
+
+Output (--raw):
+  JSON with drift_score, alignment, signals (4 objects), outcome/plan counts.
+
+Examples:
+  gsd-tools intent drift
+  gsd-tools intent drift --raw`,
 
   'extract-sections': `Usage: gsd-tools extract-sections <file-path> [section1] [section2] ... [--raw]
 

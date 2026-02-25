@@ -64,6 +64,8 @@ const {
   cmdIntentUpdate,
   cmdIntentValidate,
   cmdIntentTrace,
+  cmdIntentDrift,
+  getIntentDriftData,
 } = require('./commands/intent');
 
 
@@ -700,8 +702,10 @@ async function main() {
         cmdIntentValidate(cwd, args.slice(2), raw);
       } else if (subcommand === 'trace') {
         cmdIntentTrace(cwd, args.slice(2), raw);
+      } else if (subcommand === 'drift') {
+        cmdIntentDrift(cwd, args.slice(2), raw);
       } else {
-        error('Unknown intent subcommand. Available: create, show, read, update, validate, trace');
+        error('Unknown intent subcommand. Available: create, show, read, update, validate, trace, drift');
       }
       break;
     }
