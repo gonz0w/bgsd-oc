@@ -108,7 +108,11 @@ Plans:
   2. The traceability table includes a test-command column, and `verify requirements` confirms test commands exist and reports coverage percentage
   3. Phase verifier reads structured assertions from REQUIREMENTS.md and reports per-assertion pass/fail (not just requirement-level pass/fail)
   4. Plan `must_haves.truths` in YAML frontmatter are auto-populated from the mapped requirements' assertions during planning
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 20-01-PLAN.md — Assertion schema, parser, and CLI commands (SREQ-01)
+- [ ] 20-02-PLAN.md — Per-assertion verification and traceability chain (SREQ-03, SREQ-04)
+- [ ] 20-03-PLAN.md — Planner workflow integration and template updates (SREQ-02, SREQ-05)
 
 ### Phase 21: Worktree Parallelism
 **Goal**: Multiple plans within a wave execute in parallel via isolated git worktrees, with conflict detection and sequential merge
@@ -154,6 +158,6 @@ Plans:
 | 17. Intent Enhancement | v3.0 | 2/2 | Complete | 2026-02-25 |
 | 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
 | 19. MCP Server Profiling | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
-| 20. Structured Requirements | v4.0 | 0/? | Not started | - |
+| 20. Structured Requirements | v4.0 | 0/3 | Planned | - |
 | 21. Worktree Parallelism | v4.0 | 0/? | Not started | - |
 | 22. Workflow Polish | v4.0 | 0/? | Not started | - |
