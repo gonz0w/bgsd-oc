@@ -57,7 +57,7 @@ async function build() {
   }
 
   // Bundle size tracking
-  const BUNDLE_BUDGET_KB = 500;
+  const BUNDLE_BUDGET_KB = 525;
   const bundlePath = 'bin/gsd-tools.cjs';
   const stat = fs.statSync(bundlePath);
   const sizeKB = Math.round(stat.size / 1024);

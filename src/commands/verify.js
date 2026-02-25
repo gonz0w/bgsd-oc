@@ -1637,6 +1637,74 @@ function cmdVerifyQuality(cwd, options, raw) {
   }, raw);
 }
 
+// ─── Assertions Parser ──────────────────────────────────────────────────────
+
+/**
+ * Parse ASSERTIONS.md content into structured assertion map.
+ * Returns: { [reqId]: { description, assertions: [{assert, when, then, type, priority}] } }
+ *
+ * Format: ## REQ-ID: Description heading, followed by indented assertion blocks.
+ * Each assertion starts with `- assert:` and may have optional when/then/type/priority fields.
+ */
+function parseAssertionsMd(content) {
+  if (!content || typeof content !== 'string') return {};
+
+  const result = {};
+  // Split on ## headings to find requirement-assertion groups
+  const sections = content.split(/^## /m).slice(1); // skip content before first ##
+
+  for (const section of sections) {
+    const lines = section.split('\n');
+    const heading = lines[0].trim();
+
+    // Extract requirement ID from heading: "SREQ-01: description" or "ENV-01: description"
+    const idMatch = heading.match(/^([A-Z][\w]+-\d+)\s*:\s*(.+)/);
+    if (!idMatch) continue; // skip non-requirement headings (e.g., "Examples")
+
+    const reqId = idMatch[1];
+    const description = idMatch[2].trim();
+    const assertions = [];
+    let current = null;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+
+      // New assertion: starts with "- assert:"
+      const assertMatch = line.match(/^- assert:\s*"?([^"]*)"?\s*$/);
+      if (assertMatch) {
+        if (current) assertions.push(current);
+        current = {
+          assert: assertMatch[1].trim(),
+          when: null,
+          then: null,
+          type: null,
+          priority: 'must-have',
+        };
+        continue;
+      }
+
+      // Continuation fields (indented under an assertion)
+      if (current) {
+        const fieldMatch = line.match(/^\s+(when|then|type|priority):\s*"?([^"]*)"?\s*$/);
+        if (fieldMatch) {
+          const key = fieldMatch[1];
+          const val = fieldMatch[2].trim();
+          if (key === 'priority') {
+            current.priority = (val === 'nice-to-have') ? 'nice-to-have' : 'must-have';
+          } else {
+            current[key] = val || null;
+          }
+        }
+      }
+    }
+    if (current) assertions.push(current);
+
+    result[reqId] = { description, assertions };
+  }
+
+  return result;
+}
+
 module.exports = {
   cmdVerifyPlanStructure,
   cmdVerifyPhaseCompleteness,
@@ -1653,4 +1721,5 @@ module.exports = {
   cmdVerifyPlanWave,
   cmdVerifyPlanDeps,
   cmdVerifyQuality,
+  parseAssertionsMd,
 };
