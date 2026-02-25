@@ -6,6 +6,7 @@ const { execSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
 const { loadConfig } = require('../lib/config');
 const { CONFIG_SCHEMA } = require('../lib/constants');
+const { parseAssertionsMd } = require('./verify');
 const { safeReadFile, findPhaseInternal, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, getMilestoneInfo } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
@@ -927,6 +928,72 @@ function cmdTraceRequirement(cwd, reqId, raw) {
     path: f,
     exists: fs.existsSync(path.join(cwd, f)),
   }));
+
+  // ── Assertion chain (when ASSERTIONS.md exists) ──────────────────────
+  const assertionsContent = safeReadFile(path.join(cwd, '.planning', 'ASSERTIONS.md'));
+  if (assertionsContent) {
+    const allAssertions = parseAssertionsMd(assertionsContent);
+    const reqAssertions = allAssertions[reqUpper];
+    if (reqAssertions) {
+      // Cross-reference assertions with plan must_haves.truths
+      const planTruths = new Set();
+      const phaseDirName = trace.phase ? (() => {
+        try {
+          const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+          const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+          return dirs.find(d => d.startsWith(trace.phase + '-'));
+        } catch (e) { return null; }
+      })() : null;
+
+      if (phaseDirName) {
+        const phaseFiles = fs.readdirSync(path.join(phasesDir, phaseDirName));
+        const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md'));
+        for (const plan of plans) {
+          try {
+            const planContent = fs.readFileSync(path.join(phasesDir, phaseDirName, plan), 'utf-8');
+            const fm = extractFrontmatter(planContent);
+            // Extract must_haves.truths
+            if (fm.must_haves && fm.must_haves.truths) {
+              const truths = Array.isArray(fm.must_haves.truths) ? fm.must_haves.truths : [fm.must_haves.truths];
+              for (const t of truths) {
+                if (typeof t === 'string') planTruths.add(t.toLowerCase());
+              }
+            }
+          } catch (e) { debugLog('feature.traceRequirement', 'read plan for truths failed', e); }
+        }
+      }
+
+      const hasSummaries = trace.plans.length > 0 && trace.plans.every(p => p.has_summary);
+      const assertionEntries = reqAssertions.assertions.map(a => {
+        const assertLower = a.assert.toLowerCase();
+        const planned = planTruths.size > 0 && [...planTruths].some(t =>
+          t.includes(assertLower.slice(0, 30)) || assertLower.includes(t.slice(0, 30))
+        );
+        const implemented = planned && hasSummaries;
+        return {
+          assert: a.assert,
+          priority: a.priority,
+          type: a.type || null,
+          planned,
+          implemented,
+          gap: !planned,
+        };
+      });
+
+      trace.assertions = assertionEntries;
+      trace.assertion_count = assertionEntries.length;
+      trace.must_have_count = assertionEntries.filter(a => a.priority === 'must-have').length;
+
+      // Build chain field: human-readable status chain
+      const passCount = assertionEntries.filter(a => a.implemented).length;
+      const failCount = assertionEntries.filter(a => !a.implemented && a.priority === 'must-have').length;
+      const planRef = trace.plans.length > 0 ? trace.plans.map(p => p.file.replace(/-PLAN\.md$/, '')).join(', ') : 'no plan';
+      const verificationStatus = passCount === assertionEntries.length ? 'PASSED'
+        : failCount > 0 ? 'partial'
+        : 'pending';
+      trace.chain = `${reqUpper} → ${assertionEntries.length} assertions (${trace.must_have_count} must-have) → ${planRef} → VERIFICATION: ${verificationStatus}`;
+    }
+  }
 
   output(trace, raw);
 }

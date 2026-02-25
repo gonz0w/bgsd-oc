@@ -10874,3 +10874,137 @@ describe('verify requirements with assertions', () => {
     }
   });
 });
+
+describe('trace-requirement with assertions', () => {
+  let tmpDir;
+
+  const TRACE_ASSERTIONS = `# Assertions
+
+## TREQ-01: Test requirement for tracing
+
+- assert: "Feature A exists"
+  type: file
+  priority: must-have
+
+- assert: "Feature B works correctly"
+  type: behavior
+  priority: must-have
+
+- assert: "Feature C has nice formatting"
+  type: cli
+  priority: nice-to-have
+`;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    // Create ROADMAP with requirement mapping
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap
+
+### Phase 10: Test Phase
+
+**Goal:** Implement test features
+**Plans:** 2
+**Requirements:** TREQ-01
+**Depends on:** Nothing
+`);
+    // Create phase directory with plan
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '10-test-phase');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '10-01-PLAN.md'), `---
+phase: 10-test-phase
+plan: 01
+type: execute
+wave: 1
+depends_on: []
+files_modified:
+  - src/feature-a.js
+autonomous: true
+requirements:
+  - TREQ-01
+must_haves:
+  truths:
+    - "Feature A exists"
+    - "Feature B works correctly"
+---
+
+<objective>Implement features</objective>
+<tasks>
+<task type="auto">
+  <name>Task 1</name>
+  <action>Do stuff</action>
+  <verify>Check it</verify>
+  <done>Done</done>
+</task>
+</tasks>
+`);
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('trace-requirement shows assertion data when ASSERTIONS.md present', () => {
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), TRACE_ASSERTIONS);
+    const result = runGsdTools('trace-requirement TREQ-01', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+    assert.ok(data.assertions, 'should include assertions array');
+    assert.strictEqual(data.assertion_count, 3, 'should have 3 assertions');
+    assert.strictEqual(data.must_have_count, 2, 'should have 2 must-have assertions');
+    assert.ok(data.chain, 'should include chain field');
+  });
+
+  test('trace-requirement backward compatible without ASSERTIONS.md', () => {
+    // No ASSERTIONS.md exists
+    const result = runGsdTools('trace-requirement TREQ-01', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+    assert.ok(!data.assertions, 'should not include assertions when no ASSERTIONS.md');
+    assert.ok(!data.chain, 'should not include chain when no ASSERTIONS.md');
+    assert.strictEqual(data.requirement, 'TREQ-01', 'requirement ID should be present');
+    assert.strictEqual(data.phase, '10', 'phase should be 10');
+  });
+
+  test('trace-requirement chain format is correct', () => {
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), TRACE_ASSERTIONS);
+    const result = runGsdTools('trace-requirement TREQ-01', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+    assert.ok(data.chain, 'should include chain field');
+    assert.ok(data.chain.includes('TREQ-01'), 'chain should include requirement ID');
+    assert.ok(data.chain.includes('assertions'), 'chain should mention assertions');
+    assert.ok(data.chain.includes('must-have'), 'chain should mention must-have');
+    assert.ok(data.chain.includes('VERIFICATION'), 'chain should include verification status');
+  });
+
+  test('trace-requirement assertion planned/implemented status with summary', () => {
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), TRACE_ASSERTIONS);
+    // Add a SUMMARY to mark plan as complete
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '10-test-phase');
+    fs.writeFileSync(path.join(phaseDir, '10-01-SUMMARY.md'), '# Summary\nDone\n');
+    const result = runGsdTools('trace-requirement TREQ-01', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+    assert.ok(data.assertions, 'should include assertions');
+    // With summary, planned+truth-matched assertions should be implemented
+    const planned = data.assertions.filter(a => a.planned);
+    assert.ok(planned.length > 0, 'at least some assertions should be planned (matching truths)');
+    for (const a of planned) {
+      assert.strictEqual(a.implemented, true, `planned assertion "${a.assert}" should be implemented when summary exists`);
+      assert.strictEqual(a.gap, false, 'implemented assertion should not be a gap');
+    }
+  });
+
+  test('trace-requirement assertion gap detection for unplanned assertions', () => {
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), TRACE_ASSERTIONS);
+    const result = runGsdTools('trace-requirement TREQ-01', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const data = JSON.parse(result.output);
+    assert.ok(data.assertions, 'should include assertions');
+    // "Feature C has nice formatting" is not in must_haves.truths, so it should be a gap
+    const niceFormatting = data.assertions.find(a => a.assert.includes('nice formatting'));
+    assert.ok(niceFormatting, 'should find the nice-to-have assertion');
+    assert.strictEqual(niceFormatting.gap, true, 'unplanned assertion should be a gap');
+    assert.strictEqual(niceFormatting.planned, false, 'unplanned assertion should have planned: false');
+  });
+});
