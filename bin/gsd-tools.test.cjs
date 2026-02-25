@@ -10251,4 +10251,196 @@ describe('mcp-profile', () => {
       assert.strictEqual(redis.recommendation, 'review', 'redis should be review');
     });
   });
+
+  describe('apply and restore', () => {
+    // Helper to run mcp-profile with --apply/--restore from a specific dir
+    function mcpApply(dir, extraArgs, { isolateHome = false } = {}) {
+      const origHome = process.env.HOME;
+      if (isolateHome) process.env.HOME = dir;
+      try {
+        const args = extraArgs ? `mcp-profile ${extraArgs} --raw` : 'mcp-profile --apply --raw';
+        const result = runGsdTools(args, dir);
+        if (!result.success) return { success: false, error: result.error };
+        try { return { success: true, data: JSON.parse(result.output) }; }
+        catch (e) { return { success: false, error: `JSON parse: ${e.message}` }; }
+      } finally {
+        if (isolateHome) process.env.HOME = origHome;
+      }
+    }
+
+    test('apply creates backup', () => {
+      // opencode.json with terraform (will be disable) and brave-search (will be keep)
+      const config = {
+        mcp: {
+          terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] },
+          'brave-search': { type: 'local', command: ['npx', 'server-brave-search'] },
+        },
+      };
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify(config, null, 2));
+      const originalContent = fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8');
+
+      const result = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result.success, `apply failed: ${result.error}`);
+
+      // Backup should exist and match original
+      const bakPath = path.join(tmpDir, 'opencode.json.bak');
+      assert.ok(fs.existsSync(bakPath), 'opencode.json.bak should exist');
+      assert.strictEqual(fs.readFileSync(bakPath, 'utf-8'), originalContent, 'backup should match original');
+    });
+
+    test('apply disables recommended servers', () => {
+      const config = {
+        mcp: {
+          terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] },
+          'brave-search': { type: 'local', command: ['npx', 'server-brave-search'] },
+        },
+      };
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify(config, null, 2));
+
+      const result = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result.success, `apply failed: ${result.error}`);
+
+      // Read modified opencode.json
+      const modified = JSON.parse(fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8'));
+      assert.strictEqual(modified.mcp.terraform.enabled, false, 'terraform should be disabled');
+      assert.strictEqual(modified.mcp['brave-search'].enabled, undefined, 'brave-search should NOT have enabled field');
+    });
+
+    test('apply only modifies opencode.json servers', () => {
+      // .mcp.json has postgres (would be disable — no db files)
+      const mcpConfig = { mcpServers: { postgres: { command: 'toolbox', args: ['--prebuilt', 'postgres'] } } };
+      fs.writeFileSync(path.join(tmpDir, '.mcp.json'), JSON.stringify(mcpConfig));
+      // opencode.json has terraform (will be disable)
+      const opcConfig = { mcp: { terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] } } };
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify(opcConfig, null, 2));
+      const mcpOriginal = fs.readFileSync(path.join(tmpDir, '.mcp.json'), 'utf-8');
+
+      const result = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result.success, `apply failed: ${result.error}`);
+
+      // .mcp.json should be unchanged
+      assert.strictEqual(fs.readFileSync(path.join(tmpDir, '.mcp.json'), 'utf-8'), mcpOriginal, '.mcp.json should not be modified');
+    });
+
+    test('apply returns correct summary', () => {
+      const config = {
+        mcp: {
+          terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] },
+          consul: { type: 'local', command: ['node', 'consul.js'] },
+          'brave-search': { type: 'local', command: ['npx', 'server-brave-search'] },
+        },
+      };
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify(config, null, 2));
+
+      const result = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result.success, `apply failed: ${result.error}`);
+
+      const ar = result.data.apply_result;
+      assert.ok(ar, 'should have apply_result');
+      assert.strictEqual(ar.applied, true);
+      assert.ok(ar.disabled_count >= 1, 'should disable at least 1 server');
+      assert.ok(Array.isArray(ar.disabled_servers), 'disabled_servers should be array');
+      assert.ok(ar.tokens_saved > 0, 'tokens_saved should be positive');
+    });
+
+    test('apply with no opencode.json', () => {
+      // Only .mcp.json present
+      const mcpConfig = { mcpServers: { postgres: { command: 'toolbox', args: ['postgres'] } } };
+      fs.writeFileSync(path.join(tmpDir, '.mcp.json'), JSON.stringify(mcpConfig));
+
+      const result = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result.success, `apply failed: ${result.error}`);
+
+      const ar = result.data.apply_result;
+      assert.ok(ar, 'should have apply_result');
+      assert.strictEqual(ar.applied, false, 'should not apply without opencode.json');
+      assert.ok(ar.reason.includes('No opencode.json'), 'reason should mention missing opencode.json');
+    });
+
+    test('restore from backup', () => {
+      const originalConfig = {
+        mcp: {
+          terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] },
+          'brave-search': { type: 'local', command: ['npx', 'server-brave-search'] },
+        },
+      };
+      const originalJson = JSON.stringify(originalConfig, null, 2);
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), originalJson);
+
+      // First apply (creates backup, modifies config)
+      mcpApply(tmpDir, '--apply', { isolateHome: true });
+
+      // Verify config was modified
+      const modifiedJson = fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8');
+      assert.ok(modifiedJson.includes('"enabled": false'), 'config should be modified after apply');
+
+      // Now restore
+      const restoreResult = mcpApply(tmpDir, '--restore', { isolateHome: true });
+      assert.ok(restoreResult.success, `restore failed: ${restoreResult.error}`);
+      assert.strictEqual(restoreResult.data.restored, true, 'should report restored=true');
+
+      // Verify config matches original (backup is byte-for-byte copy of original)
+      const restoredJson = fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8');
+      assert.strictEqual(restoredJson, originalJson, 'restored config should match original');
+
+      // Verify backup removed
+      assert.ok(!fs.existsSync(path.join(tmpDir, 'opencode.json.bak')), 'backup should be removed after restore');
+    });
+
+    test('restore without backup', () => {
+      // opencode.json exists but no .bak
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify({ mcp: {} }));
+
+      const result = mcpApply(tmpDir, '--restore', { isolateHome: true });
+      assert.ok(result.success, `restore failed: ${result.error}`);
+      assert.strictEqual(result.data.restored, false, 'should not restore without backup');
+      assert.ok(result.data.reason.includes('No backup'), 'reason should mention no backup');
+    });
+
+    test('apply preserves non-MCP config', () => {
+      const config = {
+        '$schema': 'https://opencode.ai/schema',
+        permission: { allow: ['Bash(*)', 'Read(*)'] },
+        plugin: { 'my-plugin': { enabled: true } },
+        mcp: {
+          terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] },
+        },
+      };
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify(config, null, 2));
+
+      const result = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result.success, `apply failed: ${result.error}`);
+
+      const modified = JSON.parse(fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8'));
+      assert.strictEqual(modified['$schema'], 'https://opencode.ai/schema', '$schema preserved');
+      assert.deepStrictEqual(modified.permission, { allow: ['Bash(*)', 'Read(*)'] }, 'permission preserved');
+      assert.deepStrictEqual(modified.plugin, { 'my-plugin': { enabled: true } }, 'plugin preserved');
+    });
+
+    test('idempotent apply', () => {
+      const config = {
+        mcp: {
+          terraform: { type: 'local', command: ['docker', 'run', 'terraform-mcp'] },
+          'brave-search': { type: 'local', command: ['npx', 'server-brave-search'] },
+        },
+      };
+      fs.writeFileSync(path.join(tmpDir, 'opencode.json'), JSON.stringify(config, null, 2));
+
+      // First apply
+      const result1 = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result1.success, `first apply failed: ${result1.error}`);
+      const afterFirst = fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8');
+
+      // Second apply (backup is now from first-apply state)
+      const result2 = mcpApply(tmpDir, '--apply', { isolateHome: true });
+      assert.ok(result2.success, `second apply failed: ${result2.error}`);
+      const afterSecond = fs.readFileSync(path.join(tmpDir, 'opencode.json'), 'utf-8');
+
+      // Config should be the same after both applies (idempotent)
+      const cfg1 = JSON.parse(afterFirst);
+      const cfg2 = JSON.parse(afterSecond);
+      assert.strictEqual(cfg2.mcp.terraform.enabled, false, 'terraform still disabled');
+      assert.strictEqual(cfg2.mcp['brave-search'].enabled, undefined, 'brave-search still not disabled');
+    });
+  });
 });
