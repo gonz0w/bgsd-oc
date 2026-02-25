@@ -1035,6 +1035,49 @@ Output: { exists, stale, reason, scanned_at, age_minutes, languages_count, chang
 
 Examples:
   gsd-tools env status --raw`,
+
+  'worktree': `Usage: gsd-tools worktree <subcommand> [options] [--raw]
+
+Manage git worktrees for parallel plan execution.
+
+Subcommands:
+  create <plan-id>    Create isolated worktree for a plan
+  list                List active worktrees for this project
+  remove <plan-id>    Remove a specific worktree
+  cleanup             Remove all worktrees for this project`,
+
+  'worktree create': `Usage: gsd-tools worktree create <plan-id> [--raw]
+
+Create an isolated git worktree for a plan.
+
+Args:
+  plan-id     Plan ID in NN-MM format (e.g., 21-02)
+
+Creates worktree at {base_path}/{project}/{plan-id}/ with branch worktree-{phase}-{plan}-{wave}.
+Syncs configured files (.env, config) and runs setup hooks.
+
+Output: { created, plan_id, branch, path, synced_files, setup_status, setup_error?, resource_warnings? }`,
+
+  'worktree list': `Usage: gsd-tools worktree list [--raw]
+
+List active worktrees for the current project.
+
+Output: { worktrees: [{ plan_id, branch, path, head, disk_usage }] }`,
+
+  'worktree remove': `Usage: gsd-tools worktree remove <plan-id> [--raw]
+
+Remove a specific worktree and its branch.
+
+Args:
+  plan-id     Plan ID to remove (e.g., 21-02)
+
+Output: { removed, plan_id, path }`,
+
+  'worktree cleanup': `Usage: gsd-tools worktree cleanup [--raw]
+
+Remove all worktrees for the current project and prune stale references.
+
+Output: { cleaned, worktrees: [{ plan_id, path }] }`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP };

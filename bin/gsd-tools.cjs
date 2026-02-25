@@ -984,7 +984,45 @@ Report manifest freshness without triggering a scan.
 Output: { exists, stale, reason, scanned_at, age_minutes, languages_count, changed_files }
 
 Examples:
-  gsd-tools env status --raw`
+  gsd-tools env status --raw`,
+      "worktree": `Usage: gsd-tools worktree <subcommand> [options] [--raw]
+
+Manage git worktrees for parallel plan execution.
+
+Subcommands:
+  create <plan-id>    Create isolated worktree for a plan
+  list                List active worktrees for this project
+  remove <plan-id>    Remove a specific worktree
+  cleanup             Remove all worktrees for this project`,
+      "worktree create": `Usage: gsd-tools worktree create <plan-id> [--raw]
+
+Create an isolated git worktree for a plan.
+
+Args:
+  plan-id     Plan ID in NN-MM format (e.g., 21-02)
+
+Creates worktree at {base_path}/{project}/{plan-id}/ with branch worktree-{phase}-{plan}-{wave}.
+Syncs configured files (.env, config) and runs setup hooks.
+
+Output: { created, plan_id, branch, path, synced_files, setup_status, setup_error?, resource_warnings? }`,
+      "worktree list": `Usage: gsd-tools worktree list [--raw]
+
+List active worktrees for the current project.
+
+Output: { worktrees: [{ plan_id, branch, path, head, disk_usage }] }`,
+      "worktree remove": `Usage: gsd-tools worktree remove <plan-id> [--raw]
+
+Remove a specific worktree and its branch.
+
+Args:
+  plan-id     Plan ID to remove (e.g., 21-02)
+
+Output: { removed, plan_id, path }`,
+      "worktree cleanup": `Usage: gsd-tools worktree cleanup [--raw]
+
+Remove all worktrees for the current project and prune stale references.
+
+Output: { cleaned, worktrees: [{ plan_id, path }] }`
     };
     module2.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP };
   }
@@ -12052,6 +12090,339 @@ var require_mcp = __commonJS({
   }
 });
 
+// src/commands/worktree.js
+var require_worktree = __commonJS({
+  "src/commands/worktree.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var os = require("os");
+    var { execSync } = require("child_process");
+    var { output, error, debugLog } = require_output();
+    var { execGit } = require_git();
+    var { loadConfig } = require_config();
+    var WORKTREE_DEFAULTS = {
+      enabled: false,
+      base_path: "/tmp/gsd-worktrees",
+      sync_files: [".env", ".env.local", ".planning/config.json"],
+      setup_hooks: [],
+      max_concurrent: 3
+    };
+    function getWorktreeConfig(cwd) {
+      const defaults = { ...WORKTREE_DEFAULTS };
+      try {
+        const configPath = path.join(cwd, ".planning", "config.json");
+        const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        if (raw.worktree && typeof raw.worktree === "object") {
+          return { ...defaults, ...raw.worktree };
+        }
+      } catch {
+        debugLog("worktree.config", "No worktree config found, using defaults");
+      }
+      return defaults;
+    }
+    function getProjectName(cwd) {
+      return path.basename(cwd);
+    }
+    function parsePlanId(planId) {
+      if (!planId) return null;
+      const match = planId.match(/^(\d+(?:\.\d+)?)-(\d+)$/);
+      if (!match) return null;
+      return { phase: match[1], plan: match[2] };
+    }
+    function getWaveFromPlan(cwd, planId) {
+      const parsed = parsePlanId(planId);
+      if (!parsed) return "0";
+      const phasesDir = path.join(cwd, ".planning", "phases");
+      try {
+        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+        const phaseDir = entries.find((e) => e.isDirectory() && e.name.startsWith(parsed.phase.padStart(2, "0")));
+        if (!phaseDir) return "0";
+        const planFile = path.join(phasesDir, phaseDir.name, `${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-PLAN.md`);
+        if (!fs.existsSync(planFile)) return "0";
+        const content = fs.readFileSync(planFile, "utf-8");
+        const waveMatch = content.match(/^wave:\s*(\d+)/m);
+        return waveMatch ? waveMatch[1] : "0";
+      } catch {
+        return "0";
+      }
+    }
+    function parseWorktreeListPorcelain(porcelainOutput) {
+      if (!porcelainOutput || !porcelainOutput.trim()) return [];
+      const worktrees = [];
+      const blocks = porcelainOutput.split("\n\n");
+      for (const block of blocks) {
+        if (!block.trim()) continue;
+        const lines = block.trim().split("\n");
+        const wt = {};
+        for (const line of lines) {
+          if (line.startsWith("worktree ")) {
+            wt.path = line.slice("worktree ".length);
+          } else if (line.startsWith("HEAD ")) {
+            wt.head = line.slice("HEAD ".length);
+          } else if (line.startsWith("branch ")) {
+            wt.branch = line.slice("branch ".length).replace("refs/heads/", "");
+          } else if (line === "bare") {
+            wt.bare = true;
+          } else if (line === "detached") {
+            wt.detached = true;
+          }
+        }
+        if (wt.path) worktrees.push(wt);
+      }
+      return worktrees;
+    }
+    function getDiskUsage(dirPath) {
+      try {
+        const result = execSync(`du -sh "${dirPath}" 2>/dev/null`, {
+          encoding: "utf-8",
+          timeout: 5e3
+        }).trim();
+        const match = result.match(/^([\d.]+[BKMGT]?)\s/);
+        return match ? match[1] : "unknown";
+      } catch {
+        return "unknown";
+      }
+    }
+    function getAvailableDiskMB(dirPath) {
+      try {
+        const result = execSync(`df -k "${dirPath}" 2>/dev/null | tail -1`, {
+          encoding: "utf-8",
+          timeout: 5e3
+        }).trim();
+        const parts = result.split(/\s+/);
+        const availKB = parseInt(parts[3], 10);
+        return isNaN(availKB) ? null : Math.round(availKB / 1024);
+      } catch {
+        return null;
+      }
+    }
+    function getProjectSizeMB(cwd) {
+      try {
+        const result = execSync(`du -sm "${cwd}" 2>/dev/null`, {
+          encoding: "utf-8",
+          timeout: 1e4
+        }).trim();
+        const match = result.match(/^(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+      } catch {
+        return null;
+      }
+    }
+    function cmdWorktreeCreate(cwd, planId, raw) {
+      if (!planId) {
+        error("Usage: gsd-tools worktree create <plan-id>\n\nplan-id format: NN-MM (e.g., 21-02)");
+      }
+      const parsed = parsePlanId(planId);
+      if (!parsed) {
+        error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
+      }
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const wave = getWaveFromPlan(cwd, planId);
+      const branchName = `worktree-${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-${wave}`;
+      const worktreePath = path.join(config.base_path, projectName, planId);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode === 0) {
+        const existing = parseWorktreeListPorcelain(listResult.stdout);
+        const alreadyExists = existing.some((wt) => wt.path === worktreePath || wt.branch === branchName);
+        if (alreadyExists) {
+          error(`Worktree already exists for plan ${planId} (path: ${worktreePath}, branch: ${branchName})`);
+        }
+        const projectWorktrees = existing.filter(
+          (wt) => wt.path && wt.path.startsWith(path.join(config.base_path, projectName))
+        );
+        if (projectWorktrees.length >= config.max_concurrent) {
+          error(`Max concurrent worktrees (${config.max_concurrent}) reached. Remove a worktree first or increase max_concurrent in config.`);
+        }
+      }
+      const freeMemMB = Math.round(os.freemem() / (1024 * 1024));
+      const requiredMemMB = config.max_concurrent * 4096;
+      const resourceWarnings = [];
+      if (freeMemMB < requiredMemMB) {
+        resourceWarnings.push(`Low memory: ${freeMemMB}MB free, estimated need ${requiredMemMB}MB for ${config.max_concurrent} concurrent worktrees`);
+      }
+      const projectSizeMB = getProjectSizeMB(cwd);
+      if (projectSizeMB) {
+        const neededMB = Math.round(projectSizeMB * 1.5);
+        const basePathParent = path.dirname(config.base_path);
+        const availMB = getAvailableDiskMB(fs.existsSync(config.base_path) ? config.base_path : basePathParent);
+        if (availMB !== null && availMB < neededMB) {
+          resourceWarnings.push(`Low disk: ${availMB}MB available at ${config.base_path}, estimated need ${neededMB}MB`);
+        }
+      }
+      const projectWorktreeDir = path.join(config.base_path, projectName);
+      try {
+        fs.mkdirSync(projectWorktreeDir, { recursive: true });
+      } catch (e) {
+        error(`Failed to create worktree base directory: ${projectWorktreeDir}: ${e.message}`);
+      }
+      const createResult = execGit(cwd, ["worktree", "add", "-b", branchName, worktreePath]);
+      if (createResult.exitCode !== 0) {
+        error(`Failed to create worktree: ${createResult.stderr}`);
+      }
+      const syncedFiles = [];
+      for (const syncFile of config.sync_files) {
+        const srcPath = path.join(cwd, syncFile);
+        const destPath = path.join(worktreePath, syncFile);
+        try {
+          if (fs.existsSync(srcPath)) {
+            fs.mkdirSync(path.dirname(destPath), { recursive: true });
+            fs.copyFileSync(srcPath, destPath);
+            syncedFiles.push(syncFile);
+          }
+        } catch (e) {
+          debugLog("worktree.sync", `Failed to sync ${syncFile}: ${e.message}`);
+        }
+      }
+      let setupStatus = "ok";
+      let setupError = null;
+      for (const hook of config.setup_hooks) {
+        try {
+          execSync(hook, {
+            cwd: worktreePath,
+            timeout: 12e4,
+            stdio: "pipe",
+            encoding: "utf-8"
+          });
+        } catch (e) {
+          setupStatus = "failed";
+          setupError = `Hook "${hook}" failed: ${e.message}`;
+          debugLog("worktree.setup", `Setup hook failed: ${hook}: ${e.message}`);
+          break;
+        }
+      }
+      const result = {
+        created: true,
+        plan_id: planId,
+        branch: branchName,
+        path: worktreePath,
+        synced_files: syncedFiles,
+        setup_status: setupStatus
+      };
+      if (setupError) result.setup_error = setupError;
+      if (resourceWarnings.length > 0) result.resource_warnings = resourceWarnings;
+      output(result, raw);
+    }
+    function cmdWorktreeList(cwd, raw) {
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const projectBase = path.join(config.base_path, projectName);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const projectWorktrees = allWorktrees.filter(
+        (wt) => wt.path && wt.path.startsWith(projectBase + "/")
+      );
+      const worktrees = projectWorktrees.map((wt) => {
+        const planId = path.basename(wt.path);
+        const diskUsage = fs.existsSync(wt.path) ? getDiskUsage(wt.path) : "removed";
+        return {
+          plan_id: planId,
+          branch: wt.branch || null,
+          path: wt.path,
+          head: wt.head ? wt.head.slice(0, 8) : null,
+          disk_usage: diskUsage
+        };
+      });
+      const result = { worktrees };
+      if (worktrees.length === 0) {
+        output(result, raw, "No active worktrees for this project.\n");
+      } else {
+        const lines = [
+          "Plan ID   | Branch                     | Path                                    | Disk Usage",
+          "--------- | -------------------------- | --------------------------------------- | ----------"
+        ];
+        for (const wt of worktrees) {
+          lines.push(`${(wt.plan_id || "").padEnd(9)} | ${(wt.branch || "").padEnd(26)} | ${(wt.path || "").padEnd(39)} | ${wt.disk_usage}`);
+        }
+        output(result, raw, lines.join("\n") + "\n");
+      }
+    }
+    function cmdWorktreeRemove(cwd, planId, raw) {
+      if (!planId) {
+        error("Usage: gsd-tools worktree remove <plan-id>");
+      }
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const worktreePath = path.join(config.base_path, projectName, planId);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const targetWt = allWorktrees.find((wt) => wt.path === worktreePath);
+      if (!targetWt) {
+        error(`No worktree found for plan ${planId} at ${worktreePath}`);
+      }
+      const branchName = targetWt.branch;
+      const removeResult = execGit(cwd, ["worktree", "remove", worktreePath, "--force"]);
+      if (removeResult.exitCode !== 0) {
+        error(`Failed to remove worktree: ${removeResult.stderr}`);
+      }
+      if (branchName) {
+        const branchResult = execGit(cwd, ["branch", "-D", branchName]);
+        if (branchResult.exitCode !== 0) {
+          debugLog("worktree.remove", `Failed to delete branch ${branchName}: ${branchResult.stderr}`);
+        }
+      }
+      output({ removed: true, plan_id: planId, path: worktreePath }, raw);
+    }
+    function cmdWorktreeCleanup(cwd, raw) {
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const projectBase = path.join(config.base_path, projectName);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const projectWorktrees = allWorktrees.filter(
+        (wt) => wt.path && wt.path.startsWith(projectBase + "/")
+      );
+      const removed = [];
+      for (const wt of projectWorktrees) {
+        const planId = path.basename(wt.path);
+        const branchName = wt.branch;
+        const removeResult = execGit(cwd, ["worktree", "remove", wt.path, "--force"]);
+        if (removeResult.exitCode === 0) {
+          removed.push({ plan_id: planId, path: wt.path });
+        } else {
+          debugLog("worktree.cleanup", `Failed to remove ${wt.path}: ${removeResult.stderr}`);
+        }
+        if (branchName) {
+          execGit(cwd, ["branch", "-D", branchName]);
+        }
+      }
+      execGit(cwd, ["worktree", "prune"]);
+      try {
+        if (fs.existsSync(projectBase)) {
+          const remaining = fs.readdirSync(projectBase);
+          if (remaining.length === 0) {
+            fs.rmdirSync(projectBase);
+          }
+        }
+      } catch {
+        debugLog("worktree.cleanup", "Failed to remove empty project directory");
+      }
+      output({ cleaned: removed.length, worktrees: removed }, raw);
+    }
+    module2.exports = {
+      cmdWorktreeCreate,
+      cmdWorktreeList,
+      cmdWorktreeRemove,
+      cmdWorktreeCleanup,
+      // Exported for testing
+      getWorktreeConfig,
+      parsePlanId,
+      parseWorktreeListPorcelain,
+      WORKTREE_DEFAULTS
+    };
+  }
+});
+
 // src/router.js
 var require_router = __commonJS({
   "src/router.js"(exports2, module2) {
@@ -12191,6 +12562,12 @@ var require_router = __commonJS({
     var {
       cmdMcpProfile
     } = require_mcp();
+    var {
+      cmdWorktreeCreate,
+      cmdWorktreeList,
+      cmdWorktreeRemove,
+      cmdWorktreeCleanup
+    } = require_worktree();
     async function main2() {
       const args = process.argv.slice(2);
       const rawIndex = args.indexOf("--raw");
@@ -12225,7 +12602,7 @@ var require_router = __commonJS({
       const command = args[0];
       const cwd = process.cwd();
       if (!command) {
-        error("Usage: gsd-tools <command> [args] [--raw] [--verbose]\nCommands: assertions, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch");
+        error("Usage: gsd-tools <command> [args] [--raw] [--verbose]\nCommands: assertions, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -12803,6 +13180,21 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             cmdAssertionsValidate(cwd, raw);
           } else {
             error("Unknown assertions subcommand. Available: list, validate");
+          }
+          break;
+        }
+        case "worktree": {
+          const subcommand = args[1];
+          if (subcommand === "create") {
+            cmdWorktreeCreate(cwd, args[2], raw);
+          } else if (subcommand === "list") {
+            cmdWorktreeList(cwd, raw);
+          } else if (subcommand === "remove") {
+            cmdWorktreeRemove(cwd, args[2], raw);
+          } else if (subcommand === "cleanup") {
+            cmdWorktreeCleanup(cwd, raw);
+          } else {
+            error("Unknown worktree subcommand. Available: create, list, remove, cleanup");
           }
           break;
         }

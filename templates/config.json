@@ -32,5 +32,12 @@
   "safety": {
     "always_confirm_destructive": true,
     "always_confirm_external_services": true
+  },
+  "worktree": {
+    "enabled": false,
+    "base_path": "/tmp/gsd-worktrees",
+    "sync_files": [".env", ".env.local", ".planning/config.json"],
+    "setup_hooks": [],
+    "max_concurrent": 3
   }
 }
