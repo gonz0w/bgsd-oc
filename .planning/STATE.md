@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v3.0 Intent Engineering — Phase 15: Intent Tracing & Validation
+**Current focus:** v3.0 Intent Engineering — Phase 16: Workflow Integration & Self-Application
 
 ## Current Position
 
-**Phase:** 15 of 17 (Intent Tracing & Validation)
-**Current Plan:** Not started
-**Total Plans in Phase:** 2
-**Status:** Milestone complete
+**Phase:** 16 of 17 (Workflow Integration & Self-Application)
+**Current Plan:** 2 of 3
+**Total Plans in Phase:** 3
+**Status:** In progress
 **Last Activity:** 2026-02-25
 
-Progress: [█████░░░░░] 32%
+Progress: [████████░░] 75%
 
 ## Accumulated Context
 
@@ -36,6 +36,7 @@ Phase 14-01: Graceful parser degradation — missing sections return null/empty 
 - [Phase 15]: Trace scoped to current milestone's phase range via getMilestoneInfo()
 - [Phase 15]: getIntentDriftData() as shared function between drift command and init pre-flight (no shelling out)
 - [Phase 15]: Advisory-only drift pre-flight: never blocks, null when no INTENT.md, try/catch wrapped
+- [Phase 16]: Write INTENT.md directly rather than intent create CLI for richer dog-fooding content
 
 ### Pending Todos
 
@@ -48,5 +49,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 15-02-PLAN.md
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None

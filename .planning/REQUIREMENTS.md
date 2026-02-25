@@ -39,7 +39,7 @@ Requirements for v3.0 Intent Engineering milestone. Each maps to roadmap phases.
 
 ### Self-Application
 
-- [ ] **SELF-01**: GSD's own development uses INTENT.md to capture the plugin's purpose and guide its own planning/execution
+- [x] **SELF-01**: GSD's own development uses INTENT.md to capture the plugin's purpose and guide its own planning/execution
 
 ## Future Requirements
 
@@ -89,7 +89,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WINT-02 | Phase 16 | Pending |
 | WINT-03 | Phase 16 | Pending |
 | WINT-04 | Phase 16 | Pending |
-| SELF-01 | Phase 16 | Pending |
+| SELF-01 | Phase 16 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 19 total
