@@ -135,5 +135,5 @@ Plans:
 | 13. Test Infrastructure & Polish | v2.0 | 4/4 | Complete | 2026-02-24 |
 | 14. Intent Capture Foundation | 3/3 | Complete    | 2026-02-25 | - |
 | 15. Intent Tracing & Validation | 2/2 | Complete    | 2026-02-25 | - |
-| 16. Workflow Integration & Self-Application | 3/3 | Complete   | 2026-02-25 | - |
+| 16. Workflow Integration & Self-Application | 3/3 | Complete    | 2026-02-25 | - |
 | 17. Intent Enhancement | v3.0 | 0/? | Not started | - |
