@@ -8,10 +8,20 @@ A zero-dependency, single-file Node.js CLI built from 16 organized `src/` module
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
+## Current Milestone: v4.0 Environment & Execution Intelligence
+
+**Goal:** Give GSD awareness of the development environment (tools, MCP servers), structured verification criteria, and parallel execution capability so AI agents make fewer mistakes, consume less context, and work faster.
+
+**Target features:**
+- Environment Awareness (project type detection, binary checks, manifest, workflow injection)
+- MCP Profiling (token estimation, relevance scoring, recommendations, auto-disable)
+- Structured Requirements (acceptance criteria per requirement, test mapping, verifier integration)
+- Worktree Parallelism (CRUD, wave orchestration, conflict detection, auto-spawn)
+- Complete-and-clear workflow
+
 ## Current State
 
 **Last shipped:** v3.0 Intent Engineering (2026-02-25)
-**Next milestone:** Not yet planned — run `/gsd-new-milestone` to start
 
 **Shipped in v3.0:**
 - INTENT.md template and CRUD commands (create, read/show, update, validate)
@@ -86,9 +96,13 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ### Active
 
-<!-- Next milestone scope. Requirements defined in REQUIREMENTS.md after /gsd-new-milestone. -->
+<!-- v4.0 scope. Full requirements in REQUIREMENTS.md. -->
 
-No active milestone. Run `/gsd-new-milestone` to define next scope.
+- [ ] Environment awareness — project detection, binary checks, manifest, workflow injection
+- [ ] MCP profiling — token estimation, relevance scoring, auto-disable
+- [ ] Structured requirements — acceptance criteria, test mapping, verifier integration
+- [ ] Worktree parallelism — CRUD, wave orchestration, conflict detection
+- [ ] Complete-and-clear workflow
 
 ### Out of Scope
 
@@ -149,4 +163,4 @@ No known tech debt.
 | Bundle budget 400→450KB | Accommodate intent command family (parser+CRUD+trace+drift) | Good — 447KB actual, 0.7% headroom |
 
 ---
-*Last updated: 2026-02-25 after v3.0 milestone completed*
+*Last updated: 2026-02-25 after v4.0 milestone started*
