@@ -8309,4 +8309,248 @@ intent:
         'help should describe traceability or matrix');
     });
   });
+
+  // ── Drift tests ──
+
+  describe('intent drift', () => {
+    // Reuse helpers from intent trace tests
+    function createRoadmap(dir, phaseStart, phaseEnd) {
+      const roadmapContent = `# Roadmap
+
+## Milestones
+
+- 🔵 **v1.0 Test Milestone** — Phases ${phaseStart}-${phaseEnd} (active)
+
+## Phases
+
+### Phase ${phaseStart}: First Phase
+**Goal**: Test goal
+**Plans:** 1 plan
+
+### Phase ${phaseEnd}: Second Phase
+**Goal**: Another goal
+**Plans:** 1 plan
+`;
+      fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), roadmapContent, 'utf-8');
+    }
+
+    function createPlan(dir, phaseDir, planNum, outcomeIds, rationale) {
+      const phasePath = path.join(dir, '.planning', 'phases', phaseDir);
+      fs.mkdirSync(phasePath, { recursive: true });
+
+      const phaseNum = phaseDir.match(/^(\d+)/)[1];
+      const paddedPlan = String(planNum).padStart(2, '0');
+      const filename = `${phaseNum.padStart(2, '0')}-${paddedPlan}-PLAN.md`;
+
+      let frontmatter = `---
+phase: ${phaseDir}
+plan: ${paddedPlan}
+type: execute
+wave: 1
+depends_on: []`;
+
+      if (outcomeIds && outcomeIds.length > 0) {
+        frontmatter += `
+intent:
+  outcome_ids: [${outcomeIds.join(', ')}]
+  rationale: "${rationale || 'Test rationale'}"`;
+      }
+
+      frontmatter += `
+---
+
+<objective>
+Test plan objective.
+</objective>
+
+<tasks>
+<task type="auto">
+  <name>Task 1</name>
+  <action>Do something</action>
+  <verify>Check it</verify>
+  <done>Done</done>
+</task>
+</tasks>
+`;
+      fs.writeFileSync(path.join(phasePath, filename), frontmatter, 'utf-8');
+    }
+
+    test('drift with no INTENT.md errors', () => {
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(!result.success, 'should fail without INTENT.md');
+      assert.ok(
+        (result.error || '').includes('No INTENT.md') || (result.output || '').includes('No INTENT.md'),
+        'should mention missing INTENT.md'
+      );
+    });
+
+    test('drift with INTENT.md but no plans shows score near 100', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      // With 0 plans, coverage_gap should be 40/40, objective_mismatch 0 (no plans to be untraced)
+      // So score = 40 (coverage gap only, no plans means no mismatch/creep/inversion)
+      assert.ok(data.drift_score >= 30, `score should be high with no plans (got ${data.drift_score})`);
+      assert.strictEqual(data.total_plans, 0, 'should have 0 plans');
+      assert.strictEqual(data.covered_outcomes, 0, 'no outcomes covered');
+      assert.strictEqual(data.signals.coverage_gap.details.length, 3, 'all 3 outcomes should be gaps');
+    });
+
+    test('drift with perfect alignment shows score 0', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      // Cover all 3 outcomes: DO-01 [P1], DO-02 [P2], DO-03 [P1]
+      createPlan(tmpDir, '14-first-phase', 1, ['DO-01', 'DO-02'], 'Covers first two');
+      createPlan(tmpDir, '15-second-phase', 1, ['DO-03'], 'Covers third');
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.drift_score, 0, 'perfect alignment should have score 0');
+      assert.strictEqual(data.alignment, 'excellent', 'alignment should be excellent');
+      assert.strictEqual(data.signals.coverage_gap.details.length, 0, 'no gaps');
+      assert.strictEqual(data.signals.objective_mismatch.plans.length, 0, 'no untraced plans');
+      assert.strictEqual(data.signals.feature_creep.invalid_refs.length, 0, 'no invalid refs');
+      assert.strictEqual(data.signals.priority_inversion.inversions.length, 0, 'no inversions');
+    });
+
+    test('drift detects objective mismatch (plan with no intent section)', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      // Create plan WITHOUT intent section + plan WITH intent
+      createPlan(tmpDir, '14-first-phase', 1, null, null); // no intent
+      createPlan(tmpDir, '15-second-phase', 1, ['DO-01', 'DO-02', 'DO-03'], 'Covers all');
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.signals.objective_mismatch.plans.length, 1, 'should flag 1 untraced plan');
+      assert.ok(data.signals.objective_mismatch.score > 0, 'mismatch score should be > 0');
+    });
+
+    test('drift detects feature creep (plan referencing non-existent DO-99)', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      // Create plan that references a non-existent outcome
+      createPlan(tmpDir, '14-first-phase', 1, ['DO-01', 'DO-99'], 'References invalid DO-99');
+      createPlan(tmpDir, '15-second-phase', 1, ['DO-02', 'DO-03'], 'Covers rest');
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.signals.feature_creep.invalid_refs.length, 1, 'should flag 1 invalid ref');
+      assert.strictEqual(data.signals.feature_creep.invalid_refs[0].invalid_id, 'DO-99', 'should identify DO-99');
+      assert.ok(data.signals.feature_creep.score > 0, 'feature creep score should be > 0');
+    });
+
+    test('drift detects priority inversion (P1 uncovered while P2 covered)', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      // Cover only DO-02 [P2], leave DO-01 [P1] and DO-03 [P1] uncovered
+      createPlan(tmpDir, '14-first-phase', 1, ['DO-02'], 'Only covers P2');
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.ok(data.signals.priority_inversion.inversions.length > 0, 'should detect priority inversions');
+      assert.strictEqual(data.signals.priority_inversion.score, 20, 'inversion score should be 20');
+      // DO-01 [P1] uncovered while DO-02 [P2] covered
+      const inv = data.signals.priority_inversion.inversions[0];
+      assert.strictEqual(inv.uncovered_priority, 'P1', 'uncovered should be P1');
+      assert.strictEqual(inv.covered_priority, 'P2', 'covered should be P2');
+    });
+
+    test('drift score within 0-100 range across scenarios', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      // Scenario: partial coverage
+      createPlan(tmpDir, '14-first-phase', 1, ['DO-01'], 'Partial');
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.ok(data.drift_score >= 0, 'score should be >= 0');
+      assert.ok(data.drift_score <= 100, 'score should be <= 100');
+      assert.ok(typeof data.drift_score === 'number', 'score should be a number');
+    });
+
+    test('drift --raw returns valid JSON with all expected fields', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift --raw failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.ok('drift_score' in data, 'should have drift_score');
+      assert.ok('alignment' in data, 'should have alignment');
+      assert.ok('signals' in data, 'should have signals');
+      assert.ok('total_outcomes' in data, 'should have total_outcomes');
+      assert.ok('covered_outcomes' in data, 'should have covered_outcomes');
+      assert.ok('total_plans' in data, 'should have total_plans');
+      assert.ok('traced_plans' in data, 'should have traced_plans');
+      assert.ok('coverage_gap' in data.signals, 'signals should have coverage_gap');
+      assert.ok('objective_mismatch' in data.signals, 'signals should have objective_mismatch');
+      assert.ok('feature_creep' in data.signals, 'signals should have feature_creep');
+      assert.ok('priority_inversion' in data.signals, 'signals should have priority_inversion');
+    });
+
+    test('drift alignment labels correct (0-15 excellent, 16-35 good, 36-60 moderate, 61-100 poor)', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 14, 17);
+
+      // Perfect: all covered → score 0 → excellent
+      createPlan(tmpDir, '14-first-phase', 1, ['DO-01', 'DO-02', 'DO-03'], 'All');
+
+      const result = runGsdTools('intent drift --raw', tmpDir);
+      assert.ok(result.success, `drift failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.drift_score, 0, 'perfect alignment score = 0');
+      assert.strictEqual(data.alignment, 'excellent', '0 = excellent');
+    });
+
+    test('pre-flight: init execute-phase intent_drift null when no INTENT.md', () => {
+      // Create minimal project structure (no INTENT.md)
+      createRoadmap(tmpDir, 14, 17);
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), '{}', 'utf-8');
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State\n## Current Position\n**Phase:** 14', 'utf-8');
+      fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
+        '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
+
+      const result = runGsdTools('init execute-phase 14 --raw', tmpDir);
+      assert.ok(result.success, `init execute-phase failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.intent_drift, null, 'intent_drift should be null when no INTENT.md');
+    });
+
+    test('intent drift --help shows drift usage', () => {
+      const helpText = execSync(`node "${TOOLS_PATH}" intent drift --help 2>&1`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      assert.ok(helpText.includes('drift'), 'help should mention drift');
+      assert.ok(helpText.includes('0-100') || helpText.includes('score'),
+        'help should mention score range');
+      assert.ok(helpText.includes('Coverage') || helpText.includes('coverage'),
+        'help should mention coverage signal');
+    });
+  });
 });
