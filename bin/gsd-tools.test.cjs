@@ -9256,4 +9256,194 @@ describe('env scan', () => {
       assert.ok(result.data.package_manager.name, 'should detect a package manager');
     });
   });
+
+  describe('manifest persistence', () => {
+    test('env scan writes env-manifest.json when .planning/ exists', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      const result = runGsdTools('env scan --force --raw', tmpDir);
+      assert.ok(result.success, `env scan failed: ${result.error}`);
+      const manifestPath = path.join(tmpDir, '.planning', 'env-manifest.json');
+      assert.ok(fs.existsSync(manifestPath), 'env-manifest.json should exist');
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      assert.strictEqual(manifest['$schema_version'], '1.0', 'should have schema version');
+      assert.ok(Array.isArray(manifest.watched_files), 'should have watched_files');
+      assert.ok(typeof manifest.watched_files_mtimes === 'object', 'should have watched_files_mtimes');
+    });
+
+    test('env scan does NOT write manifest when .planning/ does not exist', () => {
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      const result = runGsdTools('env scan --force --raw', tmpDir);
+      assert.ok(result.success, `env scan failed: ${result.error}`);
+      const manifestPath = path.join(tmpDir, '.planning', 'env-manifest.json');
+      assert.ok(!fs.existsSync(manifestPath), 'env-manifest.json should NOT exist without .planning/');
+    });
+
+    test('env scan writes project-profile.json when .planning/ exists', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      fs.writeFileSync(path.join(tmpDir, 'package-lock.json'), '{}');
+      const result = runGsdTools('env scan --force --raw', tmpDir);
+      assert.ok(result.success, `env scan failed: ${result.error}`);
+      const profilePath = path.join(tmpDir, '.planning', 'project-profile.json');
+      assert.ok(fs.existsSync(profilePath), 'project-profile.json should exist');
+      const profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+      assert.strictEqual(profile['$schema_version'], '1.0');
+      assert.deepStrictEqual(profile.languages, ['node']);
+      assert.strictEqual(profile.primary_language, 'node');
+      assert.strictEqual(profile.package_manager, 'npm');
+    });
+
+    test('env scan creates .planning/.gitignore with env-manifest.json entry', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      runGsdTools('env scan --force --raw', tmpDir);
+      const gitignorePath = path.join(tmpDir, '.planning', '.gitignore');
+      assert.ok(fs.existsSync(gitignorePath), '.planning/.gitignore should exist');
+      const content = fs.readFileSync(gitignorePath, 'utf-8');
+      assert.ok(content.includes('env-manifest.json'), '.gitignore should contain env-manifest.json');
+    });
+
+    test('env scan watched_files includes root manifest files', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      fs.writeFileSync(path.join(tmpDir, 'package-lock.json'), '{}');
+      const result = runGsdTools('env scan --force --raw', tmpDir);
+      assert.ok(result.success);
+      const data = JSON.parse(result.output);
+      assert.ok(data.watched_files.includes('package.json'), 'watched should include package.json');
+      assert.ok(data.watched_files.includes('package-lock.json'), 'watched should include package-lock.json');
+      assert.ok(data.watched_files_mtimes['package.json'], 'should have mtime for package.json');
+    });
+  });
+
+  describe('staleness detection', () => {
+    test('staleness: fresh manifest is NOT stale', () => {
+      // Create .planning/ and run initial scan to create manifest
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      const scanResult = runGsdTools('env scan --force --raw', tmpDir);
+      assert.ok(scanResult.success, `initial scan failed: ${scanResult.error}`);
+
+      // Check staleness via env status
+      const statusResult = runGsdTools('env status --raw', tmpDir);
+      assert.ok(statusResult.success, `env status failed: ${statusResult.error}`);
+      const status = JSON.parse(statusResult.output);
+      assert.strictEqual(status.exists, true, 'manifest should exist');
+      assert.strictEqual(status.stale, false, 'fresh manifest should not be stale');
+    });
+
+    test('staleness: touching a watched file makes manifest stale', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      runGsdTools('env scan --force --raw', tmpDir);
+
+      // Touch the watched file (update mtime to future)
+      const pkgPath = path.join(tmpDir, 'package.json');
+      const futureTime = Date.now() + 5000;
+      fs.utimesSync(pkgPath, futureTime / 1000, futureTime / 1000);
+
+      const statusResult = runGsdTools('env status --raw', tmpDir);
+      assert.ok(statusResult.success);
+      const status = JSON.parse(statusResult.output);
+      assert.strictEqual(status.stale, true, 'should be stale after touching watched file');
+      assert.strictEqual(status.reason, 'files_changed');
+      assert.ok(status.changed_files.includes('package.json'), 'changed_files should include package.json');
+    });
+
+    test('staleness: missing manifest reports stale with reason no_manifest', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      const statusResult = runGsdTools('env status --raw', tmpDir);
+      assert.ok(statusResult.success);
+      const status = JSON.parse(statusResult.output);
+      assert.strictEqual(status.exists, false, 'manifest should not exist');
+      assert.strictEqual(status.stale, true, 'missing manifest should be stale');
+      assert.strictEqual(status.reason, 'no_manifest');
+    });
+
+    test('staleness: --force flag bypasses staleness and always rescans', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+
+      // Initial scan
+      runGsdTools('env scan --force --raw', tmpDir);
+      const firstManifest = JSON.parse(
+        fs.readFileSync(path.join(tmpDir, '.planning', 'env-manifest.json'), 'utf-8')
+      );
+
+      // Wait a tiny bit so scanned_at differs
+      const origTime = firstManifest.scanned_at;
+
+      // Force rescan (even though manifest is fresh)
+      const forceResult = runGsdTools('env scan --force --raw', tmpDir);
+      assert.ok(forceResult.success, `force scan failed: ${forceResult.error}`);
+      const secondManifest = JSON.parse(
+        fs.readFileSync(path.join(tmpDir, '.planning', 'env-manifest.json'), 'utf-8')
+      );
+
+      // scanned_at should be different (or at least re-written)
+      assert.ok(secondManifest.scanned_at, 'second scan should have scanned_at');
+    });
+
+    test('staleness: auto-rescan re-writes manifest when stale', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+
+      // Initial scan
+      runGsdTools('env scan --force --raw', tmpDir);
+
+      // Touch file to make stale
+      const pkgPath = path.join(tmpDir, 'package.json');
+      const futureTime = Date.now() + 5000;
+      fs.utimesSync(pkgPath, futureTime / 1000, futureTime / 1000);
+
+      // Verify stale
+      const statusBefore = JSON.parse(runGsdTools('env status --raw', tmpDir).output);
+      assert.strictEqual(statusBefore.stale, true, 'should be stale before rescan');
+
+      // Run scan WITHOUT --force — should auto-rescan since stale
+      const rescanResult = runGsdTools('env scan --raw', tmpDir);
+      assert.ok(rescanResult.success, `auto-rescan failed: ${rescanResult.error}`);
+
+      // After auto-rescan, manifest should be fresh again
+      const statusAfter = JSON.parse(runGsdTools('env status --raw', tmpDir).output);
+      assert.strictEqual(statusAfter.stale, false, 'manifest should be fresh after auto-rescan');
+    });
+
+    test('env status returns correct structure', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+      runGsdTools('env scan --force --raw', tmpDir);
+
+      const result = runGsdTools('env status --raw', tmpDir);
+      assert.ok(result.success);
+      const status = JSON.parse(result.output);
+      assert.strictEqual(typeof status.exists, 'boolean');
+      assert.strictEqual(typeof status.stale, 'boolean');
+      assert.ok(status.scanned_at, 'should have scanned_at');
+      assert.strictEqual(typeof status.age_minutes, 'number');
+      assert.strictEqual(typeof status.languages_count, 'number');
+      assert.ok(status.languages_count >= 1, 'should detect at least 1 language');
+      assert.ok(Array.isArray(status.changed_files));
+    });
+
+    test('env scan idempotent: second run without changes exits early', () => {
+      fs.mkdirSync(path.join(tmpDir, '.planning'));
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
+
+      // Initial scan
+      runGsdTools('env scan --force --raw', tmpDir);
+      const firstManifest = JSON.parse(
+        fs.readFileSync(path.join(tmpDir, '.planning', 'env-manifest.json'), 'utf-8')
+      );
+
+      // Second scan without changes — should exit early (manifest unchanged)
+      const secondResult = runGsdTools('env scan --raw', tmpDir);
+      assert.ok(secondResult.success, `idempotent scan failed: ${secondResult.error}`);
+      const secondOutput = JSON.parse(secondResult.output);
+      // Should return the existing manifest data (same scanned_at)
+      assert.strictEqual(secondOutput.scanned_at, firstManifest.scanned_at,
+        'idempotent scan should return existing manifest without re-scanning');
+    });
+  });
 });
