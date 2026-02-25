@@ -20,10 +20,10 @@ Detect what languages, tools, and runtimes are available in a project so downstr
 - Detect everything useful — comprehensive scan including databases/brokers from docker-compose, but just note the service name (don't parse connection details)
 - Docker/compose-level infra detection only — no Nomad/Consul/Vault orchestration detection
 - No IDE/editor config detection (.vscode/, .idea/)
-- No Claude Code config detection (CLAUDE.md, AGENTS.md — agents already load these)
+- No OpenCode config detection (AGENTS.md — agents already load these)
 
 ### Primary language determination
-- Claude's Discretion — Claude picks the best approach for determining primary language in polyglot projects
+- Agent's Discretion — agent picks the best approach for determining primary language in polyglot projects
 
 ### Version detection strategy
 - Report both: configured version (from mise.toml, .tool-versions, .nvmrc) AND installed version (from binary --version) when they differ
@@ -39,10 +39,10 @@ Detect what languages, tools, and runtimes are available in a project so downstr
 
 ### Workspace/monorepo detection
 - Detect workspace structures (npm workspaces, Go workspaces, Elixir umbrella apps) and list workspace members
-- Claude's Discretion on depth of per-workspace language/tool detection
+- Agent's Discretion on depth of per-workspace language/tool detection
 
 ### Framework detection
-- Claude's Discretion — Claude determines the right granularity for detecting major frameworks (Ash, Phoenix, Ecto, chi, sqlc) from dependency manifests
+- Agent's Discretion — agent determines the right granularity for detecting major frameworks (Ash, Phoenix, Ecto, chi, sqlc) from dependency manifests
 
 ### Test framework detection
 - Detect test runner, config file, and test directory conventions from project manifests and config files
@@ -57,27 +57,27 @@ Detect what languages, tools, and runtimes are available in a project so downstr
 - Detect configured MCP servers from .mcp.json and other MCP config files
 
 ### Manifest output shape
-- Claude's Discretion on JSON structure (categorized sections vs flat with type field)
+- Agent's Discretion on JSON structure (categorized sections vs flat with type field)
 - Detection sources tracked as arrays: `"sources": ["mix.exs", "mise.toml"]` when detected from multiple files
 - No confidence indicators — binary detected/not-detected
-- Claude's Discretion on scan metadata (timestamp, duration, etc.)
+- Agent's Discretion on scan metadata (timestamp, duration, etc.)
 
 ### Committed vs gitignored split
 - Two files: a committed "project profile" for non-machine-specific structure (languages used, project structure) and a gitignored `env-manifest.json` for machine-specific versions/paths
-- Claude's Discretion on committed profile filename and location
+- Agent's Discretion on committed profile filename and location
 
 ### Staleness & re-scan triggers
 - Staleness detected from both git changes AND filesystem timestamps — either triggers rescan
 - Notify then rescan: print "Environment changed, rescanning..." when stale manifest detected during init
-- Claude's Discretion on which files to watch for staleness (core manifests vs all scanned files)
+- Agent's Discretion on which files to watch for staleness (core manifests vs all scanned files)
 
 ### Agent injection format
 - `init progress` and `init execute` commands include environment info; `init phase-op` does not
 - `env scan` command: silent by default, `--raw` flag dumps JSON for scripting
 - Auto-trigger scan on first init command if no manifest exists — seamless first-run experience
-- Claude's Discretion on compact vs verbose injection format
+- Agent's Discretion on compact vs verbose injection format
 
-### Claude's Discretion
+### Agent's Discretion
 - Primary language determination approach
 - JSON manifest structure (categorized vs flat)
 - Workspace detection depth (per-member scanning)

@@ -148,4 +148,4 @@ The implementation is comprehensive:
 ---
 
 _Verified: 2026-02-25T13:18:00Z_
-_Verifier: Claude (gsd-verifier)_
+_Verifier: gsd-verifier_

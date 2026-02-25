@@ -6,7 +6,7 @@
 - ✅ **v1.1 Context Reduction & Tech Debt** — Phases 6-9 (shipped 2026-02-22)
 - ✅ **v2.0 Quality & Intelligence** — Phases 10-13 (shipped 2026-02-24)
 - ✅ **v3.0 Intent Engineering** — Phases 14-17 (shipped 2026-02-25)
-- 🔵 **v4.0 Environment & Execution Intelligence** — Phases 18-22 (active)
+- ✅ **v4.0 Environment & Execution Intelligence** — Phases 18-22 (shipped 2026-02-25)
 
 ## Phases
 
@@ -59,87 +59,18 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 
 </details>
 
-## Active Milestone: v4.0 Environment & Execution Intelligence
+<details>
+<summary>✅ v4.0 Environment & Execution Intelligence (Phases 18-22) — SHIPPED 2026-02-25</summary>
 
-- [x] **Phase 18: Environment Awareness** — Detect project languages, tools, and runtimes; produce machine-readable manifest (completed 2026-02-25)
-- [x] **Phase 19: MCP Server Profiling** — Estimate MCP token costs, score relevance, recommend disabling wasteful servers (completed 2026-02-25)
-- [x] **Phase 20: Structured Requirements** — Upgrade requirements with testable assertions, test mapping, and verifier integration (completed 2026-02-25)
-- [x] **Phase 21: Worktree Parallelism** — Create, manage, and merge git worktrees for parallel plan execution (completed 2026-02-25)
-- [x] **Phase 22: Workflow Polish** — Complete-and-clear workflow for session handoffs (completed 2026-02-25)
+- [x] Phase 18: Environment Awareness (3/3 plans) — completed 2026-02-25
+- [x] Phase 19: MCP Server Profiling (3/3 plans) — completed 2026-02-25
+- [x] Phase 20: Structured Requirements (3/3 plans) — completed 2026-02-25
+- [x] Phase 21: Worktree Parallelism (3/3 plans) — completed 2026-02-25
+- [x] Phase 22: Workflow Polish (1/1 plans) — completed 2026-02-25
 
-## Phase Details
+Full details: `.planning/milestones/v4.0-ROADMAP.md`
 
-### Phase 18: Environment Awareness
-**Goal**: Agents know what languages, tools, and runtimes are available in the project before they start working
-**Depends on**: Nothing (first phase of v4.0)
-**Requirements**: ENV-01, ENV-02, ENV-03, ENV-04, ENV-05, ENV-06
-**Success Criteria** (what must be TRUE):
-  1. `env scan` on a Node+Go polyglot project reports both languages with correct versions and identifies the primary language from root manifest
-  2. `env scan` detects the correct package manager (e.g., pnpm from pnpm-lock.yaml) and respects packageManager field override
-  3. `env-manifest.json` contains complete detection results with sources, and is regenerated automatically when manifests change (stale detection)
-  4. `init progress --raw` output includes a compact "Tools:" line listing detected runtimes and versions when manifest exists
-**Plans**: 3/3 plans complete
-Plans:
-- [ ] 18-01-PLAN.md — Core detection engine (languages, package managers, binary availability)
-- [ ] 18-02-PLAN.md — Manifest persistence and staleness detection
-- [ ] 18-03-PLAN.md — Init command integration and auto-trigger
-
-### Phase 19: MCP Server Profiling
-**Goal**: Users can see exactly how many tokens their MCP servers consume and get actionable recommendations to reduce context waste
-**Depends on**: Nothing (independent of Phase 18)
-**Requirements**: MCP-01, MCP-02, MCP-03, MCP-04, MCP-05
-**Success Criteria** (what must be TRUE):
-  1. `mcp-profile` lists all configured servers from opencode.json and .mcp.json with transport type and command
-  2. `mcp-profile` shows per-server token cost estimate and total context window percentage (e.g., "GitHub: ~46K tokens, 23% of 200K window")
-  3. `mcp-profile` scores each server as relevant/possibly-relevant/not-relevant based on project files and recommends keep/disable/review with reasoning
-  4. `mcp-profile --apply` disables recommended servers in config with backup, and `--restore` undoes the change
-**Plans**: 3/3 plans complete
-Plans:
-- [x] 19-01-PLAN.md — Server discovery from .mcp.json/opencode.json + known-server token estimation database
-- [x] 19-02-PLAN.md — Project-aware relevance scoring + keep/disable/review recommendations
-- [x] 19-03-PLAN.md — Auto-disable with backup and restore functionality
-
-### Phase 20: Structured Requirements
-**Goal**: Requirements carry testable acceptance criteria that flow through planning into verification, closing the loop between "what we said" and "what we proved"
-**Depends on**: Nothing (independent of Phases 18-19)
-**Requirements**: SREQ-01, SREQ-02, SREQ-03, SREQ-04, SREQ-05
-**Success Criteria** (what must be TRUE):
-  1. Each requirement in REQUIREMENTS.md has 2-5 indented assertion bullets that are specific and testable (template enforced)
-  2. The traceability table includes a test-command column, and `verify requirements` confirms test commands exist and reports coverage percentage
-  3. Phase verifier reads structured assertions from REQUIREMENTS.md and reports per-assertion pass/fail (not just requirement-level pass/fail)
-  4. Plan `must_haves.truths` in YAML frontmatter are auto-populated from the mapped requirements' assertions during planning
-**Plans**: 3/3 plans complete
-Plans:
-- [x] 20-01-PLAN.md — Assertion schema, parser, and CLI commands (SREQ-01)
-- [x] 20-02-PLAN.md — Per-assertion verification and traceability chain (SREQ-03, SREQ-04)
-- [x] 20-03-PLAN.md — Planner workflow integration and template updates (SREQ-02, SREQ-05)
-
-### Phase 21: Worktree Parallelism
-**Goal**: Multiple plans within a wave execute in parallel via isolated git worktrees, with conflict detection and sequential merge
-**Depends on**: Phase 18 (env manifest used for setup hooks — graceful degradation if missing)
-**Requirements**: WKTR-01, WKTR-02, WKTR-03, WKTR-04, WKTR-05, WKTR-06
-**Success Criteria** (what must be TRUE):
-  1. `worktree create <plan-id>` creates an isolated worktree with a named branch, syncs configured files, and runs setup hooks; `worktree list` shows it with disk usage
-  2. `worktree merge <plan-id>` runs `git merge-tree` dry-run first — clean merges proceed automatically, conflicts block with a file-level report
-  3. Config.json `worktree` section controls base_path, sync_files, setup_hooks, and max_concurrent (validated against available resources)
-  4. Execute-phase workflow creates worktrees per wave, monitors agent progress, merges sequentially with test gates, and cleans up before advancing to next wave
-  5. `files_modified` overlap from plan-time static analysis and `git merge-tree` from merge-time both feed into the merge decision
-**Plans**: 3/3 plans complete
-Plans:
-- [x] 21-01-PLAN.md — Worktree core lifecycle (create, list, remove, cleanup) + config schema
-- [ ] 21-02-PLAN.md — Merge with conflict pre-check (git merge-tree) + file overlap detection
-- [ ] 21-03-PLAN.md — Execute-phase workflow integration + init command worktree context
-
-### Phase 22: Workflow Polish
-**Goal**: Sessions end cleanly with a summary and context reset prompt, so the next session starts fresh
-**Depends on**: Phase 18 (uses env context for session summary — graceful degradation)
-**Requirements**: WFLW-01
-**Success Criteria** (what must be TRUE):
-  1. `/gsd-complete-and-clear` generates a session summary from STATE.md showing what was completed, suggests the next command to run, and updates session continuity
-  2. Running the workflow leaves STATE.md in a clean state ready for the next session to pick up without stale context
-**Plans**: 1/1 plans complete
-Plans:
-- [ ] 22-01-PLAN.md — Session summary CLI command + complete-and-clear workflow
+</details>
 
 ## Progress
 
@@ -162,8 +93,8 @@ Plans:
 | 15. Intent Tracing & Validation | v3.0 | 2/2 | Complete | 2026-02-25 |
 | 16. Workflow Integration & Self-Application | v3.0 | 3/3 | Complete | 2026-02-25 |
 | 17. Intent Enhancement | v3.0 | 2/2 | Complete | 2026-02-25 |
-| 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
-| 19. MCP Server Profiling | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
-| 20. Structured Requirements | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
-| 21. Worktree Parallelism | 3/3 | Complete    | 2026-02-25 | - |
-| 22. Workflow Polish | 1/1 | Complete    | 2026-02-25 | - |
+| 18. Environment Awareness | v4.0 | 3/3 | Complete | 2026-02-25 |
+| 19. MCP Server Profiling | v4.0 | 3/3 | Complete | 2026-02-25 |
+| 20. Structured Requirements | v4.0 | 3/3 | Complete | 2026-02-25 |
+| 21. Worktree Parallelism | v4.0 | 3/3 | Complete | 2026-02-25 |
+| 22. Workflow Polish | v4.0 | 1/1 | Complete | 2026-02-25 |

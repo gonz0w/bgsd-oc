@@ -54,7 +54,7 @@ completed: 2026-02-25
 - **Files modified:** 5
 
 ## Accomplishments
-- MCP server discovery engine reading .mcp.json (Claude Code), opencode.json (OpenCode), and user-level config with priority-based deduplication
+- MCP server discovery engine reading .mcp.json, opencode.json (OpenCode), and user-level config with priority-based deduplication
 - Known-server token estimation database covering 20 common MCP servers (postgres, github, brave-search, terraform, docker, redis, vault, etc.)
 - `mcp-profile` CLI command outputting per-server token estimates, total context cost, and context window percentage
 - 15 comprehensive tests covering all discovery paths, merging, estimation, edge cases, and graceful degradation

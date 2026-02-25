@@ -24,7 +24,7 @@ key-files:
   modified: [src/commands/mcp.js, src/lib/constants.js, bin/gsd-tools.cjs, bin/gsd-tools.test.cjs]
 
 key-decisions:
-  - "Only opencode.json mutated (not .mcp.json) — Claude Code format has no standard disable field"
+  - "Only opencode.json mutated (not .mcp.json) — standard MCP format has no standard disable field"
   - "Trimmed intent help text to fit 500KB bundle budget after adding new code"
 
 patterns-established:
@@ -71,7 +71,7 @@ Each task was committed atomically:
 - `bin/gsd-tools.test.cjs` — 9 new test cases in apply-and-restore describe block
 
 ## Decisions Made
-- Only opencode.json is mutated — .mcp.json (Claude Code format) has no standard `enabled: false` field, so servers from .mcp.json are skipped and noted in output
+- Only opencode.json is mutated — .mcp.json (standard MCP format) has no standard `enabled: false` field, so servers from .mcp.json are skipped and noted in output
 - Trimmed intent drift/trace/validate help text (~600 chars) to fit new code within 500KB bundle budget — functionality unchanged, just shorter help descriptions
 
 ## Deviations from Plan

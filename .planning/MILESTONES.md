@@ -1,5 +1,26 @@
 # Milestones
 
+## ✅ v4.0 Environment & Execution Intelligence (Shipped: 2026-02-25)
+
+**Phases completed:** 5 phases, 13 plans
+**Commits:** 55 | **Files changed:** 70 | **Lines:** +16,399 / -2,478
+**Timeline:** 1 day (2026-02-25)
+**Tests:** 502 passing (0 failures)
+**Bundle:** 549KB / 550KB budget
+
+**Key accomplishments:**
+- Built environment detection engine with 26 manifest patterns, package manager precedence, binary version checks, and auto-inject "Tools:" summary into init commands via env-manifest.json with staleness detection
+- Created MCP server profiling with 20-server token estimation database, 16-type relevance scoring against project files, keep/disable/review recommendations, and auto-disable with backup/restore
+- Added structured requirements with ASSERTIONS.md template, per-assertion verification (pass/fail/needs_human), traceability chain display, test-command mapping, and planner workflow integration
+- Implemented git worktree parallelism with full CRUD lifecycle, merge-tree conflict pre-check, lockfile auto-resolution, static file overlap detection, and execute-phase Mode A/B branching
+- Added session management with session-summary CLI command and complete-and-clear workflow for clean session handoffs
+
+**Archives:**
+- `.planning/milestones/v4.0-ROADMAP.md`
+- `.planning/milestones/v4.0-REQUIREMENTS.md`
+
+---
+
 ## ✅ v3.0 Intent Engineering (Shipped: 2026-02-25)
 
 **Phases completed:** 4 phases, 10 plans
