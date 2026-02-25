@@ -53,6 +53,58 @@ Add/update:
 
 Update Active requirements section and "Last updated" footer.
 
+## 4.5. Review and Evolve Intent
+
+**If INTENT.md does NOT exist:**
+Follow the same questionnaire as new-project Step 4.5 — ask Q1-Q4 (Objective, Desired Outcomes, Success Criteria, Constraints), create INTENT.md, commit.
+
+**If INTENT.md exists:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► REVIEWING INTENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Display current intent summary (compact):
+
+```bash
+node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs intent show
+```
+
+Then ask guided questions about intent evolution:
+
+**Q1 — Objective check:** "Does the project objective still hold for this milestone, or has it shifted?"
+- If shifted: capture new objective, `intent update objective --value "..." --reason "..."`
+
+**Q2 — Outcomes review:** "Looking at your desired outcomes, which are now complete, which still apply, and are there new ones for this milestone?"
+- Present each outcome with its priority
+- For completed outcomes: "Mark as achieved or keep for ongoing tracking?"
+- For new outcomes: "What should this milestone accomplish that wasn't in scope before?"
+- Apply changes: `intent update outcomes --value "..." --reason "Milestone vX.Y: {explanation}"`
+
+**Q3 — Criteria evolution:** "Do your success criteria need updating for the new scope?"
+- If yes: `intent update criteria --value "..." --reason "..."`
+
+**Q4 — Constraints check:** "Any new constraints or relaxed ones?"
+- If yes: `intent update constraints --value "..." --reason "..."`
+
+All updates use the `--reason` flag to capture why the change was made, automatically logging to the `<history>` section.
+
+```bash
+node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs: evolve intent for milestone v[X.Y]" --files .planning/INTENT.md
+```
+
+Present evolution summary:
+```
+✓ Intent reviewed for v[X.Y]:
+  Changes: {N} modifications ({types summary})
+  Objective: {unchanged|updated}
+  Outcomes: {added N, modified N, removed N}
+```
+
+If no changes: `✓ Intent unchanged — carrying forward to v[X.Y]`
+
 ## 5. Update STATE.md
 
 ```markdown
@@ -193,6 +245,8 @@ Display key findings from SUMMARY.md:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+If INTENT.md exists: Use desired outcomes (especially any newly added for this milestone) to guide requirement category selection. New outcomes should generate corresponding requirements.
+
 Read PROJECT.md: core value, current milestone goals, validated requirements (what exists).
 
 **If research exists:** Read FEATURES.md, extract feature categories.
@@ -275,6 +329,7 @@ Task(prompt="
 - .planning/PROJECT.md
 - .planning/REQUIREMENTS.md
 - .planning/research/SUMMARY.md (if exists)
+- .planning/INTENT.md (if exists)
 - .planning/config.json
 - .planning/MILESTONES.md
 </files_to_read>
@@ -345,6 +400,7 @@ node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs: cr
 | Artifact       | Location                    |
 |----------------|-----------------------------|
 | Project        | `.planning/PROJECT.md`      |
+| Intent         | `.planning/INTENT.md`       |
 | Research       | `.planning/research/`       |
 | Requirements   | `.planning/REQUIREMENTS.md` |
 | Roadmap        | `.planning/ROADMAP.md`      |
@@ -367,6 +423,7 @@ Also: `/gsd-plan-phase [N]` — skip discussion, plan directly
 <success_criteria>
 - [ ] PROJECT.md updated with Current Milestone section
 - [ ] STATE.md reset for new milestone
+- [ ] Intent reviewed/created for new milestone → committed (if changed)
 - [ ] MILESTONE-CONTEXT.md consumed and deleted (if existed)
 - [ ] Research completed (if selected) — 4 parallel agents, milestone-aware
 - [ ] Requirements gathered and scoped per category
