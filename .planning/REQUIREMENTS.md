@@ -14,7 +14,7 @@ Requirements for v3.0 Intent Engineering milestone. Each maps to roadmap phases.
 - [x] **ICAP-03**: Plugin can read and display intent via `intent read` / `intent show` commands with JSON output and human-readable formats
 - [x] **ICAP-04**: Plugin can update specific intent sections via `intent update` command without overwriting unmodified sections
 - [x] **ICAP-05**: New-project and new-milestone workflows include guided intent questionnaire that extracts objective, outcomes, and success criteria before proceeding
-- [ ] **ICAP-06**: Plugin tracks intent evolution across milestones, logging changes with reasoning in INTENT.md history section
+- [x] **ICAP-06**: Plugin tracks intent evolution across milestones, logging changes with reasoning in INTENT.md history section
 
 ### Intent Tracing
 
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ICAP-03 | Phase 14 | Complete |
 | ICAP-04 | Phase 14 | Complete |
 | ICAP-05 | Phase 17 | Complete |
-| ICAP-06 | Phase 17 | Pending |
+| ICAP-06 | Phase 17 | Complete |
 | ITRC-01 | Phase 15 | Complete |
 | ITRC-02 | Phase 15 | Complete |
 | ITRC-03 | Phase 15 | Complete |

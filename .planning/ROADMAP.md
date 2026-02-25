@@ -53,7 +53,7 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 14: Intent Capture Foundation** - INTENT.md template and CRUD commands for creating, reading, and updating project intent (completed 2026-02-25)
 - [x] **Phase 15: Intent Tracing & Validation** - Per-plan intent tracing, traceability matrix, coverage gap detection, and drift scoring (completed 2026-02-25)
 - [x] **Phase 16: Workflow Integration & Self-Application** - Inject intent context into all workflows and dog-food the system on GSD itself (completed 2026-02-25)
-- [ ] **Phase 17: Intent Enhancement** - Guided intent questionnaire for new projects and intent evolution tracking across milestones
+- [x] **Phase 17: Intent Enhancement** - Guided intent questionnaire for new projects and intent evolution tracking across milestones (completed 2026-02-25)
 
 ## Phase Details
 
@@ -114,7 +114,7 @@ Plans:
   1. New-project and new-milestone workflows ask guided questions to extract objective, desired outcomes, and success criteria before proceeding to requirements
   2. INTENT.md includes a history section that logs intent changes (additions, modifications, removals) with reasoning and milestone context
   3. Running `intent show` displays current intent plus a summary of how it has evolved
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 17-01-PLAN.md — Intent evolution tracking (history section in parser/generator/update/show)
@@ -140,4 +140,4 @@ Plans:
 | 14. Intent Capture Foundation | 3/3 | Complete    | 2026-02-25 | - |
 | 15. Intent Tracing & Validation | 2/2 | Complete    | 2026-02-25 | - |
 | 16. Workflow Integration & Self-Application | 3/3 | Complete    | 2026-02-25 | - |
-| 17. Intent Enhancement | 1/2 | In Progress|  | - |
+| 17. Intent Enhancement | 2/2 | Complete   | 2026-02-25 | - |

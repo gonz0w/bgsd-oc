@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 **Phase:** 17 of 17 (Intent Enhancement)
 **Current Plan:** 2 of 2
 **Total Plans in Phase:** 2
-**Status:** Phase complete
+**Status:** Phase complete — ready for verification
 **Last Activity:** 2026-02-25
 
 Progress: [██████████] 100%
@@ -42,6 +42,8 @@ Phase 14-01: Graceful parser degradation — missing sections return null/empty 
 - [Phase 16]: Intent-based verification is additive (Option D) — merges with existing truth sources, never replaces
 - [Phase 17]: Step 4.5 placement: after PROJECT.md creation but before requirements — intent guides requirements
 - [Phase 17]: new-milestone references new-project Step 4.5 for fresh intent creation (DRY)
+- [Phase 17]: History entries grouped by milestone+date, newest first
+- [Phase 17]: Advisory-only validation: history warnings don't fail validate
 
 ### Pending Todos
 
@@ -54,5 +56,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 17-02-PLAN.md (Phase 17 complete — milestone v3.0 complete)
+Stopped at: Completed 17-01-PLAN.md and 17-02-PLAN.md (Phase 17 complete — milestone v3.0 complete)
 Resume file: None
