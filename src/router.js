@@ -115,7 +115,10 @@ async function main() {
 
   // --help / -h: print command help to stderr (never contaminates JSON stdout)
   if (args.includes('--help') || args.includes('-h')) {
-    const helpKey = command || '';
+    // Try compound key first (e.g. "intent validate"), then fall back to command
+    const subForHelp = args[1] && !args[1].startsWith('-') ? args[1] : '';
+    const compoundKey = subForHelp ? `${command} ${subForHelp}` : '';
+    const helpKey = (compoundKey && COMMAND_HELP[compoundKey]) ? compoundKey : (command || '');
     const helpText = COMMAND_HELP[helpKey];
     if (helpText) {
       process.stderr.write(helpText + '\n');
