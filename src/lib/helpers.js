@@ -446,6 +446,7 @@ function parseIntentMd(content) {
       users: [], outcomes: [], criteria: [],
       constraints: { technical: [], business: [], timeline: [] },
       health: { quantitative: [], qualitative: '' },
+      history: [],
     };
   }
 
@@ -554,9 +555,43 @@ function parseIntentMd(content) {
     health.qualitative = qualLines.join('\n');
   }
 
+  // Parse history: milestone-grouped entries tracking intent evolution
+  const historyRaw = extractSection('history');
+  const history = [];
+  if (historyRaw) {
+    let currentEntry = null;
+    let currentChange = null;
+    for (const line of historyRaw.split('\n')) {
+      // New milestone entry: ### vX.Y — YYYY-MM-DD
+      const milestoneMatch = line.match(/^###\s+(v[\d.]+)\s+[—–-]\s+(\d{4}-\d{2}-\d{2})/);
+      if (milestoneMatch) {
+        if (currentChange && currentEntry) currentEntry.changes.push(currentChange);
+        currentChange = null;
+        if (currentEntry) history.push(currentEntry);
+        currentEntry = { milestone: milestoneMatch[1], date: milestoneMatch[2], changes: [] };
+        continue;
+      }
+      // Change line: - **Type** target: description
+      const changeMatch = line.match(/^\s*-\s+\*\*(Added|Modified|Removed)\*\*\s+(.+?):\s*(.+)/);
+      if (changeMatch && currentEntry) {
+        if (currentChange) currentEntry.changes.push(currentChange);
+        currentChange = { type: changeMatch[1], target: changeMatch[2], description: changeMatch[3].trim() };
+        continue;
+      }
+      // Reason line:   - Reason: text
+      const reasonMatch = line.match(/^\s+-\s+Reason:\s*(.+)/);
+      if (reasonMatch && currentChange) {
+        currentChange.reason = reasonMatch[1].trim();
+        continue;
+      }
+    }
+    if (currentChange && currentEntry) currentEntry.changes.push(currentChange);
+    if (currentEntry) history.push(currentEntry);
+  }
+
   return {
     revision, created, updated,
-    objective, users, outcomes, criteria, constraints, health,
+    objective, users, outcomes, criteria, constraints, health, history,
   };
 }
 
@@ -677,6 +712,23 @@ function generateIntentMd(data) {
   }
   lines.push('</health>');
   lines.push('');
+
+  // History (optional — only written if entries exist)
+  if (data.history && data.history.length > 0) {
+    lines.push('<history>');
+    for (const entry of data.history) {
+      lines.push(`### ${entry.milestone} — ${entry.date}`);
+      for (const change of entry.changes) {
+        lines.push(`- **${change.type}** ${change.target}: ${change.description}`);
+        if (change.reason) {
+          lines.push(`  - Reason: ${change.reason}`);
+        }
+      }
+      lines.push('');
+    }
+    lines.push('</history>');
+    lines.push('');
+  }
 
   return lines.join('\n');
 }

@@ -55,6 +55,7 @@ function cmdIntentCreate(cwd, args, raw) {
     criteria: [],
     constraints: { technical: [], business: [], timeline: [] },
     health: { quantitative: [], qualitative: '' },
+    history: [],
   };
 
   // Populate from flags if provided
@@ -120,7 +121,7 @@ function cmdIntentCreate(cwd, args, raw) {
 
 // ─── Intent Show / Read ──────────────────────────────────────────────────────
 
-const SECTION_ALIASES = ['objective', 'users', 'outcomes', 'criteria', 'constraints', 'health'];
+const SECTION_ALIASES = ['objective', 'users', 'outcomes', 'criteria', 'constraints', 'health', 'history'];
 
 function cmdIntentShow(cwd, args, raw) {
   const planningDir = path.join(cwd, '.planning');
@@ -233,6 +234,13 @@ function renderCompactSummary(data) {
   // Target users
   lines.push(`Target Users: ${data.users.length} audience${data.users.length !== 1 ? 's' : ''}`);
 
+  // Evolution summary (if history exists)
+  if (data.history && data.history.length > 0) {
+    const totalChanges = data.history.reduce((sum, e) => sum + e.changes.length, 0);
+    const milestones = data.history.map(e => e.milestone).join(', ');
+    lines.push(`Evolution: ${totalChanges} change${totalChanges !== 1 ? 's' : ''} across ${milestones}`);
+  }
+
   return lines.join('\n') + '\n';
 }
 
@@ -344,6 +352,25 @@ function renderSection(data, section) {
         lines.push('(none defined)');
       }
       break;
+
+    case 'history':
+      lines.push('## Intent Evolution');
+      lines.push('');
+      if (data.history && data.history.length > 0) {
+        for (const entry of data.history) {
+          lines.push(`### ${entry.milestone} — ${entry.date}`);
+          for (const change of entry.changes) {
+            lines.push(`- **${change.type}** ${change.target}: ${change.description}`);
+            if (change.reason) {
+              lines.push(`  - Reason: ${change.reason}`);
+            }
+          }
+          lines.push('');
+        }
+      } else {
+        lines.push('(no history recorded)');
+      }
+      break;
   }
 
   return lines.join('\n') + '\n';
@@ -373,8 +400,34 @@ function cmdIntentUpdate(cwd, args, raw) {
     error('No INTENT.md found. Run `intent create` first.');
   }
 
+  // Parse --reason flag before anything else
+  const reasonIndex = args.indexOf('--reason');
+  let reason = null;
+  if (reasonIndex !== -1) {
+    const reasonParts = [];
+    for (let i = reasonIndex + 1; i < args.length; i++) {
+      if (args[i].startsWith('--')) break;
+      reasonParts.push(args[i]);
+    }
+    reason = reasonParts.join(' ') || null;
+    // Remove --reason and its value from args
+    args.splice(reasonIndex, reasonParts.length + 1);
+  }
+
   const content = fs.readFileSync(intentPath, 'utf-8');
   const data = parseIntentMd(content);
+
+  // Snapshot sections before modification for history diffing
+  const oldOutcomeIds = new Set((data.outcomes || []).map(o => o.id));
+  const oldCriteriaIds = new Set((data.criteria || []).map(c => c.id));
+  const oldConstraintIds = new Set([
+    ...(data.constraints.technical || []).map(c => c.id),
+    ...(data.constraints.business || []).map(c => c.id),
+    ...(data.constraints.timeline || []).map(c => c.id),
+  ]);
+  const oldHealthIds = new Set((data.health.quantitative || []).map(m => m.id));
+  const oldUserTexts = new Set((data.users || []).map(u => u.text));
+  const oldObjective = data.objective ? data.objective.statement : '';
 
   // Extract section alias
   const section = args.length > 0 && SECTION_ALIASES.includes(args[0]) ? args[0] : null;
@@ -522,6 +575,108 @@ function cmdIntentUpdate(cwd, args, raw) {
   // Increment revision and update timestamp
   data.revision = (data.revision || 0) + 1;
   data.updated = new Date().toISOString().split('T')[0];
+
+  // ── Auto-log history entry ──
+  // Detect what changed and build history changes
+  const historyChanges = [];
+  const defaultReason = reason || `Updated via intent update ${section}`;
+
+  if (section === 'outcomes') {
+    const newOutcomeIds = new Set((data.outcomes || []).map(o => o.id));
+    // Added
+    for (const o of (data.outcomes || [])) {
+      if (!oldOutcomeIds.has(o.id)) {
+        historyChanges.push({ type: 'Added', target: `${o.id} [${o.priority}]`, description: o.text, reason: defaultReason });
+      }
+    }
+    // Removed
+    for (const id of oldOutcomeIds) {
+      if (!newOutcomeIds.has(id)) {
+        historyChanges.push({ type: 'Removed', target: id, description: `Removed from outcomes`, reason: defaultReason });
+      }
+    }
+    // Modified (priority change)
+    if (operation === 'set-priority' && operationDetail) {
+      historyChanges.push({ type: 'Modified', target: operationDetail.id, description: `Priority changed to ${operationDetail.priority}`, reason: defaultReason });
+    }
+  } else if (section === 'criteria') {
+    const newCriteriaIds = new Set((data.criteria || []).map(c => c.id));
+    for (const c of (data.criteria || [])) {
+      if (!oldCriteriaIds.has(c.id)) {
+        historyChanges.push({ type: 'Added', target: c.id, description: c.text, reason: defaultReason });
+      }
+    }
+    for (const id of oldCriteriaIds) {
+      if (!newCriteriaIds.has(id)) {
+        historyChanges.push({ type: 'Removed', target: id, description: `Removed from criteria`, reason: defaultReason });
+      }
+    }
+  } else if (section === 'constraints') {
+    const allNewConstraints = [
+      ...(data.constraints.technical || []),
+      ...(data.constraints.business || []),
+      ...(data.constraints.timeline || []),
+    ];
+    const newConstraintIds = new Set(allNewConstraints.map(c => c.id));
+    for (const c of allNewConstraints) {
+      if (!oldConstraintIds.has(c.id)) {
+        historyChanges.push({ type: 'Added', target: c.id, description: c.text, reason: defaultReason });
+      }
+    }
+    for (const id of oldConstraintIds) {
+      if (!newConstraintIds.has(id)) {
+        historyChanges.push({ type: 'Removed', target: id, description: `Removed from constraints`, reason: defaultReason });
+      }
+    }
+  } else if (section === 'health') {
+    const newHealthIds = new Set((data.health.quantitative || []).map(m => m.id));
+    for (const m of (data.health.quantitative || [])) {
+      if (!oldHealthIds.has(m.id)) {
+        historyChanges.push({ type: 'Added', target: m.id, description: m.text, reason: defaultReason });
+      }
+    }
+    for (const id of oldHealthIds) {
+      if (!newHealthIds.has(id)) {
+        historyChanges.push({ type: 'Removed', target: id, description: `Removed from health metrics`, reason: defaultReason });
+      }
+    }
+  } else if (section === 'users') {
+    const newUserTexts = new Set((data.users || []).map(u => u.text));
+    for (const u of (data.users || [])) {
+      if (!oldUserTexts.has(u.text)) {
+        historyChanges.push({ type: 'Added', target: 'user', description: u.text, reason: defaultReason });
+      }
+    }
+    for (const text of oldUserTexts) {
+      if (!newUserTexts.has(text)) {
+        historyChanges.push({ type: 'Removed', target: 'user', description: text, reason: defaultReason });
+      }
+    }
+  } else if (section === 'objective') {
+    const newObjective = data.objective ? data.objective.statement : '';
+    if (newObjective !== oldObjective) {
+      historyChanges.push({ type: 'Modified', target: 'objective', description: newObjective, reason: defaultReason });
+    }
+  }
+
+  // Append history changes if any detected
+  if (historyChanges.length > 0) {
+    if (!data.history) data.history = [];
+
+    // Get current milestone version from ROADMAP.md
+    const milestone = getMilestoneInfo(cwd);
+    const milestoneVersion = milestone.version || 'unknown';
+    const today = new Date().toISOString().split('T')[0];
+
+    // Find or create entry for this milestone+date
+    let entry = data.history.find(e => e.milestone === milestoneVersion && e.date === today);
+    if (entry) {
+      entry.changes.push(...historyChanges);
+    } else {
+      entry = { milestone: milestoneVersion, date: today, changes: historyChanges };
+      data.history.unshift(entry); // newest first
+    }
+  }
 
   // Regenerate and write
   const newContent = generateIntentMd(data);
@@ -760,6 +915,38 @@ function cmdIntentValidate(cwd, args, raw) {
     issues.push({ section: 'health', type: 'missing', message: 'Health Metrics: missing or empty' });
   }
 
+  // ── History check (advisory, not blocking) ──
+  const warnings = [];
+  if (data.history && data.history.length > 0) {
+    const historyWarnings = [];
+    for (const entry of data.history) {
+      if (!entry.milestone) {
+        historyWarnings.push('History entry missing milestone');
+      }
+      if (!entry.date || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date)) {
+        historyWarnings.push(`History entry has invalid date: ${entry.date || '(empty)'}`);
+      }
+      for (const change of (entry.changes || [])) {
+        if (!change.type || !['Added', 'Modified', 'Removed'].includes(change.type)) {
+          historyWarnings.push(`History change has invalid type: ${change.type || '(empty)'}`);
+        }
+        if (!change.target) {
+          historyWarnings.push('History change missing target');
+        }
+      }
+    }
+    if (historyWarnings.length > 0) {
+      sections.history = { valid: false, count: data.history.length, issues: historyWarnings };
+      // Advisory only — warnings don't affect valid status
+      for (const warn of historyWarnings) {
+        warnings.push({ section: 'history', type: 'warning', message: `History: ${warn}` });
+      }
+    } else {
+      sections.history = { valid: true, count: data.history.length };
+    }
+  }
+  // History is optional — no issues if absent
+
   // ── Revision check ──
   const revision = data.revision;
   const revisionValid = revision !== null && Number.isInteger(revision) && revision > 0;
@@ -774,6 +961,7 @@ function cmdIntentValidate(cwd, args, raw) {
   const result = {
     valid,
     issues,
+    warnings,
     sections,
     revision: revision || null,
   };
@@ -835,9 +1023,21 @@ function cmdIntentValidate(cwd, args, raw) {
       lines.push(`${sym(false)} Revision: missing or invalid`);
     }
 
+    // History (advisory)
+    if (sections.history) {
+      if (sections.history.valid) {
+        lines.push(`${sym(true)} History: ${sections.history.count} milestone${sections.history.count !== 1 ? 's' : ''} recorded`);
+      } else {
+        lines.push(`⚠ History: ${(sections.history.issues || []).join('; ')}`);
+      }
+    }
+
     lines.push('');
     if (valid) {
       lines.push('Result: valid');
+      if (warnings.length > 0) {
+        lines.push(`Warnings: ${warnings.length} advisory issue${warnings.length !== 1 ? 's' : ''}`);
+      }
     } else {
       lines.push(`Result: ${issues.length} issue${issues.length !== 1 ? 's' : ''} found`);
     }

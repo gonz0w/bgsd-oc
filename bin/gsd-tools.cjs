@@ -1531,7 +1531,8 @@ var require_helpers = __commonJS({
           outcomes: [],
           criteria: [],
           constraints: { technical: [], business: [], timeline: [] },
-          health: { quantitative: [], qualitative: "" }
+          health: { quantitative: [], qualitative: "" },
+          history: []
         };
       }
       const revisionMatch = content.match(/\*\*Revision:\*\*\s*(\d+)/);
@@ -1639,6 +1640,35 @@ var require_helpers = __commonJS({
         }
         health.qualitative = qualLines.join("\n");
       }
+      const historyRaw = extractSection("history");
+      const history = [];
+      if (historyRaw) {
+        let currentEntry = null;
+        let currentChange = null;
+        for (const line of historyRaw.split("\n")) {
+          const milestoneMatch = line.match(/^###\s+(v[\d.]+)\s+[—–-]\s+(\d{4}-\d{2}-\d{2})/);
+          if (milestoneMatch) {
+            if (currentChange && currentEntry) currentEntry.changes.push(currentChange);
+            currentChange = null;
+            if (currentEntry) history.push(currentEntry);
+            currentEntry = { milestone: milestoneMatch[1], date: milestoneMatch[2], changes: [] };
+            continue;
+          }
+          const changeMatch = line.match(/^\s*-\s+\*\*(Added|Modified|Removed)\*\*\s+(.+?):\s*(.+)/);
+          if (changeMatch && currentEntry) {
+            if (currentChange) currentEntry.changes.push(currentChange);
+            currentChange = { type: changeMatch[1], target: changeMatch[2], description: changeMatch[3].trim() };
+            continue;
+          }
+          const reasonMatch = line.match(/^\s+-\s+Reason:\s*(.+)/);
+          if (reasonMatch && currentChange) {
+            currentChange.reason = reasonMatch[1].trim();
+            continue;
+          }
+        }
+        if (currentChange && currentEntry) currentEntry.changes.push(currentChange);
+        if (currentEntry) history.push(currentEntry);
+      }
       return {
         revision,
         created,
@@ -1648,7 +1678,8 @@ var require_helpers = __commonJS({
         outcomes,
         criteria,
         constraints,
-        health
+        health,
+        history
       };
     }
     function generateIntentMd(data) {
@@ -1750,6 +1781,21 @@ var require_helpers = __commonJS({
       }
       lines.push("</health>");
       lines.push("");
+      if (data.history && data.history.length > 0) {
+        lines.push("<history>");
+        for (const entry of data.history) {
+          lines.push(`### ${entry.milestone} \u2014 ${entry.date}`);
+          for (const change of entry.changes) {
+            lines.push(`- **${change.type}** ${change.target}: ${change.description}`);
+            if (change.reason) {
+              lines.push(`  - Reason: ${change.reason}`);
+            }
+          }
+          lines.push("");
+        }
+        lines.push("</history>");
+        lines.push("");
+      }
       return lines.join("\n");
     }
     function parsePlanIntent(content) {
@@ -4878,7 +4924,8 @@ var require_intent = __commonJS({
         outcomes: [],
         criteria: [],
         constraints: { technical: [], business: [], timeline: [] },
-        health: { quantitative: [], qualitative: "" }
+        health: { quantitative: [], qualitative: "" },
+        history: []
       };
       const objectiveText = getFlag("--objective");
       if (objectiveText) {
@@ -4926,7 +4973,7 @@ var require_intent = __commonJS({
       };
       output(result, raw, commitHash || "created");
     }
-    var SECTION_ALIASES = ["objective", "users", "outcomes", "criteria", "constraints", "health"];
+    var SECTION_ALIASES = ["objective", "users", "outcomes", "criteria", "constraints", "health", "history"];
     function cmdIntentShow(cwd, args, raw) {
       const planningDir = path.join(cwd, ".planning");
       const intentPath = path.join(planningDir, "INTENT.md");
@@ -5001,6 +5048,11 @@ var require_intent = __commonJS({
       const hasQual = data.health.qualitative && data.health.qualitative.trim() ? "defined" : "none";
       lines.push(`Health Metrics: ${quantCount} quantitative, qualitative ${hasQual}`);
       lines.push(`Target Users: ${data.users.length} audience${data.users.length !== 1 ? "s" : ""}`);
+      if (data.history && data.history.length > 0) {
+        const totalChanges = data.history.reduce((sum, e) => sum + e.changes.length, 0);
+        const milestones = data.history.map((e) => e.milestone).join(", ");
+        lines.push(`Evolution: ${totalChanges} change${totalChanges !== 1 ? "s" : ""} across ${milestones}`);
+      }
       return lines.join("\n") + "\n";
     }
     function renderSection(data, section) {
@@ -5102,6 +5154,24 @@ var require_intent = __commonJS({
             lines.push("(none defined)");
           }
           break;
+        case "history":
+          lines.push("## Intent Evolution");
+          lines.push("");
+          if (data.history && data.history.length > 0) {
+            for (const entry of data.history) {
+              lines.push(`### ${entry.milestone} \u2014 ${entry.date}`);
+              for (const change of entry.changes) {
+                lines.push(`- **${change.type}** ${change.target}: ${change.description}`);
+                if (change.reason) {
+                  lines.push(`  - Reason: ${change.reason}`);
+                }
+              }
+              lines.push("");
+            }
+          } else {
+            lines.push("(no history recorded)");
+          }
+          break;
       }
       return lines.join("\n") + "\n";
     }
@@ -5124,8 +5194,29 @@ var require_intent = __commonJS({
       if (!fs.existsSync(intentPath)) {
         error("No INTENT.md found. Run `intent create` first.");
       }
+      const reasonIndex = args.indexOf("--reason");
+      let reason = null;
+      if (reasonIndex !== -1) {
+        const reasonParts = [];
+        for (let i = reasonIndex + 1; i < args.length; i++) {
+          if (args[i].startsWith("--")) break;
+          reasonParts.push(args[i]);
+        }
+        reason = reasonParts.join(" ") || null;
+        args.splice(reasonIndex, reasonParts.length + 1);
+      }
       const content = fs.readFileSync(intentPath, "utf-8");
       const data = parseIntentMd(content);
+      const oldOutcomeIds = new Set((data.outcomes || []).map((o) => o.id));
+      const oldCriteriaIds = new Set((data.criteria || []).map((c) => c.id));
+      const oldConstraintIds = /* @__PURE__ */ new Set([
+        ...(data.constraints.technical || []).map((c) => c.id),
+        ...(data.constraints.business || []).map((c) => c.id),
+        ...(data.constraints.timeline || []).map((c) => c.id)
+      ]);
+      const oldHealthIds = new Set((data.health.quantitative || []).map((m) => m.id));
+      const oldUserTexts = new Set((data.users || []).map((u) => u.text));
+      const oldObjective = data.objective ? data.objective.statement : "";
       const section = args.length > 0 && SECTION_ALIASES.includes(args[0]) ? args[0] : null;
       if (!section) {
         error("Usage: intent update <section> [--add|--remove|--set-priority|--value] [value]\nSections: objective, users, outcomes, criteria, constraints, health");
@@ -5246,6 +5337,95 @@ var require_intent = __commonJS({
       }
       data.revision = (data.revision || 0) + 1;
       data.updated = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      const historyChanges = [];
+      const defaultReason = reason || `Updated via intent update ${section}`;
+      if (section === "outcomes") {
+        const newOutcomeIds = new Set((data.outcomes || []).map((o) => o.id));
+        for (const o of data.outcomes || []) {
+          if (!oldOutcomeIds.has(o.id)) {
+            historyChanges.push({ type: "Added", target: `${o.id} [${o.priority}]`, description: o.text, reason: defaultReason });
+          }
+        }
+        for (const id of oldOutcomeIds) {
+          if (!newOutcomeIds.has(id)) {
+            historyChanges.push({ type: "Removed", target: id, description: `Removed from outcomes`, reason: defaultReason });
+          }
+        }
+        if (operation === "set-priority" && operationDetail) {
+          historyChanges.push({ type: "Modified", target: operationDetail.id, description: `Priority changed to ${operationDetail.priority}`, reason: defaultReason });
+        }
+      } else if (section === "criteria") {
+        const newCriteriaIds = new Set((data.criteria || []).map((c) => c.id));
+        for (const c of data.criteria || []) {
+          if (!oldCriteriaIds.has(c.id)) {
+            historyChanges.push({ type: "Added", target: c.id, description: c.text, reason: defaultReason });
+          }
+        }
+        for (const id of oldCriteriaIds) {
+          if (!newCriteriaIds.has(id)) {
+            historyChanges.push({ type: "Removed", target: id, description: `Removed from criteria`, reason: defaultReason });
+          }
+        }
+      } else if (section === "constraints") {
+        const allNewConstraints = [
+          ...data.constraints.technical || [],
+          ...data.constraints.business || [],
+          ...data.constraints.timeline || []
+        ];
+        const newConstraintIds = new Set(allNewConstraints.map((c) => c.id));
+        for (const c of allNewConstraints) {
+          if (!oldConstraintIds.has(c.id)) {
+            historyChanges.push({ type: "Added", target: c.id, description: c.text, reason: defaultReason });
+          }
+        }
+        for (const id of oldConstraintIds) {
+          if (!newConstraintIds.has(id)) {
+            historyChanges.push({ type: "Removed", target: id, description: `Removed from constraints`, reason: defaultReason });
+          }
+        }
+      } else if (section === "health") {
+        const newHealthIds = new Set((data.health.quantitative || []).map((m) => m.id));
+        for (const m of data.health.quantitative || []) {
+          if (!oldHealthIds.has(m.id)) {
+            historyChanges.push({ type: "Added", target: m.id, description: m.text, reason: defaultReason });
+          }
+        }
+        for (const id of oldHealthIds) {
+          if (!newHealthIds.has(id)) {
+            historyChanges.push({ type: "Removed", target: id, description: `Removed from health metrics`, reason: defaultReason });
+          }
+        }
+      } else if (section === "users") {
+        const newUserTexts = new Set((data.users || []).map((u) => u.text));
+        for (const u of data.users || []) {
+          if (!oldUserTexts.has(u.text)) {
+            historyChanges.push({ type: "Added", target: "user", description: u.text, reason: defaultReason });
+          }
+        }
+        for (const text of oldUserTexts) {
+          if (!newUserTexts.has(text)) {
+            historyChanges.push({ type: "Removed", target: "user", description: text, reason: defaultReason });
+          }
+        }
+      } else if (section === "objective") {
+        const newObjective = data.objective ? data.objective.statement : "";
+        if (newObjective !== oldObjective) {
+          historyChanges.push({ type: "Modified", target: "objective", description: newObjective, reason: defaultReason });
+        }
+      }
+      if (historyChanges.length > 0) {
+        if (!data.history) data.history = [];
+        const milestone = getMilestoneInfo(cwd);
+        const milestoneVersion = milestone.version || "unknown";
+        const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+        let entry = data.history.find((e) => e.milestone === milestoneVersion && e.date === today);
+        if (entry) {
+          entry.changes.push(...historyChanges);
+        } else {
+          entry = { milestone: milestoneVersion, date: today, changes: historyChanges };
+          data.history.unshift(entry);
+        }
+      }
       const newContent = generateIntentMd(data);
       fs.writeFileSync(intentPath, newContent, "utf-8");
       const config = loadConfig(cwd);
@@ -5439,6 +5619,34 @@ var require_intent = __commonJS({
         sections.health = { valid: false, quantitative_count: 0, qualitative: false, issues: ["missing or empty"] };
         issues.push({ section: "health", type: "missing", message: "Health Metrics: missing or empty" });
       }
+      const warnings = [];
+      if (data.history && data.history.length > 0) {
+        const historyWarnings = [];
+        for (const entry of data.history) {
+          if (!entry.milestone) {
+            historyWarnings.push("History entry missing milestone");
+          }
+          if (!entry.date || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date)) {
+            historyWarnings.push(`History entry has invalid date: ${entry.date || "(empty)"}`);
+          }
+          for (const change of entry.changes || []) {
+            if (!change.type || !["Added", "Modified", "Removed"].includes(change.type)) {
+              historyWarnings.push(`History change has invalid type: ${change.type || "(empty)"}`);
+            }
+            if (!change.target) {
+              historyWarnings.push("History change missing target");
+            }
+          }
+        }
+        if (historyWarnings.length > 0) {
+          sections.history = { valid: false, count: data.history.length, issues: historyWarnings };
+          for (const warn of historyWarnings) {
+            warnings.push({ section: "history", type: "warning", message: `History: ${warn}` });
+          }
+        } else {
+          sections.history = { valid: true, count: data.history.length };
+        }
+      }
       const revision = data.revision;
       const revisionValid = revision !== null && Number.isInteger(revision) && revision > 0;
       const valid = issues.length === 0 && revisionValid;
@@ -5448,6 +5656,7 @@ var require_intent = __commonJS({
       const result = {
         valid,
         issues,
+        warnings,
         sections,
         revision: revision || null
       };
@@ -5495,9 +5704,19 @@ var require_intent = __commonJS({
         } else {
           lines.push(`${sym(false)} Revision: missing or invalid`);
         }
+        if (sections.history) {
+          if (sections.history.valid) {
+            lines.push(`${sym(true)} History: ${sections.history.count} milestone${sections.history.count !== 1 ? "s" : ""} recorded`);
+          } else {
+            lines.push(`\u26A0 History: ${(sections.history.issues || []).join("; ")}`);
+          }
+        }
         lines.push("");
         if (valid) {
           lines.push("Result: valid");
+          if (warnings.length > 0) {
+            lines.push(`Warnings: ${warnings.length} advisory issue${warnings.length !== 1 ? "s" : ""}`);
+          }
         } else {
           lines.push(`Result: ${issues.length} issue${issues.length !== 1 ? "s" : ""} found`);
         }
