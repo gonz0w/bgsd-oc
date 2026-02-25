@@ -158,6 +158,6 @@ Plans:
 | 17. Intent Enhancement | v3.0 | 2/2 | Complete | 2026-02-25 |
 | 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
 | 19. MCP Server Profiling | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
-| 20. Structured Requirements | v4.0 | 3/3 | Complete | 2026-02-25 |
+| 20. Structured Requirements | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
 | 21. Worktree Parallelism | v4.0 | 0/? | Not started | - |
 | 22. Workflow Polish | v4.0 | 0/? | Not started | - |
