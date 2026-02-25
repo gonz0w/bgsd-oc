@@ -62,7 +62,7 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
   - Total potential savings in tokens and % of context window
   - Reasoning per recommendation
 
-- [ ] **MCP-05**: CLI can auto-disable servers in config files
+- [x] **MCP-05**: CLI can auto-disable servers in config files
   - Set `enabled: false` in opencode.json for recommended servers
   - Create backup of original config before modification
   - `mcp-profile --apply` flag to execute recommendations
@@ -179,7 +179,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MCP-02 | Phase 19 | Complete |
 | MCP-03 | Phase 19 | Complete |
 | MCP-04 | Phase 19 | Complete |
-| MCP-05 | Phase 19 | Pending |
+| MCP-05 | Phase 19 | Complete |
 | SREQ-01 | Phase 20 | Pending |
 | SREQ-02 | Phase 20 | Pending |
 | SREQ-03 | Phase 20 | Pending |

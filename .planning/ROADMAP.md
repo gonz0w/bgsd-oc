@@ -62,7 +62,7 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 ## Active Milestone: v4.0 Environment & Execution Intelligence
 
 - [x] **Phase 18: Environment Awareness** — Detect project languages, tools, and runtimes; produce machine-readable manifest (completed 2026-02-25)
-- [ ] **Phase 19: MCP Server Profiling** — Estimate MCP token costs, score relevance, recommend disabling wasteful servers
+- [x] **Phase 19: MCP Server Profiling** — Estimate MCP token costs, score relevance, recommend disabling wasteful servers (completed 2026-02-25)
 - [ ] **Phase 20: Structured Requirements** — Upgrade requirements with testable assertions, test mapping, and verifier integration
 - [ ] **Phase 21: Worktree Parallelism** — Create, manage, and merge git worktrees for parallel plan execution
 - [ ] **Phase 22: Workflow Polish** — Complete-and-clear workflow for session handoffs
@@ -93,11 +93,11 @@ Plans:
   2. `mcp-profile` shows per-server token cost estimate and total context window percentage (e.g., "GitHub: ~46K tokens, 23% of 200K window")
   3. `mcp-profile` scores each server as relevant/possibly-relevant/not-relevant based on project files and recommends keep/disable/review with reasoning
   4. `mcp-profile --apply` disables recommended servers in config with backup, and `--restore` undoes the change
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 Plans:
 - [x] 19-01-PLAN.md — Server discovery from .mcp.json/opencode.json + known-server token estimation database
-- [ ] 19-02-PLAN.md — Project-aware relevance scoring + keep/disable/review recommendations
-- [ ] 19-03-PLAN.md — Auto-disable with backup and restore functionality
+- [x] 19-02-PLAN.md — Project-aware relevance scoring + keep/disable/review recommendations
+- [x] 19-03-PLAN.md — Auto-disable with backup and restore functionality
 
 ### Phase 20: Structured Requirements
 **Goal**: Requirements carry testable acceptance criteria that flow through planning into verification, closing the loop between "what we said" and "what we proved"
@@ -153,7 +153,7 @@ Plans:
 | 16. Workflow Integration & Self-Application | v3.0 | 3/3 | Complete | 2026-02-25 |
 | 17. Intent Enhancement | v3.0 | 2/2 | Complete | 2026-02-25 |
 | 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
-| 19. MCP Server Profiling | 2/3 | In Progress|  | - |
+| 19. MCP Server Profiling | v4.0 | 3/3 | Complete | 2026-02-25 |
 | 20. Structured Requirements | v4.0 | 0/? | Not started | - |
 | 21. Worktree Parallelism | v4.0 | 0/? | Not started | - |
 | 22. Workflow Polish | v4.0 | 0/? | Not started | - |
