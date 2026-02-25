@@ -7384,6 +7384,547 @@ var require_env = __commonJS({
   }
 });
 
+// src/commands/worktree.js
+var require_worktree = __commonJS({
+  "src/commands/worktree.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var os = require("os");
+    var { execSync } = require("child_process");
+    var { output, error, debugLog } = require_output();
+    var { execGit } = require_git();
+    var { loadConfig } = require_config();
+    var { extractFrontmatter } = require_frontmatter();
+    var WORKTREE_DEFAULTS = {
+      enabled: false,
+      base_path: "/tmp/gsd-worktrees",
+      sync_files: [".env", ".env.local", ".planning/config.json"],
+      setup_hooks: [],
+      max_concurrent: 3
+    };
+    function getWorktreeConfig(cwd) {
+      const defaults = { ...WORKTREE_DEFAULTS };
+      try {
+        const configPath = path.join(cwd, ".planning", "config.json");
+        const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        if (raw.worktree && typeof raw.worktree === "object") {
+          return { ...defaults, ...raw.worktree };
+        }
+      } catch {
+        debugLog("worktree.config", "No worktree config found, using defaults");
+      }
+      return defaults;
+    }
+    function getProjectName(cwd) {
+      return path.basename(cwd);
+    }
+    function parsePlanId(planId) {
+      if (!planId) return null;
+      const match = planId.match(/^(\d+(?:\.\d+)?)-(\d+)$/);
+      if (!match) return null;
+      return { phase: match[1], plan: match[2] };
+    }
+    function getWaveFromPlan(cwd, planId) {
+      const parsed = parsePlanId(planId);
+      if (!parsed) return "0";
+      const phasesDir = path.join(cwd, ".planning", "phases");
+      try {
+        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+        const phaseDir = entries.find((e) => e.isDirectory() && e.name.startsWith(parsed.phase.padStart(2, "0")));
+        if (!phaseDir) return "0";
+        const planFile = path.join(phasesDir, phaseDir.name, `${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-PLAN.md`);
+        if (!fs.existsSync(planFile)) return "0";
+        const content = fs.readFileSync(planFile, "utf-8");
+        const waveMatch = content.match(/^wave:\s*(\d+)/m);
+        return waveMatch ? waveMatch[1] : "0";
+      } catch {
+        return "0";
+      }
+    }
+    function parseWorktreeListPorcelain(porcelainOutput) {
+      if (!porcelainOutput || !porcelainOutput.trim()) return [];
+      const worktrees = [];
+      const blocks = porcelainOutput.split("\n\n");
+      for (const block of blocks) {
+        if (!block.trim()) continue;
+        const lines = block.trim().split("\n");
+        const wt = {};
+        for (const line of lines) {
+          if (line.startsWith("worktree ")) {
+            wt.path = line.slice("worktree ".length);
+          } else if (line.startsWith("HEAD ")) {
+            wt.head = line.slice("HEAD ".length);
+          } else if (line.startsWith("branch ")) {
+            wt.branch = line.slice("branch ".length).replace("refs/heads/", "");
+          } else if (line === "bare") {
+            wt.bare = true;
+          } else if (line === "detached") {
+            wt.detached = true;
+          }
+        }
+        if (wt.path) worktrees.push(wt);
+      }
+      return worktrees;
+    }
+    function getDiskUsage(dirPath) {
+      try {
+        const result = execSync(`du -sh "${dirPath}" 2>/dev/null`, {
+          encoding: "utf-8",
+          timeout: 5e3
+        }).trim();
+        const match = result.match(/^([\d.]+[BKMGT]?)\s/);
+        return match ? match[1] : "unknown";
+      } catch {
+        return "unknown";
+      }
+    }
+    function getAvailableDiskMB(dirPath) {
+      try {
+        const result = execSync(`df -k "${dirPath}" 2>/dev/null | tail -1`, {
+          encoding: "utf-8",
+          timeout: 5e3
+        }).trim();
+        const parts = result.split(/\s+/);
+        const availKB = parseInt(parts[3], 10);
+        return isNaN(availKB) ? null : Math.round(availKB / 1024);
+      } catch {
+        return null;
+      }
+    }
+    function getProjectSizeMB(cwd) {
+      try {
+        const result = execSync(`du -sm "${cwd}" 2>/dev/null`, {
+          encoding: "utf-8",
+          timeout: 1e4
+        }).trim();
+        const match = result.match(/^(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+      } catch {
+        return null;
+      }
+    }
+    function cmdWorktreeCreate(cwd, planId, raw) {
+      if (!planId) {
+        error("Usage: gsd-tools worktree create <plan-id>\n\nplan-id format: NN-MM (e.g., 21-02)");
+      }
+      const parsed = parsePlanId(planId);
+      if (!parsed) {
+        error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
+      }
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const wave = getWaveFromPlan(cwd, planId);
+      const branchName = `worktree-${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-${wave}`;
+      const worktreePath = path.join(config.base_path, projectName, planId);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode === 0) {
+        const existing = parseWorktreeListPorcelain(listResult.stdout);
+        const alreadyExists = existing.some((wt) => wt.path === worktreePath || wt.branch === branchName);
+        if (alreadyExists) {
+          error(`Worktree already exists for plan ${planId} (path: ${worktreePath}, branch: ${branchName})`);
+        }
+        const projectWorktrees = existing.filter(
+          (wt) => wt.path && wt.path.startsWith(path.join(config.base_path, projectName))
+        );
+        if (projectWorktrees.length >= config.max_concurrent) {
+          error(`Max concurrent worktrees (${config.max_concurrent}) reached. Remove a worktree first or increase max_concurrent in config.`);
+        }
+      }
+      const freeMemMB = Math.round(os.freemem() / (1024 * 1024));
+      const requiredMemMB = config.max_concurrent * 4096;
+      const resourceWarnings = [];
+      if (freeMemMB < requiredMemMB) {
+        resourceWarnings.push(`Low memory: ${freeMemMB}MB free, estimated need ${requiredMemMB}MB for ${config.max_concurrent} concurrent worktrees`);
+      }
+      const projectSizeMB = getProjectSizeMB(cwd);
+      if (projectSizeMB) {
+        const neededMB = Math.round(projectSizeMB * 1.5);
+        const basePathParent = path.dirname(config.base_path);
+        const availMB = getAvailableDiskMB(fs.existsSync(config.base_path) ? config.base_path : basePathParent);
+        if (availMB !== null && availMB < neededMB) {
+          resourceWarnings.push(`Low disk: ${availMB}MB available at ${config.base_path}, estimated need ${neededMB}MB`);
+        }
+      }
+      const projectWorktreeDir = path.join(config.base_path, projectName);
+      try {
+        fs.mkdirSync(projectWorktreeDir, { recursive: true });
+      } catch (e) {
+        error(`Failed to create worktree base directory: ${projectWorktreeDir}: ${e.message}`);
+      }
+      const createResult = execGit(cwd, ["worktree", "add", "-b", branchName, worktreePath]);
+      if (createResult.exitCode !== 0) {
+        error(`Failed to create worktree: ${createResult.stderr}`);
+      }
+      const syncedFiles = [];
+      for (const syncFile of config.sync_files) {
+        const srcPath = path.join(cwd, syncFile);
+        const destPath = path.join(worktreePath, syncFile);
+        try {
+          if (fs.existsSync(srcPath)) {
+            fs.mkdirSync(path.dirname(destPath), { recursive: true });
+            fs.copyFileSync(srcPath, destPath);
+            syncedFiles.push(syncFile);
+          }
+        } catch (e) {
+          debugLog("worktree.sync", `Failed to sync ${syncFile}: ${e.message}`);
+        }
+      }
+      let setupStatus = "ok";
+      let setupError = null;
+      for (const hook of config.setup_hooks) {
+        try {
+          execSync(hook, {
+            cwd: worktreePath,
+            timeout: 12e4,
+            stdio: "pipe",
+            encoding: "utf-8"
+          });
+        } catch (e) {
+          setupStatus = "failed";
+          setupError = `Hook "${hook}" failed: ${e.message}`;
+          debugLog("worktree.setup", `Setup hook failed: ${hook}: ${e.message}`);
+          break;
+        }
+      }
+      const result = {
+        created: true,
+        plan_id: planId,
+        branch: branchName,
+        path: worktreePath,
+        synced_files: syncedFiles,
+        setup_status: setupStatus
+      };
+      if (setupError) result.setup_error = setupError;
+      if (resourceWarnings.length > 0) result.resource_warnings = resourceWarnings;
+      output(result, raw);
+    }
+    function cmdWorktreeList(cwd, raw) {
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const projectBase = path.join(config.base_path, projectName);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const projectWorktrees = allWorktrees.filter(
+        (wt) => wt.path && wt.path.startsWith(projectBase + "/")
+      );
+      const worktrees = projectWorktrees.map((wt) => {
+        const planId = path.basename(wt.path);
+        const diskUsage = fs.existsSync(wt.path) ? getDiskUsage(wt.path) : "removed";
+        return {
+          plan_id: planId,
+          branch: wt.branch || null,
+          path: wt.path,
+          head: wt.head ? wt.head.slice(0, 8) : null,
+          disk_usage: diskUsage
+        };
+      });
+      const result = { worktrees };
+      if (worktrees.length === 0) {
+        output(result, raw, "No active worktrees for this project.\n");
+      } else {
+        const lines = [
+          "Plan ID   | Branch                     | Path                                    | Disk Usage",
+          "--------- | -------------------------- | --------------------------------------- | ----------"
+        ];
+        for (const wt of worktrees) {
+          lines.push(`${(wt.plan_id || "").padEnd(9)} | ${(wt.branch || "").padEnd(26)} | ${(wt.path || "").padEnd(39)} | ${wt.disk_usage}`);
+        }
+        output(result, raw, lines.join("\n") + "\n");
+      }
+    }
+    function cmdWorktreeRemove(cwd, planId, raw) {
+      if (!planId) {
+        error("Usage: gsd-tools worktree remove <plan-id>");
+      }
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const worktreePath = path.join(config.base_path, projectName, planId);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const targetWt = allWorktrees.find((wt) => wt.path === worktreePath);
+      if (!targetWt) {
+        error(`No worktree found for plan ${planId} at ${worktreePath}`);
+      }
+      const branchName = targetWt.branch;
+      const removeResult = execGit(cwd, ["worktree", "remove", worktreePath, "--force"]);
+      if (removeResult.exitCode !== 0) {
+        error(`Failed to remove worktree: ${removeResult.stderr}`);
+      }
+      if (branchName) {
+        const branchResult = execGit(cwd, ["branch", "-D", branchName]);
+        if (branchResult.exitCode !== 0) {
+          debugLog("worktree.remove", `Failed to delete branch ${branchName}: ${branchResult.stderr}`);
+        }
+      }
+      output({ removed: true, plan_id: planId, path: worktreePath }, raw);
+    }
+    function cmdWorktreeCleanup(cwd, raw) {
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const projectBase = path.join(config.base_path, projectName);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const projectWorktrees = allWorktrees.filter(
+        (wt) => wt.path && wt.path.startsWith(projectBase + "/")
+      );
+      const removed = [];
+      for (const wt of projectWorktrees) {
+        const planId = path.basename(wt.path);
+        const branchName = wt.branch;
+        const removeResult = execGit(cwd, ["worktree", "remove", wt.path, "--force"]);
+        if (removeResult.exitCode === 0) {
+          removed.push({ plan_id: planId, path: wt.path });
+        } else {
+          debugLog("worktree.cleanup", `Failed to remove ${wt.path}: ${removeResult.stderr}`);
+        }
+        if (branchName) {
+          execGit(cwd, ["branch", "-D", branchName]);
+        }
+      }
+      execGit(cwd, ["worktree", "prune"]);
+      try {
+        if (fs.existsSync(projectBase)) {
+          const remaining = fs.readdirSync(projectBase);
+          if (remaining.length === 0) {
+            fs.rmdirSync(projectBase);
+          }
+        }
+      } catch {
+        debugLog("worktree.cleanup", "Failed to remove empty project directory");
+      }
+      output({ cleaned: removed.length, worktrees: removed }, raw);
+    }
+    var AUTO_RESOLVE_PATTERNS = [
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "go.sum",
+      ".planning/baselines/"
+    ];
+    function isAutoResolvable(filePath) {
+      return AUTO_RESOLVE_PATTERNS.some((pattern) => {
+        if (pattern.endsWith("/")) {
+          return filePath.startsWith(pattern);
+        }
+        return filePath === pattern || filePath.endsWith("/" + pattern);
+      });
+    }
+    function parseMergeTreeConflicts(output2) {
+      const conflicts = [];
+      const lines = output2.split("\n");
+      for (const line of lines) {
+        const match = line.match(/^CONFLICT\s+\(([^)]+)\):\s+.*?(?:in\s+)?(\S+)\s*$/);
+        if (match) {
+          conflicts.push({ file: match[2], type: match[1] });
+        } else {
+          const altMatch = line.match(/^CONFLICT\s+\(([^)]+)\):\s+Merge conflict in\s+(.+)$/);
+          if (altMatch) {
+            conflicts.push({ file: altMatch[2].trim(), type: altMatch[1] });
+          }
+        }
+      }
+      return conflicts;
+    }
+    function getPhaseFilesModified(cwd, phaseNumber) {
+      const phasesDir = path.join(cwd, ".planning", "phases");
+      const paddedPhase = String(phaseNumber).padStart(2, "0");
+      const results = [];
+      try {
+        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+        const phaseDir = entries.find((e) => e.isDirectory() && e.name.startsWith(paddedPhase + "-"));
+        if (!phaseDir) return results;
+        const phasePath = path.join(phasesDir, phaseDir.name);
+        const planFiles = fs.readdirSync(phasePath).filter((f) => f.match(/^\d+-\d+-PLAN\.md$/));
+        for (const planFile of planFiles) {
+          const content = fs.readFileSync(path.join(phasePath, planFile), "utf-8");
+          const fm = extractFrontmatter(content);
+          const idMatch = planFile.match(/^(\d+-\d+)-PLAN\.md$/);
+          if (!idMatch) continue;
+          const planId = idMatch[1];
+          const wave = fm.wave || "0";
+          const filesModified = fm.files_modified || [];
+          results.push({ planId, wave: String(wave), files_modified: filesModified });
+        }
+      } catch (e) {
+        debugLog("worktree.overlap", `Error reading phase plans: ${e.message}`);
+      }
+      return results;
+    }
+    function cmdWorktreeMerge(cwd, planId, raw) {
+      if (!planId) {
+        error("Usage: gsd-tools worktree merge <plan-id>");
+      }
+      const parsed = parsePlanId(planId);
+      if (!parsed) {
+        error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
+      }
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const projectBase = path.join(config.base_path, projectName);
+      const worktreePath = path.join(projectBase, planId);
+      const targetWt = allWorktrees.find(
+        (wt) => wt.path === worktreePath || wt.branch && wt.branch.match(new RegExp(`^worktree-${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-`))
+      );
+      if (!targetWt) {
+        error(`No worktree found for plan ${planId}. Check with 'worktree list'.`);
+      }
+      const worktreeBranch = targetWt.branch;
+      if (!worktreeBranch) {
+        error(`Worktree for plan ${planId} has no branch (detached HEAD?)`);
+      }
+      const baseBranchResult = execGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+      if (baseBranchResult.exitCode !== 0) {
+        error(`Failed to determine base branch: ${baseBranchResult.stderr}`);
+      }
+      const baseBranch = baseBranchResult.stdout.trim();
+      const fileOverlapWarnings = [];
+      const phasePlans = getPhaseFilesModified(cwd, parsed.phase);
+      const thisPlan = phasePlans.find((p) => p.planId === planId);
+      if (thisPlan && thisPlan.files_modified.length > 0) {
+        for (const other of phasePlans) {
+          if (other.planId === planId) continue;
+          const overlap = thisPlan.files_modified.filter((f) => other.files_modified.includes(f));
+          if (overlap.length > 0) {
+            fileOverlapWarnings.push({
+              plan: other.planId,
+              wave: other.wave,
+              shared_files: overlap
+            });
+          }
+        }
+      }
+      const mergeTreeResult = execGit(cwd, ["merge-tree", "--write-tree", baseBranch, worktreeBranch]);
+      if (mergeTreeResult.exitCode > 1) {
+        error(`git merge-tree failed: ${mergeTreeResult.stderr || mergeTreeResult.stdout}`);
+      }
+      let conflicts = [];
+      let treeSha = null;
+      if (mergeTreeResult.exitCode === 0) {
+        treeSha = mergeTreeResult.stdout.split("\n")[0].trim();
+      } else {
+        const fullOutput = (mergeTreeResult.stdout + "\n" + mergeTreeResult.stderr).trim();
+        conflicts = parseMergeTreeConflicts(fullOutput);
+        if (conflicts.length === 0) {
+          const firstLine = mergeTreeResult.stdout.split("\n")[0].trim();
+          if (/^[0-9a-f]{40}$/.test(firstLine)) {
+            treeSha = firstLine;
+          }
+        }
+      }
+      const autoResolvable = conflicts.filter((c) => isAutoResolvable(c.file));
+      const realConflicts = conflicts.filter((c) => !isAutoResolvable(c.file));
+      if (realConflicts.length > 0) {
+        output({
+          merged: false,
+          plan_id: planId,
+          branch: worktreeBranch,
+          base_branch: baseBranch,
+          conflicts: realConflicts.map((c) => ({ file: c.file, type: c.type })),
+          auto_resolved: autoResolvable.map((c) => ({ file: c.file, type: c.type })),
+          file_overlap_warnings: fileOverlapWarnings
+        }, raw);
+        return;
+      }
+      const mergeResult = execGit(cwd, ["merge", worktreeBranch, "--no-ff", "-m", `merge: plan ${planId} worktree`]);
+      if (mergeResult.exitCode !== 0 && autoResolvable.length > 0) {
+        let resolved = true;
+        for (const c of autoResolvable) {
+          const checkoutResult = execGit(cwd, ["checkout", "--theirs", c.file]);
+          if (checkoutResult.exitCode !== 0) {
+            resolved = false;
+            break;
+          }
+          execGit(cwd, ["add", c.file]);
+        }
+        if (resolved) {
+          const commitResult = execGit(cwd, ["commit", "--no-edit"]);
+          if (commitResult.exitCode !== 0) {
+            execGit(cwd, ["merge", "--abort"]);
+            error(`Merge auto-resolution failed during commit: ${commitResult.stderr}`);
+          }
+        } else {
+          execGit(cwd, ["merge", "--abort"]);
+          error(`Merge auto-resolution failed: could not checkout --theirs for lockfiles`);
+        }
+      } else if (mergeResult.exitCode !== 0) {
+        error(`Merge execution failed: ${mergeResult.stderr}`);
+      }
+      output({
+        merged: true,
+        plan_id: planId,
+        branch: worktreeBranch,
+        base_branch: baseBranch,
+        tree_sha: treeSha,
+        auto_resolved: autoResolvable.map((c) => ({ file: c.file, type: c.type })),
+        file_overlap_warnings: fileOverlapWarnings
+      }, raw);
+    }
+    function cmdWorktreeCheckOverlap(cwd, phaseNumber, raw) {
+      if (!phaseNumber) {
+        error("Usage: gsd-tools worktree check-overlap <phase-number>");
+      }
+      const phasePlans = getPhaseFilesModified(cwd, phaseNumber);
+      const overlaps = [];
+      const checked = /* @__PURE__ */ new Set();
+      for (let i = 0; i < phasePlans.length; i++) {
+        for (let j = i + 1; j < phasePlans.length; j++) {
+          const a = phasePlans[i];
+          const b = phasePlans[j];
+          if (a.wave !== b.wave) continue;
+          const pairKey = `${a.planId}:${b.planId}`;
+          if (checked.has(pairKey)) continue;
+          checked.add(pairKey);
+          const sharedFiles = a.files_modified.filter((f) => b.files_modified.includes(f));
+          if (sharedFiles.length > 0) {
+            overlaps.push({
+              plans: [a.planId, b.planId],
+              files: sharedFiles,
+              wave: a.wave
+            });
+          }
+        }
+      }
+      output({
+        phase: phaseNumber,
+        plans_analyzed: phasePlans.length,
+        overlaps,
+        has_conflicts: overlaps.length > 0
+      }, raw);
+    }
+    module2.exports = {
+      cmdWorktreeCreate,
+      cmdWorktreeList,
+      cmdWorktreeRemove,
+      cmdWorktreeCleanup,
+      cmdWorktreeMerge,
+      cmdWorktreeCheckOverlap,
+      // Exported for testing
+      getWorktreeConfig,
+      parsePlanId,
+      parseWorktreeListPorcelain,
+      getPhaseFilesModified,
+      parseMergeTreeConflicts,
+      isAutoResolvable,
+      WORKTREE_DEFAULTS
+    };
+  }
+});
+
 // src/commands/init.js
 var require_init = __commonJS({
   "src/commands/init.js"(exports2, module2) {
@@ -7398,6 +7939,7 @@ var require_init = __commonJS({
     var { execGit } = require_git();
     var { getIntentDriftData, getIntentSummary } = require_intent();
     var { autoTriggerEnvScan, formatEnvSummary, readEnvManifest } = require_env();
+    var { getWorktreeConfig, parseWorktreeListPorcelain, getPhaseFilesModified } = require_worktree();
     function cmdInitExecutePhase(cwd, phase, raw) {
       if (!phase) {
         error("phase required for init execute-phase");
@@ -7442,6 +7984,16 @@ var require_init = __commonJS({
         milestone_slug: generateSlugInternal(milestone.name),
         // Gates
         pre_flight_validation: rawConfig.gates?.pre_flight_validation !== false,
+        // Worktree parallelism
+        worktree_enabled: rawConfig.worktree?.enabled || false,
+        worktree_config: {
+          base_path: rawConfig.worktree?.base_path || "/tmp/gsd-worktrees",
+          sync_files: rawConfig.worktree?.sync_files || [".env", ".env.local", ".planning/config.json"],
+          setup_hooks: rawConfig.worktree?.setup_hooks || [],
+          max_concurrent: rawConfig.worktree?.max_concurrent || 3
+        },
+        worktree_active: [],
+        file_overlaps: [],
         // File existence
         state_exists: pathExistsInternal(cwd, ".planning/STATE.md"),
         roadmap_exists: pathExistsInternal(cwd, ".planning/ROADMAP.md"),
@@ -7497,6 +8049,44 @@ var require_init = __commonJS({
         result.env_languages = 0;
         result.env_stale = false;
       }
+      try {
+        if (result.worktree_enabled) {
+          const wtListResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+          if (wtListResult.exitCode === 0) {
+            const wtConfig = getWorktreeConfig(cwd);
+            const projectName = path.basename(cwd);
+            const projectBase = path.join(wtConfig.base_path, projectName);
+            const allWts = parseWorktreeListPorcelain(wtListResult.stdout);
+            result.worktree_active = allWts.filter((wt) => wt.path && wt.path.startsWith(projectBase + "/")).map((wt) => ({
+              plan_id: path.basename(wt.path),
+              branch: wt.branch || null,
+              path: wt.path
+            }));
+          }
+          if (phaseInfo?.phase_number) {
+            const phasePlans = getPhaseFilesModified(cwd, phaseInfo.phase_number);
+            const overlaps = [];
+            const checked = /* @__PURE__ */ new Set();
+            for (let i = 0; i < phasePlans.length; i++) {
+              for (let j = i + 1; j < phasePlans.length; j++) {
+                const a = phasePlans[i];
+                const b = phasePlans[j];
+                if (a.wave !== b.wave) continue;
+                const pairKey = `${a.planId}:${b.planId}`;
+                if (checked.has(pairKey)) continue;
+                checked.add(pairKey);
+                const sharedFiles = a.files_modified.filter((f) => b.files_modified.includes(f));
+                if (sharedFiles.length > 0) {
+                  overlaps.push({ plans: [a.planId, b.planId], files: sharedFiles, wave: a.wave });
+                }
+              }
+            }
+            result.file_overlaps = overlaps;
+          }
+        }
+      } catch (e) {
+        debugLog("init.executePhase", "worktree context failed (non-blocking)", e);
+      }
       if (global._gsdCompactMode) {
         const planPaths = (result.plans || []).map((p) => typeof p === "string" ? p : p.file || p);
         const compactResult = {
@@ -7517,7 +8107,11 @@ var require_init = __commonJS({
             advisory: result.intent_drift.advisory
           } : null,
           intent_summary: result.intent_summary || null,
-          env_summary: result.env_summary || null
+          env_summary: result.env_summary || null,
+          worktree_enabled: result.worktree_enabled,
+          worktree_config: result.worktree_config,
+          worktree_active: result.worktree_active,
+          file_overlaps: result.file_overlaps
         };
         if (global._gsdManifestMode) {
           compactResult._manifest = {
@@ -12086,547 +12680,6 @@ var require_mcp = __commonJS({
       safeReadJson,
       matchIndicatorKey,
       checkEnvHints
-    };
-  }
-});
-
-// src/commands/worktree.js
-var require_worktree = __commonJS({
-  "src/commands/worktree.js"(exports2, module2) {
-    "use strict";
-    var fs = require("fs");
-    var path = require("path");
-    var os = require("os");
-    var { execSync } = require("child_process");
-    var { output, error, debugLog } = require_output();
-    var { execGit } = require_git();
-    var { loadConfig } = require_config();
-    var { extractFrontmatter } = require_frontmatter();
-    var WORKTREE_DEFAULTS = {
-      enabled: false,
-      base_path: "/tmp/gsd-worktrees",
-      sync_files: [".env", ".env.local", ".planning/config.json"],
-      setup_hooks: [],
-      max_concurrent: 3
-    };
-    function getWorktreeConfig(cwd) {
-      const defaults = { ...WORKTREE_DEFAULTS };
-      try {
-        const configPath = path.join(cwd, ".planning", "config.json");
-        const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        if (raw.worktree && typeof raw.worktree === "object") {
-          return { ...defaults, ...raw.worktree };
-        }
-      } catch {
-        debugLog("worktree.config", "No worktree config found, using defaults");
-      }
-      return defaults;
-    }
-    function getProjectName(cwd) {
-      return path.basename(cwd);
-    }
-    function parsePlanId(planId) {
-      if (!planId) return null;
-      const match = planId.match(/^(\d+(?:\.\d+)?)-(\d+)$/);
-      if (!match) return null;
-      return { phase: match[1], plan: match[2] };
-    }
-    function getWaveFromPlan(cwd, planId) {
-      const parsed = parsePlanId(planId);
-      if (!parsed) return "0";
-      const phasesDir = path.join(cwd, ".planning", "phases");
-      try {
-        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-        const phaseDir = entries.find((e) => e.isDirectory() && e.name.startsWith(parsed.phase.padStart(2, "0")));
-        if (!phaseDir) return "0";
-        const planFile = path.join(phasesDir, phaseDir.name, `${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-PLAN.md`);
-        if (!fs.existsSync(planFile)) return "0";
-        const content = fs.readFileSync(planFile, "utf-8");
-        const waveMatch = content.match(/^wave:\s*(\d+)/m);
-        return waveMatch ? waveMatch[1] : "0";
-      } catch {
-        return "0";
-      }
-    }
-    function parseWorktreeListPorcelain(porcelainOutput) {
-      if (!porcelainOutput || !porcelainOutput.trim()) return [];
-      const worktrees = [];
-      const blocks = porcelainOutput.split("\n\n");
-      for (const block of blocks) {
-        if (!block.trim()) continue;
-        const lines = block.trim().split("\n");
-        const wt = {};
-        for (const line of lines) {
-          if (line.startsWith("worktree ")) {
-            wt.path = line.slice("worktree ".length);
-          } else if (line.startsWith("HEAD ")) {
-            wt.head = line.slice("HEAD ".length);
-          } else if (line.startsWith("branch ")) {
-            wt.branch = line.slice("branch ".length).replace("refs/heads/", "");
-          } else if (line === "bare") {
-            wt.bare = true;
-          } else if (line === "detached") {
-            wt.detached = true;
-          }
-        }
-        if (wt.path) worktrees.push(wt);
-      }
-      return worktrees;
-    }
-    function getDiskUsage(dirPath) {
-      try {
-        const result = execSync(`du -sh "${dirPath}" 2>/dev/null`, {
-          encoding: "utf-8",
-          timeout: 5e3
-        }).trim();
-        const match = result.match(/^([\d.]+[BKMGT]?)\s/);
-        return match ? match[1] : "unknown";
-      } catch {
-        return "unknown";
-      }
-    }
-    function getAvailableDiskMB(dirPath) {
-      try {
-        const result = execSync(`df -k "${dirPath}" 2>/dev/null | tail -1`, {
-          encoding: "utf-8",
-          timeout: 5e3
-        }).trim();
-        const parts = result.split(/\s+/);
-        const availKB = parseInt(parts[3], 10);
-        return isNaN(availKB) ? null : Math.round(availKB / 1024);
-      } catch {
-        return null;
-      }
-    }
-    function getProjectSizeMB(cwd) {
-      try {
-        const result = execSync(`du -sm "${cwd}" 2>/dev/null`, {
-          encoding: "utf-8",
-          timeout: 1e4
-        }).trim();
-        const match = result.match(/^(\d+)/);
-        return match ? parseInt(match[1], 10) : null;
-      } catch {
-        return null;
-      }
-    }
-    function cmdWorktreeCreate(cwd, planId, raw) {
-      if (!planId) {
-        error("Usage: gsd-tools worktree create <plan-id>\n\nplan-id format: NN-MM (e.g., 21-02)");
-      }
-      const parsed = parsePlanId(planId);
-      if (!parsed) {
-        error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
-      }
-      const config = getWorktreeConfig(cwd);
-      const projectName = getProjectName(cwd);
-      const wave = getWaveFromPlan(cwd, planId);
-      const branchName = `worktree-${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-${wave}`;
-      const worktreePath = path.join(config.base_path, projectName, planId);
-      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
-      if (listResult.exitCode === 0) {
-        const existing = parseWorktreeListPorcelain(listResult.stdout);
-        const alreadyExists = existing.some((wt) => wt.path === worktreePath || wt.branch === branchName);
-        if (alreadyExists) {
-          error(`Worktree already exists for plan ${planId} (path: ${worktreePath}, branch: ${branchName})`);
-        }
-        const projectWorktrees = existing.filter(
-          (wt) => wt.path && wt.path.startsWith(path.join(config.base_path, projectName))
-        );
-        if (projectWorktrees.length >= config.max_concurrent) {
-          error(`Max concurrent worktrees (${config.max_concurrent}) reached. Remove a worktree first or increase max_concurrent in config.`);
-        }
-      }
-      const freeMemMB = Math.round(os.freemem() / (1024 * 1024));
-      const requiredMemMB = config.max_concurrent * 4096;
-      const resourceWarnings = [];
-      if (freeMemMB < requiredMemMB) {
-        resourceWarnings.push(`Low memory: ${freeMemMB}MB free, estimated need ${requiredMemMB}MB for ${config.max_concurrent} concurrent worktrees`);
-      }
-      const projectSizeMB = getProjectSizeMB(cwd);
-      if (projectSizeMB) {
-        const neededMB = Math.round(projectSizeMB * 1.5);
-        const basePathParent = path.dirname(config.base_path);
-        const availMB = getAvailableDiskMB(fs.existsSync(config.base_path) ? config.base_path : basePathParent);
-        if (availMB !== null && availMB < neededMB) {
-          resourceWarnings.push(`Low disk: ${availMB}MB available at ${config.base_path}, estimated need ${neededMB}MB`);
-        }
-      }
-      const projectWorktreeDir = path.join(config.base_path, projectName);
-      try {
-        fs.mkdirSync(projectWorktreeDir, { recursive: true });
-      } catch (e) {
-        error(`Failed to create worktree base directory: ${projectWorktreeDir}: ${e.message}`);
-      }
-      const createResult = execGit(cwd, ["worktree", "add", "-b", branchName, worktreePath]);
-      if (createResult.exitCode !== 0) {
-        error(`Failed to create worktree: ${createResult.stderr}`);
-      }
-      const syncedFiles = [];
-      for (const syncFile of config.sync_files) {
-        const srcPath = path.join(cwd, syncFile);
-        const destPath = path.join(worktreePath, syncFile);
-        try {
-          if (fs.existsSync(srcPath)) {
-            fs.mkdirSync(path.dirname(destPath), { recursive: true });
-            fs.copyFileSync(srcPath, destPath);
-            syncedFiles.push(syncFile);
-          }
-        } catch (e) {
-          debugLog("worktree.sync", `Failed to sync ${syncFile}: ${e.message}`);
-        }
-      }
-      let setupStatus = "ok";
-      let setupError = null;
-      for (const hook of config.setup_hooks) {
-        try {
-          execSync(hook, {
-            cwd: worktreePath,
-            timeout: 12e4,
-            stdio: "pipe",
-            encoding: "utf-8"
-          });
-        } catch (e) {
-          setupStatus = "failed";
-          setupError = `Hook "${hook}" failed: ${e.message}`;
-          debugLog("worktree.setup", `Setup hook failed: ${hook}: ${e.message}`);
-          break;
-        }
-      }
-      const result = {
-        created: true,
-        plan_id: planId,
-        branch: branchName,
-        path: worktreePath,
-        synced_files: syncedFiles,
-        setup_status: setupStatus
-      };
-      if (setupError) result.setup_error = setupError;
-      if (resourceWarnings.length > 0) result.resource_warnings = resourceWarnings;
-      output(result, raw);
-    }
-    function cmdWorktreeList(cwd, raw) {
-      const config = getWorktreeConfig(cwd);
-      const projectName = getProjectName(cwd);
-      const projectBase = path.join(config.base_path, projectName);
-      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
-      if (listResult.exitCode !== 0) {
-        error(`Failed to list worktrees: ${listResult.stderr}`);
-      }
-      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
-      const projectWorktrees = allWorktrees.filter(
-        (wt) => wt.path && wt.path.startsWith(projectBase + "/")
-      );
-      const worktrees = projectWorktrees.map((wt) => {
-        const planId = path.basename(wt.path);
-        const diskUsage = fs.existsSync(wt.path) ? getDiskUsage(wt.path) : "removed";
-        return {
-          plan_id: planId,
-          branch: wt.branch || null,
-          path: wt.path,
-          head: wt.head ? wt.head.slice(0, 8) : null,
-          disk_usage: diskUsage
-        };
-      });
-      const result = { worktrees };
-      if (worktrees.length === 0) {
-        output(result, raw, "No active worktrees for this project.\n");
-      } else {
-        const lines = [
-          "Plan ID   | Branch                     | Path                                    | Disk Usage",
-          "--------- | -------------------------- | --------------------------------------- | ----------"
-        ];
-        for (const wt of worktrees) {
-          lines.push(`${(wt.plan_id || "").padEnd(9)} | ${(wt.branch || "").padEnd(26)} | ${(wt.path || "").padEnd(39)} | ${wt.disk_usage}`);
-        }
-        output(result, raw, lines.join("\n") + "\n");
-      }
-    }
-    function cmdWorktreeRemove(cwd, planId, raw) {
-      if (!planId) {
-        error("Usage: gsd-tools worktree remove <plan-id>");
-      }
-      const config = getWorktreeConfig(cwd);
-      const projectName = getProjectName(cwd);
-      const worktreePath = path.join(config.base_path, projectName, planId);
-      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
-      if (listResult.exitCode !== 0) {
-        error(`Failed to list worktrees: ${listResult.stderr}`);
-      }
-      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
-      const targetWt = allWorktrees.find((wt) => wt.path === worktreePath);
-      if (!targetWt) {
-        error(`No worktree found for plan ${planId} at ${worktreePath}`);
-      }
-      const branchName = targetWt.branch;
-      const removeResult = execGit(cwd, ["worktree", "remove", worktreePath, "--force"]);
-      if (removeResult.exitCode !== 0) {
-        error(`Failed to remove worktree: ${removeResult.stderr}`);
-      }
-      if (branchName) {
-        const branchResult = execGit(cwd, ["branch", "-D", branchName]);
-        if (branchResult.exitCode !== 0) {
-          debugLog("worktree.remove", `Failed to delete branch ${branchName}: ${branchResult.stderr}`);
-        }
-      }
-      output({ removed: true, plan_id: planId, path: worktreePath }, raw);
-    }
-    function cmdWorktreeCleanup(cwd, raw) {
-      const config = getWorktreeConfig(cwd);
-      const projectName = getProjectName(cwd);
-      const projectBase = path.join(config.base_path, projectName);
-      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
-      if (listResult.exitCode !== 0) {
-        error(`Failed to list worktrees: ${listResult.stderr}`);
-      }
-      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
-      const projectWorktrees = allWorktrees.filter(
-        (wt) => wt.path && wt.path.startsWith(projectBase + "/")
-      );
-      const removed = [];
-      for (const wt of projectWorktrees) {
-        const planId = path.basename(wt.path);
-        const branchName = wt.branch;
-        const removeResult = execGit(cwd, ["worktree", "remove", wt.path, "--force"]);
-        if (removeResult.exitCode === 0) {
-          removed.push({ plan_id: planId, path: wt.path });
-        } else {
-          debugLog("worktree.cleanup", `Failed to remove ${wt.path}: ${removeResult.stderr}`);
-        }
-        if (branchName) {
-          execGit(cwd, ["branch", "-D", branchName]);
-        }
-      }
-      execGit(cwd, ["worktree", "prune"]);
-      try {
-        if (fs.existsSync(projectBase)) {
-          const remaining = fs.readdirSync(projectBase);
-          if (remaining.length === 0) {
-            fs.rmdirSync(projectBase);
-          }
-        }
-      } catch {
-        debugLog("worktree.cleanup", "Failed to remove empty project directory");
-      }
-      output({ cleaned: removed.length, worktrees: removed }, raw);
-    }
-    var AUTO_RESOLVE_PATTERNS = [
-      "package-lock.json",
-      "pnpm-lock.yaml",
-      "yarn.lock",
-      "go.sum",
-      ".planning/baselines/"
-    ];
-    function isAutoResolvable(filePath) {
-      return AUTO_RESOLVE_PATTERNS.some((pattern) => {
-        if (pattern.endsWith("/")) {
-          return filePath.startsWith(pattern);
-        }
-        return filePath === pattern || filePath.endsWith("/" + pattern);
-      });
-    }
-    function parseMergeTreeConflicts(output2) {
-      const conflicts = [];
-      const lines = output2.split("\n");
-      for (const line of lines) {
-        const match = line.match(/^CONFLICT\s+\(([^)]+)\):\s+.*?(?:in\s+)?(\S+)\s*$/);
-        if (match) {
-          conflicts.push({ file: match[2], type: match[1] });
-        } else {
-          const altMatch = line.match(/^CONFLICT\s+\(([^)]+)\):\s+Merge conflict in\s+(.+)$/);
-          if (altMatch) {
-            conflicts.push({ file: altMatch[2].trim(), type: altMatch[1] });
-          }
-        }
-      }
-      return conflicts;
-    }
-    function getPhaseFilesModified(cwd, phaseNumber) {
-      const phasesDir = path.join(cwd, ".planning", "phases");
-      const paddedPhase = String(phaseNumber).padStart(2, "0");
-      const results = [];
-      try {
-        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-        const phaseDir = entries.find((e) => e.isDirectory() && e.name.startsWith(paddedPhase + "-"));
-        if (!phaseDir) return results;
-        const phasePath = path.join(phasesDir, phaseDir.name);
-        const planFiles = fs.readdirSync(phasePath).filter((f) => f.match(/^\d+-\d+-PLAN\.md$/));
-        for (const planFile of planFiles) {
-          const content = fs.readFileSync(path.join(phasePath, planFile), "utf-8");
-          const fm = extractFrontmatter(content);
-          const idMatch = planFile.match(/^(\d+-\d+)-PLAN\.md$/);
-          if (!idMatch) continue;
-          const planId = idMatch[1];
-          const wave = fm.wave || "0";
-          const filesModified = fm.files_modified || [];
-          results.push({ planId, wave: String(wave), files_modified: filesModified });
-        }
-      } catch (e) {
-        debugLog("worktree.overlap", `Error reading phase plans: ${e.message}`);
-      }
-      return results;
-    }
-    function cmdWorktreeMerge(cwd, planId, raw) {
-      if (!planId) {
-        error("Usage: gsd-tools worktree merge <plan-id>");
-      }
-      const parsed = parsePlanId(planId);
-      if (!parsed) {
-        error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
-      }
-      const config = getWorktreeConfig(cwd);
-      const projectName = getProjectName(cwd);
-      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
-      if (listResult.exitCode !== 0) {
-        error(`Failed to list worktrees: ${listResult.stderr}`);
-      }
-      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
-      const projectBase = path.join(config.base_path, projectName);
-      const worktreePath = path.join(projectBase, planId);
-      const targetWt = allWorktrees.find(
-        (wt) => wt.path === worktreePath || wt.branch && wt.branch.match(new RegExp(`^worktree-${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-`))
-      );
-      if (!targetWt) {
-        error(`No worktree found for plan ${planId}. Check with 'worktree list'.`);
-      }
-      const worktreeBranch = targetWt.branch;
-      if (!worktreeBranch) {
-        error(`Worktree for plan ${planId} has no branch (detached HEAD?)`);
-      }
-      const baseBranchResult = execGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
-      if (baseBranchResult.exitCode !== 0) {
-        error(`Failed to determine base branch: ${baseBranchResult.stderr}`);
-      }
-      const baseBranch = baseBranchResult.stdout.trim();
-      const fileOverlapWarnings = [];
-      const phasePlans = getPhaseFilesModified(cwd, parsed.phase);
-      const thisPlan = phasePlans.find((p) => p.planId === planId);
-      if (thisPlan && thisPlan.files_modified.length > 0) {
-        for (const other of phasePlans) {
-          if (other.planId === planId) continue;
-          const overlap = thisPlan.files_modified.filter((f) => other.files_modified.includes(f));
-          if (overlap.length > 0) {
-            fileOverlapWarnings.push({
-              plan: other.planId,
-              wave: other.wave,
-              shared_files: overlap
-            });
-          }
-        }
-      }
-      const mergeTreeResult = execGit(cwd, ["merge-tree", "--write-tree", baseBranch, worktreeBranch]);
-      if (mergeTreeResult.exitCode > 1) {
-        error(`git merge-tree failed: ${mergeTreeResult.stderr || mergeTreeResult.stdout}`);
-      }
-      let conflicts = [];
-      let treeSha = null;
-      if (mergeTreeResult.exitCode === 0) {
-        treeSha = mergeTreeResult.stdout.split("\n")[0].trim();
-      } else {
-        const fullOutput = (mergeTreeResult.stdout + "\n" + mergeTreeResult.stderr).trim();
-        conflicts = parseMergeTreeConflicts(fullOutput);
-        if (conflicts.length === 0) {
-          const firstLine = mergeTreeResult.stdout.split("\n")[0].trim();
-          if (/^[0-9a-f]{40}$/.test(firstLine)) {
-            treeSha = firstLine;
-          }
-        }
-      }
-      const autoResolvable = conflicts.filter((c) => isAutoResolvable(c.file));
-      const realConflicts = conflicts.filter((c) => !isAutoResolvable(c.file));
-      if (realConflicts.length > 0) {
-        output({
-          merged: false,
-          plan_id: planId,
-          branch: worktreeBranch,
-          base_branch: baseBranch,
-          conflicts: realConflicts.map((c) => ({ file: c.file, type: c.type })),
-          auto_resolved: autoResolvable.map((c) => ({ file: c.file, type: c.type })),
-          file_overlap_warnings: fileOverlapWarnings
-        }, raw);
-        return;
-      }
-      const mergeResult = execGit(cwd, ["merge", worktreeBranch, "--no-ff", "-m", `merge: plan ${planId} worktree`]);
-      if (mergeResult.exitCode !== 0 && autoResolvable.length > 0) {
-        let resolved = true;
-        for (const c of autoResolvable) {
-          const checkoutResult = execGit(cwd, ["checkout", "--theirs", c.file]);
-          if (checkoutResult.exitCode !== 0) {
-            resolved = false;
-            break;
-          }
-          execGit(cwd, ["add", c.file]);
-        }
-        if (resolved) {
-          const commitResult = execGit(cwd, ["commit", "--no-edit"]);
-          if (commitResult.exitCode !== 0) {
-            execGit(cwd, ["merge", "--abort"]);
-            error(`Merge auto-resolution failed during commit: ${commitResult.stderr}`);
-          }
-        } else {
-          execGit(cwd, ["merge", "--abort"]);
-          error(`Merge auto-resolution failed: could not checkout --theirs for lockfiles`);
-        }
-      } else if (mergeResult.exitCode !== 0) {
-        error(`Merge execution failed: ${mergeResult.stderr}`);
-      }
-      output({
-        merged: true,
-        plan_id: planId,
-        branch: worktreeBranch,
-        base_branch: baseBranch,
-        tree_sha: treeSha,
-        auto_resolved: autoResolvable.map((c) => ({ file: c.file, type: c.type })),
-        file_overlap_warnings: fileOverlapWarnings
-      }, raw);
-    }
-    function cmdWorktreeCheckOverlap(cwd, phaseNumber, raw) {
-      if (!phaseNumber) {
-        error("Usage: gsd-tools worktree check-overlap <phase-number>");
-      }
-      const phasePlans = getPhaseFilesModified(cwd, phaseNumber);
-      const overlaps = [];
-      const checked = /* @__PURE__ */ new Set();
-      for (let i = 0; i < phasePlans.length; i++) {
-        for (let j = i + 1; j < phasePlans.length; j++) {
-          const a = phasePlans[i];
-          const b = phasePlans[j];
-          if (a.wave !== b.wave) continue;
-          const pairKey = `${a.planId}:${b.planId}`;
-          if (checked.has(pairKey)) continue;
-          checked.add(pairKey);
-          const sharedFiles = a.files_modified.filter((f) => b.files_modified.includes(f));
-          if (sharedFiles.length > 0) {
-            overlaps.push({
-              plans: [a.planId, b.planId],
-              files: sharedFiles,
-              wave: a.wave
-            });
-          }
-        }
-      }
-      output({
-        phase: phaseNumber,
-        plans_analyzed: phasePlans.length,
-        overlaps,
-        has_conflicts: overlaps.length > 0
-      }, raw);
-    }
-    module2.exports = {
-      cmdWorktreeCreate,
-      cmdWorktreeList,
-      cmdWorktreeRemove,
-      cmdWorktreeCleanup,
-      cmdWorktreeMerge,
-      cmdWorktreeCheckOverlap,
-      // Exported for testing
-      getWorktreeConfig,
-      parsePlanId,
-      parseWorktreeListPorcelain,
-      getPhaseFilesModified,
-      parseMergeTreeConflicts,
-      isAutoResolvable,
-      WORKTREE_DEFAULTS
     };
   }
 });

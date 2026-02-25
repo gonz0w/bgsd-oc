@@ -10,6 +10,7 @@ const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 const { getIntentDriftData, getIntentSummary } = require('./intent');
 const { autoTriggerEnvScan, formatEnvSummary, readEnvManifest } = require('./env');
+const { getWorktreeConfig, parseWorktreeListPorcelain, getPhaseFilesModified } = require('./worktree');
 
 function cmdInitExecutePhase(cwd, phase, raw) {
   if (!phase) {
@@ -71,6 +72,17 @@ function cmdInitExecutePhase(cwd, phase, raw) {
 
     // Gates
     pre_flight_validation: rawConfig.gates?.pre_flight_validation !== false,
+
+    // Worktree parallelism
+    worktree_enabled: rawConfig.worktree?.enabled || false,
+    worktree_config: {
+      base_path: rawConfig.worktree?.base_path || '/tmp/gsd-worktrees',
+      sync_files: rawConfig.worktree?.sync_files || ['.env', '.env.local', '.planning/config.json'],
+      setup_hooks: rawConfig.worktree?.setup_hooks || [],
+      max_concurrent: rawConfig.worktree?.max_concurrent || 3,
+    },
+    worktree_active: [],
+    file_overlaps: [],
 
     // File existence
     state_exists: pathExistsInternal(cwd, '.planning/STATE.md'),
@@ -140,6 +152,51 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     result.env_stale = false;
   }
 
+  // Worktree context — populate active worktrees and file overlaps when enabled
+  try {
+    if (result.worktree_enabled) {
+      // Get active worktrees for this project
+      const wtListResult = execGit(cwd, ['worktree', 'list', '--porcelain']);
+      if (wtListResult.exitCode === 0) {
+        const wtConfig = getWorktreeConfig(cwd);
+        const projectName = path.basename(cwd);
+        const projectBase = path.join(wtConfig.base_path, projectName);
+        const allWts = parseWorktreeListPorcelain(wtListResult.stdout);
+        result.worktree_active = allWts
+          .filter(wt => wt.path && wt.path.startsWith(projectBase + '/'))
+          .map(wt => ({
+            plan_id: path.basename(wt.path),
+            branch: wt.branch || null,
+            path: wt.path,
+          }));
+      }
+
+      // File overlap analysis for the phase
+      if (phaseInfo?.phase_number) {
+        const phasePlans = getPhaseFilesModified(cwd, phaseInfo.phase_number);
+        const overlaps = [];
+        const checked = new Set();
+        for (let i = 0; i < phasePlans.length; i++) {
+          for (let j = i + 1; j < phasePlans.length; j++) {
+            const a = phasePlans[i];
+            const b = phasePlans[j];
+            if (a.wave !== b.wave) continue;
+            const pairKey = `${a.planId}:${b.planId}`;
+            if (checked.has(pairKey)) continue;
+            checked.add(pairKey);
+            const sharedFiles = a.files_modified.filter(f => b.files_modified.includes(f));
+            if (sharedFiles.length > 0) {
+              overlaps.push({ plans: [a.planId, b.planId], files: sharedFiles, wave: a.wave });
+            }
+          }
+        }
+        result.file_overlaps = overlaps;
+      }
+    }
+  } catch (e) {
+    debugLog('init.executePhase', 'worktree context failed (non-blocking)', e);
+  }
+
   if (global._gsdCompactMode) {
     const planPaths = (result.plans || []).map(p => typeof p === 'string' ? p : p.file || p);
     const compactResult = {
@@ -161,6 +218,10 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       } : null,
       intent_summary: result.intent_summary || null,
       env_summary: result.env_summary || null,
+      worktree_enabled: result.worktree_enabled,
+      worktree_config: result.worktree_config,
+      worktree_active: result.worktree_active,
+      file_overlaps: result.file_overlaps,
     };
     if (global._gsdManifestMode) {
       compactResult._manifest = {

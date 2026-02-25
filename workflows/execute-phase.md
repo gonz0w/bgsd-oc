@@ -17,7 +17,7 @@ Read STATE.md before any operation.
 INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init execute-phase "${PHASE_ARG}" --compact)
 ```
 
-Parse JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`.
+Parse JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
 
 If `phase_found` false → error. If `plan_count` 0 → error. If no STATE.md but `.planning/` exists → offer reconstruct.
 When `parallelization` false, wave plans execute sequentially.
@@ -75,6 +75,36 @@ Display format when issues exist:
 ```
 </step>
 
+<step name="preflight_worktree_check">
+If `worktree_enabled` is false from init JSON: skip silently.
+
+Otherwise:
+
+1. Check `file_overlaps` from init JSON. If overlaps exist within a wave:
+   - Display overlap table:
+
+   ```
+   | Plan A   | Plan B   | Shared Files              | Wave |
+   | -------- | -------- | ------------------------- | ---- |
+   | {plan_a} | {plan_b} | {files, comma-separated}  | {N}  |
+   ```
+
+   - In yolo/auto mode: log warning `⚠ File overlaps detected (advisory) — merge-tree will catch real conflicts`, proceed
+   - In interactive mode: ask "Proceed with overlap risk?" or "Adjust wave grouping?"
+
+2. Display worktree config summary:
+
+   ```
+   ◆ Worktree parallelism: enabled
+     Base: {worktree_config.base_path}
+     Max concurrent: {worktree_config.max_concurrent}
+     Active worktrees: {worktree_active.length}
+     File overlaps: {file_overlaps.length} (advisory)
+   ```
+
+3. If `worktree_active` is non-empty: display active worktree table. Consider whether stale worktrees should be cleaned first.
+</step>
+
 <step name="discover_and_group_plans">
 ```bash
 PLAN_INDEX=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase-plan-index "${PHASE_NUMBER}")
@@ -111,7 +141,68 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
 1. **Describe what's being built** — read each plan's `<objective>`, extract what/why in 2-3 sentences.
 
-2. **Spawn executor agents** — pass paths only, executors read files themselves:
+2. **Choose execution mode** based on `worktree_enabled` AND wave has >1 plan AND `PARALLELIZATION=true`:
+
+   **Mode A: Worktree-based parallel execution** (worktree_enabled + parallel + multi-plan wave)
+
+   a. **Create worktrees** for each plan in wave:
+      ```bash
+      node gsd-tools.cjs worktree create {plan_id}
+      ```
+      Record each worktree path from output. If create fails (e.g., max_concurrent), fall back to sequential.
+      If setup_status is `failed`: skip that plan, mark as setup-failed, continue with remaining.
+
+   b. **Spawn executor agents** in worktree directories:
+      ```
+      Task(
+        subagent_type="gsd-executor",
+        model="{executor_model}",
+        workdir="{worktree_path}",
+        prompt="
+          <objective>
+          Execute plan {plan_number} of phase {phase_number}-{phase_name}.
+          Commit each task atomically. Create SUMMARY.md. Update STATE.md and ROADMAP.md.
+          NOTE: You are running in a worktree at {worktree_path}. All file operations use this directory.
+          </objective>
+          ...same execution_context, files_to_read, success_criteria as Mode B...
+        "
+      )
+      ```
+
+   c. **Monitor progress** — after spawning all agents, periodically display:
+      ```
+      ◆ Wave {N} progress:
+        ┌─ {plan_id}: ◆ running ({elapsed}m)
+        ├─ {plan_id}: ✓ complete (SUMMARY.md found)
+        └─ {plan_id}: ◆ running ({elapsed}m)
+      ```
+      Detection: check if `{worktree_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md` exists.
+
+   d. **Wait for all agents** — collect results from all Task() returns.
+      Let all agents finish even if one fails (per CONTEXT.md decision).
+      Separate: successes (SUMMARY.md exists in worktree) and failures.
+
+   e. **Sequential merge** — for each completed plan (in plan-number order, smallest first):
+      ```bash
+      node gsd-tools.cjs worktree merge {plan_id}
+      ```
+      After EACH merge: run test command if configured in config.json (`test_command` field).
+      If merge fails (real conflicts): offer options:
+        - "Resolve manually" → present conflicting files, wait for user to fix, type "done"
+        - "Skip this plan" → mark plan as merge-failed, continue to next
+        - "Abort wave" → stop merging, report what succeeded
+      In yolo/auto mode: skip conflicting plan, log warning, continue.
+
+   f. **Cleanup** — after all merges (or failure handling):
+      ```bash
+      node gsd-tools.cjs worktree cleanup
+      ```
+
+   g. **Continue** to next wave.
+
+   **Mode B: Standard execution** (worktree_enabled false OR single-plan wave OR parallelization false)
+
+   Spawn executor agents in main working directory (unchanged behavior):
 
    ```
    Task(
