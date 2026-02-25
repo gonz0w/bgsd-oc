@@ -1092,7 +1092,7 @@ var require_output = __commonJS({
           filtered = filterFields(result, global._gsdRequestedFields);
         }
         const json = JSON.stringify(filtered, null, 2);
-        if (json.length > 5e4) {
+        if (json.length > 5e4 && !process.env.GSD_NO_TMPFILE) {
           const tmpPath = path.join(require("os").tmpdir(), `gsd-${Date.now()}.json`);
           fs.writeFileSync(tmpPath, json, "utf-8");
           _tmpFiles.push(tmpPath);
@@ -10655,6 +10655,149 @@ Improved: ${improved} | Unchanged: ${unchanged} | Worsened: ${worsened}
 `);
       output(result, raw);
     }
+    function cmdContextBudgetMeasure(cwd, raw) {
+      const measurements = [];
+      const gsdBin = process.argv[1];
+      function measureCommand(cmdArgs) {
+        try {
+          const result = execSync(`node ${sanitizeShellArg(gsdBin)} ${cmdArgs} --raw`, {
+            cwd,
+            encoding: "utf-8",
+            timeout: 3e4,
+            maxBuffer: 10 * 1024 * 1024,
+            // 10MB buffer for large JSON outputs
+            stdio: ["pipe", "pipe", "pipe"],
+            env: { ...process.env, GSD_DEBUG: "", GSD_NO_TMPFILE: "1" }
+            // suppress debug, disable file redirect
+          }).trim();
+          let jsonStr = result;
+          if (result.startsWith("@file:")) {
+            const filePath = result.slice(6);
+            try {
+              jsonStr = fs.readFileSync(filePath, "utf-8");
+            } catch (e) {
+              debugLog("measure", `read tmpfile failed: ${filePath}`, e);
+              return { tokens: 0, bytes: 0, error: "tmpfile read failed" };
+            }
+          }
+          const tokens = estimateTokens(jsonStr);
+          return { tokens, bytes: Buffer.byteLength(jsonStr, "utf-8") };
+        } catch (e) {
+          debugLog("measure", `command failed: ${cmdArgs}`, e);
+          const stdout = (e.stdout || "").trim();
+          if (stdout) {
+            const tokens = estimateTokens(stdout);
+            return { tokens, bytes: Buffer.byteLength(stdout, "utf-8") };
+          }
+          return { tokens: 0, bytes: 0, error: e.message ? e.message.split("\n")[0] : "unknown" };
+        }
+      }
+      let testPhase = null;
+      try {
+        const phasesDir = path.join(cwd, ".planning", "phases");
+        if (fs.existsSync(phasesDir)) {
+          const dirs = fs.readdirSync(phasesDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
+          if (dirs.length > 0) {
+            const match = dirs[0].match(/^(\d+)/);
+            if (match) testPhase = match[1];
+          }
+        }
+      } catch (e) {
+        debugLog("measure", "phase detection failed", e);
+      }
+      const hdFull = measureCommand("history-digest");
+      const hdLimit5 = measureCommand("history-digest --limit 5");
+      const hdSlim = measureCommand("history-digest --slim");
+      const hdSlimLimit5 = measureCommand("history-digest --slim --limit 5");
+      if (!hdFull.error) {
+        measurements.push({
+          command: "history-digest",
+          variant: "--limit 5",
+          full_tokens: hdFull.tokens,
+          slim_tokens: hdLimit5.tokens,
+          saved_tokens: hdFull.tokens - hdLimit5.tokens,
+          saved_percent: hdFull.tokens > 0 ? Math.round((hdFull.tokens - hdLimit5.tokens) / hdFull.tokens * 100) : 0,
+          full_bytes: hdFull.bytes,
+          slim_bytes: hdLimit5.bytes
+        });
+        measurements.push({
+          command: "history-digest",
+          variant: "--slim",
+          full_tokens: hdFull.tokens,
+          slim_tokens: hdSlim.tokens,
+          saved_tokens: hdFull.tokens - hdSlim.tokens,
+          saved_percent: hdFull.tokens > 0 ? Math.round((hdFull.tokens - hdSlim.tokens) / hdFull.tokens * 100) : 0,
+          full_bytes: hdFull.bytes,
+          slim_bytes: hdSlim.bytes
+        });
+        measurements.push({
+          command: "history-digest",
+          variant: "--slim --limit 5",
+          full_tokens: hdFull.tokens,
+          slim_tokens: hdSlimLimit5.tokens,
+          saved_tokens: hdFull.tokens - hdSlimLimit5.tokens,
+          saved_percent: hdFull.tokens > 0 ? Math.round((hdFull.tokens - hdSlimLimit5.tokens) / hdFull.tokens * 100) : 0,
+          full_bytes: hdFull.bytes,
+          slim_bytes: hdSlimLimit5.bytes
+        });
+      }
+      const progressVerbose = measureCommand("init progress --verbose");
+      const progressCompact = measureCommand("init progress");
+      if (!progressVerbose.error) {
+        measurements.push({
+          command: "init progress",
+          variant: "compact (default) vs verbose",
+          full_tokens: progressVerbose.tokens,
+          slim_tokens: progressCompact.tokens,
+          saved_tokens: progressVerbose.tokens - progressCompact.tokens,
+          saved_percent: progressVerbose.tokens > 0 ? Math.round((progressVerbose.tokens - progressCompact.tokens) / progressVerbose.tokens * 100) : 0,
+          full_bytes: progressVerbose.bytes,
+          slim_bytes: progressCompact.bytes
+        });
+      }
+      if (testPhase) {
+        const execVerbose = measureCommand(`init execute-phase ${testPhase} --verbose`);
+        const execCompact = measureCommand(`init execute-phase ${testPhase}`);
+        if (!execVerbose.error) {
+          measurements.push({
+            command: `init execute-phase ${testPhase}`,
+            variant: "compact (default) vs verbose",
+            full_tokens: execVerbose.tokens,
+            slim_tokens: execCompact.tokens,
+            saved_tokens: execVerbose.tokens - execCompact.tokens,
+            saved_percent: execVerbose.tokens > 0 ? Math.round((execVerbose.tokens - execCompact.tokens) / execVerbose.tokens * 100) : 0,
+            full_bytes: execVerbose.bytes,
+            slim_bytes: execCompact.bytes
+          });
+        }
+        const planVerbose = measureCommand(`init plan-phase ${testPhase} --verbose`);
+        const planCompact = measureCommand(`init plan-phase ${testPhase}`);
+        if (!planVerbose.error) {
+          measurements.push({
+            command: `init plan-phase ${testPhase}`,
+            variant: "compact (default) vs verbose",
+            full_tokens: planVerbose.tokens,
+            slim_tokens: planCompact.tokens,
+            saved_tokens: planVerbose.tokens - planCompact.tokens,
+            saved_percent: planVerbose.tokens > 0 ? Math.round((planVerbose.tokens - planCompact.tokens) / planVerbose.tokens * 100) : 0,
+            full_bytes: planVerbose.bytes,
+            slim_bytes: planCompact.bytes
+          });
+        }
+      }
+      const totalFullTokens = measurements.reduce((sum, m) => sum + m.full_tokens, 0);
+      const totalSlimTokens = measurements.reduce((sum, m) => sum + m.slim_tokens, 0);
+      const totalSavedTokens = totalFullTokens - totalSlimTokens;
+      const totalSavedPercent = totalFullTokens > 0 ? Math.round(totalSavedTokens / totalFullTokens * 100) : 0;
+      output({
+        measurements,
+        total_full_tokens: totalFullTokens,
+        total_slim_tokens: totalSlimTokens,
+        total_saved_tokens: totalSavedTokens,
+        total_saved_percent: totalSavedPercent,
+        note: 'Measures real JSON output token counts. "full" = verbose/unfiltered, "slim" = compact/filtered.'
+      }, raw);
+    }
     var WORKFLOW_BUDGETS = {
       "execute-phase": 15e3,
       "plan-phase": 15e3,
@@ -10878,6 +11021,7 @@ Improved: ${improved} | Unchanged: ${unchanged} | Worsened: ${worsened}
       cmdContextBudget,
       cmdContextBudgetBaseline,
       cmdContextBudgetCompare,
+      cmdContextBudgetMeasure,
       cmdTestRun,
       cmdSearchDecisions,
       cmdValidateDependencies,
@@ -12880,6 +13024,7 @@ var require_router = __commonJS({
       cmdContextBudget,
       cmdContextBudgetBaseline,
       cmdContextBudgetCompare,
+      cmdContextBudgetMeasure,
       cmdTestRun,
       cmdSearchDecisions,
       cmdValidateDependencies,
@@ -13427,6 +13572,8 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             cmdContextBudgetBaseline(cwd, raw);
           } else if (subcommand === "compare") {
             cmdContextBudgetCompare(cwd, args[2], raw);
+          } else if (subcommand === "measure") {
+            cmdContextBudgetMeasure(cwd, raw);
           } else {
             cmdContextBudget(cwd, subcommand, raw);
           }

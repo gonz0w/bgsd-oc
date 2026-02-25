@@ -39,7 +39,7 @@ const {
 
 const {
   cmdSessionDiff, cmdContextBudget, cmdContextBudgetBaseline,
-  cmdContextBudgetCompare, cmdTestRun, cmdSearchDecisions,
+  cmdContextBudgetCompare, cmdContextBudgetMeasure, cmdTestRun, cmdSearchDecisions,
   cmdValidateDependencies, cmdSearchLessons, cmdCodebaseImpact,
   cmdRollbackInfo, cmdVelocity, cmdTraceRequirement, cmdValidateConfig,
   cmdQuickTaskSummary, cmdExtractSections, cmdTestCoverage, cmdTokenBudget,
@@ -604,6 +604,8 @@ async function main() {
         cmdContextBudgetBaseline(cwd, raw);
       } else if (subcommand === 'compare') {
         cmdContextBudgetCompare(cwd, args[2], raw);
+      } else if (subcommand === 'measure') {
+        cmdContextBudgetMeasure(cwd, raw);
       } else {
         // Existing behavior: treat args[1] as plan/file path
         cmdContextBudget(cwd, subcommand, raw);

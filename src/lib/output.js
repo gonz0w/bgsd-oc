@@ -83,9 +83,10 @@ function output(result, raw, rawValue) {
       filtered = filterFields(result, global._gsdRequestedFields);
     }
     const json = JSON.stringify(filtered, null, 2);
-    // Large payloads exceed Claude Code's Bash tool buffer (~50KB).
+    // Large payloads exceed OpenCode's Bash tool buffer (~50KB).
     // Write to tmpfile and output the path prefixed with @file: so callers can detect it.
-    if (json.length > 50000) {
+    // GSD_NO_TMPFILE: skip file redirect (used by context-budget measure to capture full output)
+    if (json.length > 50000 && !process.env.GSD_NO_TMPFILE) {
       const tmpPath = path.join(require('os').tmpdir(), `gsd-${Date.now()}.json`);
       fs.writeFileSync(tmpPath, json, 'utf-8');
       _tmpFiles.push(tmpPath);
