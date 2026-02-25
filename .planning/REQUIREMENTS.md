@@ -24,11 +24,11 @@ Requirements for v3.0 Intent Engineering milestone. Each maps to roadmap phases.
 
 ### Intent Validation
 
-- [ ] **IVAL-01**: Plugin detects plan objectives that don't trace to any stated desired outcome (objective mismatch)
-- [ ] **IVAL-02**: Plugin detects tasks or features in plans that have no backing in INTENT.md outcomes or success criteria (feature creep detection)
-- [ ] **IVAL-03**: Plugin detects when work is being done on low-priority outcomes while higher-priority outcomes remain unaddressed (priority inversion)
-- [ ] **IVAL-04**: Plugin produces a numeric intent drift score (0-100) measuring alignment between current work and stated intent
-- [ ] **IVAL-05**: Intent validation runs as advisory pre-flight check before plan execution, warning but not blocking
+- [x] **IVAL-01**: Plugin detects plan objectives that don't trace to any stated desired outcome (objective mismatch)
+- [x] **IVAL-02**: Plugin detects tasks or features in plans that have no backing in INTENT.md outcomes or success criteria (feature creep detection)
+- [x] **IVAL-03**: Plugin detects when work is being done on low-priority outcomes while higher-priority outcomes remain unaddressed (priority inversion)
+- [x] **IVAL-04**: Plugin produces a numeric intent drift score (0-100) measuring alignment between current work and stated intent
+- [x] **IVAL-05**: Intent validation runs as advisory pre-flight check before plan execution, warning but not blocking
 
 ### Workflow Integration
 
@@ -80,11 +80,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ITRC-01 | Phase 15 | Complete |
 | ITRC-02 | Phase 15 | Complete |
 | ITRC-03 | Phase 15 | Complete |
-| IVAL-01 | Phase 15 | Pending |
-| IVAL-02 | Phase 15 | Pending |
-| IVAL-03 | Phase 15 | Pending |
-| IVAL-04 | Phase 15 | Pending |
-| IVAL-05 | Phase 15 | Pending |
+| IVAL-01 | Phase 15 | Complete |
+| IVAL-02 | Phase 15 | Complete |
+| IVAL-03 | Phase 15 | Complete |
+| IVAL-04 | Phase 15 | Complete |
+| IVAL-05 | Phase 15 | Complete |
 | WINT-01 | Phase 16 | Pending |
 | WINT-02 | Phase 16 | Pending |
 | WINT-03 | Phase 16 | Pending |

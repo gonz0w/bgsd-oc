@@ -51,7 +51,7 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 **Milestone Goal:** Make intent the architectural backbone of GSD — every project captures *why* it exists and *what success looks like*, and every downstream workflow validates alignment against that intent.
 
 - [x] **Phase 14: Intent Capture Foundation** - INTENT.md template and CRUD commands for creating, reading, and updating project intent (completed 2026-02-25)
-- [ ] **Phase 15: Intent Tracing & Validation** - Per-plan intent tracing, traceability matrix, coverage gap detection, and drift scoring
+- [x] **Phase 15: Intent Tracing & Validation** - Per-plan intent tracing, traceability matrix, coverage gap detection, and drift scoring (completed 2026-02-25)
 - [ ] **Phase 16: Workflow Integration & Self-Application** - Inject intent context into all workflows and dog-food the system on GSD itself
 - [ ] **Phase 17: Intent Enhancement** - Guided intent questionnaire for new projects and intent evolution tracking across milestones
 
@@ -83,7 +83,7 @@ Plans:
   3. Running intent validation detects objective mismatch (plan not tracing to any outcome), feature creep (tasks with no intent backing), and priority inversion (low-priority work before high-priority)
   4. Intent validation produces a numeric drift score (0-100) that summarizes alignment
   5. Intent validation runs as advisory pre-flight (warns, never blocks) before plan execution
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 15-01-PLAN.md — Intent tracing: plan intent parser + traceability matrix + gap detection
@@ -129,6 +129,6 @@ Plans:
 | 12. Quality Gates | v2.0 | 4/4 | Complete | 2026-02-24 |
 | 13. Test Infrastructure & Polish | v2.0 | 4/4 | Complete | 2026-02-24 |
 | 14. Intent Capture Foundation | 3/3 | Complete    | 2026-02-25 | - |
-| 15. Intent Tracing & Validation | v3.0 | 1/2 | In progress | - |
+| 15. Intent Tracing & Validation | 2/2 | Complete   | 2026-02-25 | - |
 | 16. Workflow Integration & Self-Application | v3.0 | 0/? | Not started | - |
 | 17. Intent Enhancement | v3.0 | 0/? | Not started | - |

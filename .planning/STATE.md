@@ -10,7 +10,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 **Phase:** 15 of 17 (Intent Tracing & Validation)
-**Current Plan:** 1 of 2
+**Current Plan:** 2
 **Total Plans in Phase:** 2
 **Status:** In progress
 **Last Activity:** 2026-02-25
@@ -34,6 +34,8 @@ Phase 14-01: Graceful parser degradation — missing sections return null/empty 
 - [Phase 14]: Validate uses direct process.exit() for exit codes, not error() (issues are expected output)
 - [Phase 15]: Plan intent stored in YAML frontmatter under intent.outcome_ids (not separate file)
 - [Phase 15]: Trace scoped to current milestone's phase range via getMilestoneInfo()
+- [Phase 15]: getIntentDriftData() as shared function between drift command and init pre-flight (no shelling out)
+- [Phase 15]: Advisory-only drift pre-flight: never blocks, null when no INTENT.md, try/catch wrapped
 
 ### Pending Todos
 
@@ -46,5 +48,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 15-01-PLAN.md
+Stopped at: Completed 15-02-PLAN.md
 Resume file: None
