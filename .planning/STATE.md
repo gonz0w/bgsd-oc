@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v3.0 Intent Engineering — Phase 16: Workflow Integration & Self-Application
+**Current focus:** v3.0 Intent Engineering — Phase 17: Intent Enhancement
 
 ## Current Position
 
-**Phase:** 16 of 17 (Workflow Integration & Self-Application)
-**Current Plan:** Not started
-**Total Plans in Phase:** 3
-**Status:** Milestone complete
+**Phase:** 17 of 17 (Intent Enhancement)
+**Current Plan:** 2 of 2
+**Total Plans in Phase:** 2
+**Status:** Phase complete
 **Last Activity:** 2026-02-25
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -40,6 +40,8 @@ Phase 14-01: Graceful parser degradation — missing sections return null/empty 
 - [Phase 16]: getIntentSummary follows advisory try/catch pattern — null on missing INTENT.md, never crashes
 - [Phase 16]: All intent workflow injections are conditional — 'if INTENT.md exists' — projects without INTENT.md see zero changes
 - [Phase 16]: Intent-based verification is additive (Option D) — merges with existing truth sources, never replaces
+- [Phase 17]: Step 4.5 placement: after PROJECT.md creation but before requirements — intent guides requirements
+- [Phase 17]: new-milestone references new-project Step 4.5 for fresh intent creation (DRY)
 
 ### Pending Todos
 
@@ -52,5 +54,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 16-03-PLAN.md (Phase 16 complete)
+Stopped at: Completed 17-02-PLAN.md (Phase 17 complete — milestone v3.0 complete)
 Resume file: None
