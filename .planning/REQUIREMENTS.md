@@ -18,9 +18,9 @@ Requirements for v3.0 Intent Engineering milestone. Each maps to roadmap phases.
 
 ### Intent Tracing
 
-- [ ] **ITRC-01**: Each PLAN.md includes an intent section that traces its objective back to specific INTENT.md desired outcomes by ID
-- [ ] **ITRC-02**: Plugin generates a traceability matrix showing which desired outcomes map to which phases/plans
-- [ ] **ITRC-03**: Plugin detects desired outcomes with no phase or plan addressing them (outcome coverage gaps)
+- [x] **ITRC-01**: Each PLAN.md includes an intent section that traces its objective back to specific INTENT.md desired outcomes by ID
+- [x] **ITRC-02**: Plugin generates a traceability matrix showing which desired outcomes map to which phases/plans
+- [x] **ITRC-03**: Plugin detects desired outcomes with no phase or plan addressing them (outcome coverage gaps)
 
 ### Intent Validation
 
@@ -77,9 +77,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ICAP-04 | Phase 14 | Complete |
 | ICAP-05 | Phase 17 | Pending |
 | ICAP-06 | Phase 17 | Pending |
-| ITRC-01 | Phase 15 | Pending |
-| ITRC-02 | Phase 15 | Pending |
-| ITRC-03 | Phase 15 | Pending |
+| ITRC-01 | Phase 15 | Complete |
+| ITRC-02 | Phase 15 | Complete |
+| ITRC-03 | Phase 15 | Complete |
 | IVAL-01 | Phase 15 | Pending |
 | IVAL-02 | Phase 15 | Pending |
 | IVAL-03 | Phase 15 | Pending |

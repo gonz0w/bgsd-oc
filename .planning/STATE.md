@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v3.0 Intent Engineering — Phase 14: Intent Capture Foundation
+**Current focus:** v3.0 Intent Engineering — Phase 15: Intent Tracing & Validation
 
 ## Current Position
 
-**Phase:** 14 of 17 (Intent Capture Foundation)
-**Current Plan:** Not started
-**Total Plans in Phase:** 3
-**Status:** Milestone complete
+**Phase:** 15 of 17 (Intent Tracing & Validation)
+**Current Plan:** 1 of 2
+**Total Plans in Phase:** 2
+**Status:** In progress
 **Last Activity:** 2026-02-25
 
-Progress: [████░░░░░░] 25%
+Progress: [█████░░░░░] 32%
 
 ## Accumulated Context
 
@@ -32,6 +32,8 @@ Phase 14-01: Graceful parser degradation — missing sections return null/empty 
 - [Phase 14]: ID gaps preserved on removal — getNextId() looks at max, not count
 - [Phase 14]: Bundle budget 400→450KB for intent command family (parser+create+show+update+validate)
 - [Phase 14]: Validate uses direct process.exit() for exit codes, not error() (issues are expected output)
+- [Phase 15]: Plan intent stored in YAML frontmatter under intent.outcome_ids (not separate file)
+- [Phase 15]: Trace scoped to current milestone's phase range via getMilestoneInfo()
 
 ### Pending Todos
 
@@ -44,5 +46,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 14-03-PLAN.md (Phase 14 all plans complete)
+Stopped at: Completed 15-01-PLAN.md
 Resume file: None
