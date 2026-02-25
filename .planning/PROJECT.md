@@ -8,12 +8,16 @@ A zero-dependency, single-file Node.js CLI built from 16 organized `src/` module
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current State
+## Current Milestone: v3.0 Intent Engineering
 
-All milestones shipped: v1.0 (Performance & Quality), v1.1 (Context Reduction & Tech Debt), v2.0 (Quality & Intelligence).
-297 tests passing, 373KB bundle (400KB budget), 79+ CLI commands, 16 src/ modules.
+**Goal:** Make intent the architectural backbone of GSD — every project captures *why* it exists and *what success looks like*, and every downstream workflow (research, planning, execution, verification) validates alignment against that intent.
 
-Ready for next milestone planning via `/gsd-new-milestone`.
+**Target features:**
+- INTENT.md — project-level intent capture (objective, desired outcomes, health metrics, target users, constraints, success criteria)
+- Per-phase intent — each PLAN.md traces its objective back to INTENT.md desired outcomes
+- Intent validation — command that scores plans/phases against stated intent, detects drift (objective mismatch, feature creep, priority inversion)
+- Workflow injection — all workflows get intent context injected so agents always see it
+- GSD dog-fooding — GSD itself uses the intent system for its own development
 
 ## Requirements
 
@@ -72,7 +76,13 @@ Ready for next milestone planning via `/gsd-new-milestone`.
 
 ### Active
 
-<!-- No active requirements — between milestones. Run /gsd-new-milestone to define next. -->
+<!-- v3.0 Intent Engineering scope. Requirements defined in REQUIREMENTS.md. -->
+
+- [ ] INTENT.md capture — project-level intent with structured sections
+- [ ] Per-phase intent tracing — plans link objectives back to desired outcomes
+- [ ] Intent validation — drift detection (mismatch, creep, priority inversion)
+- [ ] Workflow injection — intent context available in all workflows
+- [ ] Intent-aware questioning — new-project/new-milestone gathers intent first
 
 ### Out of Scope
 
@@ -126,4 +136,4 @@ No known tech debt.
 | Compact-as-default | Most consumers are AI agents that need compact output | Good — saves ~47% tokens per invocation |
 
 ---
-*Last updated: 2026-02-24 after v2.0 milestone completed*
+*Last updated: 2026-02-24 after v3.0 milestone started*
