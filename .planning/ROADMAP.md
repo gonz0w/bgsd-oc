@@ -78,7 +78,7 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
   2. `env scan` detects the correct package manager (e.g., pnpm from pnpm-lock.yaml) and respects packageManager field override
   3. `env-manifest.json` contains complete detection results with sources, and is regenerated automatically when manifests change (stale detection)
   4. `init progress --raw` output includes a compact "Tools:" line listing detected runtimes and versions when manifest exists
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 Plans:
 - [ ] 18-01-PLAN.md — Core detection engine (languages, package managers, binary availability)
 - [ ] 18-02-PLAN.md — Manifest persistence and staleness detection
@@ -148,7 +148,7 @@ Plans:
 | 15. Intent Tracing & Validation | v3.0 | 2/2 | Complete | 2026-02-25 |
 | 16. Workflow Integration & Self-Application | v3.0 | 3/3 | Complete | 2026-02-25 |
 | 17. Intent Enhancement | v3.0 | 2/2 | Complete | 2026-02-25 |
-| 18. Environment Awareness | v4.0 | 0/3 | Planned | - |
+| 18. Environment Awareness | 1/3 | In Progress|  | - |
 | 19. MCP Server Profiling | v4.0 | 0/? | Not started | - |
 | 20. Structured Requirements | v4.0 | 0/? | Not started | - |
 | 21. Worktree Parallelism | v4.0 | 0/? | Not started | - |

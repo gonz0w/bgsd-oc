@@ -9,17 +9,17 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
 
 ### Environment Awareness
 
-- [ ] **ENV-01**: CLI detects project languages from manifest files
+- [x] **ENV-01**: CLI detects project languages from manifest files
   - Scan 15+ file patterns (package.json, go.mod, mix.exs, Cargo.toml, pyproject.toml, etc.)
   - Polyglot projects detect ALL languages, mark primary based on root manifest
   - Detection completes in <10ms (file existence checks only)
 
-- [ ] **ENV-02**: CLI detects package manager from lockfiles and packageManager field
+- [x] **ENV-02**: CLI detects package manager from lockfiles and packageManager field
   - Lockfile precedence: bun.lock → pnpm-lock.yaml → yarn.lock → package-lock.json
   - packageManager field in package.json takes precedence over lockfile
   - Version detected from lockfile format
 
-- [ ] **ENV-03**: CLI checks binary availability for detected languages
+- [x] **ENV-03**: CLI checks binary availability for detected languages
   - Run `which <tool>` for language-specific binaries (mix, go, npm, cargo, etc.)
   - Run `<tool> --version` for version capture
   - Timeout per binary check (3s max), only check binaries relevant to detected languages
@@ -169,9 +169,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENV-01 | Phase 18 | Pending |
-| ENV-02 | Phase 18 | Pending |
-| ENV-03 | Phase 18 | Pending |
+| ENV-01 | Phase 18 | Complete |
+| ENV-02 | Phase 18 | Complete |
+| ENV-03 | Phase 18 | Complete |
 | ENV-04 | Phase 18 | Pending |
 | ENV-05 | Phase 18 | Pending |
 | ENV-06 | Phase 18 | Pending |
