@@ -64,7 +64,7 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 - [x] **Phase 18: Environment Awareness** — Detect project languages, tools, and runtimes; produce machine-readable manifest (completed 2026-02-25)
 - [x] **Phase 19: MCP Server Profiling** — Estimate MCP token costs, score relevance, recommend disabling wasteful servers (completed 2026-02-25)
 - [x] **Phase 20: Structured Requirements** — Upgrade requirements with testable assertions, test mapping, and verifier integration (completed 2026-02-25)
-- [ ] **Phase 21: Worktree Parallelism** — Create, manage, and merge git worktrees for parallel plan execution
+- [x] **Phase 21: Worktree Parallelism** — Create, manage, and merge git worktrees for parallel plan execution (completed 2026-02-25)
 - [ ] **Phase 22: Workflow Polish** — Complete-and-clear workflow for session handoffs
 
 ## Phase Details
@@ -124,7 +124,7 @@ Plans:
   3. Config.json `worktree` section controls base_path, sync_files, setup_hooks, and max_concurrent (validated against available resources)
   4. Execute-phase workflow creates worktrees per wave, monitors agent progress, merges sequentially with test gates, and cleans up before advancing to next wave
   5. `files_modified` overlap from plan-time static analysis and `git merge-tree` from merge-time both feed into the merge decision
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 Plans:
 - [x] 21-01-PLAN.md — Worktree core lifecycle (create, list, remove, cleanup) + config schema
 - [ ] 21-02-PLAN.md — Merge with conflict pre-check (git merge-tree) + file overlap detection
@@ -163,5 +163,5 @@ Plans:
 | 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
 | 19. MCP Server Profiling | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
 | 20. Structured Requirements | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
-| 21. Worktree Parallelism | 2/3 | In Progress|  | - |
+| 21. Worktree Parallelism | 3/3 | Complete   | 2026-02-25 | - |
 | 22. Workflow Polish | v4.0 | 0/? | Not started | - |

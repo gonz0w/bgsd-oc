@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 **Phase:** 21 of 22 (Worktree Parallelism)
-**Current Plan:** Plan 02 complete, Plan 03 next
-**Status:** In progress
+**Current Plan:** Plan 03 complete, phase complete
+**Status:** Phase 21 complete
 **Last Activity:** 2026-02-25
 
-Progress: [████████░░] 80% (4/5 phases)
+Progress: [██████████] 100% (5/5 phases)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Progress: [████████░░] 80% (4/5 phases)
 | Phase 20 P03 | 2 min | 2 tasks | 3 files |
 | Phase 21 P01 | 14 min | 2 tasks | 7 files |
 | Phase 21 P02 | 8 min | 2 tasks | 4 files |
+| Phase 21 P03 | 9 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ v4.0 decisions:
 - [Phase 21]: Setup hook failures mark worktree as setup_failed but don't delete it — skip failing plan, let rest proceed
 - [Phase 21]: Lockfile auto-resolution uses checkout --theirs during conflicted merge — handles git merge machinery correctly
 - [Phase 21]: Static overlap analysis only flags same-wave plans — different waves are sequential by design
+- [Phase 21]: Worktree execution gated on three conditions: worktree_enabled AND parallelization AND multi-plan wave
+- [Phase 21]: Merge ordering: plan number order (smallest first) for predictable sequential merge-back
+- [Phase 21]: Yolo/auto mode skips conflicting plans on merge failure — consistent with "let all agents finish" decision
 
 ### Pending Todos
 
@@ -94,5 +98,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 21-02-PLAN.md (worktree merge + conflict detection + tests)
+Stopped at: Completed 21-03-PLAN.md (worktree workflow integration + init extensions + tests)
 Resume file: None

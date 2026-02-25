@@ -118,7 +118,7 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
   - Default max_concurrent: 3 (safe for 32GB RAM)
   - Validation: warn if max_concurrent > available RAM / 4GB
 
-- [ ] **WKTR-05**: Execute-phase workflow creates worktrees per wave
+- [x] **WKTR-05**: Execute-phase workflow creates worktrees per wave
   - Wave N plans → create worktrees for each plan in wave
   - Spawn agent sessions in worktrees (via tmux or terminal)
   - Monitor progress across worktrees
@@ -189,7 +189,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WKTR-02 | Phase 21 | Complete |
 | WKTR-03 | Phase 21 | Complete |
 | WKTR-04 | Phase 21 | Complete |
-| WKTR-05 | Phase 21 | Pending |
+| WKTR-05 | Phase 21 | Complete |
 | WKTR-06 | Phase 21 | Complete |
 | WFLW-01 | Phase 22 | Pending |
 
