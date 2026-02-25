@@ -97,13 +97,13 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
 
 ### Worktree Parallelism
 
-- [ ] **WKTR-01**: CLI creates worktrees for plan execution
+- [x] **WKTR-01**: CLI creates worktrees for plan execution
   - `worktree create <plan-id>` creates isolated worktree with new branch
   - Branch naming: `worktree-<phase>-<plan>-<wave>`
   - Sync configurable files (.env, .planning/config.json)
   - Run setup hooks (npm install, etc.) per worktree config
 
-- [ ] **WKTR-02**: CLI lists and manages active worktrees
+- [x] **WKTR-02**: CLI lists and manages active worktrees
   - `worktree list` shows active worktrees with plan associations, branch, disk usage
   - `worktree remove <plan-id>` cleans up completed worktree
   - `worktree cleanup` removes all completed worktrees
@@ -113,7 +113,7 @@ Requirements for milestone v4.0 Environment & Execution Intelligence. Each maps 
   - Clean merge → auto-merge to base branch
   - Conflicts → report conflicting files, block merge, prompt for resolution
 
-- [ ] **WKTR-04**: Config supports worktree settings
+- [x] **WKTR-04**: Config supports worktree settings
   - `worktree` section in config.json: enabled, base_path, sync_files, setup_hooks, max_concurrent
   - Default max_concurrent: 3 (safe for 32GB RAM)
   - Validation: warn if max_concurrent > available RAM / 4GB
@@ -185,10 +185,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SREQ-03 | Phase 20 | Complete |
 | SREQ-04 | Phase 20 | Complete |
 | SREQ-05 | Phase 20 | Complete |
-| WKTR-01 | Phase 21 | Pending |
-| WKTR-02 | Phase 21 | Pending |
+| WKTR-01 | Phase 21 | Complete |
+| WKTR-02 | Phase 21 | Complete |
 | WKTR-03 | Phase 21 | Pending |
-| WKTR-04 | Phase 21 | Pending |
+| WKTR-04 | Phase 21 | Complete |
 | WKTR-05 | Phase 21 | Pending |
 | WKTR-06 | Phase 21 | Pending |
 | WFLW-01 | Phase 22 | Pending |
@@ -200,4 +200,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after Phase 20 Plan 02 completion*
+*Last updated: 2026-02-25 after Phase 21 Plan 01 completion*

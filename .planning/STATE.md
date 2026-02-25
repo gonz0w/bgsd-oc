@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 **Phase:** 21 of 22 (Worktree Parallelism)
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Plan:** Plan 01 complete, Plan 02 next
+**Status:** In progress
 **Last Activity:** 2026-02-25
 
 Progress: [████████░░] 80% (4/5 phases)
@@ -40,6 +40,7 @@ Progress: [████████░░] 80% (4/5 phases)
 | Phase 20 P01 | 8 min | 2 tasks | 6 files |
 | Phase 20 P02 | 11 min | 2 tasks | 4 files |
 | Phase 20 P03 | 2 min | 2 tasks | 3 files |
+| Phase 21 P01 | 14 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ v4.0 decisions:
 - [Phase 20]: Behavior/api assertions always need_human — no static verification possible
 - [Phase 20]: Traceability regex uses [^|\n]* to prevent cross-row matching in markdown tables
 - [Phase 20]: Cross-reference assertion text against plan must_haves.truths for planned/gap detection
+- [Phase 21]: Bundle budget raised from 525KB to 550KB for worktree module
+- [Phase 21]: Worktree config read directly from config.json (not via loadConfig) since loadConfig only handles CONFIG_SCHEMA fields
+- [Phase 21]: Setup hook failures mark worktree as setup_failed but don't delete it — skip failing plan, let rest proceed
 
 ### Pending Todos
 
@@ -87,5 +91,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 20 (all 3 plans) — metadata finalized for 20-02
+Stopped at: Completed 21-01-PLAN.md (worktree lifecycle commands + tests)
 Resume file: None
