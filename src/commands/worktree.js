@@ -7,6 +7,7 @@ const { execSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
 const { execGit } = require('../lib/git');
 const { loadConfig } = require('../lib/config');
+const { extractFrontmatter } = require('../lib/frontmatter');
 
 // --- Default Worktree Configuration ------------------------------------------
 
@@ -462,14 +463,296 @@ function cmdWorktreeCleanup(cwd, raw) {
   output({ cleaned: removed.length, worktrees: removed }, raw);
 }
 
+// --- Lockfiles and generated files for auto-resolution ----------------------
+
+const AUTO_RESOLVE_PATTERNS = [
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'go.sum',
+  '.planning/baselines/',
+];
+
+/**
+ * Check if a file path matches auto-resolve patterns (lockfiles, generated files).
+ */
+function isAutoResolvable(filePath) {
+  return AUTO_RESOLVE_PATTERNS.some(pattern => {
+    if (pattern.endsWith('/')) {
+      return filePath.startsWith(pattern);
+    }
+    return filePath === pattern || filePath.endsWith('/' + pattern);
+  });
+}
+
+/**
+ * Parse CONFLICT lines from git merge-tree output.
+ * merge-tree outputs lines like:
+ *   CONFLICT (content): Merge conflict in <file>
+ *   CONFLICT (rename/delete): ...
+ */
+function parseMergeTreeConflicts(output) {
+  const conflicts = [];
+  const lines = output.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^CONFLICT\s+\(([^)]+)\):\s+.*?(?:in\s+)?(\S+)\s*$/);
+    if (match) {
+      conflicts.push({ file: match[2], type: match[1] });
+    } else {
+      // Also try: "CONFLICT (content): Merge conflict in path/to/file"
+      const altMatch = line.match(/^CONFLICT\s+\(([^)]+)\):\s+Merge conflict in\s+(.+)$/);
+      if (altMatch) {
+        conflicts.push({ file: altMatch[2].trim(), type: altMatch[1] });
+      }
+    }
+  }
+  return conflicts;
+}
+
+/**
+ * Find all PLAN.md files for a given phase number and extract their files_modified frontmatter.
+ * Returns: [{ planId, wave, files_modified: [...] }, ...]
+ */
+function getPhaseFilesModified(cwd, phaseNumber) {
+  const phasesDir = path.join(cwd, '.planning', 'phases');
+  const paddedPhase = String(phaseNumber).padStart(2, '0');
+  const results = [];
+
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const phaseDir = entries.find(e => e.isDirectory() && e.name.startsWith(paddedPhase + '-'));
+    if (!phaseDir) return results;
+
+    const phasePath = path.join(phasesDir, phaseDir.name);
+    const planFiles = fs.readdirSync(phasePath).filter(f => f.match(/^\d+-\d+-PLAN\.md$/));
+
+    for (const planFile of planFiles) {
+      const content = fs.readFileSync(path.join(phasePath, planFile), 'utf-8');
+      const fm = extractFrontmatter(content);
+
+      // Extract plan ID from filename (e.g., "21-02-PLAN.md" → "21-02")
+      const idMatch = planFile.match(/^(\d+-\d+)-PLAN\.md$/);
+      if (!idMatch) continue;
+
+      const planId = idMatch[1];
+      const wave = fm.wave || '0';
+      const filesModified = fm.files_modified || [];
+
+      results.push({ planId, wave: String(wave), files_modified: filesModified });
+    }
+  } catch (e) {
+    debugLog('worktree.overlap', `Error reading phase plans: ${e.message}`);
+  }
+
+  return results;
+}
+
+/**
+ * cmdWorktreeMerge - Merge a worktree branch back to the base branch.
+ *
+ * Steps:
+ * 1. Static file overlap analysis (from PLAN.md frontmatter)
+ * 2. Git merge-tree dry-run
+ * 3. Merge execution (only if clean or only auto-resolvable conflicts)
+ *
+ * @param {string} cwd - Project root directory
+ * @param {string} planId - Plan ID to merge (e.g., "21-02")
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdWorktreeMerge(cwd, planId, raw) {
+  if (!planId) {
+    error('Usage: gsd-tools worktree merge <plan-id>');
+  }
+
+  const parsed = parsePlanId(planId);
+  if (!parsed) {
+    error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
+  }
+
+  const config = getWorktreeConfig(cwd);
+  const projectName = getProjectName(cwd);
+
+  // Find the worktree for this plan
+  const listResult = execGit(cwd, ['worktree', 'list', '--porcelain']);
+  if (listResult.exitCode !== 0) {
+    error(`Failed to list worktrees: ${listResult.stderr}`);
+  }
+
+  const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+  const projectBase = path.join(config.base_path, projectName);
+  const worktreePath = path.join(projectBase, planId);
+
+  // Find worktree by path or by branch pattern
+  const targetWt = allWorktrees.find(wt =>
+    wt.path === worktreePath ||
+    (wt.branch && wt.branch.match(new RegExp(`^worktree-${parsed.phase.padStart(2, '0')}-${parsed.plan.padStart(2, '0')}-`)))
+  );
+
+  if (!targetWt) {
+    error(`No worktree found for plan ${planId}. Check with 'worktree list'.`);
+  }
+
+  const worktreeBranch = targetWt.branch;
+  if (!worktreeBranch) {
+    error(`Worktree for plan ${planId} has no branch (detached HEAD?)`);
+  }
+
+  // Get base branch (current branch in cwd)
+  const baseBranchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  if (baseBranchResult.exitCode !== 0) {
+    error(`Failed to determine base branch: ${baseBranchResult.stderr}`);
+  }
+  const baseBranch = baseBranchResult.stdout.trim();
+
+  // Step 1: Static file overlap analysis
+  const fileOverlapWarnings = [];
+  const phasePlans = getPhaseFilesModified(cwd, parsed.phase);
+  const thisPlan = phasePlans.find(p => p.planId === planId);
+
+  if (thisPlan && thisPlan.files_modified.length > 0) {
+    for (const other of phasePlans) {
+      if (other.planId === planId) continue;
+      const overlap = thisPlan.files_modified.filter(f => other.files_modified.includes(f));
+      if (overlap.length > 0) {
+        fileOverlapWarnings.push({
+          plan: other.planId,
+          wave: other.wave,
+          shared_files: overlap,
+        });
+      }
+    }
+  }
+
+  // Step 2: Git merge-tree dry-run
+  const mergeTreeResult = execGit(cwd, ['merge-tree', '--write-tree', baseBranch, worktreeBranch]);
+
+  // merge-tree exit codes: 0 = clean, 1 = conflicts, >1 = error
+  if (mergeTreeResult.exitCode > 1) {
+    error(`git merge-tree failed: ${mergeTreeResult.stderr || mergeTreeResult.stdout}`);
+  }
+
+  let conflicts = [];
+  let treeSha = null;
+
+  if (mergeTreeResult.exitCode === 0) {
+    // Clean merge — tree SHA is the first line of stdout
+    treeSha = mergeTreeResult.stdout.split('\n')[0].trim();
+  } else {
+    // Conflicts detected — parse them
+    const fullOutput = (mergeTreeResult.stdout + '\n' + mergeTreeResult.stderr).trim();
+    conflicts = parseMergeTreeConflicts(fullOutput);
+
+    // If no conflicts parsed from CONFLICT lines, extract from "Merge conflict in" patterns
+    if (conflicts.length === 0) {
+      // Fallback: try to get tree SHA from first line even with conflicts
+      const firstLine = mergeTreeResult.stdout.split('\n')[0].trim();
+      if (/^[0-9a-f]{40}$/.test(firstLine)) {
+        treeSha = firstLine;
+      }
+    }
+  }
+
+  // Auto-resolve: check if ALL conflicts are lockfiles/generated files
+  const autoResolvable = conflicts.filter(c => isAutoResolvable(c.file));
+  const realConflicts = conflicts.filter(c => !isAutoResolvable(c.file));
+
+  // Step 3: Merge execution
+  if (realConflicts.length > 0) {
+    // Real conflicts exist — block merge
+    output({
+      merged: false,
+      plan_id: planId,
+      branch: worktreeBranch,
+      base_branch: baseBranch,
+      conflicts: realConflicts.map(c => ({ file: c.file, type: c.type })),
+      auto_resolved: autoResolvable.map(c => ({ file: c.file, type: c.type })),
+      file_overlap_warnings: fileOverlapWarnings,
+    }, raw);
+    return;
+  }
+
+  // All clear (or only auto-resolvable conflicts) — proceed with merge
+  const mergeResult = execGit(cwd, ['merge', worktreeBranch, '--no-ff', '-m', `merge: plan ${planId} worktree`]);
+  if (mergeResult.exitCode !== 0) {
+    // Merge failed at execution time (shouldn't happen after clean merge-tree, but handle it)
+    error(`Merge execution failed: ${mergeResult.stderr}`);
+  }
+
+  output({
+    merged: true,
+    plan_id: planId,
+    branch: worktreeBranch,
+    base_branch: baseBranch,
+    tree_sha: treeSha,
+    auto_resolved: autoResolvable.map(c => ({ file: c.file, type: c.type })),
+    file_overlap_warnings: fileOverlapWarnings,
+  }, raw);
+}
+
+/**
+ * cmdWorktreeCheckOverlap - Static file overlap analysis for a phase.
+ *
+ * Reads all PLAN.md files in the phase directory, extracts files_modified
+ * from frontmatter, and builds an overlap matrix for plans in the same wave.
+ *
+ * @param {string} cwd - Project root directory
+ * @param {string} phaseNumber - Phase number (e.g., "21")
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdWorktreeCheckOverlap(cwd, phaseNumber, raw) {
+  if (!phaseNumber) {
+    error('Usage: gsd-tools worktree check-overlap <phase-number>');
+  }
+
+  const phasePlans = getPhaseFilesModified(cwd, phaseNumber);
+
+  const overlaps = [];
+  const checked = new Set();
+
+  for (let i = 0; i < phasePlans.length; i++) {
+    for (let j = i + 1; j < phasePlans.length; j++) {
+      const a = phasePlans[i];
+      const b = phasePlans[j];
+
+      // Only flag overlaps for plans in the same wave (parallel execution)
+      if (a.wave !== b.wave) continue;
+
+      const pairKey = `${a.planId}:${b.planId}`;
+      if (checked.has(pairKey)) continue;
+      checked.add(pairKey);
+
+      const sharedFiles = a.files_modified.filter(f => b.files_modified.includes(f));
+      if (sharedFiles.length > 0) {
+        overlaps.push({
+          plans: [a.planId, b.planId],
+          files: sharedFiles,
+          wave: a.wave,
+        });
+      }
+    }
+  }
+
+  output({
+    phase: phaseNumber,
+    plans_analyzed: phasePlans.length,
+    overlaps,
+    has_conflicts: overlaps.length > 0,
+  }, raw);
+}
+
 module.exports = {
   cmdWorktreeCreate,
   cmdWorktreeList,
   cmdWorktreeRemove,
   cmdWorktreeCleanup,
+  cmdWorktreeMerge,
+  cmdWorktreeCheckOverlap,
   // Exported for testing
   getWorktreeConfig,
   parsePlanId,
   parseWorktreeListPorcelain,
+  getPhaseFilesModified,
+  parseMergeTreeConflicts,
+  isAutoResolvable,
   WORKTREE_DEFAULTS,
 };

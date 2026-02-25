@@ -79,6 +79,7 @@ const {
 
 const {
   cmdWorktreeCreate, cmdWorktreeList, cmdWorktreeRemove, cmdWorktreeCleanup,
+  cmdWorktreeMerge, cmdWorktreeCheckOverlap,
 } = require('./commands/worktree');
 
 
@@ -775,8 +776,12 @@ async function main() {
         cmdWorktreeRemove(cwd, args[2], raw);
       } else if (subcommand === 'cleanup') {
         cmdWorktreeCleanup(cwd, raw);
+      } else if (subcommand === 'merge') {
+        cmdWorktreeMerge(cwd, args[2], raw);
+      } else if (subcommand === 'check-overlap') {
+        cmdWorktreeCheckOverlap(cwd, args[2], raw);
       } else {
-        error('Unknown worktree subcommand. Available: create, list, remove, cleanup');
+        error('Unknown worktree subcommand. Available: create, list, remove, cleanup, merge, check-overlap');
       }
       break;
     }

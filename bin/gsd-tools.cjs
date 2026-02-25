@@ -12101,6 +12101,7 @@ var require_worktree = __commonJS({
     var { output, error, debugLog } = require_output();
     var { execGit } = require_git();
     var { loadConfig } = require_config();
+    var { extractFrontmatter } = require_frontmatter();
     var WORKTREE_DEFAULTS = {
       enabled: false,
       base_path: "/tmp/gsd-worktrees",
@@ -12409,15 +12410,202 @@ var require_worktree = __commonJS({
       }
       output({ cleaned: removed.length, worktrees: removed }, raw);
     }
+    var AUTO_RESOLVE_PATTERNS = [
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "go.sum",
+      ".planning/baselines/"
+    ];
+    function isAutoResolvable(filePath) {
+      return AUTO_RESOLVE_PATTERNS.some((pattern) => {
+        if (pattern.endsWith("/")) {
+          return filePath.startsWith(pattern);
+        }
+        return filePath === pattern || filePath.endsWith("/" + pattern);
+      });
+    }
+    function parseMergeTreeConflicts(output2) {
+      const conflicts = [];
+      const lines = output2.split("\n");
+      for (const line of lines) {
+        const match = line.match(/^CONFLICT\s+\(([^)]+)\):\s+.*?(?:in\s+)?(\S+)\s*$/);
+        if (match) {
+          conflicts.push({ file: match[2], type: match[1] });
+        } else {
+          const altMatch = line.match(/^CONFLICT\s+\(([^)]+)\):\s+Merge conflict in\s+(.+)$/);
+          if (altMatch) {
+            conflicts.push({ file: altMatch[2].trim(), type: altMatch[1] });
+          }
+        }
+      }
+      return conflicts;
+    }
+    function getPhaseFilesModified(cwd, phaseNumber) {
+      const phasesDir = path.join(cwd, ".planning", "phases");
+      const paddedPhase = String(phaseNumber).padStart(2, "0");
+      const results = [];
+      try {
+        const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+        const phaseDir = entries.find((e) => e.isDirectory() && e.name.startsWith(paddedPhase + "-"));
+        if (!phaseDir) return results;
+        const phasePath = path.join(phasesDir, phaseDir.name);
+        const planFiles = fs.readdirSync(phasePath).filter((f) => f.match(/^\d+-\d+-PLAN\.md$/));
+        for (const planFile of planFiles) {
+          const content = fs.readFileSync(path.join(phasePath, planFile), "utf-8");
+          const fm = extractFrontmatter(content);
+          const idMatch = planFile.match(/^(\d+-\d+)-PLAN\.md$/);
+          if (!idMatch) continue;
+          const planId = idMatch[1];
+          const wave = fm.wave || "0";
+          const filesModified = fm.files_modified || [];
+          results.push({ planId, wave: String(wave), files_modified: filesModified });
+        }
+      } catch (e) {
+        debugLog("worktree.overlap", `Error reading phase plans: ${e.message}`);
+      }
+      return results;
+    }
+    function cmdWorktreeMerge(cwd, planId, raw) {
+      if (!planId) {
+        error("Usage: gsd-tools worktree merge <plan-id>");
+      }
+      const parsed = parsePlanId(planId);
+      if (!parsed) {
+        error(`Invalid plan ID "${planId}". Expected format: NN-MM (e.g., 21-02)`);
+      }
+      const config = getWorktreeConfig(cwd);
+      const projectName = getProjectName(cwd);
+      const listResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
+      if (listResult.exitCode !== 0) {
+        error(`Failed to list worktrees: ${listResult.stderr}`);
+      }
+      const allWorktrees = parseWorktreeListPorcelain(listResult.stdout);
+      const projectBase = path.join(config.base_path, projectName);
+      const worktreePath = path.join(projectBase, planId);
+      const targetWt = allWorktrees.find(
+        (wt) => wt.path === worktreePath || wt.branch && wt.branch.match(new RegExp(`^worktree-${parsed.phase.padStart(2, "0")}-${parsed.plan.padStart(2, "0")}-`))
+      );
+      if (!targetWt) {
+        error(`No worktree found for plan ${planId}. Check with 'worktree list'.`);
+      }
+      const worktreeBranch = targetWt.branch;
+      if (!worktreeBranch) {
+        error(`Worktree for plan ${planId} has no branch (detached HEAD?)`);
+      }
+      const baseBranchResult = execGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+      if (baseBranchResult.exitCode !== 0) {
+        error(`Failed to determine base branch: ${baseBranchResult.stderr}`);
+      }
+      const baseBranch = baseBranchResult.stdout.trim();
+      const fileOverlapWarnings = [];
+      const phasePlans = getPhaseFilesModified(cwd, parsed.phase);
+      const thisPlan = phasePlans.find((p) => p.planId === planId);
+      if (thisPlan && thisPlan.files_modified.length > 0) {
+        for (const other of phasePlans) {
+          if (other.planId === planId) continue;
+          const overlap = thisPlan.files_modified.filter((f) => other.files_modified.includes(f));
+          if (overlap.length > 0) {
+            fileOverlapWarnings.push({
+              plan: other.planId,
+              wave: other.wave,
+              shared_files: overlap
+            });
+          }
+        }
+      }
+      const mergeTreeResult = execGit(cwd, ["merge-tree", "--write-tree", baseBranch, worktreeBranch]);
+      if (mergeTreeResult.exitCode > 1) {
+        error(`git merge-tree failed: ${mergeTreeResult.stderr || mergeTreeResult.stdout}`);
+      }
+      let conflicts = [];
+      let treeSha = null;
+      if (mergeTreeResult.exitCode === 0) {
+        treeSha = mergeTreeResult.stdout.split("\n")[0].trim();
+      } else {
+        const fullOutput = (mergeTreeResult.stdout + "\n" + mergeTreeResult.stderr).trim();
+        conflicts = parseMergeTreeConflicts(fullOutput);
+        if (conflicts.length === 0) {
+          const firstLine = mergeTreeResult.stdout.split("\n")[0].trim();
+          if (/^[0-9a-f]{40}$/.test(firstLine)) {
+            treeSha = firstLine;
+          }
+        }
+      }
+      const autoResolvable = conflicts.filter((c) => isAutoResolvable(c.file));
+      const realConflicts = conflicts.filter((c) => !isAutoResolvable(c.file));
+      if (realConflicts.length > 0) {
+        output({
+          merged: false,
+          plan_id: planId,
+          branch: worktreeBranch,
+          base_branch: baseBranch,
+          conflicts: realConflicts.map((c) => ({ file: c.file, type: c.type })),
+          auto_resolved: autoResolvable.map((c) => ({ file: c.file, type: c.type })),
+          file_overlap_warnings: fileOverlapWarnings
+        }, raw);
+        return;
+      }
+      const mergeResult = execGit(cwd, ["merge", worktreeBranch, "--no-ff", "-m", `merge: plan ${planId} worktree`]);
+      if (mergeResult.exitCode !== 0) {
+        error(`Merge execution failed: ${mergeResult.stderr}`);
+      }
+      output({
+        merged: true,
+        plan_id: planId,
+        branch: worktreeBranch,
+        base_branch: baseBranch,
+        tree_sha: treeSha,
+        auto_resolved: autoResolvable.map((c) => ({ file: c.file, type: c.type })),
+        file_overlap_warnings: fileOverlapWarnings
+      }, raw);
+    }
+    function cmdWorktreeCheckOverlap(cwd, phaseNumber, raw) {
+      if (!phaseNumber) {
+        error("Usage: gsd-tools worktree check-overlap <phase-number>");
+      }
+      const phasePlans = getPhaseFilesModified(cwd, phaseNumber);
+      const overlaps = [];
+      const checked = /* @__PURE__ */ new Set();
+      for (let i = 0; i < phasePlans.length; i++) {
+        for (let j = i + 1; j < phasePlans.length; j++) {
+          const a = phasePlans[i];
+          const b = phasePlans[j];
+          if (a.wave !== b.wave) continue;
+          const pairKey = `${a.planId}:${b.planId}`;
+          if (checked.has(pairKey)) continue;
+          checked.add(pairKey);
+          const sharedFiles = a.files_modified.filter((f) => b.files_modified.includes(f));
+          if (sharedFiles.length > 0) {
+            overlaps.push({
+              plans: [a.planId, b.planId],
+              files: sharedFiles,
+              wave: a.wave
+            });
+          }
+        }
+      }
+      output({
+        phase: phaseNumber,
+        plans_analyzed: phasePlans.length,
+        overlaps,
+        has_conflicts: overlaps.length > 0
+      }, raw);
+    }
     module2.exports = {
       cmdWorktreeCreate,
       cmdWorktreeList,
       cmdWorktreeRemove,
       cmdWorktreeCleanup,
+      cmdWorktreeMerge,
+      cmdWorktreeCheckOverlap,
       // Exported for testing
       getWorktreeConfig,
       parsePlanId,
       parseWorktreeListPorcelain,
+      getPhaseFilesModified,
+      parseMergeTreeConflicts,
+      isAutoResolvable,
       WORKTREE_DEFAULTS
     };
   }
@@ -12566,7 +12754,9 @@ var require_router = __commonJS({
       cmdWorktreeCreate,
       cmdWorktreeList,
       cmdWorktreeRemove,
-      cmdWorktreeCleanup
+      cmdWorktreeCleanup,
+      cmdWorktreeMerge,
+      cmdWorktreeCheckOverlap
     } = require_worktree();
     async function main2() {
       const args = process.argv.slice(2);
@@ -13193,8 +13383,12 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             cmdWorktreeRemove(cwd, args[2], raw);
           } else if (subcommand === "cleanup") {
             cmdWorktreeCleanup(cwd, raw);
+          } else if (subcommand === "merge") {
+            cmdWorktreeMerge(cwd, args[2], raw);
+          } else if (subcommand === "check-overlap") {
+            cmdWorktreeCheckOverlap(cwd, args[2], raw);
           } else {
-            error("Unknown worktree subcommand. Available: create, list, remove, cleanup");
+            error("Unknown worktree subcommand. Available: create, list, remove, cleanup, merge, check-overlap");
           }
           break;
         }
