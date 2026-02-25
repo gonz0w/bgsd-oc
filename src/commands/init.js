@@ -235,6 +235,12 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     return output(compactResult, raw);
   }
 
+  // Trim null/disabled sections from verbose output to reduce token waste
+  if (!result.worktree_enabled) { delete result.worktree_config; delete result.worktree_active; delete result.file_overlaps; }
+  if (result.intent_drift === null) delete result.intent_drift;
+  if (result.intent_summary === null) delete result.intent_summary;
+  if (result.env_summary === null) { delete result.env_summary; delete result.env_languages; delete result.env_stale; }
+
   output(result, raw);
 }
 
@@ -356,6 +362,10 @@ function cmdInitPlanPhase(cwd, phase, raw) {
 
     return output(compactResult, raw);
   }
+
+  // Trim null intent fields from verbose output
+  if (result.intent_summary === null) delete result.intent_summary;
+  if (result.intent_path === null) delete result.intent_path;
 
   output(result, raw);
 }
@@ -1162,6 +1172,12 @@ function cmdInitProgress(cwd, raw) {
     }
     return output(compactResult, raw);
   }
+
+  // Trim null/empty fields from verbose output to reduce token waste
+  if (result.intent_summary === null) delete result.intent_summary;
+  if (result.env_summary === null) { delete result.env_summary; delete result.env_languages; delete result.env_stale; }
+  if (result.paused_at === null) delete result.paused_at;
+  if (result.session_diff === null) delete result.session_diff;
 
   output(result, raw);
 }

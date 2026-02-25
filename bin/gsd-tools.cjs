@@ -8128,6 +8128,18 @@ var require_init = __commonJS({
         }
         return output(compactResult, raw);
       }
+      if (!result.worktree_enabled) {
+        delete result.worktree_config;
+        delete result.worktree_active;
+        delete result.file_overlaps;
+      }
+      if (result.intent_drift === null) delete result.intent_drift;
+      if (result.intent_summary === null) delete result.intent_summary;
+      if (result.env_summary === null) {
+        delete result.env_summary;
+        delete result.env_languages;
+        delete result.env_stale;
+      }
       output(result, raw);
     }
     function cmdInitPlanPhase(cwd, phase, raw) {
@@ -8235,6 +8247,8 @@ var require_init = __commonJS({
         }
         return output(compactResult, raw);
       }
+      if (result.intent_summary === null) delete result.intent_summary;
+      if (result.intent_path === null) delete result.intent_path;
       output(result, raw);
     }
     function cmdInitNewProject(cwd, raw) {
@@ -8910,6 +8924,14 @@ var require_init = __commonJS({
         }
         return output(compactResult, raw);
       }
+      if (result.intent_summary === null) delete result.intent_summary;
+      if (result.env_summary === null) {
+        delete result.env_summary;
+        delete result.env_languages;
+        delete result.env_stale;
+      }
+      if (result.paused_at === null) delete result.paused_at;
+      if (result.session_diff === null) delete result.session_diff;
       output(result, raw);
     }
     function cmdInitMemory(cwd, args, raw) {
@@ -11141,7 +11163,10 @@ var require_misc = __commonJS({
       };
       output(result, raw);
     }
-    function cmdHistoryDigest(cwd, raw) {
+    function cmdHistoryDigest(cwd, options, raw) {
+      const limit = options.limit || null;
+      const phasesFilter = options.phases || null;
+      const compact = options.compact || false;
       const phasesDir = path.join(cwd, ".planning", "phases");
       const digest = { phases: {}, decisions: [], tech_stack: /* @__PURE__ */ new Set() };
       const allPhaseDirs = [];
@@ -11210,6 +11235,20 @@ var require_misc = __commonJS({
           digest.phases[p].patterns = [...digest.phases[p].patterns];
         });
         digest.tech_stack = [...digest.tech_stack];
+        if (phasesFilter) {
+          const allowed = new Set(phasesFilter);
+          digest.phases = Object.fromEntries(Object.entries(digest.phases).filter(([k]) => allowed.has(k)));
+          digest.decisions = digest.decisions.filter((d) => allowed.has(String(d.phase)));
+        }
+        if (limit) {
+          const kept = new Set(Object.keys(digest.phases).sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, limit));
+          digest.phases = Object.fromEntries(Object.entries(digest.phases).filter(([k]) => kept.has(k)));
+          digest.decisions = digest.decisions.filter((d) => kept.has(String(d.phase)));
+        }
+        if (compact) {
+          delete digest.decisions;
+          delete digest.tech_stack;
+        }
         output(digest, raw);
       } catch (e) {
         debugLog("feature.historyDigest", "digest generation failed", e);
@@ -13177,7 +13216,15 @@ var require_router = __commonJS({
           break;
         }
         case "history-digest": {
-          cmdHistoryDigest(cwd, raw);
+          const hdLimitIdx = args.indexOf("--limit");
+          const hdPhasesIdx = args.indexOf("--phases");
+          const hdSlim = args.includes("--slim");
+          const hdOptions = {
+            limit: hdLimitIdx !== -1 ? parseInt(args[hdLimitIdx + 1], 10) : null,
+            phases: hdPhasesIdx !== -1 ? args[hdPhasesIdx + 1].split(",").map((s) => s.trim()) : null,
+            compact: hdSlim
+          };
+          cmdHistoryDigest(cwd, hdOptions, raw);
           break;
         }
         case "phases": {

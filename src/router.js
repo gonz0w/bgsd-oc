@@ -376,7 +376,15 @@ async function main() {
     }
 
     case 'history-digest': {
-      cmdHistoryDigest(cwd, raw);
+      const hdLimitIdx = args.indexOf('--limit');
+      const hdPhasesIdx = args.indexOf('--phases');
+      const hdSlim = args.includes('--slim');
+      const hdOptions = {
+        limit: hdLimitIdx !== -1 ? parseInt(args[hdLimitIdx + 1], 10) : null,
+        phases: hdPhasesIdx !== -1 ? args[hdPhasesIdx + 1].split(',').map(s => s.trim()) : null,
+        compact: hdSlim,
+      };
+      cmdHistoryDigest(cwd, hdOptions, raw);
       break;
     }
 

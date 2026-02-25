@@ -321,7 +321,11 @@ function cmdConfigMigrate(cwd, raw) {
   output(result, raw);
 }
 
-function cmdHistoryDigest(cwd, raw) {
+function cmdHistoryDigest(cwd, options, raw) {
+  const limit = options.limit || null;       // --limit N: only output N most recent phases
+  const phasesFilter = options.phases || null; // --phases 10,11,12: specific phases
+  const compact = options.compact || false;   // --compact: omit decisions and tech_stack
+
   const phasesDir = path.join(cwd, '.planning', 'phases');
   const digest = { phases: {}, decisions: [], tech_stack: new Set() };
 
@@ -416,6 +420,23 @@ function cmdHistoryDigest(cwd, raw) {
       digest.phases[p].patterns = [...digest.phases[p].patterns];
     });
     digest.tech_stack = [...digest.tech_stack];
+
+    // Apply --phases filter: only keep specific phase numbers
+    if (phasesFilter) {
+      const allowed = new Set(phasesFilter);
+      digest.phases = Object.fromEntries(Object.entries(digest.phases).filter(([k]) => allowed.has(k)));
+      digest.decisions = digest.decisions.filter(d => allowed.has(String(d.phase)));
+    }
+
+    // Apply --limit N: keep N most recent phases (by number, descending)
+    if (limit) {
+      const kept = new Set(Object.keys(digest.phases).sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, limit));
+      digest.phases = Object.fromEntries(Object.entries(digest.phases).filter(([k]) => kept.has(k)));
+      digest.decisions = digest.decisions.filter(d => kept.has(String(d.phase)));
+    }
+
+    // Apply --compact: omit decisions and tech_stack
+    if (compact) { delete digest.decisions; delete digest.tech_stack; }
 
     output(digest, raw);
   } catch (e) {
