@@ -780,16 +780,29 @@ Examples:
 Manage project intent in INTENT.md.
 
 Subcommands:
-  create                    Create a new INTENT.md in .planning/
-    --force                 Overwrite existing INTENT.md
-    --objective "text"      Set objective statement
-    --users "u1" "u2"      Set target users
-    --outcomes "DO-01 [P1]: desc"  Add desired outcomes
-    --criteria "SC-01: gate"       Add success criteria
+  create      Create a new INTENT.md (errors if exists, use --force to overwrite)
+  show        Display intent summary (compact by default, --full for complete, section filter supported)
+  read        Read intent as JSON (alias for intent show --raw, section filter supported)
+  validate    Validate INTENT.md structure (exit 0=valid, 1=issues)
 
-Creates .planning/INTENT.md with 6 structured sections:
-  objective, users, outcomes, criteria, constraints, health
+Examples:
+  gsd-tools intent create
+  gsd-tools intent show
+  gsd-tools intent read outcomes --raw
+  gsd-tools intent validate --raw`,
 
+  'intent create': `Usage: gsd-tools intent create [options] [--raw]
+
+Create a new INTENT.md in .planning/ with 6 structured sections.
+
+Options:
+  --force                 Overwrite existing INTENT.md
+  --objective "text"      Set objective statement
+  --users "u1" "u2"      Set target users
+  --outcomes "DO-01 [P1]: desc"  Add desired outcomes
+  --criteria "SC-01: gate"       Add success criteria
+
+Sections: objective, users, outcomes, criteria, constraints, health
 Auto-commits if commit_docs is enabled.
 
 Output: { created, path, revision, sections, commit }
@@ -798,6 +811,56 @@ Examples:
   gsd-tools intent create
   gsd-tools intent create --force
   gsd-tools intent create --objective "A CLI for project planning" --raw`,
+
+  'intent show': `Usage: gsd-tools intent show [section] [--full] [--raw]
+
+Display intent summary from INTENT.md.
+
+Modes:
+  (default)        Compact summary (10-20 lines, outcomes sorted by priority)
+  --full           Render complete INTENT.md content
+  <section>        Show specific section (objective, users, outcomes, criteria, constraints, health)
+  --raw            JSON output of all sections (or filtered section)
+
+Examples:
+  gsd-tools intent show
+  gsd-tools intent show --full
+  gsd-tools intent show outcomes
+  gsd-tools intent show --raw`,
+
+  'intent read': `Usage: gsd-tools intent read [section] [--raw]
+
+Read intent as JSON. Alias for 'intent show --raw'.
+
+Arguments:
+  section    Optional section filter (objective, users, outcomes, criteria, constraints, health)
+
+Output: Full structured JSON or single section JSON
+
+Examples:
+  gsd-tools intent read --raw
+  gsd-tools intent read outcomes --raw`,
+
+  'intent validate': `Usage: gsd-tools intent validate [--raw]
+
+Validate INTENT.md structural integrity.
+
+Checks:
+  Section presence    All 6 sections must exist with content
+  ID format           DO-XX [PX], SC-XX, C-XX, HM-XX patterns
+  ID uniqueness       No duplicate IDs within sections
+  Sub-sections        Constraints needs Technical/Business/Timeline, Health needs Quantitative/Qualitative
+  Content minimums    At least 1 outcome and 1 success criterion
+  Revision            Must be a positive integer
+
+Exit codes: 0 = valid, 1 = issues found
+
+Output (default): Lint-style with checkmarks/crosses
+Output (--raw):   { valid, issues, sections, revision }
+
+Examples:
+  gsd-tools intent validate
+  gsd-tools intent validate --raw`,
 
   'extract-sections': `Usage: gsd-tools extract-sections <file-path> [section1] [section2] ... [--raw]
 

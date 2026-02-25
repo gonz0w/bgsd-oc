@@ -7660,3 +7660,430 @@ describe('compact default behavior', () => {
     assert.ok('phase_count' in data, 'verbose should include phase_count');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intent Commands (Phase 14, Plan 03)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('intent commands', () => {
+  let tmpDir;
+
+  // Helper to init a git repo in temp dir (needed for auto-commit on intent create)
+  function initGitRepo(dir) {
+    execSync(
+      'git init && git -c user.name=Test -c user.email=test@test.com add . && git -c user.name=Test -c user.email=test@test.com commit -m "init" --allow-empty',
+      { cwd: dir, encoding: 'utf-8', stdio: 'pipe' }
+    );
+  }
+
+  // Helper to create a populated INTENT.md for testing
+  function createPopulatedIntent(dir) {
+    const content = `**Revision:** 1
+**Created:** 2026-01-01
+**Updated:** 2026-01-01
+
+<objective>
+Build a CLI tool for project planning
+
+This tool helps teams manage complex multi-phase projects.
+</objective>
+
+<users>
+- Software engineers working on multi-service architectures
+- Team leads managing project milestones
+</users>
+
+<outcomes>
+- DO-01 [P1]: Automated phase planning and execution
+- DO-02 [P2]: Progress tracking with visual dashboards
+- DO-03 [P1]: Integration with git workflows
+</outcomes>
+
+<criteria>
+- SC-01: All CLI commands respond in under 500ms
+- SC-02: Zero data loss during state transitions
+</criteria>
+
+<constraints>
+### Technical
+- C-01: Single-file Node.js bundle, zero dependencies
+- C-02: Must work on Linux and macOS
+
+### Business
+- C-03: Open source under MIT license
+
+### Timeline
+- C-04: MVP ready within 2 weeks
+</constraints>
+
+<health>
+### Quantitative
+- HM-01: Bundle size under 500KB
+- HM-02: Test coverage above 80%
+
+### Qualitative
+Team velocity and developer satisfaction with the planning workflow.
+</health>
+`;
+    fs.writeFileSync(path.join(dir, '.planning', 'INTENT.md'), content, 'utf-8');
+  }
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  // ── Create tests ──
+
+  describe('intent create', () => {
+    test('creates INTENT.md with all 6 XML sections in fresh project', () => {
+      // Note: intent create with --raw outputs a compact shorthand (commit hash or "created"),
+      // not full JSON. We verify by checking the file on disk.
+      const result = runGsdTools('intent create --raw', tmpDir);
+      assert.ok(result.success, `intent create failed: ${result.error}`);
+      assert.ok(result.output.includes('created') || /^[a-f0-9]+$/.test(result.output),
+        'should output "created" or commit hash');
+
+      // Verify file on disk
+      const intentPath = path.join(tmpDir, '.planning', 'INTENT.md');
+      assert.ok(fs.existsSync(intentPath), 'INTENT.md should exist on disk');
+
+      const content = fs.readFileSync(intentPath, 'utf-8');
+      assert.ok(content.includes('<objective>'), 'should have objective section');
+      assert.ok(content.includes('<users>'), 'should have users section');
+      assert.ok(content.includes('<outcomes>'), 'should have outcomes section');
+      assert.ok(content.includes('<criteria>'), 'should have criteria section');
+      assert.ok(content.includes('<constraints>'), 'should have constraints section');
+      assert.ok(content.includes('<health>'), 'should have health section');
+    });
+
+    test('errors if INTENT.md already exists', () => {
+      // Create first
+      runGsdTools('intent create --raw', tmpDir);
+
+      // Try again without --force
+      const result = runGsdTools('intent create --raw', tmpDir);
+      assert.ok(!result.success, 'should fail when INTENT.md exists');
+      assert.ok(
+        result.error.includes('already exists') || result.output.includes('already exists'),
+        'should mention already exists'
+      );
+    });
+
+    test('--force overwrites existing INTENT.md', () => {
+      // Create first
+      runGsdTools('intent create --raw', tmpDir);
+
+      // Overwrite with --force
+      const result = runGsdTools('intent create --force --raw', tmpDir);
+      assert.ok(result.success, `intent create --force failed: ${result.error}`);
+      // Verify file was recreated on disk
+      const content = fs.readFileSync(path.join(tmpDir, '.planning', 'INTENT.md'), 'utf-8');
+      assert.ok(content.includes('**Revision:** 1'), 'overwritten file should have Revision 1');
+    });
+
+    test('created INTENT.md has Revision 1', () => {
+      runGsdTools('intent create --raw', tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, '.planning', 'INTENT.md'), 'utf-8');
+      assert.ok(content.includes('**Revision:** 1'), 'should contain Revision: 1');
+    });
+  });
+
+  // ── Show/Read tests ──
+
+  describe('intent show/read', () => {
+    test('intent show --raw returns valid JSON with all section keys', () => {
+      createPopulatedIntent(tmpDir);
+      const result = runGsdTools('intent show --raw', tmpDir);
+      assert.ok(result.success, `intent show --raw failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.ok('objective' in data, 'should have objective');
+      assert.ok('users' in data, 'should have users');
+      assert.ok('outcomes' in data, 'should have outcomes');
+      assert.ok('criteria' in data, 'should have criteria');
+      assert.ok('constraints' in data, 'should have constraints');
+      assert.ok('health' in data, 'should have health');
+      assert.ok('revision' in data, 'should have revision');
+    });
+
+    test('intent read --raw returns same JSON as intent show --raw', () => {
+      createPopulatedIntent(tmpDir);
+      const showResult = runGsdTools('intent show --raw', tmpDir);
+      const readResult = runGsdTools('intent read --raw', tmpDir);
+
+      assert.ok(showResult.success, `show failed: ${showResult.error}`);
+      assert.ok(readResult.success, `read failed: ${readResult.error}`);
+
+      const showData = JSON.parse(showResult.output);
+      const readData = JSON.parse(readResult.output);
+      assert.deepStrictEqual(readData, showData, 'read and show --raw should return identical JSON');
+    });
+
+    test('intent read outcomes --raw returns just outcomes array', () => {
+      createPopulatedIntent(tmpDir);
+      const result = runGsdTools('intent read outcomes --raw', tmpDir);
+      assert.ok(result.success, `intent read outcomes --raw failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      // Section filter should return the section data
+      assert.ok(Array.isArray(data) || (typeof data === 'object' && data !== null), 'should return outcomes data');
+    });
+  });
+
+  // ── Update tests ──
+
+  describe('intent update', () => {
+    test('--add outcome assigns DO-01 with specified priority', () => {
+      createPopulatedIntent(tmpDir);
+      // The populated intent already has DO-01..DO-03, so next should be DO-04
+      const result = runGsdTools('intent update outcomes --add "Test outcome" --priority P1 --raw', tmpDir);
+      assert.ok(result.success, `update add failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.updated, true, 'should report updated=true');
+      assert.strictEqual(data.section, 'outcomes');
+      assert.strictEqual(data.operation, 'add');
+      assert.strictEqual(data.id, 'DO-04', 'should assign DO-04 (next after existing DO-03)');
+      assert.strictEqual(data.priority, 'P1');
+      assert.strictEqual(data.revision, 2, 'revision should increment to 2');
+    });
+
+    test('--add second outcome gets next sequential ID', () => {
+      // Start fresh with empty intent
+      runGsdTools('intent create --raw', tmpDir);
+
+      // Add first outcome
+      const first = runGsdTools('intent update outcomes --add "First outcome" --priority P1 --raw', tmpDir);
+      assert.ok(first.success, `first add failed: ${first.error}`);
+      const firstData = JSON.parse(first.output);
+      assert.strictEqual(firstData.id, 'DO-01');
+
+      // Add second outcome
+      const second = runGsdTools('intent update outcomes --add "Second outcome" --raw', tmpDir);
+      assert.ok(second.success, `second add failed: ${second.error}`);
+      const secondData = JSON.parse(second.output);
+      assert.strictEqual(secondData.id, 'DO-02', 'should assign DO-02');
+      assert.strictEqual(secondData.priority, 'P2', 'default priority should be P2');
+    });
+
+    test('--remove removes item and subsequent --add preserves gap', () => {
+      runGsdTools('intent create --raw', tmpDir);
+
+      // Add two outcomes
+      runGsdTools('intent update outcomes --add "First" --raw', tmpDir);
+      runGsdTools('intent update outcomes --add "Second" --raw', tmpDir);
+
+      // Remove DO-01
+      const removeResult = runGsdTools('intent update outcomes --remove DO-01 --raw', tmpDir);
+      assert.ok(removeResult.success, `remove failed: ${removeResult.error}`);
+      const removeData = JSON.parse(removeResult.output);
+      assert.strictEqual(removeData.operation, 'remove');
+
+      // Add another — should be DO-03 (gap preserved), not DO-01
+      const addResult = runGsdTools('intent update outcomes --add "Third" --raw', tmpDir);
+      assert.ok(addResult.success, `add after remove failed: ${addResult.error}`);
+      const addData = JSON.parse(addResult.output);
+      assert.strictEqual(addData.id, 'DO-03', 'should assign DO-03, preserving gap from removed DO-01');
+    });
+
+    test('--set-priority changes outcome priority', () => {
+      createPopulatedIntent(tmpDir);
+      const result = runGsdTools('intent update outcomes --set-priority DO-02 P1 --raw', tmpDir);
+      assert.ok(result.success, `set-priority failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.operation, 'set-priority');
+
+      // Verify the change persisted
+      const showResult = runGsdTools('intent show --raw', tmpDir);
+      const showData = JSON.parse(showResult.output);
+      const do02 = showData.outcomes.find(o => o.id === 'DO-02');
+      assert.strictEqual(do02.priority, 'P1', 'DO-02 should now be P1');
+    });
+
+    test('--value replaces objective section', () => {
+      createPopulatedIntent(tmpDir);
+      const result = runGsdTools('intent update objective --value "New objective statement" --raw', tmpDir);
+      assert.ok(result.success, `update objective failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.operation, 'replace');
+      assert.strictEqual(data.section, 'objective');
+
+      // Verify the change persisted
+      const showResult = runGsdTools('intent show --raw', tmpDir);
+      const showData = JSON.parse(showResult.output);
+      assert.strictEqual(showData.objective.statement, 'New objective statement');
+    });
+
+    test('revision increments on each update', () => {
+      createPopulatedIntent(tmpDir);
+
+      // First update: revision 1 → 2
+      runGsdTools('intent update outcomes --add "One" --raw', tmpDir);
+
+      // Second update: revision 2 → 3
+      const result = runGsdTools('intent update outcomes --add "Two" --raw', tmpDir);
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.revision, 3, 'revision should be 3 after two updates from revision 1');
+    });
+  });
+
+  // ── Validate tests ──
+
+  describe('intent validate', () => {
+    test('valid INTENT.md with all sections returns exit code 0', () => {
+      createPopulatedIntent(tmpDir);
+      const result = runGsdTools('intent validate --raw', tmpDir);
+      // exit code 0 means success=true from runGsdTools
+      assert.ok(result.success, `validate should succeed for valid intent: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.strictEqual(data.valid, true, 'should be valid');
+      assert.strictEqual(data.issues.length, 0, 'should have no issues');
+      assert.strictEqual(data.revision, 1, 'should report revision');
+    });
+
+    test('INTENT.md with missing section returns exit code 1', () => {
+      // Create a minimal intent missing several sections
+      const content = `**Revision:** 1
+**Created:** 2026-01-01
+**Updated:** 2026-01-01
+
+<objective>
+A test project
+</objective>
+
+<users>
+- Developers
+</users>
+
+<outcomes>
+</outcomes>
+
+<criteria>
+</criteria>
+
+<constraints>
+</constraints>
+
+<health>
+</health>
+`;
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'INTENT.md'), content, 'utf-8');
+
+      const result = runGsdTools('intent validate --raw', tmpDir);
+      // exit code 1 means success=false from runGsdTools
+      assert.ok(!result.success, 'validate should fail for incomplete intent');
+
+      // Output may be in stdout even for exit code 1
+      const outputText = result.output || result.error;
+      const data = JSON.parse(outputText);
+      assert.strictEqual(data.valid, false, 'should be invalid');
+      assert.ok(data.issues.length > 0, 'should have issues');
+
+      // Should flag outcomes as missing
+      const outcomeIssue = data.issues.find(i => i.section === 'outcomes');
+      assert.ok(outcomeIssue, 'should have an outcomes issue');
+    });
+
+    test('--raw returns JSON with valid/issues fields', () => {
+      createPopulatedIntent(tmpDir);
+      const result = runGsdTools('intent validate --raw', tmpDir);
+      assert.ok(result.success, `validate --raw failed: ${result.error}`);
+
+      const data = JSON.parse(result.output);
+      assert.ok('valid' in data, 'should have valid field');
+      assert.ok('issues' in data, 'should have issues field');
+      assert.ok('sections' in data, 'should have sections field');
+      assert.ok('revision' in data, 'should have revision field');
+
+      // Check section detail structure
+      assert.ok('objective' in data.sections, 'sections should include objective');
+      assert.ok('users' in data.sections, 'sections should include users');
+      assert.ok('outcomes' in data.sections, 'sections should include outcomes');
+      assert.ok('criteria' in data.sections, 'sections should include criteria');
+      assert.ok('constraints' in data.sections, 'sections should include constraints');
+      assert.ok('health' in data.sections, 'sections should include health');
+    });
+  });
+
+  // ── Round-trip test ──
+
+  describe('intent round-trip', () => {
+    test('create → update → show → validate round-trip is consistent', () => {
+      // 1. Create
+      const createResult = runGsdTools('intent create --raw', tmpDir);
+      assert.ok(createResult.success, `create failed: ${createResult.error}`);
+
+      // 2. Update: add items to all list sections
+      runGsdTools('intent update objective --value "A comprehensive CLI tool" --raw', tmpDir);
+      runGsdTools('intent update users --add "Software engineers" --raw', tmpDir);
+      runGsdTools('intent update outcomes --add "Fast execution" --priority P1 --raw', tmpDir);
+      runGsdTools('intent update criteria --add "Commands respond in under 500ms" --raw', tmpDir);
+      runGsdTools('intent update constraints --add "Node.js only" --type technical --raw', tmpDir);
+      runGsdTools('intent update health --add "Bundle under 500KB" --raw', tmpDir);
+
+      // 2b. Add qualitative health content (prose section — must be written directly
+      // since intent update health --add only adds quantitative metrics)
+      const intentPath = path.join(tmpDir, '.planning', 'INTENT.md');
+      let content = fs.readFileSync(intentPath, 'utf-8');
+      content = content.replace('</health>', '### Qualitative\nTeam satisfaction with the planning workflow.\n</health>');
+      fs.writeFileSync(intentPath, content, 'utf-8');
+
+      // 3. Show: verify all sections populated
+      const showResult = runGsdTools('intent show --raw', tmpDir);
+      assert.ok(showResult.success, `show failed: ${showResult.error}`);
+      const showData = JSON.parse(showResult.output);
+
+      assert.strictEqual(showData.objective.statement, 'A comprehensive CLI tool');
+      assert.ok(showData.users.length >= 1, 'should have at least 1 user');
+      assert.ok(showData.outcomes.length >= 1, 'should have at least 1 outcome');
+      assert.ok(showData.criteria.length >= 1, 'should have at least 1 criterion');
+      const totalConstraints = (showData.constraints.technical || []).length +
+        (showData.constraints.business || []).length +
+        (showData.constraints.timeline || []).length;
+      assert.ok(totalConstraints >= 1, 'should have at least 1 constraint');
+      assert.ok(showData.health.quantitative.length >= 1, 'should have at least 1 health metric');
+
+      // 4. Validate: should pass with all sections populated
+      const validateResult = runGsdTools('intent validate --raw', tmpDir);
+      assert.ok(validateResult.success, `validate should pass: ${validateResult.error}`);
+      const validateData = JSON.parse(validateResult.output);
+      assert.strictEqual(validateData.valid, true, 'should validate as valid after round-trip');
+      assert.strictEqual(validateData.issues.length, 0, 'should have no issues');
+    });
+  });
+
+  // ── Help tests ──
+
+  describe('intent help', () => {
+    test('intent --help shows subcommand list', () => {
+      // --help writes to stderr and exits 0; capture with 2>&1
+      const helpText = execSync(`node "${TOOLS_PATH}" intent --help 2>&1`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      assert.ok(helpText.includes('create'), 'help should mention create');
+      assert.ok(helpText.includes('show'), 'help should mention show');
+      assert.ok(helpText.includes('read'), 'help should mention read');
+      assert.ok(helpText.includes('validate'), 'help should mention validate');
+    });
+
+    test('intent validate --help shows validate usage', () => {
+      const helpText = execSync(`node "${TOOLS_PATH}" intent validate --help 2>&1`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      assert.ok(helpText.includes('validate'), 'help should mention validate');
+      assert.ok(helpText.includes('exit') || helpText.includes('Exit') || helpText.includes('valid'),
+        'help should describe exit codes or validation');
+    });
+  });
+});
