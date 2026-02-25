@@ -8,6 +8,7 @@ const { loadConfig } = require('../lib/config');
 const { safeReadFile, findPhaseInternal, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
+const { getIntentDriftData } = require('./intent');
 
 function cmdInitExecutePhase(cwd, phase, raw) {
   if (!phase) {
@@ -78,7 +79,41 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     state_path: '.planning/STATE.md',
     roadmap_path: '.planning/ROADMAP.md',
     config_path: '.planning/config.json',
+
+    // Intent drift advisory (null if no INTENT.md)
+    intent_drift: null,
   };
+
+  // Advisory intent drift scoring — never crash, never block
+  try {
+    const driftData = getIntentDriftData(cwd);
+    if (driftData) {
+      let advisory = null;
+      if (driftData.drift_score <= 15) {
+        // Excellent — no advisory needed
+        advisory = null;
+      } else if (driftData.drift_score <= 35) {
+        advisory = 'Intent alignment is good.';
+      } else if (driftData.drift_score <= 60) {
+        const gapsCount = driftData.signals.coverage_gap.details.length;
+        advisory = `⚠ ${gapsCount} outcomes uncovered. Review intent trace.`;
+      } else {
+        advisory = `⚠ Significant drift detected (score: ${driftData.drift_score}). Run \`intent drift\` for details.`;
+      }
+
+      result.intent_drift = {
+        score: driftData.drift_score,
+        alignment: driftData.alignment,
+        gaps_count: driftData.signals.coverage_gap.details.length,
+        untraced_plans: driftData.signals.objective_mismatch.plans.length,
+        advisory,
+      };
+    }
+    // If no INTENT.md or no outcomes: intent_drift stays null (silent)
+  } catch (e) {
+    debugLog('init.executePhase', 'intent drift advisory failed (non-blocking)', e);
+    // Advisory — never crash. Leave intent_drift as null.
+  }
 
   if (global._gsdCompactMode) {
     const planPaths = (result.plans || []).map(p => typeof p === 'string' ? p : p.file || p);
@@ -94,6 +129,11 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       branch_name: result.branch_name,
       verifier_enabled: result.verifier_enabled,
       pre_flight_validation: result.pre_flight_validation,
+      intent_drift: result.intent_drift ? {
+        score: result.intent_drift.score,
+        alignment: result.intent_drift.alignment,
+        advisory: result.intent_drift.advisory,
+      } : null,
     };
     if (global._gsdManifestMode) {
       compactResult._manifest = {
