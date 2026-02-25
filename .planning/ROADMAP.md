@@ -124,7 +124,11 @@ Plans:
   3. Config.json `worktree` section controls base_path, sync_files, setup_hooks, and max_concurrent (validated against available resources)
   4. Execute-phase workflow creates worktrees per wave, monitors agent progress, merges sequentially with test gates, and cleans up before advancing to next wave
   5. `files_modified` overlap from plan-time static analysis and `git merge-tree` from merge-time both feed into the merge decision
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 21-01-PLAN.md — Worktree core lifecycle (create, list, remove, cleanup) + config schema
+- [ ] 21-02-PLAN.md — Merge with conflict pre-check (git merge-tree) + file overlap detection
+- [ ] 21-03-PLAN.md — Execute-phase workflow integration + init command worktree context
 
 ### Phase 22: Workflow Polish
 **Goal**: Sessions end cleanly with a summary and context reset prompt, so the next session starts fresh
@@ -159,5 +163,5 @@ Plans:
 | 18. Environment Awareness | 3/3 | Complete    | 2026-02-25 | - |
 | 19. MCP Server Profiling | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
 | 20. Structured Requirements | v4.0 | Complete    | 2026-02-25 | 2026-02-25 |
-| 21. Worktree Parallelism | v4.0 | 0/? | Not started | - |
+| 21. Worktree Parallelism | v4.0 | 0/3 | Planned | - |
 | 22. Workflow Polish | v4.0 | 0/? | Not started | - |
