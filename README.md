@@ -2,7 +2,7 @@
 
 A structured project planning and execution plugin for [OpenCode](https://github.com/opencode-ai/opencode). GSD brings milestone-driven planning, phase execution, progress tracking, quality verification, and developer workflow automation to AI-assisted coding sessions.
 
-**297 tests** | **373KB bundle** | **Zero runtime dependencies** | **10,500+ lines of source**
+**348 tests** | **457KB bundle** | **Zero runtime dependencies** | **25,500+ lines of source**
 
 ## What It Does
 
@@ -11,6 +11,7 @@ GSD turns chaotic development into structured execution:
 - **Milestone & Phase Planning** — Break projects into milestones with phases, goals, dependencies, and requirements
 - **Execution Tracking** — Track progress at milestone, phase, and plan level with automatic state management
 - **Quality Gates** — Test gating, requirement verification, regression detection, and multi-dimensional quality scoring
+- **Intent Engineering** — Capture *why* a project exists and *what success looks like* in structured INTENT.md, trace plans to outcomes, detect drift
 - **Session Memory** — Decisions, bookmarks, lessons, and codebase knowledge persist across sessions
 - **State Intelligence** — Drift detection between declared state and filesystem/git reality with auto-fix
 - **Plan Analysis** — Single-responsibility scoring, dependency cycle detection, wave conflict validation
@@ -21,16 +22,16 @@ GSD turns chaotic development into structured execution:
 ## Project Structure
 
 ```
-bin/gsd-tools.cjs          # Built CLI (373KB, single file, zero runtime deps)
+bin/gsd-tools.cjs          # Built CLI (457KB, single file, zero runtime deps)
 src/
-  commands/                # 8 command modules (init, state, phase, roadmap, verify, memory, features, misc)
+  commands/                # 9 command modules (init, intent, state, phase, roadmap, verify, memory, features, misc)
   lib/                     # 7 library modules (config, constants, context, frontmatter, git, helpers, output)
   router.js                # Command routing with --verbose/--compact/--fields flags
   index.js                 # Entry point
 workflows/*.md             # 43 workflow definitions (invoked by slash commands)
 templates/*.md             # 25 document templates (plans, summaries, roadmaps, dependency eval, etc.)
 references/*.md            # Reference docs loaded by agents
-build.js                   # esbuild pipeline with bundle size tracking (400KB budget)
+build.js                   # esbuild pipeline with bundle size tracking (450KB budget)
 deploy.sh                  # Deploy to ~/.config/opencode/get-shit-done/
 ```
 
@@ -63,6 +64,17 @@ GSD is used through slash commands inside OpenCode sessions:
 /gsd-execute-phase        # Execute a planned phase
 /gsd-progress             # View current milestone/phase progress
 /gsd-quick                # Quick summary of where things stand
+```
+
+### Intent & Alignment
+
+```
+/gsd-intent-create        # Create INTENT.md with structured sections
+/gsd-intent-show          # Display intent summary or specific section
+/gsd-intent-update        # Update a section with automatic history tracking
+/gsd-intent-validate      # Validate intent structure and completeness
+/gsd-intent-trace         # Traceability matrix: outcomes → plans
+/gsd-intent-drift         # Drift score: how aligned is current work?
 ```
 
 ### Quality & Verification
@@ -105,6 +117,7 @@ The CLI exposes 70+ commands organized by domain:
 | Domain | Commands | Description |
 |--------|----------|-------------|
 | **init** | `init progress`, `init plan-phase`, `init execute-phase`, `init memory`, ... | Context injection for workflow sessions |
+| **intent** | `intent create`, `intent show`, `intent update`, `intent validate`, `intent trace`, `intent drift` | Intent capture, display, evolution tracking, traceability, and drift scoring |
 | **state** | `state validate`, `state validate --fix`, `state-snapshot` | State drift detection and auto-repair |
 | **memory** | `memory write`, `memory read`, `memory list`, `memory compact` | Cross-session persistence (decisions, bookmarks, lessons, todos) |
 | **verify** | `verify deliverables`, `verify requirements`, `verify regression`, `verify quality` | Quality gates with A-F grading and trend tracking |
@@ -115,14 +128,25 @@ The CLI exposes 70+ commands organized by domain:
 
 ## Key Features by Version
 
-### v2.0 — Quality & Intelligence (current)
+### v3.0 — Intent Engineering (current)
+
+- **INTENT.md** — Structured document capturing project objective, desired outcomes (prioritized P1-P3), success criteria, constraints, target users, and health metrics. Machine-readable, human-friendly.
+- **Intent CRUD** — `intent create` with guided questionnaire or auto-synthesis from documents. `intent show` renders compact summary or specific sections. `intent update` modifies sections with automatic diff detection. `intent validate` checks structure and completeness.
+- **Traceability Matrix** — `intent trace` maps every desired outcome to the phases and plans that address it. Detects outcome coverage gaps — outcomes with no plan addressing them.
+- **Drift Detection** — `intent drift` produces a numeric alignment score (0-100) across 4 signals: objective mismatch, feature creep, priority inversion, and outcome coverage. Runs as advisory pre-flight before plan execution (warns, never blocks).
+- **Workflow Integration** — Init commands automatically include intent summary in agent context. Research, planning, and verification workflows receive intent for scope alignment. All injections are conditional — projects without INTENT.md see zero changes.
+- **Intent Evolution** — `<history>` section in INTENT.md tracks what changed, why, and in which milestone. `intent update --reason` logs reasoning automatically. `intent show history` displays evolution timeline.
+- **Guided Capture** — New-project workflow asks 4 structured questions (objective, outcomes, criteria, constraints) before requirements. New-milestone workflow reviews and evolves existing intent section-by-section.
+- **Self-Application** — GSD's own development uses INTENT.md, proving the system works on itself.
+
+### v2.0 — Quality & Intelligence
 
 - **State Intelligence** — `state validate` detects drift between ROADMAP.md claims and actual files on disk, with `--fix` for auto-correction. Pre-flight validation runs automatically before phase execution.
 - **Session Memory** — Dual-store pattern (STATE.md + memory.json) with sacred data protection. Decisions and lessons are never pruned. Bookmarks record exact position for seamless resume.
 - **Quality Gates** — `verify deliverables` runs tests and fails on failure. `verify requirements` checks REQUIREMENTS.md coverage. `verify regression` detects new test failures. `verify quality` produces A-F scores across 4 dimensions (tests 30%, must_haves 30%, requirements 20%, regression 20%) with trend tracking.
 - **Plan Analysis** — `analyze plan` scores plans 1-5 on single-responsibility using union-find concern grouping. `verify plan-wave` detects file conflicts in parallel execution. `verify plan-deps` finds dependency cycles via DFS.
-- **Test Infrastructure** — 297 tests across 65 suites. Integration tests cover workflow sequences, state round-trips, config migration, and E2E simulation. Snapshot tests for init output stability.
-- **Build Pipeline** — Bundle size tracked on every build (373KB / 400KB budget). Token budgets assigned per workflow with overage flagging.
+- **Test Infrastructure** — 348 tests across 76 suites. Integration tests cover workflow sequences, state round-trips, config migration, intent operations, and E2E simulation. Snapshot tests for init output stability.
+- **Build Pipeline** — Bundle size tracked on every build (457KB / 450KB budget). Token budgets assigned per workflow with overage flagging.
 - **Compact Default** — `--compact` output is now the default for all init commands (optimized for AI consumers). Use `--verbose` for full output.
 - **MCP Discovery** — `mcp discover` scans .mcp.json configs and surfaces server capabilities.
 
@@ -149,7 +173,7 @@ The CLI exposes 70+ commands organized by domain:
 # Build (includes bundle size check)
 npm run build
 
-# Run tests (node:test runner, 297 tests)
+# Run tests (node:test runner, 348 tests)
 npm test
 
 # Test a specific command
@@ -166,6 +190,7 @@ src/index.js           # Entry point, CLI argument parsing
 src/router.js          # Command routing, global flags (--raw, --verbose, --fields)
 src/commands/
   init.js              # 12 init subcommands + init memory
+  intent.js            # Intent CRUD, tracing, drift scoring, validation, history
   state.js             # State management, validation, snapshots
   phase.js             # Phase operations, plan indexing
   roadmap.js           # Roadmap analysis, requirement tracking

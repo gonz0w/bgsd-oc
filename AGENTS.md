@@ -8,7 +8,7 @@ The production install lives at `~/.config/opencode/get-shit-done/`.
 ## Project Structure
 
 ```
-bin/gsd-tools.cjs          # Main CLI tool (6,495+ lines, single file)
+bin/gsd-tools.cjs          # Main CLI tool (11,000+ lines, single file)
 workflows/*.md             # Workflow definitions (invoked by commands)
 templates/*.md             # Document templates (PLAN.md, STATE.md, etc.)
 references/*.md            # Reference docs loaded by agents
