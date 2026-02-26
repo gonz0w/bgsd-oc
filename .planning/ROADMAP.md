@@ -179,7 +179,7 @@ Success criteria:
 | 21. Worktree Parallelism | v4.0 | 3/3 | Complete | 2026-02-25 |
 | 22. Workflow Polish | v4.0 | 1/1 | Complete | 2026-02-25 |
 | 23. Infrastructure & Storage | 2/2 | Complete    | 2026-02-26 | — |
-| 24. Convention Extraction | v5.0 | 0/2 | Planned | — |
+| 24. Convention Extraction | 1/2 | In Progress|  | — |
 | 25. Dependency Graph | v5.0 | 0/0 | Planned | — |
 | 26. Init Integration & Context Summary | v5.0 | 0/0 | Planned | — |
 | 27. Task-Scoped Context | v5.0 | 0/0 | Planned | — |
