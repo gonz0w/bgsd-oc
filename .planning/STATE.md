@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Between milestones — v4.0 shipped, next milestone not started
+**Current focus:** v5.0 Codebase Intelligence — defining requirements
 
 ## Current Position
 
-**Phase:** All complete (22 phases across v1.0-v4.0)
-**Current Plan:** None — milestone complete
-**Status:** v4.0 shipped
-**Last Activity:** 2026-02-25 - Completed quick task 1: Research and optimize GSD tool performance
+**Phase:** Not started (defining requirements)
+**Current Plan:** —
+**Status:** Defining requirements
+**Last Activity:** 2026-02-25 — Milestone v5.0 started
 
-Progress: All milestones complete. Next: /gsd-new-milestone
+Progress: Requirements being defined. Next: define requirements, create roadmap.
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 60 (across v1.0–v4.0)
+- Total plans completed: 60 (across v1.0-v4.0)
 - Average duration: ~15 min/plan
 - Total execution time: ~15 hours
 
@@ -37,7 +37,7 @@ Progress: All milestones complete. Next: /gsd-new-milestone
 
 ### Decisions
 
-All v1.0–v4.0 decisions recorded in PROJECT.md Key Decisions table with outcomes.
+All v1.0-v4.0 decisions recorded in PROJECT.md Key Decisions table with outcomes.
 
 ### Pending Todos
 
@@ -56,5 +56,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed quick task 1: Research and optimize GSD tool performance
+Stopped at: Starting milestone v5.0 Codebase Intelligence
 Resume file: None

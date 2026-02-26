@@ -8,6 +8,18 @@ A zero-dependency, single-file Node.js CLI built from 16 organized `src/` module
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
+## Current Milestone: v5.0 Codebase Intelligence
+
+**Goal:** Give agents deep architectural understanding of the projects they work on, with task-scoped context injection so they only see what's relevant.
+
+**Target features:**
+- Convention extraction — detect naming patterns, file organization, macro/framework usage
+- Dependency graph — module relationships, what depends on what, impact analysis
+- Lifecycle awareness — execution order (seeds, migrations, config, compilation), side-effect chains
+- Task-scoped injection — plans auto-receive relevant architectural context at execution time
+- Specialized analyzer agents — parallel agents for conventions, dependencies, lifecycle
+- Research phase — investigate best practices for AI codebase understanding
+
 ## Current State
 
 **Last shipped:** v4.0 Environment & Execution Intelligence (2026-02-25)
@@ -105,6 +117,14 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Worktree execute-phase Mode A/B branching with sequential merge — v4.0
 - ✓ Session-summary CLI and complete-and-clear workflow — v4.0
 
+### Active
+
+- [ ] Convention extraction — detect naming patterns, file organization, framework-specific macro usage
+- [ ] Dependency graph — module-level relationships, impact analysis for changes
+- [ ] Lifecycle awareness — execution order for seeds, migrations, config, compilation
+- [ ] Task-scoped context injection — plans auto-receive relevant architectural sections
+- [ ] Specialized analyzer agents — parallel convention/dependency/lifecycle analyzers
+
 ### Out of Scope
 
 - Async I/O rewrite — Synchronous I/O is appropriate for CLI tool, not a real bottleneck
@@ -134,7 +154,7 @@ No known tech debt (bundle at 549KB/550KB is tight but not blocking).
 - **Single-file deploy**: `deploy.sh` must continue to work — bundle to single file if splitting source
 - **Node.js 18+**: Minimum version (for fetch, node:test) — formalized in package.json
 - **Test against real project**: Always test against `/mnt/raid/DEV/event-pipeline/.planning/`
-- **550KB bundle budget**: Current ceiling for single-file CLI output
+- **No artificial bundle budget**: Code quality and necessity gate additions, not arbitrary size limits
 
 ## Key Decisions
 
@@ -171,4 +191,4 @@ No known tech debt (bundle at 549KB/550KB is tight but not blocking).
 | Lockfile auto-resolution | checkout --theirs during conflicted merge for lockfiles/baselines | Good — eliminates most common merge conflicts |
 
 ---
-*Last updated: 2026-02-25 after v4.0 milestone completion*
+*Last updated: 2026-02-25 after v5.0 milestone start*
