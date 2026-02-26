@@ -8,39 +8,39 @@ A zero-dependency, single-file Node.js CLI built from 16 organized `src/` module
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v5.0 Codebase Intelligence
+## Current Milestone: v6.0 UX & Developer Experience
 
-**Goal:** Give agents deep architectural understanding of the projects they work on, with task-scoped context injection so they only see what's relevant.
+**Goal:** Transform CLI output from raw JSON into a world-class branded TUI with smart output detection, shared formatting infrastructure, and tighter workflow rendering.
 
 **Target features:**
-- Convention extraction — detect naming patterns, file organization, macro/framework usage
-- Dependency graph — module relationships, what depends on what, impact analysis
-- Lifecycle awareness — execution order (seeds, migrations, config, compilation), side-effect chains
-- Task-scoped injection — plans auto-receive relevant architectural context at execution time
-- Specialized analyzer agents — parallel agents for conventions, dependencies, lifecycle
-- Research phase — investigate best practices for AI codebase understanding
+- Formatting engine — shared `src/lib/format.js` with tables, colors, banners, progress bars, boxes
+- Tiny color utility — ~2KB picocolors-pattern module, TTY-aware, zero runtime deps
+- Smart output mode — TTY detection: branded human-readable when interactive, JSON when piped
+- Command output rework — all commands produce clean, branded GSD output in interactive mode
+- Workflow output tightening — reduce noise, improve information density in agent-rendered output
+- Slash command wrappers — create 11 missing command files + update deploy.sh
+- AGENTS.md cleanup — update to reflect current state, remove stale items
 
 ## Current State
 
-**Last shipped:** v4.0 Environment & Execution Intelligence (2026-02-25)
+**Last shipped:** v5.0 Codebase Intelligence (2026-02-26)
 
-**Shipped in v4.0:**
-- Environment detection engine with 26 manifest patterns, package manager detection, binary version checks, env-manifest.json with staleness detection, and compact "Tools:" summary injected into init commands
-- MCP server profiling with 20-server known database, 16-type relevance scoring, keep/disable/review recommendations, and auto-disable with backup/restore
-- Structured requirements with ASSERTIONS.md template, per-assertion pass/fail/needs_human verification, traceability chain display, test-command mapping, and planner workflow integration
-- Git worktree parallelism with full lifecycle (create/list/remove/cleanup/merge), merge-tree conflict pre-check, lockfile auto-resolution, static file overlap detection, and execute-phase Mode A/B branching
-- Session management with session-summary CLI command and complete-and-clear workflow for clean handoffs
+**Shipped in v5.0:**
+- Codebase-intel.json storage with git-hash watermarks, staleness detection, incremental analysis, auto-trigger on init commands
+- Convention extraction (naming patterns, file organization, framework macros) with confidence scoring and rules generator
+- Module dependency graph across 6 languages with Tarjan's SCC cycle detection and transitive impact analysis
+- Lifecycle awareness for execution order (seeds, migrations, config, boot) with extensible detector registry
+- Task-scoped context injection with heuristic relevance scoring and 5K token budget
+- Non-blocking background re-analysis with lock file and --refresh flag
 
 <details>
-<summary>Previous: v3.0 Intent Engineering (shipped 2026-02-25)</summary>
+<summary>Previous: v4.0 Environment & Execution Intelligence (shipped 2026-02-25)</summary>
 
-- INTENT.md template and CRUD commands (create, read/show, update, validate)
-- Per-plan intent tracing with traceability matrix and gap detection
-- Intent drift validation (4 signals, 0-100 score, advisory pre-flight)
-- Workflow-wide intent injection (research, planning, execution, verification)
-- Guided intent questionnaire in new-project/new-milestone workflows
-- Intent evolution tracking with history section and --reason flag
-- GSD dog-fooding — plugin uses its own intent system
+- Environment detection engine with 26 manifest patterns, package manager detection, binary version checks
+- MCP server profiling with 20-server known database, 16-type relevance scoring, auto-disable with backup/restore
+- Structured requirements with ASSERTIONS.md template, per-assertion verification, traceability chains
+- Git worktree parallelism with full lifecycle, conflict pre-check, lockfile auto-resolution
+- Session management with session-summary CLI and complete-and-clear workflow
 
 </details>
 
@@ -116,14 +116,23 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Git worktree parallelism (create/list/remove/cleanup/merge) with conflict pre-check — v4.0
 - ✓ Worktree execute-phase Mode A/B branching with sequential merge — v4.0
 - ✓ Session-summary CLI and complete-and-clear workflow — v4.0
+- ✓ Codebase-intel.json storage with git-hash watermarks and staleness detection — v5.0
+- ✓ Convention extraction with confidence scoring and rules generator — v5.0
+- ✓ Module dependency graph across 6 languages with cycle detection — v5.0
+- ✓ Lifecycle awareness with extensible detector registry — v5.0
+- ✓ Task-scoped context injection with heuristic relevance scoring — v5.0
+- ✓ Non-blocking background re-analysis with lock file — v5.0
+- ✓ Init command codebase summary injection — v5.0
+- ✓ Execute-phase pre-flight convention checks — v5.0
 
 ### Active
 
-- [ ] Convention extraction — detect naming patterns, file organization, framework-specific macro usage
-- [ ] Dependency graph — module-level relationships, impact analysis for changes
-- [ ] Lifecycle awareness — execution order for seeds, migrations, config, compilation
-- [ ] Task-scoped context injection — plans auto-receive relevant architectural sections
-- [ ] Specialized analyzer agents — parallel convention/dependency/lifecycle analyzers
+- [ ] Shared formatting engine — tables, colors, banners, progress bars, box utilities in src/lib/format.js
+- [ ] TTY-aware color utility — ~2KB picocolors-pattern module bundled via esbuild
+- [ ] Smart output detection — human-readable when TTY, JSON when piped/agent-consumed
+- [ ] Command output rework — all commands produce branded GSD output in interactive mode
+- [ ] Workflow output tightening — reduce noise and improve information density in agent rendering
+- [ ] Slash command wrappers — 11 missing command files created and deploy.sh updated
 
 ### Out of Scope
 
@@ -139,13 +148,13 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Context
 
-Shipped v1.0, v1.1, v2.0, v3.0, and v4.0. 502 tests passing, 16 src/ modules, 549KB bundle, esbuild bundler.
+Shipped v1.0, v1.1, v2.0, v3.0, v4.0, and v5.0. 572 tests passing, 18 src/ modules, 672KB bundle, esbuild bundler.
 Platform: OpenCode.
 Tech stack: Node.js 18+, node:test, esbuild, tokenx (bundled), zero runtime dependencies.
-Source: 16 modules — `src/lib/` (7 modules) and `src/commands/` (8 modules) + router + index.
+Source: 18 modules — `src/lib/` (9 modules) and `src/commands/` (8 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
 
-No known tech debt (bundle at 549KB/550KB is tight but not blocking).
+Known tech debt: 2 failing tests (from v5.0), 11 slash commands without command wrappers.
 
 ## Constraints
 
@@ -191,4 +200,4 @@ No known tech debt (bundle at 549KB/550KB is tight but not blocking).
 | Lockfile auto-resolution | checkout --theirs during conflicted merge for lockfiles/baselines | Good — eliminates most common merge conflicts |
 
 ---
-*Last updated: 2026-02-25 after v5.0 milestone start*
+*Last updated: 2026-02-26 after v6.0 milestone start*

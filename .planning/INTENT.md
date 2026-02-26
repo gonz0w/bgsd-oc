@@ -1,6 +1,6 @@
-**Revision:** 2
+**Revision:** 3
 **Created:** 2026-02-25
-**Updated:** 2026-02-25
+**Updated:** 2026-02-26
 
 <objective>
 A zero-dependency CLI plugin that provides structured planning, execution, and verification workflows for AI-driven software development.
@@ -21,10 +21,14 @@ The plugin turns unstructured project ideas into executable plans with traceabil
 - DO-04 [P2] [achieved v3.0]: Plans trace back to desired outcomes, creating full traceability from intent to delivered code
 - DO-05 [P2] [achieved v3.0]: Verification checks deliverables against desired outcomes and success criteria, not just requirements
 - DO-06 [P3] [achieved v3.0]: Intent evolves across milestones with tracked reasoning for changes
-- DO-07 [P1]: Agents receive architectural context (conventions, dependencies, lifecycle) scoped to their current task, reducing mistakes from incomplete project understanding
-- DO-08 [P1]: Codebase analysis runs as specialized parallel agents that produce structured, queryable artifacts
-- DO-09 [P2]: Convention violations are detectable before execution (e.g. wrong module path, missing seed update)
-- DO-10 [P2]: Analysis results stay current as the codebase evolves (staleness detection, incremental updates)
+- DO-07 [P1] [achieved v5.0]: Agents receive architectural context (conventions, dependencies, lifecycle) scoped to their current task, reducing mistakes from incomplete project understanding
+- DO-08 [P1] [achieved v5.0]: Codebase analysis runs as specialized parallel agents that produce structured, queryable artifacts
+- DO-09 [P2] [achieved v5.0]: Convention violations are detectable before execution (e.g. wrong module path, missing seed update)
+- DO-10 [P2] [achieved v5.0]: Analysis results stay current as the codebase evolves (staleness detection, incremental updates)
+- DO-11 [P1]: CLI output is branded and human-readable when run interactively, with automatic TTY detection falling back to JSON for agent consumption
+- DO-12 [P1]: Shared formatting infrastructure (tables, colors, banners, progress bars) eliminates ad-hoc output and ensures visual consistency
+- DO-13 [P2]: Workflow-rendered output is tighter — less noise, higher information density, no redundant status messages
+- DO-14 [P2]: All 11 feature commands are accessible as slash commands in OpenCode with proper command wrappers
 </outcomes>
 
 <criteria>
@@ -33,10 +37,14 @@ The plugin turns unstructured project ideas into executable plans with traceabil
 - SC-03: `intent drift` produces numeric score; init commands show drift advisory
 - SC-04: All GSD workflows (research, plan, execute, verify) receive intent context automatically
 - SC-05: GSD's own .planning/INTENT.md is maintained alongside its roadmap
-- SC-06: Codebase analysis produces structured artifacts that execution agents can query by task scope
-- SC-07: Convention extraction detects naming patterns, file organization, and framework-specific macros
-- SC-08: Dependency graph shows module relationships and change impact
-- SC-09: Lifecycle analysis captures execution order (seeds, migrations, config, boot)
+- SC-06 [achieved v5.0]: Codebase analysis produces structured artifacts that execution agents can query by task scope
+- SC-07 [achieved v5.0]: Convention extraction detects naming patterns, file organization, and framework-specific macros
+- SC-08 [achieved v5.0]: Dependency graph shows module relationships and change impact
+- SC-09 [achieved v5.0]: Lifecycle analysis captures execution order (seeds, migrations, config, boot)
+- SC-10: Running any command in a TTY produces branded, readable output; piped output remains JSON
+- SC-11: `src/lib/format.js` provides table, color, banner, progress, and box utilities used by all commands
+- SC-12: Workflow output tokens decrease measurably vs v5.0 baselines (noise reduction)
+- SC-13: All 11 feature slash commands are registered and functional in OpenCode
 </criteria>
 
 <constraints>
@@ -51,7 +59,7 @@ The plugin turns unstructured project ideas into executable plans with traceabil
 
 <health>
 ### Quantitative
-- HM-02: All tests pass (502+ currently) with zero regressions after each phase
+- HM-02: All tests pass (572+ currently) with zero regressions after each phase
 - HM-03: Init commands complete in <500ms even with analysis context injection
 
 ### Qualitative
@@ -61,4 +69,5 @@ Codebase intelligence should feel like agents naturally understand the project, 
 <history>
 - v3.0 (2026-02-25): Initial intent created for intent engineering milestone
 - v5.0 (2026-02-25): Evolved for codebase intelligence milestone — marked DO-01 through DO-06 as achieved, added DO-07 through DO-10 for architectural understanding and task-scoped context, dropped bundle size constraint (C-02) and v3.0 timeline constraint (C-06), added success criteria SC-06 through SC-09, updated health metrics to reflect current test count (502+)
+- v6.0 (2026-02-26): Evolved for UX & Developer Experience milestone — marked DO-07 through DO-10 and SC-06 through SC-09 as achieved (v5.0), added DO-11 through DO-14 for branded TUI output, formatting infrastructure, workflow noise reduction, and slash command completion, added SC-10 through SC-13
 </history>

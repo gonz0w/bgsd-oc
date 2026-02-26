@@ -1,5 +1,28 @@
 # Milestones
 
+## ✅ v5.0 Codebase Intelligence (Shipped: 2026-02-26)
+
+**Phases completed:** 7 phases (23-29), 14 plans
+**Commits:** 79 | **Files changed:** 185 | **Lines:** +27,096 / -8,274
+**Timeline:** 2 days (2026-02-25 → 2026-02-26)
+**Tests:** 572 passing (2 failing)
+**Bundle:** 672KB
+
+**Key accomplishments:**
+- Built codebase-intel.json storage with git-hash watermarks, staleness detection, incremental analysis, and auto-trigger on init commands
+- Created convention extraction engine detecting naming patterns, file organization rules, and framework-specific macros (Elixir/Phoenix) with confidence scoring and `codebase rules` generator (capped at 15 rules)
+- Implemented module dependency graph from import/require/use statements across 6 languages (JS, TS, Python, Go, Elixir, Rust) with Tarjan's SCC cycle detection and transitive impact analysis
+- Added lifecycle awareness detecting execution order relationships (seeds, migrations, config, boot) with framework-specific detector registry (starting with Elixir/Phoenix)
+- Built task-scoped context injection (`codebase context --files`) with heuristic relevance scoring (graph distance + plan scope + git recency) and 5K token budget
+- Wired codebase intelligence into init commands (compact three-field summary with confidence scores), execute-phase (pre-flight convention checks), and codebase-impact (graph-backed)
+- Added non-blocking background re-analysis with lock file and --refresh flag for on-demand sync
+
+**Archives:**
+- `.planning/milestones/v5.0-ROADMAP.md`
+- `.planning/milestones/v5.0-REQUIREMENTS.md`
+
+---
+
 ## ✅ v4.0 Environment & Execution Intelligence (Shipped: 2026-02-25)
 
 **Phases completed:** 5 phases, 13 plans
