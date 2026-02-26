@@ -93,6 +93,9 @@ Success criteria:
 Goal: Auto-detect naming patterns, file organization rules, and framework-specific conventions with confidence scoring
 Requirements: CONV-01, CONV-02, CONV-03, CONV-04, CONV-05
 Depends on: Phase 23 (storage infrastructure)
+Plans: 2 plans
+- [ ] 24-01-PLAN.md — Convention extraction engine + `codebase conventions` CLI command
+- [ ] 24-02-PLAN.md — Framework patterns (Elixir) + `codebase rules` generator + tests
 Success criteria:
 1. `codebase conventions` detects naming patterns (camelCase, snake_case) with confidence percentages
 2. File organization rules detected (directory structure, file placement patterns)
@@ -176,7 +179,7 @@ Success criteria:
 | 21. Worktree Parallelism | v4.0 | 3/3 | Complete | 2026-02-25 |
 | 22. Workflow Polish | v4.0 | 1/1 | Complete | 2026-02-25 |
 | 23. Infrastructure & Storage | 2/2 | Complete    | 2026-02-26 | — |
-| 24. Convention Extraction | v5.0 | 0/0 | Planned | — |
+| 24. Convention Extraction | v5.0 | 0/2 | Planned | — |
 | 25. Dependency Graph | v5.0 | 0/0 | Planned | — |
 | 26. Init Integration & Context Summary | v5.0 | 0/0 | Planned | — |
 | 27. Task-Scoped Context | v5.0 | 0/0 | Planned | — |
