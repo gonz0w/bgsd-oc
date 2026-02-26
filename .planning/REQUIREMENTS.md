@@ -79,36 +79,36 @@ Requirements for codebase intelligence milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| INFRA-01 | TBD | Pending | node bin/gsd-tools.cjs codebase analyze --raw |
-| INFRA-02 | TBD | Pending | node bin/gsd-tools.cjs codebase status --raw |
-| INFRA-03 | TBD | Pending | node bin/gsd-tools.cjs codebase analyze --raw |
-| INFRA-04 | TBD | Pending | node bin/gsd-tools.cjs init progress --raw |
-| CONV-01 | TBD | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-02 | TBD | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-03 | TBD | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-04 | TBD | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-05 | TBD | Pending | node bin/gsd-tools.cjs codebase rules --raw |
-| DEPS-01 | TBD | Pending | node bin/gsd-tools.cjs codebase deps --raw |
-| DEPS-02 | TBD | Pending | node bin/gsd-tools.cjs codebase deps --raw |
-| DEPS-03 | TBD | Pending | node bin/gsd-tools.cjs codebase deps --raw |
-| DEPS-04 | TBD | Pending | node bin/gsd-tools.cjs codebase impact src/lib/state.js --raw |
-| DEPS-05 | TBD | Pending | node bin/gsd-tools.cjs codebase deps --cycles --raw |
-| LIFE-01 | TBD | Pending | node bin/gsd-tools.cjs codebase lifecycle --raw |
-| LIFE-02 | TBD | Pending | node bin/gsd-tools.cjs codebase lifecycle --raw |
-| LIFE-03 | TBD | Pending | node bin/gsd-tools.cjs codebase lifecycle --raw |
-| CTXI-01 | TBD | Pending | node bin/gsd-tools.cjs init progress --raw |
-| CTXI-02 | TBD | Pending | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
-| CTXI-03 | TBD | Pending | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
-| CTXI-04 | TBD | Pending | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
-| WKFL-01 | TBD | Pending | manual verification |
-| WKFL-02 | TBD | Pending | manual verification |
-| WKFL-03 | TBD | Pending | node bin/gsd-tools.cjs codebase-impact src/lib/state.js --raw |
+| INFRA-01 | Phase 23 | Pending | node bin/gsd-tools.cjs codebase analyze --raw |
+| INFRA-02 | Phase 23 | Pending | node bin/gsd-tools.cjs codebase status --raw |
+| INFRA-03 | Phase 23 | Pending | node bin/gsd-tools.cjs codebase analyze --raw |
+| INFRA-04 | Phase 23 | Pending | node bin/gsd-tools.cjs init progress --raw |
+| CONV-01 | Phase 24 | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
+| CONV-02 | Phase 24 | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
+| CONV-03 | Phase 24 | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
+| CONV-04 | Phase 24 | Pending | node bin/gsd-tools.cjs codebase conventions --raw |
+| CONV-05 | Phase 24 | Pending | node bin/gsd-tools.cjs codebase rules --raw |
+| DEPS-01 | Phase 25 | Pending | node bin/gsd-tools.cjs codebase deps --raw |
+| DEPS-02 | Phase 25 | Pending | node bin/gsd-tools.cjs codebase deps --raw |
+| DEPS-03 | Phase 25 | Pending | node bin/gsd-tools.cjs codebase deps --raw |
+| DEPS-04 | Phase 25 | Pending | node bin/gsd-tools.cjs codebase impact src/lib/state.js --raw |
+| DEPS-05 | Phase 25 | Pending | node bin/gsd-tools.cjs codebase deps --cycles --raw |
+| LIFE-01 | Phase 28 | Pending | node bin/gsd-tools.cjs codebase lifecycle --raw |
+| LIFE-02 | Phase 28 | Pending | node bin/gsd-tools.cjs codebase lifecycle --raw |
+| LIFE-03 | Phase 28 | Pending | node bin/gsd-tools.cjs codebase lifecycle --raw |
+| CTXI-01 | Phase 26 | Pending | node bin/gsd-tools.cjs init progress --raw |
+| CTXI-02 | Phase 27 | Pending | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
+| CTXI-03 | Phase 27 | Pending | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
+| CTXI-04 | Phase 27 | Pending | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
+| WKFL-01 | Phase 29 | Pending | manual verification |
+| WKFL-02 | Phase 29 | Pending | manual verification |
+| WKFL-03 | Phase 29 | Pending | node bin/gsd-tools.cjs codebase-impact src/lib/state.js --raw |
 
 **Coverage:**
 - v5.0 requirements: 20 total
-- Mapped to phases: 0 (TBD — roadmapper will fill)
-- Unmapped: 20
+- Mapped to phases: 20
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after initial definition*
+*Last updated: 2026-02-25 after roadmap creation*
