@@ -563,6 +563,189 @@ function cmdCodebaseImpact(cwd, args, raw) {
 // ─── Per-File Context Assembly (Phase 27) ───────────────────────────────────
 
 /**
+ * Score relevance of a file relative to target files.
+ *
+ * Weights (per CONTEXT.md locked decisions, NON-NEGOTIABLE):
+ * - Graph distance (50%): 1-hop = +0.50, 2-hop = +0.25, 3+ = 0
+ * - Plan scope (30%): file in plan's files_modified = +0.30
+ * - Git recency (20%): file modified in last N commits = +0.20
+ *
+ * @param {string} file - File to score
+ * @param {string[]} targetFiles - The files the user requested context for
+ * @param {{ forward: object, reverse: object }} graph - Dependency graph
+ * @param {string[]} planFiles - Files listed in current plan's files_modified
+ * @param {Set<string>} recentFiles - Files modified in last N commits
+ * @returns {number} Score between 0.0 and 1.0
+ */
+function scoreRelevance(file, targetFiles, graph, planFiles, recentFiles) {
+  // Target files themselves always get 1.0
+  if (targetFiles.includes(file)) return 1.0;
+
+  let score = 0;
+
+  // Graph distance (50% weight)
+  let is1Hop = false;
+  let is2Hop = false;
+
+  for (const target of targetFiles) {
+    // Check 1-hop: file is direct import or dependent of target
+    const fwd = graph.forward[target] || [];
+    const rev = graph.reverse[target] || [];
+    if (fwd.includes(file) || rev.includes(file)) {
+      is1Hop = true;
+      break; // Short-circuit on first 1-hop match
+    }
+  }
+
+  if (!is1Hop) {
+    // Check 2-hop: for each target's 1-hop neighbors, is file in their forward/reverse?
+    outer:
+    for (const target of targetFiles) {
+      const neighbors = [...(graph.forward[target] || []), ...(graph.reverse[target] || [])];
+      for (const neighbor of neighbors) {
+        const nFwd = graph.forward[neighbor] || [];
+        const nRev = graph.reverse[neighbor] || [];
+        if (nFwd.includes(file) || nRev.includes(file)) {
+          is2Hop = true;
+          break outer; // Short-circuit on first 2-hop match
+        }
+      }
+    }
+  }
+
+  if (is1Hop) score += 0.50;
+  else if (is2Hop) score += 0.25;
+
+  // Plan scope (30% weight)
+  if (planFiles.includes(file)) score += 0.30;
+
+  // Git recency (20% weight)
+  if (recentFiles.has(file)) score += 0.20;
+
+  return score;
+}
+
+/**
+ * Get set of files modified in the last N git commits.
+ *
+ * @param {string} cwd - Project root
+ * @param {number} [commitCount=10] - Number of commits to check
+ * @returns {Set<string>} Set of file paths modified recently
+ */
+function getRecentlyModifiedFiles(cwd, commitCount = 10) {
+  const { execGit } = require('../lib/git');
+  try {
+    const result = execGit(cwd, ['log', `-${commitCount}`, '--name-only', '--pretty=format:', '--no-merges']);
+    if (result.exitCode !== 0) return new Set();
+    return new Set(result.stdout.split('\n').filter(f => f.trim().length > 0));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Read plan frontmatter and extract files_modified list.
+ *
+ * @param {string} cwd - Project root
+ * @param {string|null} planPath - Path to plan file (relative or absolute)
+ * @returns {string[]} List of file paths from plan's files_modified, or []
+ */
+function getPlanFiles(cwd, planPath) {
+  if (!planPath) return [];
+  try {
+    const { extractFrontmatter } = require('../lib/frontmatter');
+    const resolved = path.resolve(cwd, planPath);
+    const content = fs.readFileSync(resolved, 'utf-8');
+    const fm = extractFrontmatter(content);
+    if (Array.isArray(fm.files_modified)) return fm.files_modified;
+    if (typeof fm.files_modified === 'string' && fm.files_modified.trim()) return [fm.files_modified];
+  } catch (e) {
+    debugLog('context.planFiles', 'read failed', e);
+  }
+  return [];
+}
+
+/**
+ * Enforce token budget on context output with graceful degradation.
+ *
+ * Degradation order (per CONTEXT.md, applied to ALL files equally):
+ * 1. Trim dependents to top 3
+ * 2. Trim imports to top 3
+ * 3. Remove conventions
+ * 4. Remove imports and dependents (keep file + risk_level only)
+ * 5. Last resort: drop lowest-scored files one by one
+ *
+ * @param {object} fileContexts - Map of file path → context object
+ * @param {number} [maxTokens=5000] - Token budget cap
+ * @returns {{ files: object, truncated: boolean, omitted_files: number }}
+ */
+function enforceTokenBudget(fileContexts, maxTokens = 5000) {
+  const { estimateJsonTokens } = require('../lib/context');
+
+  // Build full output wrapper for estimation
+  const buildOutput = (files) => ({
+    success: true,
+    files,
+    file_count: Object.keys(files).length,
+    truncated: false,
+  });
+
+  // Check if full output fits
+  let tokens = estimateJsonTokens(buildOutput(fileContexts));
+  if (tokens <= maxTokens) {
+    return { files: fileContexts, truncated: false, omitted_files: 0 };
+  }
+
+  // Deep clone to avoid mutating originals
+  const cloned = JSON.parse(JSON.stringify(fileContexts));
+
+  // Degradation levels — applied to ALL files equally (CONTEXT.md atomic rule)
+  const levels = [
+    // Level 1: Trim dependents to top 3
+    (ctx) => { if (ctx.dependents) ctx.dependents = ctx.dependents.slice(0, 3); },
+    // Level 2: Trim imports to top 3
+    (ctx) => { if (ctx.imports) ctx.imports = ctx.imports.slice(0, 3); },
+    // Level 3: Remove conventions
+    (ctx) => { ctx.conventions = null; },
+    // Level 4: Remove imports and dependents entirely (keep file + risk_level only)
+    (ctx) => { ctx.imports = undefined; ctx.dependents = undefined; },
+  ];
+
+  for (const degrade of levels) {
+    for (const key of Object.keys(cloned)) {
+      degrade(cloned[key]);
+    }
+    tokens = estimateJsonTokens(buildOutput(cloned));
+    if (tokens <= maxTokens) {
+      return { files: cloned, truncated: true, omitted_files: 0 };
+    }
+  }
+
+  // Last resort: drop lowest-scored files one by one
+  const entries = Object.entries(cloned)
+    .sort((a, b) => (b[1].relevance_score || 0) - (a[1].relevance_score || 0));
+
+  const originalCount = entries.length;
+  const kept = {};
+
+  // Add files from highest score to lowest until budget is hit
+  for (const [key, val] of entries) {
+    kept[key] = val;
+    tokens = estimateJsonTokens(buildOutput(kept));
+    if (tokens > maxTokens && Object.keys(kept).length > 1) {
+      delete kept[key];
+      break;
+    }
+  }
+
+  return {
+    files: kept,
+    truncated: true,
+    omitted_files: originalCount - Object.keys(kept).length,
+  };
+}
+
+/**
  * Compute risk level for a file based on fan-in and cycle membership.
  *
  * @param {string} file - File path
@@ -648,12 +831,12 @@ function matchFileConventions(file, conventions) {
 /**
  * cmdCodebaseContext — Assemble per-file architectural context from cached intel.
  *
- * Returns 1-hop imports/dependents, convention info, and risk level for each
- * requested file. Designed for executor agent consumption.
+ * Returns 1-hop imports/dependents, convention info, risk level, and relevance
+ * scores for each requested file. Enforces 5K token budget with graceful degradation.
  *
  * Flags:
  *   --files <file1> [file2] ...  Target file paths
- *   --plan <path>                Plan file for scope signal (parsed but reserved for Plan 02)
+ *   --plan <path>                Plan file for scope signal (reads files_modified)
  *
  * @param {string} cwd - Project root
  * @param {string[]} args - CLI arguments (after 'codebase context')
@@ -674,11 +857,9 @@ function cmdCodebaseContext(cwd, args, raw) {
     filePaths = args.filter(a => !a.startsWith('--'));
   }
 
-  // Parse optional --plan flag (stored but not used until Plan 02)
+  // Parse optional --plan flag for plan-scope scoring signal
   const planIdx = args.indexOf('--plan');
   const planPath = planIdx !== -1 ? args[planIdx + 1] : null;
-  // eslint-disable-next-line no-unused-vars
-  void planPath; // Reserved for Plan 02 scoring
 
   if (!filePaths.length) {
     error('Usage: codebase context --files <file1> [file2] ...');
@@ -719,6 +900,10 @@ function cmdCodebaseContext(cwd, args, raw) {
     for (const f of scc) cycleFiles.add(f);
   }
 
+  // Get scoring signals
+  const planFiles = getPlanFiles(cwd, planPath);
+  const recentFiles = getRecentlyModifiedFiles(cwd);
+
   // Assemble per-file context
   const filesResult = {};
 
@@ -731,18 +916,31 @@ function cmdCodebaseContext(cwd, args, raw) {
         dependents: [],
         conventions: null,
         risk_level: 'normal',
+        relevance_score: scoreRelevance(file, filePaths, graph, planFiles, recentFiles),
       };
       continue;
     }
 
     // 1-hop imports, sorted by fan-in (most-imported first), capped at 8
     const imports = [...(graph.forward[file] || [])];
-    imports.sort((a, b) => (graph.reverse[b] || []).length - (graph.reverse[a] || []).length);
+    imports.sort((a, b) => {
+      const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
+      const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      // Tiebreaker: fan-in count
+      return (graph.reverse[b] || []).length - (graph.reverse[a] || []).length;
+    });
     const cappedImports = imports.slice(0, 8);
 
-    // 1-hop dependents, sorted by fan-out (most-importing first), capped at 8
+    // 1-hop dependents, sorted by relevance score first, fan-out as tiebreaker, capped at 8
     const dependents = [...(graph.reverse[file] || [])];
-    dependents.sort((a, b) => (graph.forward[b] || []).length - (graph.forward[a] || []).length);
+    dependents.sort((a, b) => {
+      const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
+      const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      // Tiebreaker: fan-out count
+      return (graph.forward[b] || []).length - (graph.forward[a] || []).length;
+    });
     const cappedDependents = dependents.slice(0, 8);
 
     // Risk level
@@ -751,19 +949,27 @@ function cmdCodebaseContext(cwd, args, raw) {
     // Convention matching
     const fileConventions = matchFileConventions(file, conventions);
 
+    // Relevance score for this file
+    const relevanceScore = scoreRelevance(file, filePaths, graph, planFiles, recentFiles);
+
     filesResult[file] = {
       imports: cappedImports,
       dependents: cappedDependents,
       conventions: fileConventions,
       risk_level: riskLevel,
+      relevance_score: relevanceScore,
     };
   }
 
+  // Enforce token budget (5K cap with graceful degradation)
+  const budgetResult = enforceTokenBudget(filesResult);
+
   const result = {
     success: true,
-    files: filesResult,
+    files: budgetResult.files,
     file_count: filePaths.length,
-    truncated: false,
+    truncated: budgetResult.truncated,
+    omitted_files: budgetResult.omitted_files,
   };
 
   if (raw) {
@@ -776,7 +982,7 @@ function cmdCodebaseContext(cwd, args, raw) {
     lines.push('═'.repeat(80));
     lines.push('');
 
-    for (const [file, ctx] of Object.entries(filesResult)) {
+    for (const [file, ctx] of Object.entries(budgetResult.files)) {
       if (ctx.status === 'no-data') {
         lines.push(`  ${file}  [no data]`);
         lines.push('');
@@ -789,15 +995,28 @@ function cmdCodebaseContext(cwd, args, raw) {
       const namingStr = ctx.conventions && ctx.conventions.naming
         ? `${ctx.conventions.naming.pattern} (${ctx.conventions.naming.confidence}%)`
         : '-';
+      const scoreStr = ctx.relevance_score !== undefined
+        ? ` | Score: ${ctx.relevance_score.toFixed(2)}`
+        : '';
 
       lines.push(`  ${file}`);
-      lines.push(`    Risk: ${riskBadge}  |  Naming: ${namingStr}`);
-      lines.push(`    Imports (${ctx.imports.length}): ${ctx.imports.length > 0 ? ctx.imports.join(', ') : 'none'}`);
-      lines.push(`    Dependents (${ctx.dependents.length}): ${ctx.dependents.length > 0 ? ctx.dependents.join(', ') : 'none'}`);
+      lines.push(`    Risk: ${riskBadge}  |  Naming: ${namingStr}${scoreStr}`);
+
+      if (ctx.imports) {
+        lines.push(`    Imports (${ctx.imports.length}): ${ctx.imports.length > 0 ? ctx.imports.join(', ') : 'none'}`);
+      }
+      if (ctx.dependents) {
+        lines.push(`    Dependents (${ctx.dependents.length}): ${ctx.dependents.length > 0 ? ctx.dependents.join(', ') : 'none'}`);
+      }
 
       if (ctx.conventions && ctx.conventions.frameworks && ctx.conventions.frameworks.length > 0) {
         lines.push(`    Frameworks: ${ctx.conventions.frameworks.map(f => f.framework).join(', ')}`);
       }
+      lines.push('');
+    }
+
+    if (budgetResult.truncated) {
+      lines.push(`  ⚠ Output truncated to fit 5K token budget (${budgetResult.omitted_files} files omitted)`);
       lines.push('');
     }
 
@@ -819,4 +1038,11 @@ module.exports = {
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,
   spawnBackgroundAnalysis,
+  // Exported for testing (Plan 02)
+  scoreRelevance,
+  getRecentlyModifiedFiles,
+  getPlanFiles,
+  enforceTokenBudget,
+  computeRiskLevel,
+  matchFileConventions,
 };
