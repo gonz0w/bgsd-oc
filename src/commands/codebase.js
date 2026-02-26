@@ -373,11 +373,64 @@ function cmdCodebaseRules(cwd, args, raw) {
 }
 
 
+/**
+ * cmdCodebaseDeps — Build module dependency graph from import/require/use statements.
+ *
+ * Parses imports for all source files in intel, builds forward + reverse adjacency lists,
+ * stores result in codebase-intel.json, and reports statistics.
+ *
+ * Flags:
+ *   --cycles  (stub — Plan 02 adds Tarjan's SCC cycle detection)
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments (after 'codebase deps')
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdCodebaseDeps(cwd, args, raw) {
+  const intel = readIntel(cwd);
+
+  if (!intel) {
+    error('No codebase intel. Run: codebase analyze');
+    return;
+  }
+
+  // --cycles flag stub: Plan 02 will implement Tarjan's SCC cycle detection
+  const wantCycles = args.includes('--cycles');
+  if (wantCycles) {
+    error('Cycle detection not yet implemented. Coming in Plan 02.');
+    return;
+  }
+
+  const { buildDependencyGraph } = require('../lib/deps');
+
+  // Build the dependency graph
+  const graph = buildDependencyGraph(intel);
+
+  // Persist graph in intel
+  intel.dependencies = graph;
+  writeIntel(cwd, intel);
+
+  // Compute top dependencies (files with highest fan-in / reverse-edge count)
+  const topDeps = Object.entries(graph.reverse)
+    .map(([file, importers]) => ({ file, imported_by_count: importers.length }))
+    .sort((a, b) => b.imported_by_count - a.imported_by_count)
+    .slice(0, 10);
+
+  output({
+    success: true,
+    stats: graph.stats,
+    top_dependencies: topDeps,
+    built_at: graph.built_at,
+  }, raw);
+}
+
+
 module.exports = {
   cmdCodebaseAnalyze,
   cmdCodebaseStatus,
   cmdCodebaseConventions,
   cmdCodebaseRules,
+  cmdCodebaseDeps,
   readCodebaseIntel,
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,

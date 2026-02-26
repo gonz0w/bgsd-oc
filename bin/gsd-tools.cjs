@@ -8402,6 +8402,333 @@ var require_conventions = __commonJS({
   }
 });
 
+// src/lib/deps.js
+var require_deps = __commonJS({
+  "src/lib/deps.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var { debugLog } = require_output();
+    var { readIntel } = require_codebase_intel();
+    function parseJavaScript(content) {
+      const imports = [];
+      let stripped = content.replace(/\/\*[\s\S]*?\*\//g, "");
+      stripped = stripped.replace(/\/\/[^\n]*/g, "");
+      const requireRe = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+      let m;
+      while ((m = requireRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const importFromRe = /\b(?:import|export)\s+[\s\S]*?\s+from\s+['"]([^'"]+)['"]/g;
+      while ((m = importFromRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const sideEffectRe = /\bimport\s+['"]([^'"]+)['"]/g;
+      while ((m = sideEffectRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const dynamicRe = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+      while ((m = dynamicRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      return [...new Set(imports)];
+    }
+    function parsePython(content) {
+      const imports = [];
+      const stripped = content.replace(/#[^\n]*/g, "");
+      const fromImportRe = /^\s*from\s+(\.{0,3}[\w.]*)\s+import\b/gm;
+      let m;
+      while ((m = fromImportRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const importRe = /^\s*import\s+([\w.]+(?:\s*,\s*[\w.]+)*)/gm;
+      while ((m = importRe.exec(stripped)) !== null) {
+        const modules = m[1].split(",").map((s) => s.trim().split(/\s+as\s+/)[0].trim());
+        for (const mod of modules) {
+          if (mod) imports.push(mod);
+        }
+      }
+      return [...new Set(imports)];
+    }
+    function parseGo(content) {
+      const imports = [];
+      let stripped = content.replace(/\/\*[\s\S]*?\*\//g, "");
+      stripped = stripped.replace(/\/\/[^\n]*/g, "");
+      const singleRe = /\bimport\s+"([^"]+)"/g;
+      let m;
+      while ((m = singleRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const groupRe = /\bimport\s*\(([\s\S]*?)\)/g;
+      while ((m = groupRe.exec(stripped)) !== null) {
+        const block = m[1];
+        const pathRe = /"([^"]+)"/g;
+        let pm;
+        while ((pm = pathRe.exec(block)) !== null) {
+          imports.push(pm[1]);
+        }
+      }
+      return [...new Set(imports)];
+    }
+    function parseElixir(content) {
+      const imports = [];
+      const stripped = content.replace(/#[^\n]*/g, "");
+      const simpleRe = /^\s*(?:alias|import|use|require)\s+([A-Z][\w.]*)/gm;
+      let m;
+      while ((m = simpleRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const multiRe = /^\s*alias\s+([A-Z][\w.]*)\.\{([^}]+)\}/gm;
+      while ((m = multiRe.exec(stripped)) !== null) {
+        const base = m[1];
+        const parts = m[2].split(",").map((s) => s.trim());
+        for (const part of parts) {
+          if (part) imports.push(`${base}.${part}`);
+        }
+      }
+      return [...new Set(imports)];
+    }
+    function parseRust(content) {
+      const imports = [];
+      let stripped = content.replace(/\/\*[\s\S]*?\*\//g, "");
+      stripped = stripped.replace(/\/\/[^\n]*/g, "");
+      const useRe = /\buse\s+([\w:]+(?:::[\w:{}*,\s]+)?)/g;
+      let m;
+      while ((m = useRe.exec(stripped)) !== null) {
+        const fullPath = m[1].split("{")[0].replace(/::$/, "");
+        imports.push(fullPath);
+      }
+      const modRe = /\bmod\s+(\w+)\s*;/g;
+      while ((m = modRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      const externRe = /\bextern\s+crate\s+(\w+)/g;
+      while ((m = externRe.exec(stripped)) !== null) {
+        imports.push(m[1]);
+      }
+      return [...new Set(imports)];
+    }
+    var IMPORT_PARSERS = {
+      javascript: parseJavaScript,
+      typescript: parseJavaScript,
+      // Same syntax
+      python: parsePython,
+      go: parseGo,
+      elixir: parseElixir,
+      rust: parseRust
+    };
+    function buildFileSet(intel) {
+      return new Set(Object.keys(intel.files || {}));
+    }
+    function resolveJsImport(specifier, fromFile, fileSet) {
+      if (!specifier.startsWith(".")) return null;
+      const dir = path.dirname(fromFile);
+      const base = path.join(dir, specifier);
+      const normalized = base.split(path.sep).join("/");
+      const candidates = [
+        normalized,
+        normalized + ".js",
+        normalized + ".ts",
+        normalized + ".tsx",
+        normalized + ".jsx",
+        normalized + ".cjs",
+        normalized + ".mjs",
+        normalized + "/index.js",
+        normalized + "/index.ts",
+        normalized + "/index.tsx"
+      ];
+      for (const candidate of candidates) {
+        if (fileSet.has(candidate)) return candidate;
+      }
+      return null;
+    }
+    function resolvePythonImport(specifier, fromFile, fileSet) {
+      let modulePath;
+      if (specifier.startsWith(".")) {
+        const dir = path.dirname(fromFile);
+        const dots = specifier.match(/^(\.+)/)[1];
+        const levels = dots.length - 1;
+        let baseDir = dir;
+        for (let i = 0; i < levels; i++) {
+          baseDir = path.dirname(baseDir);
+        }
+        const rest = specifier.slice(dots.length).replace(/\./g, "/");
+        modulePath = rest ? path.join(baseDir, rest) : baseDir;
+      } else {
+        modulePath = specifier.replace(/\./g, "/");
+      }
+      const normalized = modulePath.split(path.sep).join("/");
+      const candidates = [
+        normalized + ".py",
+        normalized + "/__init__.py",
+        normalized + ".pyi"
+      ];
+      for (const candidate of candidates) {
+        if (fileSet.has(candidate)) return candidate;
+      }
+      return null;
+    }
+    function resolveElixirImport(specifier, fromFile, fileSet, intel) {
+      const parts = specifier.split(".");
+      const pathParts = parts.map(
+        (p) => p.replace(
+          /([A-Z])/g,
+          (match, letter, offset) => (offset > 0 ? "_" : "") + letter.toLowerCase()
+        )
+      );
+      const fullPath = pathParts.join("/");
+      const withoutApp = pathParts.slice(1).join("/");
+      const candidates = [];
+      for (const base of [fullPath, withoutApp]) {
+        if (!base) continue;
+        candidates.push(`lib/${base}.ex`);
+        candidates.push(`${base}.ex`);
+        candidates.push(`lib/${base}/index.ex`);
+      }
+      for (const candidate of candidates) {
+        if (fileSet.has(candidate)) return candidate;
+      }
+      return null;
+    }
+    function resolveGoImport(specifier, fromFile, fileSet) {
+      const pkgName = specifier.split("/").pop();
+      if (!pkgName) return null;
+      for (const file of fileSet) {
+        if (file.endsWith(".go")) {
+          const dir = path.dirname(file);
+          const dirName = path.basename(dir);
+          if (dirName === pkgName) return file;
+        }
+      }
+      return null;
+    }
+    function resolveRustImport(specifier, fromFile, fileSet) {
+      let modulePath;
+      if (specifier.startsWith("crate")) {
+        const rest = specifier.replace(/^crate::?/, "").replace(/::/g, "/");
+        modulePath = "src/" + rest;
+      } else if (specifier.startsWith("super")) {
+        const dir = path.dirname(fromFile);
+        const supers = specifier.match(/^(super::)*/)[0];
+        const levels = (supers.match(/super/g) || []).length;
+        let baseDir = dir;
+        for (let i = 0; i < levels; i++) {
+          baseDir = path.dirname(baseDir);
+        }
+        const rest = specifier.replace(/^(super::)+/, "").replace(/::/g, "/");
+        modulePath = rest ? path.join(baseDir, rest) : baseDir;
+      } else {
+        return null;
+      }
+      const normalized = modulePath.split(path.sep).join("/");
+      const candidates = [
+        normalized + ".rs",
+        normalized + "/mod.rs"
+      ];
+      for (const candidate of candidates) {
+        if (fileSet.has(candidate)) return candidate;
+      }
+      return null;
+    }
+    function parseImports(filePath, content, language, fileSet, intel) {
+      const parser = IMPORT_PARSERS[language];
+      if (!parser) return [];
+      const rawImports = parser(content);
+      return rawImports.map((raw) => {
+        let resolved = null;
+        switch (language) {
+          case "javascript":
+          case "typescript":
+            resolved = resolveJsImport(raw, filePath, fileSet);
+            break;
+          case "python":
+            resolved = resolvePythonImport(raw, filePath, fileSet);
+            break;
+          case "go":
+            resolved = resolveGoImport(raw, filePath, fileSet);
+            break;
+          case "elixir":
+            resolved = resolveElixirImport(raw, filePath, fileSet, intel);
+            break;
+          case "rust":
+            resolved = resolveRustImport(raw, filePath, fileSet);
+            break;
+        }
+        return { raw, resolved };
+      });
+    }
+    function buildDependencyGraph(intel) {
+      const forward = {};
+      const reverse = {};
+      const languagesParsed = /* @__PURE__ */ new Set();
+      let totalEdges = 0;
+      let totalFilesParsed = 0;
+      let parseErrors = 0;
+      const fileSet = buildFileSet(intel);
+      const files = intel.files || {};
+      for (const [filePath, fileInfo] of Object.entries(files)) {
+        const language = fileInfo.language;
+        if (!language || !IMPORT_PARSERS[language]) continue;
+        totalFilesParsed++;
+        languagesParsed.add(language);
+        let content;
+        try {
+          const absPath = path.resolve(filePath);
+          content = fs.readFileSync(absPath, "utf8");
+        } catch (e) {
+          debugLog("deps.buildGraph", `read error: ${filePath}: ${e.message}`);
+          parseErrors++;
+          continue;
+        }
+        try {
+          const imports = parseImports(filePath, content, language, fileSet, intel);
+          const resolvedTargets = [];
+          for (const imp of imports) {
+            if (imp.resolved) {
+              resolvedTargets.push(imp.resolved);
+              if (!reverse[imp.resolved]) {
+                reverse[imp.resolved] = [];
+              }
+              if (!reverse[imp.resolved].includes(filePath)) {
+                reverse[imp.resolved].push(filePath);
+              }
+              totalEdges++;
+            }
+          }
+          if (resolvedTargets.length > 0) {
+            forward[filePath] = [...new Set(resolvedTargets)];
+          }
+        } catch (e) {
+          debugLog("deps.buildGraph", `parse error: ${filePath}: ${e.message}`);
+          parseErrors++;
+        }
+      }
+      return {
+        forward,
+        reverse,
+        stats: {
+          total_files_parsed: totalFilesParsed,
+          total_edges: totalEdges,
+          languages_parsed: [...languagesParsed].sort(),
+          parse_errors: parseErrors
+        },
+        built_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+    module2.exports = {
+      IMPORT_PARSERS,
+      parseImports,
+      buildDependencyGraph,
+      // Expose individual parsers for testing
+      parseJavaScript,
+      parsePython,
+      parseGo,
+      parseElixir,
+      parseRust
+    };
+  }
+});
+
 // src/commands/codebase.js
 var require_codebase = __commonJS({
   "src/commands/codebase.js"(exports2, module2) {
@@ -8630,11 +8957,35 @@ var require_codebase = __commonJS({
         filtered_count: result.filtered_count
       }, false);
     }
+    function cmdCodebaseDeps(cwd, args, raw) {
+      const intel = readIntel(cwd);
+      if (!intel) {
+        error("No codebase intel. Run: codebase analyze");
+        return;
+      }
+      const wantCycles = args.includes("--cycles");
+      if (wantCycles) {
+        error("Cycle detection not yet implemented. Coming in Plan 02.");
+        return;
+      }
+      const { buildDependencyGraph } = require_deps();
+      const graph = buildDependencyGraph(intel);
+      intel.dependencies = graph;
+      writeIntel(cwd, intel);
+      const topDeps = Object.entries(graph.reverse).map(([file, importers]) => ({ file, imported_by_count: importers.length })).sort((a, b) => b.imported_by_count - a.imported_by_count).slice(0, 10);
+      output({
+        success: true,
+        stats: graph.stats,
+        top_dependencies: topDeps,
+        built_at: graph.built_at
+      }, raw);
+    }
     module2.exports = {
       cmdCodebaseAnalyze,
       cmdCodebaseStatus,
       cmdCodebaseConventions,
       cmdCodebaseRules,
+      cmdCodebaseDeps,
       readCodebaseIntel,
       checkCodebaseIntelStaleness,
       autoTriggerCodebaseIntel
@@ -14698,8 +15049,12 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             lazyCodebase().cmdCodebaseConventions(cwd, args.slice(2), raw);
           } else if (sub === "rules") {
             lazyCodebase().cmdCodebaseRules(cwd, args.slice(2), raw);
+          } else if (sub === "deps") {
+            lazyCodebase().cmdCodebaseDeps(cwd, args.slice(2), raw);
+          } else if (sub === "impact") {
+            lazyCodebase().cmdCodebaseImpact(cwd, args.slice(2), raw);
           } else {
-            error("Usage: codebase <analyze|status|conventions|rules>");
+            error("Usage: codebase <analyze|status|conventions|rules|deps|impact>");
           }
           break;
         }

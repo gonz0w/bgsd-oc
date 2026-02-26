@@ -583,8 +583,12 @@ async function main() {
         lazyCodebase().cmdCodebaseConventions(cwd, args.slice(2), raw);
       } else if (sub === 'rules') {
         lazyCodebase().cmdCodebaseRules(cwd, args.slice(2), raw);
+      } else if (sub === 'deps') {
+        lazyCodebase().cmdCodebaseDeps(cwd, args.slice(2), raw);
+      } else if (sub === 'impact') {
+        lazyCodebase().cmdCodebaseImpact(cwd, args.slice(2), raw);
       } else {
-        error('Usage: codebase <analyze|status|conventions|rules>');
+        error('Usage: codebase <analyze|status|conventions|rules|deps|impact>');
       }
       break;
     }
