@@ -105,6 +105,46 @@ Otherwise:
 3. If `worktree_active` is non-empty: display active worktree table. Consider whether stale worktrees should be cleaned first.
 </step>
 
+<step name="preflight_convention_check">
+Advisory check for naming convention mismatches across all files the phase will modify.
+
+1. **Collect files from all incomplete plans:**
+   ```bash
+   # For each plan in incomplete_plans from init JSON:
+   ALL_FILES=""
+   for PLAN_PATH in ${INCOMPLETE_PLANS}; do
+     PLAN_FILES=$(node gsd-tools.cjs frontmatter "${PLAN_PATH}" --field files_modified --raw 2>/dev/null)
+     ALL_FILES="${ALL_FILES} ${PLAN_FILES}"
+   done
+   # Deduplicate
+   ALL_FILES=$(echo "$ALL_FILES" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+   ```
+
+2. **Run codebase context for all files:**
+   ```bash
+   if [ -n "$ALL_FILES" ]; then
+     CONV_CTX=$(node gsd-tools.cjs codebase context --files ${ALL_FILES} --raw 2>/dev/null)
+   fi
+   ```
+   If command fails or returns empty: skip silently. No warning, no error.
+
+3. **Check conventions from output:**
+   Parse the JSON output. For each file in `files`, check `conventions.naming.pattern` and `conventions.naming.confidence`.
+   Only flag files where:
+   - `confidence` > 80%
+   - The file path's naming style differs from the detected convention `pattern`
+
+4. **Display advisory warnings (if any):**
+   ```
+   ⚠ Convention advisory:
+     {file_path} — project uses {pattern} ({confidence}% confidence) in this directory
+   ```
+
+5. **Never block execution.** This is purely informational — log and continue regardless of findings. If no mismatches found, produce no output.
+
+6. **Forward warnings:** Store any convention warnings so they can be included in executor spawn prompts' `<codebase_context>` block (Task 1's injection mechanism carries them to agents).
+</step>
+
 <step name="discover_and_group_plans">
 ```bash
 PLAN_INDEX=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase-plan-index "${PHASE_NUMBER}")
