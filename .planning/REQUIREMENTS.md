@@ -1,62 +1,63 @@
-# Requirements: GSD Plugin — Codebase Intelligence
+# Requirements: GSD Plugin — UX & Developer Experience
 
-**Defined:** 2026-02-25
+**Defined:** 2026-02-26
 **Core Value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
 
-## v5.0 Requirements
+## v6.0 Requirements
 
-Requirements for codebase intelligence milestone. Each maps to roadmap phases.
+Requirements for UX overhaul milestone. Each maps to roadmap phases.
 
-### Infrastructure
+### Formatting Infrastructure
 
-- [x] **INFRA-01**: CLI produces a codebase-intel.json cache file with git hash watermarks for freshness validation
-- [x] **INFRA-02**: Staleness check completes in <50ms by comparing cached git hash to current HEAD
-- [x] **INFRA-03**: Incremental updates re-analyze only files changed since last cached commit
-- [x] **INFRA-04**: Cache auto-triggers on init commands when stale (follows env.js autoTrigger pattern)
+- [ ] **FMT-01**: User gets a shared `formatTable(headers, rows, options)` utility with column alignment, truncation, and optional borders
+- [ ] **FMT-02**: User gets a TTY-aware color utility (~2KB picocolors pattern) with bold, dim, red, green, yellow, cyan, and auto-disable for non-TTY
+- [ ] **FMT-03**: User gets a shared `progressBar(percent, width)` utility replacing the 2 duplicated implementations
+- [ ] **FMT-04**: User gets `banner(title)` and `box(content, type)` renderers implementing the ui-brand.md visual spec
+- [ ] **FMT-05**: User gets exported status symbol constants (`SYMBOLS.check`, `SYMBOLS.cross`, `SYMBOLS.progress`, etc.) used consistently across all output
 
-### Convention Extraction
+### Smart Output
 
-- [x] **CONV-01**: User can run `codebase conventions` to extract naming patterns from project files
-- [x] **CONV-02**: Convention detector identifies file organization rules (directory structure, file placement patterns)
-- [x] **CONV-03**: Framework-specific macro/pattern detection works for Elixir (Phoenix routes, Ecto schemas, plugs), with extensible pattern registry
-- [x] **CONV-04**: Each extracted convention has a confidence score (percentage of files following the pattern)
-- [x] **CONV-05**: User can run `codebase rules` to generate a conventions rules document for agent consumption (capped at 15 rules)
+- [ ] **OUT-01**: CLI auto-detects TTY and renders human-readable output when interactive, JSON when piped
+- [ ] **OUT-02**: `--raw` flag forces JSON output regardless of TTY detection
+- [ ] **OUT-03**: `--pretty` flag forces human-readable output regardless of TTY detection (e.g., for `less -R`)
+- [ ] **OUT-04**: Output destination is consistent — all human-readable output goes to stdout, debug/diagnostics to stderr
 
-### Dependency Analysis
+### Command Renderers
 
-- [x] **DEPS-01**: User can run `codebase deps` to build a module dependency graph from import/require/use statements
-- [x] **DEPS-02**: Import parsing covers 6 languages via regex: JavaScript, TypeScript, Python, Go, Elixir, Rust
-- [x] **DEPS-03**: Dependency graph uses adjacency-list representation with forward and reverse edges
-- [x] **DEPS-04**: User can run `codebase impact <file>` to see transitive dependents (what breaks if this file changes)
-- [x] **DEPS-05**: Cycle detection identifies circular dependencies using Tarjan's strongly connected components
+- [ ] **CMD-01**: All init commands (`init progress`, `init execute-phase`, `init plan-phase`, etc.) produce branded human-readable output in TTY mode
+- [ ] **CMD-02**: State commands (`state`, `state show`, `state update-progress`) produce clean formatted output in TTY mode
+- [ ] **CMD-03**: Verification commands (`verify requirements`, `verify quality`) produce summary tables with pass/fail indicators in TTY mode
+- [ ] **CMD-04**: Codebase commands (`codebase analyze`, `codebase status`, `codebase conventions`, `codebase deps`, `codebase context`, etc.) produce formatted output in TTY mode
+- [ ] **CMD-05**: Feature commands (`velocity`, `quick-summary`, `context-budget`, `search-decisions`, `trace-requirement`, etc.) produce formatted output in TTY mode
+- [ ] **CMD-06**: Intent commands maintain existing rendering quality and adopt shared formatting utilities
 
-### Lifecycle Awareness
+### Workflow Output
 
-- [x] **LIFE-01**: User can run `codebase lifecycle` to see execution order relationships (seeds after migrations, config at boot)
-- [x] **LIFE-02**: Lifecycle detection identifies framework-specific initialization patterns (starting with Elixir/Phoenix)
-- [x] **LIFE-03**: Lifecycle analysis outputs a dependency chain showing which files/operations must run before others
+- [ ] **WKFL-04**: All workflow .md files audited for token usage with before/after baselines measured
+- [ ] **WKFL-05**: Workflow output instructions tightened — status messages reduced, redundant information eliminated
+- [ ] **WKFL-06**: Updated `ui-brand.md` with tighter patterns and concrete examples for information-dense output
+- [ ] **WKFL-07**: Workflow table instructions use consistent column widths and alignment patterns
 
-### Context Injection
+### Slash Commands & Integration
 
-- [x] **CTXI-01**: Init commands include a compact codebase summary (<500 tokens) when codebase-intel.json exists
-- [x] **CTXI-02**: User can run `codebase context --files <paths>` to get task-scoped architectural context for specific files
-- [x] **CTXI-03**: Task-scoped context uses heuristic scoring (graph distance + plan scope + git recency) for relevance ranking
-- [x] **CTXI-04**: Total injected codebase context never exceeds 5K tokens per invocation
+- [ ] **INTG-01**: 11 missing command wrapper files created in OpenCode command directory
+- [ ] **INTG-02**: `deploy.sh` updated to sync command wrappers during deployment
+- [ ] **INTG-03**: AGENTS.md updated to reflect current project state — stale items removed, v5.0/v6.0 status current
 
-### Workflow Integration
+### Quality
 
-- [x] **WKFL-01**: Execute-phase workflow auto-injects relevant codebase context based on plan file references
-- [x] **WKFL-02**: Pre-flight convention check warns before execution if plan touches files with known conventions
-- [x] **WKFL-03**: Existing `codebase-impact` command is updated to use cached dependency graph when available
+- [ ] **QUAL-01**: 2 failing tests from v5.0 fixed
+- [ ] **QUAL-02**: New tests cover formatting utilities (table, color, progress bar, banner, box)
+- [ ] **QUAL-03**: Bundle size stays reasonable after adding formatting module
 
 ## Future Requirements
 
-### Advanced Analysis
+### Advanced Formatting
 
-- **ADVN-01**: Convention drift detection over time (conventions that are losing consistency)
-- **ADVN-02**: Co-change analysis (files that frequently change together)
-- **ADVN-03**: Module boundary detection and enforcement
-- **ADVN-04**: Cross-project convention sharing
+- **AFMT-01**: Sparkline charts for velocity/progress trends
+- **AFMT-02**: Interactive table scrolling (if terminal supports it)
+- **AFMT-03**: Theme support (light/dark mode detection)
+- **AFMT-04**: Convention drift detection over time
 
 ### Language Expansion
 
@@ -68,47 +69,48 @@ Requirements for codebase intelligence milestone. Each maps to roadmap phases.
 
 | Feature | Reason |
 |---------|--------|
-| Tree-sitter AST parsing | 616KB per language grammar + 252KB runtime; regex provides 85-90% accuracy at zero cost |
-| Embedding-based retrieval | Requires API calls, external dependencies, and vector storage; heuristic scoring is sufficient |
-| LSP integration | Heavy dependency, overlaps with editor-native features |
-| Real-time analysis during execution | Performance budget incompatible; cached analysis with freshness checks is sufficient |
-| Universal lifecycle detection | Too framework-specific to generalize; build incrementally per framework |
-| Full codebase in context | Models degrade past 25-30K tokens; task-scoped injection is the correct approach |
+| Ink/React-based TUI framework | Heavy dependency, violates zero-deps constraint |
+| Blessed/ncurses terminal UI | Full-screen TUI is overkill for a CLI tool |
+| chalk/kleur color library | Bundling a ~2KB picocolors pattern is sufficient |
+| Animated spinners/loaders | CLI runs are short (<5s); static progress is sufficient |
+| Mouse interaction | Terminal-only, keyboard workflows |
+| Custom terminal font rendering | Beyond scope — work with standard monospace |
 
 ## Traceability
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| INFRA-01 | Phase 23 | Complete | node bin/gsd-tools.cjs codebase analyze --raw |
-| INFRA-02 | Phase 23 | Complete | node bin/gsd-tools.cjs codebase status --raw |
-| INFRA-03 | Phase 23 | Complete | node bin/gsd-tools.cjs codebase analyze --raw |
-| INFRA-04 | Phase 23 | Complete | node bin/gsd-tools.cjs init progress --raw |
-| CONV-01 | Phase 24 | Complete | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-02 | Phase 24 | Complete | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-03 | Phase 24 | Complete | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-04 | Phase 24 | Complete | node bin/gsd-tools.cjs codebase conventions --raw |
-| CONV-05 | Phase 24 | Complete | node bin/gsd-tools.cjs codebase rules --raw |
-| DEPS-01 | Phase 25 | Complete | node bin/gsd-tools.cjs codebase deps --raw |
-| DEPS-02 | Phase 25 | Complete | node bin/gsd-tools.cjs codebase deps --raw |
-| DEPS-03 | Phase 25 | Complete | node bin/gsd-tools.cjs codebase deps --raw |
-| DEPS-04 | Phase 25 | Complete | node bin/gsd-tools.cjs codebase impact src/lib/state.js --raw |
-| DEPS-05 | Phase 25 | Complete | node bin/gsd-tools.cjs codebase deps --cycles --raw |
-| LIFE-01 | Phase 28 | Complete | node bin/gsd-tools.cjs codebase lifecycle --raw |
-| LIFE-02 | Phase 28 | Complete | node bin/gsd-tools.cjs codebase lifecycle --raw |
-| LIFE-03 | Phase 28 | Complete | node bin/gsd-tools.cjs codebase lifecycle --raw |
-| CTXI-01 | Phase 26 | Complete | node bin/gsd-tools.cjs init progress --raw |
-| CTXI-02 | Phase 27 | Complete | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
-| CTXI-03 | Phase 27 | Complete | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
-| CTXI-04 | Phase 27 | Complete | node bin/gsd-tools.cjs codebase context --files src/index.js --raw |
-| WKFL-01 | Phase 29 | Complete | 29-01-SUMMARY.md |
-| WKFL-02 | Phase 29 | Complete | 29-01-SUMMARY.md |
-| WKFL-03 | Phase 29 | Complete | node bin/gsd-tools.cjs codebase-impact src/lib/state.js --raw |
+| FMT-01 | — | Pending | — |
+| FMT-02 | — | Pending | — |
+| FMT-03 | — | Pending | — |
+| FMT-04 | — | Pending | — |
+| FMT-05 | — | Pending | — |
+| OUT-01 | — | Pending | — |
+| OUT-02 | — | Pending | — |
+| OUT-03 | — | Pending | — |
+| OUT-04 | — | Pending | — |
+| CMD-01 | — | Pending | — |
+| CMD-02 | — | Pending | — |
+| CMD-03 | — | Pending | — |
+| CMD-04 | — | Pending | — |
+| CMD-05 | — | Pending | — |
+| CMD-06 | — | Pending | — |
+| WKFL-04 | — | Pending | — |
+| WKFL-05 | — | Pending | — |
+| WKFL-06 | — | Pending | — |
+| WKFL-07 | — | Pending | — |
+| INTG-01 | — | Pending | — |
+| INTG-02 | — | Pending | — |
+| INTG-03 | — | Pending | — |
+| QUAL-01 | — | Pending | — |
+| QUAL-02 | — | Pending | — |
+| QUAL-03 | — | Pending | — |
 
 **Coverage:**
-- v5.0 requirements: 20 total
-- Mapped to phases: 20
-- Unmapped: 0 ✓
+- v6.0 requirements: 25 total
+- Mapped to phases: 0
+- Unmapped: 25 (pending roadmap creation)
 
 ---
-*Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after roadmap creation*
+*Requirements defined: 2026-02-26*
+*Last updated: 2026-02-26 after initial definition*
