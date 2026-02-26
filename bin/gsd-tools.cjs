@@ -8847,6 +8847,200 @@ var require_deps = __commonJS({
   }
 });
 
+// node_modules/tokenx/dist/index.mjs
+var dist_exports = {};
+__export(dist_exports, {
+  approximateTokenSize: () => approximateTokenSize,
+  estimateTokenCount: () => estimateTokenCount,
+  isWithinTokenLimit: () => isWithinTokenLimit,
+  sliceByTokens: () => sliceByTokens,
+  splitByTokens: () => splitByTokens
+});
+function isWithinTokenLimit(text, tokenLimit, options) {
+  return estimateTokenCount(text, options) <= tokenLimit;
+}
+function estimateTokenCount(text, options = {}) {
+  if (!text) return 0;
+  const { defaultCharsPerToken = DEFAULT_CHARS_PER_TOKEN, languageConfigs = DEFAULT_LANGUAGE_CONFIGS } = options;
+  const segments = text.split(TOKEN_SPLIT_PATTERN).filter(Boolean);
+  let tokenCount = 0;
+  for (const segment of segments) tokenCount += estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken);
+  return tokenCount;
+}
+function sliceByTokens(text, start = 0, end, options = {}) {
+  if (!text) return "";
+  const { defaultCharsPerToken = DEFAULT_CHARS_PER_TOKEN, languageConfigs = DEFAULT_LANGUAGE_CONFIGS } = options;
+  let totalTokens = 0;
+  if (start < 0 || end !== void 0 && end < 0) totalTokens = estimateTokenCount(text, options);
+  const normalizedStart = start < 0 ? Math.max(0, totalTokens + start) : Math.max(0, start);
+  const normalizedEnd = end === void 0 ? Infinity : end < 0 ? Math.max(0, totalTokens + end) : end;
+  if (normalizedStart >= normalizedEnd) return "";
+  const segments = text.split(TOKEN_SPLIT_PATTERN).filter(Boolean);
+  const parts = [];
+  let currentTokenPos = 0;
+  for (const segment of segments) {
+    if (currentTokenPos >= normalizedEnd) break;
+    const tokenCount = estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken);
+    const extracted = extractSegmentPart(segment, currentTokenPos, tokenCount, normalizedStart, normalizedEnd);
+    if (extracted) parts.push(extracted);
+    currentTokenPos += tokenCount;
+  }
+  return parts.join("");
+}
+function splitByTokens(text, tokensPerChunk, options = {}) {
+  if (!text || tokensPerChunk <= 0) return [];
+  const { defaultCharsPerToken = DEFAULT_CHARS_PER_TOKEN, languageConfigs = DEFAULT_LANGUAGE_CONFIGS, overlap = 0 } = options;
+  const segments = text.split(TOKEN_SPLIT_PATTERN).filter(Boolean);
+  const chunks = [];
+  let currentChunk = [];
+  let currentTokenCount = 0;
+  for (const segment of segments) {
+    const tokenCount = estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken);
+    currentChunk.push(segment);
+    currentTokenCount += tokenCount;
+    if (currentTokenCount >= tokensPerChunk) {
+      chunks.push(currentChunk.join(""));
+      if (overlap > 0) {
+        const overlapSegments = [];
+        let overlapTokenCount = 0;
+        for (let i = currentChunk.length - 1; i >= 0 && overlapTokenCount < overlap; i--) {
+          const segmentValue = currentChunk[i];
+          const tokCount = estimateSegmentTokens(segmentValue, languageConfigs, defaultCharsPerToken);
+          overlapSegments.unshift(segmentValue);
+          overlapTokenCount += tokCount;
+        }
+        currentChunk = overlapSegments;
+        currentTokenCount = overlapTokenCount;
+      } else {
+        currentChunk = [];
+        currentTokenCount = 0;
+      }
+    }
+  }
+  if (currentChunk.length > 0) chunks.push(currentChunk.join(""));
+  return chunks;
+}
+function estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken) {
+  if (PATTERNS.whitespace.test(segment)) return 0;
+  if (PATTERNS.cjk.test(segment)) return getCharacterCount(segment);
+  if (PATTERNS.numeric.test(segment)) return 1;
+  if (segment.length <= SHORT_TOKEN_THRESHOLD) return 1;
+  if (PATTERNS.punctuation.test(segment)) return segment.length > 1 ? Math.ceil(segment.length / 2) : 1;
+  if (PATTERNS.alphanumeric.test(segment)) {
+    const charsPerToken$1 = getLanguageSpecificCharsPerToken(segment, languageConfigs) ?? defaultCharsPerToken;
+    return Math.ceil(segment.length / charsPerToken$1);
+  }
+  const charsPerToken = getLanguageSpecificCharsPerToken(segment, languageConfigs) ?? defaultCharsPerToken;
+  return Math.ceil(segment.length / charsPerToken);
+}
+function getLanguageSpecificCharsPerToken(segment, languageConfigs) {
+  for (const config of languageConfigs) if (config.pattern.test(segment)) return config.averageCharsPerToken;
+}
+function getCharacterCount(text) {
+  return Array.from(text).length;
+}
+function extractSegmentPart(segment, segmentTokenStart, segmentTokenCount, targetStart, targetEnd) {
+  if (segmentTokenCount === 0) return segmentTokenStart >= targetStart && segmentTokenStart < targetEnd ? segment : "";
+  const segmentTokenEnd = segmentTokenStart + segmentTokenCount;
+  if (segmentTokenStart >= targetEnd || segmentTokenEnd <= targetStart) return "";
+  const overlapStart = Math.max(0, targetStart - segmentTokenStart);
+  const overlapEnd = Math.min(segmentTokenCount, targetEnd - segmentTokenStart);
+  if (overlapStart === 0 && overlapEnd === segmentTokenCount) return segment;
+  const charStart = Math.floor(overlapStart / segmentTokenCount * segment.length);
+  const charEnd = Math.ceil(overlapEnd / segmentTokenCount * segment.length);
+  return segment.slice(charStart, charEnd);
+}
+var PATTERNS, TOKEN_SPLIT_PATTERN, DEFAULT_CHARS_PER_TOKEN, SHORT_TOKEN_THRESHOLD, DEFAULT_LANGUAGE_CONFIGS, approximateTokenSize;
+var init_dist = __esm({
+  "node_modules/tokenx/dist/index.mjs"() {
+    PATTERNS = {
+      whitespace: /^\s+$/,
+      cjk: /[\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F\uFF00-\uFFEF\u30A0-\u30FF\u2E80-\u2EFF\u31C0-\u31EF\u3200-\u32FF\u3300-\u33FF\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF]/,
+      numeric: /^\d+(?:[.,]\d+)*$/,
+      punctuation: /[.,!?;(){}[\]<>:/\\|@#$%^&*+=`~_-]/,
+      alphanumeric: /^[a-zA-Z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]+$/
+    };
+    TOKEN_SPLIT_PATTERN = /* @__PURE__ */ new RegExp(`(\\s+|${PATTERNS.punctuation.source}+)`);
+    DEFAULT_CHARS_PER_TOKEN = 6;
+    SHORT_TOKEN_THRESHOLD = 3;
+    DEFAULT_LANGUAGE_CONFIGS = [
+      {
+        pattern: /[äöüßẞ]/i,
+        averageCharsPerToken: 3
+      },
+      {
+        pattern: /[éèêëàâîïôûùüÿçœæáíóúñ]/i,
+        averageCharsPerToken: 3
+      },
+      {
+        pattern: /[ąćęłńóśźżěščřžýůúďťň]/i,
+        averageCharsPerToken: 3.5
+      }
+    ];
+    approximateTokenSize = estimateTokenCount;
+  }
+});
+
+// src/lib/context.js
+var require_context = __commonJS({
+  "src/lib/context.js"(exports2, module2) {
+    "use strict";
+    var { debugLog } = require_output();
+    var _estimateTokenCount = null;
+    function getTokenizer() {
+      if (_estimateTokenCount !== null) return _estimateTokenCount;
+      try {
+        const tokenx = (init_dist(), __toCommonJS(dist_exports));
+        _estimateTokenCount = tokenx.estimateTokenCount;
+        debugLog("context.tokenizer", "tokenx loaded successfully");
+      } catch (e) {
+        debugLog("context.tokenizer", "tokenx load failed, using fallback", e);
+        _estimateTokenCount = (text) => Math.ceil(String(text).length / 4);
+      }
+      return _estimateTokenCount;
+    }
+    function estimateTokens(text) {
+      if (!text || typeof text !== "string") return 0;
+      try {
+        const fn = getTokenizer();
+        return fn(text);
+      } catch (e) {
+        debugLog("context.estimateTokens", "estimation failed, using fallback", e);
+        return Math.ceil(text.length / 4);
+      }
+    }
+    function estimateJsonTokens(obj) {
+      if (obj === void 0 || obj === null) return 0;
+      try {
+        return estimateTokens(JSON.stringify(obj));
+      } catch (e) {
+        debugLog("context.estimateJsonTokens", "stringify failed", e);
+        return 0;
+      }
+    }
+    function checkBudget(tokens, config = {}) {
+      const contextWindow = config.context_window || 2e5;
+      const targetPercent = config.context_target_percent || 50;
+      const percent = Math.round(tokens / contextWindow * 100);
+      const warning = percent > targetPercent;
+      let recommendation = null;
+      if (percent > 80) {
+        recommendation = "Critical: exceeds 80% of context window. Split into smaller units.";
+      } else if (percent > 60) {
+        recommendation = "High: exceeds 60% of context window. Consider reducing scope.";
+      } else if (percent > targetPercent) {
+        recommendation = `Above target: exceeds ${targetPercent}% target. Monitor closely.`;
+      }
+      return { tokens, percent, warning, recommendation };
+    }
+    function isWithinBudget(text, config = {}) {
+      const tokens = estimateTokens(text);
+      return checkBudget(tokens, config);
+    }
+    module2.exports = { estimateTokens, estimateJsonTokens, checkBudget, isWithinBudget };
+  }
+});
+
 // src/commands/codebase.js
 var require_codebase = __commonJS({
   "src/commands/codebase.js"(exports2, module2) {
@@ -9195,6 +9389,121 @@ var require_codebase = __commonJS({
         files
       }, raw);
     }
+    function scoreRelevance(file, targetFiles, graph, planFiles, recentFiles) {
+      if (targetFiles.includes(file)) return 1;
+      let score = 0;
+      let is1Hop = false;
+      let is2Hop = false;
+      for (const target of targetFiles) {
+        const fwd = graph.forward[target] || [];
+        const rev = graph.reverse[target] || [];
+        if (fwd.includes(file) || rev.includes(file)) {
+          is1Hop = true;
+          break;
+        }
+      }
+      if (!is1Hop) {
+        outer:
+          for (const target of targetFiles) {
+            const neighbors = [...graph.forward[target] || [], ...graph.reverse[target] || []];
+            for (const neighbor of neighbors) {
+              const nFwd = graph.forward[neighbor] || [];
+              const nRev = graph.reverse[neighbor] || [];
+              if (nFwd.includes(file) || nRev.includes(file)) {
+                is2Hop = true;
+                break outer;
+              }
+            }
+          }
+      }
+      if (is1Hop) score += 0.5;
+      else if (is2Hop) score += 0.25;
+      if (planFiles.includes(file)) score += 0.3;
+      if (recentFiles.has(file)) score += 0.2;
+      return score;
+    }
+    function getRecentlyModifiedFiles(cwd, commitCount = 10) {
+      const { execGit } = require_git();
+      try {
+        const result = execGit(cwd, ["log", `-${commitCount}`, "--name-only", "--pretty=format:", "--no-merges"]);
+        if (result.exitCode !== 0) return /* @__PURE__ */ new Set();
+        return new Set(result.stdout.split("\n").filter((f) => f.trim().length > 0));
+      } catch {
+        return /* @__PURE__ */ new Set();
+      }
+    }
+    function getPlanFiles(cwd, planPath) {
+      if (!planPath) return [];
+      try {
+        const { extractFrontmatter } = require_frontmatter();
+        const resolved = path.resolve(cwd, planPath);
+        const content = fs.readFileSync(resolved, "utf-8");
+        const fm = extractFrontmatter(content);
+        if (Array.isArray(fm.files_modified)) return fm.files_modified;
+        if (typeof fm.files_modified === "string" && fm.files_modified.trim()) return [fm.files_modified];
+      } catch (e) {
+        debugLog("context.planFiles", "read failed", e);
+      }
+      return [];
+    }
+    function enforceTokenBudget(fileContexts, maxTokens = 5e3) {
+      const { estimateJsonTokens } = require_context();
+      const buildOutput = (files) => ({
+        success: true,
+        files,
+        file_count: Object.keys(files).length,
+        truncated: false
+      });
+      let tokens = estimateJsonTokens(buildOutput(fileContexts));
+      if (tokens <= maxTokens) {
+        return { files: fileContexts, truncated: false, omitted_files: 0 };
+      }
+      const cloned = JSON.parse(JSON.stringify(fileContexts));
+      const levels = [
+        // Level 1: Trim dependents to top 3
+        (ctx) => {
+          if (ctx.dependents) ctx.dependents = ctx.dependents.slice(0, 3);
+        },
+        // Level 2: Trim imports to top 3
+        (ctx) => {
+          if (ctx.imports) ctx.imports = ctx.imports.slice(0, 3);
+        },
+        // Level 3: Remove conventions
+        (ctx) => {
+          ctx.conventions = null;
+        },
+        // Level 4: Remove imports and dependents entirely (keep file + risk_level only)
+        (ctx) => {
+          ctx.imports = void 0;
+          ctx.dependents = void 0;
+        }
+      ];
+      for (const degrade of levels) {
+        for (const key of Object.keys(cloned)) {
+          degrade(cloned[key]);
+        }
+        tokens = estimateJsonTokens(buildOutput(cloned));
+        if (tokens <= maxTokens) {
+          return { files: cloned, truncated: true, omitted_files: 0 };
+        }
+      }
+      const entries = Object.entries(cloned).sort((a, b) => (b[1].relevance_score || 0) - (a[1].relevance_score || 0));
+      const originalCount = entries.length;
+      const kept = {};
+      for (const [key, val] of entries) {
+        kept[key] = val;
+        tokens = estimateJsonTokens(buildOutput(kept));
+        if (tokens > maxTokens && Object.keys(kept).length > 1) {
+          delete kept[key];
+          break;
+        }
+      }
+      return {
+        files: kept,
+        truncated: true,
+        omitted_files: originalCount - Object.keys(kept).length
+      };
+    }
     function computeRiskLevel(file, graph, cycleFiles) {
       const dependentCount = (graph.reverse[file] || []).length;
       if (dependentCount > 10) return "high";
@@ -9258,7 +9567,6 @@ var require_codebase = __commonJS({
       }
       const planIdx = args.indexOf("--plan");
       const planPath = planIdx !== -1 ? args[planIdx + 1] : null;
-      void planPath;
       if (!filePaths.length) {
         error("Usage: codebase context --files <file1> [file2] ...");
         return;
@@ -9289,6 +9597,8 @@ var require_codebase = __commonJS({
       for (const scc of cycleData.cycles) {
         for (const f of scc) cycleFiles.add(f);
       }
+      const planFiles = getPlanFiles(cwd, planPath);
+      const recentFiles = getRecentlyModifiedFiles(cwd);
       const filesResult = {};
       for (const file of filePaths) {
         if (!graph.forward[file] && !graph.reverse[file]) {
@@ -9297,30 +9607,45 @@ var require_codebase = __commonJS({
             imports: [],
             dependents: [],
             conventions: null,
-            risk_level: "normal"
+            risk_level: "normal",
+            relevance_score: scoreRelevance(file, filePaths, graph, planFiles, recentFiles)
           };
           continue;
         }
         const imports = [...graph.forward[file] || []];
-        imports.sort((a, b) => (graph.reverse[b] || []).length - (graph.reverse[a] || []).length);
+        imports.sort((a, b) => {
+          const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
+          const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return (graph.reverse[b] || []).length - (graph.reverse[a] || []).length;
+        });
         const cappedImports = imports.slice(0, 8);
         const dependents = [...graph.reverse[file] || []];
-        dependents.sort((a, b) => (graph.forward[b] || []).length - (graph.forward[a] || []).length);
+        dependents.sort((a, b) => {
+          const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
+          const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return (graph.forward[b] || []).length - (graph.forward[a] || []).length;
+        });
         const cappedDependents = dependents.slice(0, 8);
         const riskLevel = computeRiskLevel(file, graph, cycleFiles);
         const fileConventions = matchFileConventions(file, conventions);
+        const relevanceScore = scoreRelevance(file, filePaths, graph, planFiles, recentFiles);
         filesResult[file] = {
           imports: cappedImports,
           dependents: cappedDependents,
           conventions: fileConventions,
-          risk_level: riskLevel
+          risk_level: riskLevel,
+          relevance_score: relevanceScore
         };
       }
+      const budgetResult = enforceTokenBudget(filesResult);
       const result = {
         success: true,
-        files: filesResult,
+        files: budgetResult.files,
         file_count: filePaths.length,
-        truncated: false
+        truncated: budgetResult.truncated,
+        omitted_files: budgetResult.omitted_files
       };
       if (raw) {
         output(result, raw);
@@ -9330,7 +9655,7 @@ var require_codebase = __commonJS({
         lines.push("File Context Summary");
         lines.push("\u2550".repeat(80));
         lines.push("");
-        for (const [file, ctx] of Object.entries(filesResult)) {
+        for (const [file, ctx] of Object.entries(budgetResult.files)) {
           if (ctx.status === "no-data") {
             lines.push(`  ${file}  [no data]`);
             lines.push("");
@@ -9338,13 +9663,22 @@ var require_codebase = __commonJS({
           }
           const riskBadge = ctx.risk_level === "high" ? "\u{1F534} HIGH" : ctx.risk_level === "caution" ? "\u{1F7E1} CAUTION" : "\u{1F7E2} normal";
           const namingStr = ctx.conventions && ctx.conventions.naming ? `${ctx.conventions.naming.pattern} (${ctx.conventions.naming.confidence}%)` : "-";
+          const scoreStr = ctx.relevance_score !== void 0 ? ` | Score: ${ctx.relevance_score.toFixed(2)}` : "";
           lines.push(`  ${file}`);
-          lines.push(`    Risk: ${riskBadge}  |  Naming: ${namingStr}`);
-          lines.push(`    Imports (${ctx.imports.length}): ${ctx.imports.length > 0 ? ctx.imports.join(", ") : "none"}`);
-          lines.push(`    Dependents (${ctx.dependents.length}): ${ctx.dependents.length > 0 ? ctx.dependents.join(", ") : "none"}`);
+          lines.push(`    Risk: ${riskBadge}  |  Naming: ${namingStr}${scoreStr}`);
+          if (ctx.imports) {
+            lines.push(`    Imports (${ctx.imports.length}): ${ctx.imports.length > 0 ? ctx.imports.join(", ") : "none"}`);
+          }
+          if (ctx.dependents) {
+            lines.push(`    Dependents (${ctx.dependents.length}): ${ctx.dependents.length > 0 ? ctx.dependents.join(", ") : "none"}`);
+          }
           if (ctx.conventions && ctx.conventions.frameworks && ctx.conventions.frameworks.length > 0) {
             lines.push(`    Frameworks: ${ctx.conventions.frameworks.map((f) => f.framework).join(", ")}`);
           }
+          lines.push("");
+        }
+        if (budgetResult.truncated) {
+          lines.push(`  \u26A0 Output truncated to fit 5K token budget (${budgetResult.omitted_files} files omitted)`);
           lines.push("");
         }
         process.stderr.write(lines.join("\n") + "\n");
@@ -9362,7 +9696,14 @@ var require_codebase = __commonJS({
       readCodebaseIntel,
       checkCodebaseIntelStaleness,
       autoTriggerCodebaseIntel,
-      spawnBackgroundAnalysis
+      spawnBackgroundAnalysis,
+      // Exported for testing (Plan 02)
+      scoreRelevance,
+      getRecentlyModifiedFiles,
+      getPlanFiles,
+      enforceTokenBudget,
+      computeRiskLevel,
+      matchFileConventions
     };
   }
 });
@@ -11330,200 +11671,6 @@ var require_init = __commonJS({
       cmdInitMemory,
       getSessionDiffSummary
     };
-  }
-});
-
-// node_modules/tokenx/dist/index.mjs
-var dist_exports = {};
-__export(dist_exports, {
-  approximateTokenSize: () => approximateTokenSize,
-  estimateTokenCount: () => estimateTokenCount,
-  isWithinTokenLimit: () => isWithinTokenLimit,
-  sliceByTokens: () => sliceByTokens,
-  splitByTokens: () => splitByTokens
-});
-function isWithinTokenLimit(text, tokenLimit, options) {
-  return estimateTokenCount(text, options) <= tokenLimit;
-}
-function estimateTokenCount(text, options = {}) {
-  if (!text) return 0;
-  const { defaultCharsPerToken = DEFAULT_CHARS_PER_TOKEN, languageConfigs = DEFAULT_LANGUAGE_CONFIGS } = options;
-  const segments = text.split(TOKEN_SPLIT_PATTERN).filter(Boolean);
-  let tokenCount = 0;
-  for (const segment of segments) tokenCount += estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken);
-  return tokenCount;
-}
-function sliceByTokens(text, start = 0, end, options = {}) {
-  if (!text) return "";
-  const { defaultCharsPerToken = DEFAULT_CHARS_PER_TOKEN, languageConfigs = DEFAULT_LANGUAGE_CONFIGS } = options;
-  let totalTokens = 0;
-  if (start < 0 || end !== void 0 && end < 0) totalTokens = estimateTokenCount(text, options);
-  const normalizedStart = start < 0 ? Math.max(0, totalTokens + start) : Math.max(0, start);
-  const normalizedEnd = end === void 0 ? Infinity : end < 0 ? Math.max(0, totalTokens + end) : end;
-  if (normalizedStart >= normalizedEnd) return "";
-  const segments = text.split(TOKEN_SPLIT_PATTERN).filter(Boolean);
-  const parts = [];
-  let currentTokenPos = 0;
-  for (const segment of segments) {
-    if (currentTokenPos >= normalizedEnd) break;
-    const tokenCount = estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken);
-    const extracted = extractSegmentPart(segment, currentTokenPos, tokenCount, normalizedStart, normalizedEnd);
-    if (extracted) parts.push(extracted);
-    currentTokenPos += tokenCount;
-  }
-  return parts.join("");
-}
-function splitByTokens(text, tokensPerChunk, options = {}) {
-  if (!text || tokensPerChunk <= 0) return [];
-  const { defaultCharsPerToken = DEFAULT_CHARS_PER_TOKEN, languageConfigs = DEFAULT_LANGUAGE_CONFIGS, overlap = 0 } = options;
-  const segments = text.split(TOKEN_SPLIT_PATTERN).filter(Boolean);
-  const chunks = [];
-  let currentChunk = [];
-  let currentTokenCount = 0;
-  for (const segment of segments) {
-    const tokenCount = estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken);
-    currentChunk.push(segment);
-    currentTokenCount += tokenCount;
-    if (currentTokenCount >= tokensPerChunk) {
-      chunks.push(currentChunk.join(""));
-      if (overlap > 0) {
-        const overlapSegments = [];
-        let overlapTokenCount = 0;
-        for (let i = currentChunk.length - 1; i >= 0 && overlapTokenCount < overlap; i--) {
-          const segmentValue = currentChunk[i];
-          const tokCount = estimateSegmentTokens(segmentValue, languageConfigs, defaultCharsPerToken);
-          overlapSegments.unshift(segmentValue);
-          overlapTokenCount += tokCount;
-        }
-        currentChunk = overlapSegments;
-        currentTokenCount = overlapTokenCount;
-      } else {
-        currentChunk = [];
-        currentTokenCount = 0;
-      }
-    }
-  }
-  if (currentChunk.length > 0) chunks.push(currentChunk.join(""));
-  return chunks;
-}
-function estimateSegmentTokens(segment, languageConfigs, defaultCharsPerToken) {
-  if (PATTERNS.whitespace.test(segment)) return 0;
-  if (PATTERNS.cjk.test(segment)) return getCharacterCount(segment);
-  if (PATTERNS.numeric.test(segment)) return 1;
-  if (segment.length <= SHORT_TOKEN_THRESHOLD) return 1;
-  if (PATTERNS.punctuation.test(segment)) return segment.length > 1 ? Math.ceil(segment.length / 2) : 1;
-  if (PATTERNS.alphanumeric.test(segment)) {
-    const charsPerToken$1 = getLanguageSpecificCharsPerToken(segment, languageConfigs) ?? defaultCharsPerToken;
-    return Math.ceil(segment.length / charsPerToken$1);
-  }
-  const charsPerToken = getLanguageSpecificCharsPerToken(segment, languageConfigs) ?? defaultCharsPerToken;
-  return Math.ceil(segment.length / charsPerToken);
-}
-function getLanguageSpecificCharsPerToken(segment, languageConfigs) {
-  for (const config of languageConfigs) if (config.pattern.test(segment)) return config.averageCharsPerToken;
-}
-function getCharacterCount(text) {
-  return Array.from(text).length;
-}
-function extractSegmentPart(segment, segmentTokenStart, segmentTokenCount, targetStart, targetEnd) {
-  if (segmentTokenCount === 0) return segmentTokenStart >= targetStart && segmentTokenStart < targetEnd ? segment : "";
-  const segmentTokenEnd = segmentTokenStart + segmentTokenCount;
-  if (segmentTokenStart >= targetEnd || segmentTokenEnd <= targetStart) return "";
-  const overlapStart = Math.max(0, targetStart - segmentTokenStart);
-  const overlapEnd = Math.min(segmentTokenCount, targetEnd - segmentTokenStart);
-  if (overlapStart === 0 && overlapEnd === segmentTokenCount) return segment;
-  const charStart = Math.floor(overlapStart / segmentTokenCount * segment.length);
-  const charEnd = Math.ceil(overlapEnd / segmentTokenCount * segment.length);
-  return segment.slice(charStart, charEnd);
-}
-var PATTERNS, TOKEN_SPLIT_PATTERN, DEFAULT_CHARS_PER_TOKEN, SHORT_TOKEN_THRESHOLD, DEFAULT_LANGUAGE_CONFIGS, approximateTokenSize;
-var init_dist = __esm({
-  "node_modules/tokenx/dist/index.mjs"() {
-    PATTERNS = {
-      whitespace: /^\s+$/,
-      cjk: /[\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F\uFF00-\uFFEF\u30A0-\u30FF\u2E80-\u2EFF\u31C0-\u31EF\u3200-\u32FF\u3300-\u33FF\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF]/,
-      numeric: /^\d+(?:[.,]\d+)*$/,
-      punctuation: /[.,!?;(){}[\]<>:/\\|@#$%^&*+=`~_-]/,
-      alphanumeric: /^[a-zA-Z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]+$/
-    };
-    TOKEN_SPLIT_PATTERN = /* @__PURE__ */ new RegExp(`(\\s+|${PATTERNS.punctuation.source}+)`);
-    DEFAULT_CHARS_PER_TOKEN = 6;
-    SHORT_TOKEN_THRESHOLD = 3;
-    DEFAULT_LANGUAGE_CONFIGS = [
-      {
-        pattern: /[äöüßẞ]/i,
-        averageCharsPerToken: 3
-      },
-      {
-        pattern: /[éèêëàâîïôûùüÿçœæáíóúñ]/i,
-        averageCharsPerToken: 3
-      },
-      {
-        pattern: /[ąćęłńóśźżěščřžýůúďťň]/i,
-        averageCharsPerToken: 3.5
-      }
-    ];
-    approximateTokenSize = estimateTokenCount;
-  }
-});
-
-// src/lib/context.js
-var require_context = __commonJS({
-  "src/lib/context.js"(exports2, module2) {
-    "use strict";
-    var { debugLog } = require_output();
-    var _estimateTokenCount = null;
-    function getTokenizer() {
-      if (_estimateTokenCount !== null) return _estimateTokenCount;
-      try {
-        const tokenx = (init_dist(), __toCommonJS(dist_exports));
-        _estimateTokenCount = tokenx.estimateTokenCount;
-        debugLog("context.tokenizer", "tokenx loaded successfully");
-      } catch (e) {
-        debugLog("context.tokenizer", "tokenx load failed, using fallback", e);
-        _estimateTokenCount = (text) => Math.ceil(String(text).length / 4);
-      }
-      return _estimateTokenCount;
-    }
-    function estimateTokens(text) {
-      if (!text || typeof text !== "string") return 0;
-      try {
-        const fn = getTokenizer();
-        return fn(text);
-      } catch (e) {
-        debugLog("context.estimateTokens", "estimation failed, using fallback", e);
-        return Math.ceil(text.length / 4);
-      }
-    }
-    function estimateJsonTokens(obj) {
-      if (obj === void 0 || obj === null) return 0;
-      try {
-        return estimateTokens(JSON.stringify(obj));
-      } catch (e) {
-        debugLog("context.estimateJsonTokens", "stringify failed", e);
-        return 0;
-      }
-    }
-    function checkBudget(tokens, config = {}) {
-      const contextWindow = config.context_window || 2e5;
-      const targetPercent = config.context_target_percent || 50;
-      const percent = Math.round(tokens / contextWindow * 100);
-      const warning = percent > targetPercent;
-      let recommendation = null;
-      if (percent > 80) {
-        recommendation = "Critical: exceeds 80% of context window. Split into smaller units.";
-      } else if (percent > 60) {
-        recommendation = "High: exceeds 60% of context window. Consider reducing scope.";
-      } else if (percent > targetPercent) {
-        recommendation = `Above target: exceeds ${targetPercent}% target. Monitor closely.`;
-      }
-      return { tokens, percent, warning, recommendation };
-    }
-    function isWithinBudget(text, config = {}) {
-      const tokens = estimateTokens(text);
-      return checkBudget(tokens, config);
-    }
-    module2.exports = { estimateTokens, estimateJsonTokens, checkBudget, isWithinBudget };
   }
 });
 
