@@ -241,9 +241,81 @@ function checkCodebaseIntelStaleness(cwd) {
 }
 
 
+/**
+ * cmdCodebaseConventions — Extract and display coding conventions from codebase intel.
+ *
+ * Flags:
+ *   --all         Show all patterns including below-threshold
+ *   --threshold N Override default confidence threshold (default: 60)
+ *   --json        Alias for --raw (raw JSON output)
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments (after 'codebase conventions')
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdCodebaseConventions(cwd, args, raw) {
+  const intel = readIntel(cwd);
+
+  if (!intel) {
+    error('No codebase intel. Run: codebase analyze');
+    return;
+  }
+
+  const { extractConventions } = require('../lib/conventions');
+
+  const showAll = args.includes('--all');
+  const thresholdIdx = args.indexOf('--threshold');
+  const threshold = thresholdIdx !== -1 ? parseInt(args[thresholdIdx + 1], 10) : 60;
+
+  const conventions = extractConventions(intel, { threshold, showAll });
+
+  // Persist conventions in intel for reuse by other commands
+  intel.conventions = conventions;
+  writeIntel(cwd, intel);
+
+  // Build structured output
+  const namingPatterns = [];
+
+  // Add overall naming patterns
+  for (const [, value] of Object.entries(conventions.naming.overall || {})) {
+    namingPatterns.push({
+      scope: 'project',
+      pattern: value.pattern,
+      confidence: value.confidence,
+      file_count: value.file_count,
+      examples: value.examples,
+    });
+  }
+
+  // Add per-directory naming patterns
+  for (const [dir, value] of Object.entries(conventions.naming.by_directory || {})) {
+    namingPatterns.push({
+      scope: dir,
+      pattern: value.dominant_pattern,
+      confidence: value.confidence,
+      file_count: value.file_count,
+      examples: value.patterns[value.dominant_pattern]
+        ? value.patterns[value.dominant_pattern].examples
+        : [],
+    });
+  }
+
+  output({
+    success: true,
+    naming_patterns: namingPatterns,
+    file_organization: conventions.file_organization,
+    total_conventions: namingPatterns.length + (conventions.file_organization.patterns || []).length,
+    threshold_used: threshold,
+    show_all: showAll,
+    extracted_at: conventions.extracted_at,
+  }, raw);
+}
+
+
 module.exports = {
   cmdCodebaseAnalyze,
   cmdCodebaseStatus,
+  cmdCodebaseConventions,
   readCodebaseIntel,
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,

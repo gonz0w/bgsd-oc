@@ -7948,6 +7948,261 @@ var require_codebase_intel = __commonJS({
   }
 });
 
+// src/lib/conventions.js
+var require_conventions = __commonJS({
+  "src/lib/conventions.js"(exports2, module2) {
+    "use strict";
+    var path = require("path");
+    var { LANGUAGE_MAP } = require_codebase_intel();
+    var NAMING_PATTERNS = {
+      camelCase: /^[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*$/,
+      PascalCase: /^[A-Z][a-zA-Z0-9]*[a-z][a-zA-Z0-9]*$/,
+      snake_case: /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/,
+      "kebab-case": /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/,
+      UPPER_SNAKE_CASE: /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/
+    };
+    function classifyName(name) {
+      if (/^[a-z][a-z0-9]*$/.test(name)) return "single-word";
+      if (/^[A-Z][A-Z0-9]*$/.test(name)) return "single-word";
+      for (const [pattern, regex] of Object.entries(NAMING_PATTERNS)) {
+        if (regex.test(name)) return pattern;
+      }
+      return "mixed";
+    }
+    var SOURCE_LANGUAGES = /* @__PURE__ */ new Set([
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "elixir",
+      "rust",
+      "ruby",
+      "java",
+      "kotlin",
+      "c",
+      "cpp",
+      "shell",
+      "swift",
+      "dart",
+      "lua",
+      "r",
+      "php",
+      "perl",
+      "zig",
+      "nim",
+      "vue",
+      "svelte"
+    ]);
+    function isSourceFile(filePath, fileInfo) {
+      if (!fileInfo || !fileInfo.language) return false;
+      return SOURCE_LANGUAGES.has(fileInfo.language);
+    }
+    function detectNamingConventions(intel) {
+      if (!intel || !intel.files) return { overall: {}, by_directory: {} };
+      const byDir = {};
+      const allNames = {};
+      for (const [filePath, fileInfo] of Object.entries(intel.files)) {
+        if (!isSourceFile(filePath, fileInfo)) continue;
+        const dir = path.dirname(filePath);
+        const basename = path.basename(filePath, path.extname(filePath));
+        const pattern = classifyName(basename);
+        if (pattern === "single-word") continue;
+        if (!byDir[dir]) byDir[dir] = {};
+        if (!byDir[dir][pattern]) byDir[dir][pattern] = [];
+        byDir[dir][pattern].push(basename);
+        if (!allNames[pattern]) allNames[pattern] = [];
+        allNames[pattern].push(basename);
+      }
+      const totalMultiWord = Object.values(allNames).reduce((sum, arr) => sum + arr.length, 0);
+      const overall = {};
+      for (const [pattern, names] of Object.entries(allNames)) {
+        overall[pattern] = {
+          pattern,
+          confidence: totalMultiWord > 0 ? Math.round(names.length / totalMultiWord * 100) : 0,
+          file_count: names.length,
+          examples: names.slice(0, 3)
+        };
+      }
+      const byDirectory = {};
+      for (const [dir, patterns] of Object.entries(byDir)) {
+        const dirTotal = Object.values(patterns).reduce((sum, arr) => sum + arr.length, 0);
+        if (dirTotal < 2) continue;
+        let dominant = null;
+        let maxCount = 0;
+        for (const [pattern, names] of Object.entries(patterns)) {
+          if (names.length > maxCount) {
+            maxCount = names.length;
+            dominant = pattern;
+          }
+        }
+        byDirectory[dir] = {
+          dominant_pattern: dominant,
+          confidence: Math.round(maxCount / dirTotal * 100),
+          file_count: dirTotal,
+          patterns: {}
+        };
+        for (const [pattern, names] of Object.entries(patterns)) {
+          byDirectory[dir].patterns[pattern] = {
+            count: names.length,
+            examples: names.slice(0, 3)
+          };
+        }
+      }
+      return { overall, by_directory: byDirectory };
+    }
+    function detectFileOrganization(intel) {
+      if (!intel || !intel.files) {
+        return { structure_type: "unknown", patterns: [] };
+      }
+      const filePaths = Object.keys(intel.files);
+      const patterns = [];
+      const depths = filePaths.map((f) => f.split(path.sep).length);
+      const maxDepth = Math.max(...depths, 0);
+      const avgDepth = depths.length > 0 ? Math.round(depths.reduce((a, b) => a + b, 0) / depths.length * 10) / 10 : 0;
+      const structureType = maxDepth <= 2 ? "flat" : "nested";
+      patterns.push({
+        pattern: `${structureType} structure`,
+        detail: `max depth ${maxDepth}, avg depth ${avgDepth}`,
+        confidence: 100
+      });
+      const topDirs = /* @__PURE__ */ new Set();
+      for (const fp of filePaths) {
+        const parts = fp.split(path.sep);
+        if (parts.length > 1) topDirs.add(parts[0]);
+      }
+      const knownGroupings = {
+        "by-type": ["commands", "lib", "models", "controllers", "views", "services", "utils", "helpers"],
+        "by-feature": ["features", "modules", "domains", "pages"]
+      };
+      let groupingType = "unknown";
+      let groupingConfidence = 0;
+      const topDirList = [...topDirs];
+      const byTypeMatches = topDirList.filter((d) => knownGroupings["by-type"].includes(d));
+      const byFeatureMatches = topDirList.filter((d) => knownGroupings["by-feature"].includes(d));
+      if (byTypeMatches.length > byFeatureMatches.length) {
+        groupingType = "by-type";
+        groupingConfidence = Math.round(byTypeMatches.length / Math.max(topDirList.length, 1) * 100);
+      } else if (byFeatureMatches.length > 0) {
+        groupingType = "by-feature";
+        groupingConfidence = Math.round(byFeatureMatches.length / Math.max(topDirList.length, 1) * 100);
+      }
+      if (groupingType !== "unknown") {
+        patterns.push({
+          pattern: `${groupingType} grouping`,
+          detail: `detected from top-level directories: ${topDirList.join(", ")}`,
+          confidence: groupingConfidence
+        });
+      }
+      const testFiles = filePaths.filter((f) => {
+        const base = path.basename(f);
+        return base.includes(".test.") || base.includes(".spec.") || base.includes("_test.") || base.includes("_spec.");
+      });
+      const testDirFiles = filePaths.filter((f) => {
+        const parts = f.split(path.sep);
+        return parts.some((p) => p === "test" || p === "tests" || p === "spec" || p === "__tests__");
+      });
+      let testPlacement = "none";
+      let testConfidence = 0;
+      if (testFiles.length > 0 && testDirFiles.length > 0) {
+        if (testFiles.length > testDirFiles.length) {
+          testPlacement = "co-located";
+          testConfidence = Math.round(testFiles.length / (testFiles.length + testDirFiles.length) * 100);
+        } else {
+          testPlacement = "separate-directory";
+          testConfidence = Math.round(testDirFiles.length / (testFiles.length + testDirFiles.length) * 100);
+        }
+      } else if (testFiles.length > 0) {
+        testPlacement = "co-located";
+        testConfidence = 100;
+      } else if (testDirFiles.length > 0) {
+        testPlacement = "separate-directory";
+        testConfidence = 100;
+      }
+      if (testPlacement !== "none") {
+        patterns.push({
+          pattern: `${testPlacement} tests`,
+          detail: `${testFiles.length} co-located, ${testDirFiles.length} in test dirs`,
+          confidence: testConfidence
+        });
+      }
+      const configExtensions = /* @__PURE__ */ new Set([".json", ".yaml", ".yml", ".toml", ".env", ".ini", ".cfg"]);
+      const configNames = /* @__PURE__ */ new Set(["config", "settings", "configuration", ".env", ".eslintrc", ".prettierrc", "tsconfig", "jest.config", "webpack.config", "vite.config"]);
+      const configFiles = filePaths.filter((f) => {
+        const base = path.basename(f);
+        const ext = path.extname(f);
+        const nameNoExt = path.basename(f, ext);
+        return configExtensions.has(ext) && f.split(path.sep).length <= 2 || configNames.has(nameNoExt) || base.startsWith(".");
+      });
+      const rootConfigs = configFiles.filter((f) => f.split(path.sep).length === 1);
+      if (configFiles.length > 0) {
+        const configPlacement = rootConfigs.length > configFiles.length / 2 ? "root" : "config-directory";
+        patterns.push({
+          pattern: `${configPlacement} config placement`,
+          detail: `${rootConfigs.length}/${configFiles.length} config files at root`,
+          confidence: Math.round(rootConfigs.length / Math.max(configFiles.length, 1) * 100)
+        });
+      }
+      const indexFiles = filePaths.filter((f) => {
+        const base = path.basename(f);
+        return base.startsWith("index.") || base.startsWith("mod.") || base.startsWith("__init__.");
+      });
+      if (indexFiles.length > 0) {
+        const dirsWithSource = new Set(filePaths.filter((f) => {
+          const info = intel.files[f];
+          return isSourceFile(f, info);
+        }).map((f) => path.dirname(f)));
+        const barrelConfidence = Math.round(indexFiles.length / Math.max(dirsWithSource.size, 1) * 100);
+        patterns.push({
+          pattern: "barrel/index exports",
+          detail: `${indexFiles.length} index files across ${dirsWithSource.size} source dirs`,
+          confidence: Math.min(barrelConfidence, 100)
+        });
+      }
+      return {
+        structure_type: structureType,
+        max_depth: maxDepth,
+        avg_depth: avgDepth,
+        test_placement: testPlacement,
+        patterns
+      };
+    }
+    function extractConventions(intel, options = {}) {
+      const { threshold = 60, showAll = false } = options;
+      const naming = detectNamingConventions(intel);
+      const fileOrganization = detectFileOrganization(intel);
+      const filteredNaming = { ...naming };
+      if (!showAll) {
+        filteredNaming.overall = {};
+        for (const [key, value] of Object.entries(naming.overall)) {
+          if (value.confidence >= threshold) {
+            filteredNaming.overall[key] = value;
+          }
+        }
+        filteredNaming.by_directory = {};
+        for (const [dir, value] of Object.entries(naming.by_directory)) {
+          if (value.confidence >= threshold) {
+            filteredNaming.by_directory[dir] = value;
+          }
+        }
+      }
+      const filteredFileOrg = { ...fileOrganization };
+      if (!showAll) {
+        filteredFileOrg.patterns = fileOrganization.patterns.filter((p) => p.confidence >= threshold);
+      }
+      return {
+        naming: filteredNaming,
+        file_organization: filteredFileOrg,
+        extracted_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+    module2.exports = {
+      detectNamingConventions,
+      detectFileOrganization,
+      extractConventions
+    };
+  }
+});
+
 // src/commands/codebase.js
 var require_codebase = __commonJS({
   "src/commands/codebase.js"(exports2, module2) {
@@ -8100,9 +8355,52 @@ var require_codebase = __commonJS({
     function checkCodebaseIntelStaleness(cwd) {
       return checkStaleness(cwd);
     }
+    function cmdCodebaseConventions(cwd, args, raw) {
+      const intel = readIntel(cwd);
+      if (!intel) {
+        error("No codebase intel. Run: codebase analyze");
+        return;
+      }
+      const { extractConventions } = require_conventions();
+      const showAll = args.includes("--all");
+      const thresholdIdx = args.indexOf("--threshold");
+      const threshold = thresholdIdx !== -1 ? parseInt(args[thresholdIdx + 1], 10) : 60;
+      const conventions = extractConventions(intel, { threshold, showAll });
+      intel.conventions = conventions;
+      writeIntel(cwd, intel);
+      const namingPatterns = [];
+      for (const [, value] of Object.entries(conventions.naming.overall || {})) {
+        namingPatterns.push({
+          scope: "project",
+          pattern: value.pattern,
+          confidence: value.confidence,
+          file_count: value.file_count,
+          examples: value.examples
+        });
+      }
+      for (const [dir, value] of Object.entries(conventions.naming.by_directory || {})) {
+        namingPatterns.push({
+          scope: dir,
+          pattern: value.dominant_pattern,
+          confidence: value.confidence,
+          file_count: value.file_count,
+          examples: value.patterns[value.dominant_pattern] ? value.patterns[value.dominant_pattern].examples : []
+        });
+      }
+      output({
+        success: true,
+        naming_patterns: namingPatterns,
+        file_organization: conventions.file_organization,
+        total_conventions: namingPatterns.length + (conventions.file_organization.patterns || []).length,
+        threshold_used: threshold,
+        show_all: showAll,
+        extracted_at: conventions.extracted_at
+      }, raw);
+    }
     module2.exports = {
       cmdCodebaseAnalyze,
       cmdCodebaseStatus,
+      cmdCodebaseConventions,
       readCodebaseIntel,
       checkCodebaseIntelStaleness,
       autoTriggerCodebaseIntel
@@ -14162,8 +14460,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             lazyCodebase().cmdCodebaseAnalyze(cwd, args.slice(2), raw);
           } else if (sub === "status") {
             lazyCodebase().cmdCodebaseStatus(cwd, args.slice(2), raw);
+          } else if (sub === "conventions") {
+            lazyCodebase().cmdCodebaseConventions(cwd, args.slice(2), raw);
           } else {
-            error("Usage: codebase <analyze|status>");
+            error("Usage: codebase <analyze|status|conventions>");
           }
           break;
         }

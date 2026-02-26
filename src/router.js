@@ -579,8 +579,10 @@ async function main() {
         lazyCodebase().cmdCodebaseAnalyze(cwd, args.slice(2), raw);
       } else if (sub === 'status') {
         lazyCodebase().cmdCodebaseStatus(cwd, args.slice(2), raw);
+      } else if (sub === 'conventions') {
+        lazyCodebase().cmdCodebaseConventions(cwd, args.slice(2), raw);
       } else {
-        error('Usage: codebase <analyze|status>');
+        error('Usage: codebase <analyze|status|conventions>');
       }
       break;
     }
