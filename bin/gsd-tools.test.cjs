@@ -12726,3 +12726,315 @@ describe('codebase conventions', () => {
     assert.ok(/^\d+\.\s/.test(result.output), 'Raw output should start with numbered rule');
   });
 });
+
+
+describe('dependency graph', () => {
+  const {
+    parseJavaScript,
+    parsePython,
+    parseGo,
+    parseElixir,
+    parseRust,
+    buildDependencyGraph,
+    findCycles,
+    getTransitiveDependents,
+  } = require('../src/lib/deps');
+
+  // ─── Import Parser Tests (6 tests) ──────────────────────────────────────
+
+  describe('import parsers', () => {
+    test('JS parser: require and import from', () => {
+      const content = `
+        const foo = require('./foo');
+        import bar from './bar';
+        import { baz } from './baz';
+      `;
+      const imports = parseJavaScript(content);
+      assert.ok(imports.includes('./foo'), 'Should extract require("./foo")');
+      assert.ok(imports.includes('./bar'), 'Should extract import from "./bar"');
+      assert.ok(imports.includes('./baz'), 'Should extract import { } from "./baz"');
+    });
+
+    test('TS parser: import types and export from', () => {
+      const content = `
+        import { Thing } from './types';
+        export { x } from './utils';
+        import type { Foo } from './foo-types';
+      `;
+      // TS uses same parser as JS
+      const imports = parseJavaScript(content);
+      assert.ok(imports.includes('./types'), 'Should extract import { Thing } from "./types"');
+      assert.ok(imports.includes('./utils'), 'Should extract export { x } from "./utils"');
+      assert.ok(imports.includes('./foo-types'), 'Should extract import type from "./foo-types"');
+    });
+
+    test('Python parser: import and from import', () => {
+      const content = `
+import os
+from foo.bar import baz
+import sys, json
+from . import local
+      `;
+      const imports = parsePython(content);
+      assert.ok(imports.includes('os'), 'Should extract "import os"');
+      assert.ok(imports.includes('foo.bar'), 'Should extract "from foo.bar import baz"');
+      assert.ok(imports.includes('sys'), 'Should extract "import sys"');
+      assert.ok(imports.includes('json'), 'Should extract "import json"');
+      assert.ok(imports.includes('.'), 'Should extract "from . import local"');
+    });
+
+    test('Go parser: single and grouped imports', () => {
+      const content = `
+package main
+
+import "fmt"
+
+import (
+  "os"
+  "strings"
+  mymod "github.com/user/pkg"
+)
+      `;
+      const imports = parseGo(content);
+      assert.ok(imports.includes('fmt'), 'Should extract import "fmt"');
+      assert.ok(imports.includes('os'), 'Should extract "os" from group');
+      assert.ok(imports.includes('strings'), 'Should extract "strings" from group');
+      assert.ok(imports.includes('github.com/user/pkg'), 'Should extract full path from group');
+    });
+
+    test('Elixir parser: alias, use, import', () => {
+      const content = `
+defmodule MyApp.Web do
+  alias MyApp.Accounts
+  use GenServer
+  import Ecto.Query
+  require Logger
+end
+      `;
+      const imports = parseElixir(content);
+      assert.ok(imports.includes('MyApp.Accounts'), 'Should extract alias MyApp.Accounts');
+      assert.ok(imports.includes('GenServer'), 'Should extract use GenServer');
+      assert.ok(imports.includes('Ecto.Query'), 'Should extract import Ecto.Query');
+      assert.ok(imports.includes('Logger'), 'Should extract require Logger');
+    });
+
+    test('Rust parser: use, mod, extern crate', () => {
+      const content = `
+use crate::lib::foo;
+mod bar;
+extern crate serde;
+use std::collections::HashMap;
+      `;
+      const imports = parseRust(content);
+      assert.ok(imports.includes('crate::lib::foo'), 'Should extract use crate::lib::foo');
+      assert.ok(imports.includes('bar'), 'Should extract mod bar');
+      assert.ok(imports.includes('serde'), 'Should extract extern crate serde');
+      assert.ok(imports.includes('std::collections::HashMap'), 'Should extract use std::...');
+    });
+  });
+
+  // ─── Graph Construction Tests (3 tests) ─────────────────────────────────
+
+  describe('graph construction', () => {
+    test('build graph from 3 JS files with imports', () => {
+      // Mock intel object with files and their content on disk
+      // We'll construct the graph from a mock intel
+      const mockIntel = {
+        files: {
+          'a.js': { language: 'javascript' },
+          'b.js': { language: 'javascript' },
+          'c.js': { language: 'javascript' },
+        },
+      };
+
+      // Create temp files for buildDependencyGraph to read
+      const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-dep-test-'));
+      fs.writeFileSync(path.join(tmpDir, 'a.js'), "const b = require('./b');\nconst c = require('./c');\n");
+      fs.writeFileSync(path.join(tmpDir, 'b.js'), "const c = require('./c');\n");
+      fs.writeFileSync(path.join(tmpDir, 'c.js'), "module.exports = {};\n");
+
+      // buildDependencyGraph reads from cwd, so change to tmpDir
+      const origCwd = process.cwd();
+      try {
+        process.chdir(tmpDir);
+        const graph = buildDependencyGraph(mockIntel);
+
+        // Forward: a→[b,c], b→[c], c→[]
+        assert.ok(graph.forward['a.js'], 'a.js should have forward edges');
+        assert.ok(graph.forward['a.js'].includes('b.js'), 'a.js should import b.js');
+        assert.ok(graph.forward['a.js'].includes('c.js'), 'a.js should import c.js');
+        assert.ok(graph.forward['b.js'].includes('c.js'), 'b.js should import c.js');
+
+        // Reverse: c←[a,b], b←[a]
+        assert.ok(graph.reverse['c.js'], 'c.js should have reverse edges');
+        assert.ok(graph.reverse['c.js'].includes('a.js'), 'c.js should be imported by a.js');
+        assert.ok(graph.reverse['c.js'].includes('b.js'), 'c.js should be imported by b.js');
+        assert.ok(graph.reverse['b.js'].includes('a.js'), 'b.js should be imported by a.js');
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test('files with no imports appear with empty edge lists', () => {
+      const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-dep-test-'));
+      fs.writeFileSync(path.join(tmpDir, 'standalone.js'), 'const x = 42;\n');
+
+      const mockIntel = {
+        files: {
+          'standalone.js': { language: 'javascript' },
+        },
+      };
+
+      const origCwd = process.cwd();
+      try {
+        process.chdir(tmpDir);
+        const graph = buildDependencyGraph(mockIntel);
+
+        // standalone.js has no imports, so no forward edges
+        assert.ok(!graph.forward['standalone.js'] || graph.forward['standalone.js'].length === 0,
+          'standalone.js should have no forward edges');
+        assert.strictEqual(graph.stats.total_edges, 0, 'Should have 0 edges');
+        assert.strictEqual(graph.stats.total_files_parsed, 1, 'Should have parsed 1 file');
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test('graph built from intel object has correct adjacency structure', () => {
+      const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-dep-test-'));
+      fs.writeFileSync(path.join(tmpDir, 'x.js'), "import y from './y';\n");
+      fs.writeFileSync(path.join(tmpDir, 'y.js'), "export default 42;\n");
+
+      const mockIntel = {
+        files: {
+          'x.js': { language: 'javascript' },
+          'y.js': { language: 'javascript' },
+        },
+      };
+
+      const origCwd = process.cwd();
+      try {
+        process.chdir(tmpDir);
+        const graph = buildDependencyGraph(mockIntel);
+
+        // Verify adjacency list structure
+        assert.ok(graph.forward && typeof graph.forward === 'object', 'forward should be an object');
+        assert.ok(graph.reverse && typeof graph.reverse === 'object', 'reverse should be an object');
+        assert.ok(graph.stats && typeof graph.stats === 'object', 'stats should be an object');
+        assert.ok(graph.built_at, 'built_at should be set');
+
+        // x→y, y←x
+        assert.deepStrictEqual(graph.forward['x.js'], ['y.js']);
+        assert.deepStrictEqual(graph.reverse['y.js'], ['x.js']);
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // ─── Cycle Detection Tests (3 tests) ───────────────────────────────────
+
+  describe('cycle detection', () => {
+    test('no cycles in linear chain A→B→C', () => {
+      const graph = {
+        forward: {
+          'a.js': ['b.js'],
+          'b.js': ['c.js'],
+        },
+      };
+
+      const result = findCycles(graph);
+      assert.strictEqual(result.cycle_count, 0, 'Linear chain should have no cycles');
+      assert.strictEqual(result.files_in_cycles, 0, 'No files should be in cycles');
+    });
+
+    test('simple cycle A→B→A detected', () => {
+      const graph = {
+        forward: {
+          'a.js': ['b.js'],
+          'b.js': ['a.js'],
+        },
+      };
+
+      const result = findCycles(graph);
+      assert.strictEqual(result.cycle_count, 1, 'Should detect exactly 1 cycle');
+      assert.strictEqual(result.files_in_cycles, 2, '2 files should be in the cycle');
+
+      // Both files should be in the cycle
+      const cycleFiles = new Set(result.cycles[0]);
+      assert.ok(cycleFiles.has('a.js'), 'a.js should be in cycle');
+      assert.ok(cycleFiles.has('b.js'), 'b.js should be in cycle');
+    });
+
+    test('complex cycle A→B→C→A with D→B spur — cycle detected, D not in cycle', () => {
+      const graph = {
+        forward: {
+          'a.js': ['b.js'],
+          'b.js': ['c.js'],
+          'c.js': ['a.js'],
+          'd.js': ['b.js'],
+        },
+      };
+
+      const result = findCycles(graph);
+      assert.strictEqual(result.cycle_count, 1, 'Should detect exactly 1 cycle');
+      assert.strictEqual(result.files_in_cycles, 3, '3 files (a,b,c) should be in the cycle');
+
+      // D should NOT be in any cycle
+      const allCycleFiles = new Set();
+      for (const cycle of result.cycles) {
+        for (const f of cycle) allCycleFiles.add(f);
+      }
+      assert.ok(!allCycleFiles.has('d.js'), 'd.js should NOT be in any cycle');
+      assert.ok(allCycleFiles.has('a.js'), 'a.js should be in cycle');
+      assert.ok(allCycleFiles.has('b.js'), 'b.js should be in cycle');
+      assert.ok(allCycleFiles.has('c.js'), 'c.js should be in cycle');
+    });
+  });
+
+  // ─── Impact Analysis Tests (2 tests) ───────────────────────────────────
+
+  describe('impact analysis', () => {
+    test('getTransitiveDependents on leaf file returns fan_in 0', () => {
+      const graph = {
+        reverse: {
+          'core.js': ['a.js', 'b.js'],
+          // leaf.js has no reverse edges (nothing imports it)
+        },
+      };
+
+      const result = getTransitiveDependents(graph, 'leaf.js');
+      assert.strictEqual(result.fan_in, 0, 'Leaf file should have fan_in 0');
+      assert.deepStrictEqual(result.direct_dependents, [], 'No direct dependents');
+      assert.deepStrictEqual(result.transitive_dependents, [], 'No transitive dependents');
+      assert.strictEqual(result.file, 'leaf.js', 'file field should match input');
+    });
+
+    test('getTransitiveDependents on core file returns correct direct + transitive counts', () => {
+      // Graph: core←[a,b], a←[c], b←[d] — so core has 2 direct, 2 transitive (c,d)
+      const graph = {
+        reverse: {
+          'core.js': ['a.js', 'b.js'],
+          'a.js': ['c.js'],
+          'b.js': ['d.js'],
+        },
+      };
+
+      const result = getTransitiveDependents(graph, 'core.js');
+      assert.strictEqual(result.direct_dependents.length, 2, 'Should have 2 direct dependents');
+      assert.ok(result.direct_dependents.includes('a.js'), 'a.js should be direct dependent');
+      assert.ok(result.direct_dependents.includes('b.js'), 'b.js should be direct dependent');
+
+      assert.strictEqual(result.transitive_dependents.length, 2, 'Should have 2 transitive dependents');
+      const transitiveFiles = result.transitive_dependents.map(t => t.file);
+      assert.ok(transitiveFiles.includes('c.js'), 'c.js should be transitive dependent');
+      assert.ok(transitiveFiles.includes('d.js'), 'd.js should be transitive dependent');
+
+      assert.strictEqual(result.fan_in, 4, 'Total fan_in should be 4');
+      assert.strictEqual(result.max_depth_reached, 2, 'Max depth should be 2');
+    });
+  });
+});
