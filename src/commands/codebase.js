@@ -560,6 +560,253 @@ function cmdCodebaseImpact(cwd, args, raw) {
 }
 
 
+// ─── Per-File Context Assembly (Phase 27) ───────────────────────────────────
+
+/**
+ * Compute risk level for a file based on fan-in and cycle membership.
+ *
+ * @param {string} file - File path
+ * @param {{ forward: object, reverse: object }} graph - Dependency graph
+ * @param {Set<string>} cycleFiles - Set of files involved in cycles
+ * @returns {"high"|"caution"|"normal"}
+ */
+function computeRiskLevel(file, graph, cycleFiles) {
+  const dependentCount = (graph.reverse[file] || []).length;
+  if (dependentCount > 10) return 'high';
+  if (cycleFiles.has(file)) return 'caution';
+  return 'normal';
+}
+
+/**
+ * Match conventions applicable to a specific file.
+ *
+ * Returns naming pattern (by directory first, fallback to overall) and
+ * matching framework patterns based on file extension/path.
+ *
+ * @param {string} file - File path
+ * @param {object|null} conventions - Conventions data from intel
+ * @returns {{ naming: { pattern: string, confidence: number }|null, frameworks: object[] }|null}
+ */
+function matchFileConventions(file, conventions) {
+  if (!conventions) return null;
+
+  const dir = path.dirname(file);
+  const ext = path.extname(file);
+  let naming = null;
+
+  // Check directory-specific naming first
+  if (conventions.naming && conventions.naming.by_directory && conventions.naming.by_directory[dir]) {
+    const dirConv = conventions.naming.by_directory[dir];
+    naming = { pattern: dirConv.dominant_pattern, confidence: dirConv.confidence };
+  }
+  // Fall back to overall naming
+  else if (conventions.naming && conventions.naming.overall) {
+    // Find the dominant overall pattern (highest confidence)
+    let best = null;
+    let bestConf = 0;
+    for (const [, value] of Object.entries(conventions.naming.overall)) {
+      if (value.confidence > bestConf) {
+        bestConf = value.confidence;
+        best = value.pattern;
+      }
+    }
+    if (best) {
+      naming = { pattern: best, confidence: bestConf };
+    }
+  }
+
+  // Match framework patterns by file extension/path
+  const matchingFrameworks = [];
+  if (conventions.frameworks && Array.isArray(conventions.frameworks)) {
+    for (const fw of conventions.frameworks) {
+      // Match by evidence (file paths) or by extension relevance
+      if (fw.evidence && Array.isArray(fw.evidence)) {
+        const matches = fw.evidence.some(e => {
+          // Check if evidence file shares extension or directory with target
+          if (e.endsWith('/')) {
+            // Directory evidence: check if file is under this dir
+            return file.startsWith(e) || dir.startsWith(e.replace(/\/$/, ''));
+          }
+          return path.extname(e) === ext || path.dirname(e) === dir;
+        });
+        if (matches) {
+          matchingFrameworks.push({
+            framework: fw.framework,
+            pattern: fw.pattern,
+            confidence: fw.confidence,
+          });
+        }
+      }
+    }
+  }
+
+  if (!naming && matchingFrameworks.length === 0) return null;
+
+  return { naming, frameworks: matchingFrameworks };
+}
+
+/**
+ * cmdCodebaseContext — Assemble per-file architectural context from cached intel.
+ *
+ * Returns 1-hop imports/dependents, convention info, and risk level for each
+ * requested file. Designed for executor agent consumption.
+ *
+ * Flags:
+ *   --files <file1> [file2] ...  Target file paths
+ *   --plan <path>                Plan file for scope signal (parsed but reserved for Plan 02)
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments (after 'codebase context')
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdCodebaseContext(cwd, args, raw) {
+  // Parse --files flag: collect all args after --files until next flag
+  const filesIdx = args.indexOf('--files');
+  let filePaths = [];
+
+  if (filesIdx !== -1) {
+    for (let i = filesIdx + 1; i < args.length; i++) {
+      if (args[i].startsWith('--')) break;
+      filePaths.push(args[i]);
+    }
+  } else {
+    // No --files flag: treat all non-flag args as file paths
+    filePaths = args.filter(a => !a.startsWith('--'));
+  }
+
+  // Parse optional --plan flag (stored but not used until Plan 02)
+  const planIdx = args.indexOf('--plan');
+  const planPath = planIdx !== -1 ? args[planIdx + 1] : null;
+  // eslint-disable-next-line no-unused-vars
+  void planPath; // Reserved for Plan 02 scoring
+
+  if (!filePaths.length) {
+    error('Usage: codebase context --files <file1> [file2] ...');
+    return;
+  }
+
+  const intel = readIntel(cwd);
+  if (!intel) {
+    error('No codebase intel. Run: codebase analyze');
+    return;
+  }
+
+  const { buildDependencyGraph, findCycles } = require('../lib/deps');
+  const { extractConventions } = require('../lib/conventions');
+
+  // Auto-build dependency graph if missing
+  let graph = intel.dependencies;
+  if (!graph) {
+    debugLog('codebase.context', 'no dependency graph in intel, building...');
+    graph = buildDependencyGraph(intel);
+    intel.dependencies = graph;
+    writeIntel(cwd, intel);
+  }
+
+  // Auto-extract conventions if missing
+  let conventions = intel.conventions;
+  if (!conventions) {
+    debugLog('codebase.context', 'no conventions in intel, extracting...');
+    conventions = extractConventions(intel, { cwd });
+    intel.conventions = conventions;
+    writeIntel(cwd, intel);
+  }
+
+  // Get cycle data for risk assessment
+  const cycleData = findCycles(graph);
+  const cycleFiles = new Set();
+  for (const scc of cycleData.cycles) {
+    for (const f of scc) cycleFiles.add(f);
+  }
+
+  // Assemble per-file context
+  const filesResult = {};
+
+  for (const file of filePaths) {
+    // Check if file exists in graph
+    if (!graph.forward[file] && !graph.reverse[file]) {
+      filesResult[file] = {
+        status: 'no-data',
+        imports: [],
+        dependents: [],
+        conventions: null,
+        risk_level: 'normal',
+      };
+      continue;
+    }
+
+    // 1-hop imports, sorted by fan-in (most-imported first), capped at 8
+    const imports = [...(graph.forward[file] || [])];
+    imports.sort((a, b) => (graph.reverse[b] || []).length - (graph.reverse[a] || []).length);
+    const cappedImports = imports.slice(0, 8);
+
+    // 1-hop dependents, sorted by fan-out (most-importing first), capped at 8
+    const dependents = [...(graph.reverse[file] || [])];
+    dependents.sort((a, b) => (graph.forward[b] || []).length - (graph.forward[a] || []).length);
+    const cappedDependents = dependents.slice(0, 8);
+
+    // Risk level
+    const riskLevel = computeRiskLevel(file, graph, cycleFiles);
+
+    // Convention matching
+    const fileConventions = matchFileConventions(file, conventions);
+
+    filesResult[file] = {
+      imports: cappedImports,
+      dependents: cappedDependents,
+      conventions: fileConventions,
+      risk_level: riskLevel,
+    };
+  }
+
+  const result = {
+    success: true,
+    files: filesResult,
+    file_count: filePaths.length,
+    truncated: false,
+  };
+
+  if (raw) {
+    output(result, raw);
+  } else {
+    // Human-readable table output
+    const lines = [];
+    lines.push('');
+    lines.push('File Context Summary');
+    lines.push('═'.repeat(80));
+    lines.push('');
+
+    for (const [file, ctx] of Object.entries(filesResult)) {
+      if (ctx.status === 'no-data') {
+        lines.push(`  ${file}  [no data]`);
+        lines.push('');
+        continue;
+      }
+
+      const riskBadge = ctx.risk_level === 'high' ? '🔴 HIGH'
+        : ctx.risk_level === 'caution' ? '🟡 CAUTION'
+        : '🟢 normal';
+      const namingStr = ctx.conventions && ctx.conventions.naming
+        ? `${ctx.conventions.naming.pattern} (${ctx.conventions.naming.confidence}%)`
+        : '-';
+
+      lines.push(`  ${file}`);
+      lines.push(`    Risk: ${riskBadge}  |  Naming: ${namingStr}`);
+      lines.push(`    Imports (${ctx.imports.length}): ${ctx.imports.length > 0 ? ctx.imports.join(', ') : 'none'}`);
+      lines.push(`    Dependents (${ctx.dependents.length}): ${ctx.dependents.length > 0 ? ctx.dependents.join(', ') : 'none'}`);
+
+      if (ctx.conventions && ctx.conventions.frameworks && ctx.conventions.frameworks.length > 0) {
+        lines.push(`    Frameworks: ${ctx.conventions.frameworks.map(f => f.framework).join(', ')}`);
+      }
+      lines.push('');
+    }
+
+    process.stderr.write(lines.join('\n') + '\n');
+    output(result, false);
+  }
+}
+
+
 module.exports = {
   cmdCodebaseAnalyze,
   cmdCodebaseStatus,
@@ -567,6 +814,7 @@ module.exports = {
   cmdCodebaseRules,
   cmdCodebaseDeps,
   cmdCodebaseImpact,
+  cmdCodebaseContext,
   readCodebaseIntel,
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,
