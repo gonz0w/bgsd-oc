@@ -160,7 +160,7 @@ Goal: Wire codebase intelligence into execute-phase, plan-phase, and map-codebas
 Requirements: WKFL-01, WKFL-02, WKFL-03
 Depends on: Phase 26 (init integration), Phase 27 (task-scoped context)
 Plans: 2 plans
-- [ ] 29-01-PLAN.md — Execute-phase context injection + pre-flight convention check
+- [x] 29-01-PLAN.md — Execute-phase context injection + pre-flight convention check
 - [ ] 29-02-PLAN.md — Graph-first codebase-impact command upgrade
 Success criteria:
 1. execute-phase workflow calls `codebase context --files` for plan file references
@@ -199,4 +199,4 @@ Success criteria:
 | 26. Init Integration & Context Summary | v5.0 | Complete    | 2026-02-26 | 2026-02-26 |
 | 27. Task-Scoped Context | 2/2 | Complete    | 2026-02-26 | — |
 | 28. Lifecycle Analysis | v5.0 | Complete    | 2026-02-26 | 2026-02-26 |
-| 29. Workflow Integration | v5.0 | 0/2 | Planned | — |
+| 29. Workflow Integration | v5.0 | 1/2 | In Progress | — |
