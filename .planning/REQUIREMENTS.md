@@ -17,10 +17,10 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 
 ### Smart Output
 
-- [ ] **OUT-01**: CLI auto-detects TTY and renders human-readable output when interactive, JSON when piped
-- [ ] **OUT-02**: `--raw` flag forces JSON output regardless of TTY detection
-- [ ] **OUT-03**: `--pretty` flag forces human-readable output regardless of TTY detection (e.g., for `less -R`)
-- [ ] **OUT-04**: Output destination is consistent — all human-readable output goes to stdout, debug/diagnostics to stderr
+- [x] **OUT-01**: CLI auto-detects TTY and renders human-readable output when interactive, JSON when piped
+- [x] **OUT-02**: `--raw` flag forces JSON output regardless of TTY detection
+- [x] **OUT-03**: `--pretty` flag forces human-readable output regardless of TTY detection (e.g., for `less -R`)
+- [x] **OUT-04**: Output destination is consistent — all human-readable output goes to stdout, debug/diagnostics to stderr
 
 ### Command Renderers
 
@@ -85,10 +85,10 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 | FMT-03 | Phase 30 | Complete | — |
 | FMT-04 | Phase 30 | Complete | — |
 | FMT-05 | Phase 30 | Complete | — |
-| OUT-01 | Phase 30 | Pending | — |
-| OUT-02 | Phase 30 | Pending | — |
-| OUT-03 | Phase 30 | Pending | — |
-| OUT-04 | Phase 30 | Pending | — |
+| OUT-01 | Phase 30 | Complete | — |
+| OUT-02 | Phase 30 | Complete | — |
+| OUT-03 | Phase 30 | Complete | — |
+| OUT-04 | Phase 30 | Complete | — |
 | CMD-01 | Phase 32 | Pending | — |
 | CMD-02 | Phase 32 | Pending | — |
 | CMD-03 | Phase 33 | Pending | — |

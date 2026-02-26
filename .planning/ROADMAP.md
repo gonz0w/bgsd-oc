@@ -95,7 +95,7 @@ Full details: `.planning/milestones/v5.0-ROADMAP.md`
 **Goal**: Developers get a shared formatting engine and TTY-aware output mode — the infrastructure every command renderer depends on
 **Depends on**: Nothing (foundation phase)
 **Requirements**: FMT-01, FMT-02, FMT-03, FMT-04, FMT-05, OUT-01, OUT-02, OUT-03, OUT-04
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 Plans:
 - [ ] 30-01-PLAN.md — Formatting primitives module (color, table, progress bar, banner, symbols)
 - [ ] 30-02-PLAN.md — Smart output mode, --raw removal, brand rename to bGSD
@@ -204,7 +204,7 @@ Plans:
 | 27. Task-Scoped Context | v5.0 | 2/2 | Complete | 2026-02-26 |
 | 28. Lifecycle Analysis | v5.0 | 2/2 | Complete | 2026-02-26 |
 | 29. Workflow Integration | v5.0 | 2/2 | Complete | 2026-02-26 |
-| 30. Formatting Foundation & Smart Output | 1/2 | In Progress|  | — |
+| 30. Formatting Foundation & Smart Output | 2/2 | Complete   | 2026-02-26 | — |
 | 31. Quality Gates & Format Testing | v6.0 | 0/2 | Not started | — |
 | 32. Init & State Command Renderers | v6.0 | 0/2 | Not started | — |
 | 33. Verify & Codebase Command Renderers | v6.0 | 0/2 | Not started | — |
