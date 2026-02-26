@@ -12550,3 +12550,179 @@ describe('codebase intelligence', () => {
     });
   });
 });
+
+
+describe('codebase conventions', () => {
+  let tmpDir;
+
+  function createConventionProject(files) {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-conv-'));
+    fs.mkdirSync(path.join(dir, '.planning', 'codebase'), { recursive: true });
+    fs.mkdirSync(path.join(dir, '.planning', 'phases'), { recursive: true });
+
+    for (const [filePath, content] of Object.entries(files)) {
+      const fullPath = path.join(dir, filePath);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, content || '// placeholder\n');
+    }
+
+    // Initialize git repo
+    execSync('git init', { cwd: dir, stdio: 'pipe' });
+    execSync('git config user.email "test@test.com" && git config user.name "Test"', { cwd: dir, stdio: 'pipe' });
+    execSync('git add -A && git commit -m "initial"', { cwd: dir, stdio: 'pipe' });
+    return dir;
+  }
+
+  afterEach(() => {
+    if (tmpDir) cleanup(tmpDir);
+  });
+
+  test('naming detection — detects camelCase, snake_case, and kebab-case files', () => {
+    tmpDir = createConventionProject({
+      'src/myComponent.js': '',
+      'src/user-service.js': '',
+      'src/data_helper.js': '',
+      'package.json': '{"name":"test"}\n',
+    });
+
+    runGsdTools('codebase analyze --raw', tmpDir);
+    const result = runGsdTools('codebase conventions --all --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.naming_patterns.length > 0, 'Should detect naming patterns');
+
+    // All three patterns should be detected at project scope
+    const projectPatterns = data.naming_patterns
+      .filter(p => p.scope === 'project')
+      .map(p => p.pattern);
+    assert.ok(projectPatterns.includes('camelCase'), 'Should detect camelCase');
+    assert.ok(projectPatterns.includes('kebab-case'), 'Should detect kebab-case');
+    assert.ok(projectPatterns.includes('snake_case'), 'Should detect snake_case');
+  });
+
+  test('file organization — detects nested structure and test placement', () => {
+    tmpDir = createConventionProject({
+      'src/lib/utils.js': '',
+      'src/lib/helpers.js': '',
+      'src/commands/run.js': '',
+      'src/commands/build.js': '',
+      'src/index.test.js': '',
+      'package.json': '{"name":"test"}\n',
+    });
+
+    runGsdTools('codebase analyze --raw', tmpDir);
+    const result = runGsdTools('codebase conventions --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.file_organization, 'Should have file_organization');
+    assert.ok(
+      data.file_organization.structure_type === 'nested' || data.file_organization.structure_type === 'flat',
+      'structure_type should be nested or flat'
+    );
+    assert.ok(
+      ['co-located', 'separate-directory', 'none'].includes(data.file_organization.test_placement),
+      'test_placement should be valid'
+    );
+  });
+
+  test('confidence scoring — 9 snake_case + 1 camelCase yields ~90% snake_case confidence', () => {
+    const files = { 'package.json': '{"name":"test"}\n' };
+    // 9 snake_case files
+    for (let i = 1; i <= 9; i++) {
+      files[`src/my_module_${i}.js`] = '';
+    }
+    // 1 camelCase file
+    files['src/myComponent.js'] = '';
+    tmpDir = createConventionProject(files);
+
+    runGsdTools('codebase analyze --raw', tmpDir);
+    const result = runGsdTools('codebase conventions --all --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    const snakePattern = data.naming_patterns.find(
+      p => p.scope === 'project' && p.pattern === 'snake_case'
+    );
+    assert.ok(snakePattern, 'Should find snake_case pattern');
+    assert.ok(
+      snakePattern.confidence >= 85 && snakePattern.confidence <= 95,
+      `snake_case confidence should be ~90%, got ${snakePattern.confidence}%`
+    );
+  });
+
+  test('rules generation — sorted by confidence with ≤15 rules', () => {
+    tmpDir = createConventionProject({
+      'src/my-utils.js': '',
+      'src/my-helpers.js': '',
+      'src/my-service.js': '',
+      'src/myOther.js': '',
+      'src/index.test.js': '',
+      'package.json': '{"name":"test"}\n',
+    });
+
+    runGsdTools('codebase analyze --raw', tmpDir);
+    // Run conventions first to populate intel
+    runGsdTools('codebase conventions --raw', tmpDir);
+
+    const result = runGsdTools('codebase rules', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.rule_count <= 15, `Rules should be capped at 15, got ${data.rule_count}`);
+    assert.ok(data.rules.length > 0, 'Should have at least one rule');
+    assert.ok(data.rules_text.length > 0, 'rules_text should be non-empty');
+
+    // Verify sorted by confidence (highest first)
+    for (let i = 1; i < data.rules.length; i++) {
+      // Each rule contains a percentage — extract and verify ordering
+      const prev = data.rules[i - 1].match(/(\d+)%/);
+      const curr = data.rules[i].match(/(\d+)%/);
+      if (prev && curr) {
+        assert.ok(
+          parseInt(prev[1]) >= parseInt(curr[1]),
+          `Rules should be sorted by confidence: "${data.rules[i-1]}" should come before "${data.rules[i]}"`
+        );
+      }
+    }
+  });
+
+  test('rules cap — conventions with many patterns still output ≤15 rules', () => {
+    // Create project with many directories to generate lots of patterns
+    const files = { 'package.json': '{"name":"test"}\n' };
+    const dirs = ['api', 'auth', 'billing', 'cache', 'data', 'events', 'forms', 'graphs'];
+    for (const dir of dirs) {
+      files[`src/${dir}/my-thing-${dir}.js`] = '';
+      files[`src/${dir}/another-thing-${dir}.js`] = '';
+      files[`src/${dir}/third-thing-${dir}.js`] = '';
+    }
+    tmpDir = createConventionProject(files);
+
+    runGsdTools('codebase analyze --raw', tmpDir);
+    runGsdTools('codebase conventions --all --raw', tmpDir);
+
+    const result = runGsdTools('codebase rules', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.rule_count <= 15, `Rules must be capped at 15, got ${data.rule_count}`);
+  });
+
+  test('CLI integration — codebase rules --raw outputs plain text', () => {
+    tmpDir = createConventionProject({
+      'src/my-utils.js': '',
+      'src/my-helpers.js': '',
+      'package.json': '{"name":"test"}\n',
+    });
+
+    runGsdTools('codebase analyze --raw', tmpDir);
+
+    const result = runGsdTools('codebase rules --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    // --raw output should be plain text (numbered rules), not JSON
+    assert.ok(!result.output.startsWith('{'), 'Raw output should not be JSON');
+    assert.ok(/^\d+\.\s/.test(result.output), 'Raw output should start with numbered rule');
+  });
+});

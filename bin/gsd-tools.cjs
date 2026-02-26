@@ -8327,11 +8327,76 @@ var require_conventions = __commonJS({
         extracted_at: (/* @__PURE__ */ new Date()).toISOString()
       };
     }
+    function generateRules(conventions, options = {}) {
+      const { threshold = 60, maxRules = 15 } = options;
+      if (!conventions) {
+        return { rules: [], rules_text: "", rule_count: 0, total_conventions: 0, filtered_count: 0 };
+      }
+      const allConventions = [];
+      if (conventions.naming && conventions.naming.overall) {
+        for (const [, value] of Object.entries(conventions.naming.overall)) {
+          if (value.confidence > 0) {
+            allConventions.push({
+              text: `File names use ${value.pattern} (${value.confidence}% of ${value.file_count} multi-word files)`,
+              confidence: value.confidence
+            });
+          }
+        }
+      }
+      if (conventions.naming && conventions.naming.by_directory) {
+        for (const [dir, value] of Object.entries(conventions.naming.by_directory)) {
+          if (value.confidence > 0) {
+            allConventions.push({
+              text: `File names in \`${dir}/\` use ${value.dominant_pattern} (${value.confidence}% of ${value.file_count} files)`,
+              confidence: value.confidence
+            });
+          }
+        }
+      }
+      if (conventions.file_organization && conventions.file_organization.patterns) {
+        for (const p of conventions.file_organization.patterns) {
+          if (p.confidence > 0) {
+            allConventions.push({
+              text: `Project uses ${p.pattern} (${p.detail})`,
+              confidence: p.confidence
+            });
+          }
+        }
+      }
+      if (conventions.frameworks) {
+        for (const p of conventions.frameworks) {
+          if (p.confidence > 0) {
+            allConventions.push({
+              text: `${p.pattern} (${p.confidence}%)`,
+              confidence: p.confidence
+            });
+          }
+        }
+      }
+      const totalConventions = allConventions.length;
+      const filtered = allConventions.filter((c) => c.confidence >= threshold);
+      const filteredCount = totalConventions - filtered.length;
+      filtered.sort((a, b) => {
+        if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+        return a.text.localeCompare(b.text);
+      });
+      const capped = filtered.slice(0, maxRules);
+      const rules = capped.map((c) => c.text);
+      const rulesText = rules.map((r, i) => `${i + 1}. ${r}`).join("\n");
+      return {
+        rules,
+        rules_text: rulesText,
+        rule_count: rules.length,
+        total_conventions: totalConventions,
+        filtered_count: filteredCount
+      };
+    }
     module2.exports = {
       detectNamingConventions,
       detectFileOrganization,
       detectFrameworkConventions,
       extractConventions,
+      generateRules,
       FRAMEWORK_DETECTORS
     };
   }
@@ -8533,10 +8598,43 @@ var require_codebase = __commonJS({
         extracted_at: conventions.extracted_at
       }, raw);
     }
+    function cmdCodebaseRules(cwd, args, raw) {
+      const intel = readIntel(cwd);
+      if (!intel) {
+        error("No codebase intel. Run: codebase analyze");
+        return;
+      }
+      const { extractConventions, generateRules } = require_conventions();
+      let conventions = intel.conventions;
+      if (!conventions) {
+        debugLog("codebase.rules", "no cached conventions, running extraction");
+        conventions = extractConventions(intel, { cwd });
+        intel.conventions = conventions;
+        writeIntel(cwd, intel);
+      }
+      const thresholdIdx = args.indexOf("--threshold");
+      const threshold = thresholdIdx !== -1 ? parseInt(args[thresholdIdx + 1], 10) : 60;
+      const maxIdx = args.indexOf("--max");
+      const maxRules = maxIdx !== -1 ? parseInt(args[maxIdx + 1], 10) : 15;
+      const result = generateRules(conventions, { threshold, maxRules });
+      if (raw) {
+        process.stdout.write(result.rules_text + "\n");
+        return;
+      }
+      output({
+        success: true,
+        rules: result.rules,
+        rules_text: result.rules_text,
+        rule_count: result.rule_count,
+        total_conventions: result.total_conventions,
+        filtered_count: result.filtered_count
+      }, false);
+    }
     module2.exports = {
       cmdCodebaseAnalyze,
       cmdCodebaseStatus,
       cmdCodebaseConventions,
+      cmdCodebaseRules,
       readCodebaseIntel,
       checkCodebaseIntelStaleness,
       autoTriggerCodebaseIntel
@@ -14598,8 +14696,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             lazyCodebase().cmdCodebaseStatus(cwd, args.slice(2), raw);
           } else if (sub === "conventions") {
             lazyCodebase().cmdCodebaseConventions(cwd, args.slice(2), raw);
+          } else if (sub === "rules") {
+            lazyCodebase().cmdCodebaseRules(cwd, args.slice(2), raw);
           } else {
-            error("Usage: codebase <analyze|status|conventions>");
+            error("Usage: codebase <analyze|status|conventions|rules>");
           }
           break;
         }

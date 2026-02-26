@@ -531,6 +531,107 @@ function extractConventions(intel, options = {}) {
 }
 
 
+// ─── Rules Generation ────────────────────────────────────────────────────────
+
+/**
+ * Generate an agent-consumable rules document from extracted conventions.
+ * Rules are ranked by confidence, filtered by threshold, and capped at maxRules.
+ *
+ * Each rule is a concise, actionable statement suitable for direct injection into agent prompts.
+ *
+ * @param {object} conventions - Output from extractConventions()
+ * @param {object} [options] - Generation options
+ * @param {number} [options.threshold=60] - Minimum confidence to include (0-100)
+ * @param {number} [options.maxRules=15] - Maximum number of rules to output
+ * @returns {{ rules: string[], rules_text: string, rule_count: number, total_conventions: number, filtered_count: number }}
+ */
+function generateRules(conventions, options = {}) {
+  const { threshold = 60, maxRules = 15 } = options;
+
+  if (!conventions) {
+    return { rules: [], rules_text: '', rule_count: 0, total_conventions: 0, filtered_count: 0 };
+  }
+
+  // Collect all conventions as { text, confidence } pairs
+  const allConventions = [];
+
+  // ── Naming conventions (overall) ──
+  if (conventions.naming && conventions.naming.overall) {
+    for (const [, value] of Object.entries(conventions.naming.overall)) {
+      if (value.confidence > 0) {
+        allConventions.push({
+          text: `File names use ${value.pattern} (${value.confidence}% of ${value.file_count} multi-word files)`,
+          confidence: value.confidence,
+        });
+      }
+    }
+  }
+
+  // ── Naming conventions (per-directory) ──
+  if (conventions.naming && conventions.naming.by_directory) {
+    for (const [dir, value] of Object.entries(conventions.naming.by_directory)) {
+      if (value.confidence > 0) {
+        allConventions.push({
+          text: `File names in \`${dir}/\` use ${value.dominant_pattern} (${value.confidence}% of ${value.file_count} files)`,
+          confidence: value.confidence,
+        });
+      }
+    }
+  }
+
+  // ── File organization patterns ──
+  if (conventions.file_organization && conventions.file_organization.patterns) {
+    for (const p of conventions.file_organization.patterns) {
+      if (p.confidence > 0) {
+        allConventions.push({
+          text: `Project uses ${p.pattern} (${p.detail})`,
+          confidence: p.confidence,
+        });
+      }
+    }
+  }
+
+  // ── Framework patterns ──
+  if (conventions.frameworks) {
+    for (const p of conventions.frameworks) {
+      if (p.confidence > 0) {
+        allConventions.push({
+          text: `${p.pattern} (${p.confidence}%)`,
+          confidence: p.confidence,
+        });
+      }
+    }
+  }
+
+  const totalConventions = allConventions.length;
+
+  // Filter by threshold
+  const filtered = allConventions.filter(c => c.confidence >= threshold);
+  const filteredCount = totalConventions - filtered.length;
+
+  // Sort by confidence (highest first), then alphabetically for stability
+  filtered.sort((a, b) => {
+    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+    return a.text.localeCompare(b.text);
+  });
+
+  // Cap at maxRules
+  const capped = filtered.slice(0, maxRules);
+
+  // Format rules
+  const rules = capped.map(c => c.text);
+  const rulesText = rules.map((r, i) => `${i + 1}. ${r}`).join('\n');
+
+  return {
+    rules,
+    rules_text: rulesText,
+    rule_count: rules.length,
+    total_conventions: totalConventions,
+    filtered_count: filteredCount,
+  };
+}
+
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -538,5 +639,6 @@ module.exports = {
   detectFileOrganization,
   detectFrameworkConventions,
   extractConventions,
+  generateRules,
   FRAMEWORK_DETECTORS,
 };

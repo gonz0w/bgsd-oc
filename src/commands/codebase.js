@@ -315,10 +315,69 @@ function cmdCodebaseConventions(cwd, args, raw) {
 }
 
 
+/**
+ * cmdCodebaseRules — Generate an agent-consumable rules document from codebase conventions.
+ *
+ * Flags:
+ *   --threshold N  Override minimum confidence (default: 60)
+ *   --max N        Override maximum rules cap (default: 15)
+ *
+ * If --raw is set, outputs just the rules_text (plain text for direct prompt injection).
+ * Otherwise, outputs structured JSON with rules, rules_text, rule_count.
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments (after 'codebase rules')
+ * @param {boolean} raw - Raw output mode
+ */
+function cmdCodebaseRules(cwd, args, raw) {
+  const intel = readIntel(cwd);
+
+  if (!intel) {
+    error('No codebase intel. Run: codebase analyze');
+    return;
+  }
+
+  const { extractConventions, generateRules } = require('../lib/conventions');
+
+  // If intel has no conventions, run extraction first (auto-detect on demand)
+  let conventions = intel.conventions;
+  if (!conventions) {
+    debugLog('codebase.rules', 'no cached conventions, running extraction');
+    conventions = extractConventions(intel, { cwd });
+    intel.conventions = conventions;
+    writeIntel(cwd, intel);
+  }
+
+  // Parse flags
+  const thresholdIdx = args.indexOf('--threshold');
+  const threshold = thresholdIdx !== -1 ? parseInt(args[thresholdIdx + 1], 10) : 60;
+  const maxIdx = args.indexOf('--max');
+  const maxRules = maxIdx !== -1 ? parseInt(args[maxIdx + 1], 10) : 15;
+
+  const result = generateRules(conventions, { threshold, maxRules });
+
+  if (raw) {
+    // Raw mode: output just the plain text rules for prompt injection
+    process.stdout.write(result.rules_text + '\n');
+    return;
+  }
+
+  output({
+    success: true,
+    rules: result.rules,
+    rules_text: result.rules_text,
+    rule_count: result.rule_count,
+    total_conventions: result.total_conventions,
+    filtered_count: result.filtered_count,
+  }, false);
+}
+
+
 module.exports = {
   cmdCodebaseAnalyze,
   cmdCodebaseStatus,
   cmdCodebaseConventions,
+  cmdCodebaseRules,
   readCodebaseIntel,
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,
