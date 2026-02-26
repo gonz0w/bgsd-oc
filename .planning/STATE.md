@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 **Phase:** 30 — Formatting Foundation & Smart Output (complete)
-**Current Plan:** 2 of 2 (done)
-**Status:** Phase complete
-**Last Activity:** 2026-02-26 — Completed 30-02 (smart output mode, --raw removal, brand rename)
+**Current Plan:** Not started
+**Status:** Milestone complete
+**Last Activity:** 2026-02-26
 
 ```
 v6.0 Progress: [███░░░░░░░░░░░░░░░░░] 1/7 phases (14%)
