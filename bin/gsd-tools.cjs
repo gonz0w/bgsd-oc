@@ -9195,6 +9195,162 @@ var require_codebase = __commonJS({
         files
       }, raw);
     }
+    function computeRiskLevel(file, graph, cycleFiles) {
+      const dependentCount = (graph.reverse[file] || []).length;
+      if (dependentCount > 10) return "high";
+      if (cycleFiles.has(file)) return "caution";
+      return "normal";
+    }
+    function matchFileConventions(file, conventions) {
+      if (!conventions) return null;
+      const dir = path.dirname(file);
+      const ext = path.extname(file);
+      let naming = null;
+      if (conventions.naming && conventions.naming.by_directory && conventions.naming.by_directory[dir]) {
+        const dirConv = conventions.naming.by_directory[dir];
+        naming = { pattern: dirConv.dominant_pattern, confidence: dirConv.confidence };
+      } else if (conventions.naming && conventions.naming.overall) {
+        let best = null;
+        let bestConf = 0;
+        for (const [, value] of Object.entries(conventions.naming.overall)) {
+          if (value.confidence > bestConf) {
+            bestConf = value.confidence;
+            best = value.pattern;
+          }
+        }
+        if (best) {
+          naming = { pattern: best, confidence: bestConf };
+        }
+      }
+      const matchingFrameworks = [];
+      if (conventions.frameworks && Array.isArray(conventions.frameworks)) {
+        for (const fw of conventions.frameworks) {
+          if (fw.evidence && Array.isArray(fw.evidence)) {
+            const matches = fw.evidence.some((e) => {
+              if (e.endsWith("/")) {
+                return file.startsWith(e) || dir.startsWith(e.replace(/\/$/, ""));
+              }
+              return path.extname(e) === ext || path.dirname(e) === dir;
+            });
+            if (matches) {
+              matchingFrameworks.push({
+                framework: fw.framework,
+                pattern: fw.pattern,
+                confidence: fw.confidence
+              });
+            }
+          }
+        }
+      }
+      if (!naming && matchingFrameworks.length === 0) return null;
+      return { naming, frameworks: matchingFrameworks };
+    }
+    function cmdCodebaseContext(cwd, args, raw) {
+      const filesIdx = args.indexOf("--files");
+      let filePaths = [];
+      if (filesIdx !== -1) {
+        for (let i = filesIdx + 1; i < args.length; i++) {
+          if (args[i].startsWith("--")) break;
+          filePaths.push(args[i]);
+        }
+      } else {
+        filePaths = args.filter((a) => !a.startsWith("--"));
+      }
+      const planIdx = args.indexOf("--plan");
+      const planPath = planIdx !== -1 ? args[planIdx + 1] : null;
+      void planPath;
+      if (!filePaths.length) {
+        error("Usage: codebase context --files <file1> [file2] ...");
+        return;
+      }
+      const intel = readIntel(cwd);
+      if (!intel) {
+        error("No codebase intel. Run: codebase analyze");
+        return;
+      }
+      const { buildDependencyGraph, findCycles } = require_deps();
+      const { extractConventions } = require_conventions();
+      let graph = intel.dependencies;
+      if (!graph) {
+        debugLog("codebase.context", "no dependency graph in intel, building...");
+        graph = buildDependencyGraph(intel);
+        intel.dependencies = graph;
+        writeIntel(cwd, intel);
+      }
+      let conventions = intel.conventions;
+      if (!conventions) {
+        debugLog("codebase.context", "no conventions in intel, extracting...");
+        conventions = extractConventions(intel, { cwd });
+        intel.conventions = conventions;
+        writeIntel(cwd, intel);
+      }
+      const cycleData = findCycles(graph);
+      const cycleFiles = /* @__PURE__ */ new Set();
+      for (const scc of cycleData.cycles) {
+        for (const f of scc) cycleFiles.add(f);
+      }
+      const filesResult = {};
+      for (const file of filePaths) {
+        if (!graph.forward[file] && !graph.reverse[file]) {
+          filesResult[file] = {
+            status: "no-data",
+            imports: [],
+            dependents: [],
+            conventions: null,
+            risk_level: "normal"
+          };
+          continue;
+        }
+        const imports = [...graph.forward[file] || []];
+        imports.sort((a, b) => (graph.reverse[b] || []).length - (graph.reverse[a] || []).length);
+        const cappedImports = imports.slice(0, 8);
+        const dependents = [...graph.reverse[file] || []];
+        dependents.sort((a, b) => (graph.forward[b] || []).length - (graph.forward[a] || []).length);
+        const cappedDependents = dependents.slice(0, 8);
+        const riskLevel = computeRiskLevel(file, graph, cycleFiles);
+        const fileConventions = matchFileConventions(file, conventions);
+        filesResult[file] = {
+          imports: cappedImports,
+          dependents: cappedDependents,
+          conventions: fileConventions,
+          risk_level: riskLevel
+        };
+      }
+      const result = {
+        success: true,
+        files: filesResult,
+        file_count: filePaths.length,
+        truncated: false
+      };
+      if (raw) {
+        output(result, raw);
+      } else {
+        const lines = [];
+        lines.push("");
+        lines.push("File Context Summary");
+        lines.push("\u2550".repeat(80));
+        lines.push("");
+        for (const [file, ctx] of Object.entries(filesResult)) {
+          if (ctx.status === "no-data") {
+            lines.push(`  ${file}  [no data]`);
+            lines.push("");
+            continue;
+          }
+          const riskBadge = ctx.risk_level === "high" ? "\u{1F534} HIGH" : ctx.risk_level === "caution" ? "\u{1F7E1} CAUTION" : "\u{1F7E2} normal";
+          const namingStr = ctx.conventions && ctx.conventions.naming ? `${ctx.conventions.naming.pattern} (${ctx.conventions.naming.confidence}%)` : "-";
+          lines.push(`  ${file}`);
+          lines.push(`    Risk: ${riskBadge}  |  Naming: ${namingStr}`);
+          lines.push(`    Imports (${ctx.imports.length}): ${ctx.imports.length > 0 ? ctx.imports.join(", ") : "none"}`);
+          lines.push(`    Dependents (${ctx.dependents.length}): ${ctx.dependents.length > 0 ? ctx.dependents.join(", ") : "none"}`);
+          if (ctx.conventions && ctx.conventions.frameworks && ctx.conventions.frameworks.length > 0) {
+            lines.push(`    Frameworks: ${ctx.conventions.frameworks.map((f) => f.framework).join(", ")}`);
+          }
+          lines.push("");
+        }
+        process.stderr.write(lines.join("\n") + "\n");
+        output(result, false);
+      }
+    }
     module2.exports = {
       cmdCodebaseAnalyze,
       cmdCodebaseStatus,
@@ -9202,6 +9358,7 @@ var require_codebase = __commonJS({
       cmdCodebaseRules,
       cmdCodebaseDeps,
       cmdCodebaseImpact,
+      cmdCodebaseContext,
       readCodebaseIntel,
       checkCodebaseIntelStaleness,
       autoTriggerCodebaseIntel,
@@ -15425,8 +15582,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             lazyCodebase().cmdCodebaseDeps(cwd, args.slice(2), raw);
           } else if (sub === "impact") {
             lazyCodebase().cmdCodebaseImpact(cwd, args.slice(2), raw);
+          } else if (sub === "context") {
+            lazyCodebase().cmdCodebaseContext(cwd, args.slice(2), raw);
           } else {
-            error("Usage: codebase <analyze|status|conventions|rules|deps|impact>");
+            error("Usage: codebase <analyze|status|conventions|rules|deps|impact|context>");
           }
           break;
         }
