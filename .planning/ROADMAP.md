@@ -109,7 +109,7 @@ Requirements: DEPS-01, DEPS-02, DEPS-03, DEPS-04, DEPS-05
 Depends on: Phase 23 (storage infrastructure)
 Plans: 2 plans
 - [x] 25-01-PLAN.md — Core dependency graph engine + codebase deps CLI command
-- [ ] 25-02-PLAN.md — Impact analysis + Tarjan's SCC cycle detection + tests
+- [x] 25-02-PLAN.md — Impact analysis + Tarjan's SCC cycle detection + tests
 Success criteria:
 1. `codebase deps` builds forward + reverse adjacency-list graph stored in intel JSON
 2. Import parsing works for 6 languages: JavaScript, TypeScript, Python, Go, Elixir, Rust
@@ -183,7 +183,7 @@ Success criteria:
 | 22. Workflow Polish | v4.0 | 1/1 | Complete | 2026-02-25 |
 | 23. Infrastructure & Storage | 2/2 | Complete    | 2026-02-26 | — |
 | 24. Convention Extraction | 2/2 | Complete    | 2026-02-26 | — |
-| 25. Dependency Graph | v5.0 | 1/2 | In Progress | — |
+| 25. Dependency Graph | v5.0 | 2/2 | Complete | 2026-02-26 |
 | 26. Init Integration & Context Summary | v5.0 | 0/0 | Planned | — |
 | 27. Task-Scoped Context | v5.0 | 0/0 | Planned | — |
 | 28. Lifecycle Analysis | v5.0 | 0/0 | Planned | — |

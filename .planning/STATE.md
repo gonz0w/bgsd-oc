@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v5.0 Codebase Intelligence — executing phase 25
+**Current focus:** v5.0 Codebase Intelligence — phase 25 complete, phase 26 next
 
 ## Current Position
 
-**Phase:** Phase 25 of 29: Dependency Graph
-**Current Plan:** Plan 01 complete, Plan 02 next
+**Phase:** Phase 26 of 29: Init Integration & Context Summary
+**Current Plan:** Plan 01 next
 **Status:** In progress
 **Last Activity:** 2026-02-26
 
-Progress: 3/7 phases complete (25-01 done).
+Progress: 4/7 phases complete (25 done, 26 next).
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ Progress: 3/7 phases complete (25-01 done).
 | Phase 24 P01 | 3 min | 2 tasks | 4 files |
 | Phase 24 P02 | 6 min | 2 tasks | 5 files |
 | Phase 25 P01 | 3 min | 2 tasks | 4 files |
+| Phase 25 P02 | 8 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ All v1.0-v4.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 25-01]: Regex-based import parsing over AST — zero dependencies, 85-90% accuracy for module-level analysis
 - [Phase 25-01]: Resolution only for relative/local imports — external packages excluded from project graph
 - [Phase 25-01]: Forward + reverse adjacency lists for O(1) lookup in both directions
+- [Phase 25-02]: Tarjan's SCC for cycle detection — standard O(V+E) algorithm, no extra dependencies
+- [Phase 25-02]: BFS with maxDepth=10 for impact analysis — prevents infinite loops on cycles
+- [Phase 25-02]: Auto-build graph on impact command if not cached — seamless first-use experience
 
 ### Pending Todos
 
@@ -78,5 +82,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 25-01-PLAN.md
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
