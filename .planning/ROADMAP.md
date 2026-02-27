@@ -151,7 +151,7 @@ Plans:
 **Requirements**: CMD-05, CMD-06
 **Plans**: 1 plan
 Plans:
-- [ ] 34-01-PLAN.md — Add formatters to velocity, quick-summary, intent show/validate/drift (user-facing only)
+- [x] 34-01-PLAN.md — Add formatters to velocity, quick-summary, intent show/validate/drift (user-facing only)
 **Success Criteria** (what must be TRUE):
   1. `velocity` shows plans/day rate, forecast, and per-milestone table in formatted output
   2. `quick-summary`, `context-budget`, `search-decisions`, and `trace-requirement` all produce branded output with tables and section headers

@@ -28,8 +28,8 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 - [x] **CMD-02**: State commands (`state`, `state show`, `state update-progress`) produce clean formatted output in TTY mode
 - [x] **CMD-03**: Verification commands (`verify requirements`, `verify quality`) produce summary tables with pass/fail indicators in TTY mode
 - [x] **CMD-04**: Codebase commands (`codebase analyze`, `codebase status`, `codebase conventions`, `codebase deps`, `codebase context`, etc.) produce formatted output in TTY mode
-- [ ] **CMD-05**: Feature commands (`velocity`, `quick-summary`, `context-budget`, `search-decisions`, `trace-requirement`, etc.) produce formatted output in TTY mode
-- [ ] **CMD-06**: Intent commands maintain existing rendering quality and adopt shared formatting utilities
+- [x] **CMD-05**: Feature commands (`velocity`, `quick-summary`, `context-budget`, `search-decisions`, `trace-requirement`, etc.) produce formatted output in TTY mode
+- [x] **CMD-06**: Intent commands maintain existing rendering quality and adopt shared formatting utilities
 
 ### Workflow Output
 
@@ -93,8 +93,8 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 | CMD-02 | Phase 32 | Complete | 2026-02-27 |
 | CMD-03 | Phase 33 | Complete | 2026-02-27 |
 | CMD-04 | Phase 33 | Complete | 2026-02-27 |
-| CMD-05 | Phase 34 | Pending | — |
-| CMD-06 | Phase 34 | Pending | — |
+| CMD-05 | Phase 34 | Complete | 2026-02-27 |
+| CMD-06 | Phase 34 | Complete | 2026-02-27 |
 | WKFL-04 | Phase 35 | Complete | 2026-02-27 |
 | WKFL-05 | Phase 35 | Complete | 2026-02-27 |
 | WKFL-06 | Phase 35 | Complete | 2026-02-27 |
