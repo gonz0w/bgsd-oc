@@ -91,26 +91,103 @@ After completion, create SUMMARY.md with:
 <execution_flow>
 ## Red-Green-Refactor Cycle
 
-**RED - Write failing test:**
-1. Create test file following project conventions
-2. Write test describing expected behavior (from `<behavior>` element)
-3. Run test - it MUST fail
-4. If test passes: feature exists or test is wrong. Investigate.
-5. Commit: `test({phase}-{plan}): add failing test for [feature]`
+For complete execution instructions with orchestrator-enforced gates, see: **@workflows/tdd.md**
 
-**GREEN - Implement to pass:**
-1. Write minimal code to make test pass
-2. No cleverness, no optimization - just make it work
-3. Run test - it MUST pass
-4. Commit: `feat({phase}-{plan}): implement [feature]`
+The TDD workflow enforces RED→GREEN→REFACTOR transitions via CLI validation gates.
+No phase transition is permitted without the corresponding gate passing.
 
-**REFACTOR (if needed):**
-1. Clean up implementation if obvious improvements exist
-2. Run tests - MUST still pass
-3. Only commit if changes made: `refactor({phase}-{plan}): clean up [feature]`
+**Summary of phases:**
+- **RED:** Write failing test → `tdd validate-red` gate → commit with `GSD-Phase: red` trailer
+- **GREEN:** Minimal implementation → `tdd validate-green` gate → commit with `GSD-Phase: green` trailer
+- **REFACTOR:** Optional cleanup → `tdd validate-refactor` gate → commit with `GSD-Phase: refactor` trailer
 
-**Result:** Each TDD plan produces 2-3 atomic commits.
+**Result:** Each TDD plan produces 2-3 atomic commits with dual trailers (`Agent-Type` + `GSD-Phase`).
 </execution_flow>
+
+<gate_commands>
+## CLI Validation Gate Commands
+
+Each TDD phase transition is enforced by a CLI gate command. These must pass before the executor can proceed.
+
+**validate-red** — Confirms test fails (expected in RED):
+```bash
+node {config_path}/bin/gsd-tools.cjs tdd validate-red --test-cmd "<test_command>"
+```
+Returns: `{ phase: "red", valid: true/false, snippet: "..." }`
+- `valid: true` → test fails as expected, proceed to GREEN
+- `valid: false` → test passed (shouldn't), fix the test
+
+**validate-green** — Confirms test passes (expected in GREEN):
+```bash
+node {config_path}/bin/gsd-tools.cjs tdd validate-green --test-cmd "<test_command>"
+```
+Returns: `{ phase: "green", valid: true/false, snippet: "..." }`
+- `valid: true` → test passes, proceed to REFACTOR
+- `valid: false` → test still fails, debug implementation
+
+**validate-refactor** — Confirms tests still pass after cleanup:
+```bash
+node {config_path}/bin/gsd-tools.cjs tdd validate-refactor --test-cmd "<test_command>"
+```
+Returns: `{ phase: "refactor", valid: true/false, snippet: "..." }`
+- `valid: true` → refactor preserved behavior, commit
+- `valid: false` → refactor broke something, undo
+
+**auto-test** — Non-blocking test execution for general use:
+```bash
+node {config_path}/bin/gsd-tools.cjs tdd auto-test --test-cmd "<test_command>"
+```
+Returns: `{ passed: true/false, snippet: "..." }`
+Does NOT set process.exitCode — the workflow decides whether to stop.
+
+**detect-antipattern** — Checks for TDD violations:
+```bash
+node {config_path}/bin/gsd-tools.cjs tdd detect-antipattern --phase <red|green|refactor> --files <file_list>
+```
+Returns: `{ warnings: [...] }` — array of detected anti-pattern violations.
+</gate_commands>
+
+<commit_trailers>
+## Commit Trailers for TDD
+
+TDD commits include two trailers for attribution and phase tracking:
+
+**Agent-Type trailer** (via `--agent` flag):
+```bash
+--agent gsd-executor
+```
+Produces: `Agent-Type: gsd-executor` in commit message.
+
+**GSD-Phase trailer** (via `--tdd-phase` flag):
+```bash
+--tdd-phase red    # or green, refactor
+```
+Produces: `GSD-Phase: red` (or `green`, `refactor`) in commit message.
+
+**Combined usage in commit command:**
+```bash
+node {config_path}/bin/gsd-tools.cjs commit "test({phase}-{plan}): add failing test for {feature}" \
+  --files <test_file> \
+  --agent gsd-executor \
+  --tdd-phase red
+```
+
+**Resulting commit message:**
+```
+test(08-02): add failing test for email validation
+
+- Tests valid email formats accepted
+- Tests invalid formats rejected
+
+Agent-Type: gsd-executor
+GSD-Phase: red
+```
+
+Both trailers are required on every TDD commit. They enable:
+- Querying commits by TDD phase: `git log --grep="GSD-Phase: red"`
+- Agent attribution: `git log --grep="Agent-Type: gsd-executor"`
+- Rollback by phase: find all RED commits if reverting test additions
+</commit_trailers>
 
 <test_quality>
 ## Good Tests vs Bad Tests
