@@ -15775,3 +15775,102 @@ describe('review command', () => {
     assert.ok(Array.isArray(parsed.files_changed), 'files_changed should be an array');
   });
 });
+
+// ─── TDD CLI commands ────────────────────────────────────────────────────────
+
+describe('tdd', () => {
+  test('validate-red succeeds when test fails (exit 1)', () => {
+    const result = runGsdTools('tdd validate-red --test-cmd "exit 1"');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'red');
+    assert.strictEqual(parsed.valid, true);
+    assert.strictEqual(parsed.test_exit_code, 1);
+  });
+
+  test('validate-red fails when test passes (exit 0)', () => {
+    const result = runGsdTools('tdd validate-red --test-cmd "exit 0"');
+    assert.ok(!result.success, 'Should fail when test passes in red phase');
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'red');
+    assert.strictEqual(parsed.valid, false);
+    assert.strictEqual(parsed.test_exit_code, 0);
+  });
+
+  test('validate-green succeeds when test passes (exit 0)', () => {
+    const result = runGsdTools('tdd validate-green --test-cmd "exit 0"');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'green');
+    assert.strictEqual(parsed.valid, true);
+  });
+
+  test('validate-green fails when test fails (exit 1)', () => {
+    const result = runGsdTools('tdd validate-green --test-cmd "exit 1"');
+    assert.ok(!result.success, 'Should fail when test fails in green phase');
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'green');
+    assert.strictEqual(parsed.valid, false);
+  });
+
+  test('validate-refactor succeeds when test passes', () => {
+    const result = runGsdTools('tdd validate-refactor --test-cmd "exit 0"');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'refactor');
+    assert.strictEqual(parsed.valid, true);
+  });
+
+  test('auto-test reports pass', () => {
+    const result = runGsdTools('tdd auto-test --test-cmd "exit 0"');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.passed, true);
+    assert.strictEqual(parsed.exit_code, 0);
+  });
+
+  test('auto-test reports fail', () => {
+    const result = runGsdTools('tdd auto-test --test-cmd "exit 1"');
+    // auto-test should not set process.exitCode
+    assert.ok(result.success, `auto-test should succeed even when test fails: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.passed, false);
+    assert.strictEqual(parsed.exit_code, 1);
+  });
+
+  test('detect-antipattern warns on non-test source files in red phase', () => {
+    const result = runGsdTools('tdd detect-antipattern --phase red --files "src/foo.js"');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'red');
+    assert.ok(parsed.warnings.length > 0, 'Should have warnings for non-test file in red');
+    assert.strictEqual(parsed.warnings[0].type, 'pre_test_code');
+  });
+
+  test('detect-antipattern clean on test files in red phase', () => {
+    const result = runGsdTools('tdd detect-antipattern --phase red --files "src/foo.test.js"');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.warnings.length, 0, 'Should have no warnings for test file in red');
+  });
+
+  test('GSD-Phase trailer on commit', () => {
+    const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-tdd-'));
+    try {
+      // Set up git repo
+      execSync('git init && git config user.email "test@test.com" && git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
+      // Create .planning dir and config for commit to work
+      fs.mkdirSync(path.join(tmpDir, '.planning'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), '{"commit_docs":true}');
+      // Create a file to commit
+      fs.writeFileSync(path.join(tmpDir, 'test.txt'), 'hello');
+      const result = runGsdTools('commit "test(tdd): red phase" --tdd-phase red --force --files test.txt', tmpDir);
+      assert.ok(result.success, `Commit failed: ${result.error || result.output}`);
+      // Check git log for trailer
+      const log = execSync('git log -1 --format=%b', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+      assert.ok(log.includes('GSD-Phase: red'), `Expected GSD-Phase trailer in: ${log}`);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
