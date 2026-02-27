@@ -85,6 +85,18 @@ async function main() {
   const command = args[0];
   const cwd = process.cwd();
 
+  // ─── Profiler: opt-in performance timing via GSD_PROFILE=1 ────────────
+  const { startTimer: profStart, endTimer: profEnd, writeBaseline, isProfilingEnabled } = require('./lib/profiler');
+  const cmdTimer = profStart('command:' + (command || 'unknown'));
+
+  if (isProfilingEnabled()) {
+    const profSub = args[1] && !args[1].startsWith('-') ? args[1] : '';
+    process.on('exit', () => {
+      profEnd(cmdTimer);
+      writeBaseline(cwd, (command || 'unknown') + (profSub ? '-' + profSub : ''));
+    });
+  }
+
   if (!command) {
     error('Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree');
   }

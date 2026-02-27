@@ -1027,6 +1027,7 @@ Output: { removed, plan_id, path }`,
 Remove all worktrees for the current project and prune stale references.
 
 Output: { cleaned, worktrees: [{ plan_id, path }] }`,
+      "profile": "Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/",
       "git": `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]
 
 Structured git intelligence \u2014 JSON output for agents and workflows.
@@ -16563,6 +16564,75 @@ var require_mcp = __commonJS({
   }
 });
 
+// src/lib/profiler.js
+var require_profiler = __commonJS({
+  "src/lib/profiler.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var enabled = process.env.GSD_PROFILE === "1";
+    var timings = [];
+    function isProfilingEnabled() {
+      return enabled;
+    }
+    function mark(label) {
+      if (!enabled) return;
+      const { performance } = require("node:perf_hooks");
+      performance.mark(label);
+    }
+    function measure(label, startMark, endMark) {
+      if (!enabled) return;
+      const { performance } = require("node:perf_hooks");
+      try {
+        const m = performance.measure(label, startMark, endMark);
+        timings.push({ label, duration_ms: Math.round(m.duration * 100) / 100 });
+      } catch (e) {
+      }
+    }
+    function startTimer(label) {
+      if (!enabled) return null;
+      const { performance } = require("node:perf_hooks");
+      return { label, start: performance.now() };
+    }
+    function endTimer(timer) {
+      if (!enabled || !timer) return null;
+      const { performance } = require("node:perf_hooks");
+      const duration_ms = Math.round((performance.now() - timer.start) * 100) / 100;
+      const entry = { label: timer.label, duration_ms };
+      timings.push(entry);
+      return entry;
+    }
+    function getTimings() {
+      return [...timings];
+    }
+    function writeBaseline(cwd, commandName) {
+      if (!enabled) return;
+      const totalMs = timings.reduce((sum, t) => sum + t.duration_ms, 0);
+      const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+      const safeTimestamp = timestamp.replace(/[:.]/g, "-");
+      const baseline = {
+        command: commandName,
+        timestamp,
+        node_version: process.version,
+        timings: [...timings],
+        total_ms: Math.round(totalMs * 100) / 100
+      };
+      const baselinesDir = path.join(cwd, ".planning", "baselines");
+      try {
+        fs.mkdirSync(baselinesDir, { recursive: true });
+        const filename = `${commandName}-${safeTimestamp}.json`;
+        fs.writeFileSync(path.join(baselinesDir, filename), JSON.stringify(baseline, null, 2) + "\n", "utf-8");
+      } catch (e) {
+        if (process.env.GSD_DEBUG) {
+          process.stderr.write(`[GSD_DEBUG] profiler.writeBaseline: ${e.message}
+`);
+        }
+      }
+    }
+    module2.exports = { isProfilingEnabled, mark, measure, startTimer, endTimer, getTimings, writeBaseline };
+  }
+});
+
 // src/router.js
 var require_router = __commonJS({
   "src/router.js"(exports2, module2) {
@@ -16653,6 +16723,15 @@ var require_router = __commonJS({
       }
       const command = args[0];
       const cwd = process.cwd();
+      const { startTimer: profStart, endTimer: profEnd, writeBaseline, isProfilingEnabled } = require_profiler();
+      const cmdTimer = profStart("command:" + (command || "unknown"));
+      if (isProfilingEnabled()) {
+        const profSub = args[1] && !args[1].startsWith("-") ? args[1] : "";
+        process.on("exit", () => {
+          profEnd(cmdTimer);
+          writeBaseline(cwd, (command || "unknown") + (profSub ? "-" + profSub : ""));
+        });
+      }
       if (!command) {
         error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
       }

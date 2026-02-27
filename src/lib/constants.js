@@ -1084,6 +1084,8 @@ Remove all worktrees for the current project and prune stale references.
 
 Output: { cleaned, worktrees: [{ plan_id, path }] }`,
 
+  'profile': 'Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/',
+
   'git': `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]
 
 Structured git intelligence — JSON output for agents and workflows.

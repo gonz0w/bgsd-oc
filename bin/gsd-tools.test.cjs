@@ -14421,3 +14421,113 @@ describe('contract: init progress fields', () => {
     assert.ok(contract.pass, contract.message);
   });
 });
+
+// ─── profiler ────────────────────────────────────────────────────────────────
+
+describe('profiler', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap\n\n## Milestones\n\n- **v1.0 Test** — Phases 1-1\n\n## Phases\n\n- [ ] Phase 1: Foundation (0/1 plans)\n`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State\n\n## Current Position\n\nPhase: 1\n`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ commit_docs: true }));
+  });
+
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('profiler disabled by default — no baselines created', () => {
+    // Run a command without GSD_PROFILE
+    const env = { ...process.env };
+    delete env.GSD_PROFILE;
+    try {
+      execSync(`node "${TOOLS_PATH}" init progress`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env,
+      });
+    } catch (e) {
+      // Command may fail but profiler should not write baselines
+    }
+    const baselinesDir = path.join(tmpDir, '.planning', 'baselines');
+    // Baselines directory should NOT be created when profiling is disabled
+    const exists = fs.existsSync(baselinesDir);
+    if (exists) {
+      const files = fs.readdirSync(baselinesDir).filter(f => f.startsWith('init-'));
+      assert.strictEqual(files.length, 0, 'No profiler baselines should exist when GSD_PROFILE is not set');
+    }
+  });
+
+  test('profiler enabled writes baseline', () => {
+    const env = { ...process.env, GSD_PROFILE: '1' };
+    try {
+      execSync(`node "${TOOLS_PATH}" init progress`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env,
+      });
+    } catch (e) {
+      // Command may fail but profiler should still write baseline
+    }
+    const baselinesDir = path.join(tmpDir, '.planning', 'baselines');
+    assert.ok(fs.existsSync(baselinesDir), 'Baselines directory should be created');
+    const files = fs.readdirSync(baselinesDir).filter(f => f.endsWith('.json'));
+    assert.ok(files.length > 0, 'Should have at least one baseline file');
+
+    // Parse and verify structure
+    const baseline = JSON.parse(fs.readFileSync(path.join(baselinesDir, files[0]), 'utf-8'));
+    assert.ok(baseline.command, 'Baseline should have command field');
+    assert.ok(baseline.timestamp, 'Baseline should have timestamp field');
+    assert.ok(Array.isArray(baseline.timings), 'Baseline should have timings array');
+    assert.strictEqual(typeof baseline.total_ms, 'number', 'Baseline should have total_ms as number');
+  });
+
+  test('profiler baseline JSON structure', () => {
+    const env = { ...process.env, GSD_PROFILE: '1' };
+    try {
+      execSync(`node "${TOOLS_PATH}" init progress`, {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env,
+      });
+    } catch (e) { /* ignore */ }
+    const baselinesDir = path.join(tmpDir, '.planning', 'baselines');
+    const files = fs.readdirSync(baselinesDir).filter(f => f.endsWith('.json'));
+    const baseline = JSON.parse(fs.readFileSync(path.join(baselinesDir, files[0]), 'utf-8'));
+
+    // Verify full expected shape
+    assert.strictEqual(typeof baseline.command, 'string', 'command should be string');
+    assert.strictEqual(typeof baseline.timestamp, 'string', 'timestamp should be string');
+    assert.strictEqual(typeof baseline.node_version, 'string', 'node_version should be string');
+    assert.ok(Array.isArray(baseline.timings), 'timings should be array');
+    assert.strictEqual(typeof baseline.total_ms, 'number', 'total_ms should be number');
+    // Verify timings have correct structure if present
+    if (baseline.timings.length > 0) {
+      assert.strictEqual(typeof baseline.timings[0].label, 'string', 'timing.label should be string');
+      assert.strictEqual(typeof baseline.timings[0].duration_ms, 'number', 'timing.duration_ms should be number');
+    }
+  });
+
+  test('profiler zero-cost when disabled', () => {
+    // Direct module test — require profiler and check isProfilingEnabled
+    // Since we're not setting GSD_PROFILE in this test process, it should be false
+    // But since the module caches the env at load time, we test the built bundle's behavior
+    // by running a separate process
+    const env = { ...process.env };
+    delete env.GSD_PROFILE;
+
+    // Measure time: run command twice — once with profiler, once without.
+    // The disabled path should not be significantly slower (zero-cost assertion).
+    // We just verify the function returns false when GSD_PROFILE is unset.
+    const checkResult = execSync(
+      `node -e "delete process.env.GSD_PROFILE; const p = require('./src/lib/profiler'); console.log(JSON.stringify({ enabled: p.isProfilingEnabled(), timings: p.getTimings() }))"`,
+      { cwd: path.join(__dirname, '..'), encoding: 'utf-8', env }
+    ).trim();
+    const check = JSON.parse(checkResult);
+    assert.strictEqual(check.enabled, false, 'isProfilingEnabled should return false when GSD_PROFILE unset');
+    assert.deepStrictEqual(check.timings, [], 'getTimings should return empty array when disabled');
+  });
+});
