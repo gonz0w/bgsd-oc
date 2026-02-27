@@ -61,7 +61,7 @@ var require_constants = __commonJS({
       context_target_percent: { type: "number", default: 50, description: "Target context utilization percent (1-100)", aliases: [], nested: null }
     };
     var COMMAND_HELP = {
-      "state": `Usage: gsd-tools state <subcommand> [options] [--raw]
+      "state": `Usage: gsd-tools state <subcommand> [options]
 
 Manage project state in STATE.md.
 
@@ -83,10 +83,10 @@ Subcommands:
   validate [--fix]          Validate state vs disk reality (auto-runs as pre-flight in execute-phase)
 
 Examples:
-  gsd-tools state load --raw
+  gsd-tools state load
   gsd-tools state advance-plan
   gsd-tools state add-decision --phase 03 --summary "Chose esbuild"`,
-      "state validate": `Usage: gsd-tools state validate [--fix] [--raw]
+      "state validate": `Usage: gsd-tools state validate [--fix]
 
 Validate state consistency between declared state and disk reality.
 
@@ -97,17 +97,17 @@ Checks:
   Blocker/todo age     Items open through 2+ completed plans
 
 Options:
-  --fix    Auto-correct plan count mismatches in ROADMAP.md
-  --raw    JSON output
+  --fix      Auto-correct plan count mismatches in ROADMAP.md
+  --pretty   Force human-readable output when piped
 
 Pre-flight: Execute-phase automatically runs state validate --fix before
 execution. Errors block, warnings display. Use --skip-validate to bypass.
 Disable permanently via config: gates.pre_flight_validation: false
 
 Examples:
-  gsd-tools state validate --raw
+  gsd-tools state validate
   gsd-tools state validate --fix`,
-      "frontmatter": `Usage: gsd-tools frontmatter <subcommand> <file> [options] [--raw]
+      "frontmatter": `Usage: gsd-tools frontmatter <subcommand> <file> [options]
 
 CRUD operations on YAML frontmatter in markdown files.
 
@@ -119,9 +119,9 @@ Subcommands:
     Schema types: plan, summary, verification
 
 Examples:
-  gsd-tools frontmatter get plan.md --raw
+  gsd-tools frontmatter get plan.md
   gsd-tools frontmatter set plan.md --field wave --value 2`,
-      "verify": `Usage: gsd-tools verify <subcommand> [args] [--raw]
+      "verify": `Usage: gsd-tools verify <subcommand> [args]
 
 Verification suite for planning documents.
 
@@ -149,7 +149,7 @@ Examples:
   gsd-tools verify regression --before before.json --after after.json
   gsd-tools verify plan-wave .planning/phases/12-quality
   gsd-tools verify plan-deps .planning/phases/12-quality`,
-      "verify deliverables": `Usage: gsd-tools verify deliverables [--plan <file>] [--raw]
+      "verify deliverables": `Usage: gsd-tools verify deliverables [--plan <file>]
 
 Run project tests and optionally verify plan deliverables (artifacts + key_links).
 
@@ -164,7 +164,7 @@ Output: { test_result, tests_passed, tests_failed, tests_total, framework, verdi
 Examples:
   gsd-tools verify deliverables
   gsd-tools verify deliverables --plan .planning/phases/01-foundation/01-01-PLAN.md`,
-      "verify requirements": `Usage: gsd-tools verify requirements [--raw]
+      "verify requirements": `Usage: gsd-tools verify requirements
 
 Check REQUIREMENTS.md coverage. Parses requirement checkboxes and traceability table.
 A requirement is "addressed" if marked [x] or its mapped phase has SUMMARY.md files.
@@ -172,8 +172,8 @@ A requirement is "addressed" if marked [x] or its mapped phase has SUMMARY.md fi
 Output: { total, addressed, unaddressed, unaddressed_list }
 
 Examples:
-  gsd-tools verify requirements --raw`,
-      "verify regression": `Usage: gsd-tools verify regression [--before <file>] [--after <file>] [--raw]
+  gsd-tools verify requirements`,
+      "verify regression": `Usage: gsd-tools verify regression [--before <file>] [--after <file>]
 
 Detect test regressions by comparing before/after test result files.
 Each file: { tests: [{name, status: "pass"|"fail"}] }
@@ -184,7 +184,7 @@ Output: { regressions, regression_count, verdict }
 
 Examples:
   gsd-tools verify regression --before baseline.json --after current.json`,
-      "verify quality": `Usage: gsd-tools verify quality [--plan <file>] [--phase <N>] [--raw]
+      "verify quality": `Usage: gsd-tools verify quality [--plan <file>] [--phase <N>]
 
 Composite quality score across 4 dimensions with trend tracking.
 
@@ -207,9 +207,9 @@ Options:
 Output: { score, grade, dimensions, trend, plan, phase }
 
 Examples:
-  gsd-tools verify quality --raw
-  gsd-tools verify quality --plan .planning/phases/12-quality/12-02-PLAN.md --phase 12 --raw`,
-      "roadmap": `Usage: gsd-tools roadmap <subcommand> [args] [--raw]
+  gsd-tools verify quality
+  gsd-tools verify quality --plan .planning/phases/12-quality/12-02-PLAN.md --phase 12`,
+      "roadmap": `Usage: gsd-tools roadmap <subcommand> [args]
 
 Roadmap operations.
 
@@ -219,9 +219,9 @@ Subcommands:
   update-plan-progress <N>     Update progress table row from disk
 
 Examples:
-  gsd-tools roadmap analyze --raw
+  gsd-tools roadmap analyze
   gsd-tools roadmap update-plan-progress 03`,
-      "phase": `Usage: gsd-tools phase <subcommand> [args] [--raw]
+      "phase": `Usage: gsd-tools phase <subcommand> [args]
 
 Phase lifecycle operations.
 
@@ -235,7 +235,7 @@ Subcommands:
 Examples:
   gsd-tools phase add "Performance Optimization"
   gsd-tools phase complete 02`,
-      "milestone": `Usage: gsd-tools milestone <subcommand> [args] [--raw]
+      "milestone": `Usage: gsd-tools milestone <subcommand> [args]
 
 Milestone lifecycle operations.
 
@@ -246,7 +246,7 @@ Subcommands:
 
 Examples:
   gsd-tools milestone complete v1.0 --name "Initial Release" --archive-phases`,
-      "init": `Usage: gsd-tools init <workflow> [args] [--raw] [--compact]
+      "init": `Usage: gsd-tools init <workflow> [args] [--compact]
 
 Compound initialization commands for workflows.
 
@@ -271,9 +271,9 @@ Flags:
 
 Examples:
   gsd-tools init execute-phase 03
-  gsd-tools init progress --compact --raw
-  gsd-tools init progress --compact --manifest --raw`,
-      "init memory": `Usage: gsd-tools init memory [options] [--raw]
+  gsd-tools init progress --compact
+  gsd-tools init progress --compact --manifest`,
+      "init memory": `Usage: gsd-tools init memory [options]
 
 Session memory digest with workflow-aware codebase knowledge surfacing.
 Reads position from STATE.md, bookmarks/decisions/lessons from memory stores,
@@ -296,10 +296,10 @@ Priority trimming (when output exceeds size limit):
   Position is never trimmed.
 
 Examples:
-  gsd-tools init memory --workflow execute-phase --phase 11 --raw
-  gsd-tools init memory --workflow plan-phase --compact --raw
-  gsd-tools init memory --raw`,
-      "commit": `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend] [--raw]
+  gsd-tools init memory --workflow execute-phase --phase 11
+  gsd-tools init memory --workflow plan-phase --compact
+  gsd-tools init memory`,
+      "commit": `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend]
 
 Commit planning documents to git.
 
@@ -310,7 +310,7 @@ Arguments:
 
 Examples:
   gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md`,
-      "template": `Usage: gsd-tools template <subcommand> [options] [--raw]
+      "template": `Usage: gsd-tools template <subcommand> [options]
 
 Template operations for planning documents.
 
@@ -327,12 +327,12 @@ Subcommands:
 
 Examples:
   gsd-tools template fill summary --phase 03 --plan 01 --name "Help System"`,
-      "config-ensure-section": `Usage: gsd-tools config-ensure-section [--raw]
+      "config-ensure-section": `Usage: gsd-tools config-ensure-section
 
 Initialize .planning/config.json with default values from CONFIG_SCHEMA.
 Detects Brave Search API key availability and applies user-level defaults
 from ~/.gsd/defaults.json if present. No-op if config already exists.`,
-      "config-set": `Usage: gsd-tools config-set <key.path> <value> [--raw]
+      "config-set": `Usage: gsd-tools config-set <key.path> <value>
 
 Set a configuration value in .planning/config.json.
 Supports dot-notation for nested keys.
@@ -344,7 +344,7 @@ Arguments:
 Examples:
   gsd-tools config-set model_profile quality
   gsd-tools config-set workflow.research false`,
-      "config-get": `Usage: gsd-tools config-get <key.path> [--raw]
+      "config-get": `Usage: gsd-tools config-get <key.path>
 
 Get a configuration value from .planning/config.json.
 Supports dot-notation for nested keys.
@@ -353,9 +353,9 @@ Arguments:
   key.path   Key path using dot notation (e.g., workflow.research)
 
 Examples:
-  gsd-tools config-get model_profile --raw
+  gsd-tools config-get model_profile
   gsd-tools config-get workflow.research`,
-      "config-migrate": `Usage: gsd-tools config-migrate [--raw]
+      "config-migrate": `Usage: gsd-tools config-migrate
 
 Migrate .planning/config.json to include any new CONFIG_SCHEMA keys.
 Adds missing keys with default values. Never overwrites existing values.
@@ -365,8 +365,8 @@ Output: { migrated_keys, unchanged_keys, config_path, backup_path }
 
 Examples:
   gsd-tools config-migrate
-  gsd-tools config-migrate --raw`,
-      "generate-slug": `Usage: gsd-tools generate-slug <text> [--raw]
+  gsd-tools config-migrate`,
+      "generate-slug": `Usage: gsd-tools generate-slug <text>
 
 Convert text to a URL-safe slug (lowercase, hyphens, no special chars).
 
@@ -374,9 +374,9 @@ Arguments:
   text   Text to convert
 
 Examples:
-  gsd-tools generate-slug "Developer Experience" --raw
+  gsd-tools generate-slug "Developer Experience"
   # Output: developer-experience`,
-      "current-timestamp": `Usage: gsd-tools current-timestamp [format] [--raw]
+      "current-timestamp": `Usage: gsd-tools current-timestamp [format]
 
 Returns the current UTC timestamp.
 
@@ -386,9 +386,9 @@ Formats:
   filename   Filename-safe: 2026-02-22_143000
 
 Examples:
-  gsd-tools current-timestamp --raw
-  gsd-tools current-timestamp date --raw`,
-      "list-todos": `Usage: gsd-tools list-todos [area] [--raw]
+  gsd-tools current-timestamp
+  gsd-tools current-timestamp date`,
+      "list-todos": `Usage: gsd-tools list-todos [area]
 
 Count and enumerate pending todos from planning documents.
 
@@ -396,8 +396,8 @@ Arguments:
   area   Optional area filter (e.g., phase name)
 
 Examples:
-  gsd-tools list-todos --raw`,
-      "verify-path-exists": `Usage: gsd-tools verify-path-exists <path> [--raw]
+  gsd-tools list-todos`,
+      "verify-path-exists": `Usage: gsd-tools verify-path-exists <path>
 
 Check if a file or directory exists relative to project root.
 
@@ -406,17 +406,17 @@ Arguments:
 
 Examples:
   gsd-tools verify-path-exists .planning/config.json`,
-      "session-diff": `Usage: gsd-tools session-diff [--raw]
+      "session-diff": `Usage: gsd-tools session-diff
 
 Show git commits since last recorded session activity.
 Uses the last activity date from STATE.md to find recent commits.
 
 Output: { commits, since_date, count }`,
-      "session-summary": `Usage: gsd-tools session-summary [--raw]
+      "session-summary": `Usage: gsd-tools session-summary
 
 Session handoff summary: position, activity, next action, continuity.
 Output: { current_position, session_activity, next_action, session_continuity }`,
-      "context-budget": `Usage: gsd-tools context-budget <subcommand|path> [options] [--raw]
+      "context-budget": `Usage: gsd-tools context-budget <subcommand|path> [options]
 
 Measure and compare token consumption across GSD workflows.
 
@@ -427,19 +427,19 @@ Subcommands:
 
 Options:
   --fields <fields>         Return only specified JSON fields (comma-separated)
-  --raw                     Output raw JSON
+  --pretty                  Force human-readable output when piped
 
 Examples:
   gsd-tools context-budget .planning/ROADMAP.md
   gsd-tools context-budget baseline
   gsd-tools context-budget compare
   gsd-tools context-budget compare .planning/baselines/baseline-2026-02-22.json`,
-      "test-run": `Usage: gsd-tools test-run [--raw]
+      "test-run": `Usage: gsd-tools test-run
 
 Run project test commands (from config.json test_commands) and parse output.
 Supports ExUnit, Go test, and pytest output formats.
 Returns structured pass/fail results with test_gate enforcement.`,
-      "search-decisions": `Usage: gsd-tools search-decisions <query> [--raw]
+      "search-decisions": `Usage: gsd-tools search-decisions <query>
 
 Search for decisions in STATE.md and archived milestone states.
 
@@ -448,7 +448,7 @@ Arguments:
 
 Examples:
   gsd-tools search-decisions "esbuild"`,
-      "validate-dependencies": `Usage: gsd-tools validate-dependencies <phase> [--raw]
+      "validate-dependencies": `Usage: gsd-tools validate-dependencies <phase>
 
 Validate the dependency graph for plans in a phase.
 Checks that depends_on references exist and are acyclic.
@@ -458,7 +458,7 @@ Arguments:
 
 Examples:
   gsd-tools validate-dependencies 03`,
-      "search-lessons": `Usage: gsd-tools search-lessons <query> [--raw]
+      "search-lessons": `Usage: gsd-tools search-lessons <query>
 
 Search tasks/lessons.md for matching entries.
 
@@ -467,7 +467,7 @@ Arguments:
 
 Examples:
   gsd-tools search-lessons "frontmatter"`,
-      "codebase-impact": `Usage: gsd-tools codebase-impact <files...> [--raw]
+      "codebase-impact": `Usage: gsd-tools codebase-impact <files...>
 
 Show module dependencies for the given files.
 Reads Elixir defmodule/import/use/alias statements and reports dependents.
@@ -477,7 +477,7 @@ Arguments:
 
 Examples:
   gsd-tools codebase-impact lib/my_app/accounts.ex`,
-      "rollback-info": `Usage: gsd-tools rollback-info <plan-id> [--raw]
+      "rollback-info": `Usage: gsd-tools rollback-info <plan-id>
 
 Show commits associated with a plan and the git revert command to undo them.
 
@@ -486,11 +486,11 @@ Arguments:
 
 Examples:
   gsd-tools rollback-info 02-01`,
-      "velocity": `Usage: gsd-tools velocity [--raw]
+      "velocity": `Usage: gsd-tools velocity
 
 Calculate planning velocity: plans/day, completion forecast, and trend.
 Reads execution metrics from STATE.md performance table.`,
-      "trace-requirement": `Usage: gsd-tools trace-requirement <req-id> [--raw]
+      "trace-requirement": `Usage: gsd-tools trace-requirement <req-id>
 
 Full traceability from requirement to files on disk.
 Traces through REQUIREMENTS.md \u2192 PLAN.md \u2192 SUMMARY.md \u2192 actual files.
@@ -500,14 +500,14 @@ Arguments:
 
 Examples:
   gsd-tools trace-requirement FOUND-01`,
-      "validate-config": `Usage: gsd-tools validate-config [--raw]
+      "validate-config": `Usage: gsd-tools validate-config
 
 Schema validation and typo detection for .planning/config.json.
 Checks all keys against CONFIG_SCHEMA, reports unknown keys and type mismatches.`,
-      "quick-summary": `Usage: gsd-tools quick-summary [--raw]
+      "quick-summary": `Usage: gsd-tools quick-summary
 
 Milestone progress summary showing quick task status.`,
-      "validate": `Usage: gsd-tools validate <subcommand> [options] [--raw]
+      "validate": `Usage: gsd-tools validate <subcommand> [options]
 
 Validation commands.
 
@@ -518,7 +518,7 @@ Subcommands:
 Examples:
   gsd-tools validate consistency
   gsd-tools validate health --repair`,
-      "progress": `Usage: gsd-tools progress [format] [--raw]
+      "progress": `Usage: gsd-tools progress [format]
 
 Render progress in various formats.
 
@@ -529,8 +529,8 @@ Formats:
 
 Examples:
   gsd-tools progress table
-  gsd-tools progress bar --raw`,
-      "todo": `Usage: gsd-tools todo <subcommand> [args] [--raw]
+  gsd-tools progress bar`,
+      "todo": `Usage: gsd-tools todo <subcommand> [args]
 
 Todo management.
 
@@ -539,7 +539,7 @@ Subcommands:
 
 Examples:
   gsd-tools todo complete my-task.md`,
-      "scaffold": `Usage: gsd-tools scaffold <type> [options] [--raw]
+      "scaffold": `Usage: gsd-tools scaffold <type> [options]
 
 Create scaffolded planning documents.
 
@@ -552,7 +552,7 @@ Types:
 Examples:
   gsd-tools scaffold context --phase 03
   gsd-tools scaffold phase-dir --phase 04 --name "Build System"`,
-      "phases": `Usage: gsd-tools phases list [options] [--raw]
+      "phases": `Usage: gsd-tools phases list [options]
 
 List phase directories with metadata.
 
@@ -564,7 +564,7 @@ Options:
 Examples:
   gsd-tools phases list
   gsd-tools phases list --phase 03`,
-      "requirements": `Usage: gsd-tools requirements <subcommand> [args] [--raw]
+      "requirements": `Usage: gsd-tools requirements <subcommand> [args]
 
 Requirements traceability operations.
 
@@ -574,7 +574,7 @@ Subcommands:
 
 Examples:
   gsd-tools requirements mark-complete DX-01 DX-03`,
-      "find-phase": `Usage: gsd-tools find-phase <phase> [--raw]
+      "find-phase": `Usage: gsd-tools find-phase <phase>
 
 Find a phase directory by number, returning its path and metadata.
 
@@ -582,8 +582,8 @@ Arguments:
   phase   Phase number (e.g., 03, 02.1)
 
 Examples:
-  gsd-tools find-phase 03 --raw`,
-      "resolve-model": `Usage: gsd-tools resolve-model <agent-type> [--raw]
+  gsd-tools find-phase 03`,
+      "resolve-model": `Usage: gsd-tools resolve-model <agent-type>
 
 Get the model assignment for an agent based on the active profile.
 
@@ -591,8 +591,8 @@ Arguments:
   agent-type   Agent identifier (e.g., gsd-executor, gsd-planner)
 
 Examples:
-  gsd-tools resolve-model gsd-executor --raw`,
-      "verify-summary": `Usage: gsd-tools verify-summary <path> [--check-count N] [--raw]
+  gsd-tools resolve-model gsd-executor`,
+      "verify-summary": `Usage: gsd-tools verify-summary <path> [--check-count N]
 
 Verify a SUMMARY.md file for completeness and structure.
 
@@ -602,11 +602,11 @@ Arguments:
 
 Examples:
   gsd-tools verify-summary .planning/phases/01-foundation/01-01-SUMMARY.md`,
-      "history-digest": `Usage: gsd-tools history-digest [--raw]
+      "history-digest": `Usage: gsd-tools history-digest
 
 Aggregate all SUMMARY.md data across phases into a single digest.
 Includes archived milestone phases. Returns decisions, tech stack, and per-phase data.`,
-      "phase-plan-index": `Usage: gsd-tools phase-plan-index <phase> [--raw]
+      "phase-plan-index": `Usage: gsd-tools phase-plan-index <phase>
 
 Index all plans in a phase with waves, dependencies, and status.
 
@@ -615,11 +615,11 @@ Arguments:
 
 Examples:
   gsd-tools phase-plan-index 03`,
-      "state-snapshot": `Usage: gsd-tools state-snapshot [--raw]
+      "state-snapshot": `Usage: gsd-tools state-snapshot
 
 Structured parse of STATE.md returning all sections as JSON.
 More detailed than state load \u2014 includes metrics, decisions, blockers, session info.`,
-      "summary-extract": `Usage: gsd-tools summary-extract <path> [--fields f1,f2] [--raw]
+      "summary-extract": `Usage: gsd-tools summary-extract <path> [--fields f1,f2]
 
 Extract structured data from a SUMMARY.md file.
 
@@ -630,7 +630,7 @@ Arguments:
 Examples:
   gsd-tools summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md
   gsd-tools summary-extract path/to/SUMMARY.md --fields phase,decisions`,
-      "websearch": `Usage: gsd-tools websearch <query> [--limit N] [--freshness day|week|month] [--raw]
+      "websearch": `Usage: gsd-tools websearch <query> [--limit N] [--freshness day|week|month]
 
 Search the web via Brave Search API (requires brave_search config enabled).
 
@@ -641,7 +641,7 @@ Arguments:
 
 Examples:
   gsd-tools websearch "esbuild bundler plugins" --limit 5`,
-      "memory": `Usage: gsd-tools memory <subcommand> [options] [--raw]
+      "memory": `Usage: gsd-tools memory <subcommand> [options]
 
 Persistent memory store for decisions, bookmarks, lessons, and todos.
 
@@ -662,8 +662,8 @@ Options (read):
 Examples:
   gsd-tools memory write --store decisions --entry '{"summary":"Chose esbuild","phase":"03"}'
   gsd-tools memory read --store decisions --query "esbuild"
-  gsd-tools memory list --raw`,
-      "memory write": `Usage: gsd-tools memory write --store <name> --entry '{json}' [--raw]
+  gsd-tools memory list`,
+      "memory write": `Usage: gsd-tools memory write --store <name> --entry '{json}'
 
 Write an entry to a memory store.
 
@@ -681,7 +681,7 @@ Auto-adds "timestamp" field (ISO date) if not present.
 Examples:
   gsd-tools memory write --store decisions --entry '{"summary":"Use esbuild","phase":"03"}'
   gsd-tools memory write --store bookmarks --entry '{"file":"src/router.js","line":42}'`,
-      "memory read": `Usage: gsd-tools memory read --store <name> [options] [--raw]
+      "memory read": `Usage: gsd-tools memory read --store <name> [options]
 
 Read entries from a memory store with optional filtering.
 
@@ -696,18 +696,18 @@ Options:
 Output: { entries, count, store, total }
 
 Examples:
-  gsd-tools memory read --store decisions --raw
+  gsd-tools memory read --store decisions
   gsd-tools memory read --store lessons --query "frontmatter" --limit 5
   gsd-tools memory read --store decisions --phase 03`,
-      "memory list": `Usage: gsd-tools memory list [--raw]
+      "memory list": `Usage: gsd-tools memory list
 
 List all memory stores with entry counts and file sizes.
 
 Output: { stores: [{name, entry_count, size_bytes, last_modified}], memory_dir }
 
 Examples:
-  gsd-tools memory list --raw`,
-      "memory compact": `Usage: gsd-tools memory compact [--store <name>] [--threshold N] [--dry-run] [--raw]
+  gsd-tools memory list`,
+      "memory compact": `Usage: gsd-tools memory compact [--store <name>] [--threshold N] [--dry-run]
 
 Compact memory stores by summarizing old entries.
 
@@ -725,10 +725,10 @@ Compaction rules:
 Output: { compacted, stores_processed, entries_before, entries_after, summaries_created, sacred_skipped }
 
 Examples:
-  gsd-tools memory compact --raw
-  gsd-tools memory compact --store bookmarks --dry-run --raw
-  gsd-tools memory compact --threshold 30 --raw`,
-      "test-coverage": `Usage: gsd-tools test-coverage [--raw]
+  gsd-tools memory compact
+  gsd-tools memory compact --store bookmarks --dry-run
+  gsd-tools memory compact --threshold 30`,
+      "test-coverage": `Usage: gsd-tools test-coverage
 
 Analyze test coverage by comparing test file invocations against router commands.
 
@@ -744,15 +744,15 @@ Detects tested commands via:
 Output: { total_commands, commands_with_tests, coverage_percent, covered, uncovered, test_count }
 
 Examples:
-  gsd-tools test-coverage --raw`,
-      "intent": `Usage: gsd-tools intent <subcommand> [options] [--raw]
+  gsd-tools test-coverage`,
+      "intent": `Usage: gsd-tools intent <subcommand> [options]
 
 Manage project intent in INTENT.md.
 
 Subcommands:
   create      Create a new INTENT.md (errors if exists, use --force to overwrite)
   show        Display intent summary (compact by default, --full for complete, section filter supported)
-  read        Read intent as JSON (alias for intent show --raw, section filter supported)
+  read        Read intent as JSON (alias for intent show, section filter supported)
   update      Update INTENT.md sections (--add, --remove, --set-priority, --value)
   validate    Validate INTENT.md structure (exit 0=valid, 1=issues)
   trace       Traceability matrix: desired outcomes \u2192 plans (--gaps for uncovered only)
@@ -761,12 +761,12 @@ Subcommands:
 Examples:
   gsd-tools intent create
   gsd-tools intent show
-  gsd-tools intent read outcomes --raw
-  gsd-tools intent validate --raw
-  gsd-tools intent trace --raw
+  gsd-tools intent read outcomes
+  gsd-tools intent validate
+  gsd-tools intent trace
   gsd-tools intent trace --gaps
-  gsd-tools intent drift --raw`,
-      "intent create": `Usage: gsd-tools intent create [options] [--raw]
+  gsd-tools intent drift`,
+      "intent create": `Usage: gsd-tools intent create [options]
 
 Create a new INTENT.md in .planning/ with 6 structured sections.
 
@@ -785,8 +785,8 @@ Output: { created, path, revision, sections, commit }
 Examples:
   gsd-tools intent create
   gsd-tools intent create --force
-  gsd-tools intent create --objective "A CLI for project planning" --raw`,
-      "intent show": `Usage: gsd-tools intent show [section] [--full] [--raw]
+  gsd-tools intent create --objective "A CLI for project planning"`,
+      "intent show": `Usage: gsd-tools intent show [section] [--full]
 
 Display intent summary from INTENT.md.
 
@@ -794,16 +794,16 @@ Modes:
   (default)        Compact summary (10-20 lines, outcomes sorted by priority)
   --full           Render complete INTENT.md content
   <section>        Show specific section (objective, users, outcomes, criteria, constraints, health)
-  --raw            JSON output of all sections (or filtered section)
+             JSON output of all sections (or filtered section)
 
 Examples:
   gsd-tools intent show
   gsd-tools intent show --full
   gsd-tools intent show outcomes
-  gsd-tools intent show --raw`,
-      "intent read": `Usage: gsd-tools intent read [section] [--raw]
+  gsd-tools intent show`,
+      "intent read": `Usage: gsd-tools intent read [section]
 
-Read intent as JSON. Alias for 'intent show --raw'.
+Read intent as JSON. Alias for 'intent show'.
 
 Arguments:
   section    Optional section filter (objective, users, outcomes, criteria, constraints, health)
@@ -811,25 +811,25 @@ Arguments:
 Output: Full structured JSON or single section JSON
 
 Examples:
-  gsd-tools intent read --raw
-  gsd-tools intent read outcomes --raw`,
-      "intent validate": `Usage: gsd-tools intent validate [--raw]
+  gsd-tools intent read
+  gsd-tools intent read outcomes`,
+      "intent validate": `Usage: gsd-tools intent validate
 
 Validate INTENT.md structure: sections, ID format, uniqueness, minimums.
-Exit 0=valid, 1=issues. Output (--raw): { valid, issues, sections, revision }
+Exit 0=valid, 1=issues. Output (JSON): { valid, issues, sections, revision }
 
 Examples:
-  gsd-tools intent validate --raw`,
-      "intent trace": `Usage: gsd-tools intent trace [--gaps] [--raw]
+  gsd-tools intent validate`,
+      "intent trace": `Usage: gsd-tools intent trace [--gaps]
 
 Traceability matrix: desired outcomes \u2192 plans addressing them.
 Scans PLAN.md frontmatter for intent.outcome_ids.
 
-Flags: --gaps (uncovered only), --raw (JSON output)
+Flags: --gaps (uncovered only), (JSON output)
 
 Examples:
-  gsd-tools intent trace --gaps --raw`,
-      "intent drift": `Usage: gsd-tools intent drift [--raw]
+  gsd-tools intent trace --gaps`,
+      "intent drift": `Usage: gsd-tools intent drift
 
 Detect misalignment between work and stated intent. Drift score 0-100.
 
@@ -837,8 +837,8 @@ Signals: Coverage Gaps (40pts), Objective Mismatch (25pts), Feature Creep (15pts
 Score: 0-15 excellent, 16-35 good, 36-60 moderate, 61-100 poor.
 
 Examples:
-  gsd-tools intent drift --raw`,
-      "extract-sections": `Usage: gsd-tools extract-sections <file-path> [section1] [section2] ... [--raw]
+  gsd-tools intent drift`,
+      "extract-sections": `Usage: gsd-tools extract-sections <file-path> [section1] [section2] ...
 
 Extract specific named sections from a markdown file.
 Supports ## headers and <!-- section: name --> markers as section boundaries.
@@ -853,10 +853,10 @@ Output (discovery):  { file, available_sections: [...] }
 Output (extraction): { file, sections_found, sections_missing, content }
 
 Examples:
-  gsd-tools extract-sections references/checkpoints.md --raw
-  gsd-tools extract-sections references/checkpoints.md "types" --raw
-   gsd-tools extract-sections references/checkpoints.md "types" "guidelines" --raw`,
-      "token-budget": `Usage: gsd-tools token-budget [--raw]
+  gsd-tools extract-sections references/checkpoints.md
+  gsd-tools extract-sections references/checkpoints.md "types"
+   gsd-tools extract-sections references/checkpoints.md "types" "guidelines"`,
+      "token-budget": `Usage: gsd-tools token-budget
 
 Show estimated token counts for all workflow files against their budgets.
 Searches for workflow .md files in:
@@ -869,8 +869,8 @@ Each workflow is measured (chars/4 \u2248 tokens) and compared against known bud
 Output: { workflows: [{ name, path, tokens, budget, within_budget }], total_tokens, over_budget_count }
 
 Examples:
-  gsd-tools token-budget --raw`,
-      "mcp-profile": `Usage: gsd-tools mcp-profile [options] [--raw]
+  gsd-tools token-budget`,
+      "mcp-profile": `Usage: gsd-tools mcp-profile [options]
 
 Discover MCP servers, estimate token cost, score relevance, apply/restore.
 
@@ -882,21 +882,21 @@ Options:
   --apply           Disable recommended servers in opencode.json (backup first)
   --dry-run         With --apply: preview without modifying
   --restore         Restore opencode.json from opencode.json.bak
-  --raw             JSON output
+              JSON output
 
 Only opencode.json is modified (not .mcp.json). Also: gsd-tools mcp profile
 
 Examples:
-  gsd-tools mcp-profile --apply --raw
-  gsd-tools mcp-profile --restore --raw`,
-      "mcp": `Usage: gsd-tools mcp <subcommand> [options] [--raw]
+  gsd-tools mcp-profile --apply
+  gsd-tools mcp-profile --restore`,
+      "mcp": `Usage: gsd-tools mcp <subcommand> [options]
 
 MCP server management. Subcommands: profile [--window N] [--apply] [--restore]
 
 Examples:
-  gsd-tools mcp profile --raw
-  gsd-tools mcp profile --apply --raw`,
-      "assertions": `Usage: gsd-tools assertions <subcommand> [options] [--raw]
+  gsd-tools mcp profile
+  gsd-tools mcp profile --apply`,
+      "assertions": `Usage: gsd-tools assertions <subcommand> [options]
 
 Manage structured acceptance criteria in ASSERTIONS.md.
 
@@ -908,10 +908,10 @@ Output (list): { total_requirements, total_assertions, must_have_count, nice_to_
 Output (validate): { valid, issues, stats: { total_reqs, total_assertions, coverage_percent } }
 
 Examples:
-  gsd-tools assertions list --raw
-  gsd-tools assertions list --req SREQ-01 --raw
-  gsd-tools assertions validate --raw`,
-      "assertions list": `Usage: gsd-tools assertions list [--req <id>] [--raw]
+  gsd-tools assertions list
+  gsd-tools assertions list --req SREQ-01
+  gsd-tools assertions validate`,
+      "assertions list": `Usage: gsd-tools assertions list [--req <id>]
 
 List all assertions from .planning/ASSERTIONS.md grouped by requirement ID.
 
@@ -921,9 +921,9 @@ Options:
 Output: { total_requirements, total_assertions, must_have_count, nice_to_have_count, requirements }
 
 Examples:
-  gsd-tools assertions list --raw
-  gsd-tools assertions list --req SREQ-01 --raw`,
-      "assertions validate": `Usage: gsd-tools assertions validate [--raw]
+  gsd-tools assertions list
+  gsd-tools assertions list --req SREQ-01`,
+      "assertions validate": `Usage: gsd-tools assertions validate
 
 Validate ASSERTIONS.md format, coverage, and consistency with REQUIREMENTS.md.
 
@@ -937,8 +937,8 @@ Checks:
 Output: { valid, issues: [{reqId, issue, severity}], stats: {total_reqs, total_assertions, coverage_percent} }
 
 Examples:
-  gsd-tools assertions validate --raw`,
-      "env": `Usage: gsd-tools env <subcommand> [options] [--raw]
+  gsd-tools assertions validate`,
+      "env": `Usage: gsd-tools env <subcommand> [options]
 
 Detect project languages, tools, and runtimes.
 
@@ -958,13 +958,13 @@ Results are written to:
 Flags:
   --force     Force full rescan even if manifest is fresh
   --verbose   Print human-readable summary to stderr
-  --raw       Output JSON to stdout
+        Output JSON to stdout
 
 Examples:
-  gsd-tools env scan --raw
+  gsd-tools env scan
   gsd-tools env scan --force --verbose
-  gsd-tools env status --raw`,
-      "env scan": `Usage: gsd-tools env scan [--force] [--verbose] [--raw]
+  gsd-tools env status`,
+      "env scan": `Usage: gsd-tools env scan [--force] [--verbose]
 
 Scan project for languages, tools, runtimes, and write env-manifest.json.
 
@@ -979,17 +979,17 @@ Output includes: languages (with binary version/path), package_manager,
 version_managers, tools, scripts, infrastructure, monorepo, watched_files.
 
 Examples:
-  gsd-tools env scan --raw
+  gsd-tools env scan
   gsd-tools env scan --force --verbose`,
-      "env status": `Usage: gsd-tools env status [--raw]
+      "env status": `Usage: gsd-tools env status
 
 Report manifest freshness without triggering a scan.
 
 Output: { exists, stale, reason, scanned_at, age_minutes, languages_count, changed_files }
 
 Examples:
-  gsd-tools env status --raw`,
-      "worktree": `Usage: gsd-tools worktree <subcommand> [options] [--raw]
+  gsd-tools env status`,
+      "worktree": `Usage: gsd-tools worktree <subcommand> [options]
 
 Manage git worktrees for parallel plan execution.
 
@@ -998,7 +998,7 @@ Subcommands:
   list                List active worktrees for this project
   remove <plan-id>    Remove a specific worktree
   cleanup             Remove all worktrees for this project`,
-      "worktree create": `Usage: gsd-tools worktree create <plan-id> [--raw]
+      "worktree create": `Usage: gsd-tools worktree create <plan-id>
 
 Create an isolated git worktree for a plan.
 
@@ -1009,12 +1009,12 @@ Creates worktree at {base_path}/{project}/{plan-id}/ with branch worktree-{phase
 Syncs configured files (.env, config) and runs setup hooks.
 
 Output: { created, plan_id, branch, path, synced_files, setup_status, setup_error?, resource_warnings? }`,
-      "worktree list": `Usage: gsd-tools worktree list [--raw]
+      "worktree list": `Usage: gsd-tools worktree list
 
 List active worktrees for the current project.
 
 Output: { worktrees: [{ plan_id, branch, path, head, disk_usage }] }`,
-      "worktree remove": `Usage: gsd-tools worktree remove <plan-id> [--raw]
+      "worktree remove": `Usage: gsd-tools worktree remove <plan-id>
 
 Remove a specific worktree and its branch.
 
@@ -1022,7 +1022,7 @@ Args:
   plan-id     Plan ID to remove (e.g., 21-02)
 
 Output: { removed, plan_id, path }`,
-      "worktree cleanup": `Usage: gsd-tools worktree cleanup [--raw]
+      "worktree cleanup": `Usage: gsd-tools worktree cleanup
 
 Remove all worktrees for the current project and prune stale references.
 
@@ -1083,25 +1083,51 @@ var require_output = __commonJS({
       }
       return result;
     }
-    function output(result, raw, rawValue) {
-      if (raw && rawValue !== void 0) {
+    function outputMode() {
+      return global._gsdOutputMode || "json";
+    }
+    function outputJSON(result, rawValue) {
+      const mode = global._gsdOutputMode || "json";
+      if (rawValue !== void 0 && mode !== "json") {
         process.stdout.write(String(rawValue));
+        return;
+      }
+      let filtered = result;
+      if (global._gsdRequestedFields && typeof result === "object" && result !== null) {
+        filtered = filterFields(result, global._gsdRequestedFields);
+      }
+      const json = JSON.stringify(filtered, null, 2);
+      if (json.length > 5e4 && !process.env.GSD_NO_TMPFILE) {
+        const tmpPath = path.join(require("os").tmpdir(), `gsd-${Date.now()}.json`);
+        fs.writeFileSync(tmpPath, json, "utf-8");
+        _tmpFiles.push(tmpPath);
+        process.stdout.write("@file:" + tmpPath);
       } else {
-        let filtered = result;
-        if (global._gsdRequestedFields && typeof result === "object" && result !== null) {
-          filtered = filterFields(result, global._gsdRequestedFields);
-        }
-        const json = JSON.stringify(filtered, null, 2);
-        if (json.length > 5e4 && !process.env.GSD_NO_TMPFILE) {
-          const tmpPath = path.join(require("os").tmpdir(), `gsd-${Date.now()}.json`);
-          fs.writeFileSync(tmpPath, json, "utf-8");
-          _tmpFiles.push(tmpPath);
-          process.stdout.write("@file:" + tmpPath);
+        process.stdout.write(json);
+      }
+    }
+    function output(result, options) {
+      if (typeof options === "boolean") {
+        outputJSON(result, arguments[2]);
+        process.exit(0);
+        return;
+      }
+      const opts = options || {};
+      const mode = outputMode();
+      if (mode === "json") {
+        outputJSON(result, opts.rawValue);
+      } else {
+        if (opts.formatter) {
+          const formatted = opts.formatter(result);
+          process.stdout.write(formatted + "\n");
         } else {
-          process.stdout.write(json);
+          outputJSON(result, opts.rawValue);
         }
       }
       process.exit(0);
+    }
+    function status(message) {
+      process.stderr.write(message + "\n");
     }
     function error(message) {
       process.stderr.write("Error: " + message + "\n");
@@ -1113,7 +1139,7 @@ var require_output = __commonJS({
       if (err) line += ` | ${err.message || err}`;
       process.stderr.write(line + "\n");
     }
-    module2.exports = { _tmpFiles, filterFields, output, error, debugLog };
+    module2.exports = { _tmpFiles, filterFields, output, outputMode, status, error, debugLog };
   }
 });
 
@@ -2202,26 +2228,22 @@ var require_state = __commonJS({
         roadmap_exists: roadmapExists,
         config_exists: configExists
       };
-      if (raw) {
-        const c = config;
-        const lines = [
-          `model_profile=${c.model_profile}`,
-          `commit_docs=${c.commit_docs}`,
-          `branching_strategy=${c.branching_strategy}`,
-          `phase_branch_template=${c.phase_branch_template}`,
-          `milestone_branch_template=${c.milestone_branch_template}`,
-          `parallelization=${c.parallelization}`,
-          `research=${c.research}`,
-          `plan_checker=${c.plan_checker}`,
-          `verifier=${c.verifier}`,
-          `config_exists=${configExists}`,
-          `roadmap_exists=${roadmapExists}`,
-          `state_exists=${stateExists}`
-        ];
-        process.stdout.write(lines.join("\n"));
-        process.exit(0);
-      }
-      output(result);
+      const c = config;
+      const rawLines = [
+        `model_profile=${c.model_profile}`,
+        `commit_docs=${c.commit_docs}`,
+        `branching_strategy=${c.branching_strategy}`,
+        `phase_branch_template=${c.phase_branch_template}`,
+        `milestone_branch_template=${c.milestone_branch_template}`,
+        `parallelization=${c.parallelization}`,
+        `research=${c.research}`,
+        `plan_checker=${c.plan_checker}`,
+        `verifier=${c.verifier}`,
+        `config_exists=${configExists}`,
+        `roadmap_exists=${roadmapExists}`,
+        `state_exists=${stateExists}`
+      ].join("\n");
+      output(result, raw, rawLines);
     }
     function cmdStateGet(cwd, section, raw) {
       const statePath = path.join(cwd, ".planning", "STATE.md");
@@ -9756,10 +9778,6 @@ var require_codebase = __commonJS({
       const maxIdx = args.indexOf("--max");
       const maxRules = maxIdx !== -1 ? parseInt(args[maxIdx + 1], 10) : 15;
       const result = generateRules(conventions, { threshold, maxRules });
-      if (raw) {
-        process.stdout.write(result.rules_text + "\n");
-        return;
-      }
       output({
         success: true,
         rules: result.rules,
@@ -9767,7 +9785,7 @@ var require_codebase = __commonJS({
         rule_count: result.rule_count,
         total_conventions: result.total_conventions,
         filtered_count: result.filtered_count
-      }, false);
+      }, raw, result.rules_text + "\n");
     }
     function cmdCodebaseDeps(cwd, args, raw) {
       const intel = readIntel(cwd);
@@ -15753,9 +15771,17 @@ var require_router = __commonJS({
     }
     async function main2() {
       const args = process.argv.slice(2);
+      const prettyIdx = args.indexOf("--pretty");
+      if (prettyIdx !== -1) {
+        global._gsdOutputMode = "pretty";
+        args.splice(prettyIdx, 1);
+      }
+      if (global._gsdOutputMode === void 0) {
+        global._gsdOutputMode = process.stdout.isTTY ? "formatted" : "json";
+      }
       const rawIndex = args.indexOf("--raw");
-      const raw = rawIndex !== -1;
       if (rawIndex !== -1) args.splice(rawIndex, 1);
+      const raw = global._gsdOutputMode === "json" || global._gsdOutputMode !== "pretty" && !process.stdout.isTTY;
       const fieldsIdx = args.indexOf("--fields");
       if (fieldsIdx !== -1) {
         const fieldsValue = args[fieldsIdx + 1];
@@ -15785,7 +15811,7 @@ var require_router = __commonJS({
       const command = args[0];
       const cwd = process.cwd();
       if (!command) {
-        error("Usage: gsd-tools <command> [args] [--raw] [--verbose]\nCommands: assertions, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
+        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -16426,7 +16452,6 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
           error(`Unknown command: ${command}`);
       }
     }
-    module2.exports = { main: main2 };
     module2.exports = { main: main2 };
   }
 });

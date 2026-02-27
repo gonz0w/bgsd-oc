@@ -450,12 +450,6 @@ function cmdCodebaseRules(cwd, args, raw) {
 
   const result = generateRules(conventions, { threshold, maxRules });
 
-  if (raw) {
-    // Raw mode: output just the plain text rules for prompt injection
-    process.stdout.write(result.rules_text + '\n');
-    return;
-  }
-
   output({
     success: true,
     rules: result.rules,
@@ -463,7 +457,7 @@ function cmdCodebaseRules(cwd, args, raw) {
     rule_count: result.rule_count,
     total_conventions: result.total_conventions,
     filtered_count: result.filtered_count,
-  }, false);
+  }, raw, result.rules_text + '\n');
 }
 
 

@@ -90,7 +90,13 @@ function outputMode() {
  * tmpfile fallback. Extracted from output() for dual-mode routing.
  */
 function outputJSON(result, rawValue) {
-  if (rawValue !== undefined) {
+  // In json mode, ALWAYS output structured JSON — ignore rawValue.
+  // rawValue was a legacy --raw feature for plain text output.
+  // With TTY auto-detection, piped contexts get JSON, TTY gets formatted.
+  // rawValue is only honored in formatted/pretty mode (for commands that
+  // produce simple text output like current-timestamp, generate-slug).
+  const mode = global._gsdOutputMode || 'json';
+  if (rawValue !== undefined && mode !== 'json') {
     process.stdout.write(String(rawValue));
     return;
   }
