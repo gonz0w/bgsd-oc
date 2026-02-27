@@ -3,9 +3,10 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { safeReadFile, findPhaseInternal, normalizePhaseName, parseMustHavesBlock, getArchivedPhaseDirs, getMilestoneInfo } = require('../lib/helpers');
+const { safeReadFile, cachedReadFile, findPhaseInternal, normalizePhaseName, parseMustHavesBlock, getArchivedPhaseDirs, getMilestoneInfo, getPhaseTree } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
+const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, colorByPercent, progressBar, box } = require('../lib/format');
 
 function cmdVerifyPlanStructure(cwd, filePath, raw) {
   if (!filePath) { error('file path required'); }
@@ -346,18 +347,16 @@ function cmdVerifyKeyLinks(cwd, planFilePath, raw) {
 
 function cmdValidateConsistency(cwd, raw) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const phasesDir = path.join(cwd, '.planning', 'phases');
   const errors = [];
   const warnings = [];
 
   // Check for ROADMAP
-  if (!fs.existsSync(roadmapPath)) {
+  const roadmapContent = cachedReadFile(roadmapPath);
+  if (!roadmapContent) {
     errors.push('ROADMAP.md not found');
     output({ passed: false, errors, warnings }, raw, 'failed');
     return;
   }
-
-  const roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
 
   // Extract phases from ROADMAP
   const roadmapPhases = new Set();
@@ -367,16 +366,12 @@ function cmdValidateConsistency(cwd, raw) {
     roadmapPhases.add(m[1]);
   }
 
-  // Get phases on disk
+  // Get phases on disk — single cached scan instead of 3 separate readdirSync
+  const phaseTree = getPhaseTree(cwd);
   const diskPhases = new Set();
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-    for (const dir of dirs) {
-      const dm = dir.match(/^(\d+(?:\.\d+)?)/);
-      if (dm) diskPhases.add(dm[1]);
-    }
-  } catch (e) { debugLog('validate.consistency', 'readdir failed', e); }
+  for (const [, entry] of phaseTree) {
+    diskPhases.add(entry.phaseNumber);
+  }
 
   // Check: phases in ROADMAP but not on disk
   for (const p of roadmapPhases) {
@@ -405,60 +400,42 @@ function cmdValidateConsistency(cwd, raw) {
     }
   }
 
-  // Check: plan numbering within phases
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+  // Check: plan numbering + orphan summaries + frontmatter — all from cached tree
+  for (const [, entry] of phaseTree) {
+    const plans = entry.plans;
+    const summaries = entry.summaries;
 
-    for (const dir of dirs) {
-      const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md')).sort();
+    // Extract plan numbers
+    const planNums = plans.map(p => {
+      const pm = p.match(/-(\d{2})-PLAN\.md$/);
+      return pm ? parseInt(pm[1], 10) : null;
+    }).filter(n => n !== null);
 
-      // Extract plan numbers
-      const planNums = plans.map(p => {
-        const pm = p.match(/-(\d{2})-PLAN\.md$/);
-        return pm ? parseInt(pm[1], 10) : null;
-      }).filter(n => n !== null);
-
-      for (let i = 1; i < planNums.length; i++) {
-        if (planNums[i] !== planNums[i - 1] + 1) {
-          warnings.push(`Gap in plan numbering in ${dir}: plan ${planNums[i - 1]} → ${planNums[i]}`);
-        }
-      }
-
-      // Check: plans without summaries (completed plans)
-      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md'));
-      const planIds = new Set(plans.map(p => p.replace('-PLAN.md', '')));
-      const summaryIds = new Set(summaries.map(s => s.replace('-SUMMARY.md', '')));
-
-      // Summary without matching plan is suspicious
-      for (const sid of summaryIds) {
-        if (!planIds.has(sid)) {
-          warnings.push(`Summary ${sid}-SUMMARY.md in ${dir} has no matching PLAN.md`);
-        }
+    for (let i = 1; i < planNums.length; i++) {
+      if (planNums[i] !== planNums[i - 1] + 1) {
+        warnings.push(`Gap in plan numbering in ${entry.dirName}: plan ${planNums[i - 1]} → ${planNums[i]}`);
       }
     }
-  } catch (e) { debugLog('validate.consistency', 'check plan numbering failed', e); }
 
-  // Check: frontmatter in plans has required fields
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-
-    for (const dir of dirs) {
-      const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md'));
-
-      for (const plan of plans) {
-        const content = fs.readFileSync(path.join(phasesDir, dir, plan), 'utf-8');
-        const fm = extractFrontmatter(content);
-
-        if (!fm.wave) {
-          warnings.push(`${dir}/${plan}: missing 'wave' in frontmatter`);
-        }
+    // Summary without matching plan is suspicious
+    const planIds = new Set(plans.map(p => p.replace('-PLAN.md', '')));
+    const summaryIds = new Set(summaries.map(s => s.replace('-SUMMARY.md', '')));
+    for (const sid of summaryIds) {
+      if (!planIds.has(sid)) {
+        warnings.push(`Summary ${sid}-SUMMARY.md in ${entry.dirName} has no matching PLAN.md`);
       }
     }
-  } catch (e) { debugLog('validate.consistency', 'frontmatter extraction failed', e); }
+
+    // Check: frontmatter in plans has required fields
+    for (const plan of plans) {
+      const content = cachedReadFile(path.join(entry.fullPath, plan));
+      if (!content) continue;
+      const fm = extractFrontmatter(content);
+      if (!fm.wave) {
+        warnings.push(`${entry.dirName}/${plan}: missing 'wave' in frontmatter`);
+      }
+    }
+  }
 
   const passed = errors.length === 0;
   output({ passed, errors, warnings, warning_count: warnings.length }, raw, passed ? 'passed' : 'failed');
@@ -499,13 +476,13 @@ function cmdValidateHealth(cwd, options, raw) {
   }
 
   // Check 2: PROJECT.md exists and has required sections
-  if (!fs.existsSync(projectPath)) {
+  const projectContent = cachedReadFile(projectPath);
+  if (!projectContent) {
     addIssue('error', 'E002', 'PROJECT.md not found', 'Run /gsd:new-project to create');
   } else {
-    const content = fs.readFileSync(projectPath, 'utf-8');
     const requiredSections = ['## What This Is', '## Core Value', '## Requirements'];
     for (const section of requiredSections) {
-      if (!content.includes(section)) {
+      if (!projectContent.includes(section)) {
         addIssue('warning', 'W001', `PROJECT.md missing section: ${section}`, 'Add section manually');
       }
     }
@@ -517,22 +494,18 @@ function cmdValidateHealth(cwd, options, raw) {
   }
 
   // Check 4: STATE.md exists and references valid phases
-  if (!fs.existsSync(statePath)) {
+  const stateContent = cachedReadFile(statePath);
+  if (!stateContent) {
     addIssue('error', 'E004', 'STATE.md not found', 'Run /gsd:health --repair to regenerate', true);
     repairs.push('regenerateState');
   } else {
-    const stateContent = fs.readFileSync(statePath, 'utf-8');
     const phaseRefs = [...stateContent.matchAll(/[Pp]hase\s+(\d+(?:\.\d+)?)/g)].map(m => m[1]);
+    // Use cached phase tree instead of separate readdirSync
+    const phaseTree = getPhaseTree(cwd);
     const diskPhases = new Set();
-    try {
-      const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-      for (const e of entries) {
-        if (e.isDirectory()) {
-          const m = e.name.match(/^(\d+(?:\.\d+)?)/);
-          if (m) diskPhases.add(m[1]);
-        }
-      }
-    } catch (e) { debugLog('validate.health', 'readdir failed', e); }
+    for (const [, entry] of phaseTree) {
+      diskPhases.add(entry.phaseNumber);
+    }
     for (const ref of phaseRefs) {
       const normalizedRef = String(parseInt(ref, 10)).padStart(2, '0');
       if (!diskPhases.has(ref) && !diskPhases.has(normalizedRef) && !diskPhases.has(String(parseInt(ref, 10)))) {
@@ -545,13 +518,13 @@ function cmdValidateHealth(cwd, options, raw) {
   }
 
   // Check 5: config.json valid JSON + valid schema
-  if (!fs.existsSync(configPath)) {
+  const configContent = cachedReadFile(configPath);
+  if (!configContent) {
     addIssue('warning', 'W003', 'config.json not found', 'Run /gsd:health --repair to create with defaults', true);
     repairs.push('createConfig');
   } else {
     try {
-      const rawContent = fs.readFileSync(configPath, 'utf-8');
-      const parsed = JSON.parse(rawContent);
+      const parsed = JSON.parse(configContent);
       const validProfiles = ['quality', 'balanced', 'budget'];
       if (parsed.model_profile && !validProfiles.includes(parsed.model_profile)) {
         addIssue('warning', 'W004', `config.json: invalid model_profile "${parsed.model_profile}"`, `Valid values: ${validProfiles.join(', ')}`);
@@ -563,34 +536,23 @@ function cmdValidateHealth(cwd, options, raw) {
     }
   }
 
-  // Check 6: Phase directory naming (NN-name format)
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    for (const e of entries) {
-      if (e.isDirectory() && !e.name.match(/^\d{2}(?:\.\d+)?-[\w-]+$/)) {
-        addIssue('warning', 'W005', `Phase directory "${e.name}" doesn't follow NN-name format`, 'Rename to match pattern (e.g., 01-setup)');
+  // Check 6 & 7: Phase directory naming + orphaned plans — use cached phase tree
+  const healthPhaseTree = getPhaseTree(cwd);
+  for (const [, entry] of healthPhaseTree) {
+    // Check 6: Phase directory naming (NN-name format)
+    if (!entry.dirName.match(/^\d{2}(?:\.\d+)?-[\w-]+$/)) {
+      addIssue('warning', 'W005', `Phase directory "${entry.dirName}" doesn't follow NN-name format`, 'Rename to match pattern (e.g., 01-setup)');
+    }
+
+    // Check 7: Orphaned plans (PLAN without SUMMARY)
+    const summaryBases = new Set(entry.summaries.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', '')));
+    for (const plan of entry.plans) {
+      const planBase = plan.replace('-PLAN.md', '').replace('PLAN.md', '');
+      if (!summaryBases.has(planBase)) {
+        addIssue('info', 'I001', `${entry.dirName}/${plan} has no SUMMARY.md`, 'May be in progress');
       }
     }
-  } catch (e) { debugLog('validate.health', 'readdir failed', e); }
-
-  // Check 7: Orphaned plans (PLAN without SUMMARY)
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    for (const e of entries) {
-      if (!e.isDirectory()) continue;
-      const phaseFiles = fs.readdirSync(path.join(phasesDir, e.name));
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
-      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
-      const summaryBases = new Set(summaries.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', '')));
-
-      for (const plan of plans) {
-        const planBase = plan.replace('-PLAN.md', '').replace('PLAN.md', '');
-        if (!summaryBases.has(planBase)) {
-          addIssue('info', 'I001', `${e.name}/${plan} has no SUMMARY.md`, 'May be in progress');
-        }
-      }
-    }
-  } catch (e) { debugLog('validate.health', 'readdir failed', e); }
+  }
 
   // Check 8: Run existing consistency checks
   if (fs.existsSync(roadmapPath)) {
@@ -979,6 +941,58 @@ function cmdVerifyDeliverables(cwd, options, raw) {
   }, raw, verdict);
 }
 
+// ─── Verify Requirements Formatter ──────────────────────────────────────────
+
+function formatVerifyRequirements(result) {
+  const lines = [];
+  lines.push(banner('Requirements'));
+  lines.push('');
+
+  if (result.error) {
+    lines.push(box(result.error, 'warning'));
+    return lines.join('\n');
+  }
+
+  const addressedPercent = result.total > 0 ? Math.round((result.addressed / result.total) * 100) : 0;
+  lines.push(`  ${result.addressed}/${result.total} requirements addressed`);
+  lines.push('  ' + progressBar(addressedPercent));
+  lines.push('');
+
+  // Unaddressed requirements table
+  if (result.unaddressed_list && result.unaddressed_list.length > 0) {
+    lines.push(sectionHeader('Unaddressed'));
+    lines.push('');
+    const rows = result.unaddressed_list.map(u => [
+      SYMBOLS.cross + ' ' + u.id,
+      u.phase ? 'Phase ' + u.phase : color.dim('n/a'),
+      u.reason || '',
+    ]);
+    lines.push(formatTable(['ID', 'Phase', 'Reason'], rows));
+    lines.push('');
+  }
+
+  // Assertions summary
+  if (result.assertions) {
+    const a = result.assertions;
+    lines.push(sectionHeader('Assertions'));
+    lines.push('');
+    const passStr = color.green(a.verified + ' pass');
+    const failStr = a.failed > 0 ? color.red(a.failed + ' fail') : color.dim(a.failed + ' fail');
+    const humanStr = a.needs_human > 0 ? color.yellow(a.needs_human + ' needs human') : color.dim(a.needs_human + ' needs human');
+    lines.push('  ' + passStr + ', ' + failStr + ', ' + humanStr);
+    lines.push('');
+  }
+
+  // Summary line
+  if (result.addressed === result.total) {
+    lines.push(summaryLine(SYMBOLS.check + ' All requirements addressed'));
+  } else {
+    lines.push(summaryLine(result.unaddressed + ' requirements need attention'));
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Verify Requirements (VRFY-02) ─────────────────────────────────────────
 
 function cmdVerifyRequirements(cwd, options, raw) {
@@ -1226,7 +1240,7 @@ function cmdVerifyRequirements(cwd, options, raw) {
     rawValue = unaddressedList.length === 0 ? 'pass' : 'fail';
   }
 
-  output(result, raw, rawValue);
+  output(result, { formatter: formatVerifyRequirements, rawValue });
 }
 
 // ─── Verify Regression (VRFY-03) ────────────────────────────────────────────
@@ -1527,6 +1541,58 @@ function cmdVerifyPlanDeps(cwd, phasePath, raw) {
   }, raw, verdict);
 }
 
+// ─── Verify Quality Formatter ───────────────────────────────────────────────
+
+function formatVerifyQuality(result) {
+  const lines = [];
+  lines.push(banner('Quality'));
+  lines.push('');
+
+  // Overall score with color-coded grade
+  const scorePct = Math.max(0, Math.min(100, result.score || 0));
+  const gradeColor = colorByPercent(scorePct);
+  lines.push('  ' + color.bold(gradeColor(result.grade)) + ' ' + gradeColor('(' + scorePct + '/100)'));
+  lines.push('');
+
+  // Dimensions table
+  const dimNames = { tests: 'Tests', must_haves: 'Must-Haves', requirements: 'Requirements', regression: 'Regression' };
+  lines.push(sectionHeader('Dimensions'));
+  lines.push('');
+
+  const rows = [];
+  for (const [key, dim] of Object.entries(result.dimensions || {})) {
+    const name = dimNames[key] || key;
+    let scoreStr;
+    if (dim.score === null || dim.score === undefined) {
+      scoreStr = color.dim('n/a');
+    } else {
+      const dimColor = colorByPercent(dim.score);
+      scoreStr = dimColor(String(dim.score));
+    }
+    rows.push([name, scoreStr, String(dim.weight) + '%', dim.detail || '']);
+  }
+  lines.push(formatTable(['Dimension', 'Score', 'Weight', 'Detail'], rows));
+  lines.push('');
+
+  // Trend indicator
+  const trend = result.trend || 'stable';
+  let trendStr;
+  if (trend === 'improving') {
+    trendStr = color.green('\u2191 improving');
+  } else if (trend === 'declining') {
+    trendStr = color.red('\u2193 declining');
+  } else {
+    trendStr = color.dim('\u2192 stable');
+  }
+  lines.push('  Trend: ' + trendStr);
+  lines.push('');
+
+  // Summary line
+  lines.push(summaryLine('Quality: ' + result.grade + ' (' + scorePct + '/100) \u2014 ' + trend));
+
+  return lines.join('\n');
+}
+
 // ─── Verify Quality (VRFY-04, VRFY-05, VRFY-06) ────────────────────────────
 
 function cmdVerifyQuality(cwd, options, raw) {
@@ -1801,7 +1867,7 @@ function cmdVerifyQuality(cwd, options, raw) {
     trend,
     plan: planId,
     phase: phaseNum || (planId ? planId.split('-')[0] : null),
-  }, raw);
+  }, { formatter: formatVerifyQuality });
 }
 
 // ─── Assertions Commands ────────────────────────────────────────────────────
