@@ -15375,3 +15375,197 @@ describe('orchestration: init execute-phase integration', () => {
     }
   });
 });
+
+// ─── Agent Context Manifests ─────────────────────────────────────────────────
+
+describe('agent manifests: AGENT_MANIFESTS structure', () => {
+  test('has entries for all 5 agent types', () => {
+    const ctx = require('../src/lib/context');
+    const types = ['gsd-executor', 'gsd-verifier', 'gsd-planner', 'gsd-phase-researcher', 'gsd-plan-checker'];
+    for (const t of types) {
+      assert.ok(ctx.AGENT_MANIFESTS[t], `Missing manifest for ${t}`);
+      assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].fields), `${t} should have fields array`);
+      assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].optional), `${t} should have optional array`);
+      assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].exclude), `${t} should have exclude array`);
+    }
+  });
+});
+
+describe('agent manifests: scopeContextForAgent', () => {
+  const ctx = require('../src/lib/context');
+
+  test('gsd-executor gets task_routing but not intent_drift', () => {
+    const result = {
+      phase_dir: '/test', phase_number: '38', phase_name: 'test',
+      plans: [], incomplete_plans: [], plan_count: 0, incomplete_count: 0,
+      branch_name: 'gsd/phase-38', commit_docs: true, verifier_enabled: true,
+      task_routing: { plans: [] }, env_summary: 'node',
+      intent_drift: { score: 20 }, intent_summary: 'Build stuff',
+      worktree_config: {}, worktree_active: [], file_overlaps: [],
+      codebase_stats: { total: 100 }, codebase_freshness: null,
+    };
+    const scoped = ctx.scopeContextForAgent(result, 'gsd-executor');
+    assert.strictEqual(scoped._agent, 'gsd-executor');
+    assert.ok('task_routing' in scoped, 'Should include task_routing');
+    assert.ok(!('intent_drift' in scoped), 'Should exclude intent_drift');
+    assert.ok(!('worktree_config' in scoped), 'Should exclude worktree_config');
+  });
+
+  test('gsd-verifier gets phase_dir but not task_routing', () => {
+    const result = {
+      phase_dir: '/test', phase_number: '38', phase_name: 'test',
+      plans: [], summaries: [], verifier_enabled: true,
+      task_routing: { plans: [] }, env_summary: 'node',
+      intent_drift: { score: 20 }, codebase_stats: { total: 100 },
+    };
+    const scoped = ctx.scopeContextForAgent(result, 'gsd-verifier');
+    assert.strictEqual(scoped._agent, 'gsd-verifier');
+    assert.ok('phase_dir' in scoped, 'Should include phase_dir');
+    assert.ok(!('task_routing' in scoped), 'Should exclude task_routing');
+    assert.ok(!('env_summary' in scoped), 'Should exclude env_summary');
+  });
+
+  test('unknown agent type returns full result', () => {
+    const result = { phase_dir: '/test', phase_number: '38' };
+    const scoped = ctx.scopeContextForAgent(result, 'gsd-unknown-agent');
+    assert.strictEqual(scoped.phase_dir, '/test');
+    assert.strictEqual(scoped.phase_number, '38');
+    assert.ok(!('_agent' in scoped), 'Should not add _agent for unknown type');
+  });
+
+  test('_savings shows reduction percentage', () => {
+    const result = {
+      phase_dir: '/test', phase_number: '38', phase_name: 'test',
+      plans: [], incomplete_plans: [], plan_count: 0, incomplete_count: 0,
+      branch_name: 'gsd/38', commit_docs: true, verifier_enabled: true,
+      task_routing: null, env_summary: null,
+      intent_drift: { score: 5 }, intent_summary: 'test',
+      worktree_config: {}, worktree_active: [], file_overlaps: [],
+      codebase_stats: null, codebase_freshness: null,
+      codebase_conventions: null, codebase_dependencies: null,
+    };
+    const scoped = ctx.scopeContextForAgent(result, 'gsd-executor');
+    assert.ok(scoped._savings, 'Should have _savings');
+    assert.ok(typeof scoped._savings.original_keys === 'number');
+    assert.ok(typeof scoped._savings.scoped_keys === 'number');
+    assert.ok(typeof scoped._savings.reduction_pct === 'number');
+    assert.ok(scoped._savings.reduction_pct > 0, 'Should show positive reduction');
+  });
+});
+
+describe('agent manifests: compactPlanState', () => {
+  const ctx = require('../src/lib/context');
+
+  test('reduces STATE.md to compact object with phase, progress, status', () => {
+    const stateRaw = `# Project State
+
+## Current Position
+
+Phase: 39 — Orchestration Intelligence
+Plan: 1 of 1 complete
+Status: Phase complete
+Last activity: 2026-02-27 — Completed 39-01
+
+## Accumulated Context
+
+### Decisions
+
+- Phase 38-01: Use acorn
+- Phase 38-02: Base complexity 1
+- Phase 39-01: Model mapping scores
+`;
+    const compact = ctx.compactPlanState(stateRaw);
+    assert.strictEqual(compact.phase, '39');
+    assert.strictEqual(compact.progress, '1 of 1 complete');
+    assert.strictEqual(compact.status, 'Phase complete');
+    assert.strictEqual(compact.last_activity, '2026-02-27');
+    assert.ok(compact.decisions.length >= 2, 'Should have decisions');
+    assert.deepStrictEqual(compact.blockers, []);
+  });
+
+  test('decisions limited to last 5', () => {
+    const stateRaw = `## Current Position
+Phase: 10
+Plan: 5 of 5 complete
+Status: Phase complete
+Last activity: 2026-01-01
+
+### Decisions
+
+- Phase 01-01: Decision A
+- Phase 02-01: Decision B
+- Phase 03-01: Decision C
+- Phase 04-01: Decision D
+- Phase 05-01: Decision E
+- Phase 06-01: Decision F
+- Phase 07-01: Decision G
+`;
+    const compact = ctx.compactPlanState(stateRaw);
+    assert.strictEqual(compact.decisions.length, 5, 'Should cap at 5 decisions');
+    assert.ok(compact.decisions[0].includes('03-01'), 'Should keep last 5 (starting from 3rd)');
+    assert.ok(compact.decisions[4].includes('07-01'), 'Last decision should be 07-01');
+  });
+
+  test('empty/missing state returns sensible defaults', () => {
+    const compact = ctx.compactPlanState('');
+    assert.strictEqual(compact.phase, null);
+    assert.strictEqual(compact.progress, null);
+    assert.strictEqual(compact.status, null);
+    assert.strictEqual(compact.last_activity, null);
+    assert.deepStrictEqual(compact.decisions, []);
+    assert.deepStrictEqual(compact.blockers, []);
+
+    const compactNull = ctx.compactPlanState(null);
+    assert.strictEqual(compactNull.phase, null);
+  });
+});
+
+describe('agent manifests: compactDepGraph', () => {
+  const ctx = require('../src/lib/context');
+
+  test('reduces dep data, keeps top_imported capped at 5', () => {
+    const dep = {
+      total_modules: 25, total_edges: 60,
+      top_imported: ['a(8)', 'b(6)', 'c(5)', 'd(4)', 'e(3)', 'f(2)', 'g(1)'],
+      has_cycles: true, confidence: 0.85,
+    };
+    const compact = ctx.compactDepGraph(dep);
+    assert.strictEqual(compact.total_modules, 25);
+    assert.strictEqual(compact.total_edges, 60);
+    assert.strictEqual(compact.top_imported.length, 5, 'Should cap at 5');
+    assert.strictEqual(compact.has_cycles, true);
+    assert.ok(!('confidence' in compact), 'Should strip confidence');
+  });
+
+  test('null/undefined input returns empty object', () => {
+    assert.deepStrictEqual(ctx.compactDepGraph(null), {});
+    assert.deepStrictEqual(ctx.compactDepGraph(undefined), {});
+  });
+});
+
+describe('agent manifests: init --agent integration', () => {
+  test('init execute-phase --agent=gsd-executor returns scoped output', () => {
+    const result = runGsdTools('init execute-phase 38 --agent=gsd-executor --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed._agent, 'gsd-executor');
+    assert.ok(parsed._savings, 'Should include _savings');
+    assert.ok('phase_dir' in parsed, 'Should include phase_dir');
+    assert.ok('task_routing' in parsed, 'Should include task_routing');
+    assert.ok(!('intent_drift' in parsed), 'Should not include intent_drift');
+    assert.ok(!('worktree_config' in parsed), 'Should not include worktree_config');
+  });
+
+  test('init execute-phase --agent=gsd-verifier returns fewer fields than executor', () => {
+    const execResult = runGsdTools('init execute-phase 38 --agent=gsd-executor --raw');
+    const verResult = runGsdTools('init execute-phase 38 --agent=gsd-verifier --raw');
+    assert.ok(execResult.success && verResult.success);
+
+    const exec = JSON.parse(execResult.output);
+    const ver = JSON.parse(verResult.output);
+    assert.strictEqual(ver._agent, 'gsd-verifier');
+    assert.ok(ver._savings.scoped_keys < exec._savings.scoped_keys,
+      `Verifier (${ver._savings.scoped_keys}) should have fewer fields than executor (${exec._savings.scoped_keys})`);
+  });
+});

@@ -367,6 +367,16 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     debugLog('init.executePhase', 'worktree context failed (non-blocking)', e);
   }
 
+  // Agent-scoped context — filter output to agent-declared fields
+  const agentArg = process.argv.find(a => a.startsWith('--agent='));
+  if (agentArg) {
+    const agentType = agentArg.split('=')[1];
+    if (agentType) {
+      const { scopeContextForAgent } = require('../lib/context');
+      return output(scopeContextForAgent(result, agentType), raw);
+    }
+  }
+
   if (global._gsdCompactMode) {
     const planPaths = (result.plans || []).map(p => typeof p === 'string' ? p : p.file || p);
     const compactResult = {
@@ -523,6 +533,16 @@ function cmdInitPlanPhase(cwd, phase, raw) {
         result.uat_path = path.join(phaseInfo.directory, uatFile);
       }
     } catch (e) { debugLog('init.planPhase', 'read phase files failed', e); }
+  }
+
+  // Agent-scoped context — filter output to agent-declared fields
+  const agentArg = process.argv.find(a => a.startsWith('--agent='));
+  if (agentArg) {
+    const agentType = agentArg.split('=')[1];
+    if (agentType) {
+      const { scopeContextForAgent } = require('../lib/context');
+      return output(scopeContextForAgent(result, agentType), raw);
+    }
   }
 
   if (global._gsdCompactMode) {

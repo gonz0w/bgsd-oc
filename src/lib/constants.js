@@ -258,6 +258,7 @@ Workflows:
 Flags:
   --compact   Return essential-only fields (38-50% smaller)
   --manifest  Include context manifest with --compact (adds file loading guidance)
+  --agent=<type>  Scope output to agent's declared context (e.g. --agent=gsd-executor)
 
 Examples:
   gsd-tools init execute-phase 03
