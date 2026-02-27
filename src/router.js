@@ -23,6 +23,7 @@ function lazyMcp() { return _modules.mcp || (_modules.mcp = require('./commands/
 function lazyWorktree() { return _modules.worktree || (_modules.worktree = require('./commands/worktree')); }
 function lazyCodebase() { return _modules.codebase || (_modules.codebase = require('./commands/codebase')); }
 function lazyGit() { return _modules.git || (_modules.git = require('./lib/git')); }
+function lazyOrchestration() { return _modules.orchestration || (_modules.orchestration = require('./lib/orchestration')); }
 
 
 async function main() {
@@ -98,7 +99,7 @@ async function main() {
   }
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree');
+    error('Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree');
   }
 
   // --help / -h: print command help to stderr (never contaminates JSON stdout)
@@ -847,6 +848,18 @@ async function main() {
         }
         default:
           error('Unknown git subcommand: ' + gitSub + '. Available: log, diff-summary, blame, branch-info');
+      }
+      break;
+    }
+
+    case 'classify': {
+      const sub = args[1];
+      if (sub === 'plan') {
+        lazyOrchestration().cmdClassifyPlan(cwd, args.slice(2), raw);
+      } else if (sub === 'phase') {
+        lazyOrchestration().cmdClassifyPhase(cwd, args.slice(2), raw);
+      } else {
+        error('Usage: classify <plan|phase> <path-or-number>');
       }
       break;
     }

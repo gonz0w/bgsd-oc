@@ -1155,6 +1155,48 @@ Examples:
   gsd-tools codebase repo-map
   gsd-tools codebase repo-map --budget 500`,
 
+  'classify': `Usage: gsd-tools classify <plan|phase> <path-or-number>
+
+Classify task complexity and recommend execution strategy.
+
+Subcommands:
+  plan <plan-path>       Classify all tasks in a single plan (1-5 complexity scores)
+  phase <phase-number>   Classify all incomplete plans in a phase + execution mode
+
+Examples:
+  gsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md
+  gsd-tools classify phase 39`,
+
+  'classify plan': `Usage: gsd-tools classify plan <plan-path>
+
+Classify all tasks in a plan file with 1-5 complexity scores.
+
+Scoring factors: file count, cross-module blast radius, test requirements,
+checkpoint complexity, action length.
+
+Model mapping: score 1-2 → sonnet, score 3 → sonnet, score 4-5 → opus
+
+Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
+
+Examples:
+  gsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
+
+  'classify phase': `Usage: gsd-tools classify phase <phase-number>
+
+Classify all incomplete plans in a phase and determine execution mode.
+
+Execution modes:
+  single      1 plan with 1-2 tasks
+  parallel    Multiple plans in same wave, no file overlaps
+  sequential  Plans with checkpoint tasks
+  pipeline    Plans spanning 3+ waves
+
+Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason, waves } }
+
+Examples:
+  gsd-tools classify phase 39
+  gsd-tools classify phase 38`,
+
   'profile': 'Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/',
 
   'git': `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]

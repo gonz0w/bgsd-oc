@@ -298,6 +298,30 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     result.codebase_freshness = null;
   }
 
+  // Orchestration intelligence — classify tasks and recommend routing
+  try {
+    const { classifyPlan, selectExecutionMode } = require('../lib/orchestration');
+    const planClassifications = [];
+    for (const planFile of (phaseInfo?.incomplete_plans || [])) {
+      const planPath = path.join(cwd, phaseInfo.directory, planFile);
+      const classification = classifyPlan(planPath, cwd);
+      if (classification) planClassifications.push(classification);
+    }
+
+    if (planClassifications.length > 0) {
+      result.task_routing = {
+        plans: planClassifications,
+        execution_mode: selectExecutionMode(planClassifications),
+        classified_at: new Date().toISOString(),
+      };
+    } else {
+      result.task_routing = null;
+    }
+  } catch (e) {
+    debugLog('init.executePhase', 'orchestration classification failed (non-blocking)', e);
+    result.task_routing = null;
+  }
+
   // Worktree context — populate active worktrees and file overlaps when enabled
   try {
     if (result.worktree_enabled) {
@@ -372,6 +396,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       worktree_config: result.worktree_config,
       worktree_active: result.worktree_active,
       file_overlaps: result.file_overlaps,
+      task_routing: result.task_routing || null,
     };
     if (global._gsdManifestMode) {
       compactResult._manifest = {
