@@ -45,15 +45,15 @@ Requirements for milestone v7.0 Agent Orchestration & Efficiency. Each maps to r
 
 ### TDD Execution
 
-- [ ] **TDD-01**: Executor follows RED→GREEN→REFACTOR state machine for `type: tdd` plans, with verification gates between each phase
-- [ ] **TDD-02**: RED phase commits a failing test before any implementation code exists; orchestrator verifies test actually fails
-- [ ] **TDD-03**: GREEN phase writes minimal implementation; orchestrator verifies previously-failing test now passes
-- [ ] **TDD-04**: REFACTOR phase commits are verified to not break any passing tests
-- [ ] **TDD-05**: TDD commit discipline uses git trailers (`GSD-Phase: red|green|refactor`) for audit trail
+- [x] **TDD-01**: Executor follows RED→GREEN→REFACTOR state machine for `type: tdd` plans, with verification gates between each phase
+- [x] **TDD-02**: RED phase commits a failing test before any implementation code exists; orchestrator verifies test actually fails
+- [x] **TDD-03**: GREEN phase writes minimal implementation; orchestrator verifies previously-failing test now passes
+- [x] **TDD-04**: REFACTOR phase commits are verified to not break any passing tests
+- [x] **TDD-05**: TDD commit discipline uses git trailers (`GSD-Phase: red|green|refactor`) for audit trail
 
 ### Execution Discipline
 
-- [ ] **EXEC-01**: Auto test-after-edit: executor runs test suite after each file modification to catch errors early
+- [x] **EXEC-01**: Auto test-after-edit: executor runs test suite after each file modification to catch errors early
 - [ ] **EXEC-02**: Anti-pattern detection blocks common AI mistakes (pre-test code in TDD, YAGNI violations, over-mocking) with explanations
 
 ### Review Gate Hardening
@@ -126,12 +126,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-01 | Phase 41 | Complete | npm test -- --grep reviewer |
 | QUAL-02 | Phase 41 | Complete | npm test -- --grep attribution |
 | QUAL-03 | Phase 41 | Complete | npm test -- --grep verification |
-| TDD-01 | Phase 43 | Pending | npm test -- --grep tdd |
-| TDD-02 | Phase 43 | Pending | npm test -- --grep tdd-red |
-| TDD-03 | Phase 43 | Pending | npm test -- --grep tdd-green |
-| TDD-04 | Phase 43 | Pending | npm test -- --grep tdd-refactor |
-| TDD-05 | Phase 43 | Pending | npm test -- --grep tdd-trailer |
-| EXEC-01 | Phase 43 | Pending | npm test -- --grep auto-test |
+| TDD-01 | Phase 43 | Complete | npm test -- --grep tdd |
+| TDD-02 | Phase 43 | Complete | npm test -- --grep tdd-red |
+| TDD-03 | Phase 43 | Complete | npm test -- --grep tdd-green |
+| TDD-04 | Phase 43 | Complete | npm test -- --grep tdd-refactor |
+| TDD-05 | Phase 43 | Complete | npm test -- --grep tdd-trailer |
+| EXEC-01 | Phase 43 | Complete | npm test -- --grep auto-test |
 | EXEC-02 | Phase 43 | Pending | npm test -- --grep anti-pattern |
 | QUAL-04 | Phase 44 | Pending | npm test -- --grep two-stage |
 | QUAL-05 | Phase 44 | Pending | npm test -- --grep severity |

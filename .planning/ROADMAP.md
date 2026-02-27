@@ -224,7 +224,7 @@ Plans:
 
 **Plans:** 2 plans
 Plans:
-- [ ] 43-01-PLAN.md — TDD validation CLI commands (validate-red/green/refactor, auto-test, detect-antipattern) and GSD-Phase commit trailer
+- [x] 43-01-PLAN.md — TDD validation CLI commands (validate-red/green/refactor, auto-test, detect-antipattern) and GSD-Phase commit trailer
 - [ ] 43-02-PLAN.md — TDD execution workflow with orchestrator-enforced gates, auto test-after-edit, anti-pattern reference
 
 ### Phase 44: Review Gate Hardening
@@ -256,4 +256,4 @@ Plans:
 | 18-22 | v4.0 | 13/13 | Complete | 2026-02-25 |
 | 23-29 | v5.0 | 14/14 | Complete | 2026-02-26 |
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
-| 37-44 | v7.0 | 8/? | In progress | — |
+| 37-44 | v7.0 | 9/? | In progress | — |
