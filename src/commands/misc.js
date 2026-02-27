@@ -1486,6 +1486,47 @@ function cmdScaffold(cwd, type, options, raw) {
   output({ created: true, path: relPath }, raw, relPath);
 }
 
+function cmdReview(cwd, args, raw) {
+  if (!args[0] || !args[1]) { error('Usage: review <phase> <plan-number>'); }
+  const phaseInfo = findPhaseInternal(cwd, args[0]);
+  if (!phaseInfo || !phaseInfo.found) { error(`Phase ${args[0]} not found`); }
+
+  const padPlan = String(args[1]).padStart(2, '0');
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  const sumFile = fs.readdirSync(phaseDir).find(f => f.includes(`-${padPlan}-SUMMARY.md`));
+
+  // Extract commit hashes from summary
+  const hashes = [];
+  if (sumFile) {
+    const sc = safeReadFile(path.join(phaseDir, sumFile));
+    if (sc) { let m; const re = /`([0-9a-f]{7,12})`/g; while ((m = re.exec(sc)) !== null) hashes.push(m[1]); }
+  }
+
+  const { structuredLog, diffSummary } = require('../lib/git');
+  const scope = `${phaseInfo.phase_number}-${padPlan}`;
+  const all = structuredLog(cwd, { count: 20 });
+  const scoped = Array.isArray(all) ? all.filter(c => c.conventional && c.conventional.scope === scope) : [];
+  const commits = scoped.length > 0 ? scoped : (Array.isArray(all) ? all.slice(0, 10) : []);
+
+  let diff = {};
+  if (hashes.length >= 1) diff = diffSummary(cwd, { from: hashes[0] + '~1', to: hashes[hashes.length - 1] });
+  else if (commits.length > 0) diff = diffSummary(cwd, { from: commits[commits.length - 1].hash + '~1', to: commits[0].hash });
+
+  let conventions = null;
+  try { const intel = require('../lib/codebase-intel').readIntel(cwd); if (intel) conventions = intel.conventions || null; } catch (e) { debugLog('review', 'intel', e); }
+  let conventionsDoc = null;
+  try { conventionsDoc = fs.readFileSync(path.join(cwd, '.planning', 'codebase', 'CONVENTIONS.md'), 'utf-8'); } catch (e) { /* optional */ }
+
+  output({
+    phase: `${phaseInfo.phase_number}-${phaseInfo.phase_name}`,
+    plan: padPlan,
+    commits: commits.map(c => ({ hash: c.hash, message: c.message, files: c.files.map(f => f.path) })),
+    diff: { file_count: diff.file_count || 0, total_insertions: diff.total_insertions || 0, total_deletions: diff.total_deletions || 0 },
+    conventions, conventions_doc: conventionsDoc,
+    files_changed: diff.files ? diff.files.map(f => f.path) : [],
+  }, raw);
+}
+
 module.exports = {
   cmdGenerateSlug,
   cmdCurrentTimestamp,
@@ -1515,4 +1556,5 @@ module.exports = {
   cmdProgressRender,
   cmdTodoComplete,
   cmdScaffold,
+  cmdReview,
 };

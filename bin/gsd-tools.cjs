@@ -308,11 +308,10 @@ Arguments:
   message         Commit message (required)
   --files f1 f2   Specific files to stage (default: all .planning/ changes)
   --amend         Amend the previous commit instead of creating new
-  --agent <type>  Add Agent-Type git trailer for commit attribution (e.g., gsd-executor)
+  --agent <type>  Add Agent-Type git trailer for attribution
 
 Examples:
-  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md
-  gsd-tools commit "feat(41-01): add review command" --agent gsd-executor --files src/router.js`,
+  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md`,
       "template": `Usage: gsd-tools template <subcommand> [options]
 
 Template operations for planning documents.
@@ -361,13 +360,9 @@ Examples:
       "config-migrate": `Usage: gsd-tools config-migrate
 
 Migrate .planning/config.json to include any new CONFIG_SCHEMA keys.
-Adds missing keys with default values. Never overwrites existing values.
-Creates a backup at .planning/config.json.bak before writing.
-
-Output: { migrated_keys, unchanged_keys, config_path, backup_path }
+Adds missing keys with default values. Creates backup before writing.
 
 Examples:
-  gsd-tools config-migrate
   gsd-tools config-migrate`,
       "generate-slug": `Usage: gsd-tools generate-slug <text>
 
@@ -1156,6 +1151,7 @@ Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason,
 Examples:
   gsd-tools classify phase 39
   gsd-tools classify phase 38`,
+      "review": `Usage: gsd-tools review <phase> <plan> \u2014 Review context for reviewer agent`,
       "profile": "Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/",
       "git": `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]
 
@@ -21793,6 +21789,56 @@ _Pending verification_
       const relPath = path.relative(cwd, filePath);
       output({ created: true, path: relPath }, raw, relPath);
     }
+    function cmdReview(cwd, args, raw) {
+      if (!args[0] || !args[1]) {
+        error("Usage: review <phase> <plan-number>");
+      }
+      const phaseInfo = findPhaseInternal(cwd, args[0]);
+      if (!phaseInfo || !phaseInfo.found) {
+        error(`Phase ${args[0]} not found`);
+      }
+      const padPlan = String(args[1]).padStart(2, "0");
+      const phaseDir = path.join(cwd, phaseInfo.directory);
+      const sumFile = fs.readdirSync(phaseDir).find((f) => f.includes(`-${padPlan}-SUMMARY.md`));
+      const hashes = [];
+      if (sumFile) {
+        const sc = safeReadFile(path.join(phaseDir, sumFile));
+        if (sc) {
+          let m;
+          const re = /`([0-9a-f]{7,12})`/g;
+          while ((m = re.exec(sc)) !== null) hashes.push(m[1]);
+        }
+      }
+      const { structuredLog, diffSummary } = require_git();
+      const scope = `${phaseInfo.phase_number}-${padPlan}`;
+      const all = structuredLog(cwd, { count: 20 });
+      const scoped = Array.isArray(all) ? all.filter((c) => c.conventional && c.conventional.scope === scope) : [];
+      const commits = scoped.length > 0 ? scoped : Array.isArray(all) ? all.slice(0, 10) : [];
+      let diff = {};
+      if (hashes.length >= 1) diff = diffSummary(cwd, { from: hashes[0] + "~1", to: hashes[hashes.length - 1] });
+      else if (commits.length > 0) diff = diffSummary(cwd, { from: commits[commits.length - 1].hash + "~1", to: commits[0].hash });
+      let conventions = null;
+      try {
+        const intel = require_codebase_intel().readIntel(cwd);
+        if (intel) conventions = intel.conventions || null;
+      } catch (e) {
+        debugLog("review", "intel", e);
+      }
+      let conventionsDoc = null;
+      try {
+        conventionsDoc = fs.readFileSync(path.join(cwd, ".planning", "codebase", "CONVENTIONS.md"), "utf-8");
+      } catch (e) {
+      }
+      output({
+        phase: `${phaseInfo.phase_number}-${phaseInfo.phase_name}`,
+        plan: padPlan,
+        commits: commits.map((c) => ({ hash: c.hash, message: c.message, files: c.files.map((f) => f.path) })),
+        diff: { file_count: diff.file_count || 0, total_insertions: diff.total_insertions || 0, total_deletions: diff.total_deletions || 0 },
+        conventions,
+        conventions_doc: conventionsDoc,
+        files_changed: diff.files ? diff.files.map((f) => f.path) : []
+      }, raw);
+    }
     module2.exports = {
       cmdGenerateSlug,
       cmdCurrentTimestamp,
@@ -21821,7 +21867,8 @@ _Pending verification_
       cmdFrontmatterValidate,
       cmdProgressRender,
       cmdTodoComplete,
-      cmdScaffold
+      cmdScaffold,
+      cmdReview
     };
   }
 });
@@ -24284,7 +24331,7 @@ var require_router = __commonJS({
         });
       }
       if (!command) {
-        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
+        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, review, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -24975,6 +25022,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             default:
               error("Unknown git subcommand: " + gitSub + ". Available: log, diff-summary, blame, branch-info");
           }
+          break;
+        }
+        case "review": {
+          lazyMisc().cmdReview(cwd, args.slice(1), raw);
           break;
         }
         case "classify": {

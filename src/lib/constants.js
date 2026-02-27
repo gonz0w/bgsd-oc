@@ -300,11 +300,10 @@ Arguments:
   message         Commit message (required)
   --files f1 f2   Specific files to stage (default: all .planning/ changes)
   --amend         Amend the previous commit instead of creating new
-  --agent <type>  Add Agent-Type git trailer for commit attribution (e.g., gsd-executor)
+  --agent <type>  Add Agent-Type git trailer for attribution
 
 Examples:
-  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md
-  gsd-tools commit "feat(41-01): add review command" --agent gsd-executor --files src/router.js`,
+  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md`,
 
   'template': `Usage: gsd-tools template <subcommand> [options]
 
@@ -358,13 +357,9 @@ Examples:
   'config-migrate': `Usage: gsd-tools config-migrate
 
 Migrate .planning/config.json to include any new CONFIG_SCHEMA keys.
-Adds missing keys with default values. Never overwrites existing values.
-Creates a backup at .planning/config.json.bak before writing.
-
-Output: { migrated_keys, unchanged_keys, config_path, backup_path }
+Adds missing keys with default values. Creates backup before writing.
 
 Examples:
-  gsd-tools config-migrate
   gsd-tools config-migrate`,
 
   'generate-slug': `Usage: gsd-tools generate-slug <text>
@@ -1220,6 +1215,8 @@ Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason,
 Examples:
   gsd-tools classify phase 39
   gsd-tools classify phase 38`,
+
+  'review': `Usage: gsd-tools review <phase> <plan> — Review context for reviewer agent`,
 
   'profile': 'Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/',
 

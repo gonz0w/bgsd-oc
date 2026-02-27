@@ -15749,3 +15749,29 @@ describe('buildTaskContext: integration tests (CLI)', () => {
     assert.ok(hasImporter, `Expected at least one importer of codebase-intel.js in context. Got: ${paths.join(', ')}`);
   });
 });
+
+// ─── Review CLI command ──────────────────────────────────────────────────────
+
+describe('review command', () => {
+  test('review without args returns error', () => {
+    const result = runGsdTools('review');
+    assert.ok(!result.success || result.output.includes('error'), 'Should error without args');
+  });
+
+  test('review 37 01 returns JSON with commits, diff, and conventions fields', () => {
+    const result = runGsdTools('review 37 01 --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.ok('commits' in parsed, 'Should have commits field');
+    assert.ok('diff' in parsed, 'Should have diff field');
+    assert.ok('conventions' in parsed, 'Should have conventions field');
+    assert.strictEqual(parsed.plan, '01', 'Plan should be 01');
+  });
+
+  test('review output includes files_changed array', () => {
+    const result = runGsdTools('review 37 01 --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.ok(Array.isArray(parsed.files_changed), 'files_changed should be an array');
+  });
+});

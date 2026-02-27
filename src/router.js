@@ -99,7 +99,7 @@ async function main() {
   }
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree');
+    error('Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, review, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree');
   }
 
   // --help / -h: print command help to stderr (never contaminates JSON stdout)
@@ -851,6 +851,11 @@ async function main() {
         default:
           error('Unknown git subcommand: ' + gitSub + '. Available: log, diff-summary, blame, branch-info');
       }
+      break;
+    }
+
+    case 'review': {
+      lazyMisc().cmdReview(cwd, args.slice(1), raw);
       break;
     }
 
