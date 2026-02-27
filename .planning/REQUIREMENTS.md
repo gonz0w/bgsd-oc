@@ -24,7 +24,7 @@ Requirements for milestone v7.0 Agent Orchestration & Efficiency. Each maps to r
 - [x] **CTX-01**: User can generate a repository map (~1k token compact codebase summary from AST signatures)
 - [x] **CTX-02**: Each agent type declares required context via manifest; system provides only declared context at spawn
 - [x] **CTX-03**: CLI commands support compact serialization format with 40-60% token reduction for agent consumption
-- [ ] **CTX-04**: Task-scoped file injection loads only task-relevant files using dependency graph and relevance scoring
+- [x] **CTX-04**: Task-scoped file injection loads only task-relevant files using dependency graph and relevance scoring
 
 ### Orchestration Intelligence
 
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORCH-03 | Phase 39 | Complete | npm test -- --grep mode |
 | CTX-02 | Phase 40 | Complete | npm test -- --grep manifest |
 | CTX-03 | Phase 40 | Complete | npm test -- --grep compact |
-| CTX-04 | Phase 40 | Pending | npm test -- --grep injection |
+| CTX-04 | Phase 40 | Complete | npm test -- --grep buildTaskContext |
 | QUAL-01 | Phase 41 | Pending | npm test -- --grep reviewer |
 | QUAL-02 | Phase 41 | Pending | npm test -- --grep attribution |
 | QUAL-03 | Phase 41 | Pending | npm test -- --grep verification |
@@ -115,4 +115,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after roadmap creation*
+*Last updated: 2026-02-27 after 40-02 completion*
