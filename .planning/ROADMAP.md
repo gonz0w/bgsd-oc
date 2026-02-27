@@ -177,6 +177,9 @@ Plans:
 **Depends on**: Phase 34 (all command renderers done), Phase 35 (workflow output done)
 **Requirements**: INTG-01, INTG-02, INTG-03, QUAL-03
 **Plans**: 2 plans
+Plans:
+- [ ] 36-01-PLAN.md — Create 11 command wrappers in commands/, update deploy.sh to sync them
+- [ ] 36-02-PLAN.md — Rewrite AGENTS.md as lean index, dead code sweep, final validation
 **Success Criteria** (what must be TRUE):
   1. All 11 missing command wrapper files exist in the OpenCode command directory
   2. `deploy.sh` syncs command wrappers to the target installation during deployment
