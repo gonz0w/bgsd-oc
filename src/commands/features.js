@@ -14,6 +14,7 @@ const { execGit } = require('../lib/git');
 const { estimateTokens, estimateJsonTokens, checkBudget } = require('../lib/context');
 const { readIntel } = require('../lib/codebase-intel');
 const { getTransitiveDependents } = require('../lib/deps');
+const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS, progressBar, colorByPercent } = require('../lib/format');
 
 function cmdSessionDiff(cwd, raw) {
   // Get last activity from STATE.md
@@ -783,6 +784,49 @@ function cmdRollbackInfo(cwd, planId, raw) {
   }, raw);
 }
 
+/**
+ * Format velocity data for TTY display.
+ */
+function formatVelocity(result) {
+  const lines = [];
+
+  lines.push(banner('Velocity'));
+  lines.push(`  Milestone: ${color.bold(result.milestone)}`);
+  lines.push('');
+
+  // Metrics section
+  lines.push(sectionHeader('Metrics'));
+  lines.push(`  Plans completed: ${color.bold(String(result.metrics.plans_completed))}`);
+  lines.push(`  Active days:     ${color.bold(String(result.metrics.active_days))}`);
+  lines.push(`  Average:         ${color.bold(String(result.metrics.avg_plans_per_day))} plans/day`);
+  lines.push('');
+
+  // Recent Plans table (last 10)
+  if (result.plan_metrics && result.plan_metrics.length > 0) {
+    lines.push(sectionHeader('Recent Plans'));
+    const planRows = result.plan_metrics.slice(-10).map(m => [
+      m.plan,
+      m.duration || '-',
+      m.tasks != null ? String(m.tasks) : '-',
+      m.files != null ? String(m.files) : '-',
+    ]);
+    lines.push(formatTable(['Plan', 'Duration', 'Tasks', 'Files'], planRows, { maxRows: 10 }));
+    lines.push('');
+  }
+
+  // Forecast section
+  const fc = result.forecast;
+  if (fc && fc.remaining_phases > 0) {
+    lines.push(sectionHeader('Forecast'));
+    lines.push(`  ${color.bold(String(fc.remaining_phases))} phases, ~${color.bold(String(fc.estimated_remaining_plans))} plans, ~${color.bold(fc.estimated_days_remaining != null ? String(fc.estimated_days_remaining) : '?')} days`);
+    lines.push('');
+  }
+
+  lines.push(summaryLine(`${result.metrics.avg_plans_per_day} plans/day ${SYMBOLS.dash} ${fc ? fc.remaining_phases : 0} phases remaining`));
+
+  return lines.join('\n');
+}
+
 function cmdVelocity(cwd, raw) {
   const milestone = getMilestoneInfo(cwd);
 
@@ -856,7 +900,7 @@ function cmdVelocity(cwd, raw) {
       estimated_remaining_plans: estimatedRemainingPlans,
       estimated_days_remaining: estimatedDaysRemaining,
     },
-  }, raw);
+  }, { formatter: formatVelocity });
 }
 
 function cmdTraceRequirement(cwd, reqId, raw) {
@@ -1066,6 +1110,33 @@ function cmdValidateConfig(cwd, raw) {
   }, raw);
 }
 
+/**
+ * Format quick task summary data for TTY display.
+ */
+function formatQuickSummary(result) {
+  const lines = [];
+
+  lines.push(banner('Quick Summary'));
+  lines.push(`  Milestone: ${color.bold(result.milestone)}`);
+  lines.push(`  Total quick tasks: ${color.bold(String(result.total_quick_tasks))}`);
+  lines.push('');
+
+  if (result.tasks && result.tasks.length > 0) {
+    const rows = result.tasks.map(t => [
+      t.number || '-',
+      t.description || '-',
+      t.date || '-',
+      t.status || '-',
+    ]);
+    lines.push(formatTable(['#', 'Description', 'Date', 'Status'], rows));
+    lines.push('');
+  }
+
+  lines.push(summaryLine(`${result.total_quick_tasks} quick tasks completed`));
+
+  return lines.join('\n');
+}
+
 function cmdQuickTaskSummary(cwd, raw) {
   const milestone = getMilestoneInfo(cwd);
   const quickTasks = [];
@@ -1095,7 +1166,7 @@ function cmdQuickTaskSummary(cwd, raw) {
     milestone: milestone.version,
     total_quick_tasks: quickTasks.length,
     tasks: quickTasks,
-  }, raw);
+  }, { formatter: formatQuickSummary });
 }
 
 // ─── Extract Sections ───────────────────────────────────────────────────────
