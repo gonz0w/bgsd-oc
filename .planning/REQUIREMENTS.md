@@ -16,12 +16,12 @@ Requirements for milestone v7.0 Agent Orchestration & Efficiency. Each maps to r
 
 - [ ] **AST-01**: User can generate function signature extraction for JS/TS files via acorn parser
 - [ ] **AST-02**: User can generate export surface analysis for any JS/TS module
-- [ ] **AST-03**: User can generate per-function/module complexity metrics for task classification
+- [x] **AST-03**: User can generate per-function/module complexity metrics for task classification
 - [ ] **AST-04**: Non-JS languages fall back to regex-based signature extraction via detector registry pattern
 
 ### Context Efficiency
 
-- [ ] **CTX-01**: User can generate a repository map (~1k token compact codebase summary from AST signatures)
+- [x] **CTX-01**: User can generate a repository map (~1k token compact codebase summary from AST signatures)
 - [ ] **CTX-02**: Each agent type declares required context via manifest; system provides only declared context at spawn
 - [ ] **CTX-03**: CLI commands support compact serialization format with 40-60% token reduction for agent consumption
 - [ ] **CTX-04**: Task-scoped file injection loads only task-relevant files using dependency graph and relevance scoring
@@ -95,9 +95,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GIT-02 | Phase 37 | Complete | npm test -- --grep precommit |
 | AST-01 | Phase 38 | Pending | npm test -- --grep ast |
 | AST-02 | Phase 38 | Pending | npm test -- --grep export |
-| AST-03 | Phase 38 | Pending | npm test -- --grep complexity |
+| AST-03 | Phase 38 | Complete | npm test -- --grep complexity |
 | AST-04 | Phase 38 | Pending | npm test -- --grep registry |
-| CTX-01 | Phase 38 | Pending | npm test -- --grep repomap |
+| CTX-01 | Phase 38 | Complete | npm test -- --grep repomap |
 | ORCH-01 | Phase 39 | Pending | npm test -- --grep classify |
 | ORCH-02 | Phase 39 | Pending | npm test -- --grep routing |
 | ORCH-03 | Phase 39 | Pending | npm test -- --grep mode |
