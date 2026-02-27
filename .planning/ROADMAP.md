@@ -188,10 +188,10 @@ Plans:
 3. Verification pipeline includes post-execution review step via gsd-reviewer
 4. Review findings are surfaced in plan SUMMARY.md
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete ✅
 Plans:
-- [ ] 41-01-PLAN.md — Commit attribution via git trailers + review context CLI command
-- [ ] 41-02-PLAN.md — Reviewer agent reference + pipeline integration (execute-plan, verify-phase, summary)
+- [x] 41-01-PLAN.md — Commit attribution via git trailers + review context CLI command
+- [x] 41-02-PLAN.md — Reviewer agent reference + pipeline integration (execute-plan, verify-phase, summary)
 
 ### Phase 42: Integration & Validation
 
@@ -219,4 +219,4 @@ Plans:
 | 18-22 | v4.0 | 13/13 | Complete | 2026-02-25 |
 | 23-29 | v5.0 | 14/14 | Complete | 2026-02-26 |
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
-| 37-42 | v7.0 | 7/? | In progress | — |
+| 37-42 | v7.0 | 8/? | In progress | — |
