@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v6.0 UX & Developer Experience — Phase 33 complete, Phase 32/34/36 remain
+**Current focus:** v6.0 UX & Developer Experience — Phase 32+33 complete, Phase 34/36 remain
 
 ## Current Position
 
@@ -44,6 +44,7 @@ Phase 33: [████████████████████] 1/1 pla
 | Phase 35 P01 | 2 min | 1 tasks | 1 files |
 | Phase 35 P02 | 10 min | 2 tasks | 27 files |
 | Phase 33 P01 | 11 min | 2 tasks | 2 files |
+| Phase 32 P01 | 5 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,7 @@ All v1.0-v5.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - **Phase 35-01:** Referenced format.js function names in ui-brand.md specs so agents use shared primitives; added SYMBOLS constant mapping next to each symbol
 - **Phase 35-02:** 455-line reduction across 27 files; help.md cut 44%; all --raw and standalone GSD references eliminated; brand consistency with bGSD established
 - **Phase 33-01:** Formatter functions co-located with command handlers; only 4 user-facing commands migrated, agent-consumed commands left untouched
+- **Phase 32-01:** Phase table showAll:true for small milestones; state config as key:value pairs; session diff capped at 3 commits in formatted mode
 
 ### Pending Todos
 
@@ -70,5 +72,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 33-01-PLAN.md (verify & codebase command formatters — Phase 33 complete)
+Stopped at: Completed 32-01-PLAN.md (init/state command formatters — Phase 32 complete)
 Resume file: None

@@ -24,8 +24,8 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 
 ### Command Renderers
 
-- [ ] **CMD-01**: All init commands (`init progress`, `init execute-phase`, `init plan-phase`, etc.) produce branded human-readable output in TTY mode
-- [ ] **CMD-02**: State commands (`state`, `state show`, `state update-progress`) produce clean formatted output in TTY mode
+- [x] **CMD-01**: All init commands (`init progress`, `init execute-phase`, `init plan-phase`, etc.) produce branded human-readable output in TTY mode
+- [x] **CMD-02**: State commands (`state`, `state show`, `state update-progress`) produce clean formatted output in TTY mode
 - [x] **CMD-03**: Verification commands (`verify requirements`, `verify quality`) produce summary tables with pass/fail indicators in TTY mode
 - [x] **CMD-04**: Codebase commands (`codebase analyze`, `codebase status`, `codebase conventions`, `codebase deps`, `codebase context`, etc.) produce formatted output in TTY mode
 - [ ] **CMD-05**: Feature commands (`velocity`, `quick-summary`, `context-budget`, `search-decisions`, `trace-requirement`, etc.) produce formatted output in TTY mode
@@ -89,8 +89,8 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 | OUT-02 | Phase 30 | Complete | — |
 | OUT-03 | Phase 30 | Complete | — |
 | OUT-04 | Phase 30 | Complete | — |
-| CMD-01 | Phase 32 | Pending | — |
-| CMD-02 | Phase 32 | Pending | — |
+| CMD-01 | Phase 32 | Complete | 2026-02-27 |
+| CMD-02 | Phase 32 | Complete | 2026-02-27 |
 | CMD-03 | Phase 33 | Complete | 2026-02-27 |
 | CMD-04 | Phase 33 | Complete | 2026-02-27 |
 | CMD-05 | Phase 34 | Pending | — |

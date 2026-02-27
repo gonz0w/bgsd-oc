@@ -123,9 +123,9 @@ Plans:
 **Goal**: The most-used commands (init progress, init execute-phase, init plan-phase, state show) produce clean branded output developers want to read
 **Depends on**: Phase 30 (formatting foundation)
 **Requirements**: CMD-01, CMD-02
-**Plans**: 1 plan
+**Plans**: 1/1 plans
 Plans:
-- [ ] 32-01-PLAN.md — Add formatters to init progress, state show, state update-progress (user-facing only)
+- [x] 32-01-PLAN.md — Add formatters to init progress, state show, state update-progress (user-facing only)
 **Success Criteria** (what must be TRUE):
   1. `init progress` in a TTY shows a branded banner, progress bar, phase checklist, and milestone summary — not raw JSON
   2. `state show` in a TTY renders a formatted state card with current position, velocity, and blockers
