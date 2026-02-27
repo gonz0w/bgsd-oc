@@ -222,7 +222,7 @@ Plans:
 5. Auto test-after-edit catches errors early during execution (not just at task end)
 6. Anti-pattern detection warns on pre-test code, YAGNI violations, and over-mocking during TDD execution
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 43-01-PLAN.md — TDD validation CLI commands (validate-red/green/refactor, auto-test, detect-antipattern) and GSD-Phase commit trailer
 - [ ] 43-02-PLAN.md — TDD execution workflow with orchestrator-enforced gates, auto test-after-edit, anti-pattern reference

@@ -54,7 +54,7 @@ Requirements for milestone v7.0 Agent Orchestration & Efficiency. Each maps to r
 ### Execution Discipline
 
 - [x] **EXEC-01**: Auto test-after-edit: executor runs test suite after each file modification to catch errors early
-- [ ] **EXEC-02**: Anti-pattern detection blocks common AI mistakes (pre-test code in TDD, YAGNI violations, over-mocking) with explanations
+- [x] **EXEC-02**: Anti-pattern detection blocks common AI mistakes (pre-test code in TDD, YAGNI violations, over-mocking) with explanations
 
 ### Review Gate Hardening
 
@@ -132,7 +132,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TDD-04 | Phase 43 | Complete | npm test -- --grep tdd-refactor |
 | TDD-05 | Phase 43 | Complete | npm test -- --grep tdd-trailer |
 | EXEC-01 | Phase 43 | Complete | npm test -- --grep auto-test |
-| EXEC-02 | Phase 43 | Pending | npm test -- --grep anti-pattern |
+| EXEC-02 | Phase 43 | Complete | npm test -- --grep anti-pattern |
 | QUAL-04 | Phase 44 | Pending | npm test -- --grep two-stage |
 | QUAL-05 | Phase 44 | Pending | npm test -- --grep severity |
 | QUAL-06 | Phase 44 | Pending | npm test -- --grep stuck |
