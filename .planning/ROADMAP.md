@@ -221,5 +221,5 @@ Plans:
 | 32. Init & State Command Renderers | v6.0 | 0/1 | Not started | — |
 | 33. Verify & Codebase Command Renderers | v6.0 | 0/1 | Not started | — |
 | 34. Feature & Intent Command Renderers | v6.0 | 0/1 | Not started | — |
-| 35. Workflow Output Tightening | v6.0 | 1/2 | In progress | — |
+| 35. Workflow Output Tightening | v6.0 | 2/2 | Complete | 2026-02-27 |
 | 36. Integration & Polish | v6.0 | 0/2 | Not started | — |

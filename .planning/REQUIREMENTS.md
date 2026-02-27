@@ -33,10 +33,10 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 
 ### Workflow Output
 
-- [ ] **WKFL-04**: All workflow .md files audited for token usage with before/after baselines measured
-- [ ] **WKFL-05**: Workflow output instructions tightened — status messages reduced, redundant information eliminated
+- [x] **WKFL-04**: All workflow .md files audited for token usage with before/after baselines measured
+- [x] **WKFL-05**: Workflow output instructions tightened — status messages reduced, redundant information eliminated
 - [x] **WKFL-06**: Updated `ui-brand.md` with tighter patterns and concrete examples for information-dense output
-- [ ] **WKFL-07**: Workflow table instructions use consistent column widths and alignment patterns
+- [x] **WKFL-07**: Workflow table instructions use consistent column widths and alignment patterns
 
 ### Slash Commands & Integration
 
@@ -95,10 +95,10 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 | CMD-04 | Phase 33 | Pending | — |
 | CMD-05 | Phase 34 | Pending | — |
 | CMD-06 | Phase 34 | Pending | — |
-| WKFL-04 | Phase 35 | Pending | — |
-| WKFL-05 | Phase 35 | Pending | — |
+| WKFL-04 | Phase 35 | Complete | 2026-02-27 |
+| WKFL-05 | Phase 35 | Complete | 2026-02-27 |
 | WKFL-06 | Phase 35 | Complete | 2026-02-27 |
-| WKFL-07 | Phase 35 | Pending | — |
+| WKFL-07 | Phase 35 | Complete | 2026-02-27 |
 | INTG-01 | Phase 36 | Pending | — |
 | INTG-02 | Phase 36 | Pending | — |
 | INTG-03 | Phase 36 | Pending | — |
