@@ -1197,6 +1197,154 @@ function cmdCodebaseContext(cwd, args, raw) {
 }
 
 
+// ─── Codebase AST Command ───────────────────────────────────────────────────
+
+function formatCodebaseAst(result) {
+  const lines = [];
+  lines.push(banner('AST Signatures'));
+  lines.push('');
+
+  if (result.error) {
+    lines.push(box(result.error, 'error'));
+    return lines.join('\n');
+  }
+
+  lines.push('  ' + color.dim('File: ') + result.file);
+  lines.push('  ' + color.dim('Language: ') + (result.language || 'unknown'));
+  lines.push('  ' + color.dim('Signatures: ') + result.count);
+  lines.push('');
+
+  if (result.signatures && result.signatures.length > 0) {
+    const tableData = result.signatures.map(sig => ({
+      Name: sig.name,
+      Type: sig.type + (sig.async ? ' async' : '') + (sig.generator ? ' gen' : ''),
+      Params: sig.params.join(', ') || '-',
+      Line: String(sig.line),
+    }));
+    lines.push(formatTable(tableData, ['Name', 'Type', 'Params', 'Line']));
+  } else {
+    lines.push('  No signatures found.');
+  }
+
+  lines.push('');
+  lines.push(summaryLine(result.count + ' signatures'));
+  return lines.join('\n');
+}
+
+/**
+ * cmdCodebaseAst — Extract function/class/method signatures from a file.
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments (after 'codebase ast')
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdCodebaseAst(cwd, args, raw) {
+  const filePath = args.filter(a => !a.startsWith('-'))[0];
+
+  if (!filePath) {
+    error('Usage: codebase ast <file>');
+    return;
+  }
+
+  const { extractSignatures } = require('../lib/ast');
+
+  const resolved = path.resolve(cwd, filePath);
+  const result = extractSignatures(resolved);
+
+  output({
+    file: filePath,
+    language: result.language,
+    signatures: result.signatures,
+    count: result.signatures.length,
+    error: result.error || undefined,
+  }, { formatter: formatCodebaseAst });
+}
+
+
+// ─── Codebase Exports Command ───────────────────────────────────────────────
+
+function formatCodebaseExports(result) {
+  const lines = [];
+  lines.push(banner('Export Surface'));
+  lines.push('');
+
+  if (result.error) {
+    lines.push(box(result.error, 'error'));
+    return lines.join('\n');
+  }
+
+  lines.push('  ' + color.dim('File: ') + result.file);
+  lines.push('  ' + color.dim('Module type: ') + (result.type || 'unknown'));
+  lines.push('');
+
+  if (result.named && result.named.length > 0) {
+    lines.push(sectionHeader('Named Exports'));
+    for (const name of result.named) {
+      lines.push('  ' + SYMBOLS.bullet + ' ' + name);
+    }
+    lines.push('');
+  }
+
+  if (result.default) {
+    lines.push(sectionHeader('Default Export'));
+    lines.push('  ' + result.default);
+    lines.push('');
+  }
+
+  if (result.re_exports && result.re_exports.length > 0) {
+    lines.push(sectionHeader('Re-exports'));
+    for (const name of result.re_exports) {
+      lines.push('  ' + SYMBOLS.arrow + ' ' + name);
+    }
+    lines.push('');
+  }
+
+  if (result.cjs_exports && result.cjs_exports.length > 0) {
+    lines.push(sectionHeader('CJS Exports'));
+    for (const name of result.cjs_exports) {
+      lines.push('  ' + SYMBOLS.bullet + ' ' + name);
+    }
+    lines.push('');
+  }
+
+  const totalExports = (result.named || []).length + (result.default ? 1 : 0) +
+    (result.re_exports || []).length + (result.cjs_exports || []).length;
+  lines.push(summaryLine(totalExports + ' exports (' + (result.type || 'unknown') + ')'));
+  return lines.join('\n');
+}
+
+/**
+ * cmdCodebaseExports — Extract export surface from a file.
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments (after 'codebase exports')
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdCodebaseExports(cwd, args, raw) {
+  const filePath = args.filter(a => !a.startsWith('-'))[0];
+
+  if (!filePath) {
+    error('Usage: codebase exports <file>');
+    return;
+  }
+
+  const { extractExports } = require('../lib/ast');
+
+  const resolved = path.resolve(cwd, filePath);
+  const result = extractExports(resolved);
+
+  output({
+    file: filePath,
+    type: result.type,
+    named: result.named,
+    default: result.default,
+    re_exports: result.reExports,
+    cjs_exports: result.cjsExports,
+    error: result.error || undefined,
+  }, { formatter: formatCodebaseExports });
+}
+
+
 module.exports = {
   cmdCodebaseAnalyze,
   cmdCodebaseStatus,
@@ -1206,6 +1354,8 @@ module.exports = {
   cmdCodebaseImpact,
   cmdCodebaseLifecycle,
   cmdCodebaseContext,
+  cmdCodebaseAst,
+  cmdCodebaseExports,
   readCodebaseIntel,
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,

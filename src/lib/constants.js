@@ -1084,6 +1084,38 @@ Remove all worktrees for the current project and prune stale references.
 
 Output: { cleaned, worktrees: [{ plan_id, path }] }`,
 
+  'codebase ast': `Usage: gsd-tools codebase ast <file>
+
+Extract function, class, and method signatures from a source file.
+
+For JS/TS: Uses acorn AST parsing with TypeScript stripping.
+For Python, Go, Rust, Ruby, Elixir, Java, PHP: Uses regex-based extraction.
+
+Arguments:
+  file   Source file path to analyze
+
+Output: { file, language, signatures: [{name, type, params, line, async, generator}], count }
+
+Examples:
+  gsd-tools codebase ast src/lib/ast.js
+  gsd-tools codebase ast app.py`,
+
+  'codebase exports': `Usage: gsd-tools codebase exports <file>
+
+Extract the export surface from a JS/TS module.
+
+Detects ESM exports (named, default, re-exports) and CJS exports
+(module.exports, exports patterns). Reports module type (esm/cjs/mixed).
+
+Arguments:
+  file   Source file path to analyze
+
+Output: { file, type, named, default, re_exports, cjs_exports }
+
+Examples:
+  gsd-tools codebase exports src/lib/ast.js
+  gsd-tools codebase exports src/router.js`,
+
   'profile': 'Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/',
 
   'git': `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]

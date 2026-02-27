@@ -415,31 +415,34 @@ function walkAstForExports(ast) {
  * @returns {string[]} Array of CJS export names
  */
 function extractCjsExports(code) {
-  const exports = [];
+  const cjsExports = [];
   const seen = new Set();
+
+  // Strip single-line comments to avoid matching patterns in comments
+  const stripped = code.replace(/\/\/[^\n]*/g, '');
 
   // module.exports.foo = ... or module.exports['foo'] = ...
   const moduleExportsPattern = /module\.exports\.(\w+)\s*=/g;
   let match;
-  while ((match = moduleExportsPattern.exec(code)) !== null) {
+  while ((match = moduleExportsPattern.exec(stripped)) !== null) {
     if (!seen.has(match[1])) {
       seen.add(match[1]);
-      exports.push(match[1]);
+      cjsExports.push(match[1]);
     }
   }
 
   // exports.foo = ...
   const exportsPattern = /(?<![.\w])exports\.(\w+)\s*=/g;
-  while ((match = exportsPattern.exec(code)) !== null) {
+  while ((match = exportsPattern.exec(stripped)) !== null) {
     if (!seen.has(match[1])) {
       seen.add(match[1]);
-      exports.push(match[1]);
+      cjsExports.push(match[1]);
     }
   }
 
   // module.exports = { foo, bar, baz }
   const moduleExportsObj = /module\.exports\s*=\s*\{([^}]+)\}/;
-  const objMatch = code.match(moduleExportsObj);
+  const objMatch = stripped.match(moduleExportsObj);
   if (objMatch) {
     const inner = objMatch[1];
     // Match identifiers (key names) — handles `foo,` `bar: baz,` `qux`
@@ -449,13 +452,13 @@ function extractCjsExports(code) {
         const name = entry.replace(/\s*[:,}]/g, '').trim();
         if (name && !seen.has(name)) {
           seen.add(name);
-          exports.push(name);
+          cjsExports.push(name);
         }
       }
     }
   }
 
-  return exports;
+  return cjsExports;
 }
 
 

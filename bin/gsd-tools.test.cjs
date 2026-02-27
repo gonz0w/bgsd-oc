@@ -14531,3 +14531,226 @@ describe('profiler', () => {
     assert.deepStrictEqual(check.timings, [], 'getTimings should return empty array when disabled');
   });
 });
+
+
+// ─── AST Intelligence: codebase ast & codebase exports ──────────────────────
+
+describe('codebase ast command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-ast-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('codebase ast on JS file with functions returns signatures', () => {
+    const jsFile = path.join(tmpDir, 'sample.js');
+    fs.writeFileSync(jsFile, `
+function hello(name, age) {
+  return name + age;
+}
+
+async function fetchData(url) {
+  return await fetch(url);
+}
+
+const add = (a, b) => a + b;
+`);
+
+    const result = runGsdTools(`codebase ast "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.language, 'javascript');
+    assert.ok(parsed.count >= 3, `Expected at least 3 signatures, got ${parsed.count}`);
+
+    const names = parsed.signatures.map(s => s.name);
+    assert.ok(names.includes('hello'), 'Should find hello function');
+    assert.ok(names.includes('fetchData'), 'Should find fetchData function');
+    assert.ok(names.includes('add'), 'Should find add arrow function');
+
+    // Check fetchData is async
+    const fetchSig = parsed.signatures.find(s => s.name === 'fetchData');
+    assert.strictEqual(fetchSig.async, true, 'fetchData should be async');
+
+    // Check params
+    const helloSig = parsed.signatures.find(s => s.name === 'hello');
+    assert.deepStrictEqual(helloSig.params, ['name', 'age'], 'hello should have name, age params');
+  });
+
+  test('codebase ast on JS file with classes returns class + method signatures', () => {
+    const jsFile = path.join(tmpDir, 'myclass.js');
+    fs.writeFileSync(jsFile, `
+class Animal {
+  constructor(name) {
+    this.name = name;
+  }
+
+  speak() {
+    return this.name;
+  }
+
+  async fetch(url) {
+    return url;
+  }
+}
+`);
+
+    const result = runGsdTools(`codebase ast "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.ok(parsed.count >= 3, `Expected at least 3 signatures (class + 2 methods), got ${parsed.count}`);
+
+    const names = parsed.signatures.map(s => s.name);
+    assert.ok(names.includes('Animal'), 'Should find Animal class');
+    assert.ok(names.includes('Animal.constructor'), 'Should find constructor method');
+    assert.ok(names.includes('Animal.speak'), 'Should find speak method');
+
+    // Check types
+    const classSig = parsed.signatures.find(s => s.name === 'Animal');
+    assert.strictEqual(classSig.type, 'class');
+
+    const methodSig = parsed.signatures.find(s => s.name === 'Animal.speak');
+    assert.strictEqual(methodSig.type, 'method');
+  });
+
+  test('codebase ast on CJS file with module.exports returns signatures', () => {
+    const jsFile = path.join(tmpDir, 'cjs-mod.js');
+    fs.writeFileSync(jsFile, `
+'use strict';
+
+function internalHelper(x) {
+  return x * 2;
+}
+
+module.exports.calculate = function(a, b) {
+  return internalHelper(a) + b;
+};
+
+exports.format = function(str) {
+  return str.trim();
+};
+`);
+
+    const result = runGsdTools(`codebase ast "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    const names = parsed.signatures.map(s => s.name);
+    assert.ok(names.includes('internalHelper'), 'Should find internalHelper function');
+    assert.ok(names.includes('calculate'), 'Should find module.exports.calculate');
+    assert.ok(names.includes('format'), 'Should find exports.format');
+  });
+
+  test('codebase ast on non-existent file returns error gracefully', () => {
+    const result = runGsdTools(`codebase ast "${path.join(tmpDir, 'nonexistent.js')}"`, tmpDir);
+    assert.ok(result.success, `Command should succeed (graceful error): ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.error, 'file_not_found', 'Should report file_not_found error');
+    assert.deepStrictEqual(parsed.signatures, [], 'Should return empty signatures');
+  });
+
+  test('codebase ast on Python file returns regex-extracted signatures', () => {
+    const pyFile = path.join(tmpDir, 'app.py');
+    fs.writeFileSync(pyFile, `
+def greet(name):
+    print(f"Hello, {name}")
+
+async def fetch_data(url, timeout=30):
+    pass
+
+class UserService:
+    def get_user(self, user_id):
+        pass
+`);
+
+    const result = runGsdTools(`codebase ast "${pyFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.language, 'python');
+    assert.ok(parsed.count >= 2, `Expected at least 2 signatures, got ${parsed.count}`);
+
+    const names = parsed.signatures.map(s => s.name);
+    assert.ok(names.includes('greet'), 'Should find greet function');
+    assert.ok(names.includes('fetch_data'), 'Should find fetch_data function');
+  });
+
+  test('codebase ast on unknown extension returns empty signatures, no crash', () => {
+    const unknownFile = path.join(tmpDir, 'data.xyz');
+    fs.writeFileSync(unknownFile, 'some random content');
+
+    const result = runGsdTools(`codebase ast "${unknownFile}"`, tmpDir);
+    assert.ok(result.success, `Command should succeed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.deepStrictEqual(parsed.signatures, [], 'Should return empty signatures');
+    assert.strictEqual(parsed.count, 0, 'Count should be 0');
+  });
+});
+
+describe('codebase exports command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-exports-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('codebase exports on ESM file returns named/default exports', () => {
+    const esmFile = path.join(tmpDir, 'esm-mod.mjs');
+    fs.writeFileSync(esmFile, `
+export function hello() {}
+export const VERSION = '1.0';
+export default class App {}
+`);
+
+    const result = runGsdTools(`codebase exports "${esmFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.type, 'esm', 'Should detect ESM module');
+    assert.ok(parsed.named.includes('hello'), 'Should find named export hello');
+    assert.ok(parsed.named.includes('VERSION'), 'Should find named export VERSION');
+    assert.strictEqual(parsed.default, 'App', 'Should find default export App');
+  });
+
+  test('codebase exports on CJS file returns cjs_exports', () => {
+    const cjsFile = path.join(tmpDir, 'cjs-mod.js');
+    fs.writeFileSync(cjsFile, `
+'use strict';
+
+function calculate(a, b) { return a + b; }
+function format(str) { return str.trim(); }
+
+module.exports = {
+  calculate,
+  format,
+};
+`);
+
+    const result = runGsdTools(`codebase exports "${cjsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.type, 'cjs', 'Should detect CJS module');
+    assert.ok(parsed.cjs_exports.includes('calculate'), 'Should find cjs export calculate');
+    assert.ok(parsed.cjs_exports.includes('format'), 'Should find cjs export format');
+  });
+
+  test('codebase exports on non-existent file returns error gracefully', () => {
+    const result = runGsdTools(`codebase exports "${path.join(tmpDir, 'missing.js')}"`, tmpDir);
+    assert.ok(result.success, `Command should succeed (graceful error): ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.error, 'file_not_found', 'Should report file_not_found error');
+  });
+});
