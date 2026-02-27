@@ -5,6 +5,7 @@ const { loadConfig } = require('../lib/config');
 const { execGit } = require('../lib/git');
 const { parseIntentMd, generateIntentMd, parsePlanIntent, getMilestoneInfo, normalizePhaseName } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
+const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, box, colorByPercent, actionHint } = require('../lib/format');
 
 // ─── Intent Commands ─────────────────────────────────────────────────────────
 
@@ -123,6 +124,25 @@ function cmdIntentCreate(cwd, args, raw) {
 
 const SECTION_ALIASES = ['objective', 'users', 'outcomes', 'criteria', 'constraints', 'health', 'history'];
 
+/**
+ * Formatter for intent show — renders based on parsed data.
+ * Handles section filtering and full mode via closure over args.
+ */
+function makeFormatIntentShow(args, rawContent) {
+  const sectionFilter = args.length > 0 && SECTION_ALIASES.includes(args[0]) ? args[0] : null;
+  const fullFlag = args.includes('--full');
+
+  return function formatIntentShow(data) {
+    if (fullFlag) {
+      return rawContent;
+    }
+    if (sectionFilter) {
+      return renderSection(data, sectionFilter);
+    }
+    return renderCompactSummary(data);
+  };
+}
+
 function cmdIntentShow(cwd, args, raw) {
   const planningDir = path.join(cwd, '.planning');
   const intentPath = path.join(planningDir, 'INTENT.md');
@@ -136,12 +156,10 @@ function cmdIntentShow(cwd, args, raw) {
 
   // Check for section filter (first positional arg after subcommand)
   const sectionFilter = args.length > 0 && SECTION_ALIASES.includes(args[0]) ? args[0] : null;
-  const fullFlag = args.includes('--full');
 
-  // JSON output mode (--raw flag or invoked as "intent read")
+  // Forced JSON mode (intent read passes raw=true explicitly)
   if (raw) {
     if (sectionFilter) {
-      // Return just that section's data
       const sectionData = {};
       sectionData[sectionFilter] = data[sectionFilter];
       output(sectionData, false);
@@ -151,42 +169,33 @@ function cmdIntentShow(cwd, args, raw) {
     return;
   }
 
-  // Human-readable output
-  if (fullFlag) {
-    // Render complete INTENT.md content
-    output(null, true, content);
-    return;
-  }
-
+  // Normal output with formatter (TTY gets formatted, piped gets JSON)
   if (sectionFilter) {
-    // Show just that section's full content
-    const sectionContent = renderSection(data, sectionFilter);
-    output(null, true, sectionContent);
-    return;
+    const sectionData = {};
+    sectionData[sectionFilter] = data[sectionFilter];
+    output(sectionData, { formatter: makeFormatIntentShow(args, content) });
+  } else {
+    output(data, { formatter: makeFormatIntentShow(args, content) });
   }
-
-  // Default: compact summary (10-20 lines)
-  const summary = renderCompactSummary(data);
-  output(null, true, summary);
 }
 
 /**
  * Render a compact summary of INTENT.md (target 10-20 lines).
- * Sorts outcomes by priority (P1 first).
+ * Sorts outcomes by priority (P1 first). Uses shared format.js utilities.
  */
 function renderCompactSummary(data) {
   const lines = [];
-  const isTTY = process.stdout.isTTY;
 
-  // Header
+  // Header — branded banner
   const updated = data.updated || 'unknown';
-  lines.push(`INTENT — Revision ${data.revision || '?'} (updated ${updated})`);
+  lines.push(banner('Intent'));
+  lines.push(`  Revision ${color.bold(String(data.revision || '?'))} (updated ${updated})`);
   lines.push('');
 
   // Objective (truncated to ~80 chars)
   const obj = data.objective.statement || '(not set)';
   const truncObj = obj.length > 80 ? obj.slice(0, 77) + '...' : obj;
-  lines.push(`Objective: ${truncObj}`);
+  lines.push(`  Objective: ${truncObj}`);
   lines.push('');
 
   // Outcomes with priority sorting
@@ -207,53 +216,57 @@ function renderCompactSummary(data) {
     if (counts.P2 > 0) countParts.push(`${counts.P2}×P2`);
     if (counts.P3 > 0) countParts.push(`${counts.P3}×P3`);
 
-    lines.push(`Outcomes (${sorted.length}): ${countParts.join('  ')}`);
+    lines.push(sectionHeader('Outcomes'));
+    lines.push(`  ${sorted.length} outcomes: ${countParts.join('  ')}`);
     for (const o of sorted) {
-      const priorityLabel = colorPriority(o.priority, isTTY);
-      lines.push(`  ${priorityLabel}: ${o.id} — ${o.text}`);
+      const priorityLabel = colorPriority(o.priority);
+      lines.push(`  ${priorityLabel}: ${o.id} ${SYMBOLS.dash} ${o.text}`);
     }
   } else {
-    lines.push('Outcomes: none defined');
+    lines.push(sectionHeader('Outcomes'));
+    lines.push('  none defined');
   }
   lines.push('');
 
   // Success Criteria count
-  lines.push(`Success Criteria: ${data.criteria.length} defined`);
+  lines.push(`  Success Criteria: ${color.bold(String(data.criteria.length))} defined`);
 
   // Constraints breakdown
   const techCount = data.constraints.technical.length;
   const bizCount = data.constraints.business.length;
   const timeCount = data.constraints.timeline.length;
-  lines.push(`Constraints: ${techCount} technical, ${bizCount} business, ${timeCount} timeline`);
+  lines.push(`  Constraints: ${techCount} technical, ${bizCount} business, ${timeCount} timeline`);
 
   // Health metrics breakdown
   const quantCount = data.health.quantitative.length;
   const hasQual = data.health.qualitative && data.health.qualitative.trim() ? 'defined' : 'none';
-  lines.push(`Health Metrics: ${quantCount} quantitative, qualitative ${hasQual}`);
+  lines.push(`  Health Metrics: ${quantCount} quantitative, qualitative ${hasQual}`);
 
   // Target users
-  lines.push(`Target Users: ${data.users.length} audience${data.users.length !== 1 ? 's' : ''}`);
+  lines.push(`  Target Users: ${data.users.length} audience${data.users.length !== 1 ? 's' : ''}`);
 
   // Evolution summary (if history exists)
   if (data.history && data.history.length > 0) {
     const totalChanges = data.history.reduce((sum, e) => sum + e.changes.length, 0);
     const milestones = data.history.map(e => e.milestone).join(', ');
-    lines.push(`Evolution: ${totalChanges} change${totalChanges !== 1 ? 's' : ''} across ${milestones}`);
+    lines.push(`  Evolution: ${totalChanges} change${totalChanges !== 1 ? 's' : ''} across ${milestones}`);
   }
+
+  lines.push('');
+  lines.push(summaryLine(`Rev ${data.revision || '?'} ${SYMBOLS.dash} ${data.outcomes.length} outcomes, ${data.criteria.length} criteria`));
 
   return lines.join('\n') + '\n';
 }
 
 /**
- * Render a single section's full content.
+ * Render a single section's full content. Uses shared format.js color utilities.
  */
 function renderSection(data, section) {
-  const isTTY = process.stdout.isTTY;
   const lines = [];
 
   switch (section) {
     case 'objective':
-      lines.push('## Objective');
+      lines.push(sectionHeader('Objective'));
       lines.push('');
       lines.push(data.objective.statement || '(not set)');
       if (data.objective.elaboration) {
@@ -263,7 +276,7 @@ function renderSection(data, section) {
       break;
 
     case 'users':
-      lines.push('## Target Users');
+      lines.push(sectionHeader('Target Users'));
       lines.push('');
       if (data.users.length > 0) {
         for (const u of data.users) {
@@ -275,7 +288,7 @@ function renderSection(data, section) {
       break;
 
     case 'outcomes':
-      lines.push('## Desired Outcomes');
+      lines.push(sectionHeader('Desired Outcomes'));
       lines.push('');
       if (data.outcomes.length > 0) {
         const sorted = [...data.outcomes].sort((a, b) => {
@@ -284,7 +297,7 @@ function renderSection(data, section) {
           return pa - pb;
         });
         for (const o of sorted) {
-          const priorityLabel = colorPriority(o.priority, isTTY);
+          const priorityLabel = colorPriority(o.priority);
           lines.push(`- ${o.id} [${priorityLabel}]: ${o.text}`);
         }
       } else {
@@ -293,7 +306,7 @@ function renderSection(data, section) {
       break;
 
     case 'criteria':
-      lines.push('## Success Criteria');
+      lines.push(sectionHeader('Success Criteria'));
       lines.push('');
       if (data.criteria.length > 0) {
         for (const c of data.criteria) {
@@ -305,26 +318,26 @@ function renderSection(data, section) {
       break;
 
     case 'constraints':
-      lines.push('## Constraints');
+      lines.push(sectionHeader('Constraints'));
       if (data.constraints.technical.length > 0) {
         lines.push('');
-        lines.push('### Technical');
+        lines.push(`  ${color.bold('Technical')}`);
         for (const c of data.constraints.technical) {
-          lines.push(`- ${c.id}: ${c.text}`);
+          lines.push(`  - ${c.id}: ${c.text}`);
         }
       }
       if (data.constraints.business.length > 0) {
         lines.push('');
-        lines.push('### Business');
+        lines.push(`  ${color.bold('Business')}`);
         for (const c of data.constraints.business) {
-          lines.push(`- ${c.id}: ${c.text}`);
+          lines.push(`  - ${c.id}: ${c.text}`);
         }
       }
       if (data.constraints.timeline.length > 0) {
         lines.push('');
-        lines.push('### Timeline');
+        lines.push(`  ${color.bold('Timeline')}`);
         for (const c of data.constraints.timeline) {
-          lines.push(`- ${c.id}: ${c.text}`);
+          lines.push(`  - ${c.id}: ${c.text}`);
         }
       }
       if (data.constraints.technical.length === 0 && data.constraints.business.length === 0 && data.constraints.timeline.length === 0) {
@@ -334,17 +347,17 @@ function renderSection(data, section) {
       break;
 
     case 'health':
-      lines.push('## Health Metrics');
+      lines.push(sectionHeader('Health Metrics'));
       if (data.health.quantitative.length > 0) {
         lines.push('');
-        lines.push('### Quantitative');
+        lines.push(`  ${color.bold('Quantitative')}`);
         for (const m of data.health.quantitative) {
-          lines.push(`- ${m.id}: ${m.text}`);
+          lines.push(`  - ${m.id}: ${m.text}`);
         }
       }
       if (data.health.qualitative && data.health.qualitative.trim()) {
         lines.push('');
-        lines.push('### Qualitative');
+        lines.push(`  ${color.bold('Qualitative')}`);
         lines.push(data.health.qualitative);
       }
       if (data.health.quantitative.length === 0 && (!data.health.qualitative || !data.health.qualitative.trim())) {
@@ -354,15 +367,15 @@ function renderSection(data, section) {
       break;
 
     case 'history':
-      lines.push('## Intent Evolution');
+      lines.push(sectionHeader('Intent Evolution'));
       lines.push('');
       if (data.history && data.history.length > 0) {
         for (const entry of data.history) {
-          lines.push(`### ${entry.milestone} — ${entry.date}`);
+          lines.push(`  ${color.bold(entry.milestone)} ${SYMBOLS.dash} ${entry.date}`);
           for (const change of entry.changes) {
-            lines.push(`- **${change.type}** ${change.target}: ${change.description}`);
+            lines.push(`  - ${color.bold(change.type)} ${change.target}: ${change.description}`);
             if (change.reason) {
-              lines.push(`  - Reason: ${change.reason}`);
+              lines.push(`    Reason: ${change.reason}`);
             }
           }
           lines.push('');
@@ -377,15 +390,14 @@ function renderSection(data, section) {
 }
 
 /**
- * Apply ANSI color to priority labels (only when TTY).
- * P1 = red, P2 = yellow, P3 = dim.
+ * Apply color to priority labels using shared format.js utilities.
+ * P1 = red, P2 = yellow, P3 = dim. Auto-handles NO_COLOR/TTY.
  */
-function colorPriority(priority, isTTY) {
-  if (!isTTY) return priority;
+function colorPriority(priority) {
   switch (priority) {
-    case 'P1': return '\x1b[31mP1\x1b[0m';
-    case 'P2': return '\x1b[33mP2\x1b[0m';
-    case 'P3': return '\x1b[2mP3\x1b[0m';
+    case 'P1': return color.red(priority);
+    case 'P2': return color.yellow(priority);
+    case 'P3': return color.dim(priority);
     default: return priority;
   }
 }
@@ -727,6 +739,103 @@ function getNextId(items, prefix) {
 
 // ─── Intent Validate ─────────────────────────────────────────────────────────
 
+/**
+ * Format intent validation results for TTY display.
+ */
+function formatIntentValidate(result) {
+  const lines = [];
+
+  lines.push(banner('Intent Validate'));
+  lines.push('');
+
+  // Status box
+  if (result.valid) {
+    lines.push(box('Intent is valid', 'success'));
+  } else {
+    lines.push(box(`${result.issues.length} issue${result.issues.length !== 1 ? 's' : ''} found`, 'error'));
+  }
+  lines.push('');
+
+  // Section checklist
+  lines.push(sectionHeader('Sections'));
+  const sections = result.sections;
+
+  const sym = (v) => v ? color.green(SYMBOLS.check) : color.red(SYMBOLS.cross);
+
+  lines.push(`  ${sym(sections.objective.valid)} Objective: ${sections.objective.message || 'defined'}`);
+
+  if (sections.users.valid) {
+    lines.push(`  ${sym(true)} Target Users: ${sections.users.count} audience${sections.users.count !== 1 ? 's' : ''}`);
+  } else {
+    lines.push(`  ${sym(false)} Target Users: missing or empty`);
+  }
+
+  if (sections.outcomes.valid) {
+    lines.push(`  ${sym(true)} Outcomes: ${sections.outcomes.count} items, IDs valid`);
+  } else if (sections.outcomes.count > 0) {
+    lines.push(`  ${sym(false)} Outcomes: ${(sections.outcomes.issues || []).join('; ')}`);
+  } else {
+    lines.push(`  ${sym(false)} Outcomes: no items defined (minimum 1)`);
+  }
+
+  if (sections.criteria.valid) {
+    lines.push(`  ${sym(true)} Success Criteria: ${sections.criteria.count} items, IDs valid`);
+  } else if (sections.criteria.count > 0) {
+    lines.push(`  ${sym(false)} Success Criteria: ${(sections.criteria.issues || []).join('; ')}`);
+  } else {
+    lines.push(`  ${sym(false)} Success Criteria: no items defined (minimum 1)`);
+  }
+
+  if (sections.constraints.valid) {
+    const subCount = (sections.constraints.sub_sections || []).length;
+    lines.push(`  ${sym(true)} Constraints: ${subCount} sub-section${subCount !== 1 ? 's' : ''} (${(sections.constraints.sub_sections || []).join(', ')})`);
+  } else {
+    lines.push(`  ${sym(false)} Constraints: ${(sections.constraints.issues || []).join('; ')}`);
+  }
+
+  if (sections.health.valid) {
+    lines.push(`  ${sym(true)} Health Metrics: quantitative (${sections.health.quantitative_count} items), qualitative ${sections.health.qualitative ? 'defined' : 'none'}`);
+  } else {
+    lines.push(`  ${sym(false)} Health Metrics: ${(sections.health.issues || []).join('; ')}`);
+  }
+
+  if (result.revision && Number.isInteger(result.revision) && result.revision > 0) {
+    lines.push(`  ${sym(true)} Revision: ${result.revision}`);
+  } else {
+    lines.push(`  ${sym(false)} Revision: missing or invalid`);
+  }
+
+  // History (advisory)
+  if (sections.history) {
+    if (sections.history.valid) {
+      lines.push(`  ${sym(true)} History: ${sections.history.count} milestone${sections.history.count !== 1 ? 's' : ''} recorded`);
+    } else {
+      lines.push(`  ${color.yellow(SYMBOLS.warning)} History: ${(sections.history.issues || []).join('; ')}`);
+    }
+  }
+
+  // Issues section
+  if (result.issues.length > 0) {
+    lines.push('');
+    lines.push(sectionHeader('Issues'));
+    for (const iss of result.issues) {
+      lines.push(`  ${color.red(SYMBOLS.cross)} ${iss.message}`);
+    }
+  }
+
+  lines.push('');
+  if (result.valid) {
+    const warningNote = result.warnings && result.warnings.length > 0
+      ? ` (${result.warnings.length} advisory warning${result.warnings.length !== 1 ? 's' : ''})`
+      : '';
+    lines.push(summaryLine(`${SYMBOLS.check} Intent valid${warningNote}`));
+  } else {
+    lines.push(summaryLine(`${result.issues.length} issue${result.issues.length !== 1 ? 's' : ''}`));
+  }
+
+  return lines.join('\n');
+}
+
 function cmdIntentValidate(cwd, args, raw) {
   const planningDir = path.join(cwd, '.planning');
   const intentPath = path.join(planningDir, 'INTENT.md');
@@ -966,85 +1075,11 @@ function cmdIntentValidate(cwd, args, raw) {
     revision: revision || null,
   };
 
-  // Output
-  if (raw) {
-    // JSON output
-    process.stdout.write(JSON.stringify(result, null, 2));
-    process.exit(valid ? 0 : 1);
-  } else {
-    // Human-readable lint-style output
-    const lines = [];
-    lines.push('INTENT Validation — .planning/INTENT.md');
-    lines.push('');
+  // Set exit code before output() — validate returns 1 for invalid intent
+  if (!valid) process.exitCode = 1;
 
-    // Section results
-    const sym = (v) => v ? '✓' : '✗';
-
-    lines.push(`${sym(sections.objective.valid)} Objective: ${sections.objective.message || 'defined'}`);
-
-    if (sections.users.valid) {
-      lines.push(`${sym(true)} Target Users: ${sections.users.count} audience${sections.users.count !== 1 ? 's' : ''}`);
-    } else {
-      lines.push(`${sym(false)} Target Users: missing or empty`);
-    }
-
-    if (sections.outcomes.valid) {
-      lines.push(`${sym(true)} Outcomes: ${sections.outcomes.count} items, IDs valid`);
-    } else if (sections.outcomes.count > 0) {
-      lines.push(`${sym(false)} Outcomes: ${(sections.outcomes.issues || []).join('; ')}`);
-    } else {
-      lines.push(`${sym(false)} Outcomes: no items defined (minimum 1)`);
-    }
-
-    if (sections.criteria.valid) {
-      lines.push(`${sym(true)} Success Criteria: ${sections.criteria.count} items, IDs valid`);
-    } else if (sections.criteria.count > 0) {
-      lines.push(`${sym(false)} Success Criteria: ${(sections.criteria.issues || []).join('; ')}`);
-    } else {
-      lines.push(`${sym(false)} Success Criteria: no items defined (minimum 1)`);
-    }
-
-    if (sections.constraints.valid) {
-      const subCount = (sections.constraints.sub_sections || []).length;
-      lines.push(`${sym(true)} Constraints: ${subCount} sub-section${subCount !== 1 ? 's' : ''} (${(sections.constraints.sub_sections || []).join(', ')})`);
-    } else {
-      lines.push(`${sym(false)} Constraints: ${(sections.constraints.issues || []).join('; ')}`);
-    }
-
-    if (sections.health.valid) {
-      lines.push(`${sym(true)} Health Metrics: quantitative (${sections.health.quantitative_count} items), qualitative ${sections.health.qualitative ? 'defined' : 'none'}`);
-    } else {
-      lines.push(`${sym(false)} Health Metrics: ${(sections.health.issues || []).join('; ')}`);
-    }
-
-    if (revisionValid) {
-      lines.push(`${sym(true)} Revision: ${revision}`);
-    } else {
-      lines.push(`${sym(false)} Revision: missing or invalid`);
-    }
-
-    // History (advisory)
-    if (sections.history) {
-      if (sections.history.valid) {
-        lines.push(`${sym(true)} History: ${sections.history.count} milestone${sections.history.count !== 1 ? 's' : ''} recorded`);
-      } else {
-        lines.push(`⚠ History: ${(sections.history.issues || []).join('; ')}`);
-      }
-    }
-
-    lines.push('');
-    if (valid) {
-      lines.push('Result: valid');
-      if (warnings.length > 0) {
-        lines.push(`Warnings: ${warnings.length} advisory issue${warnings.length !== 1 ? 's' : ''}`);
-      }
-    } else {
-      lines.push(`Result: ${issues.length} issue${issues.length !== 1 ? 's' : ''} found`);
-    }
-
-    process.stdout.write(lines.join('\n') + '\n');
-    process.exit(valid ? 0 : 1);
-  }
+  // Use formatter pattern — output() handles JSON vs formatted routing
+  output(result, { formatter: formatIntentValidate });
 }
 
 // ─── Intent Trace ────────────────────────────────────────────────────────────
@@ -1463,6 +1498,75 @@ function getIntentDriftData(cwd) {
   };
 }
 
+/**
+ * Format intent drift analysis for TTY display. Uses shared format.js utilities.
+ */
+function formatIntentDrift(data) {
+  const lines = [];
+
+  lines.push(banner('Intent Drift'));
+
+  // Score with alignment color
+  let scoreColorFn = color.green;
+  if (data.alignment === 'moderate') scoreColorFn = color.yellow;
+  else if (data.alignment === 'poor') scoreColorFn = color.red;
+  const scoreLabel = scoreColorFn(`${data.drift_score}/100 (${data.alignment})`);
+  lines.push(`  Score: ${scoreLabel}`);
+  lines.push('');
+
+  // Coverage Gaps
+  const cg = data.signals.coverage_gap;
+  lines.push(sectionHeader(`Coverage Gaps (${cg.score} pts)`));
+  if (cg.details.length === 0) {
+    lines.push(`  ${color.green(SYMBOLS.check)} All outcomes have plans`);
+  } else {
+    for (const gap of cg.details) {
+      lines.push(`  ${color.red(SYMBOLS.cross)} ${gap.outcome_id} [${colorPriority(gap.priority)}]: ${gap.text} ${SYMBOLS.dash} no plans`);
+    }
+  }
+  lines.push('');
+
+  // Objective Mismatch
+  const om = data.signals.objective_mismatch;
+  lines.push(sectionHeader(`Objective Mismatch (${om.score} pts)`));
+  if (om.plans.length === 0) {
+    lines.push(`  ${color.green(SYMBOLS.check)} All plans have intent sections`);
+  } else {
+    for (const planId of om.plans) {
+      lines.push(`  ${color.red(SYMBOLS.cross)} ${planId}: no intent section in frontmatter`);
+    }
+  }
+  lines.push('');
+
+  // Feature Creep
+  const fc = data.signals.feature_creep;
+  lines.push(sectionHeader(`Feature Creep (${fc.score} pts)`));
+  if (fc.invalid_refs.length === 0) {
+    lines.push(`  ${color.green(SYMBOLS.check)} No invalid outcome references`);
+  } else {
+    for (const ref of fc.invalid_refs) {
+      lines.push(`  ${color.red(SYMBOLS.cross)} ${ref.plan_id}: references non-existent ${ref.invalid_id}`);
+    }
+  }
+  lines.push('');
+
+  // Priority Inversion
+  const pi = data.signals.priority_inversion;
+  lines.push(sectionHeader(`Priority Inversion (${pi.score} pts)`));
+  if (pi.inversions.length === 0) {
+    lines.push(`  ${color.green(SYMBOLS.check)} No priority inversions`);
+  } else {
+    for (const inv of pi.inversions) {
+      lines.push(`  ${color.yellow(SYMBOLS.warning)} ${inv.uncovered_id} [${inv.uncovered_priority}] uncovered, but ${inv.covered_id} [${inv.covered_priority}] has ${inv.covered_plan_count} plan${inv.covered_plan_count !== 1 ? 's' : ''}`);
+    }
+  }
+  lines.push('');
+
+  lines.push(summaryLine(`${data.covered_outcomes}/${data.total_outcomes} outcomes covered, ${data.traced_plans}/${data.total_plans} plans traced`));
+
+  return lines.join('\n');
+}
+
 function cmdIntentDrift(cwd, args, raw) {
   const planningDir = path.join(cwd, '.planning');
   const intentPath = path.join(planningDir, 'INTENT.md');
@@ -1477,79 +1581,8 @@ function cmdIntentDrift(cwd, args, raw) {
     error('INTENT.md has no desired outcomes defined.');
   }
 
-  if (raw) {
-    output(data, false);
-    return;
-  }
-
-  // Human-readable output
-  const isTTY = process.stdout.isTTY;
-  const lines = [];
-
-  // Score with color
-  let scoreLabel = `${data.drift_score}/100 (${data.alignment})`;
-  if (isTTY) {
-    if (data.alignment === 'excellent') scoreLabel = `\x1b[32m${scoreLabel}\x1b[0m`;
-    else if (data.alignment === 'moderate') scoreLabel = `\x1b[33m${scoreLabel}\x1b[0m`;
-    else if (data.alignment === 'poor') scoreLabel = `\x1b[31m${scoreLabel}\x1b[0m`;
-  }
-
-  lines.push('Intent Drift Analysis');
-  lines.push(`Score: ${scoreLabel}`);
-  lines.push('');
-
-  // Coverage Gaps
-  const cg = data.signals.coverage_gap;
-  lines.push(`Coverage Gaps (${cg.score} pts):`);
-  if (cg.details.length === 0) {
-    lines.push('  ✓ All outcomes have plans');
-  } else {
-    for (const gap of cg.details) {
-      lines.push(`  ✗ ${gap.outcome_id} [${gap.priority}]: ${gap.text} — no plans`);
-    }
-  }
-  lines.push('');
-
-  // Objective Mismatch
-  const om = data.signals.objective_mismatch;
-  lines.push(`Objective Mismatch (${om.score} pts):`);
-  if (om.plans.length === 0) {
-    lines.push('  ✓ All plans have intent sections');
-  } else {
-    for (const planId of om.plans) {
-      lines.push(`  ✗ ${planId}: no intent section in frontmatter`);
-    }
-  }
-  lines.push('');
-
-  // Feature Creep
-  const fc = data.signals.feature_creep;
-  lines.push(`Feature Creep (${fc.score} pts):`);
-  if (fc.invalid_refs.length === 0) {
-    lines.push('  ✓ No invalid outcome references');
-  } else {
-    for (const ref of fc.invalid_refs) {
-      lines.push(`  ✗ ${ref.plan_id}: references non-existent ${ref.invalid_id}`);
-    }
-  }
-  lines.push('');
-
-  // Priority Inversion
-  const pi = data.signals.priority_inversion;
-  lines.push(`Priority Inversion (${pi.score} pts):`);
-  if (pi.inversions.length === 0) {
-    lines.push('  ✓ No priority inversions');
-  } else {
-    for (const inv of pi.inversions) {
-      lines.push(`  ⚠ ${inv.uncovered_id} [${inv.uncovered_priority}] uncovered, but ${inv.covered_id} [${inv.covered_priority}] has ${inv.covered_plan_count} plan${inv.covered_plan_count !== 1 ? 's' : ''}`);
-    }
-  }
-  lines.push('');
-
-  // Summary
-  lines.push(`Summary: ${data.covered_outcomes}/${data.total_outcomes} outcomes covered, ${data.traced_plans}/${data.total_plans} plans traced`);
-
-  output(null, true, lines.join('\n') + '\n');
+  // Use formatter pattern — output() handles JSON vs formatted routing
+  output(data, { formatter: formatIntentDrift });
 }
 
 /**

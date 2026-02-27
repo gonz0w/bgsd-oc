@@ -142,7 +142,7 @@ function output(result, options) {
   // Legacy backward compatibility: output(result, raw) or output(result, raw, rawValue)
   if (typeof options === 'boolean') {
     outputJSON(result, arguments[2]);
-    process.exit(0);
+    process.exit(process.exitCode || 0);
     return;
   }
 
@@ -162,7 +162,8 @@ function output(result, options) {
       outputJSON(result, opts.rawValue);
     }
   }
-  process.exit(0);
+  // Respect process.exitCode if set by commands (e.g. intent validate sets 1 for invalid)
+  process.exit(process.exitCode || 0);
 }
 
 // ─── Status Output (stderr) ─────────────────────────────────────────────────
