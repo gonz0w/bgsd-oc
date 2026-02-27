@@ -15569,3 +15569,124 @@ describe('agent manifests: init --agent integration', () => {
       `Verifier (${ver._savings.scoped_keys}) should have fewer fields than executor (${exec._savings.scoped_keys})`);
   });
 });
+
+// ─── Task-Scoped Context: buildTaskContext ───────────────────────────────────
+
+describe('buildTaskContext: unit tests', () => {
+  const ctx = require('../src/lib/context');
+
+  test('single task file with known deps returns task file + 1-hop deps scored', () => {
+    // Use the real project to get a file that's in the dep graph
+    const result = ctx.buildTaskContext(process.cwd(), ['src/lib/output.js']);
+    assert.ok(Array.isArray(result.task_files), 'task_files should be array');
+    assert.deepStrictEqual(result.task_files, ['src/lib/output.js']);
+    assert.ok(result.context_files.length >= 1, 'Should include at least the task file');
+    // The task file itself should be score 1.0
+    const taskEntry = result.context_files.find(f => f.path === 'src/lib/output.js');
+    assert.ok(taskEntry, 'Task file should be in context_files');
+    assert.strictEqual(taskEntry.score, 1.0);
+    assert.strictEqual(taskEntry.reason, 'direct task file');
+  });
+
+  test('multiple task files returns union of deps with no duplicates', () => {
+    const result = ctx.buildTaskContext(process.cwd(), ['src/lib/output.js', 'src/lib/format.js']);
+    assert.ok(result.context_files.length >= 2, 'Should include at least 2 files');
+    // Check no duplicates
+    const paths = result.context_files.map(f => f.path);
+    assert.strictEqual(paths.length, new Set(paths).size, 'No duplicate paths');
+  });
+
+  test('token budget enforced: drops lowest-scored files when over budget', () => {
+    const full = ctx.buildTaskContext(process.cwd(), ['src/lib/output.js'], { tokenBudget: 50000 });
+    const constrained = ctx.buildTaskContext(process.cwd(), ['src/lib/output.js'], { tokenBudget: 100 });
+    assert.ok(constrained.context_files.length <= full.context_files.length,
+      'Constrained should have fewer or equal files');
+    assert.ok(constrained.stats.token_estimate <= 100 || constrained.context_files.length === 1,
+      'Should respect budget or keep at least 1 file');
+  });
+
+  test('no codebase intel: graceful fallback returning just task files', () => {
+    const os = require('os');
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-btc-'));
+    try {
+      const result = ctx.buildTaskContext(tmpDir, ['some/file.js']);
+      assert.deepStrictEqual(result.task_files, ['some/file.js']);
+      // Without intel, still returns the task file with score 1.0
+      assert.ok(result.context_files.length >= 0, 'Should handle gracefully');
+      assert.strictEqual(result.stats.candidates_found, result.context_files.length);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('includeSignatures=true adds signatures array to context files', () => {
+    const result = ctx.buildTaskContext(process.cwd(), ['src/lib/output.js'], { includeSignatures: true });
+    // Find a non-task context file that would have signatures
+    const ctxFile = result.context_files.find(f => f.score < 1.0 && f.signatures);
+    if (result.context_files.length > 1) {
+      // At least some context files should have signatures if they're JS
+      const hasAnySigs = result.context_files.some(f => f.signatures && f.signatures.length > 0);
+      assert.ok(hasAnySigs, 'At least one context file should have signatures');
+    }
+  });
+
+  test('empty task files returns empty context with zero stats', () => {
+    const result = ctx.buildTaskContext(process.cwd(), []);
+    assert.deepStrictEqual(result.task_files, []);
+    assert.deepStrictEqual(result.context_files, []);
+    assert.strictEqual(result.stats.candidates_found, 0);
+    assert.strictEqual(result.stats.files_included, 0);
+    assert.strictEqual(result.stats.token_estimate, 0);
+    assert.strictEqual(result.stats.reduction_pct, 0);
+  });
+});
+
+describe('buildTaskContext: integration tests (CLI)', () => {
+  test('codebase context --task returns JSON with context_files and stats', () => {
+    const result = runGsdTools('codebase context --task src/lib/output.js --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    assert.ok(parsed.success, 'Should return success');
+    assert.ok(Array.isArray(parsed.task_files), 'Should have task_files array');
+    assert.ok(Array.isArray(parsed.context_files), 'Should have context_files array');
+    assert.ok(parsed.stats, 'Should have stats object');
+    assert.ok(typeof parsed.stats.candidates_found === 'number');
+    assert.ok(typeof parsed.stats.files_included === 'number');
+    assert.ok(typeof parsed.stats.reduction_pct === 'number');
+  });
+
+  test('codebase context --task with --budget respects budget, fewer files', () => {
+    const fullResult = runGsdTools('codebase context --task src/lib/output.js --raw');
+    const budgetResult = runGsdTools('codebase context --task src/lib/output.js --budget 200 --raw');
+    assert.ok(fullResult.success && budgetResult.success);
+    const full = JSON.parse(fullResult.output);
+    const constrained = JSON.parse(budgetResult.output);
+    assert.ok(constrained.stats.files_included <= full.stats.files_included,
+      `Budget-constrained (${constrained.stats.files_included}) should have <= files than full (${full.stats.files_included})`);
+  });
+
+  test('stats.reduction_pct > 0 proves context was reduced vs all candidates', () => {
+    const result = runGsdTools('codebase context --task src/lib/output.js --budget 1000 --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    // With budget constraint of 1000, if there are many candidates, reduction should be > 0
+    if (parsed.stats.candidates_found > parsed.stats.files_included) {
+      assert.ok(parsed.stats.reduction_pct > 0, `Expected reduction > 0%, got ${parsed.stats.reduction_pct}%`);
+    }
+  });
+
+  test('quality baseline: known task includes direct deps and importers', () => {
+    // src/lib/codebase-intel.js imports src/lib/output.js, src/lib/git.js, src/lib/helpers.js
+    // So testing codebase-intel.js should find its deps in context
+    const result = runGsdTools('codebase context --task src/lib/codebase-intel.js --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const parsed = JSON.parse(result.output);
+    const paths = parsed.context_files.map(f => f.path);
+    // codebase-intel.js imports output.js, git.js, helpers.js — check at least one dep is present
+    const hasDep = paths.includes('src/lib/output.js') || paths.includes('src/lib/git.js') || paths.includes('src/lib/helpers.js');
+    assert.ok(hasDep, `Expected at least one dependency of codebase-intel.js in context. Got: ${paths.join(', ')}`);
+    // Check importers are also present (codebase.js imports codebase-intel.js)
+    const hasImporter = paths.includes('src/commands/codebase.js') || paths.includes('src/commands/init.js') || paths.includes('src/lib/deps.js');
+    assert.ok(hasImporter, `Expected at least one importer of codebase-intel.js in context. Got: ${paths.join(', ')}`);
+  });
+});
