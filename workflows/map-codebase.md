@@ -7,17 +7,7 @@ Output: .planning/codebase/ folder with 7 structured documents about the codebas
 </purpose>
 
 <philosophy>
-**Why dedicated mapper agents:**
-- Fresh context per domain (no token contamination)
-- Agents write documents directly (no context transfer back to orchestrator)
-- Orchestrator only summarizes what was created (minimal context usage)
-- Faster execution (agents run simultaneously)
-
-**Document quality over length:**
-Include enough detail to be useful as reference. Prioritize practical examples (especially code patterns) over arbitrary brevity.
-
-**Always include file paths:**
-Documents are reference material for the agent when planning/executing. Always include actual file paths formatted with backticks: `src/services/user.ts`.
+Dedicated mapper agents: fresh context per domain, write directly (no transfer back), orchestrator only summarizes. Quality over length — include practical examples and actual file paths with backticks.
 </philosophy>
 
 <process>
@@ -311,5 +301,5 @@ End workflow.
 - Read agent output files to collect confirmations
 - All 7 codebase documents exist
 - Clear completion summary with line counts
-- User offered clear next steps in GSD style
+- User offered clear next steps
 </success_criteria>

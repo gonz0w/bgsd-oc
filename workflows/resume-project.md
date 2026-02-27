@@ -1,13 +1,9 @@
 <trigger>
-Use this workflow when:
-- Starting a new session on an existing project
-- User says "continue", "what's next", "where were we", "resume"
-- Any planning operation when .planning/ already exists
-- User returns after time away from project
+New session on existing project, user says "continue"/"resume"/"where were we", or returning after time away.
 </trigger>
 
 <purpose>
-Instantly restore full project context so "Where were we?" has an immediate, complete answer.
+Restore full project context — instant answer to "Where were we?"
 </purpose>
 
 <required_reading>
@@ -31,31 +27,13 @@ Parse JSON for: `state_exists`, `roadmap_exists`, `project_exists`, `planning_ex
 </step>
 
 <step name="load_state">
-
-Read and parse STATE.md, then PROJECT.md:
-
 ```bash
 cat .planning/STATE.md
 cat .planning/PROJECT.md
 ```
 
-**From STATE.md extract:**
-
-- **Project Reference**: Core value and current focus
-- **Current Position**: Phase X of Y, Plan A of B, Status
-- **Progress**: Visual progress bar
-- **Recent Decisions**: Key decisions affecting current work
-- **Pending Todos**: Ideas captured during sessions
-- **Blockers/Concerns**: Issues carried forward
-- **Session Continuity**: Where we left off, any resume files
-
-**From PROJECT.md extract:**
-
-- **What This Is**: Current accurate description
-- **Requirements**: Validated, Active, Out of Scope
-- **Key Decisions**: Full decision log with outcomes
-- **Constraints**: Hard limits on implementation
-
+From STATE.md: project reference, current position, progress, decisions, todos, blockers, session continuity.
+From PROJECT.md: description, requirements, key decisions, constraints.
 </step>
 
 <step name="check_incomplete_work">

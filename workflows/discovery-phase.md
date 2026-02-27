@@ -20,15 +20,7 @@ NOTE: For comprehensive ecosystem research ("how do experts build this"), use /g
 </depth_levels>
 
 <source_hierarchy>
-**MANDATORY: Context7 BEFORE WebSearch**
-
-The AI's training data is 6-18 months stale. Always verify.
-
-1. **Context7 MCP FIRST** - Current docs, no hallucination
-2. **Official docs** - When Context7 lacks coverage
-3. **WebSearch LAST** - For comparisons and trends only
-
-See /home/cam/.config/opencode/get-shit-done/templates/discovery.md `<discovery_protocol>` for full protocol.
+**Source priority:** Context7 MCP first → Official docs → WebSearch last (comparisons only). Training data is stale — always verify. See templates/discovery.md for full protocol.
 </source_hierarchy>
 
 <process>

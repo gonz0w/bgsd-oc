@@ -3,7 +3,7 @@ Initialize a new project: questioning → research (optional) → requirements �
 </purpose>
 
 <required_reading>
-Read all files referenced by the invoking prompt's execution_context.
+Read all execution_context files before starting.
 </required_reading>
 
 <auto_mode>
@@ -71,7 +71,7 @@ node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs: in
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► DEFINING INTENT
+ bGSD ► DEFINING INTENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 

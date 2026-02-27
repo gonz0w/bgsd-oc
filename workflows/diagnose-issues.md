@@ -13,12 +13,7 @@ Debug files use the `.planning/debug/` path (hidden directory with leading dot).
 </paths>
 
 <core_principle>
-**Diagnose before planning fixes.**
-
-UAT tells us WHAT is broken (symptoms). Debug agents find WHY (root cause). plan-phase --gaps then creates targeted fixes based on actual causes, not guesses.
-
-Without diagnosis: "Comment doesn't refresh" → guess at fix → maybe wrong
-With diagnosis: "Comment doesn't refresh" → "useEffect missing dependency" → precise fix
+**Diagnose before planning fixes.** UAT = WHAT is broken. Debug agents = WHY (root cause). plan-phase --gaps = targeted fixes from actual causes.
 </core_principle>
 
 <process>
@@ -168,7 +163,7 @@ node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs({ph
 Display:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► DIAGNOSIS COMPLETE
+ bGSD ► DIAGNOSIS COMPLETE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 | Gap (Truth) | Root Cause | Files |
@@ -189,24 +184,13 @@ Do NOT offer manual next steps - verify-work handles the rest.
 </process>
 
 <context_efficiency>
-Agents start with symptoms pre-filled from UAT (no symptom gathering).
-Agents only diagnose—plan-phase --gaps handles fixes (no fix application).
+Agents start with symptoms pre-filled (no gathering). Agents only diagnose — plan-phase --gaps handles fixes.
 </context_efficiency>
 
 <failure_handling>
-**Agent fails to find root cause:**
-- Mark gap as "needs manual review"
-- Continue with other gaps
-- Report incomplete diagnosis
-
-**Agent times out:**
-- Check DEBUG-{slug}.md for partial progress
-- Can resume with /gsd-debug
-
-**All agents fail:**
-- Something systemic (permissions, git, etc.)
-- Report for manual investigation
-- Fall back to plan-phase --gaps without root causes (less precise)
+**Single agent fails:** Mark "needs manual review", continue with others.
+**Agent times out:** Check DEBUG-{slug}.md for partial progress, resume with /gsd-debug.
+**All fail:** Report for manual investigation, fall back to plan-phase --gaps without root causes.
 </failure_handling>
 
 <success_criteria>

@@ -37,10 +37,9 @@ DECIMAL_PHASE=$(echo "$DECIMAL_INFO" | jq -r '.next')
 BASE_PHASE=$(echo "$DECIMAL_INFO" | jq -r '.base_phase')
 ```
 
-Or with --raw flag:
+Or extract directly:
 ```bash
-DECIMAL_PHASE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase next-decimal "${AFTER_PHASE}" --raw)
-# Returns just: 06.1
+DECIMAL_PHASE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase next-decimal "${AFTER_PHASE}" | jq -r '.next')
 ```
 
 ## Examples
@@ -57,7 +56,7 @@ DECIMAL_PHASE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs 
 Decimal phase directories use the full decimal number:
 
 ```bash
-SLUG=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs generate-slug "$DESCRIPTION" --raw)
+SLUG=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs generate-slug "$DESCRIPTION" | jq -r '.slug')
 PHASE_DIR=".planning/phases/${DECIMAL_PHASE}-${SLUG}"
 mkdir -p "$PHASE_DIR"
 ```

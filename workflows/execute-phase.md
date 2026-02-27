@@ -7,7 +7,7 @@ Orchestrator coordinates, not executes. Each subagent loads the full execute-pla
 </core_principle>
 
 <required_reading>
-Read STATE.md before any operation.
+Read STATE.md before starting.
 </required_reading>
 
 <process>
@@ -19,8 +19,7 @@ INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init exec
 
 Parse JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
 
-If `phase_found` false → error. If `plan_count` 0 → error. If no STATE.md but `.planning/` exists → offer reconstruct.
-When `parallelization` false, wave plans execute sequentially.
+If `phase_found` false or `plan_count` 0 → error. No STATE.md but `.planning/` exists → offer reconstruct. `parallelization` false → sequential execution.
 </step>
 
 <step name="handle_branching">
@@ -106,43 +105,13 @@ Otherwise:
 </step>
 
 <step name="preflight_convention_check">
-Advisory check for naming convention mismatches across all files the phase will modify.
+Advisory naming convention check (never blocks execution).
 
-1. **Collect files from all incomplete plans:**
-   ```bash
-   # For each plan in incomplete_plans from init JSON:
-   ALL_FILES=""
-   for PLAN_PATH in ${INCOMPLETE_PLANS}; do
-     PLAN_FILES=$(node gsd-tools.cjs frontmatter "${PLAN_PATH}" --field files_modified 2>/dev/null)
-     ALL_FILES="${ALL_FILES} ${PLAN_FILES}"
-   done
-   # Deduplicate
-   ALL_FILES=$(echo "$ALL_FILES" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-   ```
-
-2. **Run codebase context for all files:**
-   ```bash
-   if [ -n "$ALL_FILES" ]; then
-     CONV_CTX=$(node gsd-tools.cjs codebase context --files ${ALL_FILES} 2>/dev/null)
-   fi
-   ```
-   If command fails or returns empty: skip silently. No warning, no error.
-
-3. **Check conventions from output:**
-   Parse the JSON output. For each file in `files`, check `conventions.naming.pattern` and `conventions.naming.confidence`.
-   Only flag files where:
-   - `confidence` > 80%
-   - The file path's naming style differs from the detected convention `pattern`
-
-4. **Display advisory warnings (if any):**
-   ```
-   ⚠ Convention advisory:
-     {file_path} — project uses {pattern} ({confidence}% confidence) in this directory
-   ```
-
-5. **Never block execution.** This is purely informational — log and continue regardless of findings. If no mismatches found, produce no output.
-
-6. **Forward warnings:** Store any convention warnings so they can be included in executor spawn prompts' `<codebase_context>` block (Task 1's injection mechanism carries them to agents).
+1. **Collect files** from all incomplete plans via `frontmatter --field files_modified`, deduplicate.
+2. **Run** `codebase context --files ${ALL_FILES}`. If fails/empty: skip silently.
+3. **Flag** files where detected `conventions.naming.pattern` differs from file path and `confidence` > 80%.
+4. **Display** advisory: `⚠ Convention advisory: {file_path} — project uses {pattern} ({confidence}%)`. No output if no mismatches.
+5. **Forward** warnings to executor spawn prompts' `<codebase_context>` block.
 </step>
 
 <step name="discover_and_group_plans">
@@ -327,7 +296,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
    If pass: report what was built from SUMMARY.md.
 
 5. **Handle failures:**
-   - **classifyHandoffIfNeeded bug:** If agent reports "failed" with `classifyHandoffIfNeeded is not defined` → runtime bug, not GSD. Spot-check; if pass → treat as success.
+   - **classifyHandoffIfNeeded bug:** If agent reports "failed" with `classifyHandoffIfNeeded is not defined` → runtime bug, not bGSD. Spot-check; if pass → treat as success.
    - Real failures: report → ask continue/stop → dependent plans may also fail.
 
 6. **Execute checkpoint plans** between waves — see `checkpoint_handling`.

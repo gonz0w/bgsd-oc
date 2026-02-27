@@ -1,6 +1,6 @@
 # Model Profiles
 
-Model profiles control which AI model each GSD agent uses. This allows balancing quality vs token spend.
+Model profiles control which AI model each bGSD agent uses, balancing quality vs token spend.
 
 ## Profile Definitions
 
@@ -89,4 +89,4 @@ Verification requires goal-backward reasoning - checking if code *delivers* what
 Read-only exploration and pattern extraction. No reasoning required, just structured output from file contents.
 
 **Why `inherit` instead of passing `opus` directly?**
-OpenCode's `"opus"` alias maps to a specific model version. Organizations may block older opus versions while allowing newer ones. GSD returns `"inherit"` for opus-tier agents, causing them to use whatever opus version the user has configured in their session. This avoids version conflicts and silent fallbacks to Sonnet.
+OpenCode's `"opus"` alias maps to a specific model version. Organizations may block older opus versions while allowing newer ones. bGSD returns `"inherit"` for opus-tier agents, using whatever opus version the user has configured. This avoids version conflicts and silent fallbacks to Sonnet.

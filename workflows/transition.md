@@ -1,13 +1,5 @@
 <required_reading>
-
-**Read these files NOW:**
-
-1. `.planning/STATE.md`
-2. `.planning/PROJECT.md`
-3. `.planning/ROADMAP.md`
-4. Current phase's plan files (`*-PLAN.md`)
-5. Current phase's summary files (`*-SUMMARY.md`)
-
+Read: `.planning/STATE.md`, `.planning/PROJECT.md`, `.planning/ROADMAP.md`, current phase `*-PLAN.md` and `*-SUMMARY.md` files.
 </required_reading>
 
 <purpose>
@@ -21,34 +13,21 @@ Mark current phase complete and advance to next. This is the natural point where
 <process>
 
 <step name="load_project_state" priority="first">
-
-Before transition, read project state:
-
 ```bash
 cat .planning/STATE.md 2>/dev/null
 cat .planning/PROJECT.md 2>/dev/null
 ```
 
-Parse current position to verify we're transitioning the right phase.
-Note accumulated context that may need updating after transition.
-
+Parse current position to verify correct phase. Note accumulated context needing updates.
 </step>
 
 <step name="verify_completion">
-
-Check current phase has all plan summaries:
-
 ```bash
 ls .planning/phases/XX-current/*-PLAN.md 2>/dev/null | sort
 ls .planning/phases/XX-current/*-SUMMARY.md 2>/dev/null | sort
 ```
 
-**Verification logic:**
-
-- Count PLAN files
-- Count SUMMARY files
-- If counts match: all plans complete
-- If counts don't match: incomplete
+Count PLANs vs SUMMARYs. Match → complete. Mismatch → incomplete.
 
 <config-check>
 
@@ -119,22 +98,12 @@ If found, delete them — phase is complete, handoffs are stale.
 </step>
 
 <step name="update_roadmap_and_state">
-
-**Delegate ROADMAP.md and STATE.md updates to gsd-tools:**
-
 ```bash
 TRANSITION=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase complete "${current_phase}")
 ```
 
-The CLI handles:
-- Marking the phase checkbox as `[x]` complete with today's date
-- Updating plan count to final (e.g., "3/3 plans complete")
-- Updating the Progress table (Status → Complete, adding date)
-- Advancing STATE.md to next phase (Current Phase, Status → Ready to plan, Current Plan → Not started)
-- Detecting if this is the last phase in the milestone
-
-Extract from result: `completed_phase`, `plans_executed`, `next_phase`, `next_phase_name`, `is_last_phase`.
-
+CLI handles: phase checkbox `[x]`, plan count, Progress table, STATE.md advance, last-phase detection.
+Extract: `completed_phase`, `plans_executed`, `next_phase`, `next_phase_name`, `is_last_phase`.
 </step>
 
 <step name="archive_prompts">

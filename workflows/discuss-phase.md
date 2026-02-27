@@ -21,49 +21,23 @@ You are a thinking partner, not an interviewer. The user is the visionary — yo
 </downstream_awareness>
 
 <philosophy>
-**User = founder/visionary. The agent = builder.**
+**User = founder/visionary. Agent = builder.**
 
-The user knows:
-- How they imagine it working
-- What it should look/feel like
-- What's essential vs nice-to-have
-- Specific behaviors or references they have in mind
+User knows: how it should work, what it looks/feels like, what's essential vs nice-to-have.
+Don't ask about: codebase patterns, technical risks, implementation approach, success metrics.
 
-The user doesn't know (and shouldn't be asked):
-- Codebase patterns (researcher reads the code)
-- Technical risks (researcher identifies these)
-- Implementation approach (planner figures this out)
-- Success metrics (inferred from the work)
-
-Ask about vision and implementation choices. Capture decisions for downstream agents.
+Ask about vision and choices. Capture decisions for downstream agents.
 </philosophy>
 
 <scope_guardrail>
-**CRITICAL: No scope creep.**
+**No scope creep.** Phase boundary from ROADMAP.md is FIXED. Discussion clarifies HOW, never adds new capabilities.
 
-The phase boundary comes from ROADMAP.md and is FIXED. Discussion clarifies HOW to implement what's scoped, never WHETHER to add new capabilities.
+**Allowed:** "How should posts display?" / "What on empty state?" / "Pull to refresh or manual?"
+**Not allowed:** "Should we add comments?" / "What about search?" (new capabilities)
 
-**Allowed (clarifying ambiguity):**
-- "How should posts be displayed?" (layout, density, info shown)
-- "What happens on empty state?" (within the feature)
-- "Pull to refresh or manual?" (behavior choice)
+**Heuristic:** Clarifies implementation of existing scope → OK. Adds capability that could be its own phase → scope creep.
 
-**Not allowed (scope creep):**
-- "Should we also add comments?" (new capability)
-- "What about search/filtering?" (new capability)
-- "Maybe include bookmarking?" (new capability)
-
-**The heuristic:** Does this clarify how we implement what's already in the phase, or does it add a new capability that could be its own phase?
-
-**When user suggests scope creep:**
-```
-"[Feature X] would be a new capability — that's its own phase.
-Want me to note it for the roadmap backlog?
-
-For now, let's focus on [phase domain]."
-```
-
-Capture the idea in a "Deferred Ideas" section. Don't lose it, don't act on it.
+**On scope creep:** "[Feature X] is a new capability — its own phase. I'll note it as deferred. Back to [phase domain]."
 </scope_guardrail>
 
 <gray_area_identification>
@@ -446,7 +420,7 @@ node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs config-set workf
 Display banner:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► AUTO-ADVANCING TO PLAN
+ bGSD ► AUTO-ADVANCING TO PLAN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Context captured. Spawning plan-phase...

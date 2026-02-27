@@ -1,9 +1,9 @@
 <purpose>
-Check project progress, summarize recent work and what's ahead, then intelligently route to the next action — either executing an existing plan or creating the next one. Provides situational awareness before continuing work.
+Check project progress, summarize recent work, and route to next action — execute an existing plan or create the next one.
 </purpose>
 
 <required_reading>
-Read all files referenced by the invoking prompt's execution_context before starting.
+Read all execution_context files before starting.
 </required_reading>
 
 <process>
@@ -37,51 +37,23 @@ If missing both ROADMAP.md and PROJECT.md: suggest `/gsd-new-project`.
 </step>
 
 <step name="load">
-**Use structured extraction from gsd-tools:**
-
-Instead of reading full files, use targeted tools to get only the data needed for the report:
-- `ROADMAP=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap analyze)`
-- `STATE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state-snapshot)`
-
-This minimizes orchestrator context usage.
-</step>
-
-<step name="analyze_roadmap">
-**Get comprehensive roadmap analysis (replaces manual parsing):**
+**Load structured data:**
 
 ```bash
 ROADMAP=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap analyze)
+STATE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state-snapshot)
 ```
 
-This returns structured JSON with:
-- All phases with disk status (complete/partial/planned/empty/no_directory)
-- Goal and dependencies per phase
-- Plan and summary counts per phase
-- Aggregated stats: total plans, summaries, progress percent
-- Current and next phase identification
-
-Use this instead of manually reading/parsing ROADMAP.md.
+`ROADMAP` returns: phases with disk status, goals, deps, plan/summary counts, progress percent, current/next phase.
 </step>
 
 <step name="recent">
-**Gather recent work context:**
-
-- Find the 2-3 most recent SUMMARY.md files
-- Use `summary-extract` for efficient parsing:
-  ```bash
-  node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs summary-extract <path> --fields one_liner
-  ```
-- This shows "what we've been working on"
-  </step>
+**Recent work:** Find 2-3 most recent SUMMARY.md files, extract one-liners via `summary-extract <path> --fields one_liner`.
+</step>
 
 <step name="position">
-**Parse current position from init context and roadmap analysis:**
-
-- Use `current_phase` and `next_phase` from `$ROADMAP`
-- Note `paused_at` if work was paused (from `$STATE`)
-- Count pending todos: use `init todos` or `list-todos`
-- Check for active debug sessions: `ls .planning/debug/*.md 2>/dev/null | grep -v resolved | wc -l`
-  </step>
+**Position:** Use `current_phase`/`next_phase` from `$ROADMAP`, `paused_at` from `$STATE`. Count pending todos via `init todos`. Check active debug sessions: `ls .planning/debug/*.md 2>/dev/null | grep -v resolved | wc -l`
+</step>
 
 <step name="report">
 **Generate progress bar from gsd-tools, then present rich status report:**
@@ -360,22 +332,14 @@ Ready to plan the next milestone.
 </step>
 
 <step name="edge_cases">
-**Handle edge cases:**
-
-- Phase complete but next phase not planned → offer `/gsd-plan-phase [next]`
-- All work complete → offer milestone completion
-- Blockers present → highlight before offering to continue
-- Handoff file exists → mention it, offer `/gsd-resume-work`
-  </step>
+**Edge cases:** Phase complete but unplanned → offer `/gsd-plan-phase [next]`. All complete → milestone completion. Blockers → highlight first. Handoff exists → mention, offer `/gsd-resume-work`.
+</step>
 
 </process>
 
 <success_criteria>
-
-- [ ] Rich context provided (recent work, decisions, issues)
-- [ ] Current position clear with visual progress
-- [ ] What's next clearly explained
-- [ ] Smart routing: /gsd-execute-phase if plans exist, /gsd-plan-phase if not
-- [ ] User confirms before any action
-- [ ] Seamless handoff to appropriate gsd command
-      </success_criteria>
+- [ ] Rich context (recent work, decisions, issues)
+- [ ] Current position with visual progress
+- [ ] Smart routing: execute if plans exist, plan if not
+- [ ] User confirms before action
+</success_criteria>

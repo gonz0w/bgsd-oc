@@ -605,16 +605,8 @@ Some things can't be verified programmatically. Flag these for human testing:
 
 ## Pre-Checkpoint Automation
 
-For automation-first checkpoint patterns, server lifecycle management, CLI installation handling, and error recovery protocols, see:
+See **@/home/cam/.config/opencode/get-shit-done/references/checkpoints.md** → `<automation_reference>`.
 
-**@/home/cam/.config/opencode/get-shit-done/references/checkpoints.md** → `<automation_reference>` section
-
-Key principles:
-- The agent sets up verification environment BEFORE presenting checkpoints
-- Users never run CLI commands (visit URLs only)
-- Server lifecycle: start before checkpoint, handle port conflicts, keep running for duration
-- CLI installation: auto-install where safe, checkpoint for user choice otherwise
-- Error handling: fix broken environment before checkpoint, never present checkpoint with failed setup
-
+Agent sets up verification environment BEFORE checkpoints. Users never run CLI commands. Fix broken environment before presenting checkpoint.
 </checkpoint_automation_reference>
 <!-- /section -->

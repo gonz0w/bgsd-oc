@@ -1,9 +1,9 @@
 <purpose>
-Execute small ad-hoc tasks with GSD guarantees (atomic commits, STATE.md tracking). Spawns planner + executor, tracks in `.planning/quick/`. With `--full`: adds plan-checking (max 2 iterations) and verification.
+Execute small ad-hoc tasks with bGSD guarantees (atomic commits, STATE.md tracking). Spawns planner + executor, tracks in `.planning/quick/`. With `--full`: adds plan-checking (max 2 iterations) and verification.
 </purpose>
 
 <required_reading>
-Read all files referenced by the invoking prompt's execution_context before starting.
+Read all execution_context files before starting.
 </required_reading>
 
 <process>
@@ -20,7 +20,7 @@ If still empty, re-prompt: "Please provide a task description."
 If `$FULL_MODE`:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► QUICK TASK (FULL MODE)
+ bGSD ► QUICK TASK (FULL MODE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ◆ Plan checking + verification enabled
 ```
@@ -95,7 +95,7 @@ Skip if NOT `$FULL_MODE`.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► CHECKING PLAN
+ bGSD ► CHECKING PLAN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ◆ Spawning plan checker...
 ```
@@ -192,7 +192,7 @@ Skip if NOT `$FULL_MODE`.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► VERIFYING RESULTS
+ bGSD ► VERIFYING RESULTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ◆ Spawning verifier...
 ```
@@ -255,7 +255,7 @@ commit_hash=$(git rev-parse --short HEAD)
 
 **If `$FULL_MODE`:**
 ```
-GSD > QUICK TASK COMPLETE (FULL MODE)
+bGSD > QUICK TASK COMPLETE (FULL MODE)
 Quick Task ${next_num}: ${DESCRIPTION}
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Verification: ${QUICK_DIR}/${next_num}-VERIFICATION.md (${VERIFICATION_STATUS})
@@ -265,7 +265,7 @@ Ready for next task: /gsd-quick
 
 **If NOT `$FULL_MODE`:**
 ```
-GSD > QUICK TASK COMPLETE
+bGSD > QUICK TASK COMPLETE
 Quick Task ${next_num}: ${DESCRIPTION}
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Commit: ${commit_hash}

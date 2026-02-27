@@ -1,9 +1,9 @@
 <purpose>
-Switch the model profile used by GSD agents. Controls which AI model each agent uses, balancing quality vs token spend.
+Switch the model profile used by bGSD agents. Controls which AI model each agent uses, balancing quality vs token spend.
 </purpose>
 
 <required_reading>
-Read all files referenced by the invoking prompt's execution_context before starting.
+Read all execution_context files before starting.
 </required_reading>
 
 <process>

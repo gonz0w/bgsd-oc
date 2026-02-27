@@ -3,7 +3,7 @@ Verify milestone achieved its definition of done by aggregating phase verificati
 </purpose>
 
 <required_reading>
-Read all files referenced by the invoking prompt's execution_context before starting.
+Read all execution_context files before starting.
 </required_reading>
 
 <process>
