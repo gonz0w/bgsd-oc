@@ -14754,3 +14754,243 @@ module.exports = {
     assert.strictEqual(parsed.error, 'file_not_found', 'Should report file_not_found error');
   });
 });
+
+
+// ─── AST Intelligence: codebase complexity & codebase repo-map ──────────────
+
+describe('codebase complexity command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-complexity-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('simple function with no branching has complexity 1', () => {
+    const jsFile = path.join(tmpDir, 'simple.js');
+    fs.writeFileSync(jsFile, `
+function add(a, b) {
+  return a + b;
+}
+`);
+    const result = runGsdTools(`codebase complexity "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.ok(parsed.functions.length > 0, 'Should find at least one function');
+    const addFn = parsed.functions.find(f => f.name === 'add');
+    assert.ok(addFn, 'Should find the add function');
+    assert.strictEqual(addFn.complexity, 1, 'Simple function should have complexity 1');
+    assert.strictEqual(addFn.nesting_max, 0, 'Simple function should have nesting_max 0');
+  });
+
+  test('function with if/else/for has complexity reflecting branch count', () => {
+    const jsFile = path.join(tmpDir, 'branching.js');
+    fs.writeFileSync(jsFile, `
+function process(items) {
+  if (items.length === 0) {
+    return [];
+  }
+  for (let i = 0; i < items.length; i++) {
+    if (items[i] > 10) {
+      items[i] = 10;
+    }
+  }
+  return items;
+}
+`);
+    const result = runGsdTools(`codebase complexity "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    const processFn = parsed.functions.find(f => f.name === 'process');
+    assert.ok(processFn, 'Should find the process function');
+    // Base 1 + if + for + if = 4
+    assert.ok(processFn.complexity >= 4, `Expected complexity >= 4, got ${processFn.complexity}`);
+  });
+
+  test('nested control flow reflects nesting depth', () => {
+    const jsFile = path.join(tmpDir, 'nested.js');
+    fs.writeFileSync(jsFile, `
+function deepNest(x) {
+  if (x > 0) {
+    for (let i = 0; i < x; i++) {
+      if (i % 2 === 0) {
+        while (x > i) {
+          x--;
+        }
+      }
+    }
+  }
+  return x;
+}
+`);
+    const result = runGsdTools(`codebase complexity "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    const nestFn = parsed.functions.find(f => f.name === 'deepNest');
+    assert.ok(nestFn, 'Should find the deepNest function');
+    // if > for > if > while = depth 4
+    assert.ok(nestFn.nesting_max >= 4, `Expected nesting_max >= 4, got ${nestFn.nesting_max}`);
+  });
+
+  test('module complexity is sum of function complexities', () => {
+    const jsFile = path.join(tmpDir, 'multi.js');
+    fs.writeFileSync(jsFile, `
+function simple() { return 1; }
+function branching(x) {
+  if (x > 0) return true;
+  return false;
+}
+`);
+    const result = runGsdTools(`codebase complexity "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.functions.length, 2, 'Should find 2 functions');
+    const sum = parsed.functions.reduce((acc, f) => acc + f.complexity, 0);
+    assert.strictEqual(parsed.module_complexity, sum, 'module_complexity should be sum of function complexities');
+  });
+
+  test('non-existent file returns graceful error', () => {
+    const result = runGsdTools(`codebase complexity "${path.join(tmpDir, 'nonexistent.js')}"`, tmpDir);
+    assert.ok(result.success, `Command should succeed (graceful error): ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.error, 'file_not_found', 'Should report file_not_found error');
+    assert.strictEqual(parsed.module_complexity, 0, 'module_complexity should be 0 for missing file');
+  });
+
+  test('logical operators contribute to complexity', () => {
+    const jsFile = path.join(tmpDir, 'logical.js');
+    fs.writeFileSync(jsFile, `
+function validate(x, y) {
+  if (x > 0 && y > 0 || x < -10) {
+    return true;
+  }
+  return false;
+}
+`);
+    const result = runGsdTools(`codebase complexity "${jsFile}"`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    const fn = parsed.functions.find(f => f.name === 'validate');
+    assert.ok(fn, 'Should find the validate function');
+    // Base 1 + if + && + || = 4
+    assert.ok(fn.complexity >= 4, `Expected complexity >= 4 (1 + if + && + ||), got ${fn.complexity}`);
+  });
+});
+
+
+describe('codebase repo-map command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-repomap-'));
+    // Set up a minimal project structure with source files
+    fs.mkdirSync(path.join(tmpDir, 'src', 'lib'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.git'), { recursive: true }); // fake git dir
+
+    // Create source files with signatures
+    fs.writeFileSync(path.join(tmpDir, 'src', 'main.js'), `
+function startup(config) {
+  return init(config);
+}
+
+function shutdown() {
+  cleanup();
+}
+
+const helper = (x) => x + 1;
+
+module.exports = { startup, shutdown, helper };
+`);
+
+    fs.writeFileSync(path.join(tmpDir, 'src', 'lib', 'utils.js'), `
+function formatDate(date) {
+  return date.toISOString();
+}
+
+function parseQuery(str) {
+  return str.split('&');
+}
+
+module.exports = { formatDate, parseQuery };
+`);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('repo map returns summary string with file entries', () => {
+    const result = runGsdTools('codebase repo-map --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.ok(parsed.summary, 'Should have summary string');
+    assert.ok(parsed.summary.includes('# Repo Map'), 'Summary should include header');
+    assert.ok(parsed.files_included > 0, 'Should include at least one file');
+    assert.ok(parsed.total_signatures > 0, 'Should have signatures');
+    assert.ok(parsed.token_estimate > 0, 'Should have token estimate');
+  });
+
+  test('repo map token_estimate is roughly within budget', () => {
+    const result = runGsdTools('codebase repo-map --budget 2000 --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    // Allow some overshoot (1.2x) but should be in ballpark
+    assert.ok(parsed.token_estimate < 2000 * 1.5, `token_estimate ${parsed.token_estimate} way over budget 2000`);
+  });
+
+  test('repo map includes source files with signatures', () => {
+    const result = runGsdTools('codebase repo-map --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    // Should mention our source files in the summary
+    assert.ok(
+      parsed.summary.includes('main.js') || parsed.summary.includes('utils.js'),
+      'Summary should include source file names'
+    );
+    assert.ok(parsed.summary.includes('fn '), 'Summary should include function entries');
+  });
+
+  test('repo map --budget flag controls output size', () => {
+    const bigResult = runGsdTools('codebase repo-map --budget 5000 --raw', tmpDir);
+    const smallResult = runGsdTools('codebase repo-map --budget 100 --raw', tmpDir);
+
+    assert.ok(bigResult.success, `Big budget failed: ${bigResult.error}`);
+    assert.ok(smallResult.success, `Small budget failed: ${smallResult.error}`);
+
+    const big = JSON.parse(bigResult.output);
+    const small = JSON.parse(smallResult.output);
+
+    // Small budget should have fewer or equal files included
+    assert.ok(
+      small.files_included <= big.files_included,
+      `Small budget (${small.files_included} files) should have <= files than big budget (${big.files_included} files)`
+    );
+  });
+});
+
+
+describe('codebase repo-map integration', () => {
+  test('repo-map on gsd-tools project produces valid JSON with files > 0', () => {
+    const result = runGsdTools('codebase repo-map --raw');
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const parsed = JSON.parse(result.output);
+    assert.ok(parsed.files_included > 0, 'Should include files from this project');
+    assert.ok(parsed.total_signatures > 0, 'Should have signatures from this project');
+    assert.ok(typeof parsed.summary === 'string', 'Summary should be a string');
+    assert.ok(parsed.summary.length > 50, 'Summary should have meaningful content');
+    assert.ok(parsed.token_estimate > 0, 'Token estimate should be positive');
+  });
+});
