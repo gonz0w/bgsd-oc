@@ -1014,6 +1014,26 @@ function matchFileConventions(file, conventions) {
  * @param {boolean} raw - Raw JSON output mode
  */
 function cmdCodebaseContext(cwd, args, raw) {
+  // Parse --task flag: comma-separated file list for task-scoped context
+  const taskIdx = args.indexOf('--task');
+  if (taskIdx !== -1) {
+    const taskArg = args[taskIdx + 1];
+    if (!taskArg || taskArg.startsWith('--')) {
+      error('Usage: codebase context --task <file1,file2,...>');
+      return;
+    }
+    const taskFiles = taskArg.split(',').map(f => f.trim()).filter(Boolean);
+    const planIdx = args.indexOf('--plan');
+    const planPath = planIdx !== -1 ? args[planIdx + 1] : null;
+    const budgetIdx = args.indexOf('--budget');
+    const tokenBudget = budgetIdx !== -1 ? parseInt(args[budgetIdx + 1], 10) : 3000;
+    const planFiles = getPlanFiles(cwd, planPath);
+    const { buildTaskContext } = require('../lib/context');
+    const result = buildTaskContext(cwd, taskFiles, { planFiles, tokenBudget });
+    output({ success: true, ...result }, raw);
+    return;
+  }
+
   // Parse --files flag: collect all args after --files until next flag
   const filesIdx = args.indexOf('--files');
   let filePaths = [];

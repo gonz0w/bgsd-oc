@@ -1085,6 +1085,27 @@ Remove all worktrees for the current project and prune stale references.
 
 Output: { cleaned, worktrees: [{ plan_id, path }] }`,
 
+  'codebase context': `Usage: gsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
+       gsd-tools codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
+
+Assemble per-file architectural context from cached intel.
+
+Mode 1 (--files): Full context with imports, dependents, conventions, risk levels.
+Mode 2 (--task):  Task-scoped context using dep graph + relevance scoring.
+  Returns only files relevant to the task with scores and optional AST signatures.
+
+Options:
+  --files <paths>    Target file paths for full context mode
+  --task <paths>     Comma-separated task files for scoped context mode
+  --plan <path>      Plan file for scope signal (reads files_modified)
+  --budget <tokens>  Token budget for task-scoped output (default: 3000)
+
+Output (--task): { task_files, context_files: [{path, score, reason, signatures?}], stats }
+
+Examples:
+  gsd-tools codebase context --files src/lib/ast.js
+  gsd-tools codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
+
   'codebase ast': `Usage: gsd-tools codebase ast <file>
 
 Extract function, class, and method signatures from a source file.

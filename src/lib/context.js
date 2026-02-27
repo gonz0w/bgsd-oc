@@ -240,7 +240,145 @@ function compactDepGraph(depData) {
   };
 }
 
+// ─── Task-Scoped Context Builder ─────────────────────────────────────────────
+
+/**
+ * Score a candidate file's relevance to the current task.
+ * Duplicated from codebase.js to avoid circular imports (~15 lines).
+ *
+ * @param {string} file - Candidate file path
+ * @param {string[]} taskFiles - Direct task files (score 1.0)
+ * @param {{ forward: object, reverse: object }} graph - Dep graph adjacency
+ * @param {string[]} planFiles - Files from plan's files_modified
+ * @param {Set<string>} recentFiles - Recently modified files
+ * @returns {{ score: number, reason: string }}
+ */
+function scoreTaskFile(file, taskFiles, graph, planFiles, recentFiles) {
+  if (taskFiles.includes(file)) return { score: 1.0, reason: 'direct task file' };
+
+  let score = 0;
+  const reasons = [];
+
+  // Check 1-hop: file imported by or imports a task file
+  for (const tf of taskFiles) {
+    if ((graph.forward[tf] || []).includes(file)) {
+      score += 0.7; reasons.push('imported by task file'); break;
+    }
+    if ((graph.reverse[tf] || []).includes(file)) {
+      score += 0.5; reasons.push('imports task file'); break;
+    }
+  }
+
+  if (planFiles.includes(file)) { score += 0.3; reasons.push('in plan scope'); }
+  if (recentFiles.has(file)) { score += 0.2; reasons.push('recently modified'); }
+
+  return { score: Math.min(score, 1.0), reason: reasons.join(', ') || 'none' };
+}
+
+/**
+ * Build task-scoped context: only files relevant to the current task.
+ * Uses dep graph for 1-hop traversal, relevance scoring, and token budgeting.
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} taskFiles - Files listed in the task's files element
+ * @param {object} [options] - Options
+ * @param {string[]} [options.planFiles] - Files from plan's files_modified
+ * @param {number} [options.tokenBudget] - Max tokens for output (default 3000)
+ * @param {boolean} [options.includeSignatures] - Include AST signatures (default true)
+ * @returns {object} { task_files, context_files, stats }
+ */
+function buildTaskContext(cwd, taskFiles, options) {
+  const opts = options || {};
+  const planFiles = opts.planFiles || [];
+  const tokenBudget = opts.tokenBudget || 3000;
+  const includeSignatures = opts.includeSignatures !== false;
+
+  if (!taskFiles || taskFiles.length === 0) {
+    return { task_files: [], context_files: [], stats: { candidates_found: 0, files_included: 0, files_excluded: 0, token_estimate: 0, reduction_pct: 0 } };
+  }
+
+  // Load dep graph from intel (lazy require to keep bundle lean)
+  let graph = { forward: {}, reverse: {} };
+  try {
+    const { readIntel } = require('./codebase-intel');
+    const intel = readIntel(cwd);
+    if (intel && intel.dependencies) {
+      graph = intel.dependencies;
+    } else if (intel) {
+      const { buildDependencyGraph } = require('./deps');
+      graph = buildDependencyGraph(intel);
+    }
+  } catch { /* fallback: empty graph, just task files */ }
+
+  // Gather 1-hop candidates from dep graph
+  const candidateSet = new Set(taskFiles);
+  for (const tf of taskFiles) {
+    for (const dep of (graph.forward[tf] || [])) candidateSet.add(dep);
+    for (const dep of (graph.reverse[tf] || [])) candidateSet.add(dep);
+  }
+
+  // Score recent files
+  let recentFiles = new Set();
+  try {
+    const { execGit } = require('./git');
+    const result = execGit(cwd, ['log', '-10', '--name-only', '--pretty=format:', '--no-merges']);
+    if (result.exitCode === 0) recentFiles = new Set(result.stdout.split('\n').filter(f => f.trim()));
+  } catch { /* no git info */ }
+
+  // Score all candidates
+  const scored = [];
+  for (const file of candidateSet) {
+    const { score, reason } = scoreTaskFile(file, taskFiles, graph, planFiles, recentFiles);
+    if (score >= 0.3) scored.push({ path: file, score, reason });
+  }
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+
+  // Optionally add AST signatures
+  if (includeSignatures) {
+    try {
+      const { extractSignatures } = require('./ast');
+      const path = require('path');
+      for (const entry of scored) {
+        if (entry.score < 1.0) { // Skip full task files, signatures for context files only
+          const result = extractSignatures(path.resolve(cwd, entry.path));
+          if (result.signatures && result.signatures.length > 0) {
+            entry.signatures = result.signatures.map(s => ({ name: s.name, type: s.type, params: s.params }));
+          }
+        }
+      }
+    } catch { /* AST not available */ }
+  }
+
+  // Enforce token budget — drop lowest-scored files first
+  const allCandidates = scored.length;
+  let tokenEstimate = estimateJsonTokens(scored);
+  while (tokenEstimate > tokenBudget && scored.length > 1) {
+    scored.pop(); // Remove lowest-scored
+    tokenEstimate = estimateJsonTokens(scored);
+  }
+
+  const fullEstimate = allCandidates > scored.length
+    ? Math.round(tokenEstimate * allCandidates / Math.max(scored.length, 1))
+    : tokenEstimate;
+  const reductionPct = fullEstimate > 0 ? Math.round((1 - tokenEstimate / fullEstimate) * 100) : 0;
+
+  return {
+    task_files: taskFiles,
+    context_files: scored,
+    stats: {
+      candidates_found: allCandidates,
+      files_included: scored.length,
+      files_excluded: allCandidates - scored.length,
+      token_estimate: tokenEstimate,
+      reduction_pct: Math.max(reductionPct, 0),
+    },
+  };
+}
+
 module.exports = {
   estimateTokens, estimateJsonTokens, checkBudget, isWithinBudget,
   AGENT_MANIFESTS, scopeContextForAgent, compactPlanState, compactDepGraph,
+  buildTaskContext,
 };

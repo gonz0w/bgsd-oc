@@ -268,6 +268,7 @@ Workflows:
 Flags:
   --compact   Return essential-only fields (38-50% smaller)
   --manifest  Include context manifest with --compact (adds file loading guidance)
+  --agent=<type>  Scope output to agent's declared context (e.g. --agent=gsd-executor)
 
 Examples:
   gsd-tools init execute-phase 03
@@ -1027,6 +1028,26 @@ Output: { removed, plan_id, path }`,
 Remove all worktrees for the current project and prune stale references.
 
 Output: { cleaned, worktrees: [{ plan_id, path }] }`,
+      "codebase context": `Usage: gsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
+       gsd-tools codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
+
+Assemble per-file architectural context from cached intel.
+
+Mode 1 (--files): Full context with imports, dependents, conventions, risk levels.
+Mode 2 (--task):  Task-scoped context using dep graph + relevance scoring.
+  Returns only files relevant to the task with scores and optional AST signatures.
+
+Options:
+  --files <paths>    Target file paths for full context mode
+  --task <paths>     Comma-separated task files for scoped context mode
+  --plan <path>      Plan file for scope signal (reads files_modified)
+  --budget <tokens>  Token budget for task-scoped output (default: 3000)
+
+Output (--task): { task_files, context_files: [{path, score, reason, signatures?}], stats }
+
+Examples:
+  gsd-tools codebase context --files src/lib/ast.js
+  gsd-tools codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
       "codebase ast": `Usage: gsd-tools codebase ast <file>
 
 Extract function, class, and method signatures from a source file.
@@ -1094,6 +1115,45 @@ Output (formatted): The summary text directly
 Examples:
   gsd-tools codebase repo-map
   gsd-tools codebase repo-map --budget 500`,
+      "classify": `Usage: gsd-tools classify <plan|phase> <path-or-number>
+
+Classify task complexity and recommend execution strategy.
+
+Subcommands:
+  plan <plan-path>       Classify all tasks in a single plan (1-5 complexity scores)
+  phase <phase-number>   Classify all incomplete plans in a phase + execution mode
+
+Examples:
+  gsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md
+  gsd-tools classify phase 39`,
+      "classify plan": `Usage: gsd-tools classify plan <plan-path>
+
+Classify all tasks in a plan file with 1-5 complexity scores.
+
+Scoring factors: file count, cross-module blast radius, test requirements,
+checkpoint complexity, action length.
+
+Model mapping: score 1-2 \u2192 sonnet, score 3 \u2192 sonnet, score 4-5 \u2192 opus
+
+Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
+
+Examples:
+  gsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
+      "classify phase": `Usage: gsd-tools classify phase <phase-number>
+
+Classify all incomplete plans in a phase and determine execution mode.
+
+Execution modes:
+  single      1 plan with 1-2 tasks
+  parallel    Multiple plans in same wave, no file overlaps
+  sequential  Plans with checkpoint tasks
+  pipeline    Plans spanning 3+ waves
+
+Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason, waves } }
+
+Examples:
+  gsd-tools classify phase 39
+  gsd-tools classify phase 38`,
       "profile": "Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/",
       "git": `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]
 
@@ -10108,66 +10168,6 @@ var init_dist = __esm({
   }
 });
 
-// src/lib/context.js
-var require_context = __commonJS({
-  "src/lib/context.js"(exports2, module2) {
-    "use strict";
-    var { debugLog } = require_output();
-    var _estimateTokenCount = null;
-    function getTokenizer() {
-      if (_estimateTokenCount !== null) return _estimateTokenCount;
-      try {
-        const tokenx = (init_dist(), __toCommonJS(dist_exports));
-        _estimateTokenCount = tokenx.estimateTokenCount;
-        debugLog("context.tokenizer", "tokenx loaded successfully");
-      } catch (e) {
-        debugLog("context.tokenizer", "tokenx load failed, using fallback", e);
-        _estimateTokenCount = (text) => Math.ceil(String(text).length / 4);
-      }
-      return _estimateTokenCount;
-    }
-    function estimateTokens(text) {
-      if (!text || typeof text !== "string") return 0;
-      try {
-        const fn = getTokenizer();
-        return fn(text);
-      } catch (e) {
-        debugLog("context.estimateTokens", "estimation failed, using fallback", e);
-        return Math.ceil(text.length / 4);
-      }
-    }
-    function estimateJsonTokens(obj) {
-      if (obj === void 0 || obj === null) return 0;
-      try {
-        return estimateTokens(JSON.stringify(obj));
-      } catch (e) {
-        debugLog("context.estimateJsonTokens", "stringify failed", e);
-        return 0;
-      }
-    }
-    function checkBudget(tokens, config = {}) {
-      const contextWindow = config.context_window || 2e5;
-      const targetPercent = config.context_target_percent || 50;
-      const percent = Math.round(tokens / contextWindow * 100);
-      const warning = percent > targetPercent;
-      let recommendation = null;
-      if (percent > 80) {
-        recommendation = "Critical: exceeds 80% of context window. Split into smaller units.";
-      } else if (percent > 60) {
-        recommendation = "High: exceeds 60% of context window. Consider reducing scope.";
-      } else if (percent > targetPercent) {
-        recommendation = `Above target: exceeds ${targetPercent}% target. Monitor closely.`;
-      }
-      return { tokens, percent, warning, recommendation };
-    }
-    function isWithinBudget(text, config = {}) {
-      const tokens = estimateTokens(text);
-      return checkBudget(tokens, config);
-    }
-    module2.exports = { estimateTokens, estimateJsonTokens, checkBudget, isWithinBudget };
-  }
-});
-
 // node_modules/acorn/dist/acorn.js
 var require_acorn = __commonJS({
   "node_modules/acorn/dist/acorn.js"(exports2, module2) {
@@ -16684,6 +16684,348 @@ var require_ast = __commonJS({
   }
 });
 
+// src/lib/context.js
+var require_context = __commonJS({
+  "src/lib/context.js"(exports2, module2) {
+    "use strict";
+    var { debugLog } = require_output();
+    var _estimateTokenCount = null;
+    function getTokenizer() {
+      if (_estimateTokenCount !== null) return _estimateTokenCount;
+      try {
+        const tokenx = (init_dist(), __toCommonJS(dist_exports));
+        _estimateTokenCount = tokenx.estimateTokenCount;
+        debugLog("context.tokenizer", "tokenx loaded successfully");
+      } catch (e) {
+        debugLog("context.tokenizer", "tokenx load failed, using fallback", e);
+        _estimateTokenCount = (text) => Math.ceil(String(text).length / 4);
+      }
+      return _estimateTokenCount;
+    }
+    function estimateTokens(text) {
+      if (!text || typeof text !== "string") return 0;
+      try {
+        const fn = getTokenizer();
+        return fn(text);
+      } catch (e) {
+        debugLog("context.estimateTokens", "estimation failed, using fallback", e);
+        return Math.ceil(text.length / 4);
+      }
+    }
+    function estimateJsonTokens(obj) {
+      if (obj === void 0 || obj === null) return 0;
+      try {
+        return estimateTokens(JSON.stringify(obj));
+      } catch (e) {
+        debugLog("context.estimateJsonTokens", "stringify failed", e);
+        return 0;
+      }
+    }
+    function checkBudget(tokens, config = {}) {
+      const contextWindow = config.context_window || 2e5;
+      const targetPercent = config.context_target_percent || 50;
+      const percent = Math.round(tokens / contextWindow * 100);
+      const warning = percent > targetPercent;
+      let recommendation = null;
+      if (percent > 80) {
+        recommendation = "Critical: exceeds 80% of context window. Split into smaller units.";
+      } else if (percent > 60) {
+        recommendation = "High: exceeds 60% of context window. Consider reducing scope.";
+      } else if (percent > targetPercent) {
+        recommendation = `Above target: exceeds ${targetPercent}% target. Monitor closely.`;
+      }
+      return { tokens, percent, warning, recommendation };
+    }
+    function isWithinBudget(text, config = {}) {
+      const tokens = estimateTokens(text);
+      return checkBudget(tokens, config);
+    }
+    var AGENT_MANIFESTS = {
+      "gsd-executor": {
+        fields: [
+          "phase_dir",
+          "phase_number",
+          "phase_name",
+          "plans",
+          "incomplete_plans",
+          "plan_count",
+          "incomplete_count",
+          "branch_name",
+          "commit_docs",
+          "verifier_enabled",
+          "task_routing",
+          "env_summary"
+        ],
+        optional: ["codebase_conventions", "codebase_dependencies"],
+        exclude: [
+          "intent_drift",
+          "intent_summary",
+          "worktree_config",
+          "worktree_active",
+          "file_overlaps",
+          "codebase_freshness",
+          "codebase_stats"
+        ]
+      },
+      "gsd-verifier": {
+        fields: [
+          "phase_dir",
+          "phase_number",
+          "phase_name",
+          "plans",
+          "summaries",
+          "verifier_enabled"
+        ],
+        optional: ["codebase_stats"],
+        exclude: [
+          "intent_drift",
+          "intent_summary",
+          "task_routing",
+          "worktree_config",
+          "worktree_active",
+          "file_overlaps",
+          "env_summary",
+          "branch_name",
+          "codebase_conventions",
+          "codebase_dependencies"
+        ]
+      },
+      "gsd-planner": {
+        fields: [
+          "phase_dir",
+          "phase_number",
+          "phase_name",
+          "plan_count",
+          "research_enabled",
+          "plan_checker_enabled",
+          "intent_summary"
+        ],
+        optional: [
+          "codebase_stats",
+          "codebase_conventions",
+          "codebase_dependencies",
+          "codebase_freshness",
+          "env_summary"
+        ],
+        exclude: [
+          "task_routing",
+          "worktree_config",
+          "worktree_active",
+          "file_overlaps",
+          "branch_name"
+        ]
+      },
+      "gsd-phase-researcher": {
+        fields: ["phase_dir", "phase_number", "phase_name", "intent_summary"],
+        optional: ["codebase_stats", "env_summary"],
+        exclude: [
+          "task_routing",
+          "worktree_config",
+          "worktree_active",
+          "file_overlaps",
+          "branch_name",
+          "verifier_enabled",
+          "plans",
+          "incomplete_plans"
+        ]
+      },
+      "gsd-plan-checker": {
+        fields: ["phase_dir", "phase_number", "phase_name", "plans", "plan_count"],
+        optional: ["codebase_stats", "codebase_dependencies"],
+        exclude: [
+          "intent_drift",
+          "intent_summary",
+          "task_routing",
+          "worktree_config",
+          "worktree_active",
+          "file_overlaps",
+          "env_summary",
+          "branch_name"
+        ]
+      }
+    };
+    function scopeContextForAgent(result, agentType) {
+      const manifest = AGENT_MANIFESTS[agentType];
+      if (!manifest || !result) return result;
+      const originalKeys = Object.keys(result).length;
+      const allowed = /* @__PURE__ */ new Set([...manifest.fields, ...manifest.optional]);
+      const scoped = { _agent: agentType };
+      for (const key of allowed) {
+        if (key in result && result[key] !== void 0 && result[key] !== null) {
+          scoped[key] = result[key];
+        } else if (manifest.fields.includes(key) && key in result) {
+          scoped[key] = result[key];
+        }
+      }
+      const scopedKeys = Object.keys(scoped).length - 1;
+      scoped._savings = {
+        original_keys: originalKeys,
+        scoped_keys: scopedKeys,
+        reduction_pct: originalKeys > 0 ? Math.round((1 - scopedKeys / originalKeys) * 100) : 0
+      };
+      return scoped;
+    }
+    function compactPlanState(stateRaw) {
+      if (!stateRaw || typeof stateRaw !== "string") {
+        return { phase: null, progress: null, status: null, last_activity: null, decisions: [], blockers: [] };
+      }
+      let phase = null, progress = null, status = null, lastActivity = null;
+      const phaseMatch = stateRaw.match(/^Phase:\s*(\S+)/m);
+      if (phaseMatch) phase = phaseMatch[1];
+      const planMatch = stateRaw.match(/^Plan:\s*(.+)$/m);
+      if (planMatch) progress = planMatch[1].trim();
+      const statusMatch = stateRaw.match(/^Status:\s*(.+)$/m);
+      if (statusMatch) status = statusMatch[1].trim();
+      const activityMatch = stateRaw.match(/^Last activity:\s*(\S+)/m);
+      if (activityMatch) lastActivity = activityMatch[1];
+      const decisions = [];
+      const decisionRe = /^- Phase .+$/gm;
+      let m;
+      while ((m = decisionRe.exec(stateRaw)) !== null) {
+        decisions.push(m[0].replace(/^- /, ""));
+      }
+      const blockers = [];
+      const blockerSection = stateRaw.match(/### Blockers\/Concerns\n([\s\S]*?)(?:\n## |\n$|$)/);
+      if (blockerSection) {
+        const lines = blockerSection[1].trim().split("\n").filter((l) => l.startsWith("- "));
+        for (const line of lines) {
+          const text = line.replace(/^- /, "").trim();
+          if (text && text.toLowerCase() !== "none" && text.toLowerCase() !== "none.") {
+            blockers.push(text);
+          }
+        }
+      }
+      return {
+        phase,
+        progress,
+        status,
+        last_activity: lastActivity,
+        decisions: decisions.slice(-5),
+        blockers
+      };
+    }
+    function compactDepGraph(depData) {
+      if (!depData || typeof depData !== "object") return {};
+      return {
+        total_modules: depData.total_modules || 0,
+        total_edges: depData.total_edges || 0,
+        top_imported: Array.isArray(depData.top_imported) ? depData.top_imported.slice(0, 5) : [],
+        has_cycles: !!depData.has_cycles
+      };
+    }
+    function scoreTaskFile(file, taskFiles, graph, planFiles, recentFiles) {
+      if (taskFiles.includes(file)) return { score: 1, reason: "direct task file" };
+      let score = 0;
+      const reasons = [];
+      for (const tf of taskFiles) {
+        if ((graph.forward[tf] || []).includes(file)) {
+          score += 0.7;
+          reasons.push("imported by task file");
+          break;
+        }
+        if ((graph.reverse[tf] || []).includes(file)) {
+          score += 0.5;
+          reasons.push("imports task file");
+          break;
+        }
+      }
+      if (planFiles.includes(file)) {
+        score += 0.3;
+        reasons.push("in plan scope");
+      }
+      if (recentFiles.has(file)) {
+        score += 0.2;
+        reasons.push("recently modified");
+      }
+      return { score: Math.min(score, 1), reason: reasons.join(", ") || "none" };
+    }
+    function buildTaskContext(cwd, taskFiles, options) {
+      const opts = options || {};
+      const planFiles = opts.planFiles || [];
+      const tokenBudget = opts.tokenBudget || 3e3;
+      const includeSignatures = opts.includeSignatures !== false;
+      if (!taskFiles || taskFiles.length === 0) {
+        return { task_files: [], context_files: [], stats: { candidates_found: 0, files_included: 0, files_excluded: 0, token_estimate: 0, reduction_pct: 0 } };
+      }
+      let graph = { forward: {}, reverse: {} };
+      try {
+        const { readIntel } = require_codebase_intel();
+        const intel = readIntel(cwd);
+        if (intel && intel.dependencies) {
+          graph = intel.dependencies;
+        } else if (intel) {
+          const { buildDependencyGraph } = require_deps();
+          graph = buildDependencyGraph(intel);
+        }
+      } catch {
+      }
+      const candidateSet = new Set(taskFiles);
+      for (const tf of taskFiles) {
+        for (const dep of graph.forward[tf] || []) candidateSet.add(dep);
+        for (const dep of graph.reverse[tf] || []) candidateSet.add(dep);
+      }
+      let recentFiles = /* @__PURE__ */ new Set();
+      try {
+        const { execGit } = require_git();
+        const result = execGit(cwd, ["log", "-10", "--name-only", "--pretty=format:", "--no-merges"]);
+        if (result.exitCode === 0) recentFiles = new Set(result.stdout.split("\n").filter((f) => f.trim()));
+      } catch {
+      }
+      const scored = [];
+      for (const file of candidateSet) {
+        const { score, reason } = scoreTaskFile(file, taskFiles, graph, planFiles, recentFiles);
+        if (score >= 0.3) scored.push({ path: file, score, reason });
+      }
+      scored.sort((a, b) => b.score - a.score);
+      if (includeSignatures) {
+        try {
+          const { extractSignatures } = require_ast();
+          const path = require("path");
+          for (const entry of scored) {
+            if (entry.score < 1) {
+              const result = extractSignatures(path.resolve(cwd, entry.path));
+              if (result.signatures && result.signatures.length > 0) {
+                entry.signatures = result.signatures.map((s) => ({ name: s.name, type: s.type, params: s.params }));
+              }
+            }
+          }
+        } catch {
+        }
+      }
+      const allCandidates = scored.length;
+      let tokenEstimate = estimateJsonTokens(scored);
+      while (tokenEstimate > tokenBudget && scored.length > 1) {
+        scored.pop();
+        tokenEstimate = estimateJsonTokens(scored);
+      }
+      const fullEstimate = allCandidates > scored.length ? Math.round(tokenEstimate * allCandidates / Math.max(scored.length, 1)) : tokenEstimate;
+      const reductionPct = fullEstimate > 0 ? Math.round((1 - tokenEstimate / fullEstimate) * 100) : 0;
+      return {
+        task_files: taskFiles,
+        context_files: scored,
+        stats: {
+          candidates_found: allCandidates,
+          files_included: scored.length,
+          files_excluded: allCandidates - scored.length,
+          token_estimate: tokenEstimate,
+          reduction_pct: Math.max(reductionPct, 0)
+        }
+      };
+    }
+    module2.exports = {
+      estimateTokens,
+      estimateJsonTokens,
+      checkBudget,
+      isWithinBudget,
+      AGENT_MANIFESTS,
+      scopeContextForAgent,
+      compactPlanState,
+      compactDepGraph,
+      buildTaskContext
+    };
+  }
+});
+
 // src/commands/codebase.js
 var require_codebase = __commonJS({
   "src/commands/codebase.js"(exports2, module2) {
@@ -17326,6 +17668,24 @@ var require_codebase = __commonJS({
       return { naming, frameworks: matchingFrameworks };
     }
     function cmdCodebaseContext(cwd, args, raw) {
+      const taskIdx = args.indexOf("--task");
+      if (taskIdx !== -1) {
+        const taskArg = args[taskIdx + 1];
+        if (!taskArg || taskArg.startsWith("--")) {
+          error("Usage: codebase context --task <file1,file2,...>");
+          return;
+        }
+        const taskFiles = taskArg.split(",").map((f) => f.trim()).filter(Boolean);
+        const planIdx2 = args.indexOf("--plan");
+        const planPath2 = planIdx2 !== -1 ? args[planIdx2 + 1] : null;
+        const budgetIdx = args.indexOf("--budget");
+        const tokenBudget = budgetIdx !== -1 ? parseInt(args[budgetIdx + 1], 10) : 3e3;
+        const planFiles2 = getPlanFiles(cwd, planPath2);
+        const { buildTaskContext } = require_context();
+        const result2 = buildTaskContext(cwd, taskFiles, { planFiles: planFiles2, tokenBudget });
+        output({ success: true, ...result2 }, raw);
+        return;
+      }
       const filesIdx = args.indexOf("--files");
       let filePaths = [];
       if (filesIdx !== -1) {
@@ -18195,6 +18555,394 @@ var require_worktree = __commonJS({
   }
 });
 
+// src/lib/orchestration.js
+var require_orchestration = __commonJS({
+  "src/lib/orchestration.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var { debugLog, output, error } = require_output();
+    var { extractFrontmatter } = require_frontmatter();
+    var { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS } = require_format();
+    function parseTasksFromPlan(content) {
+      if (!content || typeof content !== "string") return [];
+      const tasks = [];
+      const taskBlockRe = /<task\s+type="([^"]*)"[^>]*>([\s\S]*?)<\/task>/g;
+      let match;
+      while ((match = taskBlockRe.exec(content)) !== null) {
+        const type = match[1] || "auto";
+        const body = match[2];
+        const task = {
+          name: extractElement(body, "name") || "Unnamed Task",
+          type,
+          files: parseFilesList(extractElement(body, "files")),
+          action: extractElement(body, "action") || "",
+          verify: extractElement(body, "verify") || "",
+          done: extractElement(body, "done") || ""
+        };
+        tasks.push(task);
+      }
+      return tasks;
+    }
+    function extractElement(body, tagName) {
+      const re = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "i");
+      const m = body.match(re);
+      return m ? m[1].trim() : null;
+    }
+    function parseFilesList(filesStr) {
+      if (!filesStr) return [];
+      return filesStr.split(",").map((f) => f.trim()).filter(Boolean);
+    }
+    var COMPLEXITY_LABELS = {
+      1: "trivial",
+      2: "simple",
+      3: "moderate",
+      4: "complex",
+      5: "very_complex"
+    };
+    var MODEL_MAP = {
+      1: "sonnet",
+      2: "sonnet",
+      3: "sonnet",
+      4: "opus",
+      5: "opus"
+    };
+    function classifyTaskComplexity(task, context) {
+      try {
+        let score = 1;
+        const factors = [];
+        const files = task.files || [];
+        const action = task.action || "";
+        const verify = task.verify || "";
+        const type = task.type || "auto";
+        if (files.length >= 6) {
+          score += 2;
+          factors.push(`${files.length} files (high)`);
+        } else if (files.length >= 3) {
+          score += 1;
+          factors.push(`${files.length} files`);
+        }
+        if (context && context.depGraph && context.depGraph.reverse) {
+          let totalImporters = 0;
+          for (const file of files) {
+            for (const [key, importers] of Object.entries(context.depGraph.reverse)) {
+              if (key === file || key.endsWith("/" + file) || file.endsWith("/" + key)) {
+                totalImporters += importers.length;
+              }
+            }
+          }
+          if (totalImporters >= 6) {
+            score += 2;
+            factors.push(`high blast radius (${totalImporters} importers)`);
+          } else if (totalImporters >= 3) {
+            score += 1;
+            factors.push(`moderate blast radius (${totalImporters} importers)`);
+          }
+        }
+        const testKeywords = /\btest\b|npm\s+test|pytest|jest|mocha|vitest|go\s+test|mix\s+test/i;
+        if (testKeywords.test(action) || testKeywords.test(verify)) {
+          score += 1;
+          factors.push("has tests");
+        }
+        if (type === "checkpoint:decision" || type === "checkpoint:human-verify") {
+          score += 1;
+          factors.push(`checkpoint (${type})`);
+        }
+        if (action.length > 800) {
+          score += 1;
+          factors.push("complex action (>800 chars)");
+        }
+        score = Math.max(1, Math.min(5, score));
+        return {
+          score,
+          label: COMPLEXITY_LABELS[score],
+          factors,
+          recommended_model: MODEL_MAP[score],
+          recommended_agent: "gsd-executor"
+        };
+      } catch (e) {
+        debugLog("orchestration.classifyTask", "classification failed", e);
+        return {
+          score: 3,
+          label: "moderate",
+          factors: ["classification error \u2014 defaulting"],
+          recommended_model: "sonnet",
+          recommended_agent: "gsd-executor"
+        };
+      }
+    }
+    function classifyPlan(planPath, cwd) {
+      try {
+        const absPath = path.isAbsolute(planPath) ? planPath : path.resolve(cwd, planPath);
+        const content = fs.readFileSync(absPath, "utf-8");
+        const frontmatter = extractFrontmatter(content);
+        const tasks = parseTasksFromPlan(content);
+        let depGraph = null;
+        try {
+          const { readIntel } = require_codebase_intel();
+          const { buildDependencyGraph } = require_deps();
+          const intel = readIntel(cwd);
+          if (intel) {
+            depGraph = buildDependencyGraph(intel);
+          }
+        } catch (e) {
+          debugLog("orchestration.classifyPlan", "dep graph unavailable (non-blocking)", e);
+        }
+        const context = { cwd, depGraph };
+        const classifiedTasks = tasks.map((task) => ({
+          name: task.name,
+          type: task.type,
+          files: task.files,
+          complexity: classifyTaskComplexity(task, context)
+        }));
+        const planComplexity = classifiedTasks.length > 0 ? Math.max(...classifiedTasks.map((t) => t.complexity.score)) : 1;
+        const highestModel = classifiedTasks.reduce((best, t) => {
+          const modelPriority = { haiku: 0, sonnet: 1, opus: 2 };
+          const current = modelPriority[t.complexity.recommended_model] || 0;
+          const bestPriority = modelPriority[best] || 0;
+          return current > bestPriority ? t.complexity.recommended_model : best;
+        }, "sonnet");
+        return {
+          plan: path.basename(absPath),
+          wave: parseInt(frontmatter.wave, 10) || 1,
+          autonomous: frontmatter.autonomous === "true" || frontmatter.autonomous === true,
+          task_count: classifiedTasks.length,
+          tasks: classifiedTasks,
+          plan_complexity: planComplexity,
+          recommended_model: highestModel
+        };
+      } catch (e) {
+        debugLog("orchestration.classifyPlan", "plan classification failed", e);
+        return null;
+      }
+    }
+    function selectExecutionMode(planClassifications) {
+      try {
+        if (!planClassifications || planClassifications.length === 0) {
+          return {
+            mode: "single",
+            reason: "no plans to execute",
+            waves: {},
+            total_plans: 0,
+            total_waves: 0,
+            has_checkpoints: false
+          };
+        }
+        const totalPlans = planClassifications.length;
+        const waves = {};
+        for (const plan of planClassifications) {
+          const wave = plan.wave || 1;
+          if (!waves[wave]) waves[wave] = [];
+          waves[wave].push(plan.plan);
+        }
+        const totalWaves = Object.keys(waves).length;
+        const hasCheckpoints = planClassifications.some(
+          (plan) => plan.tasks && plan.tasks.some(
+            (t) => t.type && t.type.startsWith("checkpoint:")
+          )
+        );
+        if (hasCheckpoints) {
+          return {
+            mode: "sequential",
+            reason: "plan has checkpoint tasks requiring human interaction",
+            waves,
+            total_plans: totalPlans,
+            total_waves: totalWaves,
+            has_checkpoints: true
+          };
+        }
+        if (totalPlans === 1) {
+          const taskCount = planClassifications[0].task_count || 0;
+          if (taskCount <= 2) {
+            return {
+              mode: "single",
+              reason: `1 plan with ${taskCount} task${taskCount !== 1 ? "s" : ""}`,
+              waves,
+              total_plans: 1,
+              total_waves: totalWaves,
+              has_checkpoints: false
+            };
+          }
+        }
+        for (const [wave, plans] of Object.entries(waves)) {
+          if (plans.length > 1) {
+            return {
+              mode: "parallel",
+              reason: `${plans.length} independent plans in wave ${wave}`,
+              waves,
+              total_plans: totalPlans,
+              total_waves: totalWaves,
+              has_checkpoints: false
+            };
+          }
+        }
+        if (totalWaves >= 3) {
+          return {
+            mode: "pipeline",
+            reason: `${totalWaves} waves requiring sequential execution`,
+            waves,
+            total_plans: totalPlans,
+            total_waves: totalWaves,
+            has_checkpoints: false
+          };
+        }
+        return {
+          mode: "sequential",
+          reason: `${totalPlans} plans across ${totalWaves} wave${totalWaves !== 1 ? "s" : ""}`,
+          waves,
+          total_plans: totalPlans,
+          total_waves: totalWaves,
+          has_checkpoints: false
+        };
+      } catch (e) {
+        debugLog("orchestration.selectMode", "mode selection failed", e);
+        return {
+          mode: "sequential",
+          reason: "mode selection error \u2014 defaulting to sequential",
+          waves: {},
+          total_plans: 0,
+          total_waves: 0,
+          has_checkpoints: false
+        };
+      }
+    }
+    function routeTask(complexity, config) {
+      try {
+        const score = complexity?.score || 3;
+        const baseModel = MODEL_MAP[score] || "sonnet";
+        if (config && config.model_profile) {
+          const { MODEL_PROFILES } = require_constants();
+          const agentModels = MODEL_PROFILES["gsd-executor"];
+          if (agentModels && agentModels[config.model_profile]) {
+            const profileModel = agentModels[config.model_profile];
+            const priority = { haiku: 0, sonnet: 1, opus: 2, inherit: 2 };
+            const profilePriority = priority[profileModel] || 1;
+            const basePriority = priority[baseModel] || 1;
+            const resolvedModel = profilePriority >= basePriority ? profileModel : baseModel;
+            return {
+              model: resolvedModel === "opus" ? "inherit" : resolvedModel,
+              agent: "gsd-executor",
+              reason: `score ${score} (${complexity.label}) via ${config.model_profile} profile`
+            };
+          }
+        }
+        return {
+          model: baseModel === "opus" ? "inherit" : baseModel,
+          agent: "gsd-executor",
+          reason: `score ${score} (${complexity.label})`
+        };
+      } catch (e) {
+        debugLog("orchestration.routeTask", "routing failed", e);
+        return {
+          model: "sonnet",
+          agent: "gsd-executor",
+          reason: "routing error \u2014 defaulting to sonnet"
+        };
+      }
+    }
+    function cmdClassifyPlan(cwd, args, raw) {
+      const planPath = args[0];
+      if (!planPath) {
+        error("Usage: classify plan <plan-path>");
+      }
+      const classification = classifyPlan(planPath, cwd);
+      if (!classification) {
+        error("Failed to classify plan: " + planPath);
+      }
+      output(classification, {
+        formatter: (result) => {
+          const lines = [];
+          lines.push(banner("Classify Plan"));
+          lines.push("");
+          lines.push(sectionHeader(`Plan: ${result.plan}`));
+          lines.push(` Wave: ${result.wave}  |  Autonomous: ${result.autonomous}  |  Plan Complexity: ${result.plan_complexity}/5`);
+          lines.push(` Recommended Model: ${color.bold(result.recommended_model)}`);
+          lines.push("");
+          const headers = ["Task", "Score", "Label", "Model", "Factors"];
+          const rows = result.tasks.map((t) => [
+            t.name,
+            String(t.complexity.score),
+            t.complexity.label,
+            t.complexity.recommended_model,
+            t.complexity.factors.join(", ") || "minimal"
+          ]);
+          lines.push(formatTable(headers, rows, { showAll: true }));
+          lines.push("");
+          lines.push(summaryLine(`${result.task_count} tasks classified, plan complexity ${result.plan_complexity}/5`));
+          return lines.join("\n");
+        }
+      });
+    }
+    function cmdClassifyPhase(cwd, args, raw) {
+      const phaseNum = args[0];
+      if (!phaseNum) {
+        error("Usage: classify phase <phase-number>");
+      }
+      const { findPhaseInternal } = require_helpers();
+      const phaseInfo = findPhaseInternal(cwd, phaseNum);
+      if (!phaseInfo) {
+        error("Phase not found: " + phaseNum);
+      }
+      const planFiles = phaseInfo.incomplete_plans.length > 0 ? phaseInfo.incomplete_plans : phaseInfo.plans;
+      const classifications = [];
+      for (const planFile of planFiles) {
+        const planPath = path.join(cwd, phaseInfo.directory, planFile);
+        const classification = classifyPlan(planPath, cwd);
+        if (classification) classifications.push(classification);
+      }
+      const executionMode = selectExecutionMode(classifications);
+      const result = {
+        phase: phaseNum,
+        phase_name: phaseInfo.phase_name,
+        plans_classified: classifications.length,
+        plans: classifications,
+        execution_mode: executionMode
+      };
+      output(result, {
+        formatter: (res) => {
+          const lines = [];
+          lines.push(banner(`Classify Phase ${res.phase}`));
+          lines.push("");
+          if (res.phase_name) {
+            lines.push(` Phase: ${color.bold(res.phase_name)}`);
+          }
+          lines.push(` Plans classified: ${res.plans_classified}`);
+          lines.push("");
+          for (const plan of res.plans) {
+            lines.push(sectionHeader(plan.plan));
+            lines.push(` Complexity: ${plan.plan_complexity}/5  |  Model: ${color.bold(plan.recommended_model)}  |  Tasks: ${plan.task_count}`);
+            const headers = ["Task", "Score", "Label", "Factors"];
+            const rows = plan.tasks.map((t) => [
+              t.name,
+              String(t.complexity.score),
+              t.complexity.label,
+              t.complexity.factors.join(", ") || "minimal"
+            ]);
+            lines.push(formatTable(headers, rows, { showAll: true }));
+            lines.push("");
+          }
+          lines.push(sectionHeader("Execution Mode"));
+          lines.push(` Mode: ${color.bold(res.execution_mode.mode)}`);
+          lines.push(` Reason: ${res.execution_mode.reason}`);
+          lines.push(` Waves: ${res.execution_mode.total_waves}  |  Plans: ${res.execution_mode.total_plans}  |  Checkpoints: ${res.execution_mode.has_checkpoints ? "yes" : "no"}`);
+          lines.push("");
+          lines.push(summaryLine(`${res.plans_classified} plans \u2192 ${res.execution_mode.mode} execution`));
+          return lines.join("\n");
+        }
+      });
+    }
+    module2.exports = {
+      classifyTaskComplexity,
+      classifyPlan,
+      selectExecutionMode,
+      routeTask,
+      parseTasksFromPlan,
+      cmdClassifyPlan,
+      cmdClassifyPhase
+    };
+  }
+});
+
 // src/commands/init.js
 var require_init = __commonJS({
   "src/commands/init.js"(exports2, module2) {
@@ -18426,6 +19174,27 @@ var require_init = __commonJS({
         result.codebase_freshness = null;
       }
       try {
+        const { classifyPlan, selectExecutionMode } = require_orchestration();
+        const planClassifications = [];
+        for (const planFile of phaseInfo?.incomplete_plans || []) {
+          const planPath = path.join(cwd, phaseInfo.directory, planFile);
+          const classification = classifyPlan(planPath, cwd);
+          if (classification) planClassifications.push(classification);
+        }
+        if (planClassifications.length > 0) {
+          result.task_routing = {
+            plans: planClassifications,
+            execution_mode: selectExecutionMode(planClassifications),
+            classified_at: (/* @__PURE__ */ new Date()).toISOString()
+          };
+        } else {
+          result.task_routing = null;
+        }
+      } catch (e) {
+        debugLog("init.executePhase", "orchestration classification failed (non-blocking)", e);
+        result.task_routing = null;
+      }
+      try {
         if (result.worktree_enabled) {
           const wtListResult = execGit(cwd, ["worktree", "list", "--porcelain"]);
           if (wtListResult.exitCode === 0) {
@@ -18463,6 +19232,14 @@ var require_init = __commonJS({
       } catch (e) {
         debugLog("init.executePhase", "worktree context failed (non-blocking)", e);
       }
+      const agentArg = process.argv.find((a) => a.startsWith("--agent="));
+      if (agentArg) {
+        const agentType = agentArg.split("=")[1];
+        if (agentType) {
+          const { scopeContextForAgent } = require_context();
+          return output(scopeContextForAgent(result, agentType), raw);
+        }
+      }
       if (global._gsdCompactMode) {
         const planPaths = (result.plans || []).map((p) => typeof p === "string" ? p : p.file || p);
         const compactResult = {
@@ -18491,7 +19268,8 @@ var require_init = __commonJS({
           worktree_enabled: result.worktree_enabled,
           worktree_config: result.worktree_config,
           worktree_active: result.worktree_active,
-          file_overlaps: result.file_overlaps
+          file_overlaps: result.file_overlaps,
+          task_routing: result.task_routing || null
         };
         if (global._gsdManifestMode) {
           compactResult._manifest = {
@@ -18612,6 +19390,14 @@ var require_init = __commonJS({
           }
         } catch (e) {
           debugLog("init.planPhase", "read phase files failed", e);
+        }
+      }
+      const agentArg = process.argv.find((a) => a.startsWith("--agent="));
+      if (agentArg) {
+        const agentType = agentArg.split("=")[1];
+        if (agentType) {
+          const { scopeContextForAgent } = require_context();
+          return output(scopeContextForAgent(result, agentType), raw);
         }
       }
       if (global._gsdCompactMode) {
@@ -23434,6 +24220,9 @@ var require_router = __commonJS({
     function lazyGit() {
       return _modules.git || (_modules.git = require_git());
     }
+    function lazyOrchestration() {
+      return _modules.orchestration || (_modules.orchestration = require_orchestration());
+    }
     async function main2() {
       const args = process.argv.slice(2);
       const prettyIdx = args.indexOf("--pretty");
@@ -23485,7 +24274,7 @@ var require_router = __commonJS({
         });
       }
       if (!command) {
-        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
+        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -24173,6 +24962,17 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             }
             default:
               error("Unknown git subcommand: " + gitSub + ". Available: log, diff-summary, blame, branch-info");
+          }
+          break;
+        }
+        case "classify": {
+          const sub = args[1];
+          if (sub === "plan") {
+            lazyOrchestration().cmdClassifyPlan(cwd, args.slice(2), raw);
+          } else if (sub === "phase") {
+            lazyOrchestration().cmdClassifyPhase(cwd, args.slice(2), raw);
+          } else {
+            error("Usage: classify <plan|phase> <path-or-number>");
           }
           break;
         }
