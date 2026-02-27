@@ -2,20 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-27)
+See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v6.0 complete — ready for next milestone
+**Current focus:** v7.0 Agent Orchestration & Efficiency
 
 ## Current Position
 
-**Phase:** None — between milestones
-**Status:** v6.0 shipped
-**Last Activity:** 2026-02-27
-
-```
-v6.0: ✅ SHIPPED (7 phases, 11 plans)
-```
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v7.0 started
 
 ## Performance Metrics
 

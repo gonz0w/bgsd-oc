@@ -8,6 +8,17 @@ A zero-dependency, single-file Node.js CLI built from 18 organized `src/` module
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
+## Current Milestone: v7.0 Agent Orchestration & Efficiency
+
+**Goal:** Make GSD the definitive agent orchestrator for building large software — add missing agent roles, improve orchestration intelligence, optimize performance, and reduce context load without losing fidelity.
+
+**Target features:**
+- New specialized agent roles (code review, test generation, refactoring, dependency management)
+- Smarter orchestration (task routing, parallelism, agent-to-agent coordination)
+- Git workflow enhancements (research-driven — branch management, PR workflows, conflict handling)
+- Performance optimizations where impactful
+- Context window reduction across workflows, references, and CLI output (fidelity-preserving)
+
 ## Current State
 
 **Last shipped:** v6.0 UX & Developer Experience (2026-02-27)
@@ -90,6 +101,14 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Workflow output tightened (455-line reduction across 27 files) — v6.0
 - ✓ 11 slash command wrappers created and deployed — v6.0
 
+### Active
+
+- [ ] New specialized agent roles for large-scale software development
+- [ ] Improved orchestration intelligence (task routing, parallelism, coordination)
+- [ ] Git workflow enhancements (research-driven)
+- [ ] Performance optimizations across CLI and workflows
+- [ ] Context window reduction without fidelity loss
+
 ### Out of Scope
 
 - Async I/O rewrite — Synchronous I/O is appropriate for CLI tool
@@ -98,6 +117,7 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - RAG / vector search — Wrong architecture for a CLI tool
 - SQLite codebase index — Heavy dependency, marginal ROI
 - Runtime MCP server connection — Static analysis sufficient
+- CI/CD pipeline management — Handled by external tooling
 
 ## Context
 
@@ -138,4 +158,4 @@ Known tech debt: None.
 | bGSD branding | Subtle rename from GSD across all output paths | Good — consistent brand identity |
 
 ---
-*Last updated: 2026-02-27 after v6.0 milestone completion*
+*Last updated: 2026-02-26 after v7.0 milestone start*
