@@ -138,7 +138,7 @@ Plans:
 **Requirements**: CMD-03, CMD-04
 **Plans**: 1 plan
 Plans:
-- [ ] 33-01-PLAN.md — Add formatters to verify requirements/quality, codebase status/analyze (user-facing only)
+- [x] 33-01-PLAN.md — Add formatters to verify requirements/quality, codebase status/analyze (user-facing only)
 **Success Criteria** (what must be TRUE):
   1. `verify requirements` shows a table of requirements with ✓/✗ pass/fail status and a summary line
   2. `verify quality` shows quality dimensions (tests, must_haves, requirements, regression) with letter grades and an overall score
