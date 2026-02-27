@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v6.0 UX & Developer Experience — Phase 36 Plan 01 complete, Plan 02 remains
+**Current focus:** v6.0 UX & Developer Experience — Phase 36 complete, milestone ready for closure
 
 ## Current Position
 
 **Phase:** 36 — Integration & Polish
-**Current Plan:** 1 of 2
-**Status:** In Progress
+**Current Plan:** 2 of 2
+**Status:** Complete
 **Last Activity:** 2026-02-27
 
 ```
-v6.0 Progress: [████████████████░░░░] 6/7 phases (86%)
-Phase 36: [██████████░░░░░░░░░░] 1/2 plans
+v6.0 Progress: [████████████████████] 7/7 phases (100%)
+Phase 36: [████████████████████] 2/2 plans
 ```
 
 ## Performance Metrics
@@ -47,6 +47,7 @@ Phase 36: [██████████░░░░░░░░░░] 1/2 pla
 | Phase 32 P01 | 5 min | 2 tasks | 2 files |
 | Phase 34 P01 | 19 min | 2 tasks | 3 files |
 | Phase 36 P01 | 3 min | 2 tasks | 12 files |
+| Phase 36 P02 | 3 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ All v1.0-v5.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - **Phase 32-01:** Phase table showAll:true for small milestones; state config as key:value pairs; session diff capped at 3 commits in formatted mode
 - **Phase 34-01:** intent show preserves forced-JSON for 'intent read'; output.js uses process.exitCode for non-zero exits; colorPriority simplified to shared color utilities
 - **Phase 36-01:** Command wrappers use same format as existing 30 installed commands; cmd-*.md files stay in workflows/ as workflow content; deploy.sh copies individual files via loop not cp -r
+- [Phase 36-02]: AGENTS.md reduced from 90 to 59 lines; Completed Work and Optional Next Steps removed; Slash Commands section added with all 11 commands
 
 ### Pending Todos
 
@@ -76,5 +78,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 36-01-PLAN.md (11 command wrappers + deploy.sh sync)
+Stopped at: Completed 36-02-PLAN.md (AGENTS.md rewrite, dead code sweep, final validation — Phase 36 complete)
 Resume file: None

@@ -176,7 +176,7 @@ Plans:
 **Goal**: All slash commands are wired, deployment updated, documentation current, and bundle size verified
 **Depends on**: Phase 34 (all command renderers done), Phase 35 (workflow output done)
 **Requirements**: INTG-01, INTG-02, INTG-03, QUAL-03
-**Plans**: 2 plans
+**Plans**: 2/2 plans complete
 Plans:
 - [ ] 36-01-PLAN.md — Create 11 command wrappers in commands/, update deploy.sh to sync them
 - [ ] 36-02-PLAN.md — Rewrite AGENTS.md as lean index, dead code sweep, final validation
@@ -225,4 +225,4 @@ Plans:
 | 33. Verify & Codebase Command Renderers | v6.0 | 0/1 | Not started | — |
 | 34. Feature & Intent Command Renderers | v6.0 | 0/1 | Not started | — |
 | 35. Workflow Output Tightening | v6.0 | 2/2 | Complete | 2026-02-27 |
-| 36. Integration & Polish | v6.0 | 1/2 | In progress | — |
+| 36. Integration & Polish | 2/2 | Complete   | 2026-02-27 | — |

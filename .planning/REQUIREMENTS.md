@@ -42,7 +42,7 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 
 - [x] **INTG-01**: 11 missing command wrapper files created in OpenCode command directory
 - [x] **INTG-02**: `deploy.sh` updated to sync command wrappers during deployment
-- [ ] **INTG-03**: AGENTS.md updated to reflect current project state — stale items removed, v5.0/v6.0 status current
+- [x] **INTG-03**: AGENTS.md updated to reflect current project state — stale items removed, v5.0/v6.0 status current
 
 ### Quality
 
@@ -101,7 +101,7 @@ Requirements for UX overhaul milestone. Each maps to roadmap phases.
 | WKFL-07 | Phase 35 | Complete | 2026-02-27 |
 | INTG-01 | Phase 36 | Complete | 2026-02-27 |
 | INTG-02 | Phase 36 | Complete | 2026-02-27 |
-| INTG-03 | Phase 36 | Pending | — |
+| INTG-03 | Phase 36 | Complete | — |
 | QUAL-01 | Phase 31 | Complete | — |
 | QUAL-02 | Phase 31 | Complete | — |
 | QUAL-03 | Phase 36 | Complete | 2026-02-27 |
