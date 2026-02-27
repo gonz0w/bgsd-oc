@@ -4,227 +4,175 @@
 
 ## APIs & External Services
 
-**Brave Search API:**
-- Purpose: Web search from within GSD workflows (research phases, debugging)
-- SDK/Client: Native `fetch()` — direct HTTP call in `src/commands/misc.js` (line 1163)
-- Endpoint: `https://api.search.brave.com/res/v1/web/search`
+**Brave Search API (optional):**
+- Purpose: Web search during research phases
+- SDK/Client: Node.js native `fetch()` (built-in since Node 18)
 - Auth: `BRAVE_API_KEY` environment variable or `~/.gsd/brave_api_key` file
-- Config: `brave_search: true/false` in `.planning/config.json`
-- Behavior: Graceful degradation — returns `{ available: false }` when no API key is set. Agent falls back to built-in WebSearch.
-- Command: `gsd-tools websearch <query> [--limit N] [--freshness day|week|month]`
-- Implementation: `cmdWebsearch()` in `src/commands/misc.js` (lines 1136-1197)
+- Endpoint: `https://api.search.brave.com/res/v1/web/search`
+- Implementation: `src/commands/misc.js` (`cmdWebsearch`, lines 1136-1197)
+- Config toggle: `brave_search` in `.planning/config.json` (default: `false`)
+- Graceful degradation: If no API key, returns `{ available: false }` silently — agent falls back to built-in WebSearch tool
+- Parameters: query, count, country, search_lang, freshness
+
+**No other external APIs.** This is a local-only CLI tool. All other operations use the local filesystem and git.
+
+## Git Integration
+
+**Git is the primary external dependency** — used pervasively across the codebase:
+
+- **Client:** `execFileSync('git', args)` via `src/lib/git.js` (`execGit` wrapper)
+- **No shell spawning:** Uses `execFileSync` directly, bypassing shell interpretation for security and ~2ms performance gain per call
+- **Operations performed:**
+  - Commit creation (`src/commands/misc.js` — `cmdCommit`)
+  - Diff and log queries for session tracking (`src/commands/features.js`)
+  - Worktree create/list/remove/merge/cleanup (`src/commands/worktree.js`)
+  - Branch management for phase/milestone branching strategies
+  - `git check-ignore` for respecting `.gitignore` during file scanning
+  - `git rev-parse`, `git rev-list` for staleness detection
+  - `git diff --name-only` for incremental codebase analysis
+- **Config:** Branching strategy configurable via `branching_strategy`, `phase_branch_template`, `milestone_branch_template` in `.planning/config.json`
 
 ## Data Storage
 
 **Databases:**
-- None — GSD uses no databases. All data is stored as flat files.
+- None. All data stored as files.
 
-**File Storage (Local Filesystem Only):**
-- `.planning/` directory tree — All project planning state
-  - `STATE.md` — Current project state (position, blockers, metrics, decisions)
-  - `ROADMAP.md` — Milestone/phase definitions and progress
-  - `INTENT.md` — Project intent, outcomes, success criteria
-  - `REQUIREMENTS.md` — Structured requirements with traceability
-  - `ASSERTIONS.md` — Acceptance criteria per requirement
-  - `PROJECT.md` — Project metadata
-  - `MILESTONES.md` — Completed milestone archive
-  - `config.json` — Project configuration
-  - `env-manifest.json` — Machine-specific environment detection (gitignored)
-  - `project-profile.json` — Team-visible project profile (committed)
-  - `baselines/bundle-size.json` — Bundle size tracking
-  - `memory/` — Persistent session memory (JSON files)
-    - `bookmarks.json` — File bookmarks
-    - `decisions.json` — Decision log (sacred, never pruned)
-    - `lessons.json` — Lessons learned (sacred, never pruned)
-    - `todos.json` — Task tracking
-    - `quality-scores.json` — Quality score history
-    - `test-baseline.json` — Test regression baseline
-  - `phases/NN-name/` — Phase directories containing PLAN.md, SUMMARY.md, RESEARCH.md, CONTEXT.md, VERIFICATION.md
-  - `codebase/codebase-intel.json` — Automated codebase analysis results
-  - `milestones/` — Archived milestone phase directories
-  - `quick/` — Quick task summaries
-  - `research/` — Research outputs
+**File Storage (local filesystem only):**
+- `.planning/` directory tree — all project state, plans, phases, config
+- `.planning/STATE.md` — Project state (current phase, progress, decisions, blockers)
+- `.planning/ROADMAP.md` — Phase definitions and milestone tracking
+- `.planning/config.json` — Per-project configuration
+- `.planning/phases/` — Phase directories with PLAN.md, SUMMARY.md, RESEARCH.md files
+- `.planning/codebase/codebase-intel.json` — Codebase analysis cache (auto-generated)
+- `.planning/env-manifest.json` — Environment scan cache (gitignored, machine-specific)
+- `.planning/project-profile.json` — Committed project structure profile
+- `.planning/memory/` — Persistent memory stores (bookmarks, decisions, lessons, test baselines, quality scores)
+- `.planning/milestones/` — Archived milestone phase directories
+- `.planning/baselines/bundle-size.json` — Build size tracking
 
-**File Formats:**
-- Markdown with YAML frontmatter — All planning documents (parsed by `src/lib/frontmatter.js`)
-- JSON — Config, memory stores, codebase intel, env manifest
-- No binary data generated
+**Temporary files:**
+- Large JSON payloads (>50KB) written to `os.tmpdir()` as `gsd-*.json`
+- Cleaned up on process exit via `process.on('exit')` handler in `src/lib/output.js`
 
 **Caching:**
-- In-memory per-invocation caches (no external cache service):
-  - File cache: `fileCache` Map in `src/lib/helpers.js` — Avoids redundant `fs.readFileSync` calls
-  - Directory cache: `dirCache` Map in `src/lib/helpers.js` — Avoids redundant `readdirSync` calls
-  - Phase tree cache: `_phaseTreeCache` in `src/lib/helpers.js` — Single scan of phases directory
-  - Config cache: `_configCache` Map in `src/lib/config.js` — One parse per cwd
-  - Frontmatter cache: `_fmCache` Map in `src/lib/frontmatter.js` — LRU (max 100 entries)
-  - Regex cache: `_dynamicRegexCache` Map in `src/lib/regex-cache.js` — LRU (max 200 entries)
-  - Milestone cache: `_milestoneCache` in `src/lib/helpers.js` — One parse per cwd
-  - Tokenizer cache: `_estimateTokenCount` lazy singleton in `src/lib/context.js`
-
-## Git Integration
-
-**Direct Git Operations (core integration):**
-- Implementation: `execGit()` in `src/lib/git.js` — Uses `execFileSync('git', args)` (no shell)
-- Also: `execFileSync('git', ...)` in `src/lib/config.js` for `git check-ignore`
-
-**Git Operations Used:**
-- `git rev-parse HEAD` — Get current commit hash (`src/lib/codebase-intel.js`)
-- `git rev-parse --abbrev-ref HEAD` — Get current branch name
-- `git diff --name-only` — Changed files since commit (incremental analysis)
-- `git rev-list --count` — Count commits between hashes (staleness detection)
-- `git check-ignore -q` — Check if paths are gitignored (`src/lib/config.js`, `src/lib/codebase-intel.js`)
-- `git log` — Session diffs, commit history, velocity metrics (`src/commands/features.js`)
-- `git add` / `git commit` — Auto-commit planning docs (`src/commands/misc.js`)
-- `git worktree add/list/remove/prune` — Worktree management (`src/commands/worktree.js`)
-- `git branch -D` — Branch cleanup during worktree removal
-- `git merge --no-ff` — Worktree merge back to main branch
-
-**Git Worktree System (`src/commands/worktree.js`):**
-- Purpose: Isolate parallel plan execution in separate working directories
-- Commands: `create`, `list`, `remove`, `cleanup`, `merge`, `check-overlap`
-- Config: `worktree` section in `.planning/config.json`
-- Default base path: `/tmp/gsd-worktrees`
-- File sync: `.env`, `.env.local`, `.planning/config.json` copied to worktrees
-- Setup hooks: Optional shell commands run after worktree creation
-- Lock file: `.planning/.analysis-lock` prevents concurrent background analyses
-
-## OpenCode Integration
-
-**Host Application:**
-- GSD is a plugin for [OpenCode](https://github.com/opencode-ai/opencode)
-- Deployed to: `~/.config/opencode/get-shit-done/`
-- OpenCode invokes GSD via slash commands that call workflow `.md` files
-- Workflow files reference `gsd-tools` CLI commands for data operations
-
-**MCP Server Discovery (`src/commands/mcp.js`):**
-- Purpose: Profile MCP servers to estimate context budget impact
-- Sources scanned:
-  - `.mcp.json` (project-level MCP config)
-  - `opencode.json` (project-level OpenCode config)
-  - `~/.config/opencode/opencode.json` (user-level OpenCode config)
-- Known server database: 20 servers with token cost estimates (postgres, github, brave-search, context7, terraform, docker, podman, filesystem, puppeteer, sqlite, redis, rabbitmq, pulsar, consul, vault, slack, linear, notion, sentry, datadog)
-- Actions: `--apply` disables recommended servers in `opencode.json`, `--restore` reverts from backup
-- Command: `gsd-tools mcp-profile [--apply] [--restore] [--dry-run]`
+- In-memory caches per CLI invocation (no cross-invocation persistence):
+  - `fileCache` — File content cache (`src/lib/helpers.js`)
+  - `dirCache` — Directory listing cache (`src/lib/helpers.js`)
+  - `_phaseTreeCache` — Phase directory tree (`src/lib/helpers.js`)
+  - `_configCache` — Config.json parse cache (`src/lib/config.js`)
+  - `_fmCache` — Frontmatter parse cache with LRU eviction at 100 entries (`src/lib/frontmatter.js`)
+  - `_dynamicRegexCache` — Regex compilation cache with LRU eviction at 200 entries (`src/lib/regex-cache.js`)
+  - `_milestoneCache` — Milestone info cache (`src/lib/helpers.js`)
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- None — GSD has no authentication system. It operates as a local CLI tool.
-- Brave Search API key is the only credential: `BRAVE_API_KEY` env var or `~/.gsd/brave_api_key` file
+- None. This is a local CLI tool with no user authentication.
+- The only credential is the optional `BRAVE_API_KEY` for web search.
+- MCP server configs may reference auth tokens in `.mcp.json` or `opencode.json` but gsd-tools reads only server names, not credentials.
+
+## AI Agent Integration
+
+**OpenCode (host environment):**
+- gsd-tools runs as a plugin inside the OpenCode AI coding assistant
+- Communication: CLI invocation (`node bin/gsd-tools.cjs <command>`) from agent workflows
+- Workflow definitions: `workflows/*.md` — 44 workflow files (agent prompts)
+- Command wrappers: `commands/*.md` — 11 slash command definitions
+- Agent system prompts: Deployed to `~/.config/opencode/agents/` (not in this repo)
+- Reference docs: `references/*.md` — 13 reference documents loaded by agents
+- Templates: `templates/*.md` — 28 document templates for plans, state, summaries, etc.
+
+**Model Profile System:**
+- Manages AI model selection across agent types
+- Profiles: `quality`, `balanced`, `budget` — defined in `src/lib/constants.js` (`MODEL_PROFILES`)
+- Agent types: `gsd-planner`, `gsd-executor`, `gsd-verifier`, `gsd-codebase-mapper`, etc.
+- Model options: `opus` (mapped to `inherit`), `sonnet`, `haiku`
+- Per-agent overrides via `model_overrides` in config
+- Resolution: `src/lib/helpers.js` (`resolveModelInternal`)
+
+**MCP Server Profiling:**
+- Discovers MCP servers from `.mcp.json`, `opencode.json`, `~/.config/opencode/opencode.json`
+- Estimates token cost per server against context window budget
+- Generates keep/disable/review recommendations
+- Can apply recommendations by setting `enabled: false` in `opencode.json`
+- Implementation: `src/commands/mcp.js`
+- Known server database: 19 servers (postgres, github, brave-search, context7, terraform, docker, redis, rabbitmq, slack, linear, notion, sentry, datadog, etc.)
+
+## Token Budget Management
+
+**Context window tracking:**
+- Estimates tokens using `tokenx` library (~96% accuracy)
+- Fallback: `Math.ceil(text.length / 4)` if tokenx unavailable
+- Default context window: 200,000 tokens
+- Configurable target utilization: `context_target_percent` (default: 50%)
+- Implementation: `src/lib/context.js`
+- Commands: `context-budget`, `token-budget` in `src/commands/features.js`
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None — No external error tracking service
+- None (no external error tracking service)
 
-**Logs:**
-- Debug logging via `debugLog()` in `src/lib/output.js`
+**Logging:**
+- Debug logging to stderr via `debugLog()` in `src/lib/output.js`
 - Enabled by `GSD_DEBUG` environment variable
-- Output to stderr (never contaminates JSON stdout)
-- Format: `[GSD_DEBUG] context: message | error_message`
+- Format: `[GSD_DEBUG] context: message | error`
+- Status messages via `status()` to stderr (visible even when stdout is piped)
 
-**Performance Tracking:**
-- Bundle size: Tracked in `.planning/baselines/bundle-size.json` (updated on each build)
-- Execution metrics: Stored in `STATE.md` performance table (plan duration, tasks, files)
-- Quality scores: Tracked in `.planning/memory/quality-scores.json` with trend analysis
-- Context budget: Measured via `context-budget baseline/compare` commands
+**Metrics:**
+- Execution velocity tracking: `src/commands/features.js` (`cmdVelocity`)
+- Quality scores with trend tracking: stored in `.planning/memory/quality-scores.json`
+- Bundle size tracking: `.planning/baselines/bundle-size.json`
+- Build timing: logged to stdout during `npm run build`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Local filesystem only — No cloud deployment
-- Plugin installed at `~/.config/opencode/get-shit-done/`
+- Local filesystem plugin (not a hosted service)
+- Deployed to `~/.config/opencode/get-shit-done/` via `deploy.sh`
 
 **CI Pipeline:**
-- None detected — No `.github/workflows/`, `.gitlab-ci.yml`, or similar CI config in the repo
+- None configured in this repository
+- Build validation: `npm run build` (includes smoke test and bundle size check)
+- Test suite: `npm test` (574+ tests via `node --test`)
 
-**Deployment Script (`deploy.sh`):**
-1. Build from source (`npm run build`)
-2. Backup current installation (`$DEST.bak-YYYYMMDD-HHMMSS`)
-3. Copy `bin/`, `workflows/`, `templates/`, `references/`, `src/`, `VERSION`
-4. Smoke test deployed artifact
-5. Auto-rollback on failure
+## Environment Detection Engine
 
-## Environment Detection
+**Auto-detects target project environments** (for the projects gsd-tools manages, not itself):
+- Implementation: `src/commands/env.js`
+- Scans for 26 language manifest patterns (package.json, go.mod, mix.exs, Cargo.toml, etc.)
+- Detects package managers from lockfiles (npm, pnpm, yarn, bun, mix, cargo, poetry, etc.)
+- Detects version managers (asdf, mise, nvm, pyenv, rbenv, goenv)
+- Detects CI platforms (GitHub Actions, GitLab CI, CircleCI, Jenkins, Travis)
+- Detects test frameworks, linters, formatters
+- Detects Docker/infrastructure services from compose files
+- Detects MCP servers from `.mcp.json`
+- Detects monorepo/workspace configurations
+- Output: `.planning/env-manifest.json` (gitignored) and `.planning/project-profile.json` (committed)
+- Staleness detection via watched file mtimes — auto-rescans when manifests change
 
-**Built-In Environment Scanner (`src/commands/env.js`):**
-- Purpose: Detect project languages, tools, runtimes for target codebases GSD manages
-- 26 language manifest patterns (Node, Go, Elixir, Rust, Python, Ruby, PHP, Java, Kotlin, Swift, C++, Docker, Nix, Deno, Bun, etc.)
-- Package manager detection with lockfile precedence (bun > pnpm > yarn > npm, mix, go-modules, cargo, bundler, poetry, pipenv)
-- Version manager detection (asdf, mise, nvm, pyenv, rbenv, goenv)
-- CI platform detection (GitHub Actions, GitLab CI, CircleCI, Jenkins, Travis)
-- Test framework detection (jest, vitest, mocha, ExUnit, go test, pytest, rspec, phpunit)
-- Linter/formatter detection (eslint, prettier, biome, credo, golangci-lint, ruff, rubocop)
-- Docker service parsing from `docker-compose.yml`
-- MCP server detection from config files
-- Monorepo detection (pnpm workspaces, npm workspaces, Cargo workspace, Go workspace)
-- Outputs:
-  - `.planning/env-manifest.json` — Machine-specific (gitignored)
-  - `.planning/project-profile.json` — Team-visible (committed)
+## Codebase Analysis Engine
 
-## Codebase Intelligence
-
-**Analysis Engine (`src/lib/codebase-intel.js`):**
-- Full codebase file walking with language detection (50+ file extensions)
+**Auto-analyzes target project codebases:**
+- Implementation: `src/lib/codebase-intel.js`, `src/commands/codebase.js`
+- Walks source directories, analyzes files (language, lines, size, mtime)
+- Supports 40+ file extensions across 30+ languages
 - Incremental analysis via git diff (only re-analyzes changed files)
-- Staleness detection: git-based (commit hash), mtime-based (fallback), time-based (1hr max age)
-- Background analysis: `src/commands/codebase.js` spawns detached child process for non-blocking updates
+- Staleness detection: git commit hash comparison, mtime fallback
+- Convention detection: naming patterns, file organization, framework patterns (`src/lib/conventions.js`)
+- Dependency graph: multi-language import parsing (JS/TS, Python, Go, Elixir, Rust) with resolution (`src/lib/deps.js`)
+- Lifecycle detection: migration ordering, config/boot chains (`src/lib/lifecycle.js`)
+- Impact analysis: transitive dependents via BFS on reverse edges
+- Cycle detection: Tarjan's SCC algorithm
 - Output: `.planning/codebase/codebase-intel.json`
-
-**Import Parsing (`src/lib/deps.js`):**
-- Multi-language import parsers: JavaScript/TypeScript, Python, Go, Elixir, Rust
-- Dependency graph building (forward + reverse edges)
-- Cycle detection (Tarjan's SCC algorithm)
-- Transitive impact analysis (BFS on reverse edges)
-
-**Convention Detection (`src/lib/conventions.js`):**
-- File naming pattern classification (camelCase, PascalCase, snake_case, kebab-case)
-- File organization analysis (flat vs nested, test placement, config placement)
-- Framework-specific convention extraction (currently: Elixir/Phoenix)
-
-**Lifecycle Detection (`src/lib/lifecycle.js`):**
-- Migration ordering (generic: timestamp/sequence, Elixir/Phoenix: config→boot→seed→router)
-- DAG construction with cycle detection and topological sort
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None — GSD is a CLI tool, not a web service
+- None
 
 **Outgoing:**
-- Brave Search API only (when configured)
-
-## Environment Configuration
-
-**Required env vars:**
-- None — GSD works with zero environment variables
-
-**Optional env vars:**
-- `BRAVE_API_KEY` — Brave Search API authentication
-- `GSD_DEBUG` — Enable debug logging
-- `GSD_NO_TMPFILE` — Disable temp file output for large payloads
-
-**Required tools:**
-- `node` >= 18 — Runtime
-- `git` — All git operations (commit tracking, worktree, diffing)
-
-**Optional tools:**
-- `which` — Binary detection in `src/commands/env.js`
-- `du` — Disk usage in `src/commands/worktree.js`
-- `df` — Available space check in `src/commands/worktree.js`
-
-## Test Framework Detection (for Target Projects)
-
-GSD can detect and run tests for projects it manages. Auto-detection in `src/commands/verify.js`:
-- `package.json` present → `npm test`
-- `mix.exs` present → `mix test`
-- `go.mod` present → `go test ./...`
-- Override via `test_commands` in `.planning/config.json`
-
-Test output parsers support:
-- ExUnit format
-- Go test format
-- pytest format
+- None (except the optional Brave Search API call)
 
 ---
 

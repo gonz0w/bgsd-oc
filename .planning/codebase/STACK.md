@@ -5,176 +5,135 @@
 ## Languages
 
 **Primary:**
-- JavaScript (ES2020+ / CommonJS) — All source code in `src/`, build tooling in `build.js`
+- JavaScript (CommonJS) — All source code in `src/`, build script, tests
 
 **Secondary:**
-- Markdown — Workflow definitions (`workflows/*.md`), templates (`templates/*.md`), reference docs (`references/*.md`)
-- JSON — Configuration (`templates/config.json`, `.planning/config.json`, `package.json`)
-- Shell (Bash) — Deployment script (`deploy.sh`)
+- Markdown — Workflow definitions (`workflows/`), command wrappers (`commands/`), templates (`templates/`), reference docs (`references/`)
+- Bash — Deploy script (`deploy.sh`)
 
 ## Runtime
 
 **Environment:**
-- Node.js >= 18 (specified in `package.json` engines field)
-- Current dev environment: Node.js v25.6.1
+- Node.js >= 18 (declared in `package.json` engines field)
+- Build target: `node18` (esbuild config in `build.js`)
+- No TypeScript — pure JavaScript with `'use strict'` throughout
 
 **Package Manager:**
 - npm
-- Lockfile: `package-lock.json` (present, lockfileVersion 3)
+- Lockfile: `package-lock.json` present
 
 ## Frameworks
 
 **Core:**
-- None — This is a zero-framework CLI tool. Pure Node.js with standard library only.
+- None — zero-framework architecture. Pure Node.js standard library (`fs`, `path`, `child_process`, `os`, `crypto`, `process`).
 
 **Testing:**
-- `node:test` (built-in) — Node's native test runner, used in `bin/gsd-tools.test.cjs`
-- `node:assert` (built-in) — Assertion library used alongside `node:test`
-- Test count: 348 tests (per `README.md`)
+- Node.js built-in test runner (`node --test`) — configured in `package.json` as `npm test`
+- No external test framework (jest, vitest, mocha — none used)
 
 **Build/Dev:**
-- esbuild `^0.27.3` (devDependency) — Bundles `src/index.js` into `bin/gsd-tools.cjs`
+- esbuild ^0.27.3 (devDependency) — Bundles 18 source modules into single `bin/gsd-tools.cjs`
 
 ## Key Dependencies
 
-**Critical (runtime):**
-- `tokenx` `^1.3.0` — Fast token estimation (~96% accuracy, 2KB) for context budget calculations. Used in `src/lib/context.js`. Bundled into `bin/gsd-tools.cjs` via esbuild. Falls back to `Math.ceil(text.length / 4)` if tokenx fails to load.
+**Runtime (production):**
+- `tokenx` ^1.3.0 — Fast token estimation at 96% accuracy in a 2KB bundle. Used in `src/lib/context.js` for context window budget calculations. Lazy-loaded with fallback to `Math.ceil(text.length / 4)` if unavailable.
 
-**Infrastructure (devDependency):**
-- `esbuild` `^0.27.3` — Build system. Bundles all source + tokenx into a single CJS file. Config in `build.js`.
+**Dev:**
+- `esbuild` ^0.27.3 — JavaScript bundler. Bundles `src/index.js` entry point into `bin/gsd-tools.cjs` as a single CJS file.
 
-**Node.js Built-in Modules Used:**
-- `fs` — File system operations (read/write planning docs, codebase analysis)
-- `path` — Path resolution throughout
-- `child_process` (`execFileSync`, `execSync`, `spawn`) — Git operations, test execution, environment detection, worktree management
-- `os` — Temp directory paths, homedir for config
-- `crypto` — Not directly imported (no crypto operations)
+**Critical design constraint:** This project is explicitly designed as a "zero-dependency" CLI. `tokenx` is the sole runtime dependency and is bundled into the output. The built artifact `bin/gsd-tools.cjs` has no external `node_modules` requirements.
 
 ## Build System
 
-**Entry Point:** `src/index.js`
-**Output:** `bin/gsd-tools.cjs` (single bundled file, ~657KB, 16,436 lines)
-**Bundle Budget:** 1000KB (enforced in `build.js`)
+**Entry point:** `src/index.js`
+**Output:** `bin/gsd-tools.cjs` (CJS format, ~269KB, 17K lines)
+**Bundle budget:** 1000KB hard limit enforced in `build.js`
+**Bundle size tracking:** Writes to `.planning/baselines/bundle-size.json` on each build
 
-**Build Configuration (`build.js`):**
-- Platform: `node`
-- Format: `cjs` (CommonJS)
-- Target: `node18`
-- Minify: `false` (kept readable for debugging)
-- Sourcemaps: `false`
-- External: All Node.js built-ins (`node:*`, `fs`, `path`, `os`, `child_process`, etc.)
-- Bundled: `tokenx` (npm dependency bundled into output)
-- Custom plugin: `stripShebangPlugin` — removes shebangs from source files to avoid duplicates
-- Banner: `#!/usr/bin/env node` added to output
-- Post-build: Smoke test (`current-timestamp --raw`), bundle size tracking to `.planning/baselines/bundle-size.json`
+**Build process (`build.js`):**
+1. esbuild bundles `src/index.js` → `bin/gsd-tools.cjs`
+2. Custom `strip-shebang` plugin removes source shebangs to avoid duplicates
+3. Adds `#!/usr/bin/env node` banner
+4. Node.js built-ins externalized (not bundled), npm deps (tokenx) bundled
+5. Smoke test: runs `node bin/gsd-tools.cjs current-timestamp --raw`
+6. Bundle size check against 1000KB budget — fails build if exceeded
 
-**Build Command:**
+**Build command:**
 ```bash
-npm run build          # Runs: node build.js
+npm run build    # node build.js
 ```
 
-**Test Command:**
-```bash
-npm test               # Runs: node --test bin/gsd-tools.test.cjs
-```
+**Key esbuild settings:**
+- `platform: 'node'`, `format: 'cjs'`, `target: 'node18'`
+- `minify: false` — keeps output readable for debugging
+- `sourcemap: false`
+- Externals: all Node.js built-ins (`node:*`, `fs`, `path`, `os`, `child_process`, etc.)
 
 ## Source Architecture
 
-**Total Source Lines:** ~25,500+ (across `src/` directory)
-**Source Modules:** 20 files total:
-- `src/index.js` (5 lines) — Entry point
-- `src/router.js` (776 lines) — Command dispatch with lazy module loading
-- `src/commands/*.js` (13 modules) — Command implementations
-- `src/lib/*.js` (9 modules) — Shared libraries
+**Module count:** 26 source files (13 commands + 13 lib modules + router + index)
+**Total source lines:** ~21,100 (excluding tests)
+**Test lines:** ~14,100 (two test files in `bin/`)
 
-**Key source files by size (descending):**
-- `src/commands/verify.js` — 1,984 lines (verification suite)
-- `src/commands/features.js` — Large (session-diff, context-budget, codebase-impact, velocity, etc.)
-- `src/commands/init.js` — Large (compound initialization for all workflows)
-- `src/commands/env.js` — 1,177 lines (environment detection)
-- `src/lib/constants.js` — 1,088 lines (model profiles, config schema, command help)
-- `src/lib/helpers.js` — 946 lines (file I/O, phase helpers, intent parsing)
-- `src/commands/worktree.js` — 791 lines (git worktree management)
-- `src/router.js` — 776 lines (command routing)
-- `src/lib/deps.js` — 697 lines (import parsing, dependency graphs, cycle detection)
-- `src/commands/state.js` — 652 lines (STATE.md management)
-- `src/lib/conventions.js` — 644 lines (naming/framework convention detection)
-- `src/lib/lifecycle.js` — 569 lines (lifecycle ordering detection)
-- `src/lib/codebase-intel.js` — 570 lines (codebase analysis engine)
+**Source layout:**
+- `src/index.js` — Entry point (5 lines, calls router)
+- `src/router.js` — CLI argument parser and command dispatch (791 lines)
+- `src/commands/` — 13 command modules (lazy-loaded)
+- `src/lib/` — 13 shared library modules
+
+**Largest modules:**
+- `src/commands/verify.js` — 2,089 lines (plan/phase verification suite)
+- `src/commands/features.js` — 2,016 lines (session, context, search, velocity)
+- `src/commands/init.js` — 1,743 lines (compound initialization commands)
+- `src/commands/intent.js` — 1,625 lines (intent tracking system)
+- `src/commands/misc.js` — 1,431 lines (commits, templates, frontmatter, websearch)
+- `src/commands/codebase.js` — 1,220 lines (codebase analysis commands)
+- `src/commands/env.js` — 1,177 lines (environment detection engine)
 
 ## Configuration
 
-**Project-Level Config:**
-- `.planning/config.json` — Per-project settings (mode, depth, model profiles, gates, parallelization, worktree, etc.)
-- Template: `templates/config.json` (default config with all sections)
-- Schema: `CONFIG_SCHEMA` in `src/lib/constants.js` — 17 validated keys with types, defaults, aliases, and nested path lookups
+**Project configuration:**
+- `package.json` — npm package manifest, scripts, engines
+- `build.js` — esbuild build configuration
+- `.gitignore` — Ignores `node_modules/` and `bin/gsd-tools.cjs` (built artifact)
+- `VERSION` — Semver version file (currently `1.20.5`)
 
-**Key config sections:**
-- `model_profile` — Agent model selection: `quality` / `balanced` / `budget`
-- `mode` — Execution mode: `interactive` / `yolo`
-- `depth` — Planning depth: `standard`
-- `parallelization` — Parallel plan execution settings
-- `gates` — Confirmation gates for workflow steps
-- `worktree` — Git worktree isolation settings
-- `test_commands` — Custom test commands by framework
-- `test_gate` — Block plan completion on test failure
-- `context_window` — Token budget (default: 200,000)
-- `context_target_percent` — Target utilization (default: 50%)
-- `brave_search` — Enable Brave Search API integration
+**Runtime configuration (per-project):**
+- `.planning/config.json` — GSD workflow configuration per target project
+- Schema defined in `src/lib/constants.js` (`CONFIG_SCHEMA`)
+- Key settings: `model_profile`, `commit_docs`, `branching_strategy`, `brave_search`, `mode`, `context_window`, `test_commands`, `test_gate`
+- Config template: `templates/config.json`
 
-**User-Level Config:**
-- `~/.gsd/defaults.json` — User-wide default settings (applied during `config-ensure-section`)
-- `~/.gsd/brave_api_key` — Brave Search API key file
-
-**Environment Variables:**
-- `BRAVE_API_KEY` — Brave Search API authentication
+**Environment variables:**
 - `GSD_DEBUG` — Enable debug logging to stderr
-- `GSD_NO_TMPFILE` — Disable temp file output for large payloads
+- `GSD_NO_TMPFILE` — Skip large JSON tmpfile redirect
+- `BRAVE_API_KEY` — Brave Search API key (optional, for websearch command)
+- `HOME` / `USERPROFILE` — Home directory (for config discovery)
+- `NO_COLOR` — Disable ANSI color output (no-color.org standard)
+- `FORCE_COLOR` — Force ANSI color even in non-TTY
 
-**Global CLI Flags:**
-- `--raw` — JSON output mode
-- `--verbose` — Full output (default is compact)
-- `--compact` — Compact output (default, backward-compat)
-- `--manifest` — Include context manifest in compact output
-- `--fields <f1,f2>` — Filter JSON output to specified fields (dot-notation supported)
+**Output modes (auto-detected):**
+- TTY → `formatted` (human-readable with ANSI colors)
+- Piped → `json` (structured JSON to stdout)
+- `--pretty` flag → force formatted output when piped
 
 ## Deployment
 
-**Development:**
-```bash
-node bin/gsd-tools.cjs <command> [args] --raw    # Run from dev workspace
-npm run build                                      # Rebuild bundle
-npm test                                           # Run test suite
-```
+**Target:** `~/.config/opencode/get-shit-done/` (OpenCode plugin directory)
 
-**Production Deployment:**
-- Target: `~/.config/opencode/get-shit-done/` (OpenCode plugin directory)
-- Script: `deploy.sh` — Builds, backs up existing install, copies `bin/`, `workflows/`, `templates/`, `references/`, `src/`, `VERSION`, runs smoke test, auto-rollback on failure
-- Version tracking: `VERSION` file (current: `1.20.5`)
+**Deploy process (`deploy.sh`):**
+1. Runs `npm run build`
+2. Backs up current installation
+3. Copies `bin/`, `workflows/`, `templates/`, `references/`, `src/`, `VERSION`
+4. Copies command wrappers (`commands/gsd-*.md`) to `~/.config/opencode/command/`
+5. Smoke test on deployed artifact
+6. Rollback on smoke test failure
 
-**What Gets Deployed:**
-```
-~/.config/opencode/get-shit-done/
-  bin/gsd-tools.cjs     # Built CLI bundle
-  workflows/*.md        # 44 workflow definitions
-  templates/*.md        # 28 document templates
-  references/*.md       # 13 reference docs
-  src/                  # Source code (for build reproducibility)
-  VERSION               # Version identifier
-```
-
-## Platform Requirements
-
-**Development:**
+**Platform requirements:**
+- Linux/macOS (Bash deploy script)
 - Node.js >= 18
-- Git (required for git operations, commit tracking, worktree management)
-- npm (for dependency management)
-
-**Production (Runtime):**
-- Node.js >= 18
-- Git (required — execFileSync('git', ...) called in `src/lib/git.js` and `src/lib/config.js`)
-- OpenCode CLI (host application that loads GSD as a plugin)
-- Standard POSIX tools: `which`, `du`, `df` (used by `src/commands/env.js`, `src/commands/worktree.js`)
+- Git (used extensively for commit operations, worktree management, file history)
 
 ---
 

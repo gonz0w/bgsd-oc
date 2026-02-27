@@ -5,267 +5,280 @@
 ## Naming Patterns
 
 **Files:**
-- Source files: `kebab-case.js` — all source files use lowercase with hyphens (`src/lib/regex-cache.js`, `src/lib/codebase-intel.js`)
-- Command modules: `kebab-case.js` in `src/commands/` — one file per command domain (`state.js`, `roadmap.js`, `features.js`)
-- Library modules: `kebab-case.js` in `src/lib/` — shared utilities (`helpers.js`, `output.js`, `frontmatter.js`)
-- Test files: same name as source with `.test.` inserted — `bin/gsd-tools.test.cjs`
-- Workflow files: `kebab-case.md` in `workflows/` (`execute-phase.md`, `plan-phase.md`, `cmd-session-diff.md`)
-- Template files: `kebab-case.md` in `templates/` (`summary-standard.md`, `planner-subagent-prompt.md`)
-- `cmd-` prefix on workflow files for utility/diagnostic commands (`cmd-velocity.md`, `cmd-context-budget.md`)
+- Source modules use `kebab-case.js`: `codebase-intel.js`, `regex-cache.js`, `frontmatter.js`
+- Command modules are single-word or kebab-case: `state.js`, `verify.js`, `codebase.js`
+- Test files use dot-separated suffix: `gsd-tools.test.cjs`, `format.test.cjs`
+- All source files use `.js` extension (ES module syntax but CommonJS format)
+- Built output uses `.cjs` extension: `bin/gsd-tools.cjs`
 
 **Functions:**
-- Use `camelCase` for all functions
-- Command handlers: `cmd` + PascalCase noun + action — `cmdStateLoad`, `cmdRoadmapGetPhase`, `cmdPhaseNextDecimal`, `cmdInitExecutePhase`
-- Internal helpers: `camelCase` without prefix — `findPhaseInternal`, `resolveModelInternal`, `getRoadmapPhaseInternal`
-- Private/cached: underscore prefix for module-level caches — `_milestoneCache`, `_phaseTreeCache`, `_fmCache`
-- Lazy loaders: `lazy` + PascalCase — `lazyState()`, `lazyRoadmap()`, `lazyPhase()` (in `src/router.js`)
+- Use `camelCase` for all functions: `cmdStateLoad`, `findPhaseInternal`, `extractFrontmatter`
+- Command handler functions use `cmd` prefix + PascalCase command name: `cmdStateLoad`, `cmdVerifyPlanStructure`, `cmdPhaseAdd`
+- Internal/private helpers use descriptive camelCase without prefix: `normalizePhaseName`, `safeReadFile`, `resolveModelInternal`
+- Suffix `Internal` for functions used by other modules but not CLI-exposed: `findPhaseInternal`, `pathExistsInternal`, `resolveModelInternal`
+- Formatter functions use `format` prefix: `formatStateShow`, `formatStateUpdateProgress`
 
 **Variables:**
-- `camelCase` for local variables
-- `UPPER_SNAKE_CASE` for module-level constants — `MODEL_PROFILES`, `CONFIG_SCHEMA`, `COMMAND_HELP`, `FM_CACHE_MAX`, `MAX_CACHE_SIZE`
-- `snake_case` for JSON output keys — `phase_number`, `plan_count`, `state_path`, `commit_docs`
-- Pattern: internal JS uses camelCase, external JSON API uses snake_case
+- Use `camelCase` for local variables: `tmpDir`, `phaseDir`, `configPath`
+- Private module-level caches use `_` prefix: `_modules`, `_configCache`, `_fmCache`, `_phaseTreeCache`, `_tmpFiles`
+- Constants use `UPPER_SNAKE_CASE`: `MODEL_PROFILES`, `CONFIG_SCHEMA`, `COMMAND_HELP`, `MAX_CACHE_SIZE`
+- Regex patterns use `UPPER_SNAKE_CASE`: `FRONTMATTER_DELIMITERS`, `PHASE_HEADER`, `PHASE_DIR_NUMBER`
 
 **Types:**
-- No TypeScript — project is plain JavaScript with JSDoc annotations
-- JSDoc `@typedef` for complex structures (see `src/lib/lifecycle.js` line 16: `@typedef {Object} LifecycleNode`)
-- JSDoc `@param` and `@returns` on public functions (see `src/lib/helpers.js`, `src/lib/context.js`)
+- No TypeScript. JSDoc `@typedef` used for complex object shapes in `src/lib/lifecycle.js`
+- JSDoc `@param`/`@returns` used for key exported functions in lib modules
 
 ## Code Style
 
 **Formatting:**
-- No formatter configured (no `.prettierrc`, `.editorconfig`, or similar)
-- 2-space indentation throughout all `.js` files
+- No automated formatter configured (no `.prettierrc`, `.eslintrc`)
+- 2-space indentation throughout
 - Single quotes for strings
-- Semicolons required (consistent across all files)
+- Semicolons always used
+- Max line length ~120 characters (not enforced, but observed)
 - Trailing commas in multi-line object/array literals
-- Max line length: ~120 characters (soft limit, not enforced)
 
 **Linting:**
-- No linter configured (no `.eslintrc`, `biome.json`, or similar)
-- `'use strict'` directive at top of most modules (`src/router.js`, `src/commands/init.js`, `src/commands/features.js`, `src/lib/context.js`, `src/lib/deps.js`)
-- Some modules omit `'use strict'` — inconsistency exists (`src/commands/state.js`, `src/commands/roadmap.js`, `src/lib/helpers.js`)
+- No linter configured
+- Style enforced by convention and build validation
 
 **Section Dividers:**
-- Unicode box-drawing horizontal lines used as section headers throughout all source files:
+- Use Unicode box-drawing comment headers to organize files into sections:
   ```javascript
   // ─── Section Name ──────────────────────────────────────────────────────────
   ```
-- These appear in every source file and the test file. Follow this pattern for new sections.
+- Every file uses these section dividers to separate logical groups
+- Pattern: `// ─── ` + label + ` ─` repeated to ~80 chars
+
+## Module Format
+
+**Module System:** CommonJS (`require`/`module.exports`)
+- All source uses `'use strict';` at top of file (except `helpers.js`, `config.js`)
+- Built output is CJS via esbuild: `format: 'cjs'`, `platform: 'node'`
+
+**Strict Mode:**
+- Place `'use strict';` as the first statement in every new source file
+- Exception: files that start with shebang (`#!/usr/bin/env node`) — the shebang comes first, then `'use strict';`
 
 ## Import Organization
 
 **Order:**
-1. Node.js built-ins: `require('fs')`, `require('path')`, `require('child_process')`
-2. Project library modules: `require('../lib/output')`, `require('../lib/config')`
-3. Project command modules (when cross-referencing): `require('./verify')`, `require('./intent')`
+1. Node.js built-in modules: `const fs = require('fs');`, `const path = require('path');`, `const { execFileSync } = require('child_process');`
+2. Internal lib modules: `const { output, error, debugLog } = require('../lib/output');`
+3. Internal lib modules (continued, grouped by function): config, helpers, frontmatter, git, format
+4. Sibling command modules (rare): `const { parseAssertionsMd } = require('./verify');`
 
-**Path Aliases:**
-- No path aliases — all imports use relative paths
-- Entry point `src/index.js` requires `./router`
-- Router `src/router.js` requires `./commands/*` and `./lib/*`
-- Commands require `../lib/*` for shared utilities
+**Path Style:**
+- Always relative paths with `../lib/` or `./` prefix
+- No path aliases configured
+- Destructured imports preferred: `const { safeReadFile, cachedReadFile, normalizePhaseName } = require('../lib/helpers');`
 
-**Destructured Imports:**
-- Always use destructuring for named exports:
-  ```javascript
-  const { output, error, debugLog } = require('../lib/output');
-  const { loadConfig } = require('../lib/config');
-  const { safeReadFile, cachedReadFile, findPhaseInternal } = require('../lib/helpers');
-  ```
-
-**Lazy Loading Pattern:**
-- Router uses lazy-loaded command modules for startup performance:
+**Lazy Loading:**
+- Router uses lazy-loading pattern for command modules to avoid parsing all 13 modules at startup:
   ```javascript
   const _modules = {};
   function lazyState() { return _modules.state || (_modules.state = require('./commands/state')); }
   ```
-- Each command module is loaded on first use, not at startup (`src/router.js` lines 10-24)
+- Use this pattern when adding new command modules in `src/router.js`
 
 ## Error Handling
 
 **Patterns:**
+- **Fatal errors:** Use `error(message)` from `src/lib/output.js` — writes to stderr and calls `process.exit(1)`
+  ```javascript
+  if (!filePath) { error('file path required'); }
+  ```
+- **Recoverable errors:** Return error in JSON output object, do NOT exit:
+  ```javascript
+  if (!content) { output({ error: 'File not found', path: filePath }, raw); return; }
+  ```
+- **Silent failures:** Use try/catch with `debugLog` for non-critical operations:
+  ```javascript
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+  } catch (e) {
+    debugLog('file.read', 'read failed', e);
+    return null;
+  }
+  ```
+- **Never throw.** Functions return `null` or empty defaults on failure, never throw exceptions
+- `safeReadFile()` wraps `fs.readFileSync` — returns `null` on error instead of throwing:
+  ```javascript
+  function safeReadFile(filePath) {
+    try { return fs.readFileSync(filePath, 'utf-8'); }
+    catch (e) { debugLog('file.read', 'read failed', e); return null; }
+  }
+  ```
 
-1. **Try-catch with graceful degradation** — Primary pattern across all commands:
-   ```javascript
-   try {
-     const content = cachedReadFile(filePath);
-     if (!content) return null;
-     // ... parse content
-   } catch (e) {
-     debugLog('context.label', 'human-readable message', e);
-     return null;  // or return default value
-   }
-   ```
+**Debug Logging:**
+- Use `debugLog(context, message, err)` for all debug output
+- Only emits when `GSD_DEBUG` env var is set
+- Format: `[GSD_DEBUG] {context}: {message} | {err.message}`
+- Context uses dot-notation convention: `'file.read'`, `'config.load'`, `'git.exec'`, `'phase.tree'`
 
-2. **`error()` for fatal CLI errors** — Writes to stderr and calls `process.exit(1)`:
-   ```javascript
-   if (!command) {
-     error('Usage: gsd-tools <command> [args]');
-   }
-   ```
+## Output Patterns
 
-3. **JSON error responses** — Commands return error objects in JSON, not process exits:
-   ```javascript
-   output({ error: 'STATE.md not found' }, raw);
-   output({ found: false, error: 'ROADMAP.md not found' }, raw, '');
-   ```
+**Dual-Mode Output:**
+- All command handlers receive a `raw` boolean parameter (legacy) or use `output(result, { formatter })` (migrated)
+- `output()` from `src/lib/output.js` handles JSON/formatted routing based on `global._gsdOutputMode`
+- Piped (non-TTY) → JSON to stdout; TTY → human-readable formatted output
+- Status/progress messages go to stderr via `status(message)` — never pollute stdout
 
-4. **`safeReadFile()`** — Returns `null` on any read error instead of throwing (`src/lib/helpers.js` line 16)
+**Command Handler Signature:**
+```javascript
+function cmdSomething(cwd, args, raw) {
+  // ... compute result ...
+  output(result, raw);
+}
+```
 
-5. **Debug logging via `debugLog()`** — Only emits when `GSD_DEBUG=1` environment variable set:
-   ```javascript
-   debugLog('git.exec', 'exec failed', err);
-   ```
-   Format: `[GSD_DEBUG] context.subcontext: message | error.message`
+**New commands (migrated pattern):**
+```javascript
+function cmdSomething(cwd, args, raw) {
+  const result = { /* ... */ };
+  output(result, {
+    formatter: (data) => {
+      const lines = [];
+      lines.push(banner('Title'));
+      // ... format data ...
+      lines.push(summaryLine('Summary text'));
+      return lines.join('\n');
+    }
+  });
+}
+```
 
-**Guidelines:**
-- Never let uncaught exceptions propagate — every external operation (fs, git, parse) is wrapped in try-catch
-- Return structured error objects in JSON output, don't throw
-- Use `debugLog()` in catch blocks for diagnosability without polluting stdout
-- Separate error channel: debug goes to stderr, JSON output goes to stdout
+**Formatted output primitives** (from `src/lib/format.js`):
+- `banner(title)` — branded header: `bGSD ▶ {TITLE}` with rule
+- `sectionHeader(label)` — `━━ Label ━━━━━━━━━`
+- `formatTable(headers, rows, options)` — PSql-style aligned table
+- `progressBar(percent, width)` — `47% [███████░░░]`
+- `summaryLine(text)` — horizontal rule + bold summary
+- `actionHint(text)` — dim `→ next action`
+- `box(content, type)` — info/warning/error/success box
+- `color.red/green/yellow/blue/bold/dim()` — ANSI color wrappers (auto-disabled in non-TTY)
+- `listWithTruncation(items, max)` — numbered list with "... and N more"
 
-## Logging
+## Caching Patterns
 
-**Framework:** Custom `debugLog()` function in `src/lib/output.js`
+**Module-level caches** persist for a single CLI invocation (no TTL needed since process exits):
+- `fileCache` (Map) in `src/lib/helpers.js` — caches `safeReadFile` results
+- `dirCache` (Map) in `src/lib/helpers.js` — caches `fs.readdirSync` results
+- `_configCache` (Map) in `src/lib/config.js` — keyed by cwd
+- `_fmCache` (Map) in `src/lib/frontmatter.js` — keyed by content hash, LRU eviction at 100 entries
+- `_dynamicRegexCache` (Map) in `src/lib/regex-cache.js` — LRU eviction at 200 entries
+- `_phaseTreeCache` in `src/lib/helpers.js` — single cached phase directory tree scan
+- `_milestoneCache` in `src/lib/helpers.js` — single cached milestone info
+- `_fieldRegexCache` (Map) in `src/commands/state.js` — cached regex for field extraction
 
-**Patterns:**
-- Gate all debug output behind `GSD_DEBUG` environment variable
-- Context strings use `domain.action` format: `'file.read'`, `'git.exec'`, `'config.load'`, `'milestone.info'`
-- Debug output goes to stderr to never contaminate JSON stdout
-- No log levels — either debug is on or off
+**Cache invalidation:** Call `invalidateFileCache(path)` or `invalidateMilestoneCache()` after writing files to ensure fresh reads.
+
+**LRU Pattern:**
+```javascript
+const MAX_SIZE = 200;
+const cache = new Map();
+function cachedGet(key) {
+  if (cache.has(key)) {
+    const val = cache.get(key);
+    cache.delete(key); cache.set(key, val); // Move to end
+    return val;
+  }
+  if (cache.size >= MAX_SIZE) {
+    cache.delete(cache.keys().next().value); // Evict oldest
+  }
+  const val = compute(key);
+  cache.set(key, val);
+  return val;
+}
+```
+
+## CLI Argument Parsing
+
+**Pattern:** Manual `args.indexOf()` for named flags, positional `args[N]` for required args:
+```javascript
+const phaseIdx = args.indexOf('--phase');
+const phase = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
+const planIdx = args.indexOf('--plan');
+const plan = planIdx !== -1 ? args[planIdx + 1] : null;
+```
+
+**Global flags** are parsed and spliced out in `src/router.js` before command dispatch:
+- `--pretty`, `--raw`, `--fields`, `--verbose`, `--compact`, `--manifest`
+- These set `global._gsdOutputMode`, `global._gsdRequestedFields`, `global._gsdCompactMode`, `global._gsdManifestMode`
+
+**Boolean flags:** Use `args.includes('--flag')`: `const fix = args.includes('--fix');`
+
+## Git Operations
+
+**Use `execGit()` from `src/lib/git.js`** — NOT `execSync('git ...')`:
+```javascript
+const { execGit } = require('../lib/git');
+const result = execGit(cwd, ['log', '--oneline', '-n', '10']);
+if (result.exitCode === 0) { /* use result.stdout */ }
+```
+- Uses `execFileSync('git', args)` — bypasses shell, prevents injection
+- Returns `{ exitCode, stdout, stderr }` — never throws
+
+**Shell argument safety:** Use `sanitizeShellArg()` from `src/lib/helpers.js` when interpolating user input into shell commands (wraps in single quotes).
+
+## Frontmatter Handling
+
+**Use `extractFrontmatter()` from `src/lib/frontmatter.js`** for reading YAML frontmatter:
+```javascript
+const { extractFrontmatter } = require('../lib/frontmatter');
+const fm = extractFrontmatter(content);
+// fm.wave, fm.phase, fm.type, etc.
+```
+
+**Use `spliceFrontmatter()` for updating** — replaces frontmatter block while preserving body:
+```javascript
+const { spliceFrontmatter } = require('../lib/frontmatter');
+fm.wave = '2';
+const newContent = spliceFrontmatter(content, fm);
+fs.writeFileSync(filePath, newContent);
+```
+
+## Function Design
+
+**Size:** Functions are medium-length (20-80 lines typical). Complex parsers can reach 100-150 lines.
+
+**Parameters:** Use positional params for required args, object destructuring for optional:
+```javascript
+function cmdVerifyQuality(cwd, { plan, phase }, raw) { ... }
+```
+
+**Return Values:**
+- Return plain objects for JSON serialization. Never return class instances.
+- Use `null` for "not found" cases, empty arrays/objects for "no results"
+- Boolean results use `found: true/false` or `valid: true/false`
+
+## Module Design
+
+**Exports:** Single `module.exports` at end of file with explicit named exports:
+```javascript
+module.exports = { cmdStateLoad, cmdStateUpdate, cmdStatePatch, ... };
+```
+
+**Barrel Files:** Not used. Each module imports directly from the source.
+
+**File Organization:**
+- `src/lib/*.js` — shared utilities, parsers, helpers (no CLI output)
+- `src/commands/*.js` — command handlers (call `output()` or `error()`)
+- `src/router.js` — CLI argument parsing and command dispatch
+- `src/index.js` — entry point (5 lines: require router, call main)
 
 ## Comments
 
 **When to Comment:**
-- Section dividers with box-drawing characters for major code sections
-- JSDoc on public/exported functions with `@param` and `@returns`
-- Inline comments for non-obvious logic or strategies:
-  ```javascript
-  // Strategy 1: Look for active milestone marker (blue circle or "(active)")
-  // Strategy 2: Look for "(active)" tag on a milestone line
-  ```
-- Pre-compiled regex patterns get descriptive comments:
-  ```javascript
-  /** Match phase header in ROADMAP.md: "## Phase N: Name" or "### Phase N: Name" */
-  const PHASE_HEADER = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
-  ```
+- JSDoc `@param`/`@returns` for exported functions with non-obvious signatures
+- Inline comments for regex patterns explaining what they match
+- Section dividers (`// ─── Section Name ──`) for file organization
+- `// Backward compat:` comments when preserving legacy behavior
 
-**JSDoc/TSDoc:**
-- Used on library functions and complex helpers
-- Full `@typedef` blocks for complex data structures (`LifecycleNode` in `src/lib/lifecycle.js`)
-- `@param {string} cwd - Project root` style parameter documentation
-- `@returns {{ tokens: number, percent: number, warning: boolean }}` for return types
-
-## Function Design
-
-**Size:**
-- Command handler functions: 20-100 lines typical
-- Complex commands (e.g., `cmdInitProgress`): up to ~200 lines
-- Helper functions: 5-30 lines
-- Library files: 100-700 lines each; command files: 300-2000 lines each
-
-**Parameters:**
-- `(cwd, ...specificArgs, raw)` — Standard command handler signature
-- `cwd` is always first parameter (project working directory)
-- `raw` is always last parameter (controls output format)
-- Named options use an object parameter for complex commands:
-  ```javascript
-  function cmdStateRecordMetric(cwd, { phase, plan, duration, tasks, files }, raw)
-  ```
-
-**Return Values:**
-- Command handlers don't return — they call `output()` which exits the process
-- Internal helpers return values (objects, arrays, null for not-found)
-- `null` is the standard "not found" / "error" return value
-
-## Module Design
-
-**Exports:**
-- Each module exports an object with named functions at the bottom:
-  ```javascript
-  module.exports = { cmdStateLoad, cmdStateGet, cmdStateUpdate, ... };
-  ```
-- Library modules export utility functions
-- Command modules export `cmd*` handler functions
-
-**Barrel Files:**
-- No barrel/index files for re-exporting
-- Each module imported directly by path
-
-**Module Organization:**
-- `src/lib/` — Pure utility functions, no CLI I/O
-- `src/commands/` — CLI command handlers, call `output()` or `error()`
-- `src/router.js` — Central switch/case dispatcher, lazy-loads commands
-- `src/index.js` — Entry point, just calls `main()`
-
-## Output Pattern
-
-**Dual-mode output** — Every command supports two output modes via `raw` parameter:
-```javascript
-function output(result, raw, rawValue) {
-  if (raw && rawValue !== undefined) {
-    process.stdout.write(String(rawValue));  // Plain text for --raw
-  } else {
-    process.stdout.write(JSON.stringify(filtered, null, 2));  // JSON default
-  }
-  process.exit(0);
-}
-```
-
-**Large payload handling** — JSON output > 50KB written to temp file, path returned as `@file:/tmp/gsd-*.json`
-
-**Global flags parsed in router** — `--raw`, `--fields`, `--verbose`, `--compact`, `--manifest` are stripped from args before routing
-
-**Field filtering** — `--fields field1,field2` filters JSON output to requested keys only. Supports dot-notation (`phases.status`).
-
-## Caching Strategy
-
-**Module-level caches** — All caches live for single CLI invocation (process lifetime):
-- `fileCache` (Map) — File content cache in `src/lib/helpers.js`
-- `dirCache` (Map) — Directory listing cache in `src/lib/helpers.js`
-- `_configCache` (Map) — Config.json parse cache in `src/lib/config.js`
-- `_fmCache` (Map) — Frontmatter parse cache in `src/lib/frontmatter.js` (LRU, max 100)
-- `_dynamicRegexCache` (Map) — Regex compilation cache in `src/lib/regex-cache.js` (LRU, max 200)
-- `_phaseTreeCache` — Full phase directory tree in `src/lib/helpers.js`
-- `_milestoneCache` — Milestone info in `src/lib/helpers.js`
-- `_fieldRegexCache` (Map) — Pre-compiled STATE.md field regexes in `src/commands/state.js`
-
-**Pattern:** Check cache → compute → store → return. Call `invalidateFileCache()` / `invalidateMilestoneCache()` after writes.
-
-## Workflow File Conventions
-
-**Structure pattern** — All workflow `.md` files follow this XML-tagged structure:
-```markdown
-<purpose>
-One-line description of what this workflow does.
-</purpose>
-
-<required_reading>
-Files to read before starting.
-</required_reading>
-
-<process>
-<step name="stepname" priority="first">
-Step instructions with code blocks for gsd-tools calls.
-</step>
-</process>
-```
-
-**CLI invocations in workflows** use absolute paths to the installed binary:
-```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init execute-phase "${PHASE_ARG}" --compact)
-```
-
-**Subagent spawning** uses `Task()` syntax with model parameters from init JSON.
-
-## Template File Conventions
-
-**Template files** in `templates/` are reference documents wrapped in markdown code blocks:
-- Contain `## File Template` section with the actual template in a code block
-- Include guidance sections explaining when/how to use the template
-- Placeholder values use `[bracket notation]`: `[Phase name]`, `[YYYY-MM-DD]`
-- Templates may include multiple variants (e.g., `templates/roadmap.md` has greenfield and new-milestone variants)
+**JSDoc:**
+- Used selectively on key exported functions, not universally
+- `@typedef` for complex object shapes (see `src/lib/lifecycle.js`)
+- Always include `@param` types and `@returns` type
 
 ---
 

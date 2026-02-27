@@ -6,242 +6,306 @@
 
 ```
 gsd-opencode/
-├── bin/                    # Built artifact (gitignored bundle)
-│   ├── gsd-tools.cjs      # Single-file CJS bundle (~16,400 lines, built by esbuild)
-│   └── gsd-tools.test.cjs # Test suite for CLI commands
-├── src/                    # Source code (modular, pre-bundle)
-│   ├── index.js            # Entry point (5 lines — requires router, calls main)
-│   ├── router.js           # CLI argument parsing + command dispatch (776 lines)
-│   ├── commands/           # Command handler modules (13 files)
+├── bin/                    # Built artifacts and tests
+│   ├── gsd-tools.cjs      # Bundled CLI (single-file, ~17K lines)
+│   ├── gsd-tools.test.cjs # Test suite (~13.7K lines, 574+ tests)
+│   └── format.test.cjs    # Format module tests
+├── src/                    # Source modules (bundled into bin/gsd-tools.cjs)
+│   ├── index.js            # Entry point (5 lines, just calls router)
+│   ├── router.js           # Command dispatch + global flag parsing
+│   ├── commands/           # Command implementations (13 files)
+│   │   ├── codebase.js     # Codebase analysis commands
+│   │   ├── env.js          # Environment detection commands
+│   │   ├── features.js     # Slash-command implementations
+│   │   ├── init.js         # Compound context-loading commands
+│   │   ├── intent.js       # INTENT.md CRUD + drift detection
+│   │   ├── mcp.js          # MCP server profiling
+│   │   ├── memory.js       # Persistent memory store commands
+│   │   ├── misc.js         # Utility commands (config, template, commit, etc.)
+│   │   ├── phase.js        # Phase lifecycle (add/insert/remove/complete)
+│   │   ├── roadmap.js      # ROADMAP.md parsing and updates
+│   │   ├── state.js        # STATE.md read/write/patch
+│   │   ├── verify.js       # Verification suite (plan structure, quality, etc.)
+│   │   └── worktree.js     # Git worktree management
 │   └── lib/                # Shared library modules (11 files)
-├── workflows/              # Markdown workflow definitions for agents (44 files)
-├── templates/              # Document scaffolds and subagent prompts (28 entries)
-│   ├── codebase/           # Codebase analysis document templates (7 files)
-│   ├── plans/              # Plan type templates: discovery, execute, tdd (3 files)
-│   └── research-project/   # Research output templates (5 files)
-├── references/             # Domain knowledge docs loaded on-demand (13 files)
-├── .planning/              # GSD's own planning artifacts (self-managed)
-│   ├── config.json         # Project configuration
+│       ├── output.js       # Output routing, error handling, debug logging
+│       ├── helpers.js      # File caching, phase tree, phase lookup, intent parsing
+│       ├── config.js       # Config loading with schema defaults
+│       ├── constants.js    # Model profiles, config schema, command help text
+│       ├── frontmatter.js  # Custom YAML frontmatter parser
+│       ├── format.js       # TTY formatting: color, tables, progress bars
+│       ├── git.js          # Shell-free git execution wrapper
+│       ├── regex-cache.js  # LRU regex cache + pre-compiled patterns
+│       ├── codebase-intel.js # File walking, language detection, staleness
+│       ├── deps.js         # Multi-language import parsing + dependency graph
+│       ├── conventions.js  # Naming/organization/framework detection
+│       ├── lifecycle.js    # Lifecycle ordering DAG (migrations, boot order)
+│       └── context.js      # Token estimation + budget checking
+├── commands/               # Slash command wrappers (deployed to AI coding assistant)
+│   ├── gsd-codebase-impact.md
+│   ├── gsd-context-budget.md
+│   ├── gsd-rollback-info.md
+│   ├── gsd-search-decisions.md
+│   ├── gsd-search-lessons.md
+│   ├── gsd-session-diff.md
+│   ├── gsd-test-run.md
+│   ├── gsd-trace-requirement.md
+│   ├── gsd-validate-config.md
+│   ├── gsd-validate-deps.md
+│   └── gsd-velocity.md
+├── workflows/              # AI agent workflow definitions (44 files)
+│   ├── execute-phase.md    # Main execution workflow
+│   ├── plan-phase.md       # Planning workflow
+│   ├── new-project.md      # New project setup workflow
+│   ├── quick.md            # Quick task workflow
+│   ├── resume-project.md   # Resume session workflow
+│   ├── verify-work.md      # Post-execution verification
+│   ├── map-codebase.md     # Codebase mapping workflow
+│   ├── progress.md         # Progress overview workflow
+│   ├── cmd-*.md            # Command-specific workflows (11 files)
+│   └── ...                 # Other specialized workflows
+├── templates/              # Document templates for scaffolding
+│   ├── codebase/           # Codebase analysis templates (7 files)
+│   │   ├── architecture.md
+│   │   ├── conventions.md
+│   │   ├── concerns.md
+│   │   ├── integrations.md
+│   │   ├── stack.md
+│   │   ├── structure.md
+│   │   └── testing.md
+│   ├── plans/              # Plan type templates (3 files)
+│   │   ├── execute.md
+│   │   ├── tdd.md
+│   │   └── discovery.md
+│   ├── research-project/   # Research project templates
+│   ├── roadmap.md          # ROADMAP.md template
+│   ├── state.md            # STATE.md template
+│   ├── config.json         # config.json template
+│   ├── summary.md          # Standard SUMMARY.md template
+│   ├── summary-complex.md  # Complex summary template
+│   ├── summary-minimal.md  # Minimal summary template
+│   ├── intent.md           # INTENT.md template
+│   ├── project.md          # PROJECT.md template
+│   └── ...                 # Other document templates
+├── references/             # Reference documentation for agent workflows
+│   ├── checkpoints.md      # Checkpoint types and guidelines
+│   ├── verification-patterns.md
+│   ├── git-integration.md
+│   ├── model-profiles.md
+│   ├── tdd.md
+│   └── ...                 # Other reference docs (13 files)
+├── docs/                   # Human-facing documentation
+│   ├── getting-started.md
+│   ├── commands.md
+│   ├── architecture.md
+│   └── expert-guide.md
+├── .planning/              # Planning state (this project's own planning data)
 │   ├── STATE.md            # Current project state
-│   ├── ROADMAP.md          # Phase roadmap with milestones
-│   ├── REQUIREMENTS.md     # Structured requirements
-│   ├── INTENT.md           # Project intent document
-│   ├── MILESTONES.md       # Milestone archive summary
+│   ├── ROADMAP.md          # Project roadmap
+│   ├── INTENT.md           # Project intent
 │   ├── PROJECT.md          # Project description
-│   ├── baselines/          # Performance baselines (bundle size, context budgets)
-│   ├── codebase/           # Codebase analysis outputs (this directory)
-│   ├── memory/             # Persistent memory stores (JSON)
-│   ├── milestones/         # Archived milestone data (v1.0, v4.0 phase dirs + roadmaps)
-│   ├── phases/             # Active phase directories (06 through 29)
-│   ├── quick/              # Quick task plans
-│   └── research/           # Research output documents
-├── AGENTS.md               # Developer workspace instructions (for AI agents)
+│   ├── MILESTONES.md       # Completed milestones
+│   ├── config.json         # Project config
+│   ├── phases/             # Phase directories
+│   ├── milestones/         # Archived milestone data
+│   ├── memory/             # Memory stores (decisions, bookmarks, etc.)
+│   ├── codebase/           # Codebase analysis output
+│   ├── baselines/          # Context budget baselines
+│   ├── quick/              # Quick task state
+│   └── research/           # Research artifacts
+├── build.js                # esbuild bundler script
+├── deploy.sh               # Deploy to ~/.config/opencode/
+├── package.json            # Package manifest
+├── AGENTS.md               # Development rules for AI agents
 ├── README.md               # Project README
-├── VERSION                 # Semantic version (1.20.5)
-├── build.js                # esbuild bundler script with smoke test + size tracking
-├── deploy.sh               # Build + deploy to ~/.config/opencode/get-shit-done/
-├── package.json            # NPM manifest (private, node>=18)
-└── .gitignore              # Ignores node_modules/ and bin/gsd-tools.cjs
+└── VERSION                 # Version file
 ```
 
 ## Directory Purposes
 
 **`src/`:**
-- Purpose: All JavaScript source code, organized into modular files
-- Contains: Entry point, router, 13 command modules, 11 library modules
-- Key files: `src/index.js` (entry), `src/router.js` (dispatch), `src/commands/init.js` (compound context commands)
-- Total: ~20,150 lines of source code
-
-**`src/commands/`:**
-- Purpose: CLI command handler implementations — each module groups related subcommands
-- Contains: 13 `.js` files, each exporting named command handler functions
-- Key files: `src/commands/init.js` (workflow context aggregation), `src/commands/verify.js` (quality gates), `src/commands/features.js` (utility commands)
-- Naming: lowercase singular nouns matching the command domain (e.g., `state.js` → `gsd-tools state ...`)
+- Purpose: All source code — bundled by esbuild into `bin/gsd-tools.cjs`
+- Contains: 28 JavaScript files (CommonJS) totaling ~21K lines
+- Key files: `src/router.js` (command dispatch), `src/commands/init.js` (largest command module)
 
 **`src/lib/`:**
-- Purpose: Shared utilities, parsers, and core abstractions used by command modules
-- Contains: 11 `.js` files providing pure-function utilities and cached operations
-- Key files: `src/lib/helpers.js` (phase tree, file caching, milestone detection), `src/lib/constants.js` (schemas, help text), `src/lib/frontmatter.js` (YAML parsing)
-- Naming: lowercase descriptive nouns (e.g., `config.js`, `git.js`, `output.js`)
+- Purpose: Shared library utilities used by multiple command modules
+- Contains: 11 pure utility modules — parsers, caches, formatters, git wrapper
+- Key files: `src/lib/helpers.js` (core utilities), `src/lib/output.js` (foundation module)
+- Dependency rule: lib modules may import from other lib modules but NEVER from `src/commands/`
+
+**`src/commands/`:**
+- Purpose: Command handler implementations — each file groups related subcommands
+- Contains: 13 command modules exporting `cmd*()` functions
+- Key files: `src/commands/verify.js` (2089 lines, largest), `src/commands/features.js` (2016 lines)
+- Dependency rule: commands may import from `src/lib/*` and from sibling commands (e.g., init imports from intent, env, codebase, worktree)
 
 **`bin/`:**
-- Purpose: Built artifacts — the single-file CLI bundle
-- Contains: `gsd-tools.cjs` (esbuild output, gitignored), `gsd-tools.test.cjs` (test suite, committed)
-- Generated: Yes — by `build.js`
-- Committed: Test file only; the bundle is gitignored
+- Purpose: Built artifacts — the bundled CLI and test file
+- Contains: `gsd-tools.cjs` (bundled, ~17K lines), `gsd-tools.test.cjs` (tests, ~13.7K lines), `format.test.cjs`
+- Generated: Yes (by `npm run build`)
+- Committed: Yes (deployed artifact)
 
 **`workflows/`:**
-- Purpose: Markdown workflow definitions that LLM agents follow as step-by-step instructions
-- Contains: 44 `.md` files (~8,500 lines total) defining agent behavior
-- Key files: `workflows/execute-phase.md` (main execution orchestrator), `workflows/execute-plan.md` (plan execution subagent), `workflows/plan-phase.md` (planning workflow), `workflows/new-project.md` (project init), `workflows/map-codebase.md` (codebase analysis)
-- Naming: `kebab-case.md` — action-oriented names matching slash commands (e.g., `execute-phase.md` → `/gsd-execute-phase`); `cmd-*.md` for utility command wrappers
+- Purpose: AI agent workflow definitions — markdown prompts that agents follow step-by-step
+- Contains: 44 workflow files defining planning, execution, verification, and utility workflows
+- Deployed to: `~/.config/opencode/get-shit-done/workflows/`
+
+**`commands/`:**
+- Purpose: Slash command wrappers — thin markdown files that trigger workflows
+- Contains: 11 `gsd-*.md` files, each wrapping a specific slash command
+- Deployed to: `~/.config/opencode/command/`
 
 **`templates/`:**
-- Purpose: Document scaffolds for all planning artifacts created during workflows
-- Contains: 28 entries — markdown templates for plans, summaries, state, requirements, roadmaps, subagent prompts
-- Key files: `templates/phase-prompt.md` (569 lines — main PLAN.md template), `templates/research.md` (602 lines), `templates/state.md`, `templates/roadmap.md`
-- Subdirectories:
-  - `templates/codebase/` — 7 codebase analysis templates (architecture, stack, conventions, testing, etc.)
-  - `templates/plans/` — Plan type variants (discovery, execute, tdd)
-  - `templates/research-project/` — Research phase output templates (5 files)
+- Purpose: Document templates filled programmatically by `gsd-tools template fill`
+- Contains: 28 template files/dirs for PLAN.md, SUMMARY.md, STATE.md, ROADMAP.md, etc.
+- Deployed to: `~/.config/opencode/get-shit-done/templates/`
 
 **`references/`:**
-- Purpose: Detailed domain knowledge documents loaded by agents on-demand via `gsd-tools extract-sections`
-- Contains: 13 `.md` files covering checkpoints, git integration, model profiles, verification patterns, TDD
-- Key files: `references/checkpoints.md` (782 lines — checkpoint types and behaviors), `references/git-integration.md`, `references/verification-patterns.md`
-- Naming: `kebab-case.md` describing the domain topic
+- Purpose: Supplementary reference docs loaded by workflows at runtime via `gsd-tools extract-sections`
+- Contains: 13 reference files covering git integration, verification patterns, model profiles, etc.
+- Deployed to: `~/.config/opencode/get-shit-done/references/`
+
+**`docs/`:**
+- Purpose: Human-facing documentation (getting started, command reference, architecture, expert guide)
+- Contains: 4 markdown files
+- Not deployed — stays in repo only
 
 **`.planning/`:**
-- Purpose: GSD's own project planning artifacts — dogfooding the system
-- Contains: Config, state, roadmap, requirements, intent, milestones, phases, memory, baselines, codebase analysis
-- Committed: Most files committed; `.planning/.gitignore` excludes `env-manifest.json` and `.cache/`
-- Key files: `.planning/config.json`, `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/INTENT.md`
-
-**`.planning/phases/`:**
-- Purpose: Active phase directories containing PLAN.md and SUMMARY.md files
-- Contains: Directories named `{NN}-{slug}/` (e.g., `06-token-measurement-output-infrastructure/`)
-- Each phase contains: `{NN}-{MM}-PLAN.md`, `{NN}-{MM}-SUMMARY.md`, optional `{NN}-CONTEXT.md`, `{NN}-VERIFICATION.md`, `{NN}-RESEARCH.md`
-
-**`.planning/milestones/`:**
-- Purpose: Archived milestone data (completed phases + per-milestone roadmaps/requirements)
-- Contains: `v{X.Y}-ROADMAP.md`, `v{X.Y}-REQUIREMENTS.md`, `v{X.Y}-phases/` directories with archived phase dirs
-- Example: `.planning/milestones/v1.0-phases/01-foundation-safety-nets/`
-
-**`.planning/memory/`:**
-- Purpose: Persistent JSON-based memory stores for session continuity
-- Contains: `bookmarks.json` (and potentially `decisions.json`, `lessons.json`, `todos.json`)
-
-**`.planning/baselines/`:**
-- Purpose: Performance tracking — bundle sizes and context budget baselines
-- Contains: `bundle-size.json`, `baseline-*.json` files with timestamps
+- Purpose: This project's own planning state managed by the bGSD system
+- Contains: State, roadmap, intent, config, phases, milestones, memory, codebase intel
+- Special: Self-referential — the project uses itself for project management
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/index.js`: CLI entry point — requires router, calls `main()`
-- `src/router.js`: Command dispatch — parses args, routes to lazy-loaded command modules
-- `build.js`: Build entry — esbuild config, smoke test, size tracking
-- `deploy.sh`: Deploy entry — build → backup → copy → smoke test
+- `src/index.js`: Source entry point (requires router)
+- `bin/gsd-tools.cjs`: Built CLI entry point (single-file bundle)
+- `build.js`: Build script entry point (esbuild config)
+- `deploy.sh`: Deployment script
 
 **Configuration:**
-- `package.json`: NPM manifest (node>=18, private, scripts: test/build)
-- `.planning/config.json`: Runtime config (mode, depth, parallelization, model_profile, workflow toggles)
-- `src/lib/constants.js`: CONFIG_SCHEMA (single source of truth for all config keys)
-- `src/lib/constants.js`: MODEL_PROFILES (agent-to-model mapping by profile tier)
-- `src/lib/constants.js`: COMMAND_HELP (help text for every CLI command)
+- `package.json`: Package manifest (name, scripts, dependencies)
+- `.planning/config.json`: Per-project GSD configuration
+- `src/lib/constants.js`: CONFIG_SCHEMA (config key definitions and defaults)
+- `templates/config.json`: Default config template for new projects
 
 **Core Logic:**
-- `src/lib/helpers.js`: Phase tree scanning, file caching, milestone detection, intent parsing
-- `src/lib/frontmatter.js`: YAML frontmatter parser (extract, reconstruct, splice)
-- `src/lib/output.js`: JSON output, field filtering, tmpfile fallback, error/debug logging
-- `src/lib/config.js`: Config loading with schema defaults and nested key resolution
-- `src/lib/git.js`: Shell-free git execution
-- `src/lib/context.js`: Token estimation and budget checking
-- `src/lib/regex-cache.js`: LRU regex cache + pre-compiled patterns
-- `src/lib/codebase-intel.js`: Source directory detection, file traversal, language mapping
-- `src/lib/conventions.js`: Naming pattern classification, file organization analysis
-- `src/lib/deps.js`: Multi-language import parsing and dependency graph building
-- `src/lib/lifecycle.js`: Migration/seed/boot lifecycle detection
+- `src/router.js`: Command routing and global flag parsing
+- `src/commands/init.js`: Compound init commands (execute-phase, plan-phase, resume, etc.)
+- `src/commands/verify.js`: Verification suite (plan structure, quality, regressions)
+- `src/commands/state.js`: STATE.md CRUD operations
+- `src/lib/helpers.js`: Phase tree, file caching, intent/milestone parsing
 
 **Testing:**
-- `bin/gsd-tools.test.cjs`: CLI integration tests (Node.js built-in test runner)
+- `bin/gsd-tools.test.cjs`: Main test suite (574+ tests)
+- `bin/format.test.cjs`: Format module tests
+
+**Output/Formatting:**
+- `src/lib/output.js`: `output()`, `error()`, `debugLog()`, `status()`
+- `src/lib/format.js`: Color, tables, progress bars, section headers, banners
 
 ## Naming Conventions
 
 **Files:**
-- Source modules: `kebab-case.js` (e.g., `codebase-intel.js`, `regex-cache.js`)
-- Command modules: `singular-noun.js` matching command name (e.g., `state.js`, `verify.js`, `phase.js`)
-- Workflows: `kebab-case.md` with action prefix (e.g., `execute-phase.md`, `plan-phase.md`)
-- Utility workflows: `cmd-kebab-case.md` prefix for simple command wrappers (e.g., `cmd-velocity.md`)
-- Templates: `kebab-case.md` (e.g., `phase-prompt.md`, `summary-standard.md`)
-- References: `kebab-case.md` (e.g., `git-integration.md`, `verification-patterns.md`)
-
-**Directories:**
-- Phase directories: `{NN}-{slug}/` (e.g., `06-token-measurement-output-infrastructure/`)
-- Milestone archives: `v{X.Y}-phases/` (e.g., `v1.0-phases/`)
-- Template groups: `singular-noun/` (e.g., `codebase/`, `plans/`)
+- Source files: `kebab-case.js` — e.g., `codebase-intel.js`, `regex-cache.js`
+- Command files: `kebab-case.js` matching command domain — e.g., `state.js`, `verify.js`, `worktree.js`
+- Workflow files: `kebab-case.md` — e.g., `execute-phase.md`, `verify-work.md`
+- Slash commands: `gsd-kebab-case.md` — e.g., `gsd-velocity.md`, `gsd-test-run.md`
+- Templates: `kebab-case.md` or `PascalCase.md` for document type templates
 
 **Functions:**
-- Command handlers: `cmd{PascalCase}` (e.g., `cmdInitExecutePhase`, `cmdStateUpdate`, `cmdVerifyPlanStructure`)
-- Internal helpers: `camelCase` (e.g., `findPhaseInternal`, `resolveModelInternal`, `getMilestoneInfo`)
-- Lazy loaders: `lazy{PascalCase}` (e.g., `lazyState`, `lazyInit`, `lazyVerify`)
+- Command handlers: `cmd<PascalCaseName>(cwd, args, raw)` — e.g., `cmdStateGet()`, `cmdInitExecutePhase()`
+- Formatters: `format<PascalCaseName>(result)` — e.g., `formatStateShow()`, `formatCodebaseAnalyze()`
+- Internal helpers: `camelCase` — e.g., `findPhaseInternal()`, `resolveModelInternal()`, `normalizePhaseName()`
+- Lazy loaders: `lazy<PascalCaseName>()` — e.g., `lazyState()`, `lazyVerify()`
 
-**Planning Documents:**
-- Plans: `{NN}-{MM}-PLAN.md` (e.g., `12-03-PLAN.md`)
-- Summaries: `{NN}-{MM}-SUMMARY.md` (e.g., `12-03-SUMMARY.md`)
-- Context: `{NN}-CONTEXT.md` (e.g., `12-CONTEXT.md`)
-- Research: `{NN}-RESEARCH.md` (e.g., `01-RESEARCH.md`)
-- Verification: `{NN}-VERIFICATION.md` (e.g., `12-VERIFICATION.md`)
+**Exports:**
+- Every module uses `module.exports = { ... }` (CommonJS)
+- Command modules export only `cmd*()` functions (and occasionally shared helpers)
+- Lib modules export utility functions and constants
+
+**Directories:**
+- `kebab-case` for functional groupings — `src/lib/`, `src/commands/`
+- `kebab-case` for template subdirs — `templates/plans/`, `templates/codebase/`
 
 ## Where to Add New Code
 
 **New CLI Command:**
-1. Add command handler function to appropriate `src/commands/*.js` module (or create new module)
-2. If new module: add lazy-loader function in `src/router.js` (line ~12-24)
-3. Add switch case in `src/router.js` `main()` function
-4. Add COMMAND_HELP entry in `src/lib/constants.js`
-5. Add test case in `bin/gsd-tools.test.cjs`
+1. Determine which command module owns the domain (state, verify, features, misc, etc.)
+2. Add `cmd<Name>(cwd, args, raw)` function to the appropriate `src/commands/*.js` file
+3. Add case to `src/router.js` switch statement with lazy loader
+4. Add help text to `COMMAND_HELP` in `src/lib/constants.js`
+5. Add tests to `bin/gsd-tools.test.cjs`
 6. Run `npm run build` to bundle
 
+**New Command Module (new domain):**
+1. Create `src/commands/<domain>.js` with `cmd*()` exports
+2. Add lazy loader function in `src/router.js`: `function lazy<Domain>() { return _modules.<domain> || (_modules.<domain> = require('./commands/<domain>')); }`
+3. Add switch cases in `src/router.js` for the new commands
+4. Add help text to `COMMAND_HELP`
+
 **New Library Module:**
-1. Create `src/lib/{name}.js`
-2. Export functions via `module.exports`
-3. Import from command modules as needed
-4. Library modules should be pure utilities — no direct output/exit calls
+1. Create `src/lib/<name>.js` with pure utility functions
+2. Export via `module.exports = { ... }`
+3. Import in command modules as needed: `const { fn } = require('../lib/<name>')`
+4. NEVER import from `src/commands/` — lib modules must not depend on command layer
 
 **New Workflow:**
-1. Create `workflows/{name}.md` with XML-structured steps
-2. Use `<purpose>`, `<process>`, `<step name="...">` structure
-3. Reference gsd-tools commands via `node /path/to/gsd-tools.cjs <command>`
-4. If workflow needs init context: add `cmdInit{Name}()` in `src/commands/init.js`
+1. Create `workflows/<workflow-name>.md` with agent instructions
+2. If it needs a slash command wrapper, create `commands/gsd-<name>.md`
+3. If it needs an init compound command, add `cmdInit<Name>()` to `src/commands/init.js`
+4. Add init case to `src/router.js`
 
 **New Template:**
-1. Create `templates/{name}.md` for single templates
-2. Create `templates/{category}/{name}.md` for grouped templates
-3. Register in `cmdTemplateSelect()` or `cmdTemplateFill()` in `src/commands/misc.js` if needed
+1. Create `templates/<name>.md` (or in appropriate subdir like `templates/plans/`)
+2. Register in `cmdTemplateSelect()` / `cmdTemplateFill()` in `src/commands/misc.js`
 
-**New Reference Doc:**
-1. Create `references/{topic}.md`
-2. Use `<!-- section: name -->` markers for extractable sections
-3. Workflows can load via `gsd-tools extract-sections references/{topic}.md "section-name"`
+**New Framework Detector:**
+1. Add detector object to `FRAMEWORK_DETECTORS[]` in `src/lib/conventions.js`
+2. Implement `{ name, detect(intel), extractPatterns(intel, cwd) }` interface
+3. Patterns are automatically picked up by `extractConventions()`
 
-**New Config Key:**
-1. Add entry to `CONFIG_SCHEMA` in `src/lib/constants.js` with type, default, description, aliases, nested path
-2. `loadConfig()` automatically picks it up
-3. Add `cmdConfigMigrate()` support (automatic — migrates missing keys)
+**New Lifecycle Detector:**
+1. Add detector object to `LIFECYCLE_DETECTORS[]` in `src/lib/lifecycle.js`
+2. Implement `{ name, detect(intel), extractLifecycle(intel, cwd) }` interface
+
+**New Import Parser (for dependency analysis):**
+1. Add parser function to `src/lib/deps.js` following the `parseJavaScript()` pattern
+2. Register in `IMPORT_PARSERS` map: `'<language>': parse<Language>`
+3. Add resolution function: `resolve<Language>Import(specifier, fromFile, fileSet)`
 
 ## Special Directories
 
 **`bin/`:**
-- Purpose: Built CLI bundle output
-- Generated: Yes — by `build.js` via esbuild
-- Committed: Only `gsd-tools.test.cjs`; `gsd-tools.cjs` is gitignored (regenerated on build)
+- Purpose: Built artifacts (bundled CLI + tests)
+- Generated: Yes (by `npm run build`)
+- Committed: Yes — the deployed artifact must be committed
 
 **`.planning/`:**
-- Purpose: GSD planning artifacts (dogfooding)
-- Generated: Mix — some created by gsd-tools commands, some manually
-- Committed: Yes, except `env-manifest.json` and `.cache/`
-
-**`.planning/baselines/`:**
-- Purpose: Performance tracking data (bundle sizes, context budget baselines)
-- Generated: Yes — by `build.js` (bundle-size.json) and `context-budget baseline` command
-- Committed: Yes
-
-**`.planning/.cache/`:**
-- Purpose: Temporary analysis artifacts
-- Generated: Yes
-- Committed: No (gitignored)
+- Purpose: Planning state for this project (self-referential)
+- Generated: Partially (codebase-intel.json is generated; STATE.md, ROADMAP.md are managed)
+- Committed: Mostly (except `.planning/.cache/` and `env-manifest.json` which are gitignored)
 
 **`node_modules/`:**
-- Purpose: NPM dependencies (esbuild for build, tokenx for token estimation)
-- Generated: Yes — by `npm install`
-- Committed: No (gitignored)
+- Purpose: npm dependencies (only `esbuild` devDep + `tokenx` dep)
+- Generated: Yes
+- Committed: No
 
-**`~/.config/opencode/get-shit-done/` (deploy target):**
-- Purpose: Production install location for the GSD plugin
-- Generated: Yes — by `deploy.sh`
-- Committed: N/A (separate from this repo)
-- Contains: Copy of `bin/`, `workflows/`, `templates/`, `references/`, `src/`, `VERSION`
+**`.planning/memory/`:**
+- Purpose: Persistent memory stores — JSON arrays of decisions, bookmarks, lessons, todos
+- Generated: Yes (by `gsd-tools memory write`)
+- Committed: Yes
+
+**`.planning/baselines/`:**
+- Purpose: Context budget baselines and bundle size records
+- Generated: Yes (by `gsd-tools context-budget baseline` and `npm run build`)
+- Committed: Yes
+
+**`.planning/codebase/`:**
+- Purpose: Codebase analysis output (intel JSON) and human-authored analysis docs (this file)
+- Generated: Partially (codebase-intel.json is auto-generated; .md files are authored)
+- Committed: Yes
 
 ---
 
