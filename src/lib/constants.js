@@ -292,7 +292,7 @@ Examples:
   gsd-tools init memory --workflow plan-phase --compact
   gsd-tools init memory`,
 
-  'commit': `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend]
+  'commit': `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
 
 Commit planning documents to git.
 
@@ -300,9 +300,11 @@ Arguments:
   message         Commit message (required)
   --files f1 f2   Specific files to stage (default: all .planning/ changes)
   --amend         Amend the previous commit instead of creating new
+  --agent <type>  Add Agent-Type git trailer for commit attribution (e.g., gsd-executor)
 
 Examples:
-  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md`,
+  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md
+  gsd-tools commit "feat(41-01): add review command" --agent gsd-executor --files src/router.js`,
 
   'template': `Usage: gsd-tools template <subcommand> [options]
 

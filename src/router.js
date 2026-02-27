@@ -196,11 +196,13 @@ async function main() {
     case 'commit': {
       const amend = args.includes('--amend');
       const forceFlag = args.includes('--force');
+      const agentIdx = args.indexOf('--agent');
+      const agentType = agentIdx !== -1 ? args[agentIdx + 1] : null;
       const message = args[1];
       // Parse --files flag (collect args after --files, stopping at other flags)
       const filesIndex = args.indexOf('--files');
       const files = filesIndex !== -1 ? args.slice(filesIndex + 1).filter(a => !a.startsWith('--')) : [];
-      lazyMisc().cmdCommit(cwd, message, files, raw, amend, forceFlag);
+      lazyMisc().cmdCommit(cwd, message, files, raw, amend, forceFlag, agentType);
       break;
     }
 

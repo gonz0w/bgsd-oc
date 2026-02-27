@@ -586,7 +586,7 @@ function preCommitChecks(cwd, force) {
   return { passed: failures.length === 0, failures };
 }
 
-function cmdCommit(cwd, message, files, raw, amend, force) {
+function cmdCommit(cwd, message, files, raw, amend, force, agentType) {
   if (!message && !amend) {
     error('commit message required');
   }
@@ -624,6 +624,9 @@ function cmdCommit(cwd, message, files, raw, amend, force) {
 
   // Commit
   const commitArgs = amend ? ['commit', '--amend', '--no-edit'] : ['commit', '-m', message];
+  if (agentType) {
+    commitArgs.push('--trailer', `Agent-Type: ${agentType}`);
+  }
   const commitResult = execGit(cwd, commitArgs);
   if (commitResult.exitCode !== 0) {
     if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
@@ -639,7 +642,7 @@ function cmdCommit(cwd, message, files, raw, amend, force) {
   // Get short hash
   const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
   const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
-  const result = { committed: true, hash, reason: 'committed' };
+  const result = { committed: true, hash, reason: 'committed', agent_type: agentType || null };
   output(result, raw, hash || 'committed');
 }
 

@@ -133,6 +133,11 @@ const AGENT_MANIFESTS = {
     exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
               'worktree_active', 'file_overlaps', 'env_summary', 'branch_name'],
   },
+  'gsd-reviewer': {
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'codebase_conventions', 'codebase_dependencies'],
+    optional: ['codebase_stats'],
+    exclude: ['intent_summary', 'plan_count', 'summaries', 'incomplete_plans'],
+  },
 };
 
 /**

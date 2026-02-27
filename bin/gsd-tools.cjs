@@ -300,7 +300,7 @@ Examples:
   gsd-tools init memory --workflow execute-phase --phase 11
   gsd-tools init memory --workflow plan-phase --compact
   gsd-tools init memory`,
-      "commit": `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend]
+      "commit": `Usage: gsd-tools commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
 
 Commit planning documents to git.
 
@@ -308,9 +308,11 @@ Arguments:
   message         Commit message (required)
   --files f1 f2   Specific files to stage (default: all .planning/ changes)
   --amend         Amend the previous commit instead of creating new
+  --agent <type>  Add Agent-Type git trailer for commit attribution (e.g., gsd-executor)
 
 Examples:
-  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md`,
+  gsd-tools commit "docs(03-01): add help system" --files .planning/STATE.md
+  gsd-tools commit "feat(41-01): add review command" --agent gsd-executor --files src/router.js`,
       "template": `Usage: gsd-tools template <subcommand> [options]
 
 Template operations for planning documents.
@@ -16842,6 +16844,11 @@ var require_context = __commonJS({
           "env_summary",
           "branch_name"
         ]
+      },
+      "gsd-reviewer": {
+        fields: ["phase_dir", "phase_number", "phase_name", "codebase_conventions", "codebase_dependencies"],
+        optional: ["codebase_stats"],
+        exclude: ["intent_summary", "plan_count", "summaries", "incomplete_plans"]
       }
     };
     function scopeContextForAgent(result, agentType) {
@@ -20918,7 +20925,7 @@ var require_misc = __commonJS({
       }
       return { passed: failures.length === 0, failures };
     }
-    function cmdCommit(cwd, message, files, raw, amend, force) {
+    function cmdCommit(cwd, message, files, raw, amend, force, agentType) {
       if (!message && !amend) {
         error("commit message required");
       }
@@ -20945,6 +20952,9 @@ var require_misc = __commonJS({
         execGit(cwd, ["add", file]);
       }
       const commitArgs = amend ? ["commit", "--amend", "--no-edit"] : ["commit", "-m", message];
+      if (agentType) {
+        commitArgs.push("--trailer", `Agent-Type: ${agentType}`);
+      }
       const commitResult = execGit(cwd, commitArgs);
       if (commitResult.exitCode !== 0) {
         if (commitResult.stdout.includes("nothing to commit") || commitResult.stderr.includes("nothing to commit")) {
@@ -20958,7 +20968,7 @@ var require_misc = __commonJS({
       }
       const hashResult = execGit(cwd, ["rev-parse", "--short", "HEAD"]);
       const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
-      const result = { committed: true, hash, reason: "committed" };
+      const result = { committed: true, hash, reason: "committed", agent_type: agentType || null };
       output(result, raw, hash || "committed");
     }
     function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
@@ -24365,10 +24375,12 @@ var require_router = __commonJS({
         case "commit": {
           const amend = args.includes("--amend");
           const forceFlag = args.includes("--force");
+          const agentIdx = args.indexOf("--agent");
+          const agentType = agentIdx !== -1 ? args[agentIdx + 1] : null;
           const message = args[1];
           const filesIndex = args.indexOf("--files");
           const files = filesIndex !== -1 ? args.slice(filesIndex + 1).filter((a) => !a.startsWith("--")) : [];
-          lazyMisc().cmdCommit(cwd, message, files, raw, amend, forceFlag);
+          lazyMisc().cmdCommit(cwd, message, files, raw, amend, forceFlag, agentType);
           break;
         }
         case "verify-summary": {

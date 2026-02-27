@@ -13964,6 +13964,41 @@ describe('pre-commit checks', () => {
   });
 });
 
+// ─── commit --agent attribution ──────────────────────────────────────────────
+
+describe('commit --agent attribution', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ commit_docs: true }), 'utf-8');
+    execSync('git init && git config user.email "test@test.com" && git config user.name "Test" && git add . && git commit -m "init"', { cwd: tmpDir, stdio: 'pipe' });
+  });
+
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('commit --agent gsd-executor produces commit with Agent-Type trailer', () => {
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'agent-test.md'), 'test\n');
+    const result = runGsdTools('commit "test: agent attribution" --agent gsd-executor', tmpDir);
+    const data = JSON.parse(result.output);
+    assert.ok(data.committed, 'Should commit successfully');
+    assert.strictEqual(data.agent_type, 'gsd-executor', 'Should return agent_type');
+    // Verify git trailer exists in commit body
+    const body = execSync('git log --format=%b -1', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+    assert.ok(body.includes('Agent-Type: gsd-executor'), `Commit body should contain Agent-Type: gsd-executor, got: ${body}`);
+  });
+
+  test('commit without --agent has no Agent-Type trailer', () => {
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'no-agent-test.md'), 'test\n');
+    const result = runGsdTools('commit "test: no agent"', tmpDir);
+    const data = JSON.parse(result.output);
+    assert.ok(data.committed, 'Should commit successfully');
+    assert.strictEqual(data.agent_type, null, 'agent_type should be null');
+    const body = execSync('git log --format=%b -1', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+    assert.ok(!body.includes('Agent-Type'), `Commit body should NOT contain Agent-Type, got: ${body}`);
+  });
+});
+
 // ─── consumer contract tests ─────────────────────────────────────────────────
 
 /**
@@ -15379,15 +15414,24 @@ describe('orchestration: init execute-phase integration', () => {
 // ─── Agent Context Manifests ─────────────────────────────────────────────────
 
 describe('agent manifests: AGENT_MANIFESTS structure', () => {
-  test('has entries for all 5 agent types', () => {
+  test('has entries for all 6 agent types', () => {
     const ctx = require('../src/lib/context');
-    const types = ['gsd-executor', 'gsd-verifier', 'gsd-planner', 'gsd-phase-researcher', 'gsd-plan-checker'];
+    const types = ['gsd-executor', 'gsd-verifier', 'gsd-planner', 'gsd-phase-researcher', 'gsd-plan-checker', 'gsd-reviewer'];
     for (const t of types) {
       assert.ok(ctx.AGENT_MANIFESTS[t], `Missing manifest for ${t}`);
       assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].fields), `${t} should have fields array`);
       assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].optional), `${t} should have optional array`);
       assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].exclude), `${t} should have exclude array`);
     }
+  });
+
+  test('gsd-reviewer manifest has review-scoped fields', () => {
+    const ctx = require('../src/lib/context');
+    const manifest = ctx.AGENT_MANIFESTS['gsd-reviewer'];
+    assert.ok(manifest, 'gsd-reviewer manifest should exist');
+    assert.ok(manifest.fields.includes('codebase_conventions'), 'Should include codebase_conventions');
+    assert.ok(manifest.fields.includes('codebase_dependencies'), 'Should include codebase_dependencies');
+    assert.ok(manifest.exclude.includes('incomplete_plans'), 'Should exclude incomplete_plans');
   });
 });
 
@@ -15450,6 +15494,21 @@ describe('agent manifests: scopeContextForAgent', () => {
     assert.ok(typeof scoped._savings.scoped_keys === 'number');
     assert.ok(typeof scoped._savings.reduction_pct === 'number');
     assert.ok(scoped._savings.reduction_pct > 0, 'Should show positive reduction');
+  });
+
+  test('gsd-reviewer gets codebase_conventions but not incomplete_plans', () => {
+    const result = {
+      phase_dir: '/test', phase_number: '41', phase_name: 'test',
+      plans: [], incomplete_plans: ['41-01-PLAN.md'], plan_count: 1,
+      summaries: [], codebase_conventions: { naming: 'camelCase' },
+      codebase_dependencies: { total_modules: 5 }, codebase_stats: { total: 50 },
+    };
+    const scoped = ctx.scopeContextForAgent(result, 'gsd-reviewer');
+    assert.strictEqual(scoped._agent, 'gsd-reviewer');
+    assert.ok('codebase_conventions' in scoped, 'Should include codebase_conventions');
+    assert.ok('codebase_dependencies' in scoped, 'Should include codebase_dependencies');
+    assert.ok(!('incomplete_plans' in scoped), 'Should exclude incomplete_plans');
+    assert.ok(!('plan_count' in scoped), 'Should exclude plan_count');
   });
 });
 
