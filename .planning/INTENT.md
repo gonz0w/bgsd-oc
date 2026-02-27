@@ -1,11 +1,11 @@
-**Revision:** 3
+**Revision:** 5
 **Created:** 2026-02-25
 **Updated:** 2026-02-26
 
 <objective>
-A zero-dependency CLI plugin that provides structured planning, execution, and verification workflows for AI-driven software development.
+An intelligent agent orchestration engine for building large-scale software. Provides structured planning, execution, verification, and specialized agent coordination — turning unstructured project ideas into executable plans with traceability from intent through requirements to delivered code.
 
-The plugin turns unstructured project ideas into executable plans with traceability from intent through requirements to delivered code, optimized for single-developer + AI-assistant workflows.
+The plugin orchestrates specialized agents (research, planning, execution, code review, testing, refactoring) with smart task routing, parallel execution, and minimal context overhead, optimized for single-developer + AI-assistant workflows at scale.
 </objective>
 
 <users>
@@ -25,10 +25,16 @@ The plugin turns unstructured project ideas into executable plans with traceabil
 - DO-08 [P1] [achieved v5.0]: Codebase analysis runs as specialized parallel agents that produce structured, queryable artifacts
 - DO-09 [P2] [achieved v5.0]: Convention violations are detectable before execution (e.g. wrong module path, missing seed update)
 - DO-10 [P2] [achieved v5.0]: Analysis results stay current as the codebase evolves (staleness detection, incremental updates)
-- DO-11 [P1]: CLI output is branded and human-readable when run interactively, with automatic TTY detection falling back to JSON for agent consumption
-- DO-12 [P1]: Shared formatting infrastructure (tables, colors, banners, progress bars) eliminates ad-hoc output and ensures visual consistency
-- DO-13 [P2]: Workflow-rendered output is tighter — less noise, higher information density, no redundant status messages
-- DO-14 [P2]: All 11 feature commands are accessible as slash commands in OpenCode with proper command wrappers
+- DO-11 [P1] [achieved v6.0]: CLI output is branded and human-readable when run interactively, with automatic TTY detection falling back to JSON for agent consumption
+- DO-12 [P1] [achieved v6.0]: Shared formatting infrastructure (tables, colors, banners, progress bars) eliminates ad-hoc output and ensures visual consistency
+- DO-13 [P2] [achieved v6.0]: Workflow-rendered output is tighter — less noise, higher information density, no redundant status messages
+- DO-14 [P2] [achieved v6.0]: All 11 feature commands are accessible as slash commands in OpenCode with proper command wrappers
+- DO-15 [P1]: Missing agent roles (code review, test generation, refactoring, dependency management) exist as first-class specialized agent types
+- DO-16 [P1]: Orchestrator intelligently assigns work to the right agent type based on task nature and context
+- DO-17 [P1]: Independent tasks run in parallel by default — more work happens concurrently with less coordination overhead
+- DO-18 [P2]: Git workflows go beyond commit/diff — branch strategy awareness, conflict detection, PR workflow support
+- DO-19 [P1]: Agents receive only what they need — measurable reduction in tokens loaded per agent without fidelity loss
+- DO-20 [P2]: Commands that are slow get profiled and optimized — measurable latency improvement where it matters
 </outcomes>
 
 <criteria>
@@ -41,33 +47,38 @@ The plugin turns unstructured project ideas into executable plans with traceabil
 - SC-07 [achieved v5.0]: Convention extraction detects naming patterns, file organization, and framework-specific macros
 - SC-08 [achieved v5.0]: Dependency graph shows module relationships and change impact
 - SC-09 [achieved v5.0]: Lifecycle analysis captures execution order (seeds, migrations, config, boot)
-- SC-10: Running any command in a TTY produces branded, readable output; piped output remains JSON
-- SC-11: `src/lib/format.js` provides table, color, banner, progress, and box utilities used by all commands
-- SC-12: Workflow output tokens decrease measurably vs v5.0 baselines (noise reduction)
-- SC-13: All 11 feature slash commands are registered and functional in OpenCode
+- SC-10 [achieved v6.0]: Running any command in a TTY produces branded, readable output; piped output remains JSON
+- SC-11 [achieved v6.0]: `src/lib/format.js` provides table, color, banner, progress, and box utilities used by all commands
+- SC-12 [achieved v6.0]: Workflow output tokens decrease measurably vs v5.0 baselines (noise reduction)
+- SC-13 [achieved v6.0]: All 11 feature slash commands are registered and functional in OpenCode
 </criteria>
 
 <constraints>
 ### Technical
-- C-01: Zero external dependencies — Node.js standard library only
 - C-03: All operations are advisory — never block workflow execution
 
 ### Business
 - C-04: Backward compatible — projects without codebase analysis work exactly as before
 - C-05: Analysis adds value without adding ceremony — no mandatory steps
+
+### Dropped
+- ~~C-01: Zero external dependencies~~ — Dropped v7.0: dependencies allowed when they serve orchestration quality. Size and speed still matter, but building elite orchestration software is the primary goal.
 </constraints>
 
 <health>
 ### Quantitative
-- HM-02: All tests pass (572+ currently) with zero regressions after each phase
+- HM-02: All tests pass (574 currently) with zero regressions after each phase
 - HM-03: Init commands complete in <500ms even with analysis context injection
+- HM-04: Agent context load is measurably reduced vs v6.0 baselines (tokens per agent invocation)
 
 ### Qualitative
-Codebase intelligence should feel like agents naturally understand the project, not like a manual documentation exercise. Task-scoped injection means agents get relevant context without information overload.
+Orchestration should feel invisible — the right agent gets the right task with the right context, and the developer only sees results. Agent coordination overhead should decrease, not increase, as more specialized roles are added.
 </health>
 
 <history>
 - v3.0 (2026-02-25): Initial intent created for intent engineering milestone
 - v5.0 (2026-02-25): Evolved for codebase intelligence milestone — marked DO-01 through DO-06 as achieved, added DO-07 through DO-10 for architectural understanding and task-scoped context, dropped bundle size constraint (C-02) and v3.0 timeline constraint (C-06), added success criteria SC-06 through SC-09, updated health metrics to reflect current test count (502+)
 - v6.0 (2026-02-26): Evolved for UX & Developer Experience milestone — marked DO-07 through DO-10 and SC-06 through SC-09 as achieved (v5.0), added DO-11 through DO-14 for branded TUI output, formatting infrastructure, workflow noise reduction, and slash command completion, added SC-10 through SC-13
+- v6.0 (2026-02-27): Post-milestone update — marked DO-11 through DO-14 and SC-10 through SC-13 as achieved (v6.0), updated test count to 574
+- v7.0 (2026-02-26): Evolved for Agent Orchestration & Efficiency milestone — updated objective to emphasize intelligent orchestration at scale, added DO-15 through DO-20 for specialized agents, smart routing, parallelism, git intelligence, leaner context, and faster CLI, dropped C-01 (zero deps) permanently — dependencies allowed when they serve quality
 </history>
