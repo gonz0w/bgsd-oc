@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 46 of 50 (Checkpoint — Snapshot & Metrics Collection)
-Plan: 1 of 1
+Plan: 2 of 2
 Status: Phase 46 complete
-Last activity: 2026-02-28 — Completed 46-01 trajectory checkpoint command
+Last activity: 2026-02-28 — Completed 46-02 trajectory list command
 
-Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 3/3 plans (Phase 46 complete)
+Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 4/4 plans (Phase 46 complete)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Progress: [████████████████████░░░
 |-------|------|----------|-------|-------|
 | 45 | 01 | 20 min | 2 | 4 |
 | 46 | 01 | 10 min | 2 | 5 |
+| 46 | 02 | 9 min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -56,6 +57,8 @@ All v1.0-v7.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 46]: Excluded .planning/ from dirty working tree check for consecutive checkpoints
 - [Phase 46]: Used fault-tolerant metrics collection — partial metrics if any collector fails
 - [Phase 46]: Branch ref-only creation (git branch, not checkout) to preserve working tree
+- [Phase 46]: Used output(result, { formatter }) pattern for trajectory list dual-mode output
+- [Phase 46]: Trajectory list sorted newest-first by default for relevance
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 46-01-PLAN.md (Phase 46 fully complete)
+Stopped at: Completed 46-02-PLAN.md (Phase 46 fully complete)
 Resume file: None
 Next step: Phase 46 complete — proceed to Phase 47 (Pivot: Selective Checkout & Branch Switching)

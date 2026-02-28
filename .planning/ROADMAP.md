@@ -127,7 +127,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
 **Milestone Goal:** Structured exploration system — checkpoint, pivot, compare, and choose between multiple approaches at any workflow level, with a decision journal consumable by both agents and humans.
 
 - [x] **Phase 45: Foundation — Decision Journal & State Coherence** - Sacred trajectory store and selective checkout pattern for `.planning/` preservation (completed 2026-02-28)
-- [ ] **Phase 46: Checkpoint — Snapshot & Metrics Collection** - Named checkpoints with git state capture and auto-metrics
+- [x] **Phase 46: Checkpoint — Snapshot & Metrics Collection** - Named checkpoints with git state capture and auto-metrics (completed 2026-02-28)
 - [ ] **Phase 47: Pivot — Selective Rewind & Attempt Archival** - Abandon approach with recorded reasoning, rewind to checkpoint safely
 - [ ] **Phase 48: Compare — Multi-Attempt Metrics Aggregation** - Outcome metrics comparison across attempts with signal detection
 - [ ] **Phase 49: Choose — Merge Winner & Cleanup** - Select winning attempt, archive alternatives, clean up branches
@@ -155,7 +155,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
   2. User can run `trajectory list` and see all checkpoints with name, scope, timestamp, git ref, and metrics summary
   3. Checkpoint creation auto-collects test count, cyclomatic complexity, and LOC delta — metrics are stored in the journal entry without user intervention
   4. Checkpoint branches follow the `trajectory/<scope>/<name>/attempt-N` naming convention consistently
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 Plans:
 - [ ] 46-01-PLAN.md — Checkpoint command with auto-metrics and branch creation
 - [ ] 46-02-PLAN.md — List command with formatted output
@@ -218,7 +218,7 @@ Plans:
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
 | 45. Foundation | 2/2 | Complete    | 2026-02-28 | - |
-| 46. Checkpoint | 1/2 | In Progress|  | - |
+| 46. Checkpoint | 2/2 | Complete   | 2026-02-28 | - |
 | 47. Pivot | v7.1 | 0/TBD | Not started | - |
 | 48. Compare | v7.1 | 0/TBD | Not started | - |
 | 49. Choose | v7.1 | 0/TBD | Not started | - |
