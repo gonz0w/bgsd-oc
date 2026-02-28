@@ -155,7 +155,10 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
   2. User can run `trajectory list` and see all checkpoints with name, scope, timestamp, git ref, and metrics summary
   3. Checkpoint creation auto-collects test count, cyclomatic complexity, and LOC delta — metrics are stored in the journal entry without user intervention
   4. Checkpoint branches follow the `trajectory/<scope>/<name>/attempt-N` naming convention consistently
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 46-01-PLAN.md — Checkpoint command with auto-metrics and branch creation
+- [ ] 46-02-PLAN.md — List command with formatted output
 
 ### Phase 47: Pivot — Selective Rewind & Attempt Archival
 **Goal**: Users can abandon a failing approach with full reasoning capture and safely rewind to a prior checkpoint
@@ -215,7 +218,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
 | 45. Foundation | 2/2 | Complete    | 2026-02-28 | - |
-| 46. Checkpoint | v7.1 | 0/TBD | Not started | - |
+| 46. Checkpoint | v7.1 | 0/2 | Planned | - |
 | 47. Pivot | v7.1 | 0/TBD | Not started | - |
 | 48. Compare | v7.1 | 0/TBD | Not started | - |
 | 49. Choose | v7.1 | 0/TBD | Not started | - |
