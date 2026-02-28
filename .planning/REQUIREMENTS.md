@@ -58,9 +58,9 @@ Requirements for milestone v7.0 Agent Orchestration & Efficiency. Each maps to r
 
 ### Review Gate Hardening
 
-- [ ] **QUAL-04**: Reviewer performs two-stage review: spec compliance (plan must_haves) THEN code quality (conventions, patterns)
-- [ ] **QUAL-05**: Review findings are severity-classified (blocker/warning/info) with blockers preventing task completion
-- [ ] **QUAL-06**: Stuck/loop detection identifies when executor is repeating failed patterns and triggers recovery
+- [x] **QUAL-04**: Reviewer performs two-stage review: spec compliance (plan must_haves) THEN code quality (conventions, patterns)
+- [x] **QUAL-05**: Review findings are severity-classified (blocker/warning/info) with blockers preventing task completion
+- [x] **QUAL-06**: Stuck/loop detection identifies when executor is repeating failed patterns and triggers recovery
 
 ## Future Requirements
 
@@ -133,9 +133,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TDD-05 | Phase 43 | Complete | npm test -- --grep tdd-trailer |
 | EXEC-01 | Phase 43 | Complete | npm test -- --grep auto-test |
 | EXEC-02 | Phase 43 | Complete | npm test -- --grep anti-pattern |
-| QUAL-04 | Phase 44 | Pending | npm test -- --grep two-stage |
-| QUAL-05 | Phase 44 | Pending | npm test -- --grep severity |
-| QUAL-06 | Phase 44 | Pending | npm test -- --grep stuck |
+| QUAL-04 | Phase 44 | Complete | npm test -- --grep two-stage |
+| QUAL-05 | Phase 44 | Complete | npm test -- --grep severity |
+| QUAL-06 | Phase 44 | Complete | npm test -- --grep stuck |
 
 **Coverage:**
 - v7.0 requirements: 29 total
