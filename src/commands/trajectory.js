@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
 const { execGit, diffSummary } = require('../lib/git');
+const { banner, formatTable, summaryLine, actionHint, color, SYMBOLS, relativeTime } = require('../lib/format');
 
 // ─── Trajectory Checkpoint ───────────────────────────────────────────────────
 
@@ -189,4 +190,125 @@ function getRecentChangedFiles(cwd) {
   return diff.files.map(f => f.path).filter(Boolean);
 }
 
-module.exports = { cmdTrajectoryCheckpoint };
+// ─── Trajectory List ─────────────────────────────────────────────────────────
+
+/**
+ * List all checkpoints with metadata.
+ * Usage: trajectory list [--scope <scope>] [--name <name>] [--limit <N>]
+ */
+function cmdTrajectoryList(cwd, args, raw) {
+  let scopeFilter = null;
+  let nameFilter = null;
+  let limit = null;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--scope' && args[i + 1]) { scopeFilter = args[++i]; continue; }
+    if (args[i] === '--name' && args[i + 1]) { nameFilter = args[++i]; continue; }
+    if (args[i] === '--limit' && args[i + 1]) { limit = parseInt(args[++i], 10); continue; }
+  }
+
+  // Read trajectory journal
+  const trajPath = path.join(cwd, '.planning', 'memory', 'trajectory.json');
+  let entries = [];
+  try {
+    const data = fs.readFileSync(trajPath, 'utf-8');
+    entries = JSON.parse(data);
+    if (!Array.isArray(entries)) entries = [];
+  } catch (e) {
+    debugLog('trajectory.list', 'no trajectory.json found', e);
+    entries = [];
+  }
+
+  // Filter to checkpoints only
+  let checkpoints = entries.filter(e => e.category === 'checkpoint');
+
+  // Apply filters
+  if (scopeFilter) {
+    checkpoints = checkpoints.filter(e => e.scope === scopeFilter);
+  }
+  if (nameFilter) {
+    checkpoints = checkpoints.filter(e => e.checkpoint_name === nameFilter);
+  }
+
+  // Sort newest first
+  checkpoints.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  // Apply limit
+  if (limit && limit > 0) {
+    checkpoints = checkpoints.slice(0, limit);
+  }
+
+  // Compute unique scopes
+  const scopes = new Set(checkpoints.map(e => e.scope));
+
+  const result = {
+    checkpoints,
+    count: checkpoints.length,
+    scopes: scopes.size,
+  };
+
+  output(result, { formatter: formatTrajectoryList });
+}
+
+/**
+ * Format trajectory list for TTY output.
+ */
+function formatTrajectoryList(result) {
+  const lines = [];
+
+  lines.push(banner('TRAJECTORY CHECKPOINTS'));
+
+  if (result.count === 0) {
+    lines.push('');
+    lines.push('  No checkpoints found.');
+    lines.push('');
+    lines.push(actionHint('trajectory checkpoint <name>'));
+    return lines.join('\n');
+  }
+
+  // Build table rows
+  const headers = ['Name', 'Scope', 'Attempt', 'Ref', 'Tests', 'LOC \u0394', 'Age'];
+  const rows = result.checkpoints.map(cp => {
+    const ref = cp.git_ref ? cp.git_ref.slice(0, 7) : '-';
+
+    // Tests column
+    let testsStr = '-';
+    if (cp.metrics && cp.metrics.tests) {
+      const t = cp.metrics.tests;
+      if (t.fail > 0) {
+        testsStr = color.red(`${t.pass}/${t.total} ${SYMBOLS.cross}`);
+      } else if (t.total > 0) {
+        testsStr = color.green(`${t.pass}/${t.total} ${SYMBOLS.check}`);
+      }
+    }
+
+    // LOC delta column
+    let locStr = '-';
+    if (cp.metrics && cp.metrics.loc_delta) {
+      const d = cp.metrics.loc_delta;
+      locStr = `+${d.insertions || 0}/-${d.deletions || 0}`;
+    }
+
+    // Age column
+    const age = cp.timestamp ? relativeTime(cp.timestamp) : '-';
+
+    return [
+      cp.checkpoint_name || '-',
+      cp.scope || '-',
+      String(cp.attempt || '-'),
+      ref,
+      testsStr,
+      locStr,
+      age,
+    ];
+  });
+
+  lines.push(formatTable(headers, rows, { showAll: true, maxRows: 50 }));
+  lines.push('');
+  lines.push(summaryLine(`${result.count} checkpoint${result.count !== 1 ? 's' : ''} (${result.scopes} scope${result.scopes !== 1 ? 's' : ''})`));
+  lines.push(actionHint('trajectory compare <name>'));
+
+  return lines.join('\n');
+}
+
+module.exports = { cmdTrajectoryCheckpoint, cmdTrajectoryList };

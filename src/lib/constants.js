@@ -1032,6 +1032,10 @@ Subcommands:
   checkpoint <name>  Create named checkpoint with auto-metrics
     --scope <scope>       Scope level (default: phase)
     --description <text>  Optional context description
+  list               List all checkpoints with metrics
+    --scope <scope>       Filter by scope
+    --name <name>         Filter by checkpoint name
+    --limit <N>           Limit results
 
 Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
 journal entry to the trajectories memory store with test count, LOC delta,
@@ -1039,7 +1043,9 @@ and cyclomatic complexity metrics.
 
 Examples:
   gsd-tools trajectory checkpoint explore-auth
-  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"`,
+  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"
+  gsd-tools trajectory list
+  gsd-tools trajectory list --scope phase --limit 5`,
 
   'classify': `Usage: gsd-tools classify <plan|phase> <path-or-number>
 

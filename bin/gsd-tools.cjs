@@ -970,6 +970,10 @@ Subcommands:
   checkpoint <name>  Create named checkpoint with auto-metrics
     --scope <scope>       Scope level (default: phase)
     --description <text>  Optional context description
+  list               List all checkpoints with metrics
+    --scope <scope>       Filter by scope
+    --name <name>         Filter by checkpoint name
+    --limit <N>           Limit results
 
 Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
 journal entry to the trajectories memory store with test count, LOC delta,
@@ -977,7 +981,9 @@ and cyclomatic complexity metrics.
 
 Examples:
   gsd-tools trajectory checkpoint explore-auth
-  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"`,
+  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"
+  gsd-tools trajectory list
+  gsd-tools trajectory list --scope phase --limit 5`,
       "classify": `Usage: gsd-tools classify <plan|phase> <path-or-number>
 
 Classify task complexity and recommend execution strategy.
@@ -24256,6 +24262,7 @@ var require_trajectory = __commonJS({
     var { execFileSync } = require("child_process");
     var { output, error, debugLog } = require_output();
     var { execGit, diffSummary } = require_git();
+    var { banner, formatTable, summaryLine, actionHint, color, SYMBOLS, relativeTime } = require_format();
     var NAME_RE = /^[a-zA-Z0-9_-]+$/;
     function cmdTrajectoryCheckpoint(cwd, args, raw) {
       const posArgs = [];
@@ -24409,7 +24416,98 @@ var require_trajectory = __commonJS({
       if (diff.error || !diff.files) return [];
       return diff.files.map((f) => f.path).filter(Boolean);
     }
-    module2.exports = { cmdTrajectoryCheckpoint };
+    function cmdTrajectoryList(cwd, args, raw) {
+      let scopeFilter = null;
+      let nameFilter = null;
+      let limit = null;
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--scope" && args[i + 1]) {
+          scopeFilter = args[++i];
+          continue;
+        }
+        if (args[i] === "--name" && args[i + 1]) {
+          nameFilter = args[++i];
+          continue;
+        }
+        if (args[i] === "--limit" && args[i + 1]) {
+          limit = parseInt(args[++i], 10);
+          continue;
+        }
+      }
+      const trajPath = path.join(cwd, ".planning", "memory", "trajectory.json");
+      let entries = [];
+      try {
+        const data = fs.readFileSync(trajPath, "utf-8");
+        entries = JSON.parse(data);
+        if (!Array.isArray(entries)) entries = [];
+      } catch (e) {
+        debugLog("trajectory.list", "no trajectory.json found", e);
+        entries = [];
+      }
+      let checkpoints = entries.filter((e) => e.category === "checkpoint");
+      if (scopeFilter) {
+        checkpoints = checkpoints.filter((e) => e.scope === scopeFilter);
+      }
+      if (nameFilter) {
+        checkpoints = checkpoints.filter((e) => e.checkpoint_name === nameFilter);
+      }
+      checkpoints.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      if (limit && limit > 0) {
+        checkpoints = checkpoints.slice(0, limit);
+      }
+      const scopes = new Set(checkpoints.map((e) => e.scope));
+      const result = {
+        checkpoints,
+        count: checkpoints.length,
+        scopes: scopes.size
+      };
+      output(result, { formatter: formatTrajectoryList });
+    }
+    function formatTrajectoryList(result) {
+      const lines = [];
+      lines.push(banner("TRAJECTORY CHECKPOINTS"));
+      if (result.count === 0) {
+        lines.push("");
+        lines.push("  No checkpoints found.");
+        lines.push("");
+        lines.push(actionHint("trajectory checkpoint <name>"));
+        return lines.join("\n");
+      }
+      const headers = ["Name", "Scope", "Attempt", "Ref", "Tests", "LOC \u0394", "Age"];
+      const rows = result.checkpoints.map((cp) => {
+        const ref = cp.git_ref ? cp.git_ref.slice(0, 7) : "-";
+        let testsStr = "-";
+        if (cp.metrics && cp.metrics.tests) {
+          const t = cp.metrics.tests;
+          if (t.fail > 0) {
+            testsStr = color.red(`${t.pass}/${t.total} ${SYMBOLS.cross}`);
+          } else if (t.total > 0) {
+            testsStr = color.green(`${t.pass}/${t.total} ${SYMBOLS.check}`);
+          }
+        }
+        let locStr = "-";
+        if (cp.metrics && cp.metrics.loc_delta) {
+          const d = cp.metrics.loc_delta;
+          locStr = `+${d.insertions || 0}/-${d.deletions || 0}`;
+        }
+        const age = cp.timestamp ? relativeTime(cp.timestamp) : "-";
+        return [
+          cp.checkpoint_name || "-",
+          cp.scope || "-",
+          String(cp.attempt || "-"),
+          ref,
+          testsStr,
+          locStr,
+          age
+        ];
+      });
+      lines.push(formatTable(headers, rows, { showAll: true, maxRows: 50 }));
+      lines.push("");
+      lines.push(summaryLine(`${result.count} checkpoint${result.count !== 1 ? "s" : ""} (${result.scopes} scope${result.scopes !== 1 ? "s" : ""})`));
+      lines.push(actionHint("trajectory compare <name>"));
+      return lines.join("\n");
+    }
+    module2.exports = { cmdTrajectoryCheckpoint, cmdTrajectoryList };
   }
 });
 
@@ -25351,8 +25449,11 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             case "checkpoint":
               lazyTrajectory().cmdTrajectoryCheckpoint(cwd, args.slice(1), raw);
               break;
+            case "list":
+              lazyTrajectory().cmdTrajectoryList(cwd, args.slice(2), raw);
+              break;
             default:
-              error("Unknown trajectory subcommand: " + trajSub + ". Available: checkpoint");
+              error("Unknown trajectory subcommand: " + trajSub + ". Available: checkpoint, list");
           }
           break;
         }

@@ -926,7 +926,8 @@ async function main() {
       const trajSub = args[1];
       switch (trajSub) {
         case 'checkpoint': lazyTrajectory().cmdTrajectoryCheckpoint(cwd, args.slice(1), raw); break;
-        default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint');
+        case 'list': lazyTrajectory().cmdTrajectoryList(cwd, args.slice(2), raw); break;
+        default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint, list');
       }
       break;
     }
