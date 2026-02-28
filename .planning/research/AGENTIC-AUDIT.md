@@ -10,15 +10,15 @@
 
 ### 1. Superpowers (obra/superpowers — 64.5k GitHub stars)
 
-**What it is:** A "skills framework" for Claude Code that enforces a brainstorm → plan → implement → review workflow. Skills are markdown files that Claude reads and follows.
+**What it is:** A "skills framework" for AI coding assistant that enforces a brainstorm → plan → implement → review workflow. Skills are markdown files that the AI reads and follows.
 
 **Key capabilities:**
 - **Mandatory brainstorm-before-code discipline:** Won't jump to code. Asks questions, refines spec in digestible chunks, requires sign-off before planning. GSD equivalent: planner workflow already does this via researcher → planner → plan-checker. **Status: COVERED.**
 - **Two-stage code review (spec compliance, then code quality):** After each subagent task, a reviewer checks: (1) Does the output match the spec? (2) Is the code quality acceptable? Critical issues block progress. **Status: PARTIALLY MISSING.** GSD's planned reviewer checks conventions, but not spec compliance as a separate gate.
 - **Strict RED-GREEN TDD enforcement:** Deletes code written before tests. Not just "write tests" — enforces the RED → GREEN → REFACTOR cycle. Includes anti-patterns reference. **Status: MISSING.** GSD has no TDD enforcement or anti-pattern detection.
 - **Per-task subagent isolation with fresh context:** Each engineering task dispatched to a fresh subagent (not the same long conversation). Prevents context pollution between tasks. **Status: PARTIALLY COVERED.** GSD's execute-phase spawns subagents, but doesn't mandate fresh context per task within a plan.
-- **Pressure-tested skill compliance:** Skills tested via adversarial subagent scenarios (time pressure, sunk cost fallacy, confidence traps) to ensure Claude actually follows them. Uses Cialdini persuasion principles. **Status: MISSING.** GSD skills/workflows aren't adversarially tested for compliance.
-- **Skill authoring meta-skill:** Claude can create new skills, TDD-style (write skill, test with subagents, refine). Self-improving framework. **Status: NOT APPLICABLE.** GSD is a CLI tool, not a skill framework.
+- **Pressure-tested skill compliance:** Skills tested via adversarial subagent scenarios (time pressure, sunk cost fallacy, confidence traps) to ensure the AI actually follows them. Uses Cialdini persuasion principles. **Status: MISSING.** GSD skills/workflows aren't adversarially tested for compliance.
+- **Skill authoring meta-skill:** the AI can create new skills, TDD-style (write skill, test with subagents, refine). Self-improving framework. **Status: NOT APPLICABLE.** GSD is a CLI tool, not a skill framework.
 - **Git worktree creation before implementation:** Automatically creates a worktree and branch before any implementation begins. **Status: COVERED.** GSD already supports worktree parallelism.
 
 **Source confidence:** HIGH — GitHub README, obra's blog (Oct 2025), multiple community reviews verified.
@@ -45,10 +45,10 @@
 **What it is:** Autonomous coding agent with custom Agent-Computer Interface (ACI) designed for issue resolution. 74%+ on SWE-bench verified.
 
 **Key capabilities:**
-- **Custom ACI tools over raw bash:** Instead of exposing full bash, provides simplified tools: `open_file`, `goto_line`, `edit_file`, `search_dir`, `find_file`, `scroll_down/up`. Simple actions with few options. **Status: NOT APPLICABLE.** GSD operates inside Claude Code, which already has its own tool interface (Read, Edit, Write, Bash, Grep, Glob). GSD doesn't control the ACI.
+- **Custom ACI tools over raw bash:** Instead of exposing full bash, provides simplified tools: `open_file`, `goto_line`, `edit_file`, `search_dir`, `find_file`, `scroll_down/up`. Simple actions with few options. **Status: NOT APPLICABLE.** GSD operates inside AI coding assistant, which already has its own tool interface (Read, Edit, Write, Bash, Grep, Glob). GSD doesn't control the ACI.
 - **Edit-with-linter guard:** Every edit passes through a linter. Syntax errors are caught *at edit time*, forcing the agent to fix before proceeding. Prevents compounding mistakes from a single bad edit. **Status: MISSING.** This is the key SWE-agent innovation. When an edit introduces a syntax error, the edit is rejected before the agent moves on. GSD has no equivalent.
 - **Restricted search output length:** Search results are truncated to prevent context overflow. Only relevant file fragments returned, not full files. **Status: PARTIALLY COVERED.** GSD's repo map (planned) will do this, but there's no truncation guard on search results during execution today.
-- **Thought-action-observation loop:** At each step, agent generates a thought (reasoning), then a command, then observes output. Explicit reasoning trace. **Status: PARTIALLY COVERED.** Claude Code's extended thinking provides this natively. GSD doesn't add structure to it.
+- **Thought-action-observation loop:** At each step, agent generates a thought (reasoning), then a command, then observes output. Explicit reasoning trace. **Status: PARTIALLY COVERED.** the AI's extended thinking provides this natively. GSD doesn't add structure to it.
 - **Stuck-in-loop detection:** SWE-EVO benchmark identified a failure mode where agents repeatedly read files or rerun tests without making progress. Detection enables recovery. **Status: MISSING.** GSD has no stuck detection. If a subagent loops, it burns tokens until context limit.
 
 **Source confidence:** HIGH — NeurIPS 2024 proceedings, SWE-EVO arxiv paper, official GitHub repo.
@@ -60,9 +60,9 @@
 **Key capabilities:**
 - **Interactive planning with plan modification:** Devin presents a preliminary plan with relevant files and findings. User modifies the plan before execution. **Status: COVERED.** GSD's plan-checker + human approval cycle does this.
 - **Self-review autofix loop (Devin 2.2):** After writing code, Devin reviews its own output, catches issues, and fixes them — all before the user sees the PR. Plans → codes → reviews own output → fixes. **Status: MISSING as self-loop.** GSD's reviewer is a *separate* agent (which is actually better for quality — writer/reviewer separation). But GSD doesn't have the executor self-checking before handing to reviewer.
-- **Computer-use testing (Devin 2.2):** After creating a PR, Devin launches the app on its Linux desktop and runs through it visually, sending screen recordings. Tests desktop apps, not just web. **Status: NOT APPLICABLE.** GSD is a CLI tool orchestrating Claude Code. Browser/desktop testing is outside scope.
+- **Computer-use testing (Devin 2.2):** After creating a PR, Devin launches the app on its Linux desktop and runs through it visually, sending screen recordings. Tests desktop apps, not just web. **Status: NOT APPLICABLE.** GSD is a CLI tool orchestrating AI coding assistant. Browser/desktop testing is outside scope.
 - **Parallel Devin sessions:** Multiple independent agents working on different tasks simultaneously, each with its own IDE. **Status: COVERED.** GSD's worktree parallelism achieves this.
-- **Devin Search (agentic codebase Q&A):** Ask questions about the codebase, get cited answers. Deep mode for extensive exploration. **Status: NOT DIRECTLY APPLICABLE.** Claude Code already has this natively via grep/read tools.
+- **Devin Search (agentic codebase Q&A):** Ask questions about the codebase, get cited answers. Deep mode for extensive exploration. **Status: NOT DIRECTLY APPLICABLE.** AI coding assistant already has this natively via grep/read tools.
 - **Auto-generated wiki from repo:** Automatically indexes repos, creates architecture diagrams and docs. **Status: PARTIALLY COVERED.** GSD's codebase mapper generates docs but not auto-updating wiki.
 - **Code review as bottleneck insight:** Cognition identified that "code review, not code generation, is now the bottleneck." Built Devin Review: intelligent diff organization, grouped changes, severity-rated issues (red/yellow/gray). **Status: ALIGNS WITH GSD DIRECTION.** GSD's reviewer agent targets this. The severity rating pattern is worth adopting.
 
@@ -76,7 +76,7 @@
 - **Event-sourced state with deterministic replay:** All interactions are immutable events in a log. State can be replayed, recovered, and inspected. Single source of truth. **Status: PARTIALLY COVERED.** GSD uses STATE.md + git history, which is file-based state management. Not event-sourced, but achieves durability through git.
 - **Stuck detection:** Detects when an agent is looping (repeatedly reading files or rerunning tests without progress). **Status: MISSING.** Same gap as SWE-agent. Multiple systems have this; GSD doesn't.
 - **Context condensation (conversation compaction):** LLMSummarizingCondenser summarizes old events when context grows too large. Reduces costs by up to 2× with no performance degradation. **Status: PLANNED (CTX-03).** In v7.0 roadmap.
-- **Security analyzer + confirmation policy:** Every tool call gets a risk rating (low/medium/high). Actions above threshold require user confirmation. Dynamic trust adjustment. **Status: NOT DIRECTLY APPLICABLE.** GSD runs inside Claude Code, which has its own permission model. But the *pattern* of risk-rating agent actions is relevant.
+- **Security analyzer + confirmation policy:** Every tool call gets a risk rating (low/medium/high). Actions above threshold require user confirmation. Dynamic trust adjustment. **Status: NOT DIRECTLY APPLICABLE.** GSD runs inside AI coding assistant, which has its own permission model. But the *pattern* of risk-rating agent actions is relevant.
 - **Multi-LLM routing via RouterLLM:** Agent selects different models per request based on content (e.g., images → multimodal model, text → cheap model). **Status: PLANNED (ORCH-02).** GSD's model routing is in v7.0 roadmap.
 - **Typed tool system (Action → Execution → Observation):** Every tool has validated input schema, execution logic, and structured output. Type-safe, MCP-compatible. **Status: NOT APPLICABLE.** GSD is a CLI tool producing data, not a tool execution framework.
 - **Sub-agent delegation as a tool:** Parent spawns independent child conversations that inherit config but run in isolation. Blocking parallel execution. **Status: COVERED.** GSD's execute-phase already does subagent spawning.
@@ -265,7 +265,7 @@ These are different concerns — a change can be exactly what was requested but 
 
 ### 🟢 MODERATE-VALUE: Anti-Pattern Reference Library
 
-**What it does:** Superpowers includes a reference document of common testing anti-patterns that Claude reads before writing tests. Prevents known bad patterns proactively rather than catching them in review.
+**What it does:** Superpowers includes a reference document of common testing anti-patterns that the AI reads before writing tests. Prevents known bad patterns proactively rather than catching them in review.
 
 **Why it matters:** Preventive is cheaper than corrective. Rather than reviewing code and finding anti-patterns, give the agent a "don't do this" list upfront.
 
@@ -386,9 +386,9 @@ These are all *workflow intelligence* — making the existing agents smarter thr
 
 | # | Capability | Why Skip |
 |---|-----------|----------|
-| — | Custom ACI tools | Claude Code controls this, not GSD |
+| — | Custom ACI tools | AI coding assistant controls this, not GSD |
 | — | Event-sourced state | GSD's git-backed state achieves same durability |
-| — | Sandbox execution | Claude Code runs on user machine, not sandboxed |
+| — | Sandbox execution | AI coding assistant runs on user machine, not sandboxed |
 | — | Browser/desktop testing | CLI tool scope — not an IDE |
 | — | Skill authoring framework | GSD is a CLI tool, not a plugin framework |
 | — | Auto-updating wiki | Devin-specific feature, not needed in CLI workflow |

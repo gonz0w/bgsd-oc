@@ -8,7 +8,7 @@ Show git commits since last activity. Useful for understanding what changed sinc
 Run the session-diff command:
 
 ```bash
-RESULT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs session-diff 2>/dev/null)
+RESULT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs session-diff 2>/dev/null)
 ```
 
 Parse the JSON output which includes:

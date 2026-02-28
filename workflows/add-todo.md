@@ -12,7 +12,7 @@ Read all execution_context files before starting.
 Load todo context:
 
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init todos)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init todos)
 ```
 
 Extract from init JSON: `commit_docs`, `date`, `timestamp`, `todo_count`, `todos`, `pending_dir`, `todos_dir_exists`.
@@ -83,7 +83,7 @@ Use values from init context: `timestamp` and `date` are already available.
 
 Generate slug for the title:
 ```bash
-slug=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs generate-slug "$title")
+slug=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs generate-slug "$title")
 ```
 
 Write to `.planning/todos/pending/${date}-${slug}.md`:
@@ -118,7 +118,7 @@ If `.planning/STATE.md` exists:
 Commit the todo and any updated state:
 
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs: capture todo - [title]" --files .planning/todos/pending/[filename] .planning/STATE.md
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs commit "docs: capture todo - [title]" --files .planning/todos/pending/[filename] .planning/STATE.md
 ```
 
 Tool respects `commit_docs` config and gitignore automatically.

@@ -17,8 +17,8 @@ Detect whether bGSD is installed locally or globally:
 if [ -f ./.opencode/get-shit-done/VERSION ]; then
   cat ./.opencode/get-shit-done/VERSION
   echo "LOCAL"
-elif [ -f /home/cam/.config/opencode/get-shit-done/VERSION ]; then
-  cat /home/cam/.config/opencode/get-shit-done/VERSION
+elif [ -f __OPENCODE_CONFIG__/get-shit-done/VERSION ]; then
+  cat __OPENCODE_CONFIG__/get-shit-done/VERSION
   echo "GLOBAL"
 else
   echo "UNKNOWN"
@@ -44,14 +44,14 @@ Proceed to install step (treat as version 0.0.0 for comparison).
 Check npm for latest version:
 
 ```bash
-npm view get-shit-done-cc version 2>/dev/null
+npm view get-shit-done version 2>/dev/null
 ```
 
 **If npm check fails:**
 ```
 Couldn't check for updates (offline or npm unavailable).
 
-To update manually: `npx get-shit-done-cc --global`
+To update manually: `cd gsd-opencode && git pull && npm run build && ./deploy.sh`
 ```
 
 Exit.
@@ -112,7 +112,7 @@ Exit.
 - `get-shit-done/` will be wiped and replaced
 - `agents/gsd-*` files will be replaced
 
-(Paths are relative to your install location: `/home/cam/.config/opencode/` for global, `./.opencode/` for local)
+(Paths are relative to your install location: `__OPENCODE_CONFIG__/` for global, `./.opencode/` for local)
 
 Your custom files in other locations are preserved:
 - Custom commands not in `commands/gsd/` ✓
@@ -120,7 +120,7 @@ Your custom files in other locations are preserved:
 - Custom hooks ✓
 - Your AGENTS.md files ✓
 
-Modified bGSD files are automatically backed up to `gsd-local-patches/` — reapply with `/gsd-reapply-patches` after update.
+Modified bGSD files are automatically backed up to `gsd-local-patches/` — reapply manually after update.
 ```
 
 Use question:
@@ -133,16 +133,10 @@ Use question:
 </step>
 
 <step name="run_update">
-Run the update using the install type detected in step 1:
+Run the update:
 
-**If LOCAL install:**
 ```bash
-npx get-shit-done-cc --local
-```
-
-**If GLOBAL install (or unknown):**
-```bash
-npx get-shit-done-cc --global
+cd gsd-opencode && git pull && npm run build && ./deploy.sh
 ```
 
 Capture output. If install fails, show error and exit.
@@ -156,7 +150,7 @@ rm -f ./.opencode/cache/gsd-update-check.json
 
 **If GLOBAL install:**
 ```bash
-rm -f /home/cam/.config/opencode/cache/gsd-update-check.json
+rm -f __OPENCODE_CONFIG__/cache/gsd-update-check.json
 ```
 (Paths are templated at install time for runtime compatibility)
 </step>
@@ -185,7 +179,7 @@ Check for gsd-local-patches/backup-meta.json in the config directory.
 
 ```
 Local patches were backed up before the update.
-Run /gsd-reapply-patches to merge your modifications into the new version.
+Review your local patches in gsd-local-patches/ and manually merge any modifications into the new version.
 ```
 
 **If no patches:** Continue normally.

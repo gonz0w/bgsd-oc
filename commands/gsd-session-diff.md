@@ -11,7 +11,7 @@ Show git commits since last activity. Useful for understanding what changed sinc
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-session-diff.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-session-diff.md
 </execution_context>
 
 <process>

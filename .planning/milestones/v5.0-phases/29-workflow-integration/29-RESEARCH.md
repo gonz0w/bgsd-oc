@@ -196,8 +196,8 @@ Task(
     Execute plan {plan_number} of phase {phase_number}-{phase_name}.
     </objective>
     <execution_context>
-    @/home/cam/.config/opencode/get-shit-done/workflows/execute-plan.md
-    @/home/cam/.config/opencode/get-shit-done/templates/summary.md
+    @__OPENCODE_CONFIG__/get-shit-done/workflows/execute-plan.md
+    @__OPENCODE_CONFIG__/get-shit-done/templates/summary.md
     </execution_context>
     <files_to_read>
     - {phase_dir}/{plan_file} (Plan)

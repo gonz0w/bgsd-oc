@@ -12,7 +12,7 @@ Load ui-brand.md sections as needed via extract-sections.
 ## 1. Initialize
 
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init plan-phase "$PHASE" --compact)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init plan-phase "$PHASE" --compact)
 ```
 
 Parse: `researcher_model`, `planner_model`, `checker_model`, `research_enabled`, `plan_checker_enabled`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `plan_count`.
@@ -31,7 +31,7 @@ No phase number → detect next unplanned. Phase not found → create dir from s
 ## 3. Validate Phase
 
 ```bash
-PHASE_INFO=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE}")
+PHASE_INFO=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE}")
 ```
 Extract `phase_number`, `phase_name`, `goal`.
 
@@ -47,13 +47,13 @@ If RESEARCH.md exists and no `--research`: use existing.
 Otherwise spawn researcher:
 
 ```bash
-PHASE_DESC=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE}" | jq -r '.section')
+PHASE_DESC=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE}" | jq -r '.section')
 PHASE_REQ_IDS=$(echo "$PHASE_DESC" | grep -i "Requirements:" | head -1 | sed 's/.*Requirements:\*\*\s*//' | sed 's/[\[\]]//g')
 ```
 
 ```
 Task(
-  prompt="Read /home/cam/.config/opencode/agents/gsd-phase-researcher.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/gsd-phase-researcher.md for instructions.
 Research Phase {phase_number}: {phase_name}.
 Question: What do I need to know to PLAN this phase well?
 Read: {context_path}, {requirements_path}, {state_path}
@@ -81,7 +81,7 @@ Check for `.planning/ASSERTIONS.md` existence. If present, set `assertions_path`
 ## 8. Surface Relevant Lessons
 
 ```bash
-LESSONS=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs search-lessons "${PHASE_NAME}" 2>/dev/null)
+LESSONS=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs search-lessons "${PHASE_NAME}" 2>/dev/null)
 ```
 If found: display and include in planner context. If not: skip silently.
 
@@ -89,7 +89,7 @@ If found: display and include in planner context. If not: skip silently.
 
 If `assertions_path` exists:
 ```bash
-ASSERTIONS=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs assertions list --req ${PHASE_REQ_IDS} 2>/dev/null)
+ASSERTIONS=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs assertions list --req ${PHASE_REQ_IDS} 2>/dev/null)
 ```
 Display assertion count and coverage. If none found: note "No assertions for {req_ids} — planner will derive must_haves from requirement text."
 
@@ -97,7 +97,7 @@ Display assertion count and coverage. If none found: note "No assertions for {re
 
 ```
 Task(
-  prompt="Read /home/cam/.config/opencode/agents/gsd-planner.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/gsd-planner.md for instructions.
 
 Phase: {phase_number}, Mode: {standard|gap_closure}
 Read: {state_path}, {roadmap_path}, {requirements_path}, {context_path}, {research_path}, .planning/INTENT.md (if exists)
@@ -132,7 +132,7 @@ PASSED → step 14. ISSUES → revision loop (max 3):
 
 ```
 Task(
-  prompt="Read /home/cam/.config/opencode/agents/gsd-planner.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/gsd-planner.md for instructions.
 Revision mode. Read: {phase_dir}/*-PLAN.md
 Checker issues: {structured_issues}. Make targeted updates, return what changed.",
   subagent_type="general", model="{planner_model}", description="Revise Phase {phase} plans"

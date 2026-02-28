@@ -1,7 +1,7 @@
 # bGSD Plugin for OpenCode — Development Workspace
 
 ## What This Is
-Development workspace for the Get Stuff Done (bGSD) planning plugin for OpenCode (v6.0).
+Development workspace for the Better Getting Stuff Done (bGSD) planning plugin for OpenCode (v7.0).
 The production install lives at `~/.config/opencode/get-shit-done/`.
 
 ## Project Structure
@@ -20,7 +20,7 @@ build.js                   # Build script — bundles src/ into bin/gsd-tools.cj
 ```bash
 node bin/gsd-tools.cjs <command> [args]   # Test locally
 npm run build                              # Build from source
-npm test                                   # Full test suite (574+ tests)
+npm test                                   # Full test suite (669+ tests)
 ./deploy.sh                                # Deploy to live config
 ```
 
@@ -40,7 +40,7 @@ npm test                                   # Full test suite (574+ tests)
 
 ## Testing
 ```bash
-npm test          # Full test suite (574+ tests)
+npm test          # Full test suite (669+ tests)
 npm run build     # Build validation
 ```
 

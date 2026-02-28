@@ -11,7 +11,7 @@ Validate the dependency graph for a phase. Checks that all plan dependencies are
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-validate-deps.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-validate-deps.md
 </execution_context>
 
 <process>

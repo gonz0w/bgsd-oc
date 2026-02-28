@@ -1,2 +1,8 @@
 node_modules/
 bin/gsd-tools.cjs
+build-output.txt
+test-results.txt
+*.tmp
+*.bak
+*.orig
+*.swp

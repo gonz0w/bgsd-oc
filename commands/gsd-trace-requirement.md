@@ -11,7 +11,7 @@ Trace a requirement from REQUIREMENTS.md through plans to actual files on disk. 
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-trace-requirement.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-trace-requirement.md
 </execution_context>
 
 <process>

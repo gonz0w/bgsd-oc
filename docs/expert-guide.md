@@ -1,10 +1,10 @@
-# GSD Expert Guide
+# bGSD Expert Guide
 
-Full control over the GSD workflow. This guide covers every option, advanced patterns, and the decisions behind the system.
+Full control over the bGSD workflow. This guide covers every option, advanced patterns, and the decisions behind the system.
 
 ## Philosophy
 
-GSD separates concerns into layers:
+bGSD separates concerns into layers:
 
 1. **Intent** — Why does this project exist? What does success look like?
 2. **Requirements** — What specifically needs to be built?
@@ -47,7 +47,7 @@ These documents feed into planning agents for context-aware plan generation.
 
 The full flow:
 
-1. **Deep questioning** — GSD probes your vision. Not just "what" but "why" and "for whom"
+1. **Deep questioning** — bGSD probes your vision. Not just "what" but "why" and "for whom"
 2. **PROJECT.md** — Living project definition
 3. **INTENT.md** — Structured capture of objective, desired outcomes (prioritized P1-P3), success criteria, constraints
 4. **Workflow preferences** — Mode, depth, agent toggles, git strategy
@@ -120,7 +120,7 @@ Lock down implementation decisions:
 /gsd-discuss-phase 1
 ```
 
-GSD identifies gray areas specific to your phase (layout decisions, behavior edge cases, ordering preferences) and lets you choose which to discuss. Produces `CONTEXT.md` with:
+bGSD identifies gray areas specific to your phase (layout decisions, behavior edge cases, ordering preferences) and lets you choose which to discuss. Produces `CONTEXT.md` with:
 
 - **Locked decisions** — choices the user made
 - **Agent's discretion** — areas the agent can decide
@@ -278,7 +278,7 @@ Produces `VERIFICATION.md` with pass/gaps_found/human_needed status.
 ```
 
 Interactive testing flow:
-1. GSD presents test scenarios one at a time
+1. bGSD presents test scenarios one at a time
 2. You test and report: pass, skip, or issue
 3. Issues get severity classification (inferred, never asked)
 4. Gaps are diagnosed by parallel debug agents
@@ -323,7 +323,7 @@ Tracks trend across plans for quality trajectory.
 
 ### Persistent Stores
 
-GSD maintains 4 memory stores in `.planning/memory/`:
+bGSD maintains 4 memory stores in `.planning/memory/`:
 
 | Store | Content | Sacred? |
 |-------|---------|---------|

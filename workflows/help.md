@@ -15,10 +15,10 @@ Display the complete bGSD command reference. Output ONLY the reference content �
 
 ## Staying Updated
 
-bGSD evolves fast. Update periodically:
+bGSD evolves fast. Update periodically by pulling the latest and redeploying:
 
 ```bash
-npx get-shit-done-cc@latest
+cd gsd-opencode && git pull && npm run build && ./deploy.sh
 ```
 
 ## Core Workflow
@@ -161,8 +161,6 @@ Usage: `/gsd-cleanup`
 **`/gsd-help`** — Show this reference.
 
 **`/gsd-update`** — Update bGSD with changelog preview. Usage: `/gsd-update`
-
-**`/gsd-join-discord`** — Join bGSD Discord community. Usage: `/gsd-join-discord`
 
 ## Files & Structure
 

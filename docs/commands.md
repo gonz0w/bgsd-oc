@@ -1,6 +1,6 @@
-# GSD Command Reference
+# bGSD Command Reference
 
-Complete reference for all GSD slash commands and CLI operations.
+Complete reference for all bGSD slash commands and CLI operations.
 
 ---
 
@@ -116,7 +116,7 @@ Execute all plans in a phase with wave-based parallel execution.
 
 #### `/gsd-quick`
 
-Execute small ad-hoc tasks with GSD tracking (atomic commits, state updates) but minimal ceremony.
+Execute small ad-hoc tasks with bGSD tracking (atomic commits, state updates) but minimal ceremony.
 
 | Argument | Description |
 |----------|-------------|
@@ -316,7 +316,7 @@ Interactive configuration of workflow agents and model profile.
 
 #### `/gsd-set-profile`
 
-Quick switch model profile for GSD agents.
+Quick switch model profile for bGSD agents.
 
 | Argument | Description |
 |----------|-------------|
@@ -350,7 +350,7 @@ Archive phase directories from completed milestones.
 
 #### `/gsd-update`
 
-Check for and install GSD updates via npm.
+Check for and install bGSD updates via npm.
 
 **Workflow:** `workflows/update.md`
 
@@ -358,21 +358,9 @@ Check for and install GSD updates via npm.
 
 #### `/gsd-help`
 
-Display the complete GSD command reference.
+Display the complete bGSD command reference.
 
 **Workflow:** `workflows/help.md`
-
----
-
-#### `/gsd-reapply-patches`
-
-Reapply local modifications after a GSD update.
-
----
-
-#### `/gsd-join-discord`
-
-Display the Discord invite link for the GSD community.
 
 ---
 

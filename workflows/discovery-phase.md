@@ -99,7 +99,7 @@ For: Choosing between options, new external integration.
 
 5. **Cross-verify:** Any WebSearch finding → confirm with Context7/official docs.
 
-6. **Create DISCOVERY.md** using /home/cam/.config/opencode/get-shit-done/templates/discovery.md structure:
+6. **Create DISCOVERY.md** using __OPENCODE_CONFIG__/get-shit-done/templates/discovery.md structure:
 
    - Summary with recommendation
    - Key findings per option
@@ -118,7 +118,7 @@ For: Architectural decisions, novel problems, high-risk choices.
 
 **Process:**
 
-1. **Scope the discovery** using /home/cam/.config/opencode/get-shit-done/templates/discovery.md:
+1. **Scope the discovery** using __OPENCODE_CONFIG__/get-shit-done/templates/discovery.md:
 
    - Define clear scope
    - Define include/exclude boundaries
@@ -152,7 +152,7 @@ For: Architectural decisions, novel problems, high-risk choices.
 
 6. **Create comprehensive DISCOVERY.md:**
 
-   - Full structure from /home/cam/.config/opencode/get-shit-done/templates/discovery.md
+   - Full structure from __OPENCODE_CONFIG__/get-shit-done/templates/discovery.md
    - Quality report with source attribution
    - Confidence by finding
    - If LOW confidence on any critical finding → add validation checkpoints
@@ -176,7 +176,7 @@ Ask: What do we need to learn before we can plan this phase?
   </step>
 
 <step name="create_discovery_scope">
-Use /home/cam/.config/opencode/get-shit-done/templates/discovery.md.
+Use __OPENCODE_CONFIG__/get-shit-done/templates/discovery.md.
 
 Include:
 

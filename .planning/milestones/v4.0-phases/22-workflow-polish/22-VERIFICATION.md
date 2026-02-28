@@ -46,7 +46,7 @@ re_verification: false
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `workflows/complete-and-clear.md` | `bin/gsd-tools.cjs` | `node gsd-tools.cjs session-summary --raw` | ✓ WIRED | Line 16: `SUMMARY=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs session-summary --raw)` |
+| `workflows/complete-and-clear.md` | `bin/gsd-tools.cjs` | `node gsd-tools.cjs session-summary --raw` | ✓ WIRED | Line 16: `SUMMARY=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs session-summary --raw)` |
 | `workflows/complete-and-clear.md` | `bin/gsd-tools.cjs` | `node gsd-tools.cjs state record-session` | ✓ WIRED | Line 56: `node gsd-tools.cjs state record-session --stopped-at "{session_continuity.stopped_at}" --resume-file "None"` |
 | `cmdSessionSummary` in gsd-tools.cjs | `.planning/STATE.md` | `safeReadFile` + regex parsing | ✓ WIRED | Line 10778: reads STATE.md, parses Phase/Plan/Status/LastActivity/Decisions/SessionContinuity via regex |
 | `cmdSessionSummary` in gsd-tools.cjs | `.planning/ROADMAP.md` | `safeReadFile` + unchecked phase scanning | ✓ WIRED | Line 10812: reads ROADMAP.md, scans for `- [ ] **Phase N:` patterns to determine next action |

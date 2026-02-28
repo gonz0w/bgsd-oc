@@ -40,7 +40,7 @@ Six agent systems were analyzed to identify capability gaps and validate archite
 
 #### 1. Superpowers (obra/superpowers)
 
-A skills framework for Claude Code enforcing brainstorm-plan-implement-review workflow. 64.5k GitHub stars.
+A skills framework for AI coding assistants enforcing brainstorm-plan-implement-review workflow. 64.5k GitHub stars.
 
 **Key innovations adopted by bGSD:**
 - **Two-stage code review** — Spec compliance check, then code quality check (adopted in Phase 44)
@@ -78,8 +78,8 @@ Autonomous coding agent with custom Agent-Computer Interface. 74%+ on SWE-bench 
 - **Stuck-in-loop detection** — Agent repeatedly performing same actions without progress (adopted in Phase 44)
 
 **Key innovations not adopted:**
-- Custom ACI tools — Claude Code already has its own tool interface
-- Thought-action-observation loop — Claude Code's extended thinking provides this natively
+- Custom ACI tools — the host AI coding assistant already has its own tool interface
+- Thought-action-observation loop — extended thinking provides this natively
 
 ---
 
@@ -107,7 +107,7 @@ Open-source SDK for building software agents. 64k+ GitHub stars.
 
 **Key innovations not adopted:**
 - Event-sourced state — bGSD's git-backed state achieves same durability through simpler means
-- Security analyzer with risk rating — Claude Code has its own permission model
+- Security analyzer with risk rating — the host AI coding assistant has its own permission model
 
 ---
 
@@ -229,7 +229,7 @@ The most common failure mode in agentic coding is compounding errors from one ba
 
 ### Primary (HIGH confidence)
 - Anthropic context engineering guidance (Sep 2025)
-- Claude Code Agent Teams documentation
+- AI agent teams documentation (various providers)
 - Aider official documentation (aider.chat)
 - SWE-agent NeurIPS 2024 proceedings
 - Devin/Cognition blog posts (2.0, 2.2, Devin Review)

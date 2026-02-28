@@ -15,7 +15,7 @@ Use templates/verification-report.md for output format.
 
 <step name="load_context" priority="first">
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init phase-op "${PHASE_ARG}" --compact)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init phase-op "${PHASE_ARG}" --compact)
 ```
 
 Parse: `phase_dir`, `phase_number`, `phase_name`, `plan_count`.
@@ -27,14 +27,14 @@ Load phase goal from ROADMAP.md, requirements from REQUIREMENTS.md, list plans/s
 **Option A — PLAN frontmatter must_haves:**
 ```bash
 for plan in "$PHASE_DIR"/*-PLAN.md; do
-  node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs frontmatter get "$plan" --field must_haves
+  node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs frontmatter get "$plan" --field must_haves
 done
 ```
 Returns: `{ truths: [...], artifacts: [...], key_links: [...] }`. Aggregate across plans.
 
 **Option B — ROADMAP Success Criteria** (if no must_haves):
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${phase_number}"
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${phase_number}"
 ```
 Use each criterion as a truth, derive artifacts and key links.
 
@@ -58,7 +58,7 @@ Status: ✓ VERIFIED | ✗ FAILED | ? UNCERTAIN (needs human)
 <step name="verify_artifacts">
 ```bash
 for plan in "$PHASE_DIR"/*-PLAN.md; do
-  node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs verify artifacts "$plan"
+  node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs verify artifacts "$plan"
 done
 ```
 
@@ -75,7 +75,7 @@ WIRED = imported AND used. ORPHANED = exists but not imported/used.
 <step name="verify_wiring">
 ```bash
 for plan in "$PHASE_DIR"/*-PLAN.md; do
-  node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs verify key-links "$plan"
+  node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs verify key-links "$plan"
 done
 ```
 

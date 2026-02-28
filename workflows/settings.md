@@ -12,8 +12,8 @@ Read all execution_context files before starting.
 Ensure config exists and load current state:
 
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs config-ensure-section
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state load)
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs config-ensure-section
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state load)
 ```
 
 Creates `.planning/config.json` with defaults if missing and loads current config values.

@@ -27,7 +27,7 @@ Exit.
 Run the validate-dependencies command:
 
 ```bash
-RESULT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs validate-dependencies "$PHASE" 2>/dev/null)
+RESULT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs validate-dependencies "$PHASE" 2>/dev/null)
 ```
 
 Parse the JSON output which includes:

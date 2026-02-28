@@ -11,7 +11,7 @@ Search completed phase lessons for relevant patterns and insights. Surfaces less
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-search-lessons.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-search-lessons.md
 </execution_context>
 
 <process>

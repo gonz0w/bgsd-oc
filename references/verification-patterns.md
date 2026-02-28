@@ -605,7 +605,7 @@ Some things can't be verified programmatically. Flag these for human testing:
 
 ## Pre-Checkpoint Automation
 
-See **@/home/cam/.config/opencode/get-shit-done/references/checkpoints.md** → `<automation_reference>`.
+See **@__OPENCODE_CONFIG__/get-shit-done/references/checkpoints.md** → `<automation_reference>`.
 
 Agent sets up verification environment BEFORE checkpoints. Users never run CLI commands. Fix broken environment before presenting checkpoint.
 </checkpoint_automation_reference>

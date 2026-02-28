@@ -11,7 +11,7 @@ Show module dependencies for given files. Analyzes which modules import/referenc
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-codebase-impact.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-codebase-impact.md
 </execution_context>
 
 <process>

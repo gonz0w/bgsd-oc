@@ -4050,7 +4050,7 @@ describe('codebase-impact graph-first path (WKFL-03)', () => {
 describe('configurable context window', () => {
   test('context-budget uses default context window (200K)', () => {
     // Use a plan file that exists in current milestone
-    const result = runGsdTools('context-budget .planning/phases/06-token-measurement-output-infrastructure/06-01-PLAN.md');
+    const result = runGsdTools('context-budget .planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-01-PLAN.md');
     assert.ok(result.success, `context-budget should succeed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.estimates.context_window, 200000, 'should default to 200K context window');
@@ -4058,7 +4058,7 @@ describe('configurable context window', () => {
   });
 
   test('context-budget output includes context_window field', () => {
-    const result = runGsdTools('context-budget .planning/phases/06-token-measurement-output-infrastructure/06-02-PLAN.md');
+    const result = runGsdTools('context-budget .planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-02-PLAN.md');
     assert.ok(result.success, `context-budget should succeed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.ok('context_window' in data.estimates, 'estimates should contain context_window');
@@ -4210,7 +4210,7 @@ describe('token estimation', () => {
   });
 
   test('context-budget uses tokenx-based estimates (not lines*4)', () => {
-    const result = runGsdTools('context-budget .planning/phases/06-token-measurement-output-infrastructure/06-01-PLAN.md');
+    const result = runGsdTools('context-budget .planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-01-PLAN.md');
     assert.ok(result.success, `context-budget should succeed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -4235,9 +4235,9 @@ describe('token estimation', () => {
 describe('extractAtReferences', () => {
   test('extracts absolute path references', () => {
     const { extractAtReferences } = require('../src/lib/helpers');
-    const content = 'Load @/home/cam/.config/opencode/workflows/execute-plan.md for context.';
+    const content = 'Load @/tmp/test-config/opencode/workflows/execute-plan.md for context.';
     const refs = extractAtReferences(content);
-    assert.ok(refs.includes('/home/cam/.config/opencode/workflows/execute-plan.md'), 'should extract absolute path');
+    assert.ok(refs.includes('/tmp/test-config/opencode/workflows/execute-plan.md'), 'should extract absolute path');
   });
 
   test('extracts relative .planning/ references', () => {
@@ -13388,7 +13388,7 @@ describe('codebase context', () => {
 
   test('relevance score: --plan flag provides plan-scope signal', () => {
     // Request with --plan pointing to a plan file
-    const result = runGsdTools('codebase context --files src/commands/codebase.js --plan .planning/phases/27-task-scoped-context/27-02-PLAN.md');
+    const result = runGsdTools('codebase context --files src/commands/codebase.js --plan .planning/milestones/v5.0-phases/27-task-scoped-context/27-02-PLAN.md');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -15366,7 +15366,7 @@ autonomous: true
 
 describe('orchestration: classify plan CLI', () => {
   test('returns JSON with task scores for a real plan', () => {
-    const result = runGsdTools('classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md --raw');
+    const result = runGsdTools('classify plan .planning/milestones/v7.0-phases/39-orchestration-intelligence/39-01-PLAN.md --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);

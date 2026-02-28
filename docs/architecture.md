@@ -1,4 +1,4 @@
-# GSD Architecture
+# bGSD Architecture
 
 How bGSD works internally. This document covers the two-layer design, agent system, data flow, and extension points.
 
@@ -8,7 +8,7 @@ How bGSD works internally. This document covers the two-layer design, agent syst
 
 ## Design Philosophy
 
-GSD separates **deterministic operations** from **AI reasoning**:
+bGSD separates **deterministic operations** from **AI reasoning**:
 
 - **Deterministic layer** (`gsd-tools.cjs`) — Parsing, validation, git, file I/O, state management, AST analysis, task classification. Always produces the same output for the same input.
 - **AI layer** (workflow `.md` files) — Agent behavior definitions. LLMs follow these as step-by-step prompts, calling gsd-tools for structured data.
@@ -208,7 +208,7 @@ Several workflows spawn multiple agents in parallel:
 
 ## Document Templates
 
-Templates define the structure of every document GSD creates. Located in `templates/`:
+Templates define the structure of every document bGSD creates. Located in `templates/`:
 
 ### Core Planning
 - `project.md` — PROJECT.md template
@@ -264,7 +264,7 @@ Loaded by agents for behavioral guidance. Located in `references/`:
 
 ## Init System
 
-The `init` command family is GSD's context injection system. Each workflow calls its corresponding `init` subcommand to get all necessary context in one JSON payload:
+The `init` command family is bGSD's context injection system. Each workflow calls its corresponding `init` subcommand to get all necessary context in one JSON payload:
 
 ```bash
 node bin/gsd-tools.cjs init execute-phase 1 --raw
@@ -360,10 +360,13 @@ npm test
 
 End users install via:
 ```bash
-npx get-shit-done-cc
+git clone https://github.com/gonz0w/gsd-opencode.git
+cd gsd-opencode
+npm install && npm run build
+./deploy.sh
 ```
 
-This installs the package globally, setting up commands, agents, workflows, templates, and references in `~/.config/opencode/`.
+This deploys commands, workflows, templates, and references to `~/.config/opencode/`.
 
 ---
 

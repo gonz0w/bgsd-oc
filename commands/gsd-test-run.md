@@ -11,7 +11,7 @@ Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-test-run.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-test-run.md
 </execution_context>
 
 <process>

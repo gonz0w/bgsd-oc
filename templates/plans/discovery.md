@@ -28,8 +28,8 @@ Output: [DISCOVERY.md with findings, recommendations, and decision rationale.]
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/execute-plan.md
-@/home/cam/.config/opencode/get-shit-done/templates/summary.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/execute-plan.md
+@__OPENCODE_CONFIG__/get-shit-done/templates/summary.md
 </execution_context>
 
 <context>

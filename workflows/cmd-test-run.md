@@ -8,7 +8,7 @@ Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go
 Run the test-run command:
 
 ```bash
-RESULT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs test-run 2>/dev/null)
+RESULT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs test-run 2>/dev/null)
 ```
 
 Parse the JSON output which includes:

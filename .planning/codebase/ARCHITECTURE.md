@@ -77,7 +77,7 @@
 - Location: `workflows/` (44 files), `commands/` (11 files)
 - Contains: Agent instructions, tool call patterns, decision trees
 - Depends on: `bin/gsd-tools.cjs` (invoked via Bash tool)
-- Used by: AI coding assistants (Claude Code, OpenCode) as slash commands and agent workflows
+- Used by: AI coding assistants (AI coding assistant, OpenCode) as slash commands and agent workflows
 
 **Template Layer (templates/*.md):**
 - Purpose: Document scaffolds filled programmatically by `template fill` command

@@ -11,7 +11,7 @@ Validate the .planning/config.json file against the schema. Checks for missing f
 </objective>
 
 <execution_context>
-@/home/cam/.config/opencode/get-shit-done/workflows/cmd-validate-config.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/cmd-validate-config.md
 </execution_context>
 
 <process>

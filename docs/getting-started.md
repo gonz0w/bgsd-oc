@@ -1,6 +1,6 @@
-# Getting Started with GSD
+# Getting Started with bGSD
 
-This guide walks you through your first project using the easy flow. GSD handles the complexity — you just answer questions and approve plans.
+This guide walks you through your first project using the easy flow. bGSD handles the complexity — you just answer questions and approve plans.
 
 ## Prerequisites
 
@@ -10,10 +10,13 @@ This guide walks you through your first project using the easy flow. GSD handles
 ## Installation
 
 ```bash
-npx get-shit-done-cc
+git clone https://github.com/gonz0w/gsd-opencode.git
+cd gsd-opencode
+npm install && npm run build
+./deploy.sh
 ```
 
-This installs GSD into your OpenCode configuration. Restart OpenCode to pick up the new commands.
+This installs bGSD into your OpenCode configuration. Restart OpenCode to pick up the new commands.
 
 ## Your First Project
 
@@ -25,12 +28,12 @@ Open a terminal in your project directory and launch OpenCode. Then:
 /gsd-new-project
 ```
 
-GSD asks you one question: **"What do you want to build?"**
+bGSD asks you one question: **"What do you want to build?"**
 
-Describe your project in plain language. GSD follows up with clarifying questions to understand scope, users, and constraints. This typically takes 3-5 questions.
+Describe your project in plain language. bGSD follows up with clarifying questions to understand scope, users, and constraints. This typically takes 3-5 questions.
 
 **What happens behind the scenes:**
-1. GSD creates `.planning/PROJECT.md` capturing your vision
+1. bGSD creates `.planning/PROJECT.md` capturing your vision
 2. Creates `INTENT.md` with structured outcomes and success criteria
 3. Optionally runs parallel research (4 AI agents researching stack, features, architecture, and pitfalls)
 4. Generates `REQUIREMENTS.md` with checkable items (REQ-01, REQ-02, etc.)
@@ -56,7 +59,7 @@ Next up: /gsd-plan-phase 1
 /gsd-plan-phase 1
 ```
 
-GSD reads your roadmap, understands the phase goal, and creates executable plans. Each plan is a detailed task breakdown with:
+bGSD reads your roadmap, understands the phase goal, and creates executable plans. Each plan is a detailed task breakdown with:
 
 - Numbered tasks with clear instructions
 - File paths and code patterns to follow
@@ -74,7 +77,7 @@ Plans go through a quality review (gsd-plan-checker agent) with up to 3 revision
 /gsd-execute-phase 1
 ```
 
-GSD executes all plans in the phase:
+bGSD executes all plans in the phase:
 
 1. Validates dependencies between plans
 2. Groups plans into waves (independent plans run in parallel)
@@ -114,11 +117,11 @@ Repeat the plan-execute cycle for each phase:
 ...
 ```
 
-Or let GSD auto-advance by setting YOLO mode:
+Or let bGSD auto-advance by setting YOLO mode:
 
 ```
 /gsd-settings
-# Set mode to "yolo" — GSD auto-continues between phases
+# Set mode to "yolo" — bGSD auto-continues between phases
 ```
 
 ### Step 6: Complete the Milestone
@@ -129,7 +132,7 @@ When all phases are done:
 /gsd-complete-milestone
 ```
 
-GSD archives the milestone, creates a historical record in `MILESTONES.md`, tags the release in git, and prepares for the next milestone.
+bGSD archives the milestone, creates a historical record in `MILESTONES.md`, tags the release in git, and prepares for the next milestone.
 
 ---
 
@@ -153,7 +156,7 @@ Next session:
 /gsd-resume-work
 ```
 
-GSD reads the handoff file and restores full context. You're back exactly where you left off.
+bGSD reads the handoff file and restores full context. You're back exactly where you left off.
 
 ### Quick Tasks
 
@@ -163,7 +166,7 @@ Need to do something small outside the main plan?
 /gsd-quick Fix the login button alignment
 ```
 
-Creates a minimal plan, executes it, commits with tracking — all with GSD's guarantees but without the full ceremony.
+Creates a minimal plan, executes it, commits with tracking — all with bGSD's guarantees but without the full ceremony.
 
 ---
 
@@ -171,7 +174,7 @@ Creates a minimal plan, executes it, commits with tracking — all with GSD's gu
 
 ### Brownfield Projects (Existing Code)
 
-If you're adding GSD to an existing codebase, map it first:
+If you're adding bGSD to an existing codebase, map it first:
 
 ```
 /gsd-map-codebase          # 4 parallel agents analyze your code
@@ -228,7 +231,7 @@ GSD works out of the box. Customize through `/gsd-settings` or edit `.planning/c
 
 ### "command not found" for /gsd-* commands
 
-Restart OpenCode after installation. GSD registers commands at `~/.config/opencode/command/`.
+Restart OpenCode after installation. bGSD registers commands at `~/.config/opencode/command/`.
 
 ### Plans seem too large or too small
 
@@ -248,4 +251,4 @@ Adjust planning depth in `/gsd-settings`, or use `/gsd-discuss-phase` before pla
 /gsd-resume-work                      # Restores state from files
 ```
 
-GSD is designed for context resets. All state lives in `.planning/` files, not in conversation history.
+bGSD is designed for context resets. All state lives in `.planning/` files, not in conversation history.

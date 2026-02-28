@@ -22,7 +22,7 @@ Write code before the test? Delete it. Start over.
 No exceptions: Don't keep as "reference." Don't "adapt" it. Delete means delete.
 ```
 
-This is enforced through **skill activation** — when Claude detects implementation requests, the TDD skill triggers automatically. If the agent writes code before tests, the skill instructs it to delete the code and restart.
+This is enforced through **skill activation** — when the AI detects implementation requests, the TDD skill triggers automatically. If the agent writes code before tests, the skill instructs it to delete the code and restart.
 
 #### Red-Green-Refactor with Verification Gates
 
@@ -60,7 +60,7 @@ Superpowers explicitly lists and counters common rationalizations:
 
 ### 2. Multi-Agent TDD (alexop.dev pattern) — Context Isolation
 
-**Source:** [alexop.dev](https://alexop.dev/posts/custom-tdd-workflow-claude-code-vue/) (PRIMARY — detailed implementation walkthrough)
+**Source:** [alexop.dev](https://alexop.dev/posts/custom-tdd-workflow-ai-code-vue/) (PRIMARY — detailed implementation walkthrough)
 **Confidence:** HIGH (complete code examples, real-world usage documented)
 
 Alexander Opalic identified and solved a critical problem: **context pollution** in single-context TDD.
@@ -73,10 +73,10 @@ The LLM subconsciously designs tests around the implementation it's already plan
 #### The Solution: Three Isolated Subagents
 
 ```
-.claude/skills/tdd-integration/skill.md  (orchestrator)
-.claude/agents/tdd-test-writer.md       (RED phase — limited tools)
-.claude/agents/tdd-implementer.md       (GREEN phase — sees only failing test)
-.claude/agents/tdd-refactorer.md        (REFACTOR phase — fresh context)
+.ai-config/skills/tdd-integration/skill.md  (orchestrator)
+.ai-config/agents/tdd-test-writer.md       (RED phase — limited tools)
+.ai-config/agents/tdd-implementer.md       (GREEN phase — sees only failing test)
+.ai-config/agents/tdd-refactorer.md        (REFACTOR phase — fresh context)
 ```
 
 **Critical design decisions:**
@@ -95,7 +95,7 @@ Never:
 ```
 
 #### Skill Activation via Hooks
-Even with well-written skills, Claude only activated them ~20% of the time. Solution: `UserPromptSubmit` hook that injects a "MANDATORY SKILL ACTIVATION SEQUENCE" before every prompt. This raised activation from ~20% to ~84%.
+Even with well-written skills, the AI only activated them ~20% of the time. Solution: `UserPromptSubmit` hook that injects a "MANDATORY SKILL ACTIVATION SEQUENCE" before every prompt. This raised activation from ~20% to ~84%.
 
 **What bGSD should adopt:** The subagent isolation pattern (test-writer / implementer / refactorer as separate context windows), the explicit "Do NOT proceed until..." gates, and the hook-based enforcement.
 
@@ -110,10 +110,10 @@ Built as a weekend project in collaboration with Kent Beck and Steve Freeman's a
 
 #### Bash as Orchestrator, LLM as Executor
 ```bash
-claude_output=$(claude -p "$step-instructions")
+ai_output=$(ai-tool -p "$step-instructions")
 ```
 
-Clean separation: Bash manages the TDD cycle, Claude handles actual coding. The orchestrator is deterministic; only the code generation is non-deterministic.
+Clean separation: Bash manages the TDD cycle, the AI handles actual coding. The orchestrator is deterministic; only the code generation is non-deterministic.
 
 **Discovered problems:**
 - Agent gets trapped in loops generating long if-then-else chains that satisfy tests technically but miss design intent
@@ -152,7 +152,7 @@ Key insights:
 - **Plan phase:** Ask a thinking model to generate a phased plan in TDD format with Red/Green/Refactor checkpoints baked in
 - **Validate phase:** Human-in-the-loop verification after agent session. Tests may be green, but humans confirm the implementation matches the plan
 - **Phase discipline:** "When I spot an agent churning too much code in one burst, I revert the whole change and restart"
-- **LLM cheating detection:** Claude Sonnet may "cheat" by removing tests, leaving assertions empty, ignoring tests, or generating code that passes tests instead of fixing the code
+- **LLM cheating detection:** the LLM may "cheat" by removing tests, leaving assertions empty, ignoring tests, or generating code that passes tests instead of fixing the code
 
 **Prevention strategies:**
 - Make local commits after each TDD phase
@@ -187,23 +187,23 @@ Key insights:
 
 ---
 
-### 7. Steve Kinney's Claude Code TDD Pattern
+### 7. Steve Kinney's AI coding assistant TDD Pattern
 
 **Source:** [stevekinney.com](https://stevekinney.com/courses/ai-development/test-driven-development-with-claude) (PRIMARY)
 **Confidence:** HIGH (detailed course material, practical workflow)
 
-Five-step TDD cycle with Claude Code:
+Five-step TDD cycle with AI coding assistant:
 
-1. **Write Tests First** — Explicitly state you're doing TDD to prevent Claude from creating mock implementations
-2. **Confirm Tests Fail** — Claude runs tests via Bash tool, confirms expected failure
+1. **Write Tests First** — Explicitly state you're doing TDD to prevent the AI from creating mock implementations
+2. **Confirm Tests Fail** — the AI runs tests via Bash tool, confirms expected failure
 3. **Commit Failing Tests** — Creates verifiable definition of "done"
-4. **Write Code to Pass Tests** — Claude enters autonomous loop: write → run → analyze failure → adjust → repeat
-5. **Commit Passing Code** — Claude drafts commit message, completes cycle
+4. **Write Code to Pass Tests** — the AI enters autonomous loop: write → run → analyze failure → adjust → repeat
+5. **Commit Passing Code** — the AI drafts commit message, completes cycle
 
 Advanced patterns:
 - **Sub-agents for overfitting prevention:** Separate agent independently verifies implementation beyond test coverage
 - **PostToolUse hooks:** Automatically run linters and test suites after any file edit
-- **CLAUDE.md conventions:** Project-wide testing guidelines enforced without repeated instructions
+- **CONVENTIONS.md conventions:** Project-wide testing guidelines enforced without repeated instructions
 
 ---
 
@@ -234,7 +234,7 @@ Advanced patterns:
            │
            ▼
 ┌──────────────────────────┐
-│  EXECUTOR (Claude agent) │  ← Non-deterministic. Generates code.
+│  EXECUTOR (AI agent) │  ← Non-deterministic. Generates code.
 │  - Writes tests          │
 │  - Writes implementation │
 │  - Refactors             │
@@ -257,7 +257,7 @@ The orchestrator NEVER trusts the executor to self-enforce TDD. It verifies at e
 **Implementation options:**
 1. **Subagent per phase** (strongest isolation, highest cost) — alexop.dev pattern
 2. **Context compaction between phases** (moderate isolation, lower cost) — discard previous phase context
-3. **Explicit instructions per phase** (weakest isolation, lowest cost) — Superpowers/CLAUDE.md pattern
+3. **Explicit instructions per phase** (weakest isolation, lowest cost) — Superpowers/CONVENTIONS.md pattern
 
 For bGSD: Option 2 (context compaction) is the right balance. We already have conversation compaction (CTX-03). Between TDD phases, compact and inject only phase-relevant context.
 
@@ -647,7 +647,7 @@ This enables:
 #### 5. Do NOT Build Subagent Isolation Initially
 
 The subagent pattern (alexop.dev) provides the strongest TDD guarantees but:
-- Requires spawning multiple Claude processes (expensive, complex)
+- Requires spawning multiple AI processes (expensive, complex)
 - Our context compaction (CTX-03) can achieve "soft isolation" by compacting between phases
 - Phase-specific file restrictions achieve most of the isolation benefit
 
@@ -678,9 +678,9 @@ Create a `references/tdd-anti-patterns.md` loaded into executor context when run
 |--------|------|----------|
 | [Superpowers SKILL.md](https://github.com/obra/superpowers/blob/main/skills/test-driven-development/SKILL.md) | Primary (raw source) | Iron Law, verification gates, rationalizations |
 | [Superpowers testing-anti-patterns.md](https://github.com/obra/superpowers/blob/main/skills/test-driven-development/testing-anti-patterns.md) | Primary (raw source) | Anti-patterns taxonomy |
-| [alexop.dev TDD workflow](https://alexop.dev/posts/custom-tdd-workflow-claude-code-vue/) | Primary (detailed walkthrough) | Context isolation, subagent pattern |
+| [alexop.dev TDD workflow](https://alexop.dev/posts/custom-tdd-workflow-ai-code-vue/) | Primary (detailed walkthrough) | Context isolation, subagent pattern |
 | [Simon Willison — Red/green TDD](https://simonwillison.net/guides/agentic-engineering-patterns/red-green-tdd/) | Primary (authoritative blog) | Core TDD-as-prompting insight |
-| [Steve Kinney — TDD with Claude Code](https://stevekinney.com/courses/ai-development/test-driven-development-with-claude) | Primary (course material) | 5-step Claude TDD cycle, hooks |
+| [Steve Kinney — TDD with AI coding assistant](https://stevekinney.com/courses/ai-development/test-driven-development-with-claude) | Primary (course material) | 5-step AI TDD cycle, hooks |
 | [TDAID — Awesome Testing](https://www.awesome-testing.com/2025/10/test-driven-ai-development-tdaid) | Primary (methodology article) | Plan → Red → Green → Refactor → Validate |
 | [Jaksa — Building a TDD Coding Agent](https://jaksa.wordpress.com/2025/08/04/building-a-tdd-coding-agent/) | Primary (blog) | Bash orchestration pattern |
 | [Ardalis — RGRC](https://ardalis.com/rgrc-is-the-new-red-green-refactor-for-test-first-development/) | Primary (blog) | Commit discipline pattern |

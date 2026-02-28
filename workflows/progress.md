@@ -12,7 +12,7 @@ Read all execution_context files before starting.
 **Load progress context (paths only):**
 
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init progress)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init progress)
 ```
 
 Extract from init JSON: `project_exists`, `roadmap_exists`, `state_exists`, `phases`, `current_phase`, `next_phase`, `milestone_version`, `completed_count`, `phase_count`, `paused_at`, `state_path`, `roadmap_path`, `project_path`, `config_path`.
@@ -40,8 +40,8 @@ If missing both ROADMAP.md and PROJECT.md: suggest `/gsd-new-project`.
 **Load structured data:**
 
 ```bash
-ROADMAP=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap analyze)
-STATE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state-snapshot)
+ROADMAP=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs roadmap analyze)
+STATE=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state-snapshot)
 ```
 
 `ROADMAP` returns: phases with disk status, goals, deps, plan/summary counts, progress percent, current/next phase.
@@ -60,7 +60,7 @@ STATE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state-sn
 
 ```bash
 # Get formatted progress bar
-PROGRESS_BAR=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs progress bar)
+PROGRESS_BAR=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs progress bar)
 ```
 
 Present:

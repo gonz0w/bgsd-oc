@@ -6,7 +6,7 @@ Calculate the next decimal phase number for urgent insertions.
 
 ```bash
 # Get next decimal phase after phase 6
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase next-decimal 6
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs phase next-decimal 6
 ```
 
 Output:
@@ -32,14 +32,14 @@ With existing decimals:
 ## Extract Values
 
 ```bash
-DECIMAL_INFO=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase next-decimal "${AFTER_PHASE}")
+DECIMAL_INFO=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs phase next-decimal "${AFTER_PHASE}")
 DECIMAL_PHASE=$(echo "$DECIMAL_INFO" | jq -r '.next')
 BASE_PHASE=$(echo "$DECIMAL_INFO" | jq -r '.base_phase')
 ```
 
 Or extract directly:
 ```bash
-DECIMAL_PHASE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase next-decimal "${AFTER_PHASE}" | jq -r '.next')
+DECIMAL_PHASE=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs phase next-decimal "${AFTER_PHASE}" | jq -r '.next')
 ```
 
 ## Examples
@@ -56,7 +56,7 @@ DECIMAL_PHASE=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs 
 Decimal phase directories use the full decimal number:
 
 ```bash
-SLUG=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs generate-slug "$DESCRIPTION" | jq -r '.slug')
+SLUG=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs generate-slug "$DESCRIPTION" | jq -r '.slug')
 PHASE_DIR=".planning/phases/${DECIMAL_PHASE}-${SLUG}"
 mkdir -p "$PHASE_DIR"
 ```

@@ -1,9 +1,0 @@
-
-> gsd-tools@1.0.0 build
-> node build.js
-
-Built bin/gsd-tools.cjs in 109ms
-Smoke test passed: {
-  "timestamp": "2026-02-28T00:35:04.560Z"
-}
-Bundle size: 1000KB / 1000KB budget

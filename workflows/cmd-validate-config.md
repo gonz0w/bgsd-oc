@@ -8,7 +8,7 @@ Validate the `.planning/config.json` file against the schema. Checks for missing
 Run the validate-config command:
 
 ```bash
-RESULT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs validate-config 2>/dev/null)
+RESULT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs validate-config 2>/dev/null)
 ```
 
 Parse the JSON output which includes:

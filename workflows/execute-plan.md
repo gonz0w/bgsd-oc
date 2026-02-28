@@ -11,7 +11,7 @@ Load git-integration.md sections as needed via extract-sections.
 
 <step name="init_context" priority="first">
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init execute-phase "${PHASE}" --compact)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init execute-phase "${PHASE}" --compact)
 ```
 
 Parse: `executor_model`, `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summaries`, `incomplete_plans`.
@@ -34,7 +34,7 @@ PLAN_START_EPOCH=$(date +%s)
 
 <step name="context_budget_check">
 ```bash
-BUDGET=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs context-budget "${PLAN_PATH}" 2>/dev/null)
+BUDGET=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs context-budget "${PLAN_PATH}" 2>/dev/null)
 ```
 
 If `warning` truthy: yolo → log and continue. Interactive → ask proceed/stop.
@@ -146,7 +146,7 @@ Types: feat, fix, test, refactor, perf, docs, style, chore.
 
 After committing task work, save a bookmark:
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs memory write --store bookmarks --entry '{"phase":"${PHASE}","plan":"${PLAN}","task":${TASK_NUM},"total_tasks":${TOTAL_TASKS},"git_head":"'$(git rev-parse --short HEAD)'"}'
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs memory write --store bookmarks --entry '{"phase":"${PHASE}","plan":"${PLAN}","task":${TASK_NUM},"total_tasks":${TOTAL_TASKS},"git_head":"'$(git rev-parse --short HEAD)'"}'
 ```
 </task_commit>
 
@@ -236,9 +236,9 @@ If no review was performed (gap closure, skipped, etc.): omit this section entir
 
 <step name="update_current_position">
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state advance-plan
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state update-progress
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state record-metric \
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state advance-plan
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state update-progress
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state record-metric \
   --phase "${PHASE}" --plan "${PLAN}" --duration "${DURATION}" \
   --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
 ```
@@ -246,14 +246,14 @@ node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state record-met
 
 <step name="extract_decisions_and_issues">
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state add-decision \
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state add-decision \
   --phase "${PHASE}" --summary "${DECISION_TEXT}" --rationale "${RATIONALE}"
 ```
 </step>
 
 <step name="update_session_continuity">
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state record-session \
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state record-session \
   --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md" --resume-file "None"
 ```
 </step>
@@ -264,20 +264,20 @@ If SUMMARY issues ≠ "None": yolo → log. Interactive → present, wait.
 
 <step name="update_roadmap">
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs roadmap update-plan-progress "${PHASE}"
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs roadmap update-plan-progress "${PHASE}"
 ```
 </step>
 
 <step name="update_requirements">
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs requirements mark-complete ${REQ_IDS}
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs requirements mark-complete ${REQ_IDS}
 ```
 Extract from plan frontmatter `requirements:` field. Skip if absent.
 </step>
 
 <step name="git_commit_metadata">
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
 </step>
 

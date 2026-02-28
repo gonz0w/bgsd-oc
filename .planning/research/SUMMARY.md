@@ -36,7 +36,7 @@
 <!-- section: executive_summary -->
 ## Executive Summary
 
-bGSD v7.0 is a self-improvement milestone for a CLI-based AI planning plugin that orchestrates LLM agent workflows. The core challenge is well-understood: agents need the *right* context (not all context), tasks need intelligent routing (not manual agent selection), and the system needs performance observability. Research across competitive tools (Claude Code Agent Teams, Aider, Cursor, OpenHands) confirms bGSD's existing architecture — hierarchical agent roles communicating through files, not messages — is the correct topology. Cursor's failed experiment with equal-status agents and Gas Town's production DB incident both validate bGSD's human-in-the-loop approach. The innovation gap is in context efficiency (Aider's repo map pattern) and automatic orchestration (no CLI planning tool does this well).
+bGSD v7.0 is a self-improvement milestone for a CLI-based AI planning plugin that orchestrates LLM agent workflows. The core challenge is well-understood: agents need the *right* context (not all context), tasks need intelligent routing (not manual agent selection), and the system needs performance observability. Research across competitive tools (AI Agent Teams, Aider, Cursor, OpenHands) confirms bGSD's existing architecture — hierarchical agent roles communicating through files, not messages — is the correct topology. Cursor's failed experiment with equal-status agents and Gas Town's production DB incident both validate bGSD's human-in-the-loop approach. The innovation gap is in context efficiency (Aider's repo map pattern) and automatic orchestration (no CLI planning tool does this well).
 
 The recommended approach is surgical: add one external dependency (acorn + acorn-walk, ~121KB for AST parsing), build four new modules (orchestrator ~300 lines, ast-intel ~300 lines, serializer ~200 lines, profiler ~250 lines), and enhance existing git.js with structured operations. The critical architectural principle is "intelligence as data, not as agents" — new capabilities are CLI commands that produce richer data for existing agent roles, not new agent roles. This avoids the agent role explosion anti-pattern identified by DeepMind (coordination overhead grows quadratically, 17x error amplification in unstructured networks). The bundle stays within budget (~850-870KB of 1000KB).
 
@@ -65,7 +65,7 @@ The stack strategy is maximally conservative: one new npm dependency, everything
 
 **Must have (table stakes):**
 - **Task complexity estimation** — Foundation for all routing. Score tasks 1-5 based on file count, cross-module reach, test requirements. Every competitor classifies tasks before routing.
-- **Smart agent/model routing** — Auto-select agent type + model tier based on task classification. Aider's architect mode, Claude Code's model selection, ClaudeFast's 5-tier complexity all do this.
+- **Smart agent/model routing** — Auto-select agent type + model tier based on task classification. Aider's architect mode, AI coding assistant model selection, AI-Fast's 5-tier complexity all do this.
 - **Code review agent (gsd-reviewer)** — Writer/reviewer separation prevents confirmation bias. CodeRabbit, Qodo PR-Agent prove this is baseline for serious tooling.
 - **Repository map generation** — Aider's proven pattern: AST → signatures → ranking → token budget. ~1k tokens instead of full file contents. Now industry standard.
 - **Agent context scoping** — Each agent type declares required context. System provides only that at spawn. Partially built via `<files_to_read>` blocks; needs formalization.
@@ -76,7 +76,7 @@ The stack strategy is maximally conservative: one new npm dependency, everything
 - **Execution wave optimization** — Parallel subagent execution for independent plan waves. Extends existing wave grouping.
 - **Agent performance tracking** — Per-agent success/failure rates fed back into routing decisions.
 - **Commit attribution** — Tag commits with agent type in metadata. LOW effort, HIGH observability.
-- **Conversation compaction** — Hook into Claude API `compact-2026-01-12` for long-running sessions.
+- **Conversation compaction** — Hook into LLM compaction API for long-running sessions.
 - **Task-scoped file injection** — Load only task-relevant files using dependency graph. Major context savings on large codebases.
 
 **Defer (v2+):**
@@ -140,7 +140,7 @@ Based on research, suggested phase structure:
 
 ### Phase 4: Context Efficiency
 **Rationale:** Compact serialization and context scoping depend on having the orchestrator (which defines role budgets) and ast-intel (which produces summaries). Token savings compound across all subsequent workflow executions. Must include quality measurement infrastructure BEFORE implementing reductions.
-**Delivers:** serializer.js module — compact plan state (~70-80% reduction), dependency graph compression (~50-60% reduction), code summary format (~60-80% reduction). Context budget enforcement per agent role with automatic truncation. Conversation compaction integration via Claude API `compact-2026-01-12`.
+**Delivers:** serializer.js module — compact plan state (~70-80% reduction), dependency graph compression (~50-60% reduction), code summary format (~60-80% reduction). Context budget enforcement per agent role with automatic truncation. Conversation compaction integration via LLM compaction API.
 **Features from FEATURES.md:** Compact serialization format (P1), conversation compaction (P1), context budget tracking enhancement.
 **Avoids:** Pitfall #2 (context reduction info loss) — establish quality baselines using Phase 1 profiler BEFORE any reduction, A/B test every compaction change against agent output quality.
 
@@ -169,7 +169,7 @@ Based on research, suggested phase structure:
 
 Phases likely needing deeper research during planning:
 - **Phase 3 (Orchestration):** Task classification heuristics need iterative refinement. How to score complexity (file count vs. cross-module reach vs. API surface) is empirical. Routing accuracy thresholds need experimentation. MEDIUM confidence on initial heuristics.
-- **Phase 4 (Context Efficiency):** Exact token savings are estimated (40-60%), not measured against bGSD's specific output shapes. Compact format LLM compatibility needs testing — pipe-delimited format must not cause Claude parsing confusion. Need A/B testing with actual agent tasks.
+- **Phase 4 (Context Efficiency):** Exact token savings are estimated (40-60%), not measured against bGSD's specific output shapes. Compact format LLM compatibility needs testing — pipe-delimited format must not cause LLM parsing confusion. Need A/B testing with actual agent tasks.
 - **Phase 6 (Execution Waves):** Parallel subagent coordination at scale is highest-complexity work. Cursor's 20-agent failure is instructive but bGSD's hierarchical model is different. Conservative agent cap (3-5) needs validation.
 
 Phases with standard patterns (skip deep research):
@@ -184,7 +184,7 @@ Phases with standard patterns (skip deep research):
 | Area | Confidence | Notes |
 |------|------------|-------|
 | Stack | HIGH | acorn verified via npm/bundlephobia (v8.16.0, 114KB, 0 deps). perf_hooks stable since Node 8.5.0. simple-git rejection validated via Context7 + npm registry. Bundle projection verified. |
-| Features | HIGH | Primary sources: Claude Code Agent Teams docs, Aider docs, Cursor blog, OpenHands paper, GitHub multi-agent engineering blog. 6+ competitors cross-referenced. |
+| Features | HIGH | Primary sources: AI Agent Teams docs, Aider docs, Cursor blog, OpenHands paper, GitHub multi-agent engineering blog. 6+ competitors cross-referenced. |
 | Architecture | HIGH | Direct inspection of all 18 existing modules. Patterns extend proven existing patterns (detector registry, lazy loading, invocation cache). Dependency direction validated — no cycles. |
 | Pitfalls | HIGH | DeepMind scaling research, real failure cases (Gas Town DB down 2 days, Cursor equal-status agents, 67% AI PR rejection rate), bGSD v6.0's own --raw removal incident (243 failures). |
 
@@ -195,7 +195,7 @@ Phases with standard patterns (skip deep research):
 - **Token savings precision:** 40-60% overall reduction is estimated from Chrome DevTools patterns and TU Wien research, not measured against bGSD's specific data structures. **Handle:** Build measurement infrastructure in Phase 1, empirically validate in Phase 4.
 - **Orchestration routing accuracy:** Task classification heuristics (complexity scoring, agent selection thresholds) need iterative refinement. Research provides the framework but not tuned values. **Handle:** Make thresholds configurable in Phase 3, adjust based on real usage data.
 - **TypeScript AST coverage:** acorn parses JS. TS-specific patterns (decorators, type annotations) may need acorn-typescript plugin or regex fallback. **Handle:** Assess in Phase 2 planning — current bGSD codebase is JS, so JS coverage is sufficient for self-hosting. Multi-language is an extension point.
-- **Conversation compaction API stability:** Claude API `compact-2026-01-12` is documented as beta. **Handle:** Abstract behind a thin wrapper in Phase 4 serializer. If API changes, only wrapper needs update.
+- **Conversation compaction API stability:** LLM compaction API is documented as beta. **Handle:** Abstract behind a thin wrapper in Phase 4 serializer. If API changes, only wrapper needs update.
 - **Execution wave parallelism limits:** Worktree-based parallel execution at >3 agents is not well-tested in the ecosystem. **Handle:** Cap at 3-5 parallel agents in Phase 6, validate with real tasks before increasing.
 <!-- /section -->
 
@@ -206,8 +206,8 @@ Phases with standard patterns (skip deep research):
 - **acorn:** npm registry (v8.16.0 verified 2026-02-26), bundlephobia API (114KB bundled, 0 deps confirmed)
 - **acorn-walk:** npm registry (v8.3.5), bundlephobia API (7KB bundled)
 - **Node.js perf_hooks:** Official docs (v25.7.0, API stable since v8.5.0)
-- **Claude Code Agent Teams:** https://code.claude.com/docs/en/agent-teams
-- **Claude API Compaction:** https://platform.claude.com/docs/en/build-with-claude/compaction
+- **AI Agent Teams:** [removed - platform-specific URL]
+- **LLM API Compaction:** [removed - platform-specific URL]
 - **Aider repo map:** https://aider.chat/docs/repomap.html
 - **Aider git integration:** https://aider.chat/docs/git.html
 - **Cursor scaling agents blog:** https://cursor.com/blog/scaling-agents
@@ -231,7 +231,7 @@ Phases with standard patterns (skip deep research):
 ### Tertiary (LOW confidence)
 - Token savings estimates (40-60%) — extrapolated from Chrome DevTools pattern to bGSD's specific data structures, needs empirical validation
 - Execution wave parallelism cap (3-5 agents) — inferred from Cursor's 20-agent failure, bGSD's hierarchical model may handle differently
-- ClaudeFast agent guide (community site, not official docs)
+- AI-Fast agent guide (community site, not official docs)
 
 ---
 *Research completed: 2026-02-26*

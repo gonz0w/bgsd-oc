@@ -14,7 +14,7 @@ Read STATE.md before starting.
 
 <step name="initialize" priority="first">
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init execute-phase "${PHASE_ARG}" --compact)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init execute-phase "${PHASE_ARG}" --compact)
 ```
 
 Parse JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
@@ -36,7 +36,7 @@ Report: "Found {plan_count} plans in {phase_dir} ({incomplete_count} incomplete)
 
 <step name="preflight_dependency_check">
 ```bash
-DEPS=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs validate-dependencies "${PHASE_NUMBER}" 2>/dev/null)
+DEPS=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs validate-dependencies "${PHASE_NUMBER}" 2>/dev/null)
 ```
 
 Parse for `valid` (bool) and `issues` (array). If valid or command fails: continue silently.
@@ -51,9 +51,9 @@ Otherwise, run auto-fix first, then validate:
 
 ```bash
 # Auto-fix what we can
-FIX_RESULT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state validate --fix 2>/dev/null)
+FIX_RESULT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state validate --fix 2>/dev/null)
 # Then check for remaining issues
-VALIDATE_RESULT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs state validate 2>/dev/null)
+VALIDATE_RESULT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs state validate 2>/dev/null)
 ```
 
 Parse `FIX_RESULT` for `fixes_applied` array. If non-empty: display "Pre-flight auto-fixed: {count} issue(s)".
@@ -116,7 +116,7 @@ Advisory naming convention check (never blocks execution).
 
 <step name="discover_and_group_plans">
 ```bash
-PLAN_INDEX=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase-plan-index "${PHASE_NUMBER}")
+PLAN_INDEX=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs phase-plan-index "${PHASE_NUMBER}")
 ```
 
 Parse: `plans[]` (id, wave, autonomous, objective, task_count, has_summary), `waves`, `incomplete`, `has_checkpoints`.
@@ -252,8 +252,8 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
        </objective>
 
        <execution_context>
-       @/home/cam/.config/opencode/get-shit-done/workflows/execute-plan.md
-       @/home/cam/.config/opencode/get-shit-done/templates/summary.md
+       @__OPENCODE_CONFIG__/get-shit-done/workflows/execute-plan.md
+       @__OPENCODE_CONFIG__/get-shit-done/templates/summary.md
        Load checkpoints.md sections 'types' and 'guidelines' via extract-sections if plan has autonomous: false.
        Load tdd.md only if plan type is 'tdd'.
        </execution_context>
@@ -365,13 +365,13 @@ Read status from VERIFICATION.md:
 
 <step name="update_roadmap">
 ```bash
-COMPLETION=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs phase complete "${PHASE_NUMBER}")
+COMPLETION=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs phase complete "${PHASE_NUMBER}")
 ```
 
 CLI handles: phase checkbox, Progress table, plan count, STATE.md advance, REQUIREMENTS.md traceability.
 
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md
 ```
 </step>
 

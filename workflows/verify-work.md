@@ -7,14 +7,14 @@ Show expected, ask if reality matches. "yes"/"pass"/"next" → pass. Anything el
 </philosophy>
 
 <template>
-@/home/cam/.config/opencode/get-shit-done/templates/UAT.md
+@__OPENCODE_CONFIG__/get-shit-done/templates/UAT.md
 </template>
 
 <process>
 
 <step name="initialize" priority="first">
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init verify-work "${PHASE_ARG}" --compact)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init verify-work "${PHASE_ARG}" --compact)
 ```
 Parse: `planner_model`, `checker_model`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `has_verification`.
 </step>
@@ -108,7 +108,7 @@ PASSED → present_ready. ISSUES → revision_loop.
 Max 3 iterations:
 ```
 Task(
-  prompt="Read /home/cam/.config/opencode/agents/gsd-planner.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/gsd-planner.md for instructions.
 Revision mode. Read: {phase_dir}/*-PLAN.md. Checker issues: {issues}.
 Make targeted updates, return what changed.",
   subagent_type="general", model="{planner_model}", description="Revise gap plans"

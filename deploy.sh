@@ -45,6 +45,13 @@ for cmd in "$SRC/commands"/gsd-*.md; do
 	[ -f "$cmd" ] && cp "$cmd" "$CMD_DIR/"
 done
 
+# Step 3c: Substitute path placeholders with actual install paths
+OPENCODE_CFG="$HOME/.config/opencode"
+echo "Substituting path placeholders..."
+find "$DEST" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$CMD_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+echo "  Path placeholders resolved to: $OPENCODE_CFG"
+
 # Step 4: Smoke test deployed artifact
 echo ""
 echo "Running smoke test..."

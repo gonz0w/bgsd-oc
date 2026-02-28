@@ -16,7 +16,7 @@ Dedicated mapper agents: fresh context per domain, write directly (no transfer b
 Load codebase mapping context:
 
 ```bash
-INIT=$(node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs init map-codebase)
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init map-codebase)
 ```
 
 Extract from init JSON: `mapper_model`, `commit_docs`, `codebase_dir`, `existing_maps`, `has_maps`, `codebase_dir_exists`.
@@ -240,7 +240,7 @@ Continue to commit_codebase_map.
 Commit the codebase map:
 
 ```bash
-node /home/cam/.config/opencode/get-shit-done/bin/gsd-tools.cjs commit "docs: map existing codebase" --files .planning/codebase/*.md
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs commit "docs: map existing codebase" --files .planning/codebase/*.md
 ```
 
 Continue to offer_next.
