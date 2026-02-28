@@ -4,7 +4,7 @@ Complete reference for all bGSD slash commands and CLI operations.
 
 ---
 
-## Slash Commands (32)
+## Slash Commands (41)
 
 ### Project Initialization
 
@@ -364,6 +364,142 @@ Display the complete bGSD command reference.
 
 ---
 
+#### `/gsd-reapply-patches`
+
+Reapply local modifications after a GSD update. Intelligently merges user's previously saved local changes back into newly installed files, handling conflicts when both upstream and local versions changed.
+
+**Workflow:** Inline (no external workflow)
+
+---
+
+### Analytics & Utility
+
+#### `/gsd-velocity`
+
+Show execution velocity metrics: plans completed per day, average duration, and completion forecast for the current milestone.
+
+**Workflow:** `workflows/cmd-velocity.md`
+
+---
+
+#### `/gsd-codebase-impact`
+
+Show module dependencies and blast radius for given files. Analyzes which modules import/reference the specified files.
+
+| Argument | Description |
+|----------|-------------|
+| `<files...>` | One or more file paths to analyze |
+
+**Workflow:** `workflows/cmd-codebase-impact.md`
+
+---
+
+#### `/gsd-context-budget`
+
+Estimate token usage for a plan file and warn if over context budget. Warns when plan content exceeds the configured context window threshold (default: 50% of 200K tokens).
+
+| Argument | Description |
+|----------|-------------|
+| `[file-path]` | Optional path to a plan file (defaults to current phase) |
+
+**Workflow:** `workflows/cmd-context-budget.md`
+
+---
+
+#### `/gsd-rollback-info`
+
+Show commits and revert command for a specific plan. Useful when a plan's changes need to be undone.
+
+| Argument | Description |
+|----------|-------------|
+| `<plan-id>` | Plan identifier (e.g., "45-01") |
+
+**Workflow:** `workflows/cmd-rollback-info.md`
+
+---
+
+#### `/gsd-search-decisions`
+
+Search STATE.md and archived states for past decisions matching a query. Useful for understanding past architectural and implementation choices.
+
+| Argument | Description |
+|----------|-------------|
+| `<query>` | Search query text |
+
+**Workflow:** `workflows/cmd-search-decisions.md`
+
+---
+
+#### `/gsd-search-lessons`
+
+Search completed phase lessons for relevant patterns and insights. Surfaces lessons learned from past execution to inform current planning.
+
+| Argument | Description |
+|----------|-------------|
+| `<query>` | Search query text |
+
+**Workflow:** `workflows/cmd-search-lessons.md`
+
+---
+
+#### `/gsd-session-diff`
+
+Show git commits since last planning session activity. Useful for understanding what changed since the last session.
+
+**Workflow:** `workflows/cmd-session-diff.md`
+
+---
+
+#### `/gsd-test-run`
+
+Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go test, pytest, Node.js test runner) and reports structured results.
+
+**Workflow:** `workflows/cmd-test-run.md`
+
+---
+
+#### `/gsd-trace-requirement`
+
+Trace a requirement from REQUIREMENTS.md through plans to actual files on disk. Shows the full implementation chain for a specific requirement ID.
+
+| Argument | Description |
+|----------|-------------|
+| `<req-id>` | Requirement identifier (e.g., "REQ-01") |
+
+**Workflow:** `workflows/cmd-trace-requirement.md`
+
+---
+
+#### `/gsd-validate-config`
+
+Validate `.planning/config.json` against the schema. Checks for missing fields, invalid values, and typos in field names.
+
+**Workflow:** `workflows/cmd-validate-config.md`
+
+---
+
+#### `/gsd-validate-deps`
+
+Validate the dependency graph for a phase. Checks that all plan dependencies are satisfiable and flags circular or missing dependencies.
+
+| Argument | Description |
+|----------|-------------|
+| `[phase]` | Optional phase number (defaults to current phase) |
+
+**Workflow:** `workflows/cmd-validate-deps.md`
+
+---
+
+### Community
+
+#### `/gsd-join-discord`
+
+Display the Discord invite link for the GSD community server. Connect with other GSD users, get help, share what you're building.
+
+**Workflow:** Inline (no external workflow)
+
+---
+
 ## CLI Tool (`gsd-tools.cjs`)
 
 Run directly:
@@ -507,6 +643,10 @@ gsd-tools codebase deps [--cycles]
 gsd-tools codebase impact <file1> [file2] ...
 gsd-tools codebase context --files <f1> [f2] ... [--plan path]
 gsd-tools codebase lifecycle
+gsd-tools codebase ast <file>
+gsd-tools codebase complexity [file]
+gsd-tools codebase exports <file>
+gsd-tools codebase repo-map [--budget N]
 ```
 
 #### `env` — Environment Detection
@@ -572,6 +712,68 @@ gsd-tools context-budget measure
 
 ```bash
 gsd-tools mcp profile [--window N] [--apply] [--dry-run] [--restore]
+```
+
+#### `trajectory` — Trajectory Engineering
+
+Create named checkpoints with auto-metrics (test count, LOC delta, cyclomatic complexity). Creates git branch at `trajectory/<scope>/<name>/attempt-N` and writes journal entries to the trajectories memory store.
+
+```bash
+gsd-tools trajectory checkpoint <name> [--scope <scope>] [--description <text>]
+gsd-tools trajectory list [--scope <scope>] [--name <name>] [--limit N]
+```
+
+#### `git` — Structured Git Intelligence
+
+Structured git operations with JSON output. Includes selective code rewind (protects `.planning/` and root configs) and trajectory branch creation.
+
+```bash
+gsd-tools git log [--count N] [--since D] [--until D] [--author A] [--path P]
+gsd-tools git diff-summary [--from ref] [--to ref] [--path P]
+gsd-tools git blame <file>
+gsd-tools git branch-info
+gsd-tools git rewind --ref <ref> [--confirm] [--dry-run]
+gsd-tools git trajectory-branch --phase <N> --slug <name> [--push]
+```
+
+#### `classify` — Task Complexity Classification
+
+Scores task complexity (1-5) based on file count, cross-module reach, and test requirements. Recommends execution strategy.
+
+```bash
+gsd-tools classify plan <plan-path>
+gsd-tools classify phase <phase-number>
+```
+
+#### `review` — Code Review Context
+
+Two-stage code review (spec compliance + code quality) with severity classification (BLOCKER/WARNING/INFO).
+
+```bash
+gsd-tools review <phase> <plan>
+```
+
+#### `codebase` — Codebase Intelligence (complete)
+
+```bash
+gsd-tools codebase analyze [--full]
+gsd-tools codebase status
+gsd-tools codebase conventions [--threshold N] [--all]
+gsd-tools codebase rules [--threshold N] [--max N]
+gsd-tools codebase deps [--cycles]
+gsd-tools codebase impact <file1> [file2] ...
+gsd-tools codebase context --files <f1> [f2] ... [--plan path]
+gsd-tools codebase lifecycle
+gsd-tools codebase ast <file>
+gsd-tools codebase complexity [file]
+gsd-tools codebase exports <file>
+gsd-tools codebase repo-map [--budget N]
+```
+
+#### `mcp-profile` — MCP Server Profiling (alias)
+
+```bash
+gsd-tools mcp-profile [--window N] [--apply] [--dry-run] [--restore]
 ```
 
 #### Standalone Commands
