@@ -2,7 +2,7 @@
 
 A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**669 tests** | **Zero runtime dependencies** | **32 slash commands** | **100+ CLI operations** | **12 specialized AI agents** | **7 milestones shipped**
+**716 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **12 specialized AI agents** | **7 milestones shipped**
 
 ---
 
@@ -139,7 +139,40 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 | `/gsd-health` | Check `.planning/` integrity |
 | `/gsd-update` | Update bGSD to latest version |
 
-See the **[Full Command Reference](docs/commands.md)** for all 32 commands with options and examples.
+### Analytics & Utility
+
+| Command | What It Does |
+|---------|-------------|
+| `/gsd-velocity` | Execution velocity metrics and completion forecast |
+| `/gsd-codebase-impact` | Module dependencies and blast radius analysis |
+| `/gsd-context-budget` | Token usage estimation for plan files |
+| `/gsd-rollback-info` | Commits and revert command for a plan |
+| `/gsd-search-decisions` | Search past decisions across archives |
+| `/gsd-search-lessons` | Search completed phase lessons |
+| `/gsd-session-diff` | Git commits since last session activity |
+| `/gsd-test-run` | Parse test output with pass/fail gating |
+| `/gsd-trace-requirement` | Trace requirement from spec to files on disk |
+| `/gsd-validate-config` | Schema validation for config.json |
+| `/gsd-validate-deps` | Phase dependency graph validation |
+
+### Roadmap Management
+
+| Command | What It Does |
+|---------|-------------|
+| `/gsd-add-phase` | Add a new phase to the end of the roadmap |
+| `/gsd-insert-phase` | Insert urgent work as a decimal phase (e.g., 3.1) |
+| `/gsd-remove-phase` | Remove an unstarted future phase |
+
+### Todo & Community
+
+| Command | What It Does |
+|---------|-------------|
+| `/gsd-add-todo` | Capture an idea or task from context |
+| `/gsd-check-todos` | List pending todos, select one to work on |
+| `/gsd-join-discord` | Join the GSD Discord community |
+| `/gsd-reapply-patches` | Reapply local modifications after update |
+
+See the **[Full Command Reference](docs/commands.md)** for all 41 commands with options and examples.
 
 ---
 
@@ -323,14 +356,14 @@ See the **[Full Configuration Reference](docs/configuration.md)** for all option
 
 ```bash
 # Clone
-git clone https://github.com/gonz0w/gsd-opencode.git
-cd gsd-opencode
+git clone https://github.com/gonz0w/bgsd-oc.git
+cd bgsd-oc
 
 # Install & build
 npm install
 npm run build
 
-# Run tests (node:test, 669 tests)
+# Run tests (node:test, 716 tests)
 npm test
 
 # Test a specific command
