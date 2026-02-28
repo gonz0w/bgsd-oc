@@ -119,8 +119,8 @@ No orphaned requirements — all 6 ENV requirements mapped to Phase 18 in REQUIR
 
 #### 1. Polyglot Project Scan
 
-**Test:** Run `node bin/gsd-tools.cjs env scan --force --raw` on a real Node+Go+Elixir polyglot project (e.g., event-pipeline)
-**Expected:** All three languages detected with correct versions; primary language identified correctly based on root manifest
+**Test:** Run `node bin/gsd-tools.cjs env scan --force --raw` on a project with multiple languages
+**Expected:** All languages detected with correct versions; primary language identified correctly based on root manifest
 **Why human:** Automated tests use mock temp directories; real polyglot project validates real-world detection accuracy and binary version parsing
 
 #### 2. Package Manager Field Override

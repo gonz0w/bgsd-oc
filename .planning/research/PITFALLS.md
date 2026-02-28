@@ -35,7 +35,7 @@ State drift detection requires an accurate model of ALL valid states and ALL val
 1. **Start with read-only advisory mode.** The validator reports issues but NEVER blocks workflows or triggers automated fixes. Log warnings to `_validation` field in STATE.md JSON output — don't make them workflow-blocking gates.
 2. **Enumerate every valid state transition before writing the validator.** Create a state machine diagram: `{current_state} + {event} → {next_state}`. Include archival, manual commits, paused states, and fresh starts. Only flag transitions that aren't in the machine.
 3. **Require 3+ violations before triggering a warning.** A single mismatch between STATE.md and reality should be INFO level (logged), not WARNING (shown to agent). Only escalate to WARNING when multiple independent signals agree: wrong phase AND wrong plan count AND missing expected files.
-4. **Test the validator against the real event-pipeline `.planning/` directory**, including after milestone completion, mid-execution, and fresh-start scenarios. If it fires false positives on the real project, it's not ready.
+4. **Test the validator against various project states**, including after milestone completion, mid-execution, and fresh-start scenarios. If it fires false positives, it's not ready.
 5. **Never auto-correct state.** The validator identifies drift; a separate explicit command (`state repair`) fixes it, and only with user confirmation.
 
 **Warning signs:**
@@ -172,7 +172,7 @@ You add end-to-end integration tests (init → plan → execute → verify) and 
 2. **Git-dependent tests are non-deterministic.** Integration tests that call `session-diff`, `commit`, or `rollback-info` depend on git state. If a test creates commits, the SHA changes every run. If it checks commit count, parallel test execution can see commits from other tests. The Codepipes blog (2018) identifies flaky tests as the #1 reason teams abandon test suites: "even a small number of flaky tests is enough to destroy the credibility of the rest."
 3. **Multi-step workflow tests are order-dependent.** A test for "init → plan → execute → verify" requires each step to succeed before the next. If step 2 fails, you get a cascade of 3 failures — all showing "execute failed" or "verify failed" when the root cause was in planning. Debugging requires understanding the full chain.
 4. **Temp directory explosion.** Each integration test creates a full `.planning/` directory structure with ROADMAP.md, STATE.md, config.json, phase directories, and plan files. A 10-test integration suite creates 10 temp directories with dozens of files each. Test setup is 50+ lines per test; the actual assertion is 5 lines. The test code becomes harder to read than the feature code.
-5. **Real project coupling.** The AGENTS.md directive says "Always test against `/mnt/raid/DEV/event-pipeline/.planning/`." Integration tests that rely on a specific real project are non-portable (they fail on any other developer's machine) and non-deterministic (the real project changes over time).
+5. **Real project coupling.** The AGENTS.md directive says "Always test against current working directory's `.planning/`." Integration tests that rely on a specific real project are non-portable (they fail on any other developer's machine) and non-deterministic (the real project changes over time).
 
 **Why it happens:**
 Integration tests for a CLI tool that processes files are inherently I/O-heavy. The black-box testing approach (run CLI as subprocess, check output) means every test pays the Node.js startup cost (~80ms), file creation cost, and JSON parsing cost. This is the correct approach for API contract testing, but it's expensive for behavioral testing.
@@ -188,7 +188,7 @@ Integration tests for a CLI tool that processes files are inherently I/O-heavy. 
 2. **Don't snapshot full JSON output.** Instead, assert specific fields that define the contract: `assert.ok(output.phase_found)`, `assert.strictEqual(output.plan_count, 3)`. This survives field additions without breaking.
 3. **Mock git for integration tests.** Create a helper that initializes a git repo in the temp directory with a known initial commit. Tests that need git history create deterministic commits with fixed messages/dates. Never depend on the real project's git history.
 4. **Use test fixtures, not inline file creation.** Create a `test/fixtures/basic-project/` directory with a canonical `.planning/` structure. Copy it into temp directories at test start. This eliminates the 50-line setup blocks and makes tests readable.
-5. **No real project dependencies in automated tests.** The event-pipeline testing is for manual validation. Automated tests must use self-contained fixtures. Add a comment: "// Manual: test against real project per AGENTS.md."
+5. **No real project dependencies in automated tests.** Testing against a specific project is for manual validation. Automated tests must use self-contained fixtures.
 6. **Limit integration tests to 5-10 per feature area.** They validate the critical paths only. Business logic is tested by the existing unit tests. Integration tests confirm: "Can the CLI parse this input format?" and "Does the multi-command workflow produce the expected state transition?"
 
 **Warning signs:**
@@ -372,7 +372,7 @@ Cross-cutting mistakes when these features interact with each other.
 
 Things that appear complete but have critical gaps.
 
-- [ ] **State validation "works":** Run it against event-pipeline mid-phase-execution, after milestone-complete, after manual commit, and with stale STATE.md. All 4 scenarios must either pass or produce accurate warnings.
+- [ ] **State validation "works":** Run it against projects in various states: mid-phase-execution, after milestone-complete, after manual commit, and with stale STATE.md. All 4 scenarios must either pass or produce accurate warnings.
 - [ ] **Cross-session memory "persists":** After 10 sessions, memory file is under 500 tokens. After a codebase change that restructures files, memory invalidates stale knowledge.
 - [ ] **Atomic decomposition "enforced":** Existing v1.0/v1.1 PLAN.md files pass the decomposition validator without changes. New plans that genuinely need splitting are detected.
 - [ ] **Verification "comprehensive":** Light mode adds <5% overhead to phase execution. Deep mode is opt-in. Test execution runs once at phase end, not per-plan.

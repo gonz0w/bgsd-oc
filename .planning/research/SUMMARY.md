@@ -109,7 +109,7 @@ The architecture is a hybrid: analytical intelligence lives in CLI modules (test
 
 3. **Agent Role Explosion** — The temptation to create `gsd-git-analyst`, `gsd-context-optimizer`, `gsd-task-router` fragments the system. Research shows diminishing returns past ~4 active agents, coordination overhead grows quadratically (DeepMind), 17x error amplification in unstructured networks. **Prevention:** Hard cap at current 11 roles. New intelligence = CLI data consumed by existing agents. Only justified new role: gsd-reviewer (writer/reviewer separation is an industry-standard split).
 
-4. **Self-Referential Corruption** — bGSD improving itself means bugs in Phase N affect planning of Phase N+1. v6.0 had exactly this: `--raw` removal caused 243 test failures caught by tests, but if tests had been affected, bug would have propagated silently. **Prevention:** Pin tool version at milestone start, canary project (`event-pipeline`) validation, separate dev/deploy via `deploy.sh`.
+4. **Self-Referential Corruption** — bGSD improving itself means bugs in Phase N affect planning of Phase N+1. v6.0 had exactly this: `--raw` removal caused 243 test failures caught by tests, but if tests had been affected, bug would have propagated silently. **Prevention:** Pin tool version at milestone start, test against current project, separate dev/deploy via `deploy.sh`.
 
 5. **Git Automation Surprise** — "Smart" git features conflict with developer's actual git state (dirty tree, rebase in progress, detached HEAD, shallow clones). **Prevention:** Every git-write operation is preview-first and gated. Read operations always safe. Test with pathological git states. **Recovery:** `git reflog` to find pre-automation state (minutes if reflog intact).
 <!-- /section -->
@@ -152,7 +152,7 @@ Based on research, suggested phase structure:
 
 ### Phase 6: Integration, Waves & Validation
 **Rationale:** Execution wave optimization is the highest-complexity differentiator and depends on all previous phases (orchestrator for routing, context scoping for parallel agents, git intelligence for worktree coordination). Final phase validates everything works together end-to-end.
-**Delivers:** Execution wave optimization (parallel subagent execution for independent plan waves, capped at 3-5 agents), end-to-end performance validation against Phase 1 baselines, canary project validation (`event-pipeline`), agent performance tracking foundation for feedback loop.
+**Delivers:** Execution wave optimization (parallel subagent execution for independent plan waves, capped at 3-5 agents), end-to-end performance validation against Phase 1 baselines, agent performance tracking foundation for feedback loop.
 **Features from FEATURES.md:** Execution wave optimization (P2), agent performance tracking (P2).
 **Avoids:** Pitfall #4 (self-referential corruption) — full canary validation and version comparison before milestone ship. Dynamic agent spawning anti-pattern (pre-planned parallelism, not self-spawning agents — Cursor's lesson).
 

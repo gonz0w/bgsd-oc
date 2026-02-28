@@ -634,3 +634,7 @@ gsd-tools phases list [--type type] [--phase N] [--include-archived]
 - **[Getting Started](getting-started.md)** — First project walkthrough
 - **[Expert Guide](expert-guide.md)** — Full control flow and advanced patterns
 - **[Architecture](architecture.md)** — Internal design
+- **[Agent System](agents.md)** — All 12 agents and their roles
+- **[Workflows](workflows.md)** — All 45 workflows
+- **[TDD Guide](tdd.md)** — TDD execution engine
+- **[Configuration](configuration.md)** — Full configuration reference

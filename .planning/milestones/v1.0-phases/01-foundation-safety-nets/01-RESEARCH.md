@@ -390,10 +390,10 @@ const CONFIG_SCHEMA = {
    - What's unclear: Whether the schema's `default: false` should be dynamic.
    - Recommendation: Keep `default: false` in schema. The auto-detection is a `cmdConfigEnsureSection()` behavior — it overrides the default at write time. Schema defines structure, not runtime logic.
 
-3. **Golden fixtures from event-pipeline for state mutation tests**
-   - What we know: STATE.md says "Golden fixture selection from event-pipeline needed before state mutation tests"
-   - What's unclear: Whether to use real event-pipeline STATE.md or craft minimal synthetic fixtures.
-   - Recommendation: Use **minimal synthetic fixtures** for unit tests (faster, no external dependency), but add one **integration test** that runs against the real event-pipeline STATE.md as a sanity check. The synthetic fixture should cover all 8 section patterns that the mutation commands target.
+3. **Golden fixtures for state mutation tests**
+   - What we know: STATE.md says "Golden fixture selection needed before state mutation tests"
+   - What's unclear: Whether to use real project STATE.md or craft minimal synthetic fixtures.
+   - Recommendation: Use **minimal synthetic fixtures** for unit tests (faster, no external dependency), but add one **integration test** that runs against a real STATE.md as a sanity check. The synthetic fixture should cover all 8 section patterns that the mutation commands target.
 
 4. **Should `parallelization` coercion be encoded in CONFIG_SCHEMA?**
    - What we know: `loadConfig()` has special logic: `{enabled: true}` → `true`. This is the only field with complex coercion.

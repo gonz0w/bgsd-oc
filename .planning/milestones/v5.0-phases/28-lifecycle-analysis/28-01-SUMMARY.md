@@ -60,14 +60,14 @@ completed: 2026-02-26
 - Created `src/lib/lifecycle.js` with extensible `LIFECYCLE_DETECTORS` registry matching the `FRAMEWORK_DETECTORS` pattern
 - Generic migration detector correctly orders numbered/timestamped files across `migrations/`, `db/migrate/`, and `priv/*/migrations/` directories
 - Elixir/Phoenix detector identifies config→boot→migration→seed→router lifecycle chain
-- Validated against real event-pipeline project (39 migration files across 2 services, proper capping and chain building)
+- Validated against real project data
 
 ## Task Commits
 
 Each task was committed atomically:
 
 1. **Task 1: Create lifecycle.js with detector registry and DAG builder** - `79b8b05` (feat)
-2. **Task 2: Verify lifecycle detection against event-pipeline project** - No code changes (verification-only task, all tests passed)
+2. **Task 2: Verify lifecycle detection** - No code changes (verification-only task, all tests passed)
 
 ## Files Created/Modified
 - `src/lib/lifecycle.js` - Core lifecycle analysis library with LIFECYCLE_DETECTORS registry, buildLifecycleGraph(), topological sort, chain flattening, and cycle detection integration via findCycles from deps.js

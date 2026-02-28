@@ -80,11 +80,11 @@ No TODOs, FIXMEs, placeholders, empty implementations, or console.log-only handl
 **Expected:** Formatted output showing chain arrows (→), node/chain counts, truncation for long chains
 **Why human:** Visual formatting quality can't be verified programmatically
 
-### 2. Event-Pipeline End-to-End
+### 2. End-to-End Test
 
-**Test:** Run `codebase lifecycle --raw` from `/mnt/raid/DEV/event-pipeline/` with existing intel
-**Expected:** Detects Elixir/Phoenix lifecycle patterns, migration ordering across services, config→boot→router chain
-**Why human:** Requires real project state and intel — depends on whether conventions were previously extracted
+**Test:** Run `codebase lifecycle --raw` from project directory with existing intel
+**Expected:** Detects lifecycle patterns appropriate to the project (Elixir/Phoenix, Node.js, Go, etc.)
+**Why human:** Requires real project state and intel
 
 ### Gaps Summary
 

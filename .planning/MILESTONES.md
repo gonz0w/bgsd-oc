@@ -1,5 +1,31 @@
 # Milestones
 
+## ✅ v7.0 Agent Orchestration & Efficiency (Shipped: 2026-02-27)
+
+**Delivered:** Intelligent agent orchestration with AST intelligence, task routing, context efficiency, TDD execution engine, code review gates, and stuck/loop detection
+
+**Phases completed:** 8 phases (37-44), 15 plans
+**Commits:** 72 | **Files changed:** 237 | **Lines:** +28,325 / -3,734
+**Timeline:** 2 days (2026-02-26 → 2026-02-27)
+**Tests:** 669 passing (3 pre-existing context-budget failures)
+**Bundle:** 1000KB
+
+**Key accomplishments:**
+- Built contract test safety net with snapshot-based consumer tests and enhanced git.js (structured log, diff, blame, branch info, pre-commit safety checks)
+- Added AST intelligence via acorn parser — function signatures, export analysis, per-function complexity metrics, ~1k token repo map, multi-language regex fallback
+- Created orchestration intelligence — task complexity scoring (1-5), automatic agent/model routing, execution mode selection (single/parallel/team)
+- Achieved 40-60% context reduction via agent manifests (whitelist-based), compact serialization, and task-scoped file injection using dependency graph + relevance scoring
+- Built gsd-reviewer agent with two-stage review (spec compliance + code quality), BLOCKER/WARNING/INFO severity classification, and commit attribution via git trailers
+- Implemented TDD execution engine with RED→GREEN→REFACTOR state machine, orchestrator-enforced gates, auto test-after-edit, anti-pattern detection, and stuck/loop recovery
+
+**What's next:** Ready for next milestone — `/gsd-new-milestone`
+
+**Archives:**
+- `.planning/milestones/v7.0-ROADMAP.md`
+- `.planning/milestones/v7.0-REQUIREMENTS.md`
+
+---
+
 ## ✅ v6.0 UX & Developer Experience (Shipped: 2026-02-27)
 
 **Delivered:** Polished CLI with shared formatting engine, TTY-aware branded output, tightened workflow output, and 11 slash command wrappers

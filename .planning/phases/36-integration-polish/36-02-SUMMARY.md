@@ -72,7 +72,7 @@ Each task was committed atomically:
 ## Decisions Made
 - AGENTS.md reduced from 90 to 59 lines — Completed Work section (history) and Optional Next Steps section (roadmap duplication) removed entirely
 - Added Slash Commands section listing all 11 `/gsd-*` commands with one-line purpose descriptions
-- Key Commands section compacted to 4 inline-commented lines (dropped `--raw` flag, dropped event-pipeline example)
+- Key Commands section compacted to 4 inline-commented lines (dropped `--raw` flag)
 - No dead code cleanup needed — Phase 35's --raw sweep was thorough
 
 ## Deviations from Plan

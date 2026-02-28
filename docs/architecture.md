@@ -1,6 +1,8 @@
 # GSD Architecture
 
-How GSD works internally. This document covers the two-layer design, agent system, data flow, and extension points.
+How bGSD works internally. This document covers the two-layer design, agent system, data flow, and extension points.
+
+> **See also:** [Agent System](agents.md) for detailed agent documentation, [Planning System](planning-system.md) for .planning/ structure, [Decisions](decisions.md) for architectural rationale.
 
 ---
 
@@ -8,14 +10,14 @@ How GSD works internally. This document covers the two-layer design, agent syste
 
 GSD separates **deterministic operations** from **AI reasoning**:
 
-- **Deterministic layer** (`gsd-tools.cjs`) — Parsing, validation, git, file I/O, state management. Always produces the same output for the same input. Zero runtime dependencies.
+- **Deterministic layer** (`gsd-tools.cjs`) — Parsing, validation, git, file I/O, state management, AST analysis, task classification. Always produces the same output for the same input.
 - **AI layer** (workflow `.md` files) — Agent behavior definitions. LLMs follow these as step-by-step prompts, calling gsd-tools for structured data.
 
 This means:
 - AI agents never parse markdown directly — they get clean JSON from gsd-tools
 - State changes are atomic — gsd-tools handles file writes and git commits
 - Workflows are portable — any LLM that follows markdown instructions can execute them
-- Testing is straightforward — 348 tests cover the deterministic layer
+- Testing is straightforward — 669 tests cover the deterministic layer
 
 ---
 
@@ -99,18 +101,33 @@ src/
     verify.js              # Quality gates, plan analysis, deliverable verification
     memory.js              # Persistent stores (decisions, bookmarks, lessons, todos)
     features.js            # Test coverage, token budgets, MCP discovery
-    misc.js                # Velocity, search, impact, rollback, tracing
+    misc.js                # Velocity, search, impact, rollback, tracing, TDD
     worktree.js            # Git worktree creation, merge, cleanup
     codebase.js            # Codebase intelligence (incremental analysis, conventions)
     env.js                 # Environment detection (26 language patterns)
+    mcp.js                 # MCP server operations
   lib/
     config.js              # Config loading with caching, schema validation, migration
     constants.js           # COMMAND_HELP, CONFIG_SCHEMA, MODEL_PROFILES
     context.js             # Token estimation via tokenx (~96% accuracy)
     frontmatter.js         # YAML frontmatter parsing and manipulation
-    git.js                 # Git operations (log, diff, status, commit, tag)
+    git.js                 # Git operations (log, diff, status, commit, tag, pre-commit checks)
     helpers.js             # File I/O with caching, path resolution, slug generation
     output.js              # JSON output formatting, field filtering, large output handling
+    format.js              # Table, color, banner, progress bar (TTY-aware)
+    ast.js                 # Acorn-based AST parsing for JS/TS
+    codebase-intel.js      # Codebase intelligence storage
+    conventions.js         # Convention extraction engine
+    deps.js                # Dependency graph (Tarjan's SCC)
+    lifecycle.js           # Lifecycle awareness
+    orchestration.js       # Task classification/routing
+    profiler.js            # Performance profiling
+    regex-cache.js         # Compiled regex cache
+    review/
+      stage-review.js      # Two-stage review (spec+quality)
+      severity.js          # BLOCKER/WARNING/INFO classification
+    recovery/
+      stuck-detector.js    # Stuck/loop detection + recovery
 ```
 
 **Build:** esbuild bundles all source into a single `bin/gsd-tools.cjs` file. Zero runtime dependencies in the built artifact.
@@ -135,6 +152,7 @@ src/
 | **gsd-research-synthesizer** | Merge research | 4 research documents | SUMMARY.md |
 | **gsd-roadmapper** | Create roadmap | Requirements, research, project context | ROADMAP.md |
 | **gsd-codebase-mapper** | Analyze codebase | Focus area (tech/arch/quality/concerns) | Codebase documents |
+| **gsd-reviewer** | Post-execution code review | Git diff, PLAN.md, CONVENTIONS.md | Severity-classified findings |
 | **gsd-integration-checker** | Cross-phase wiring | Phase verifications, summaries | Integration report |
 
 ### Model Profiles
@@ -389,3 +407,7 @@ Override auto-detection:
 - **[Getting Started](getting-started.md)** — First project walkthrough
 - **[Expert Guide](expert-guide.md)** — Full control flow
 - **[Command Reference](commands.md)** — Every command with options
+- **[Agent System](agents.md)** — Detailed agent documentation
+- **[Planning System](planning-system.md)** — How .planning/ works
+- **[Design Decisions](decisions.md)** — Why bGSD is built this way
+- **[TDD Guide](tdd.md)** — TDD execution engine

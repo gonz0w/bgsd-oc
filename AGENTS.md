@@ -25,7 +25,7 @@ npm test                                   # Full test suite (574+ tests)
 ```
 
 ## Development Rules
-1. **Test against real project**: Always test changes against `/mnt/raid/DEV/event-pipeline/.planning/`
+1. **Test against current project**: Always test against the current working directory's `.planning/`
 2. **Backward compatible**: All regex/parser changes must accept both old and new formats
 3. **No breaking changes**: Existing ROADMAP.md, STATE.md, PLAN.md files must keep working
 4. **Single-file CLI**: `gsd-tools.cjs` stays as one file (Node.js, zero dependencies)

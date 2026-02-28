@@ -1455,7 +1455,8 @@
         "src/commands/env.js",
         "src/commands/codebase.js",
         "src/commands/worktree.js",
-        "src/lib/codebase-intel.js"
+        "src/lib/codebase-intel.js",
+        "src/lib/context.js"
       ],
       "src/commands/intent.js": [
         "src/lib/output.js",
@@ -1477,7 +1478,8 @@
         "src/lib/constants.js",
         "src/lib/helpers.js",
         "src/lib/frontmatter.js",
-        "src/lib/git.js"
+        "src/lib/git.js",
+        "src/lib/codebase-intel.js"
       ],
       "src/commands/phase.js": [
         "src/lib/output.js",
@@ -1524,7 +1526,10 @@
         "src/lib/output.js"
       ],
       "src/lib/context.js": [
-        "src/lib/output.js"
+        "src/lib/output.js",
+        "src/lib/codebase-intel.js",
+        "src/lib/deps.js",
+        "src/lib/git.js"
       ],
       "src/lib/git.js": [
         "src/lib/output.js"
@@ -1597,7 +1602,8 @@
       "src/lib/context.js": [
         "bin/gsd-tools.test.cjs",
         "src/commands/codebase.js",
-        "src/commands/features.js"
+        "src/commands/features.js",
+        "src/commands/init.js"
       ],
       "src/lib/helpers.js": [
         "bin/gsd-tools.test.cjs",
@@ -1615,6 +1621,7 @@
         "bin/gsd-tools.test.cjs",
         "src/commands/codebase.js",
         "src/commands/features.js",
+        "src/lib/context.js",
         "src/lib/lifecycle.js"
       ],
       "src/lib/lifecycle.js": [
@@ -1625,6 +1632,8 @@
         "src/commands/codebase.js",
         "src/commands/features.js",
         "src/commands/init.js",
+        "src/commands/misc.js",
+        "src/lib/context.js",
         "src/lib/conventions.js",
         "src/lib/deps.js"
       ],
@@ -1648,6 +1657,7 @@
         "src/commands/verify.js",
         "src/commands/worktree.js",
         "src/lib/codebase-intel.js",
+        "src/lib/context.js",
         "src/router.js"
       ],
       "src/lib/conventions.js": [
@@ -1738,12 +1748,12 @@
     },
     "stats": {
       "total_files_parsed": 32,
-      "total_edges": 111,
+      "total_edges": 116,
       "languages_parsed": [
         "javascript"
       ],
       "parse_errors": 0
     },
-    "built_at": "2026-02-27T14:18:28.301Z"
+    "built_at": "2026-02-28T04:41:20.996Z"
   }
 }

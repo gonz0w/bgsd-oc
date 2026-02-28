@@ -1,8 +1,8 @@
 # bGSD (Get Stuff Done) — AI Project Planning for OpenCode
 
-A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). GSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
+A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**348 tests** | **Zero runtime dependencies** | **32 slash commands** | **100+ CLI operations** | **11 specialized AI agents**
+**669 tests** | **Zero runtime dependencies** | **32 slash commands** | **100+ CLI operations** | **12 specialized AI agents** | **7 milestones shipped**
 
 ---
 
@@ -14,15 +14,17 @@ AI coding assistants are powerful but chaotic. Without structure, you get:
 - No verification that what was built matches what was asked for
 - No way to pause, resume, or hand off work
 - No learning from past decisions
+- Error cascading from unchecked edits
 
 ## The Solution
 
-GSD provides a complete project lifecycle inside your AI editor:
+bGSD provides a complete project lifecycle inside your AI editor:
 
 ```
-Idea  -->  Requirements  -->  Roadmap  -->  Plans  -->  Execution  -->  Verification
-  |                                                                         |
-  +--  Intent tracking, session memory, quality gates, progress metrics  ---+
+Idea → Requirements → Roadmap → Plans → Execution → Verification
+  |                                                        |
+  +-- Intent tracking, session memory, quality gates,  ----+
+      TDD enforcement, review gates, progress metrics
 ```
 
 Every step produces structured documents in `.planning/` that agents read for context. Decisions persist. Progress is tracked. Quality is measured.
@@ -41,7 +43,7 @@ Then in OpenCode:
 /gsd-new-project
 ```
 
-That's it. GSD walks you through everything: what you want to build, how to break it down, and then executes it phase by phase.
+That's it. bGSD walks you through everything: what you want to build, how to break it down, and then executes it phase by phase.
 
 See the **[Getting Started Guide](docs/getting-started.md)** for the full walkthrough, or the **[Expert Guide](docs/expert-guide.md)** if you want full control.
 
@@ -51,13 +53,13 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
 ### Two Flows
 
-**Easy Flow** — Let GSD drive. Answer questions, approve plans, watch execution:
+**Easy Flow** — Let bGSD drive. Answer questions, approve plans, watch execution:
 
 ```
 /gsd-new-project           # Answer "what do you want to build?"
-                            # GSD creates requirements, roadmap, phases
-/gsd-plan-phase 1           # GSD creates executable plans for phase 1
-/gsd-execute-phase 1        # GSD builds it, commits per-task, verifies
+                            # bGSD creates requirements, roadmap, phases
+/gsd-plan-phase 1           # bGSD creates executable plans for phase 1
+/gsd-execute-phase 1        # bGSD builds it, commits per-task, verifies
 /gsd-progress               # See where things stand, get routed to next action
 ```
 
@@ -110,7 +112,7 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-new-project` | Initialize project: questioning, requirements, roadmap |
+| `/gsd-new-project` | Initialize project: questioning, research, roadmap |
 | `/gsd-map-codebase` | Analyze existing codebase (brownfield projects) |
 | `/gsd-plan-phase [N]` | Create executable plans for a phase |
 | `/gsd-execute-phase N` | Execute all plans in a phase |
@@ -125,7 +127,7 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 |---------|-------------|
 | `/gsd-resume-work` | Restore context from previous session |
 | `/gsd-pause-work` | Create handoff file for later |
-| `/gsd-quick` | Execute small tasks with GSD guarantees |
+| `/gsd-quick` | Execute small tasks with bGSD guarantees |
 | `/gsd-debug` | Systematic debugging with persistent state |
 
 ### Configuration
@@ -135,7 +137,7 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 | `/gsd-settings` | Interactive workflow configuration |
 | `/gsd-set-profile [quality\|balanced\|budget]` | Switch AI model tier |
 | `/gsd-health` | Check `.planning/` integrity |
-| `/gsd-update` | Update GSD to latest version |
+| `/gsd-update` | Update bGSD to latest version |
 
 See the **[Full Command Reference](docs/commands.md)** for all 32 commands with options and examples.
 
@@ -143,15 +145,16 @@ See the **[Full Command Reference](docs/commands.md)** for all 32 commands with 
 
 ## Key Features
 
-### 11 Specialized AI Agents
+### 12 Specialized AI Agents
 
-GSD doesn't use one generic agent for everything. Each task gets a purpose-built agent:
+bGSD doesn't use one generic agent for everything. Each task gets a purpose-built agent:
 
 | Agent | Role |
 |-------|------|
 | **gsd-planner** | Creates executable plans with task breakdown, dependencies, waves |
-| **gsd-executor** | Implements code, runs tests, commits per-task |
+| **gsd-executor** | Implements code, runs tests, commits per-task with attribution |
 | **gsd-verifier** | Verifies phase goals were actually achieved (not just tasks completed) |
+| **gsd-reviewer** | Two-stage review: spec compliance + code quality with severity classification |
 | **gsd-debugger** | Systematic debugging with hypothesis testing |
 | **gsd-phase-researcher** | Researches implementation approaches for a phase |
 | **gsd-project-researcher** | Parallel domain research (stack, features, architecture, pitfalls) |
@@ -160,6 +163,17 @@ GSD doesn't use one generic agent for everything. Each task gets a purpose-built
 | **gsd-codebase-mapper** | Parallel codebase analysis (4 agents, 7 documents) |
 | **gsd-integration-checker** | Cross-phase wiring verification |
 | **gsd-research-synthesizer** | Merges parallel research outputs |
+
+See the **[Agent System Guide](docs/agents.md)** for full details on each agent.
+
+### Intelligent Orchestration
+
+bGSD automatically routes work to the right agent with the right model:
+
+- **Task complexity scoring** (1-5) based on file count, cross-module reach, and test requirements
+- **Automatic model selection** — complex tasks get opus, simple tasks get sonnet
+- **Execution mode selection** — single/parallel/team mode from plan structure
+- **Agent context manifests** — each agent declares what context it needs; system provides only that (40-60% token reduction)
 
 ### Model Profiles
 
@@ -191,17 +205,48 @@ Plans within a phase are organized into dependency waves. Independent plans exec
 
 ```
 Wave 1: [Plan 01-01] [Plan 01-02]    # No dependencies, run parallel
-Wave 2: [Plan 01-03]                   # Depends on 01-01, waits
+Wave 2: [Plan 01-03]                  # Depends on 01-01, waits
 Wave 3: [Plan 01-04] [Plan 01-05]    # Depend on 01-03, run parallel
 ```
 
+### TDD Execution Engine
+
+Plans can specify `type: tdd` for test-driven development with orchestrator-enforced gates:
+
+```
+RED   → Write failing test → Verify it fails → Commit (GSD-Phase: red)
+GREEN → Write minimal code → Verify it passes → Commit (GSD-Phase: green)
+REFACTOR → Clean up → Verify tests still pass → Commit (GSD-Phase: refactor)
+```
+
+Includes anti-pattern detection (pre-test code, YAGNI violations, over-mocking) and auto test-after-edit to catch errors immediately.
+
+See the **[TDD Guide](docs/tdd.md)** for full details.
+
 ### Quality Gates
 
+- **Two-stage code review** — Spec compliance (does it match the plan?) then code quality (does it follow conventions?)
+- **Severity-classified findings** — BLOCKER (prevents completion), WARNING (advisory), INFO (informational)
 - **Test gating** — Plans fail if tests fail
 - **Requirement verification** — Track REQ-01 through plans to files on disk
 - **Regression detection** — Compare test results before/after changes
 - **Quality scoring** — A-F grades across 4 dimensions with trend tracking
 - **Intent drift** — Numeric score (0-100) measuring alignment with project goals
+- **Stuck/loop detection** — Identifies when executor is repeating failed patterns and triggers recovery
+
+### AST Intelligence & Repo Map
+
+- **Function signature extraction** — Acorn-based JS/TS parsing with regex fallback for other languages
+- **Repository map** — ~1k token compact codebase summary replacing full file contents in agent context
+- **Complexity metrics** — Per-function/module complexity scoring for task classification
+- **Dependency graph** — Module relationships across 6 languages with Tarjan's SCC cycle detection
+
+### Context Efficiency
+
+- **Agent context manifests** — Each agent declares required context; system provides only that
+- **Compact serialization** — 40-60% token reduction for agent consumption
+- **Task-scoped injection** — Loads only task-relevant files using dependency graph and relevance scoring
+- **Token budgets** — Bounded context injection prevents context rot
 
 ### Session Memory
 
@@ -215,16 +260,25 @@ Decisions, lessons, and bookmarks persist across `/clear` and session restarts:
 
 ### Git Integration
 
-- Per-task atomic commits during execution
+- Per-task atomic commits with agent attribution trailers
+- Pre-commit safety checks (dirty tree, rebase, detached HEAD, shallow clones)
 - Session diffs showing what happened since last activity
 - Rollback info with exact revert commands
+- TDD phase trailers for audit trail
 - Optional branch-per-phase or branch-per-milestone strategies
+
+### Codebase Intelligence
+
+- **Convention extraction** — Naming patterns, file organization, framework macros with confidence scoring
+- **Dependency graphs** — Import analysis across JS, TS, Python, Go, Elixir, Rust
+- **Lifecycle awareness** — Execution order detection (seeds, migrations, config, boot)
+- **Environment detection** — 26 manifest patterns, package managers, CI, test frameworks, Docker, MCP
 
 ---
 
 ## Configuration
 
-GSD is configured through `.planning/config.json`:
+bGSD is configured through `.planning/config.json`:
 
 | Setting | Default | Options |
 |---------|---------|---------|
@@ -241,6 +295,8 @@ GSD is configured through `.planning/config.json`:
 
 Interactive configuration: `/gsd-settings`
 
+See the **[Full Configuration Reference](docs/configuration.md)** for all options.
+
 ---
 
 ## Documentation
@@ -250,7 +306,16 @@ Interactive configuration: `/gsd-settings`
 | **[Getting Started](docs/getting-started.md)** | First project walkthrough, easy flow, minimal decisions |
 | **[Expert Guide](docs/expert-guide.md)** | Full control flow, all options, advanced patterns |
 | **[Command Reference](docs/commands.md)** | Every command with arguments, options, and examples |
-| **[Architecture](docs/architecture.md)** | How GSD works internally, agent system, tool design |
+| **[Architecture](docs/architecture.md)** | How bGSD works internally, agent system, tool design |
+| **[Agent System](docs/agents.md)** | All 12 agents, their roles, spawning, model profiles |
+| **[Workflows](docs/workflows.md)** | All 45 workflows, what they do, how they connect |
+| **[Planning System](docs/planning-system.md)** | How .planning/ works, document structure, lifecycle |
+| **[Configuration](docs/configuration.md)** | Full configuration reference with all options |
+| **[TDD Guide](docs/tdd.md)** | TDD execution engine, RED-GREEN-REFACTOR, anti-patterns |
+| **[Design Decisions](docs/decisions.md)** | Why bGSD is built the way it is, with rationale |
+| **[Research & Analysis](docs/research.md)** | Competitive audit, research methodology, key findings |
+| **[Version History](docs/milestones.md)** | Every milestone, what shipped, metrics |
+| **[Troubleshooting](docs/troubleshooting.md)** | Common issues and solutions |
 
 ---
 
@@ -265,7 +330,7 @@ cd gsd-opencode
 npm install
 npm run build
 
-# Run tests (node:test, 348 tests)
+# Run tests (node:test, 669 tests)
 npm test
 
 # Test a specific command
@@ -290,21 +355,36 @@ src/
     verify.js              # Quality gates, plan analysis
     memory.js              # Persistent memory stores
     features.js            # Test coverage, token budgets, MCP
-    misc.js                # Velocity, search, impact, rollback
+    misc.js                # Velocity, search, impact, rollback, TDD
     worktree.js            # Git worktree isolation
     codebase.js            # Codebase intelligence
     env.js                 # Environment detection
+    mcp.js                 # MCP server operations
   lib/
     config.js              # Config loading, migration, schema validation
     constants.js           # Command help, schemas, model profiles
     context.js             # Token estimation (tokenx)
     frontmatter.js         # YAML frontmatter parsing
-    git.js                 # Git operations
+    git.js                 # Git operations (log, diff, status, commit, tag)
     helpers.js             # File I/O, caching, paths
     output.js              # JSON formatting, field filtering
+    format.js              # Table, color, banner, progress bar
+    ast.js                 # Acorn-based AST parsing
+    codebase-intel.js      # Codebase intelligence storage
+    conventions.js         # Convention extraction engine
+    deps.js                # Dependency graph (Tarjan's SCC)
+    lifecycle.js           # Lifecycle awareness
+    orchestration.js       # Task classification/routing
+    profiler.js            # Performance profiling
+    regex-cache.js         # Compiled regex cache
+    review/
+      stage-review.js      # Two-stage review (spec+quality)
+      severity.js          # BLOCKER/WARNING/INFO classification
+    recovery/
+      stuck-detector.js    # Stuck/loop detection + recovery
 ```
 
-Built with esbuild into a single `bin/gsd-tools.cjs` file (zero runtime dependencies). Workflows are markdown files that agents follow as step-by-step prompts, calling gsd-tools for structured data.
+Built with esbuild into a single `bin/gsd-tools.cjs` file. Workflows are markdown files that agents follow as step-by-step prompts, calling gsd-tools for structured data.
 
 ## Requirements
 

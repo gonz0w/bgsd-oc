@@ -1,35 +1,38 @@
-# GSD Plugin for OpenCode
+# bGSD Plugin for OpenCode
 
 ## What This Is
 
-A zero-dependency, single-file Node.js CLI built from 18 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in OpenCode. Six major versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring, 297 tests), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), and v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI, workflow tightening).
+A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in OpenCode. Seven major versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), and v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates).
 
 ## Core Value
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v7.0 Agent Orchestration & Efficiency
-
-**Goal:** Make GSD the definitive agent orchestrator for building large software — add missing agent roles, improve orchestration intelligence, optimize performance, and reduce context load without losing fidelity.
-
-**Target features:**
-- New specialized agent roles (code review, test generation, refactoring, dependency management)
-- Smarter orchestration (task routing, parallelism, agent-to-agent coordination)
-- Git workflow enhancements (research-driven — branch management, PR workflows, conflict handling)
-- Performance optimizations where impactful
-- Context window reduction across workflows, references, and CLI output (fidelity-preserving)
-
 ## Current State
 
-**Last shipped:** v6.0 UX & Developer Experience (2026-02-27)
+**Last shipped:** v7.0 Agent Orchestration & Efficiency (2026-02-27)
 
-**Shipped in v6.0:**
+**Shipped in v7.0:**
+- Contract test safety net with snapshot-based consumer tests for all init/state JSON output
+- Enhanced git.js with structured log, diff, blame, branch info, pre-commit safety checks
+- AST intelligence via acorn parser — function signatures, export analysis, complexity metrics, ~1k token repo map
+- Orchestration intelligence — task complexity scoring (1-5), automatic agent/model routing, execution mode selection
+- Context efficiency — agent manifests (40-60% token reduction), compact serialization, task-scoped file injection
+- gsd-reviewer agent with two-stage review (spec compliance + code quality), severity classification (BLOCKER/WARNING/INFO)
+- TDD execution engine — RED→GREEN→REFACTOR state machine with orchestrator gates, auto test-after-edit
+- Commit attribution via git trailers, anti-pattern detection, stuck/loop recovery
+
+<details>
+<summary>Previous: v6.0 UX & Developer Experience (shipped 2026-02-27)</summary>
+
 - Shared formatting engine (`src/lib/format.js`) with formatTable, progressBar, banner, box, and ~2KB picocolors-pattern color utility
 - Smart output detection — human-readable branded output in TTY mode, JSON when piped — with `--raw` and `--pretty` overrides
 - All user-facing commands migrated to shared formatting (init, state, verify, codebase, velocity, intent)
 - Workflow output tightened across 27 files (455-line reduction), ui-brand.md updated with bGSD patterns
 - 11 slash command wrappers created in `commands/` directory with deploy.sh safe sync
 - AGENTS.md rewritten as lean 59-line project index
+
+</details>
 
 <details>
 <summary>Previous: v5.0 Codebase Intelligence (shipped 2026-02-26)</summary>
@@ -58,8 +61,8 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ### Validated
 
-- ✓ 79 CLI commands with JSON-over-stdout interface — existing
-- ✓ Zero-dependency single-file architecture — existing
+- ✓ 100+ CLI commands with JSON-over-stdout interface — existing
+- ✓ Single-file architecture via esbuild — existing
 - ✓ Markdown parsing with 309+ regex patterns — existing
 - ✓ YAML frontmatter extraction and reconstruction — existing
 - ✓ Git integration (commit, diff, log) via execSync — existing
@@ -82,7 +85,7 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Cross-session memory with dual-store pattern and sacred data protection — v2.0
 - ✓ Comprehensive verification (test gating, requirement checking, regression detection) — v2.0
 - ✓ Multi-dimensional quality scoring with A-F grades and trend tracking — v2.0
-- ✓ Integration test suite: 574 tests, E2E simulation, snapshot tests — v2.0+
+- ✓ Integration test suite: 669 tests, E2E simulation, snapshot tests — v2.0+
 - ✓ INTENT.md template and CRUD commands — v3.0
 - ✓ Intent drift validation (4 signals, 0-100 score, advisory pre-flight) — v3.0
 - ✓ Workflow-wide intent injection — v3.0
@@ -100,14 +103,16 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ All user-facing commands produce branded output in TTY mode — v6.0
 - ✓ Workflow output tightened (455-line reduction across 27 files) — v6.0
 - ✓ 11 slash command wrappers created and deployed — v6.0
-
-### Active
-
-- [ ] New specialized agent roles for large-scale software development
-- [ ] Improved orchestration intelligence (task routing, parallelism, coordination)
-- [ ] Git workflow enhancements (research-driven)
-- [ ] Performance optimizations across CLI and workflows
-- [ ] Context window reduction without fidelity loss
+- ✓ Contract tests (snapshot-based) for all init/state JSON output — v7.0
+- ✓ Enhanced git.js (structured log, diff, blame, branch info, pre-commit checks) — v7.0
+- ✓ AST intelligence via acorn (signatures, exports, complexity, repo map) — v7.0
+- ✓ Orchestration intelligence (task classification, model routing, execution mode) — v7.0
+- ✓ Context efficiency (agent manifests, compact serialization, task-scoped injection) — v7.0
+- ✓ gsd-reviewer agent with two-stage review and severity classification — v7.0
+- ✓ TDD execution engine (RED→GREEN→REFACTOR with orchestrator gates) — v7.0
+- ✓ Commit attribution via git trailers — v7.0
+- ✓ Auto test-after-edit and anti-pattern detection — v7.0
+- ✓ Stuck/loop detection with recovery — v7.0
 
 ### Out of Scope
 
@@ -118,16 +123,20 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - SQLite codebase index — Heavy dependency, marginal ROI
 - Runtime MCP server connection — Static analysis sufficient
 - CI/CD pipeline management — Handled by external tooling
+- TypeScript migration — Not worth 34-module migration cost
+- Autonomous agent teams — Human-in-the-loop is correct
+- Dynamic agent spawning — Pre-planned parallelism over self-spawning
+- Agent role explosion — Cap at 12 roles; intelligence = data, not agents
 
 ## Context
 
-Shipped v1.0 through v6.0. 574 tests passing, 18 src/ modules, 681KB bundle, esbuild bundler.
+Shipped v1.0 through v7.0. 669 tests passing, 34 src/ modules, 1000KB bundle, esbuild bundler.
 Platform: OpenCode.
-Tech stack: Node.js 18+, node:test, esbuild, tokenx (bundled), zero runtime dependencies.
-Source: 18 modules — `src/lib/` (9 modules) and `src/commands/` (8 modules) + router + index.
+Tech stack: Node.js 18+, node:test, esbuild, tokenx (bundled), acorn (bundled).
+Source: 34 modules — `src/lib/` (18 modules) and `src/commands/` (14 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
 
-Known tech debt: None.
+Known tech debt: 3 pre-existing test failures in context-budget (plan path validation).
 
 ## Constraints
 
@@ -135,17 +144,17 @@ Known tech debt: None.
 - **No breaking changes**: Existing ROADMAP.md, STATE.md, PLAN.md files must keep working
 - **Single-file deploy**: `deploy.sh` must continue to work — bundle to single file if splitting source
 - **Node.js 18+**: Minimum version (for fetch, node:test) — formalized in package.json
-- **Test against real project**: Always test against `/mnt/raid/DEV/event-pipeline/.planning/`
-- **No artificial bundle budget**: Code quality and necessity gate additions, not arbitrary size limits
+- **Test against current project**: Always test against current working directory's `.planning/`
+- **Agent cap**: Maximum 12 agent roles; new intelligence delivered as CLI data, not new agents
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Allow dev dependencies via bundler | Enables esbuild, proper test tooling while keeping single-file deploy | Good — esbuild bundles 18 modules to single file |
+| Allow dev dependencies via bundler | Enables esbuild, proper test tooling while keeping single-file deploy | Good — esbuild bundles 34 modules to single file |
 | In-memory Map cache over lru-cache | CLI is short-lived process (<5s); plain Map needs no eviction | Good — simpler, zero dependency |
 | Debug logging over error throwing | Most silent catches are "optional data" patterns | Good — 96 catch blocks instrumented |
-| 18-module split (9 lib + 8 commands + router) | Logical grouping by domain, strict dependency direction | Good — maintainable, no circular imports |
+| 34-module split (18 lib + 14 commands + router + index) | Logical grouping by domain, strict dependency direction | Good — maintainable, no circular imports |
 | tokenx for token estimation | 4.5KB bundled, ~96% accuracy, zero deps | Good — replaced broken lines*4 heuristic |
 | Advisory-only state validation | Never block workflows; warn and let user decide | Good — catches drift without disrupting |
 | Dual-store pattern (STATE.md + memory.json) | Human-readable authority + machine-optimized caching | Good — decisions survive sessions |
@@ -153,9 +162,15 @@ Known tech debt: None.
 | Structured assertions over Gherkin | 80% benefit at 20% ceremony | Good — simple, readable, testable |
 | Worktree three-gate check | worktree_enabled AND parallelization AND multi-plan wave | Good — conservative fallback to sequential |
 | Single-module format.js | All formatting primitives in one file, picocolors inline | Good — zero-dep, TTY-aware, ~2KB color |
-| Smart output TTY detection | Human-readable when interactive, JSON when piped | Good — backward-compatible, --raw accepted |
-| Co-located formatter functions | Formatters next to command handlers, not centralized | Good — only user-facing commands migrated |
-| bGSD branding | Subtle rename from GSD across all output paths | Good — consistent brand identity |
+| Smart output TTY detection | Human-readable when interactive, JSON when piped | Good — backward-compatible |
+| acorn for AST parsing | 114KB bundled, zero deps, most widely-used JS parser | Good — enables repo map, complexity metrics |
+| Intelligence as data, not agents | New capabilities = CLI data for existing agents, not new roles | Good — avoids coordination overhead |
+| Hybrid snapshot strategy | Full snapshots for high-value, field-level for others | Good — catches regressions without brittle tests |
+| Agent manifests whitelist | Agents declare what they need; system provides only that | Good — 40-60% token reduction |
+| Two-stage review (spec + quality) | Catches both "built wrong thing" and "built it wrong" | Good — dual failure mode coverage |
+| TDD as opt-in plan type | Not all work benefits from test-first | Good — discipline when wanted, no overhead when not |
+| Stuck/loop detection at 3 failures | Prevents token waste from repeated failed patterns | Good — automatic recovery |
+| Graduated review enforcement | Start advisory, graduate to blocking for BLOCKERs | Good — builds trust before gating |
 
 ---
-*Last updated: 2026-02-26 after v7.0 milestone start*
+*Last updated: 2026-02-27 after v7.0 milestone completion*
