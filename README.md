@@ -98,7 +98,7 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
   research/               # Domain research (optional)
   codebase/               # Codebase analysis documents (brownfield)
-  memory/                 # Persistent stores (decisions, bookmarks, lessons)
+  memory/                 # Persistent stores (decisions, bookmarks, lessons, trajectories)
   todos/                  # Captured ideas and tasks
   debug/                  # Debug session state files
   quick/                  # Quick task plans and summaries
@@ -283,12 +283,49 @@ See the **[TDD Guide](docs/tdd.md)** for full details.
 
 ### Session Memory
 
-Decisions, lessons, and bookmarks persist across `/clear` and session restarts:
+Decisions, lessons, bookmarks, and trajectory journals persist across `/clear` and session restarts:
 
 ```
 /gsd-search-decisions "database choice"   # Find past decisions
 /gsd-search-lessons "auth"                # Find lessons learned
 /gsd-velocity                             # Plans/day, completion forecast
+```
+
+### Trajectory Engineering (v7.1)
+
+Structured exploration for comparing implementation approaches. Checkpoint your work, try different strategies, compare metrics, and choose a winner — all while preserving planning state.
+
+```
+# Save a checkpoint before trying a new approach
+node bin/gsd-tools.cjs trajectory checkpoint auth-strategy --description "JWT approach"
+
+# Try another approach, checkpoint again (auto-increments to attempt-2)
+node bin/gsd-tools.cjs trajectory checkpoint auth-strategy --description "Session-based approach"
+
+# Compare all checkpoints with metrics
+node bin/gsd-tools.cjs trajectory list
+```
+
+**What checkpoints capture automatically:**
+- **Test metrics** — total/pass/fail from your test suite
+- **LOC delta** — insertions, deletions, files changed (last 5 commits)
+- **Cyclomatic complexity** — aggregate complexity of recently changed files
+- **Git branch** — permanent ref at `trajectory/<scope>/<name>/attempt-N`
+
+**Selective rewind** — roll back source code to any checkpoint while preserving `.planning/`, `package.json`, `.gitignore`, and other protected files:
+
+```
+# Preview what would change
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --dry-run
+
+# Execute the rewind
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --confirm
+```
+
+**Trajectory journal** — a sacred memory store (never auto-pruned) that records checkpoints, decisions, observations, and hypotheses throughout exploration. Query it with:
+
+```
+node bin/gsd-tools.cjs memory read --store trajectories --category checkpoint
 ```
 
 ### Git Integration
@@ -299,6 +336,8 @@ Decisions, lessons, and bookmarks persist across `/clear` and session restarts:
 - Rollback info with exact revert commands
 - TDD phase trailers for audit trail
 - Optional branch-per-phase or branch-per-milestone strategies
+- **Trajectory branches** — dedicated exploration branches via `git trajectory-branch`
+- **Selective rewind** — roll back code to any git ref while preserving planning state and root configs
 
 ### Codebase Intelligence
 
@@ -388,6 +427,7 @@ src/
     verify.js              # Quality gates, plan analysis
     memory.js              # Persistent memory stores
     features.js            # Test coverage, token budgets, MCP
+    trajectory.js          # Trajectory engineering (checkpoint, list)
     misc.js                # Velocity, search, impact, rollback, TDD
     worktree.js            # Git worktree isolation
     codebase.js            # Codebase intelligence

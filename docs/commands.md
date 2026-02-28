@@ -630,7 +630,7 @@ gsd-tools memory ensure-dir
 gsd-tools memory compact [--store name] [--threshold N] [--dry-run]
 ```
 
-Stores: `decisions`, `lessons` (sacred — never pruned), `bookmarks` (trimmed to 20), `todos`.
+Stores: `decisions`, `lessons`, `trajectories` (sacred — never pruned), `bookmarks` (trimmed to 20), `todos`.
 
 #### `codebase` — Codebase Intelligence
 
@@ -716,25 +716,155 @@ gsd-tools mcp profile [--window N] [--apply] [--dry-run] [--restore]
 
 #### `trajectory` — Trajectory Engineering
 
-Create named checkpoints with auto-metrics (test count, LOC delta, cyclomatic complexity). Creates git branch at `trajectory/<scope>/<name>/attempt-N` and writes journal entries to the trajectories memory store.
+Structured exploration system for checkpointing, comparing, and choosing between implementation approaches.
 
+##### `trajectory checkpoint <name>`
+
+Create a named checkpoint with automatically captured quality metrics. Creates a git branch as a permanent reference and writes a journal entry.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `<name>` | positional | required | Checkpoint name (alphanumeric, hyphens, underscores) |
+| `--scope <scope>` | string | `"phase"` | Scope level (e.g., `phase`, `task`, `milestone`) |
+| `--description <text>` | string | none | Human-readable context for this checkpoint |
+
+**Behavior:**
+1. Validates no uncommitted changes outside `.planning/`
+2. Counts existing checkpoints with same scope+name, auto-increments attempt number
+3. Creates git branch at `trajectory/<scope>/<name>/attempt-N` (ref only, no checkout)
+4. Collects metrics (fault-tolerant — partial metrics if any collector fails):
+   - **Tests:** runs test suite, captures total/pass/fail
+   - **LOC delta:** insertions, deletions, files changed from last 5 commits
+   - **Complexity:** cyclomatic complexity of recently changed `.js` files
+5. Generates unique ID (`tj-XXXXXX`) with collision detection
+6. Writes entry to `.planning/memory/trajectory.json`
+
+**Examples:**
 ```bash
-gsd-tools trajectory checkpoint <name> [--scope <scope>] [--description <text>]
-gsd-tools trajectory list [--scope <scope>] [--name <name>] [--limit N]
+# Basic checkpoint
+gsd-tools trajectory checkpoint auth-flow
+
+# With scope and description
+gsd-tools trajectory checkpoint auth-flow --scope task --description "JWT with refresh tokens"
+
+# Repeated calls auto-increment: attempt-1, attempt-2, etc.
+gsd-tools trajectory checkpoint auth-flow
+gsd-tools trajectory checkpoint auth-flow
 ```
+
+**Output:**
+```json
+{
+  "created": true,
+  "checkpoint": "auth-flow",
+  "branch": "trajectory/phase/auth-flow/attempt-1",
+  "attempt": 1,
+  "git_ref": "abc1234...",
+  "metrics": {
+    "tests": { "total": 716, "pass": 716, "fail": 0 },
+    "loc_delta": { "insertions": 50, "deletions": 12, "files_changed": 4 },
+    "complexity": { "total": 25, "files_analyzed": 3 }
+  }
+}
+```
+
+##### `trajectory list`
+
+List all checkpoints with metrics. Dual-mode output: formatted table in terminal, JSON when piped.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--scope <scope>` | string | all | Filter by scope |
+| `--name <name>` | string | all | Filter by checkpoint name |
+| `--limit <N>` | integer | all | Limit number of results |
+
+**Examples:**
+```bash
+# List all checkpoints
+gsd-tools trajectory list
+
+# Filter by name
+gsd-tools trajectory list --name auth-flow
+
+# Filter by scope with limit
+gsd-tools trajectory list --scope task --limit 5
+```
+
+**Terminal output** shows a color-coded table:
+```
+Name        Scope  Attempt  Ref      Tests     LOC         Age
+auth-flow   phase  2        def4567  716/716   +50 -12     2 hours ago
+auth-flow   phase  1        abc1234  710/716   +30 -5      5 hours ago
+```
+
+---
 
 #### `git` — Structured Git Intelligence
 
-Structured git operations with JSON output. Includes selective code rewind (protects `.planning/` and root configs) and trajectory branch creation.
+Structured git operations with JSON output. Includes selective code rewind and trajectory branch creation.
+
+##### Standard git operations
 
 ```bash
 gsd-tools git log [--count N] [--since D] [--until D] [--author A] [--path P]
 gsd-tools git diff-summary [--from ref] [--to ref] [--path P]
 gsd-tools git blame <file>
 gsd-tools git branch-info
-gsd-tools git rewind --ref <ref> [--confirm] [--dry-run]
-gsd-tools git trajectory-branch --phase <N> --slug <name> [--push]
 ```
+
+##### `git rewind --ref <ref>` — Selective Code Rewind
+
+Roll back source code to any git ref while preserving planning state and root configuration files.
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--ref <ref>` | string | yes | Git ref to rewind to (SHA, branch, `HEAD~N`) |
+| `--dry-run` | boolean | no | Preview changes without modifying files |
+| `--confirm` | boolean | no | Required to execute rewind |
+
+**Protected paths** (never rewound):
+- `.planning/` (entire directory)
+- `package.json`, `package-lock.json`
+- `tsconfig.json`, `tsconfig.*.json`
+- `.gitignore`, `.env`, `.env.*`
+
+**Three-gate safety:**
+1. `--dry-run` — returns change list, no modifications
+2. No flags — returns `needs_confirm: true` with change preview
+3. `--confirm` — executes rewind with auto-stash if working tree is dirty
+
+**Examples:**
+```bash
+# Preview rewind to a trajectory checkpoint
+gsd-tools git rewind --ref trajectory/phase/auth-flow/attempt-1 --dry-run
+
+# Execute rewind
+gsd-tools git rewind --ref trajectory/phase/auth-flow/attempt-1 --confirm
+
+# Rewind to any git ref
+gsd-tools git rewind --ref HEAD~3 --confirm
+```
+
+##### `git trajectory-branch` — Exploration Branches
+
+Create dedicated branches for longer trajectory explorations.
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--phase <N>` | string | yes | Phase number |
+| `--slug <name>` | string | yes | Short name slug |
+| `--push` | boolean | no | Push to origin with upstream tracking |
+
+**Examples:**
+```bash
+# Create local exploration branch
+gsd-tools git trajectory-branch --phase 5 --slug auth-refactor
+
+# Create and push
+gsd-tools git trajectory-branch --phase 5 --slug auth-refactor --push
+```
+
+Creates branch at `gsd/trajectory/<phase>-<slug>`. Unlike `trajectory checkpoint`, this **does** check out the new branch.
 
 #### `classify` — Task Complexity Classification
 

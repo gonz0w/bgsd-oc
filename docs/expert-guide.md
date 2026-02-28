@@ -323,12 +323,13 @@ Tracks trend across plans for quality trajectory.
 
 ### Persistent Stores
 
-bGSD maintains 4 memory stores in `.planning/memory/`:
+bGSD maintains 5 memory stores in `.planning/memory/`:
 
 | Store | Content | Sacred? |
 |-------|---------|---------|
 | `decisions` | Technical decisions with rationale | Yes (never pruned) |
 | `lessons` | Lessons learned from execution | Yes (never pruned) |
+| `trajectories` | Checkpoints, exploration decisions, observations | Yes (never pruned) |
 | `bookmarks` | Session position markers | No (trimmed to 20) |
 | `todos` | Captured ideas and tasks | No |
 
@@ -355,6 +356,152 @@ Memory is trimmed by priority when approaching token budget limits.
 /gsd-add-todo Fix the edge case in user validation
 /gsd-check-todos                      # List and work on todos
 /gsd-check-todos auth                 # Filter by area
+```
+
+---
+
+## Trajectory Engineering
+
+When exploring implementation approaches, trajectory engineering provides structured checkpointing, metrics capture, and selective rewind — replacing ad-hoc branching with measurable, journaled exploration.
+
+### Creating Checkpoints
+
+Save a named checkpoint at the current state. Each checkpoint automatically captures test metrics, LOC delta, and cyclomatic complexity:
+
+```bash
+# Basic checkpoint
+node bin/gsd-tools.cjs trajectory checkpoint auth-strategy
+
+# With scope and description
+node bin/gsd-tools.cjs trajectory checkpoint auth-strategy \
+  --scope phase \
+  --description "JWT approach with refresh tokens"
+```
+
+**What happens under the hood:**
+1. Validates no uncommitted changes (outside `.planning/`)
+2. Creates a git branch at `trajectory/<scope>/<name>/attempt-N` (ref only — no checkout)
+3. Runs your test suite and captures pass/fail counts
+4. Computes LOC delta from recent commits
+5. Calculates cyclomatic complexity of changed files
+6. Writes a journal entry to `.planning/memory/trajectory.json`
+
+Calling `checkpoint` again with the same name auto-increments the attempt number (attempt-1, attempt-2, etc.).
+
+### Listing and Comparing Checkpoints
+
+```bash
+# List all checkpoints
+node bin/gsd-tools.cjs trajectory list
+
+# Filter by scope or name
+node bin/gsd-tools.cjs trajectory list --scope phase --name auth-strategy
+
+# Limit results
+node bin/gsd-tools.cjs trajectory list --limit 5
+```
+
+In a terminal, this renders a color-coded table showing:
+
+| Column | Content |
+|--------|---------|
+| Name | Checkpoint name |
+| Scope | phase, task, etc. |
+| Attempt | Auto-incremented attempt number |
+| Ref | Short git SHA |
+| Tests | Pass/fail (green if all pass, red otherwise) |
+| LOC | Lines added/removed |
+| Age | Relative time since checkpoint |
+
+### Selective Rewind
+
+Roll back source code to any git ref while preserving planning state and root configs:
+
+```bash
+# Preview changes (safe, read-only)
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --dry-run
+
+# Execute rewind
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --confirm
+```
+
+**Protected paths** (never rewound):
+- `.planning/` (entire directory)
+- `package.json`, `package-lock.json`
+- `tsconfig.json`, `tsconfig.*.json`
+- `.gitignore`, `.env`, `.env.*`
+
+**Three-gate safety model:**
+1. `--dry-run` — shows what would change, no modifications
+2. No flags — returns a confirmation prompt with change list
+3. `--confirm` — executes the rewind with auto-stash of dirty files
+
+### Trajectory Branches
+
+Create dedicated exploration branches for longer investigations:
+
+```bash
+# Create a trajectory branch
+node bin/gsd-tools.cjs git trajectory-branch --phase 5 --slug auth-refactor
+
+# Create and push to origin
+node bin/gsd-tools.cjs git trajectory-branch --phase 5 --slug auth-refactor --push
+```
+
+Creates branch at `gsd/trajectory/5-auth-refactor`. Unlike `trajectory checkpoint`, this **does** check out the new branch.
+
+### Trajectory Journal
+
+The trajectory memory store records more than just checkpoints. Use it as an exploration log:
+
+```bash
+# Record a decision
+node bin/gsd-tools.cjs memory write --store trajectories \
+  --entry '{"category":"decision","text":"JWT chosen over sessions for stateless scaling","confidence":"high"}'
+
+# Record an observation
+node bin/gsd-tools.cjs memory write --store trajectories \
+  --entry '{"category":"observation","text":"Redis sessions add 50ms latency per request"}'
+
+# Record a hypothesis
+node bin/gsd-tools.cjs memory write --store trajectories \
+  --entry '{"category":"hypothesis","text":"OAuth2 PKCE flow may be simpler than custom JWT","confidence":"medium"}'
+
+# Query the journal
+node bin/gsd-tools.cjs memory read --store trajectories --category decision
+node bin/gsd-tools.cjs memory read --store trajectories --from 2026-02-01 --limit 10
+```
+
+Valid categories: `decision`, `observation`, `correction`, `hypothesis`
+Confidence levels: `high`, `medium`, `low`
+
+The trajectory store is **sacred** — it is never auto-compacted, so your exploration history is permanent.
+
+### Typical Exploration Workflow
+
+```bash
+# 1. Start exploring — checkpoint current state
+node bin/gsd-tools.cjs trajectory checkpoint db-layer --description "Prisma ORM"
+
+# 2. Build approach A, run tests, iterate
+# ... write code ...
+
+# 3. Checkpoint approach A results
+node bin/gsd-tools.cjs trajectory checkpoint db-layer --description "Drizzle ORM"
+
+# 4. Build approach B
+# ... write code ...
+
+# 5. Compare metrics
+node bin/gsd-tools.cjs trajectory list --name db-layer
+
+# 6. Approach B has worse test results — rewind to approach A
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/db-layer/attempt-1 --dry-run
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/db-layer/attempt-1 --confirm
+
+# 7. Record why
+node bin/gsd-tools.cjs memory write --store trajectories \
+  --entry '{"category":"decision","text":"Chose Prisma over Drizzle — 15% fewer test failures, better type inference","confidence":"high"}'
 ```
 
 ---

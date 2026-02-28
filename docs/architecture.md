@@ -17,7 +17,7 @@ This means:
 - AI agents never parse markdown directly — they get clean JSON from gsd-tools
 - State changes are atomic — gsd-tools handles file writes and git commits
 - Workflows are portable — any LLM that follows markdown instructions can execute them
-- Testing is straightforward — 669 tests cover the deterministic layer
+- Testing is straightforward — 716 tests cover the deterministic layer
 
 ---
 
@@ -99,7 +99,8 @@ src/
     phase.js               # Phase lifecycle, plan indexing, worktree management
     roadmap.js             # ROADMAP.md parsing, requirement tracking
     verify.js              # Quality gates, plan analysis, deliverable verification
-    memory.js              # Persistent stores (decisions, bookmarks, lessons, todos)
+    memory.js              # Persistent stores (decisions, bookmarks, lessons, todos, trajectories)
+    trajectory.js          # Trajectory engineering (checkpoint, list, metrics collection)
     features.js            # Test coverage, token budgets, MCP discovery
     misc.js                # Velocity, search, impact, rollback, tracing, TDD
     worktree.js            # Git worktree creation, merge, cleanup
@@ -111,7 +112,7 @@ src/
     constants.js           # COMMAND_HELP, CONFIG_SCHEMA, MODEL_PROFILES
     context.js             # Token estimation via tokenx (~96% accuracy)
     frontmatter.js         # YAML frontmatter parsing and manipulation
-    git.js                 # Git operations (log, diff, status, commit, tag, pre-commit checks)
+    git.js                 # Git operations (log, diff, status, commit, tag, pre-commit checks, selective rewind, trajectory branches)
     helpers.js             # File I/O with caching, path resolution, slug generation
     output.js              # JSON output formatting, field filtering, large output handling
     format.js              # Table, color, banner, progress bar (TTY-aware)
@@ -203,6 +204,33 @@ Several workflows spawn multiple agents in parallel:
 | `/gsd-map-codebase` | 4x gsd-codebase-mapper (tech, arch, quality, concerns) |
 | `/gsd-execute-phase` | N x gsd-executor (within each wave) |
 | `/gsd-verify-work` | N x debug agents (one per UAT gap) |
+
+### Trajectory Engineering Data Flow
+
+```
+trajectory checkpoint <name>
+  |
+  +-- Validate clean working tree (exclude .planning/)
+  +-- Count existing checkpoints → compute attempt N
+  +-- git branch trajectory/<scope>/<name>/attempt-N   (ref only, no checkout)
+  |
+  +-- Metrics collection (fault-tolerant):
+  |     +-- Run test suite → total/pass/fail
+  |     +-- git diff HEAD~5..HEAD → insertions/deletions/files
+  |     +-- codebase complexity → aggregate score
+  |
+  +-- Generate unique ID (tj-XXXXXX)
+  +-- Write journal entry → .planning/memory/trajectory.json
+  +-- Return JSON: checkpoint, branch, attempt, git_ref, metrics
+
+git rewind --ref <ref>
+  |
+  +-- Validate ref (git rev-parse --verify)
+  +-- Compute diff HEAD vs ref (git diff --name-status)
+  +-- Separate protected paths from rewindable paths
+  +-- Three-gate: dry-run → needs_confirm → confirm
+  +-- Auto-stash if dirty, selective checkout, restore stash
+```
 
 ---
 

@@ -170,6 +170,75 @@ Creates a minimal plan, executes it, commits with tracking — all with bGSD's g
 
 ---
 
+## Exploring Approaches with Trajectory Engineering
+
+When you're unsure which implementation approach to take, bGSD's trajectory system lets you checkpoint, explore, and compare — instead of guessing.
+
+### Basic Flow: Try Two Approaches
+
+```bash
+# 1. You've written some code for approach A. Checkpoint it:
+node bin/gsd-tools.cjs trajectory checkpoint auth-flow --description "JWT tokens with refresh"
+
+# 2. Keep coding — try approach B instead. Checkpoint again:
+node bin/gsd-tools.cjs trajectory checkpoint auth-flow --description "Session-based with Redis"
+
+# 3. See all your checkpoints with auto-collected metrics:
+node bin/gsd-tools.cjs trajectory list
+```
+
+The `trajectory list` command shows a table with:
+- Test results (pass/fail count) at each checkpoint
+- Lines of code added/removed
+- Code complexity scores
+- When each checkpoint was created
+
+### Rewinding to a Previous Checkpoint
+
+If approach B isn't working and you want to go back to approach A:
+
+```bash
+# Preview what files would change (safe — no modifications):
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-flow/attempt-1 --dry-run
+
+# Execute the rewind:
+node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-flow/attempt-1 --confirm
+```
+
+Selective rewind protects your planning files (`.planning/`), `package.json`, `.gitignore`, and other root configs — only source code gets rolled back.
+
+### Scoping Checkpoints
+
+Use `--scope` to organize checkpoints by granularity:
+
+```bash
+# Phase-level (default)
+node bin/gsd-tools.cjs trajectory checkpoint my-feature --scope phase
+
+# Task-level
+node bin/gsd-tools.cjs trajectory checkpoint db-schema --scope task
+
+# Filter by scope when listing
+node bin/gsd-tools.cjs trajectory list --scope task
+```
+
+### Recording Exploration Notes
+
+The trajectory journal also stores decisions, observations, and hypotheses:
+
+```bash
+# Record a decision during exploration
+node bin/gsd-tools.cjs memory write --store trajectories --entry '{"category":"decision","text":"Chose JWT over sessions because of stateless API requirement","confidence":"high"}'
+
+# Record an observation
+node bin/gsd-tools.cjs memory write --store trajectories --entry '{"category":"observation","text":"Redis sessions add 50ms latency per request"}'
+
+# Read back your trajectory journal
+node bin/gsd-tools.cjs memory read --store trajectories
+```
+
+---
+
 ## Common Patterns
 
 ### Brownfield Projects (Existing Code)
@@ -217,7 +286,7 @@ GSD works out of the box. Customize through `/gsd-settings` or edit `.planning/c
 ## Next Steps
 
 - **[Expert Guide](expert-guide.md)** — Full control over every step
-- **[Command Reference](commands.md)** — All 32 commands with options
+- **[Command Reference](commands.md)** — All 41 commands with options
 - **[Architecture](architecture.md)** — How bGSD works internally
 - **[Agent System](agents.md)** — All 12 agents and their roles
 - **[Planning System](planning-system.md)** — How .planning/ works
