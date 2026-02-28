@@ -1,14 +1,24 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { output, error, debugLog } = require('../lib/output');
 
 // ─── Memory Commands ─────────────────────────────────────────────────────────
 
-const VALID_STORES = ['decisions', 'bookmarks', 'lessons', 'todos'];
-const SACRED_STORES = ['decisions', 'lessons'];
+const VALID_STORES = ['decisions', 'bookmarks', 'lessons', 'todos', 'trajectories'];
+const SACRED_STORES = ['decisions', 'lessons', 'trajectories'];
 const BOOKMARKS_MAX = 20;
 const COMPACT_THRESHOLD = 50;
 const COMPACT_KEEP_RECENT = 10;
+const VALID_CATEGORIES = ['decision', 'observation', 'correction', 'hypothesis'];
+const VALID_CONFIDENCE = ['high', 'medium', 'low'];
+
+// Store name → filename overrides (default: `${store}.json`)
+const STORE_FILES = { trajectories: 'trajectory.json' };
+
+function storeFilename(store) {
+  return STORE_FILES[store] || `${store}.json`;
+}
 
 /**
  * Ensure .planning/memory/ directory exists.
@@ -45,7 +55,7 @@ function cmdMemoryWrite(cwd, options, raw) {
   const memDir = path.join(cwd, '.planning', 'memory');
   fs.mkdirSync(memDir, { recursive: true });
 
-  const filePath = path.join(memDir, `${store}.json`);
+  const filePath = path.join(memDir, storeFilename(store));
 
   // Read existing entries
   let entries = [];
@@ -64,7 +74,43 @@ function cmdMemoryWrite(cwd, options, raw) {
   }
 
   // Store-specific behavior
-  if (store === 'bookmarks') {
+  if (store === 'trajectories') {
+    // Validate required fields
+    if (!entry.category || !VALID_CATEGORIES.includes(entry.category)) {
+      error(`Invalid or missing category. Must be one of: ${VALID_CATEGORIES.join(', ')}`);
+    }
+    if (!entry.text || typeof entry.text !== 'string' || entry.text.trim() === '') {
+      error('Missing or empty text field. Trajectory entries require non-empty text.');
+    }
+
+    // Validate optional metadata
+    if (entry.confidence !== undefined && !VALID_CONFIDENCE.includes(entry.confidence)) {
+      error(`Invalid confidence. Must be one of: ${VALID_CONFIDENCE.join(', ')}`);
+    }
+    if (entry.tags !== undefined) {
+      if (!Array.isArray(entry.tags) || !entry.tags.every(t => typeof t === 'string')) {
+        error('Invalid tags. Must be an array of strings.');
+      }
+    }
+    if (entry.references !== undefined) {
+      if (!Array.isArray(entry.references) || !entry.references.every(r => typeof r === 'string')) {
+        error('Invalid references. Must be an array of strings.');
+      }
+    }
+    if (entry.phase !== undefined && typeof entry.phase !== 'string' && typeof entry.phase !== 'number') {
+      error('Invalid phase. Must be a string or number.');
+    }
+
+    // Auto-generate unique short ID
+    let id;
+    const existingIds = new Set(entries.map(e => e.id));
+    do {
+      id = 'tj-' + crypto.randomBytes(3).toString('hex');
+    } while (existingIds.has(id));
+    entry.id = id;
+
+    entries.push(entry);
+  } else if (store === 'bookmarks') {
     // New entry at index 0, trim to max
     entries.unshift(entry);
     if (entries.length > BOOKMARKS_MAX) {
@@ -94,13 +140,13 @@ function cmdMemoryWrite(cwd, options, raw) {
  * Options: store (required), limit, query, phase
  */
 function cmdMemoryRead(cwd, options, raw) {
-  const { store, limit, query, phase } = options;
+  const { store, limit, query, phase, category, tags, from, to, asc } = options;
 
   if (!store || !VALID_STORES.includes(store)) {
     error(`Invalid or missing store. Must be one of: ${VALID_STORES.join(', ')}`);
   }
 
-  const filePath = path.join(cwd, '.planning', 'memory', `${store}.json`);
+  const filePath = path.join(cwd, '.planning', 'memory', storeFilename(store));
 
   let entries = [];
   try {
@@ -128,6 +174,31 @@ function cmdMemoryRead(cwd, options, raw) {
         return false;
       });
     });
+  }
+
+  // Trajectory-specific filters
+  if (store === 'trajectories') {
+    if (category) {
+      entries = entries.filter(e => e.category === category);
+    }
+    if (tags) {
+      const requiredTags = tags.split(',').map(t => t.trim());
+      entries = entries.filter(e => {
+        if (!Array.isArray(e.tags)) return false;
+        return requiredTags.every(rt => e.tags.includes(rt));
+      });
+    }
+    if (from) {
+      entries = entries.filter(e => e.timestamp && e.timestamp >= from);
+    }
+    if (to) {
+      entries = entries.filter(e => e.timestamp && e.timestamp <= to + 'T23:59:59.999Z');
+    }
+
+    // Default sort: newest first (reverse). --asc keeps chronological order.
+    if (!asc) {
+      entries = entries.slice().reverse();
+    }
   }
 
   // Slice by limit
@@ -205,7 +276,7 @@ function cmdMemoryCompact(cwd, options, raw) {
       continue;
     }
 
-    const filePath = path.join(memDir, `${s}.json`);
+    const filePath = path.join(memDir, storeFilename(s));
 
     let entries = [];
     try {
