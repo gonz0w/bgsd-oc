@@ -1,8 +1,8 @@
-# bGSD Plugin for OpenCode
+# bGSD Plugin
 
 ## What This Is
 
-A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in OpenCode. Seven major versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), and v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates).
+A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Seven major versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), and v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates).
 
 ## Core Value
 
@@ -153,7 +153,7 @@ Manage and deliver high-quality software with high-quality documentation, while 
 ## Context
 
 Shipped v1.0 through v7.0. 669 tests passing, 34 src/ modules, 1000KB bundle, esbuild bundler.
-Platform: OpenCode.
+Platform: OC (host editor).
 Tech stack: Node.js 18+, node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 34 modules — `src/lib/` (18 modules) and `src/commands/` (14 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.

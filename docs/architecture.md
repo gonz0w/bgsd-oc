@@ -360,8 +360,8 @@ npm test
 
 End users install via:
 ```bash
-git clone https://github.com/gonz0w/gsd-opencode.git
-cd gsd-opencode
+git clone https://github.com/gonz0w/bgsd-oc.git
+cd bgsd-oc
 npm install && npm run build
 ./deploy.sh
 ```

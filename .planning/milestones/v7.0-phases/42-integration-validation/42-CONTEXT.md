@@ -14,7 +14,7 @@ Validate that all v7.0 features (Phases 37-41, 43) work end-to-end with measured
 ## Implementation Decisions
 
 ### Canary Project Strategy
-- Use this project (gsd-opencode) as the canary — self-referential validation
+- Use this project (bgsd-oc) as the canary — self-referential validation
 - Run a full cycle: plan-phase → execute-phase → verify-work on Phase 44 (Review Gate Hardening)
 - This means Phase 44 gets planned as a real side effect of validation — real work, real pipeline exercise
 - If the canary cycle hits problems (agent errors, bad plan output), treat them as bugs in v7.0 features — fix and re-run

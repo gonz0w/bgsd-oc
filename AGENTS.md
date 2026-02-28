@@ -1,18 +1,22 @@
-# bGSD Plugin for OpenCode — Development Workspace
+# bGSD Plugin — Development Workspace
+
+## CRITICAL: Working Directory
+**This project lives at the current working directory (`$PWD`) — ALWAYS.**
+Use `pwd` or the environment's working directory. Never hardcode or guess the path.
 
 ## What This Is
-Development workspace for the Better Getting Stuff Done (bGSD) planning plugin for OpenCode (v7.0).
-The production install lives at `~/.config/opencode/get-shit-done/`.
+Development workspace for the Better Getting Stuff Done (bGSD) planning plugin (v7.0).
+The production install lives at `~/.config/OC/get-shit-done/` (where OC = the host editor's config dir).
 
 ## Project Structure
 ```
 bin/gsd-tools.cjs          # Main CLI tool (single file, zero dependencies)
 src/                       # Source modules (built into bin/gsd-tools.cjs)
-commands/*.md              # Slash command wrappers (deployed to OpenCode)
+commands/*.md              # Slash command wrappers (deployed to host editor)
 workflows/*.md             # Workflow definitions (invoked by commands)
 templates/*.md             # Document templates (PLAN.md, STATE.md, etc.)
 references/*.md            # Reference docs loaded by agents
-deploy.sh                  # Deploy changes to ~/.config/opencode/
+deploy.sh                  # Deploy changes to host editor config
 build.js                   # Build script — bundles src/ into bin/gsd-tools.cjs
 ```
 
@@ -34,9 +38,9 @@ npm test                                   # Full test suite (669+ tests)
 ## Architecture
 - `gsd-tools.cjs` is the brain — all parsing, analysis, git operations, validation
 - Workflows (`.md` files) are prompts that agents follow, calling gsd-tools.cjs for data
-- Commands (`commands/`) are thin wrappers deployed to `~/.config/opencode/command/`
-- Agents (`~/.config/opencode/agents/`) are subagent definitions with system prompts
-- Hooks (`~/.config/opencode/hooks/`) are JS scripts for statusline and update checks
+- Commands (`commands/`) are thin wrappers deployed to the host editor's `command/` dir
+- Agents are subagent definitions with system prompts in the editor's `agents/` dir
+- Hooks are JS scripts for statusline and update checks in the editor's `hooks/` dir
 
 ## Testing
 ```bash
@@ -57,3 +61,10 @@ npm run build     # Build validation
 - `/gsd-trace-requirement` — Trace requirement from spec to files on disk
 - `/gsd-validate-config` — Schema validation for config.json
 - `/gsd-validate-deps` — Phase dependency graph validation
+
+## IMPORTANT: String Replacement Warning
+The Anthropic auth plugin rewrites ALL system prompt text, replacing the host editor
+name with "Claude Code" and its lowercase form with "Claude". This means any file path,
+project name, or config path containing the editor name will be silently mangled.
+Never use the literal editor name in instruction files. Use generic terms like
+"host editor", `$PWD`, or the abbreviation `OC` instead. See `lessons.md` for details.

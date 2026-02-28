@@ -76,7 +76,7 @@ No TODOs, FIXMEs, placeholders, or stub implementations detected in any phase 25
 
 **Test:** Create a small Python/Elixir/Rust/Go project and run `codebase deps` to verify real-world import resolution
 **Expected:** >85% accuracy for relative import resolution within the project
-**Why human:** The project being tested (gsd-opencode) is pure JavaScript; parsers for other languages are verified only by unit tests, not end-to-end on real projects
+**Why human:** The project being tested (bgsd-oc) is pure JavaScript; parsers for other languages are verified only by unit tests, not end-to-end on real projects
 
 ### 2. Large Project Performance
 

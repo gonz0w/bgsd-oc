@@ -45,12 +45,23 @@ for cmd in "$SRC/commands"/gsd-*.md; do
 	[ -f "$cmd" ] && cp "$cmd" "$CMD_DIR/"
 done
 
-# Step 3c: Substitute path placeholders with actual install paths
-OPENCODE_CFG="$HOME/.config/opencode"
+# Step 3d: Deploy agent definitions (only our agents, don't touch others)
+AGENT_DIR="$HOME/.config/opencode/agents"
+mkdir -p "$AGENT_DIR"
+for agent in "$SRC/agents"/gsd-*.md; do
+	[ -f "$agent" ] && cp "$agent" "$AGENT_DIR/"
+done
+
+# Step 3e: Substitute path placeholders with actual install paths
+# CRITICAL: Use the ~/.config/oc symlink (-> ~/.config/opencode) to avoid
+# the Anthropic auth plugin mangling "opencode" -> "Claude" in system prompts.
+# See lessons.md for the full story on this mangling issue.
+OPENCODE_CFG="$HOME/.config/oc"
 echo "Substituting path placeholders..."
 find "$DEST" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$CMD_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
-echo "  Path placeholders resolved to: $OPENCODE_CFG"
+find "$AGENT_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+echo "  Path placeholders resolved to: $OPENCODE_CFG (symlink to ~/.config/opencode)"
 
 # Step 4: Smoke test deployed artifact
 echo ""
@@ -67,7 +78,9 @@ fi
 echo "  ✅ Smoke test passed: $SMOKE"
 
 CMD_COUNT=$(ls "$CMD_DIR"/gsd-*.md 2>/dev/null | wc -l)
+AGENT_COUNT=$(ls "$AGENT_DIR"/gsd-*.md 2>/dev/null | wc -l)
 echo "  Commands deployed: $CMD_COUNT"
+echo "  Agents deployed: $AGENT_COUNT"
 
 echo ""
 echo "Deployed successfully."

@@ -5,7 +5,7 @@
 ## Directory Layout
 
 ```
-gsd-opencode/
+bgsd-oc/
 ├── bin/                    # Built artifacts and tests
 │   ├── gsd-tools.cjs      # Bundled CLI (single-file, ~17K lines)
 │   ├── gsd-tools.test.cjs # Test suite (~13.7K lines, 574+ tests)

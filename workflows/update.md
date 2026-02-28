@@ -14,8 +14,8 @@ Detect whether bGSD is installed locally or globally:
 ```bash
 # Check local first (takes priority)
 # Paths templated at install time for runtime compatibility
-if [ -f ./.opencode/get-shit-done/VERSION ]; then
-  cat ./.opencode/get-shit-done/VERSION
+if [ -f ./.OC/get-shit-done/VERSION ]; then
+  cat ./.OC/get-shit-done/VERSION
   echo "LOCAL"
 elif [ -f __OPENCODE_CONFIG__/get-shit-done/VERSION ]; then
   cat __OPENCODE_CONFIG__/get-shit-done/VERSION
@@ -51,7 +51,7 @@ npm view get-shit-done version 2>/dev/null
 ```
 Couldn't check for updates (offline or npm unavailable).
 
-To update manually: `cd gsd-opencode && git pull && npm run build && ./deploy.sh`
+To update manually: `cd $GSD_DEV_DIR && git pull && npm run build && ./deploy.sh`
 ```
 
 Exit.
@@ -112,7 +112,7 @@ Exit.
 - `get-shit-done/` will be wiped and replaced
 - `agents/gsd-*` files will be replaced
 
-(Paths are relative to your install location: `__OPENCODE_CONFIG__/` for global, `./.opencode/` for local)
+(Paths are relative to your install location: `__OPENCODE_CONFIG__/` for global, `./.OC/` for local)
 
 Your custom files in other locations are preserved:
 - Custom commands not in `commands/gsd/` ✓
@@ -136,7 +136,7 @@ Use question:
 Run the update:
 
 ```bash
-cd gsd-opencode && git pull && npm run build && ./deploy.sh
+cd $GSD_DEV_DIR && git pull && npm run build && ./deploy.sh
 ```
 
 Capture output. If install fails, show error and exit.
@@ -145,7 +145,7 @@ Clear the update cache so statusline indicator disappears:
 
 **If LOCAL install:**
 ```bash
-rm -f ./.opencode/cache/gsd-update-check.json
+rm -f ./.OC/cache/gsd-update-check.json
 ```
 
 **If GLOBAL install:**
@@ -163,7 +163,7 @@ Format completion message (changelog was already shown in confirmation step):
 ║  bGSD Updated: v1.5.10 → v1.5.15                          ║
 ╚═══════════════════════════════════════════════════════════╝
 
-⚠️  Restart OpenCode to pick up the new commands.
+⚠️  Restart the editor to pick up the new commands.
 
 [View full changelog](https://github.com/glittercowboy/get-shit-done/blob/main/CHANGELOG.md)
 ```

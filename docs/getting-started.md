@@ -10,8 +10,8 @@ This guide walks you through your first project using the easy flow. bGSD handle
 ## Installation
 
 ```bash
-git clone https://github.com/gonz0w/gsd-opencode.git
-cd gsd-opencode
+git clone https://github.com/gonz0w/bgsd-oc.git
+cd bgsd-oc
 npm install && npm run build
 ./deploy.sh
 ```

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Phase 42 validates that all v7.0 Agent Orchestration & Efficiency features (Phases 37-41, 43) work end-to-end with measured performance and no regressions. This phase tests and measures — it does not build new features. The validation uses this project (gsd-opencode) as a canary, running a complete planning→execution→verification cycle on Phase 44 to exercise all v7.0 features in a real workflow.
+Phase 42 validates that all v7.0 Agent Orchestration & Efficiency features (Phases 37-41, 43) work end-to-end with measured performance and no regressions. This phase tests and measures — it does not build new features. The validation uses this project (bgsd-oc) as a canary, running a complete planning→execution→verification cycle on Phase 44 to exercise all v7.0 features in a real workflow.
 
 **Primary recommendation:** Run a complete canary cycle that exercises the full v7.0 pipeline: plan-phase → execute-phase → verify-phase on Phase 44, measuring token consumption and validating all success criteria.
 
@@ -19,7 +19,7 @@ Phase 42 validates that all v7.0 Agent Orchestration & Efficiency features (Phas
 ### Locked Decisions
 
 1. **Canary Project Strategy**
-   - Use this project (gsd-opencode) as the canary — self-referential validation
+   - Use this project (bgsd-oc) as the canary — self-referential validation
    - Run a full cycle: plan-phase → execute-phase → verify-work on Phase 44 (Review Gate Hardening)
    - This means Phase 44 gets planned as a real side effect of validation — real work, real pipeline exercise
    - If the canary cycle hits problems (agent errors, bad plan output), treat them as bugs in v7.0 features — fix and re-run

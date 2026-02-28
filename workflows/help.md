@@ -5,7 +5,7 @@ Display the complete bGSD command reference. Output ONLY the reference content â
 <reference>
 # bGSD Command Reference
 
-**bGSD** (Get Stuff Done) creates hierarchical project plans optimized for solo agentic development with OpenCode.
+**bGSD** (Get Stuff Done) creates hierarchical project plans optimized for solo agentic development with the host editor.
 
 ## Quick Start
 
@@ -18,7 +18,7 @@ Display the complete bGSD command reference. Output ONLY the reference content â
 bGSD evolves fast. Update periodically by pulling the latest and redeploying:
 
 ```bash
-cd gsd-opencode && git pull && npm run build && ./deploy.sh
+cd $GSD_DEV_DIR && git pull && npm run build && ./deploy.sh
 ```
 
 ## Core Workflow

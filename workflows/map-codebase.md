@@ -224,7 +224,7 @@ This would expose credentials if committed.
 **Action required:**
 1. Review the flagged content above
 2. If these are real secrets, they must be removed before committing
-3. Consider adding sensitive files to OpenCode "Deny" permissions
+3. Consider adding sensitive files to the editor "Deny" permissions
 
 Pausing before commit. Reply "safe to proceed" if the flagged content is not actually sensitive, or edit the files first.
 ```

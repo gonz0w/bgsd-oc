@@ -57,7 +57,7 @@ completed: 2026-02-26
 - Built `parseImports()` with per-language resolution that maps relative imports to actual project file paths
 - Implemented `buildDependencyGraph()` producing forward/reverse adjacency-list representation
 - Added `codebase deps` CLI command that builds graph, persists in intel JSON, and reports top-10 most-imported files
-- Self-test: 90 edges found across 28 JS files with 0 parse errors on gsd-opencode's own codebase
+- Self-test: 90 edges found across 28 JS files with 0 parse errors on bgsd-oc's own codebase
 
 ## Task Commits
 

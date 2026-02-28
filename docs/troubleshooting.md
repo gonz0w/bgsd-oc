@@ -211,7 +211,7 @@ This enables stderr logging for all 96 catch blocks, showing exactly where issue
 
 - Run `/gsd-help` for the full command reference
 - Run `/gsd-health` to check system integrity
-- Check [GitHub Issues](https://github.com/gonz0w/gsd-opencode/issues) for known problems
+- Check [GitHub Issues](https://github.com/gonz0w/bgsd-oc/issues) for known problems
 - See [Architecture](architecture.md) for understanding how the system works internally
 
 ---
