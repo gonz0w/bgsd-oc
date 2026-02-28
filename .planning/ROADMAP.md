@@ -214,7 +214,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
 | 23-29 | v5.0 | 14/14 | Complete | 2026-02-26 |
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
-| 45. Foundation | 2/2 | Complete   | 2026-02-28 | - |
+| 45. Foundation | 2/2 | Complete    | 2026-02-28 | - |
 | 46. Checkpoint | v7.1 | 0/TBD | Not started | - |
 | 47. Pivot | v7.1 | 0/TBD | Not started | - |
 | 48. Compare | v7.1 | 0/TBD | Not started | - |
