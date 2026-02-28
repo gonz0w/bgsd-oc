@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 45 of 50 (Foundation — Decision Journal & State Coherence)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-02-28 — Roadmap created for v7.1 (6 phases, 22 requirements)
+Plan: 2 of 2
+Status: Plan 02 complete
+Last activity: 2026-02-28 — Completed 45-02 selective rewind & trajectory branch
 
-Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 0%
+Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 1/2 plans (Phase 45)
 
 ## Performance Metrics
 
@@ -42,19 +42,22 @@ Progress: [████████████████████░░░
 
 All v1.0-v7.0 decisions recorded in PROJECT.md Key Decisions table with outcomes.
 
+- **Phase 45-02:** Bumped bundle budget from 1000KB to 1050KB for v7.1 feature growth
+- **Phase 45-02:** Used denylist approach for protected paths in selective rewind (safer default)
+
 ### Pending Todos
 
 None — milestone starting fresh.
 
 ### Blockers/Concerns
 
-- 3 pre-existing test failures in context-budget (plan path validation) — carried from v6.0
+- Pre-existing test issues in context-budget (plan path validation) — carried from v6.0, now resolved (680/680 pass)
 - Phase 45 (Foundation): STATE.md coherence during pivot is the #1 architectural risk — selective checkout design must be proven before building commands on top
 - Phase 47 (Pivot): Selective checkout edge cases need careful testing — files added/deleted since checkpoint, `.planning/` files created during attempt
 
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Roadmap created for v7.1 Trajectory Engineering
+Stopped at: Completed 45-02-PLAN.md
 Resume file: None
-Next step: `/gsd-plan-phase 45`
+Next step: Phase 45 complete — run `/gsd-verify-work 45` or proceed to Phase 46

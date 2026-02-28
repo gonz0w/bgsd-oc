@@ -144,7 +144,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
   2. Journal entries survive session boundaries — data written in one session is fully readable in the next with no auto-compaction
   3. Selective `git checkout <ref> -- src/ test/ bin/` rewinds source code while `.planning/` files remain untouched (round-trip test passes)
   4. Trajectory branch namespace (`gsd/trajectory/`) is distinct from worktree namespace (`worktree-*`) with no cross-system collisions
-**Plans**: TBD
+**Plans**: 1/2 plans executed
 
 ### Phase 46: Checkpoint — Snapshot & Metrics Collection
 **Goal**: Users can name and save points in their exploration with automatic metrics capture
@@ -214,7 +214,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
 | 23-29 | v5.0 | 14/14 | Complete | 2026-02-26 |
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
-| 45. Foundation | v7.1 | 0/TBD | Not started | - |
+| 45. Foundation | 1/2 | In Progress|  | - |
 | 46. Checkpoint | v7.1 | 0/TBD | Not started | - |
 | 47. Pivot | v7.1 | 0/TBD | Not started | - |
 | 48. Compare | v7.1 | 0/TBD | Not started | - |

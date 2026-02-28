@@ -10,7 +10,7 @@ Requirements for trajectory engineering milestone. Each maps to roadmap phases.
 ### Foundation
 
 - [ ] **FOUND-01**: Decision journal store exists as `trajectories` sacred memory store in memory.js
-- [ ] **FOUND-02**: Journal entries persist across sessions and are never auto-compacted
+- [x] **FOUND-02**: Journal entries persist across sessions and are never auto-compacted
 
 ### Checkpoint
 
@@ -79,7 +79,7 @@ Requirements for trajectory engineering milestone. Each maps to roadmap phases.
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
 | FOUND-01 | Phase 45 | Pending | npm test -- --grep trajectory |
-| FOUND-02 | Phase 45 | Pending | npm test -- --grep trajectory |
+| FOUND-02 | Phase 45 | Complete | npm test -- --grep trajectory |
 | CHKPT-01 | Phase 46 | Pending | npm test -- --grep checkpoint |
 | CHKPT-02 | Phase 46 | Pending | npm test -- --grep checkpoint |
 | CHKPT-03 | Phase 46 | Pending | npm test -- --grep metrics |
