@@ -598,7 +598,7 @@ Examples:
 
   'memory': `Usage: gsd-tools memory <subcommand> [options]
 
-Persistent memory store for decisions, bookmarks, lessons, and todos.
+Persistent memory store for decisions, bookmarks, lessons, todos, and trajectories.
 
 Subcommands:
   write --store <name> --entry '{json}'   Write entry to a store
@@ -607,24 +607,35 @@ Subcommands:
   ensure-dir                              Create .planning/memory/ directory
   compact [--store <name>] [--threshold N] [--dry-run]  Compact old entries
 
-Stores: decisions, bookmarks, lessons, todos
+Stores: decisions, bookmarks, lessons, todos, trajectories
 
 Options (read):
   --limit N          Max entries to return
   --query "text"     Case-insensitive text search across values
   --phase N          Filter by phase field
 
+Trajectory-specific options (read --store trajectories):
+  --category <cat>   Filter by category (decision|observation|correction|hypothesis)
+  --tags <t1,t2>     Filter by tags (comma-separated, must have ALL)
+  --from <date>      Filter entries from ISO date (inclusive)
+  --to <date>        Filter entries to ISO date (inclusive)
+  --asc              Return in chronological order (default: newest first)
+
 Examples:
   gsd-tools memory write --store decisions --entry '{"summary":"Chose esbuild","phase":"03"}'
+  gsd-tools memory write --store trajectories --entry '{"category":"decision","text":"Use vertical slices","phase":"45"}'
+  gsd-tools memory read --store trajectories --category decision
   gsd-tools memory read --store decisions --query "esbuild"
   gsd-tools memory list`,
 
   'memory write': `Usage: gsd-tools memory write --store <name> --entry '{json}'
-Write entry to store. Stores: decisions, bookmarks, lessons, todos.
-decisions/lessons append-only. bookmarks prepend + trim to 20.`,
+Write entry to store. Stores: decisions, bookmarks, lessons, todos, trajectories.
+decisions/lessons/trajectories append-only. bookmarks prepend + trim to 20.
+Trajectories require category (decision|observation|correction|hypothesis) and text fields.`,
 
   'memory read': `Usage: gsd-tools memory read --store <name> [--limit N] [--query "text"] [--phase N]
-Read entries with optional filtering.`,
+Read entries with optional filtering.
+Trajectory-specific: --category, --tags, --from, --to, --asc.`,
 
   'memory list': `Usage: gsd-tools memory list — List stores with entry counts and sizes.`,
 
@@ -1076,7 +1087,7 @@ Examples:
 
   'profile': 'Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/',
 
-  'git': `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]
+  'git': `Usage: gsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
 
 Structured git intelligence — JSON output for agents and workflows.
 
@@ -1089,12 +1100,22 @@ Subcommands:
     Line-to-commit/author mapping for a file.
   branch-info
     Current branch state: detached, shallow, dirty, rebasing, upstream.
+  rewind --ref <ref> [--confirm] [--dry-run]
+    Selective code rewind protecting .planning/ and root configs.
+    Shows diff summary of changes. --dry-run previews without modifying.
+    --confirm executes the rewind. Auto-stashes dirty working tree.
+  trajectory-branch --phase <N> --slug <name> [--push]
+    Create branch in gsd/trajectory/{phase}-{slug} namespace.
+    Local-only by default. --push to push to origin.
 
 Examples:
   gsd-tools git log --count 5
   gsd-tools git diff-summary --from main --to HEAD
   gsd-tools git blame src/router.js
-  gsd-tools git branch-info`,
+  gsd-tools git branch-info
+  gsd-tools git rewind --ref HEAD~3 --dry-run
+  gsd-tools git rewind --ref abc123 --confirm
+  gsd-tools git trajectory-branch --phase 45 --slug decision-journal`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP };

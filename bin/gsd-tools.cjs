@@ -569,7 +569,7 @@ Examples:
   gsd-tools websearch "esbuild bundler plugins" --limit 5`,
       "memory": `Usage: gsd-tools memory <subcommand> [options]
 
-Persistent memory store for decisions, bookmarks, lessons, and todos.
+Persistent memory store for decisions, bookmarks, lessons, todos, and trajectories.
 
 Subcommands:
   write --store <name> --entry '{json}'   Write entry to a store
@@ -578,22 +578,33 @@ Subcommands:
   ensure-dir                              Create .planning/memory/ directory
   compact [--store <name>] [--threshold N] [--dry-run]  Compact old entries
 
-Stores: decisions, bookmarks, lessons, todos
+Stores: decisions, bookmarks, lessons, todos, trajectories
 
 Options (read):
   --limit N          Max entries to return
   --query "text"     Case-insensitive text search across values
   --phase N          Filter by phase field
 
+Trajectory-specific options (read --store trajectories):
+  --category <cat>   Filter by category (decision|observation|correction|hypothesis)
+  --tags <t1,t2>     Filter by tags (comma-separated, must have ALL)
+  --from <date>      Filter entries from ISO date (inclusive)
+  --to <date>        Filter entries to ISO date (inclusive)
+  --asc              Return in chronological order (default: newest first)
+
 Examples:
   gsd-tools memory write --store decisions --entry '{"summary":"Chose esbuild","phase":"03"}'
+  gsd-tools memory write --store trajectories --entry '{"category":"decision","text":"Use vertical slices","phase":"45"}'
+  gsd-tools memory read --store trajectories --category decision
   gsd-tools memory read --store decisions --query "esbuild"
   gsd-tools memory list`,
       "memory write": `Usage: gsd-tools memory write --store <name> --entry '{json}'
-Write entry to store. Stores: decisions, bookmarks, lessons, todos.
-decisions/lessons append-only. bookmarks prepend + trim to 20.`,
+Write entry to store. Stores: decisions, bookmarks, lessons, todos, trajectories.
+decisions/lessons/trajectories append-only. bookmarks prepend + trim to 20.
+Trajectories require category (decision|observation|correction|hypothesis) and text fields.`,
       "memory read": `Usage: gsd-tools memory read --store <name> [--limit N] [--query "text"] [--phase N]
-Read entries with optional filtering.`,
+Read entries with optional filtering.
+Trajectory-specific: --category, --tags, --from, --to, --asc.`,
       "memory list": `Usage: gsd-tools memory list \u2014 List stores with entry counts and sizes.`,
       "memory compact": `Usage: gsd-tools memory compact [--store <name>] [--threshold N] [--dry-run]
 Compact non-sacred stores by summarizing old entries.`,
@@ -1008,7 +1019,7 @@ Examples:
   gsd-tools tdd detect-antipattern --phase red --files "src/foo.js"`,
       "review": `Usage: gsd-tools review <phase> <plan> \u2014 Review context for reviewer agent`,
       "profile": "Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/",
-      "git": `Usage: gsd-tools git <log|diff-summary|blame|branch-info> [options]
+      "git": `Usage: gsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
 
 Structured git intelligence \u2014 JSON output for agents and workflows.
 
@@ -1021,12 +1032,22 @@ Subcommands:
     Line-to-commit/author mapping for a file.
   branch-info
     Current branch state: detached, shallow, dirty, rebasing, upstream.
+  rewind --ref <ref> [--confirm] [--dry-run]
+    Selective code rewind protecting .planning/ and root configs.
+    Shows diff summary of changes. --dry-run previews without modifying.
+    --confirm executes the rewind. Auto-stashes dirty working tree.
+  trajectory-branch --phase <N> --slug <name> [--push]
+    Create branch in gsd/trajectory/{phase}-{slug} namespace.
+    Local-only by default. --push to push to origin.
 
 Examples:
   gsd-tools git log --count 5
   gsd-tools git diff-summary --from main --to HEAD
   gsd-tools git blame src/router.js
-  gsd-tools git branch-info`
+  gsd-tools git branch-info
+  gsd-tools git rewind --ref HEAD~3 --dry-run
+  gsd-tools git rewind --ref abc123 --confirm
+  gsd-tools git trajectory-branch --phase 45 --slug decision-journal`
     };
     module2.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP };
   }
@@ -2363,7 +2384,77 @@ var require_git = __commonJS({
         upstream
       };
     }
-    module2.exports = { execGit, structuredLog, diffSummary, blame, branchInfo };
+    var PROTECTED_PATHS = [".planning", "package.json", "package-lock.json", "tsconfig.json", ".gitignore", ".env"];
+    function isProtectedPath(f) {
+      for (const p of PROTECTED_PATHS) if (f === p || f.startsWith(p + "/")) return true;
+      return /^tsconfig\..*\.json$/.test(f) || /^\.env\./.test(f);
+    }
+    function selectiveRewind(cwd, opts = {}) {
+      const { ref, confirm, dryRun } = opts;
+      if (!ref) return { error: "ref is required" };
+      if (execGit(cwd, ["rev-parse", "--verify", ref]).exitCode !== 0) return { error: "Invalid ref: " + ref };
+      const dr = execGit(cwd, ["diff", "--name-status", "HEAD", ref, "--"]);
+      const changes = [], nonProt = [];
+      let pc = 0;
+      if (dr.exitCode === 0 && dr.stdout) {
+        for (const line of dr.stdout.split("\n").filter(Boolean)) {
+          const p = line.split("	"), st = p[0], file = p[p.length - 1];
+          if (isProtectedPath(file)) pc++;
+          else {
+            changes.push({ file, status: st });
+            nonProt.push(file);
+          }
+        }
+      }
+      if (dryRun) return { dry_run: true, ref, changes, protected_paths: PROTECTED_PATHS, files_affected: changes.length, files_protected: pc };
+      if (!confirm) return { needs_confirm: true, ref, changes, protected_paths: PROTECTED_PATHS, files_affected: changes.length, files_protected: pc, message: "Pass --confirm to execute rewind" };
+      if (!nonProt.length) return { rewound: true, ref, files_changed: 0, files_protected: pc, stash_used: false };
+      let stashed = false;
+      const sr = execGit(cwd, ["status", "--porcelain"]);
+      if (sr.exitCode === 0 && sr.stdout && execGit(cwd, ["stash", "push", "-m", "gsd-rewind-auto-stash"]).exitCode === 0) stashed = true;
+      let err = null;
+      try {
+        if (nonProt.length > 50) {
+          const r = execGit(cwd, ["checkout", ref, "--", "."]);
+          if (r.exitCode !== 0) err = r.stderr || "checkout failed";
+          else {
+            execGit(cwd, ["checkout", "HEAD", "--", ".planning"]);
+            for (const pf of PROTECTED_PATHS) if (pf !== ".planning" && execGit(cwd, ["cat-file", "-e", "HEAD:" + pf]).exitCode === 0) execGit(cwd, ["checkout", "HEAD", "--", pf]);
+            const ls = execGit(cwd, ["ls-tree", "--name-only", "HEAD"]);
+            if (ls.exitCode === 0 && ls.stdout) {
+              for (const f of ls.stdout.split("\n").filter(Boolean)) if (/^tsconfig\..*\.json$/.test(f) || /^\.env\./.test(f)) execGit(cwd, ["checkout", "HEAD", "--", f]);
+            }
+          }
+        } else {
+          const r = execGit(cwd, ["checkout", ref, "--", ...nonProt]);
+          if (r.exitCode !== 0) err = r.stderr || "checkout failed";
+        }
+      } catch (e) {
+        err = e.message;
+      }
+      if (stashed) execGit(cwd, ["stash", "pop"]);
+      if (err) return { error: "Rewind failed: " + err, stash_restored: stashed };
+      return { rewound: true, ref, files_changed: nonProt.length, files_protected: pc, stash_used: stashed };
+    }
+    function trajectoryBranch(cwd, opts = {}) {
+      const { phase, slug, push } = opts;
+      if (!phase || !slug) return { error: "phase and slug are required" };
+      const bn = `gsd/trajectory/${phase}-${slug}`;
+      const wt = execGit(cwd, ["branch", "--list", "worktree-*"]);
+      if (wt.exitCode === 0 && wt.stdout) {
+        for (const wb of wt.stdout.split("\n").map((b) => b.trim().replace(/^\*\s*/, "")).filter(Boolean))
+          if (wb === bn || bn.startsWith(wb) || wb.startsWith(bn)) return { error: `Branch "${bn}" collides with worktree branch "${wb}"` };
+      }
+      if (execGit(cwd, ["rev-parse", "--verify", bn]).exitCode === 0) return { exists: true, branch: bn };
+      const cr = execGit(cwd, ["checkout", "-b", bn]);
+      if (cr.exitCode !== 0) return { error: "Failed to create branch: " + (cr.stderr || "unknown") };
+      if (push) {
+        const pr = execGit(cwd, ["push", "-u", "origin", bn]);
+        return { created: true, branch: bn, pushed: pr.exitCode === 0, ...pr.exitCode !== 0 ? { push_error: pr.stderr } : {} };
+      }
+      return { created: true, branch: bn, pushed: false };
+    }
+    module2.exports = { execGit, structuredLog, diffSummary, blame, branchInfo, selectiveRewind, trajectoryBranch };
   }
 });
 
@@ -23493,12 +23584,19 @@ var require_memory = __commonJS({
   "src/commands/memory.js"(exports2, module2) {
     var fs = require("fs");
     var path = require("path");
+    var crypto = require("crypto");
     var { output, error, debugLog } = require_output();
-    var VALID_STORES = ["decisions", "bookmarks", "lessons", "todos"];
-    var SACRED_STORES = ["decisions", "lessons"];
+    var VALID_STORES = ["decisions", "bookmarks", "lessons", "todos", "trajectories"];
+    var SACRED_STORES = ["decisions", "lessons", "trajectories"];
     var BOOKMARKS_MAX = 20;
     var COMPACT_THRESHOLD = 50;
     var COMPACT_KEEP_RECENT = 10;
+    var VALID_CATEGORIES = ["decision", "observation", "correction", "hypothesis"];
+    var VALID_CONFIDENCE = ["high", "medium", "low"];
+    var STORE_FILES = { trajectories: "trajectory.json" };
+    function storeFilename(store) {
+      return STORE_FILES[store] || `${store}.json`;
+    }
     function cmdMemoryEnsureDir(cwd) {
       const dir = path.join(cwd, ".planning", "memory");
       fs.mkdirSync(dir, { recursive: true });
@@ -23520,7 +23618,7 @@ var require_memory = __commonJS({
       }
       const memDir = path.join(cwd, ".planning", "memory");
       fs.mkdirSync(memDir, { recursive: true });
-      const filePath = path.join(memDir, `${store}.json`);
+      const filePath = path.join(memDir, storeFilename(store));
       let entries = [];
       try {
         const raw2 = fs.readFileSync(filePath, "utf-8");
@@ -23533,7 +23631,37 @@ var require_memory = __commonJS({
       if (!entry.timestamp) {
         entry.timestamp = (/* @__PURE__ */ new Date()).toISOString();
       }
-      if (store === "bookmarks") {
+      if (store === "trajectories") {
+        if (!entry.category || !VALID_CATEGORIES.includes(entry.category)) {
+          error(`Invalid or missing category. Must be one of: ${VALID_CATEGORIES.join(", ")}`);
+        }
+        if (!entry.text || typeof entry.text !== "string" || entry.text.trim() === "") {
+          error("Missing or empty text field. Trajectory entries require non-empty text.");
+        }
+        if (entry.confidence !== void 0 && !VALID_CONFIDENCE.includes(entry.confidence)) {
+          error(`Invalid confidence. Must be one of: ${VALID_CONFIDENCE.join(", ")}`);
+        }
+        if (entry.tags !== void 0) {
+          if (!Array.isArray(entry.tags) || !entry.tags.every((t) => typeof t === "string")) {
+            error("Invalid tags. Must be an array of strings.");
+          }
+        }
+        if (entry.references !== void 0) {
+          if (!Array.isArray(entry.references) || !entry.references.every((r) => typeof r === "string")) {
+            error("Invalid references. Must be an array of strings.");
+          }
+        }
+        if (entry.phase !== void 0 && typeof entry.phase !== "string" && typeof entry.phase !== "number") {
+          error("Invalid phase. Must be a string or number.");
+        }
+        let id;
+        const existingIds = new Set(entries.map((e) => e.id));
+        do {
+          id = "tj-" + crypto.randomBytes(3).toString("hex");
+        } while (existingIds.has(id));
+        entry.id = id;
+        entries.push(entry);
+      } else if (store === "bookmarks") {
         entries.unshift(entry);
         if (entries.length > BOOKMARKS_MAX) {
           entries = entries.slice(0, BOOKMARKS_MAX);
@@ -23550,11 +23678,11 @@ var require_memory = __commonJS({
       output(result);
     }
     function cmdMemoryRead(cwd, options, raw) {
-      const { store, limit, query, phase } = options;
+      const { store, limit, query, phase, category, tags, from, to, asc } = options;
       if (!store || !VALID_STORES.includes(store)) {
         error(`Invalid or missing store. Must be one of: ${VALID_STORES.join(", ")}`);
       }
-      const filePath = path.join(cwd, ".planning", "memory", `${store}.json`);
+      const filePath = path.join(cwd, ".planning", "memory", storeFilename(store));
       let entries = [];
       try {
         const raw2 = fs.readFileSync(filePath, "utf-8");
@@ -23576,6 +23704,27 @@ var require_memory = __commonJS({
             return false;
           });
         });
+      }
+      if (store === "trajectories") {
+        if (category) {
+          entries = entries.filter((e) => e.category === category);
+        }
+        if (tags) {
+          const requiredTags = tags.split(",").map((t) => t.trim());
+          entries = entries.filter((e) => {
+            if (!Array.isArray(e.tags)) return false;
+            return requiredTags.every((rt) => e.tags.includes(rt));
+          });
+        }
+        if (from) {
+          entries = entries.filter((e) => e.timestamp && e.timestamp >= from);
+        }
+        if (to) {
+          entries = entries.filter((e) => e.timestamp && e.timestamp <= to + "T23:59:59.999Z");
+        }
+        if (!asc) {
+          entries = entries.slice().reverse();
+        }
       }
       if (limit && parseInt(limit, 10) > 0) {
         entries = entries.slice(0, parseInt(limit, 10));
@@ -23631,7 +23780,7 @@ var require_memory = __commonJS({
           result.sacred_skipped.push(s);
           continue;
         }
-        const filePath = path.join(memDir, `${s}.json`);
+        const filePath = path.join(memDir, storeFilename(s));
         let entries = [];
         try {
           const rawData = fs.readFileSync(filePath, "utf-8");
@@ -24802,11 +24951,21 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             const limitIdx = args.indexOf("--limit");
             const queryIdx = args.indexOf("--query");
             const phaseIdx = args.indexOf("--phase");
+            const categoryIdx = args.indexOf("--category");
+            const tagsIdx = args.indexOf("--tags");
+            const fromIdx = args.indexOf("--from");
+            const toIdx = args.indexOf("--to");
+            const ascFlag = args.includes("--asc");
             lazyMemory().cmdMemoryRead(cwd, {
               store: storeIdx !== -1 ? args[storeIdx + 1] : null,
               limit: limitIdx !== -1 ? args[limitIdx + 1] : null,
               query: queryIdx !== -1 ? args[queryIdx + 1] : null,
-              phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null
+              phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+              category: categoryIdx !== -1 ? args[categoryIdx + 1] : null,
+              tags: tagsIdx !== -1 ? args[tagsIdx + 1] : null,
+              from: fromIdx !== -1 ? args[fromIdx + 1] : null,
+              to: toIdx !== -1 ? args[toIdx + 1] : null,
+              asc: ascFlag
             }, raw);
           } else if (subcommand === "list") {
             lazyMemory().cmdMemoryList(cwd, {}, raw);
@@ -24944,8 +25103,30 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
               gitOutput(gitMod.branchInfo(cwd), raw);
               break;
             }
+            case "rewind": {
+              const refIdx = args.indexOf("--ref");
+              const rwConfirm = args.includes("--confirm");
+              const rwDryRun = args.includes("--dry-run");
+              gitOutput(gitMod.selectiveRewind(cwd, {
+                ref: refIdx !== -1 ? args[refIdx + 1] : void 0,
+                confirm: rwConfirm,
+                dryRun: rwDryRun
+              }), raw);
+              break;
+            }
+            case "trajectory-branch": {
+              const tbPhaseIdx = args.indexOf("--phase");
+              const tbSlugIdx = args.indexOf("--slug");
+              const tbPush = args.includes("--push");
+              gitOutput(gitMod.trajectoryBranch(cwd, {
+                phase: tbPhaseIdx !== -1 ? args[tbPhaseIdx + 1] : void 0,
+                slug: tbSlugIdx !== -1 ? args[tbSlugIdx + 1] : void 0,
+                push: tbPush
+              }), raw);
+              break;
+            }
             default:
-              error("Unknown git subcommand: " + gitSub + ". Available: log, diff-summary, blame, branch-info");
+              error("Unknown git subcommand: " + gitSub + ". Available: log, diff-summary, blame, branch-info, rewind, trajectory-branch");
           }
           break;
         }

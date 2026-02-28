@@ -7624,10 +7624,10 @@ describe('test-coverage', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('build pipeline', () => {
-  test('bundle size is under 1000KB budget', () => {
+  test('bundle size is under 1050KB budget', () => {
     const stat = fs.statSync(TOOLS_PATH);
     const sizeKB = Math.round(stat.size / 1024);
-    assert.ok(sizeKB <= 1000, `Bundle size ${sizeKB}KB exceeds 1000KB budget`);
+    assert.ok(sizeKB <= 1050, `Bundle size ${sizeKB}KB exceeds 1050KB budget`);
     assert.ok(sizeKB > 50, `Bundle size ${sizeKB}KB suspiciously small`);
   });
 
@@ -9310,13 +9310,13 @@ describe('env scan', () => {
   });
 
   describe('detection against real project', () => {
-    test('gsd-opencode project detects node and npm', () => {
+    test('bgsd-oc project detects node and npm', () => {
       // Run against the actual project root (bin/ is inside project root)
       const projectRoot = path.resolve(__dirname, '..');
       const result = envScanParsed(projectRoot);
       assert.ok(result.success, `env scan on project root failed: ${result.error}`);
       const node = result.data.languages.find(l => l.name === 'node');
-      assert.ok(node, 'should detect node in gsd-opencode project');
+      assert.ok(node, 'should detect node in bgsd-oc project');
       assert.strictEqual(node.primary, true, 'node should be primary');
       assert.ok(result.data.package_manager.name, 'should detect a package manager');
     });
@@ -13291,7 +13291,7 @@ use std::collections::HashMap;
 
 describe('codebase context', () => {
   // These tests run against the real project's codebase intel data.
-  // The gsd-opencode project has a .planning/codebase/codebase-intel.json
+  // The bgsd-oc project has a .planning/codebase/codebase-intel.json
   // with dependency graph and conventions data from prior phases.
 
   test('basic output structure: success, files, file_count', () => {

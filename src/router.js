@@ -700,11 +700,21 @@ async function main() {
         const limitIdx = args.indexOf('--limit');
         const queryIdx = args.indexOf('--query');
         const phaseIdx = args.indexOf('--phase');
+        const categoryIdx = args.indexOf('--category');
+        const tagsIdx = args.indexOf('--tags');
+        const fromIdx = args.indexOf('--from');
+        const toIdx = args.indexOf('--to');
+        const ascFlag = args.includes('--asc');
         lazyMemory().cmdMemoryRead(cwd, {
           store: storeIdx !== -1 ? args[storeIdx + 1] : null,
           limit: limitIdx !== -1 ? args[limitIdx + 1] : null,
           query: queryIdx !== -1 ? args[queryIdx + 1] : null,
           phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          category: categoryIdx !== -1 ? args[categoryIdx + 1] : null,
+          tags: tagsIdx !== -1 ? args[tagsIdx + 1] : null,
+          from: fromIdx !== -1 ? args[fromIdx + 1] : null,
+          to: toIdx !== -1 ? args[toIdx + 1] : null,
+          asc: ascFlag,
         }, raw);
       } else if (subcommand === 'list') {
         lazyMemory().cmdMemoryList(cwd, {}, raw);
@@ -850,8 +860,30 @@ async function main() {
           gitOutput(gitMod.branchInfo(cwd), raw);
           break;
         }
+        case 'rewind': {
+          const refIdx = args.indexOf('--ref');
+          const rwConfirm = args.includes('--confirm');
+          const rwDryRun = args.includes('--dry-run');
+          gitOutput(gitMod.selectiveRewind(cwd, {
+            ref: refIdx !== -1 ? args[refIdx + 1] : undefined,
+            confirm: rwConfirm,
+            dryRun: rwDryRun,
+          }), raw);
+          break;
+        }
+        case 'trajectory-branch': {
+          const tbPhaseIdx = args.indexOf('--phase');
+          const tbSlugIdx = args.indexOf('--slug');
+          const tbPush = args.includes('--push');
+          gitOutput(gitMod.trajectoryBranch(cwd, {
+            phase: tbPhaseIdx !== -1 ? args[tbPhaseIdx + 1] : undefined,
+            slug: tbSlugIdx !== -1 ? args[tbSlugIdx + 1] : undefined,
+            push: tbPush,
+          }), raw);
+          break;
+        }
         default:
-          error('Unknown git subcommand: ' + gitSub + '. Available: log, diff-summary, blame, branch-info');
+          error('Unknown git subcommand: ' + gitSub + '. Available: log, diff-summary, blame, branch-info, rewind, trajectory-branch');
       }
       break;
     }

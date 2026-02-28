@@ -298,4 +298,77 @@ function branchInfo(cwd) {
   };
 }
 
-module.exports = { execGit, structuredLog, diffSummary, blame, branchInfo };
+// ─── Selective Rewind ────────────────────────────────────────────────────────
+
+const PROTECTED_PATHS = ['.planning', 'package.json', 'package-lock.json', 'tsconfig.json', '.gitignore', '.env'];
+
+function isProtectedPath(f) {
+  for (const p of PROTECTED_PATHS) if (f === p || f.startsWith(p + '/')) return true;
+  return /^tsconfig\..*\.json$/.test(f) || /^\.env\./.test(f);
+}
+
+function selectiveRewind(cwd, opts = {}) {
+  const { ref, confirm, dryRun } = opts;
+  if (!ref) return { error: 'ref is required' };
+  if (execGit(cwd, ['rev-parse', '--verify', ref]).exitCode !== 0) return { error: 'Invalid ref: ' + ref };
+
+  const dr = execGit(cwd, ['diff', '--name-status', 'HEAD', ref, '--']);
+  const changes = [], nonProt = [];
+  let pc = 0;
+  if (dr.exitCode === 0 && dr.stdout) {
+    for (const line of dr.stdout.split('\n').filter(Boolean)) {
+      const p = line.split('\t'), st = p[0], file = p[p.length - 1];
+      if (isProtectedPath(file)) pc++; else { changes.push({ file, status: st }); nonProt.push(file); }
+    }
+  }
+  if (dryRun) return { dry_run: true, ref, changes, protected_paths: PROTECTED_PATHS, files_affected: changes.length, files_protected: pc };
+  if (!confirm) return { needs_confirm: true, ref, changes, protected_paths: PROTECTED_PATHS, files_affected: changes.length, files_protected: pc, message: 'Pass --confirm to execute rewind' };
+  if (!nonProt.length) return { rewound: true, ref, files_changed: 0, files_protected: pc, stash_used: false };
+
+  let stashed = false;
+  const sr = execGit(cwd, ['status', '--porcelain']);
+  if (sr.exitCode === 0 && sr.stdout && execGit(cwd, ['stash', 'push', '-m', 'gsd-rewind-auto-stash']).exitCode === 0) stashed = true;
+
+  let err = null;
+  try {
+    if (nonProt.length > 50) {
+      const r = execGit(cwd, ['checkout', ref, '--', '.']);
+      if (r.exitCode !== 0) err = r.stderr || 'checkout failed';
+      else {
+        execGit(cwd, ['checkout', 'HEAD', '--', '.planning']);
+        for (const pf of PROTECTED_PATHS) if (pf !== '.planning' && execGit(cwd, ['cat-file', '-e', 'HEAD:' + pf]).exitCode === 0) execGit(cwd, ['checkout', 'HEAD', '--', pf]);
+        const ls = execGit(cwd, ['ls-tree', '--name-only', 'HEAD']);
+        if (ls.exitCode === 0 && ls.stdout) for (const f of ls.stdout.split('\n').filter(Boolean)) if (/^tsconfig\..*\.json$/.test(f) || /^\.env\./.test(f)) execGit(cwd, ['checkout', 'HEAD', '--', f]);
+      }
+    } else {
+      const r = execGit(cwd, ['checkout', ref, '--', ...nonProt]);
+      if (r.exitCode !== 0) err = r.stderr || 'checkout failed';
+    }
+  } catch (e) { err = e.message; }
+  if (stashed) execGit(cwd, ['stash', 'pop']);
+  if (err) return { error: 'Rewind failed: ' + err, stash_restored: stashed };
+  return { rewound: true, ref, files_changed: nonProt.length, files_protected: pc, stash_used: stashed };
+}
+
+// ─── Trajectory Branch ───────────────────────────────────────────────────────
+
+function trajectoryBranch(cwd, opts = {}) {
+  const { phase, slug, push } = opts;
+  if (!phase || !slug) return { error: 'phase and slug are required' };
+  const bn = `gsd/trajectory/${phase}-${slug}`;
+  const wt = execGit(cwd, ['branch', '--list', 'worktree-*']);
+  if (wt.exitCode === 0 && wt.stdout) {
+    for (const wb of wt.stdout.split('\n').map(b => b.trim().replace(/^\*\s*/, '')).filter(Boolean))
+      if (wb === bn || bn.startsWith(wb) || wb.startsWith(bn)) return { error: `Branch "${bn}" collides with worktree branch "${wb}"` };
+  }
+  if (execGit(cwd, ['rev-parse', '--verify', bn]).exitCode === 0) return { exists: true, branch: bn };
+  const cr = execGit(cwd, ['checkout', '-b', bn]);
+  if (cr.exitCode !== 0) return { error: 'Failed to create branch: ' + (cr.stderr || 'unknown') };
+  if (push) {
+    const pr = execGit(cwd, ['push', '-u', 'origin', bn]);
+    return { created: true, branch: bn, pushed: pr.exitCode === 0, ...(pr.exitCode !== 0 ? { push_error: pr.stderr } : {}) };
+  }
+  return { created: true, branch: bn, pushed: false };
+}
+
+module.exports = { execGit, structuredLog, diffSummary, blame, branchInfo, selectiveRewind, trajectoryBranch };
