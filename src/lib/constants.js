@@ -1024,6 +1024,23 @@ Examples:
   gsd-tools codebase repo-map
   gsd-tools codebase repo-map --budget 500`,
 
+  'trajectory': `Usage: gsd-tools trajectory <subcommand> [options]
+
+Trajectory engineering commands.
+
+Subcommands:
+  checkpoint <name>  Create named checkpoint with auto-metrics
+    --scope <scope>       Scope level (default: phase)
+    --description <text>  Optional context description
+
+Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
+journal entry to the trajectories memory store with test count, LOC delta,
+and cyclomatic complexity metrics.
+
+Examples:
+  gsd-tools trajectory checkpoint explore-auth
+  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"`,
+
   'classify': `Usage: gsd-tools classify <plan|phase> <path-or-number>
 
 Classify task complexity and recommend execution strategy.

@@ -962,6 +962,22 @@ Output (formatted): The summary text directly
 Examples:
   gsd-tools codebase repo-map
   gsd-tools codebase repo-map --budget 500`,
+      "trajectory": `Usage: gsd-tools trajectory <subcommand> [options]
+
+Trajectory engineering commands.
+
+Subcommands:
+  checkpoint <name>  Create named checkpoint with auto-metrics
+    --scope <scope>       Scope level (default: phase)
+    --description <text>  Optional context description
+
+Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
+journal entry to the trajectories memory store with test count, LOC delta,
+and cyclomatic complexity metrics.
+
+Examples:
+  gsd-tools trajectory checkpoint explore-auth
+  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"`,
       "classify": `Usage: gsd-tools classify <plan|phase> <path-or-number>
 
 Classify task complexity and recommend execution strategy.
@@ -24231,6 +24247,169 @@ var require_mcp = __commonJS({
   }
 });
 
+// src/commands/trajectory.js
+var require_trajectory = __commonJS({
+  "src/commands/trajectory.js"(exports2, module2) {
+    var fs = require("fs");
+    var path = require("path");
+    var crypto = require("crypto");
+    var { execFileSync } = require("child_process");
+    var { output, error, debugLog } = require_output();
+    var { execGit, diffSummary } = require_git();
+    var NAME_RE = /^[a-zA-Z0-9_-]+$/;
+    function cmdTrajectoryCheckpoint(cwd, args, raw) {
+      const posArgs = [];
+      let scope = "phase";
+      let description = null;
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === "--scope" && args[i + 1]) {
+          scope = args[++i];
+          continue;
+        }
+        if (args[i] === "--description" && args[i + 1]) {
+          description = args[++i];
+          continue;
+        }
+        if (!args[i].startsWith("-")) posArgs.push(args[i]);
+      }
+      const name = posArgs[0];
+      if (!name) error("Missing checkpoint name. Usage: trajectory checkpoint <name>");
+      if (!NAME_RE.test(name)) error(`Invalid checkpoint name "${name}". Use alphanumeric, hyphens, underscores only.`);
+      const status = execGit(cwd, ["status", "--porcelain"]);
+      if (status.exitCode === 0 && status.stdout) {
+        error("Uncommitted changes detected. Commit or stash before checkpointing.");
+      }
+      const memDir = path.join(cwd, ".planning", "memory");
+      const trajPath = path.join(memDir, "trajectory.json");
+      let entries = [];
+      try {
+        const raw2 = fs.readFileSync(trajPath, "utf-8");
+        entries = JSON.parse(raw2);
+        if (!Array.isArray(entries)) entries = [];
+      } catch (e) {
+        debugLog("trajectory.checkpoint", "no existing trajectory.json", e);
+        entries = [];
+      }
+      const existing = entries.filter(
+        (e) => e.category === "checkpoint" && e.scope === scope && e.checkpoint_name === name
+      );
+      const attempt = existing.length + 1;
+      const branchName = `trajectory/${scope}/${name}/attempt-${attempt}`;
+      const brResult = execGit(cwd, ["branch", branchName]);
+      if (brResult.exitCode !== 0) {
+        error(`Failed to create branch "${branchName}": ${brResult.stderr}`);
+      }
+      const verifyResult = execGit(cwd, ["rev-parse", "--verify", branchName]);
+      if (verifyResult.exitCode !== 0) {
+        error(`Branch "${branchName}" was not created successfully.`);
+      }
+      const headResult = execGit(cwd, ["rev-parse", "HEAD"]);
+      const gitRef = headResult.exitCode === 0 ? headResult.stdout : "unknown";
+      const metrics = { tests: null, loc_delta: null, complexity: null };
+      try {
+        const testOutput = execFileSync("node", ["--test", path.join(cwd, "bin", "gsd-tools.test.cjs")], {
+          cwd,
+          encoding: "utf-8",
+          stdio: "pipe",
+          timeout: 12e4
+        });
+        metrics.tests = parseTestOutput(testOutput);
+      } catch (e) {
+        const combined = (e.stdout || "") + "\n" + (e.stderr || "");
+        metrics.tests = parseTestOutput(combined);
+      }
+      try {
+        let diff = diffSummary(cwd, { from: "HEAD~5", to: "HEAD" });
+        if (diff.error) diff = diffSummary(cwd, { from: "HEAD~1", to: "HEAD" });
+        if (!diff.error) {
+          metrics.loc_delta = {
+            insertions: diff.total_insertions,
+            deletions: diff.total_deletions,
+            files_changed: diff.file_count
+          };
+        }
+      } catch (e) {
+        debugLog("trajectory.checkpoint", "LOC delta failed", e);
+      }
+      try {
+        const changedFiles = getRecentChangedFiles(cwd);
+        let totalComplexity = 0;
+        let filesAnalyzed = 0;
+        for (const file of changedFiles) {
+          if (!file.endsWith(".js")) continue;
+          const fullPath = path.join(cwd, file);
+          if (!fs.existsSync(fullPath)) continue;
+          try {
+            const astOut = execFileSync("node", [path.join(cwd, "bin", "gsd-tools.cjs"), "codebase", "complexity", file], {
+              cwd,
+              encoding: "utf-8",
+              stdio: "pipe",
+              timeout: 15e3
+            });
+            const parsed = JSON.parse(astOut);
+            if (parsed.module_complexity !== void 0) {
+              totalComplexity += parsed.module_complexity;
+              filesAnalyzed++;
+            }
+          } catch (e) {
+            debugLog("trajectory.checkpoint", `complexity failed for ${file}`, e);
+          }
+        }
+        metrics.complexity = { total: totalComplexity, files_analyzed: filesAnalyzed };
+      } catch (e) {
+        debugLog("trajectory.checkpoint", "complexity collection failed", e);
+      }
+      let id;
+      const existingIds = new Set(entries.map((e) => e.id));
+      do {
+        id = "tj-" + crypto.randomBytes(3).toString("hex");
+      } while (existingIds.has(id));
+      const entry = {
+        id,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        category: "checkpoint",
+        text: `Checkpoint: ${name} (attempt ${attempt})`,
+        scope,
+        checkpoint_name: name,
+        attempt,
+        branch: branchName,
+        git_ref: gitRef,
+        description: description || null,
+        metrics,
+        tags: ["checkpoint"]
+      };
+      entries.push(entry);
+      fs.mkdirSync(memDir, { recursive: true });
+      fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), "utf-8");
+      output({
+        created: true,
+        checkpoint: name,
+        branch: branchName,
+        attempt,
+        git_ref: gitRef,
+        metrics
+      });
+    }
+    function parseTestOutput(text) {
+      const result = { total: 0, pass: 0, fail: 0 };
+      if (!text) return result;
+      const totalMatch = text.match(/# tests (\d+)/);
+      const passMatch = text.match(/# pass (\d+)/);
+      const failMatch = text.match(/# fail (\d+)/);
+      if (totalMatch) result.total = parseInt(totalMatch[1], 10);
+      if (passMatch) result.pass = parseInt(passMatch[1], 10);
+      if (failMatch) result.fail = parseInt(failMatch[1], 10);
+      return result;
+    }
+    function getRecentChangedFiles(cwd) {
+      const diff = diffSummary(cwd, { from: "HEAD~5", to: "HEAD" });
+      if (diff.error || !diff.files) return [];
+      return diff.files.map((f) => f.path).filter(Boolean);
+    }
+    module2.exports = { cmdTrajectoryCheckpoint };
+  }
+});
+
 // src/lib/profiler.js
 var require_profiler = __commonJS({
   "src/lib/profiler.js"(exports2, module2) {
@@ -24346,6 +24525,9 @@ var require_router = __commonJS({
     function lazyCodebase() {
       return _modules.codebase || (_modules.codebase = require_codebase());
     }
+    function lazyTrajectory() {
+      return _modules.trajectory || (_modules.trajectory = require_trajectory());
+    }
     function lazyGit() {
       return _modules.git || (_modules.git = require_git());
     }
@@ -24403,7 +24585,7 @@ var require_router = __commonJS({
         });
       }
       if (!command) {
-        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, review, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, tdd, template, test-coverage, test-run, todo, token-budget, trace-requirement, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
+        error("Usage: gsd-tools <command> [args] [--pretty] [--verbose]\nCommands: assertions, classify, codebase, codebase-impact, commit, config-ensure-section, config-get, config-migrate, config-set, context-budget, current-timestamp, env, extract-sections, find-phase, frontmatter, generate-slug, git, history-digest, init, intent, list-todos, mcp, mcp-profile, memory, milestone, phase, phase-plan-index, phases, progress, quick-summary, requirements, resolve-model, review, roadmap, rollback-info, scaffold, search-decisions, search-lessons, session-diff, state, state-snapshot, summary-extract, tdd, template, test-coverage, test-run, todo, token-budget, trace-requirement, trajectory, validate, validate-config, validate-dependencies, velocity, verify, verify-path-exists, verify-summary, websearch, worktree");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -25157,6 +25339,17 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             lazyOrchestration().cmdClassifyPhase(cwd, args.slice(2), raw);
           } else {
             error("Usage: classify <plan|phase> <path-or-number>");
+          }
+          break;
+        }
+        case "trajectory": {
+          const trajSub = args[1];
+          switch (trajSub) {
+            case "checkpoint":
+              lazyTrajectory().cmdTrajectoryCheckpoint(cwd, args.slice(1), raw);
+              break;
+            default:
+              error("Unknown trajectory subcommand: " + trajSub + ". Available: checkpoint");
           }
           break;
         }
