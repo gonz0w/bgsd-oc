@@ -6013,6 +6013,245 @@ describe('memory compact', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// memory trajectories (Phase 45, Plan 01)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('memory trajectories', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('write basic trajectory entry with auto-generated ID and timestamp', () => {
+    const entry = JSON.stringify({ category: 'decision', text: 'Use vertical slices' });
+    const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.written, true);
+    assert.strictEqual(output.store, 'trajectories');
+    assert.strictEqual(output.entry_count, 1);
+
+    // Verify file exists at trajectory.json (not trajectories.json)
+    const filePath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    assert.ok(fs.existsSync(filePath), 'trajectory.json should exist');
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    assert.strictEqual(data.length, 1);
+    assert.match(data[0].id, /^tj-[a-f0-9]{6}$/, 'ID should match tj-XXXXXX format');
+    assert.ok(data[0].timestamp, 'should have auto-added timestamp');
+    assert.strictEqual(data[0].category, 'decision');
+    assert.strictEqual(data[0].text, 'Use vertical slices');
+  });
+
+  test('write rejects missing category', () => {
+    const entry = JSON.stringify({ text: 'No category here' });
+    const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail without category');
+    assert.ok(result.error.includes('category') || result.output.includes('category'), 'Error should mention category');
+  });
+
+  test('write rejects invalid category', () => {
+    const entry = JSON.stringify({ category: 'invalid', text: 'Bad category' });
+    const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail with invalid category');
+    assert.ok(result.error.includes('category') || result.output.includes('category'), 'Error should mention category');
+  });
+
+  test('write rejects missing text', () => {
+    const entry = JSON.stringify({ category: 'decision' });
+    const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail without text');
+    assert.ok(result.error.includes('text') || result.output.includes('text'), 'Error should mention text');
+  });
+
+  test('write with full metadata preserves all fields', () => {
+    const entry = JSON.stringify({
+      category: 'hypothesis',
+      text: 'Parallel execution will be faster',
+      phase: '45',
+      confidence: 'medium',
+      tags: ['perf', 'memory'],
+      references: ['abc123', 'src/foo.js'],
+    });
+    const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const filePath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    assert.strictEqual(data[0].phase, '45');
+    assert.strictEqual(data[0].confidence, 'medium');
+    assert.deepStrictEqual(data[0].tags, ['perf', 'memory']);
+    assert.deepStrictEqual(data[0].references, ['abc123', 'src/foo.js']);
+  });
+
+  test('write rejects invalid confidence', () => {
+    const entry = JSON.stringify({ category: 'observation', text: 'Something', confidence: 'very-high' });
+    const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail with invalid confidence');
+    assert.ok(result.error.includes('confidence') || result.output.includes('confidence'), 'Error should mention confidence');
+  });
+
+  test('read with category filter returns only matching entries', () => {
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    const entries = [
+      { id: 'tj-aaa001', category: 'decision', text: 'First', timestamp: '2026-01-01T00:00:00Z' },
+      { id: 'tj-aaa002', category: 'observation', text: 'Second', timestamp: '2026-01-02T00:00:00Z' },
+      { id: 'tj-aaa003', category: 'decision', text: 'Third', timestamp: '2026-01-03T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
+
+    const result = runGsdTools('memory read --store trajectories --category decision', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.count, 2, 'should match 2 decision entries');
+    assert.ok(output.entries.every(e => e.category === 'decision'), 'all should be decisions');
+  });
+
+  test('read with tag filter requires ALL specified tags', () => {
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    const entries = [
+      { id: 'tj-bbb001', category: 'decision', text: 'A', tags: ['perf', 'memory'], timestamp: '2026-01-01T00:00:00Z' },
+      { id: 'tj-bbb002', category: 'observation', text: 'B', tags: ['perf'], timestamp: '2026-01-02T00:00:00Z' },
+      { id: 'tj-bbb003', category: 'decision', text: 'C', tags: ['memory'], timestamp: '2026-01-03T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
+
+    // Single tag
+    const r1 = runGsdTools('memory read --store trajectories --tags perf', tmpDir);
+    assert.ok(r1.success, `Command failed: ${r1.error}`);
+    const o1 = JSON.parse(r1.output);
+    assert.strictEqual(o1.count, 2, 'should match 2 entries with perf tag');
+
+    // Multi-tag (AND logic)
+    const r2 = runGsdTools('memory read --store trajectories --tags perf,memory', tmpDir);
+    assert.ok(r2.success, `Command failed: ${r2.error}`);
+    const o2 = JSON.parse(r2.output);
+    assert.strictEqual(o2.count, 1, 'should match 1 entry with both perf AND memory');
+  });
+
+  test('read with date range filters by timestamp', () => {
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    const entries = [
+      { id: 'tj-ccc001', category: 'decision', text: 'Old', timestamp: '2025-06-15T00:00:00Z' },
+      { id: 'tj-ccc002', category: 'decision', text: 'Mid', timestamp: '2026-03-15T00:00:00Z' },
+      { id: 'tj-ccc003', category: 'decision', text: 'New', timestamp: '2026-09-15T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
+
+    const result = runGsdTools('memory read --store trajectories --from 2026-01-01 --to 2026-12-31', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.count, 2, 'should match 2 entries in 2026');
+  });
+
+  test('read default sort is newest-first', () => {
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    const entries = [
+      { id: 'tj-ddd001', category: 'decision', text: 'First', timestamp: '2026-01-01T00:00:00Z' },
+      { id: 'tj-ddd002', category: 'observation', text: 'Second', timestamp: '2026-02-01T00:00:00Z' },
+      { id: 'tj-ddd003', category: 'correction', text: 'Third', timestamp: '2026-03-01T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
+
+    const result = runGsdTools('memory read --store trajectories', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.entries[0].text, 'Third', 'newest entry should be first');
+    assert.strictEqual(output.entries[2].text, 'First', 'oldest entry should be last');
+  });
+
+  test('read with --asc flag returns chronological order', () => {
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    const entries = [
+      { id: 'tj-eee001', category: 'decision', text: 'First', timestamp: '2026-01-01T00:00:00Z' },
+      { id: 'tj-eee002', category: 'observation', text: 'Second', timestamp: '2026-02-01T00:00:00Z' },
+      { id: 'tj-eee003', category: 'hypothesis', text: 'Third', timestamp: '2026-03-01T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
+
+    const result = runGsdTools('memory read --store trajectories --asc', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.entries[0].text, 'First', 'oldest entry should be first with --asc');
+    assert.strictEqual(output.entries[2].text, 'Third', 'newest entry should be last with --asc');
+  });
+
+  test('session persistence — data survives across separate read calls', () => {
+    // Write entry
+    const entry = JSON.stringify({ category: 'correction', text: 'Fix the approach' });
+    const writeResult = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+    assert.ok(writeResult.success, `Write failed: ${writeResult.error}`);
+
+    // Read back (simulating new session — separate process invocation)
+    const readResult = runGsdTools('memory read --store trajectories', tmpDir);
+    assert.ok(readResult.success, `Read failed: ${readResult.error}`);
+    const output = JSON.parse(readResult.output);
+    assert.strictEqual(output.count, 1, 'entry should persist');
+    assert.strictEqual(output.entries[0].text, 'Fix the approach');
+    assert.strictEqual(output.entries[0].category, 'correction');
+  });
+
+  test('auto-generated IDs are unique across 10 entries', () => {
+    const ids = [];
+    for (let i = 0; i < 10; i++) {
+      const entry = JSON.stringify({ category: 'observation', text: `Entry ${i}` });
+      const result = runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+      assert.ok(result.success, `Write ${i} failed: ${result.error}`);
+    }
+
+    const filePath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    assert.strictEqual(data.length, 10, 'should have 10 entries');
+    const idSet = new Set(data.map(e => e.id));
+    assert.strictEqual(idSet.size, 10, 'all 10 IDs should be unique');
+    for (const id of idSet) {
+      assert.match(id, /^tj-[a-f0-9]{6}$/, `ID ${id} should match tj-XXXXXX format`);
+    }
+  });
+
+  test('sacred store — compact skips trajectories', () => {
+    const memDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    const entries = Array.from({ length: 60 }, (_, i) => ({
+      id: `tj-${String(i).padStart(6, '0')}`,
+      category: 'decision',
+      text: `Entry ${i}`,
+      timestamp: '2026-01-01T00:00:00Z',
+    }));
+    fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
+
+    const result = runGsdTools('memory compact --store trajectories', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.compacted, false, 'should not compact');
+    assert.strictEqual(output.reason, 'sacred_data', 'reason should be sacred_data');
+
+    // Verify file unchanged
+    const afterEntries = JSON.parse(fs.readFileSync(path.join(memDir, 'trajectory.json'), 'utf-8'));
+    assert.strictEqual(afterEntries.length, 60, 'trajectories should be unchanged');
+  });
+
+  test('filename is trajectory.json not trajectories.json', () => {
+    const entry = JSON.stringify({ category: 'hypothesis', text: 'Check filename' });
+    runGsdTools(`memory write --store trajectories --entry '${entry}'`, tmpDir);
+
+    const correctPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    const wrongPath = path.join(tmpDir, '.planning', 'memory', 'trajectories.json');
+    assert.ok(fs.existsSync(correctPath), 'trajectory.json should exist');
+    assert.ok(!fs.existsSync(wrongPath), 'trajectories.json should NOT exist');
+  });
+});
+
 // ─── verify analyze-plan ─────────────────────────────────────────────────────
 
 describe('verify analyze-plan', () => {
