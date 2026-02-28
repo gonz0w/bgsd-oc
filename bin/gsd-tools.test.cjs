@@ -16257,9 +16257,178 @@ describe('tdd', () => {
       assert.ok(result.success, `Commit failed: ${result.error || result.output}`);
       // Check git log for trailer
       const log = execSync('git log -1 --format=%b', { cwd: tmpDir, encoding: 'utf-8' }).trim();
-      assert.ok(log.includes('GSD-Phase: red'), `Expected GSD-Phase trailer in: ${log}`);
+       assert.ok(log.includes('GSD-Phase: red'), `Expected GSD-Phase trailer in: ${log}`);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+// ─── Trajectory Checkpoint Tests ─────────────────────────────────────────────
+
+describe('trajectory checkpoint', () => {
+  let tmpDir;
+
+  function initGitForCheckpoint(dir) {
+    fs.mkdirSync(path.join(dir, '.planning', 'memory'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'dummy.txt'), 'hello');
+    execSync(
+      'git init && git config user.email "test@test.com" && git config user.name "Test" && git add . && git commit -m "init"',
+      { cwd: dir, stdio: 'pipe' }
+    );
+  }
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('basic checkpoint creation creates branch and journal entry', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint my-test', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.created, true);
+    assert.strictEqual(output.checkpoint, 'my-test');
+    assert.strictEqual(output.branch, 'trajectory/phase/my-test/attempt-1');
+    assert.strictEqual(output.attempt, 1);
+    assert.ok(output.git_ref, 'should have git_ref');
+
+    // Verify branch exists
+    const brResult = execSync('git branch', { cwd: tmpDir, encoding: 'utf-8' });
+    assert.ok(brResult.includes('trajectory/phase/my-test/attempt-1'), 'Branch should exist');
+
+    // Verify journal entry
+    const trajPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    assert.ok(fs.existsSync(trajPath), 'trajectory.json should exist');
+    const entries = JSON.parse(fs.readFileSync(trajPath, 'utf-8'));
+    assert.strictEqual(entries.length, 1);
+    assert.strictEqual(entries[0].category, 'checkpoint');
+    assert.strictEqual(entries[0].checkpoint_name, 'my-test');
+  });
+
+  test('custom scope creates correctly named branch', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint my-test --scope task', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.branch, 'trajectory/task/my-test/attempt-1');
+  });
+
+  test('attempt numbering increments for same name and scope', () => {
+    initGitForCheckpoint(tmpDir);
+    // First checkpoint
+    const r1 = runGsdTools('trajectory checkpoint repeat-test', tmpDir);
+    assert.ok(r1.success, `First checkpoint failed: ${r1.error}`);
+    const o1 = JSON.parse(r1.output);
+    assert.strictEqual(o1.attempt, 1);
+
+    // Second checkpoint with same name
+    const r2 = runGsdTools('trajectory checkpoint repeat-test', tmpDir);
+    assert.ok(r2.success, `Second checkpoint failed: ${r2.error}`);
+    const o2 = JSON.parse(r2.output);
+    assert.strictEqual(o2.attempt, 2);
+    assert.strictEqual(o2.branch, 'trajectory/phase/repeat-test/attempt-2');
+
+    // Verify both branches exist
+    const brResult = execSync('git branch', { cwd: tmpDir, encoding: 'utf-8' });
+    assert.ok(brResult.includes('attempt-1'), 'attempt-1 branch should exist');
+    assert.ok(brResult.includes('attempt-2'), 'attempt-2 branch should exist');
+  });
+
+  test('name validation rejects invalid names', () => {
+    initGitForCheckpoint(tmpDir);
+    const r1 = runGsdTools('trajectory checkpoint "bad name!"', tmpDir);
+    assert.strictEqual(r1.success, false, 'Should fail with spaces/special chars');
+  });
+
+  test('missing name produces error', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint', tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail without name');
+    assert.ok(result.error.includes('Missing') || result.error.includes('name'), 'Error should mention missing name');
+  });
+
+  test('journal entry has required fields', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint struct-test', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const trajPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    const entries = JSON.parse(fs.readFileSync(trajPath, 'utf-8'));
+    const entry = entries[0];
+
+    assert.ok(entry.id, 'should have id');
+    assert.match(entry.id, /^tj-[a-f0-9]{6}$/, 'ID should match tj-XXXXXX format');
+    assert.ok(entry.timestamp, 'should have timestamp');
+    assert.strictEqual(entry.category, 'checkpoint');
+    assert.ok(entry.scope, 'should have scope');
+    assert.ok(entry.checkpoint_name, 'should have checkpoint_name');
+    assert.strictEqual(typeof entry.attempt, 'number', 'attempt should be number');
+    assert.ok(entry.branch, 'should have branch');
+    assert.ok(entry.git_ref, 'should have git_ref');
+    assert.ok(entry.metrics, 'should have metrics');
+  });
+
+  test('metrics object has expected keys', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint metrics-test', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+
+    assert.ok(output.metrics, 'should have metrics');
+    assert.ok('tests' in output.metrics, 'metrics should have tests key');
+    assert.ok('loc_delta' in output.metrics, 'metrics should have loc_delta key');
+    assert.ok('complexity' in output.metrics, 'metrics should have complexity key');
+  });
+
+  test('branch naming follows convention exactly', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint naming-test --scope milestone', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+
+    const branchPattern = /^trajectory\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/attempt-\d+$/;
+    assert.match(output.branch, branchPattern, 'Branch should match trajectory/<scope>/<name>/attempt-N');
+    assert.strictEqual(output.branch, 'trajectory/milestone/naming-test/attempt-1');
+  });
+
+  test('description flag stores in journal entry', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint desc-test --description "testing approach A"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const trajPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    const entries = JSON.parse(fs.readFileSync(trajPath, 'utf-8'));
+    assert.strictEqual(entries[0].description, 'testing approach A');
+  });
+
+  test('unknown trajectory subcommand shows error', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory badcmd', tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail with unknown subcommand');
+    assert.ok(result.error.includes('Unknown') || result.error.includes('Available'), 'Error should mention available subcommands');
+  });
+
+  test('rejects checkpoint when working tree is dirty', () => {
+    initGitForCheckpoint(tmpDir);
+    // Create an uncommitted file
+    fs.writeFileSync(path.join(tmpDir, 'dirty.txt'), 'uncommitted');
+    const result = runGsdTools('trajectory checkpoint dirty-test', tmpDir);
+    assert.strictEqual(result.success, false, 'Should fail with dirty working tree');
+    assert.ok(result.error.includes('Uncommitted'), 'Error should mention uncommitted changes');
+  });
+
+  test('checkpoint tags include checkpoint tag', () => {
+    initGitForCheckpoint(tmpDir);
+    const result = runGsdTools('trajectory checkpoint tag-test', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const trajPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    const entries = JSON.parse(fs.readFileSync(trajPath, 'utf-8'));
+    assert.deepStrictEqual(entries[0].tags, ['checkpoint']);
   });
 });

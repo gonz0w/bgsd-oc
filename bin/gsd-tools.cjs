@@ -24275,9 +24275,12 @@ var require_trajectory = __commonJS({
       const name = posArgs[0];
       if (!name) error("Missing checkpoint name. Usage: trajectory checkpoint <name>");
       if (!NAME_RE.test(name)) error(`Invalid checkpoint name "${name}". Use alphanumeric, hyphens, underscores only.`);
-      const status = execGit(cwd, ["status", "--porcelain"]);
-      if (status.exitCode === 0 && status.stdout) {
-        error("Uncommitted changes detected. Commit or stash before checkpointing.");
+      const statusResult = execGit(cwd, ["status", "--porcelain"]);
+      if (statusResult.exitCode === 0 && statusResult.stdout) {
+        const dirtyNonPlanning = statusResult.stdout.split("\n").filter((line) => line.trim() && !line.slice(3).startsWith(".planning/"));
+        if (dirtyNonPlanning.length > 0) {
+          error("Uncommitted changes detected. Commit or stash before checkpointing.");
+        }
       }
       const memDir = path.join(cwd, ".planning", "memory");
       const trajPath = path.join(memDir, "trajectory.json");
