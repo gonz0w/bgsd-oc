@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 Phase: 46 of 50 (Checkpoint — Snapshot & Metrics Collection)
 Plan: 2 of 2
 Status: Phase 46 complete
-Last activity: 2026-02-28 — Completed 46-02 trajectory list command
+Last activity: 2026-02-28 - Completed quick task 2: Update docs and README.md for all new undocumented features, include user guides
 
 Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 4/4 plans (Phase 46 complete)
 
@@ -70,9 +70,15 @@ None — milestone starting fresh.
 - Phase 45 (Foundation): STATE.md coherence during pivot is the #1 architectural risk — selective checkout design must be proven before building commands on top
 - Phase 47 (Pivot): Selective checkout edge cases need careful testing — files added/deleted since checkpoint, `.planning/` files created during attempt
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 2 | Update docs and README.md for all new undocumented features, include user guides | 2026-02-28 | d5010c1 | .planning/quick/2-update-docs-and-readme-md-for-all-new-un |
+
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed quick-2 documentation update (README.md, docs/commands.md, docs/milestones.md)
+Stopped at: Completed quick task 2 — documentation update (README.md, docs/commands.md, docs/milestones.md)
 Resume file: None
 Next step: Phase 46 complete — proceed to Phase 47 (Pivot: Selective Checkout & Branch Switching)
