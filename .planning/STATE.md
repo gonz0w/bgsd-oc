@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 49 of 50 (Choose — Merge Winner & Cleanup)
-Plan: 1 of 2
-Status: In Progress
-Last activity: 2026-03-01 - Completed 49-01-PLAN.md: trajectory choose command implementation
+Plan: 2 of 2
+Status: Complete
+Last activity: 2026-03-01 - Completed 49-02-PLAN.md: trajectory choose test suite
 
-Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 9/10 plans (Phase 49 in progress)
+Progress: [████████████████████░░░░░░░░░░] 100/100 plans complete (v1.0-v7.0) | v7.1: 10/10 plans (Phase 49 complete)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [████████████████████░░░
 | 48 | 01 | 5 min | 2 | 3 |
 | 48 | 02 | 12 min | 2 | 1 |
 | Phase 49 P01 | 6 min | 2 tasks | 4 files |
+| Phase 49 P02 | 6 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ All v1.0-v7.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 48]: Used writeTrajectoryEntries helper for direct journal injection in compare tests (faster than running checkpoint command)
 - [Phase 49]: Used --no-ff merge for trajectory choose to preserve branch lineage in merge commits
 - [Phase 49]: Archive non-chosen attempts as lightweight tags matching branch name, delete ALL branches after merge
+- [Phase 49]: Used createBranchWithFile helper for choose tests (real git branches needed for merge/delete operations)
+- [Phase 49]: Replaced TTY banner test with JSON schema validation for CI-reliable assertions
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 49-01-PLAN.md — trajectory choose command implementation
+Stopped at: Completed 49-02-PLAN.md — trajectory choose test suite (Phase 49 complete)
 Resume file: None
-Next step: Phase 49-02 (trajectory choose test suite)
+Next step: Phase 50 (Integration) or milestone wrap-up

@@ -130,7 +130,7 @@ Full details: `.planning/milestones/v7.0-ROADMAP.md`
 - [x] **Phase 46: Checkpoint — Snapshot & Metrics Collection** - Named checkpoints with git state capture and auto-metrics (completed 2026-02-28)
 - [x] **Phase 47: Pivot — Selective Rewind & Attempt Archival** - Abandon approach with recorded reasoning, rewind to checkpoint safely (completed 2026-03-01)
 - [x] **Phase 48: Compare — Multi-Attempt Metrics Aggregation** - Outcome metrics comparison across attempts with signal detection (completed 2026-03-01)
-- [ ] **Phase 49: Choose — Merge Winner & Cleanup** - Select winning attempt, archive alternatives, clean up branches
+- [x] **Phase 49: Choose — Merge Winner & Cleanup** - Select winning attempt, archive alternatives, clean up branches (completed 2026-03-01)
 - [ ] **Phase 50: Integration — Agent Context & Dead-End Detection** - Journal-driven context injection and stuck-to-pivot wiring
 
 ## Phase Details
@@ -198,7 +198,7 @@ Plans:
   2. Non-chosen attempts are preserved as archived tags (`archived/trajectory/<scope>/<name>/attempt-N`) for future reference
   3. Trajectory working branches are deleted after archival — `git branch` output is not polluted with stale trajectory branches
   4. Journal records the final choice with rationale, completing the trajectory lifecycle
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 Plans:
 - [ ] 49-01-PLAN.md — Choose command implementation (merge, tag archival, branch cleanup, journal)
 - [ ] 49-02-PLAN.md — Comprehensive choose test suite validating all CHOOSE requirements
@@ -230,5 +230,5 @@ Plans:
 | 46. Checkpoint | 2/2 | Complete    | 2026-02-28 | - |
 | 47. Pivot | 2/2 | Complete    | 2026-03-01 | - |
 | 48. Compare | 2/2 | Complete    | 2026-03-01 | - |
-| 49. Choose | 1/2 | In Progress|  | - |
+| 49. Choose | 2/2 | Complete   | 2026-03-01 | - |
 | 50. Integration | v7.1 | 0/TBD | Not started | - |
