@@ -24838,7 +24838,146 @@ var require_trajectory = __commonJS({
       lines.push(actionHint("trajectory choose <attempt-N>"));
       return lines.join("\n");
     }
-    module2.exports = { cmdTrajectoryCheckpoint, cmdTrajectoryList, cmdTrajectoryPivot, cmdTrajectoryCompare };
+    function cmdTrajectoryChoose(cwd, args, raw) {
+      const posArgs = [];
+      let scope = "phase";
+      let reasonText = null;
+      let attemptNum = null;
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === "--scope" && args[i + 1]) {
+          scope = args[++i];
+          continue;
+        }
+        if (args[i] === "--reason" && args[i + 1]) {
+          reasonText = args[++i];
+          continue;
+        }
+        if (args[i] === "--attempt" && args[i + 1]) {
+          attemptNum = parseInt(args[++i], 10);
+          continue;
+        }
+        if (!args[i].startsWith("-")) posArgs.push(args[i]);
+      }
+      const name = posArgs[0];
+      if (!name) error("Missing checkpoint name. Usage: trajectory choose <name> --attempt <N>");
+      if (!NAME_RE.test(name)) error(`Invalid checkpoint name "${name}". Use alphanumeric, hyphens, underscores only.`);
+      if (attemptNum === null || isNaN(attemptNum)) error("Must specify winning attempt: trajectory choose <name> --attempt <N>");
+      const memDir = path.join(cwd, ".planning", "memory");
+      const trajPath = path.join(memDir, "trajectory.json");
+      let entries = [];
+      try {
+        const data = fs.readFileSync(trajPath, "utf-8");
+        entries = JSON.parse(data);
+        if (!Array.isArray(entries)) entries = [];
+      } catch (e) {
+        debugLog("trajectory.choose", "no trajectory.json found", e);
+        entries = [];
+      }
+      const allCheckpoints = entries.filter(
+        (e) => e.category === "checkpoint" && e.checkpoint_name === name && e.scope === scope
+      );
+      if (allCheckpoints.length === 0) {
+        error('No checkpoints found for "' + name + '" (scope: ' + scope + ").");
+      }
+      const winningEntry = allCheckpoints.find(
+        (e) => e.attempt === attemptNum && !(e.tags && e.tags.includes("abandoned"))
+      );
+      if (!winningEntry) {
+        const available = allCheckpoints.filter((e) => !(e.tags && e.tags.includes("abandoned"))).map((e) => e.attempt);
+        error("Attempt " + attemptNum + ' not found (or is abandoned) for checkpoint "' + name + '" (scope: ' + scope + ").\nAvailable non-abandoned attempts: " + (available.length > 0 ? available.join(", ") : "(none)"));
+      }
+      const verifyResult = execGit(cwd, ["rev-parse", "--verify", winningEntry.branch]);
+      if (verifyResult.exitCode !== 0) {
+        error("Branch not found: " + winningEntry.branch + ". Was it already cleaned up?");
+      }
+      const mergeResult = execGit(cwd, ["merge", "--no-ff", winningEntry.branch, "-m", "trajectory: choose attempt-" + attemptNum + " for " + name]);
+      if (mergeResult.exitCode !== 0) {
+        error("Merge conflict. Resolve manually, then commit.\n" + (mergeResult.stderr || ""));
+      }
+      const headResult = execGit(cwd, ["rev-parse", "HEAD"]);
+      const mergeRef = headResult.exitCode === 0 ? headResult.stdout : "unknown";
+      const archivedTags = [];
+      const deletedBranches = [];
+      for (const entry of allCheckpoints) {
+        if (!entry.branch) continue;
+        if (entry.attempt !== attemptNum) {
+          const tagResult = execGit(cwd, ["tag", entry.branch, entry.git_ref]);
+          if (tagResult.exitCode === 0) {
+            archivedTags.push(entry.branch);
+          } else {
+            debugLog("trajectory.choose", "tag creation warning for " + entry.branch, tagResult.stderr);
+          }
+        }
+        const delResult = execGit(cwd, ["branch", "-D", entry.branch]);
+        if (delResult.exitCode === 0) {
+          deletedBranches.push(entry.branch);
+        } else {
+          debugLog("trajectory.choose", "branch deletion warning for " + entry.branch, delResult.stderr);
+        }
+      }
+      let id;
+      const existingIds = new Set(entries.map((e) => e.id));
+      do {
+        id = "tj-" + crypto.randomBytes(3).toString("hex");
+      } while (existingIds.has(id));
+      const journalEntry = {
+        id,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        category: "choose",
+        text: `Chosen: ${name} attempt ${attemptNum}`,
+        scope,
+        checkpoint_name: name,
+        chosen_attempt: attemptNum,
+        chosen_branch: winningEntry.branch,
+        chosen_ref: winningEntry.git_ref,
+        reason: reasonText ? { text: reasonText } : null,
+        archived_tags: archivedTags,
+        deleted_branches: deletedBranches,
+        tags: ["choose", "lifecycle-complete"]
+      };
+      entries.push(journalEntry);
+      fs.mkdirSync(memDir, { recursive: true });
+      fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), "utf-8");
+      output({
+        chosen: true,
+        checkpoint: name,
+        scope,
+        chosen_attempt: attemptNum,
+        chosen_branch: winningEntry.branch,
+        merge_ref: mergeRef,
+        archived_tags: archivedTags,
+        deleted_branches: deletedBranches,
+        reason: reasonText || null
+      }, { formatter: formatChooseResult });
+    }
+    function formatChooseResult(result) {
+      const lines = [];
+      lines.push(banner("TRAJECTORY CHOOSE"));
+      lines.push("");
+      lines.push(summaryLine(`Chose attempt ${color.bold("#" + result.chosen_attempt)} for ${color.bold(result.checkpoint)}. Merged and cleaned up.`));
+      lines.push("");
+      if (result.archived_tags.length > 0) {
+        lines.push("  Archived tags:");
+        for (const tag of result.archived_tags) {
+          lines.push(`    ${SYMBOLS.check} ${color.cyan(tag)}`);
+        }
+        lines.push("");
+      }
+      if (result.deleted_branches.length > 0) {
+        lines.push("  Deleted branches:");
+        for (const br of result.deleted_branches) {
+          lines.push(`    ${SYMBOLS.check} ${color.dim(br)}`);
+        }
+        lines.push("");
+      }
+      if (result.reason) {
+        lines.push(`  ${color.dim("Reason: " + result.reason)}`);
+        lines.push("");
+      }
+      lines.push(actionHint("trajectory list"));
+      return lines.join("\n");
+    }
+    module2.exports = { cmdTrajectoryCheckpoint, cmdTrajectoryList, cmdTrajectoryPivot, cmdTrajectoryCompare, cmdTrajectoryChoose };
   }
 });
 
