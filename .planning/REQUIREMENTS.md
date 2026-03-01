@@ -28,11 +28,11 @@ Requirements for trajectory engineering milestone. Each maps to roadmap phases.
 
 ### Compare
 
-- [ ] **COMP-01**: User can compare test results (pass/fail/skip) across all attempts for a given scope
-- [ ] **COMP-02**: User can compare LOC delta (lines added/removed) across attempts
-- [ ] **COMP-03**: User can compare cyclomatic complexity across attempts via ast.js
-- [ ] **COMP-04**: Compare produces an aggregated multi-dimension matrix identifying best attempt per metric
-- [ ] **COMP-05**: Compare output renders as color-coded TTY table (green=best, red=worst) with JSON fallback
+- [x] **COMP-01**: User can compare test results (pass/fail/skip) across all attempts for a given scope
+- [x] **COMP-02**: User can compare LOC delta (lines added/removed) across attempts
+- [x] **COMP-03**: User can compare cyclomatic complexity across attempts via ast.js
+- [x] **COMP-04**: Compare produces an aggregated multi-dimension matrix identifying best attempt per metric
+- [x] **COMP-05**: Compare output renders as color-coded TTY table (green=best, red=worst) with JSON fallback
 
 ### Choose
 
@@ -88,11 +88,11 @@ Requirements for trajectory engineering milestone. Each maps to roadmap phases.
 | PIVOT-02 | Phase 47 | Complete | npm test -- --grep pivot |
 | PIVOT-03 | Phase 47 | Complete | npm test -- --grep pivot |
 | PIVOT-04 | Phase 47 | Complete | npm test -- --grep stuck |
-| COMP-01 | Phase 48 | Pending | npm test -- --grep compare |
-| COMP-02 | Phase 48 | Pending | npm test -- --grep compare |
-| COMP-03 | Phase 48 | Pending | npm test -- --grep compare |
-| COMP-04 | Phase 48 | Pending | npm test -- --grep compare |
-| COMP-05 | Phase 48 | Pending | npm test -- --grep compare |
+| COMP-01 | Phase 48 | Complete | npm test -- --grep compare |
+| COMP-02 | Phase 48 | Complete | npm test -- --grep compare |
+| COMP-03 | Phase 48 | Complete | npm test -- --grep compare |
+| COMP-04 | Phase 48 | Complete | npm test -- --grep compare |
+| COMP-05 | Phase 48 | Complete | npm test -- --grep compare |
 | CHOOSE-01 | Phase 49 | Pending | npm test -- --grep choose |
 | CHOOSE-02 | Phase 49 | Pending | npm test -- --grep choose |
 | CHOOSE-03 | Phase 49 | Pending | npm test -- --grep choose |
