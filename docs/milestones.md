@@ -16,8 +16,8 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 | v5.0 | Codebase Intelligence | 7 | 14 | 2 days | 572 | 672KB |
 | v6.0 | UX & Developer Experience | 7 | 11 | 1 day | 574 | 681KB |
 | v7.0 | Agent Orchestration & Efficiency | 8 | 15 | 2 days | 669 | 1000KB |
-| v7.1 | Trajectory Engineering | 2+ | 4+ | In progress | 716 | 1050KB |
-| **Total** | | **46+** | **104+** | **~10 days** | | |
+| v7.1 | Trajectory Engineering | 5 | 10 | In progress | 751 | 1050KB |
+| **Total** | | **49+** | **110+** | **~10 days** | | |
 
 ---
 
@@ -68,11 +68,11 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 
 ## v7.1 Trajectory Engineering (In Progress)
 
-**Started:** 2026-02-28 | **Phases:** 45-50 | **Plans:** 4+ completed
+**Started:** 2026-02-28 | **Phases:** 45-49 (5 complete) | **Plans:** 10 completed
 
-**Goal:** Add trajectory engineering capabilities — named checkpoints with auto-metrics, selective code rewind, and decision journaling for safe experimentation.
+**Goal:** Add trajectory engineering capabilities — named checkpoints with auto-metrics, selective code rewind, pivot/compare/choose lifecycle, and decision journaling for safe experimentation.
 
-**What has been delivered so far:**
+**What has been delivered:**
 
 ### Foundation (Phase 45)
 - **Trajectory store** — New memory store type (`trajectories`) with auto-generated 6-char hex IDs and collision detection
@@ -86,9 +86,27 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 - **Trajectory list command** — `gsd-tools trajectory list` with scope/name filtering, limit control, and dual-mode output (JSON for agents, formatted for humans). Sorted newest-first.
 - **Dirty tree exclusion** — Excludes `.planning/` from dirty working tree checks for consecutive checkpoints
 
-### Upcoming
-- Phase 47: Pivot — Selective Checkout & Branch Switching
-- Phases 48-50: Remaining trajectory engineering features
+### Pivot (Phase 47)
+- **Pivot command** — `gsd-tools trajectory pivot <checkpoint> --reason "..."` abandons the current approach with recorded reasoning
+- **Selective checkout** — Rewinds source code to target checkpoint while preserving `.planning/` and root configs via `selectiveRewind`
+- **Auto-archival** — Current HEAD is auto-checkpointed as an abandoned attempt with archived branch before rewinding
+- **Auto-stash support** — `--stash` flag handles dirty working trees gracefully
+- **Attempt targeting** — `--attempt N` for specific attempt, defaults to most recent
+- **Formatted output** — TTY banner + table output showing pivoted state, rewound files, and archived branch
+
+### Compare (Phase 48)
+- **Compare command** — `gsd-tools trajectory compare <name>` shows side-by-side metrics across all non-abandoned attempts
+- **Directional scoring** — Best/worst identification per metric (higher is better for tests_pass, lower for complexity and LOC)
+- **Color-coded output** — Green for best values, red for worst values in TTY mode
+- **Formatted tables** — Test results, LOC delta, and cyclomatic complexity per attempt with best/worst indicators
+
+### Choose (Phase 49)
+- **Choose command** — `gsd-tools trajectory choose <name> --attempt N` selects the winning attempt and finalizes the exploration
+- **Merge with lineage** — Winning attempt merged via `git merge --no-ff` to preserve exploration history
+- **Tag archival** — Non-chosen attempts archived as lightweight git tags (permanent reference)
+- **Branch cleanup** — ALL trajectory working branches deleted (including winner, since code is now merged)
+- **Journal recording** — `category: 'choose'` entry with `tags: ['choose', 'lifecycle-complete']` marking the exploration as complete
+- **12 dedicated tests** — Full coverage of merge, tag archival, branch cleanup, journal integrity, and error handling
 
 ---
 

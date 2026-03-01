@@ -797,6 +797,129 @@ auth-flow   phase  2        def4567  716/716   +50 -12     2 hours ago
 auth-flow   phase  1        abc1234  710/716   +30 -5      5 hours ago
 ```
 
+##### `trajectory compare <name>`
+
+Compare metrics across all non-abandoned attempts for a named checkpoint. Best values highlighted green, worst highlighted red.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `<name>` | positional | required | Checkpoint name to compare attempts for |
+| `--scope <scope>` | string | `"phase"` | Scope level |
+
+**Behavior:**
+1. Reads trajectory journal and filters to matching non-abandoned checkpoints
+2. Builds metrics array: tests_pass, tests_fail, tests_total, loc_insertions, loc_deletions, complexity
+3. Identifies best/worst per metric using directional logic (higher is better for tests_pass; lower is better for tests_fail, LOC, complexity)
+4. Produces a color-coded comparison table (green = best, red = worst per metric)
+
+**Examples:**
+```bash
+# Compare all attempts for a checkpoint
+gsd-tools trajectory compare my-feat
+
+# Compare with scope filter
+gsd-tools trajectory compare try-redis --scope task
+```
+
+**Output:**
+```json
+{
+  "checkpoint": "my-feat",
+  "scope": "phase",
+  "attempt_count": 3,
+  "attempts": [...],
+  "best_per_metric": { "tests_pass": 2, "complexity": 1 },
+  "worst_per_metric": { "tests_pass": 0, "complexity": 2 }
+}
+```
+
+##### `trajectory pivot <checkpoint>`
+
+Abandon the current approach with a recorded reason and rewind source code to a prior checkpoint. Auto-checkpoints the current work as an abandoned attempt before rewinding.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `<checkpoint>` | positional | required | Name of checkpoint to rewind to |
+| `--scope <scope>` | string | `"phase"` | Scope level |
+| `--reason <text>` | string | **required** | Why this approach is being abandoned |
+| `--attempt <N>` | integer | most recent | Target specific attempt number |
+| `--stash` | boolean | false | Auto-stash dirty working tree before pivot |
+
+**Behavior:**
+1. Checks for dirty working tree (with optional `--stash` to auto-stash)
+2. Finds matching non-abandoned checkpoints in the trajectory journal
+3. Resolves target checkpoint (specific attempt via `--attempt`, or most recent by default)
+4. Auto-checkpoints current HEAD as an abandoned attempt (creates archived branch)
+5. Performs selective rewind to target checkpoint's git ref (preserves `.planning/` and root configs)
+6. Pops stash if used
+7. Writes the abandoned journal entry to `trajectory.json`
+
+**Examples:**
+```bash
+# Pivot back to most recent checkpoint
+gsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
+
+# Pivot to a specific attempt
+gsd-tools trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"
+
+# Auto-stash dirty files before pivoting
+gsd-tools trajectory pivot try-redis --scope task --reason "Redis overkill" --stash
+```
+
+**Output:**
+```json
+{
+  "pivoted": true,
+  "checkpoint": "explore-auth",
+  "target_ref": "abc1234",
+  "abandoned_branch": "archived/trajectory/phase/explore-auth/attempt-3",
+  "files_rewound": 12,
+  "stash_used": false
+}
+```
+
+##### `trajectory choose <name>`
+
+Select the winning attempt, merge its code, archive non-chosen attempts as git tags, and delete all trajectory working branches.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `<name>` | positional | required | Checkpoint name to finalize |
+| `--attempt <N>` | integer | **required** | The winning attempt number |
+| `--scope <scope>` | string | `"phase"` | Scope level |
+| `--reason <text>` | string | none | Why this attempt was chosen (recorded in journal) |
+
+**Behavior:**
+1. Reads trajectory journal and finds all checkpoint entries for the scope+name
+2. Validates the winning attempt exists and is not abandoned
+3. Verifies the winning branch still exists in git
+4. Merges the winning attempt's branch into the current branch using `--no-ff` (preserves lineage)
+5. Archives non-chosen attempt branches as lightweight git tags
+6. Deletes ALL trajectory working branches (including winner, since code is now merged)
+7. Writes a `category: 'choose'` journal entry with `tags: ['choose', 'lifecycle-complete']`
+
+**Examples:**
+```bash
+# Choose the winning attempt
+gsd-tools trajectory choose my-feat --attempt 2
+
+# With reason for journal
+gsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"
+```
+
+**Output:**
+```json
+{
+  "chosen": true,
+  "checkpoint": "my-feat",
+  "attempt": 2,
+  "merged_branch": "trajectory/phase/my-feat/attempt-2",
+  "archived_tags": ["trajectory/phase/my-feat/attempt-1"],
+  "deleted_branches": ["trajectory/phase/my-feat/attempt-1", "trajectory/phase/my-feat/attempt-2"],
+  "journal_id": "tj-abc123"
+}
+```
+
 ---
 
 #### `git` — Structured Git Intelligence

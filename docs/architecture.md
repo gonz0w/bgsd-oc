@@ -17,7 +17,7 @@ This means:
 - AI agents never parse markdown directly — they get clean JSON from gsd-tools
 - State changes are atomic — gsd-tools handles file writes and git commits
 - Workflows are portable — any LLM that follows markdown instructions can execute them
-- Testing is straightforward — 716 tests cover the deterministic layer
+- Testing is straightforward — 751 tests cover the deterministic layer
 
 ---
 
@@ -100,7 +100,7 @@ src/
     roadmap.js             # ROADMAP.md parsing, requirement tracking
     verify.js              # Quality gates, plan analysis, deliverable verification
     memory.js              # Persistent stores (decisions, bookmarks, lessons, todos, trajectories)
-    trajectory.js          # Trajectory engineering (checkpoint, list, metrics collection)
+    trajectory.js          # Trajectory engineering (checkpoint, list, pivot, compare, choose)
     features.js            # Test coverage, token budgets, MCP discovery
     misc.js                # Velocity, search, impact, rollback, tracing, TDD
     worktree.js            # Git worktree creation, merge, cleanup
@@ -222,6 +222,34 @@ trajectory checkpoint <name>
   +-- Generate unique ID (tj-XXXXXX)
   +-- Write journal entry → .planning/memory/trajectory.json
   +-- Return JSON: checkpoint, branch, attempt, git_ref, metrics
+
+trajectory pivot <checkpoint>
+  |
+  +-- Check dirty working tree (optional --stash)
+  +-- Find matching non-abandoned checkpoints in journal
+  +-- Resolve target (--attempt N or most recent)
+  +-- Auto-checkpoint current HEAD as abandoned attempt
+  |     +-- Create branch: archived/trajectory/<scope>/<name>/attempt-N
+  +-- Selective rewind to target ref (preserves .planning/, root configs)
+  +-- Pop stash if used
+  +-- Write abandoned journal entry → trajectory.json
+
+trajectory compare <name>
+  |
+  +-- Read journal, filter to non-abandoned checkpoints for scope+name
+  +-- Build metrics array per attempt (tests, LOC, complexity)
+  +-- Identify best/worst per metric (directional: higher tests = better, lower complexity = better)
+  +-- Return JSON: attempts, best_per_metric, worst_per_metric
+
+trajectory choose <name> --attempt <N>
+  |
+  +-- Read journal, find all checkpoint entries for scope+name
+  +-- Validate winning attempt exists and is not abandoned
+  +-- Verify winning branch exists in git
+  +-- git merge --no-ff winning branch → current branch
+  +-- Archive non-chosen branches as lightweight git tags
+  +-- Delete ALL trajectory working branches
+  +-- Write 'choose' journal entry with tags: ['choose', 'lifecycle-complete']
 
 git rewind --ref <ref>
   |

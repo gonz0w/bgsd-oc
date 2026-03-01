@@ -388,7 +388,7 @@ node bin/gsd-tools.cjs trajectory checkpoint auth-strategy \
 
 Calling `checkpoint` again with the same name auto-increments the attempt number (attempt-1, attempt-2, etc.).
 
-### Listing and Comparing Checkpoints
+### Listing Checkpoints
 
 ```bash
 # List all checkpoints
@@ -412,6 +412,59 @@ In a terminal, this renders a color-coded table showing:
 | Tests | Pass/fail (green if all pass, red otherwise) |
 | LOC | Lines added/removed |
 | Age | Relative time since checkpoint |
+
+### Comparing Attempts
+
+Compare metrics across all non-abandoned attempts side-by-side. Best values highlighted green, worst highlighted red:
+
+```bash
+# Compare all attempts for a checkpoint
+node bin/gsd-tools.cjs trajectory compare auth-strategy
+
+# Scoped comparison
+node bin/gsd-tools.cjs trajectory compare try-redis --scope task
+```
+
+Shows test results, LOC delta, and cyclomatic complexity per attempt with best/worst indicators.
+
+### Pivoting to a Different Approach
+
+When the current approach isn't working, pivot back to a previous checkpoint with a recorded reason. The current work is auto-archived as an abandoned attempt before rewinding:
+
+```bash
+# Pivot back to the most recent checkpoint
+node bin/gsd-tools.cjs trajectory pivot auth-strategy --reason "JWT approach too complex"
+
+# Pivot to a specific attempt
+node bin/gsd-tools.cjs trajectory pivot auth-strategy --attempt 1 --reason "Attempt 1 was simpler"
+
+# Auto-stash dirty files before pivoting
+node bin/gsd-tools.cjs trajectory pivot auth-strategy --reason "..." --stash
+```
+
+**What happens under the hood:**
+1. Auto-checkpoints current HEAD as an abandoned attempt (archived branch)
+2. Selectively rewinds source code to the target checkpoint (preserves `.planning/`)
+3. Writes an abandonment journal entry with your reason
+4. Pops stash if `--stash` was used
+
+### Choosing a Winner
+
+When you've explored enough and want to commit to an approach, `choose` merges the winner, archives alternatives, and cleans up:
+
+```bash
+# Select the winning attempt
+node bin/gsd-tools.cjs trajectory choose auth-strategy --attempt 2
+
+# With a reason for the journal
+node bin/gsd-tools.cjs trajectory choose auth-strategy --attempt 2 --reason "Better test coverage"
+```
+
+**What happens under the hood:**
+1. Merges the winning attempt's branch into the current branch (`--no-ff` for history)
+2. Archives non-chosen attempt branches as lightweight git tags (preserving their history)
+3. Deletes ALL trajectory working branches (tags remain for future reference)
+4. Writes a `category: 'choose'` journal entry marking the lifecycle complete
 
 ### Selective Rewind
 
@@ -463,16 +516,12 @@ node bin/gsd-tools.cjs memory write --store trajectories \
 node bin/gsd-tools.cjs memory write --store trajectories \
   --entry '{"category":"observation","text":"Redis sessions add 50ms latency per request"}'
 
-# Record a hypothesis
-node bin/gsd-tools.cjs memory write --store trajectories \
-  --entry '{"category":"hypothesis","text":"OAuth2 PKCE flow may be simpler than custom JWT","confidence":"medium"}'
-
 # Query the journal
 node bin/gsd-tools.cjs memory read --store trajectories --category decision
 node bin/gsd-tools.cjs memory read --store trajectories --from 2026-02-01 --limit 10
 ```
 
-Valid categories: `decision`, `observation`, `correction`, `hypothesis`
+Valid categories: `checkpoint`, `decision`, `observation`, `correction`, `hypothesis`, `choose`
 Confidence levels: `high`, `medium`, `low`
 
 The trajectory store is **sacred** — it is never auto-compacted, so your exploration history is permanent.
@@ -480,28 +529,26 @@ The trajectory store is **sacred** — it is never auto-compacted, so your explo
 ### Typical Exploration Workflow
 
 ```bash
-# 1. Start exploring — checkpoint current state
+# 1. Checkpoint current state before exploring
 node bin/gsd-tools.cjs trajectory checkpoint db-layer --description "Prisma ORM"
 
 # 2. Build approach A, run tests, iterate
 # ... write code ...
 
-# 3. Checkpoint approach A results
+# 3. Checkpoint approach A, start approach B
 node bin/gsd-tools.cjs trajectory checkpoint db-layer --description "Drizzle ORM"
 
 # 4. Build approach B
 # ... write code ...
 
-# 5. Compare metrics
-node bin/gsd-tools.cjs trajectory list --name db-layer
+# 5. Compare metrics across both attempts
+node bin/gsd-tools.cjs trajectory compare db-layer
 
-# 6. Approach B has worse test results — rewind to approach A
-node bin/gsd-tools.cjs git rewind --ref trajectory/phase/db-layer/attempt-1 --dry-run
-node bin/gsd-tools.cjs git rewind --ref trajectory/phase/db-layer/attempt-1 --confirm
+# 6. Approach B isn't working — pivot back to approach A
+node bin/gsd-tools.cjs trajectory pivot db-layer --attempt 1 --reason "Drizzle had 15% more test failures"
 
-# 7. Record why
-node bin/gsd-tools.cjs memory write --store trajectories \
-  --entry '{"category":"decision","text":"Chose Prisma over Drizzle — 15% fewer test failures, better type inference","confidence":"high"}'
+# 7. Happy with approach A — choose it as the winner
+node bin/gsd-tools.cjs trajectory choose db-layer --attempt 1 --reason "Better type inference, fewer test failures"
 ```
 
 ---

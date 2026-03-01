@@ -193,19 +193,37 @@ The `trajectory list` command shows a table with:
 - Code complexity scores
 - When each checkpoint was created
 
-### Rewinding to a Previous Checkpoint
+### Comparing and Choosing
+
+Compare metrics across all your attempts:
+
+```bash
+# Side-by-side comparison (best values highlighted green, worst red)
+node bin/gsd-tools.cjs trajectory compare auth-flow
+```
+
+### Pivoting When Something Isn't Working
 
 If approach B isn't working and you want to go back to approach A:
 
 ```bash
-# Preview what files would change (safe — no modifications):
-node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-flow/attempt-1 --dry-run
-
-# Execute the rewind:
-node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-flow/attempt-1 --confirm
+# Pivot back with a reason (auto-archives current work, rewinds to checkpoint)
+node bin/gsd-tools.cjs trajectory pivot auth-flow --reason "Session approach too complex for our API"
 ```
 
-Selective rewind protects your planning files (`.planning/`), `package.json`, `.gitignore`, and other root configs — only source code gets rolled back.
+This automatically:
+1. Archives your current work as an abandoned attempt
+2. Rewinds source code to the checkpoint (preserves `.planning/`, `package.json`, etc.)
+3. Records the reason in the trajectory journal
+
+### Choosing the Winner
+
+When you've decided on the best approach:
+
+```bash
+# Merge the winner, archive alternatives as tags, clean up branches
+node bin/gsd-tools.cjs trajectory choose auth-flow --attempt 1 --reason "Better test coverage"
+```
 
 ### Scoping Checkpoints
 
@@ -224,14 +242,11 @@ node bin/gsd-tools.cjs trajectory list --scope task
 
 ### Recording Exploration Notes
 
-The trajectory journal also stores decisions, observations, and hypotheses:
+The trajectory journal also stores decisions and observations:
 
 ```bash
 # Record a decision during exploration
 node bin/gsd-tools.cjs memory write --store trajectories --entry '{"category":"decision","text":"Chose JWT over sessions because of stateless API requirement","confidence":"high"}'
-
-# Record an observation
-node bin/gsd-tools.cjs memory write --store trajectories --entry '{"category":"observation","text":"Redis sessions add 50ms latency per request"}'
 
 # Read back your trajectory journal
 node bin/gsd-tools.cjs memory read --store trajectories

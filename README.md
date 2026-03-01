@@ -2,7 +2,7 @@
 
 A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**716 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **12 specialized AI agents** | **7 milestones shipped**
+**751 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **12 specialized AI agents** | **7 milestones shipped**
 
 ---
 
@@ -296,15 +296,31 @@ Decisions, lessons, bookmarks, and trajectory journals persist across `/clear` a
 Structured exploration for comparing implementation approaches. Checkpoint your work, try different strategies, compare metrics, and choose a winner — all while preserving planning state.
 
 ```
-# Save a checkpoint before trying a new approach
+# 1. Checkpoint before trying a new approach
 node bin/gsd-tools.cjs trajectory checkpoint auth-strategy --description "JWT approach"
 
-# Try another approach, checkpoint again (auto-increments to attempt-2)
+# 2. Try another approach, checkpoint again (auto-increments to attempt-2)
 node bin/gsd-tools.cjs trajectory checkpoint auth-strategy --description "Session-based approach"
 
-# Compare all checkpoints with metrics
-node bin/gsd-tools.cjs trajectory list
+# 3. Compare metrics across all attempts
+node bin/gsd-tools.cjs trajectory compare auth-strategy
+
+# 4. Approach not working? Pivot back with a recorded reason
+node bin/gsd-tools.cjs trajectory pivot auth-strategy --reason "Session approach too complex"
+
+# 5. Choose the winner — merges code, archives alternatives, cleans up branches
+node bin/gsd-tools.cjs trajectory choose auth-strategy --attempt 1 --reason "Better test coverage"
 ```
+
+**Full trajectory lifecycle:**
+
+| Command | What It Does |
+|---------|-------------|
+| `trajectory checkpoint <name>` | Save named snapshot with auto-collected metrics (tests, LOC, complexity) |
+| `trajectory list` | List all checkpoints with metrics table |
+| `trajectory compare <name>` | Side-by-side metrics comparison across all attempts (best/worst highlighted) |
+| `trajectory pivot <name>` | Abandon current approach with recorded reason, rewind to checkpoint |
+| `trajectory choose <name>` | Select winner, merge code, archive alternatives as git tags, clean up branches |
 
 **What checkpoints capture automatically:**
 - **Test metrics** — total/pass/fail from your test suite
@@ -322,7 +338,7 @@ node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1
 node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --confirm
 ```
 
-**Trajectory journal** — a sacred memory store (never auto-pruned) that records checkpoints, decisions, observations, and hypotheses throughout exploration. Query it with:
+**Trajectory journal** — a sacred memory store (never auto-pruned) that records checkpoints, pivots, comparisons, and choices throughout exploration. Query it with:
 
 ```
 node bin/gsd-tools.cjs memory read --store trajectories --category checkpoint
@@ -336,6 +352,7 @@ node bin/gsd-tools.cjs memory read --store trajectories --category checkpoint
 - Rollback info with exact revert commands
 - TDD phase trailers for audit trail
 - Optional branch-per-phase or branch-per-milestone strategies
+- **Trajectory engineering** — checkpoint, pivot, compare, and choose between implementation approaches with auto-collected metrics
 - **Trajectory branches** — dedicated exploration branches via `git trajectory-branch`
 - **Selective rewind** — roll back code to any git ref while preserving planning state and root configs
 
@@ -402,7 +419,7 @@ cd bgsd-oc
 npm install
 npm run build
 
-# Run tests (node:test, 716 tests)
+# Run tests (node:test, 751 tests)
 npm test
 
 # Test a specific command
@@ -427,7 +444,7 @@ src/
     verify.js              # Quality gates, plan analysis
     memory.js              # Persistent memory stores
     features.js            # Test coverage, token budgets, MCP
-    trajectory.js          # Trajectory engineering (checkpoint, list)
+    trajectory.js          # Trajectory engineering (checkpoint, list, pivot, compare, choose)
     misc.js                # Velocity, search, impact, rollback, TDD
     worktree.js            # Git worktree isolation
     codebase.js            # Codebase intelligence
