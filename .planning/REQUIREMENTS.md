@@ -36,9 +36,9 @@ Requirements for trajectory engineering milestone. Each maps to roadmap phases.
 
 ### Choose
 
-- [ ] **CHOOSE-01**: User can merge a winning attempt branch back to the base branch
-- [ ] **CHOOSE-02**: Non-chosen attempts are tagged as `archived/trajectory/<scope>/<name>/attempt-N`
-- [ ] **CHOOSE-03**: Trajectory branches are cleaned up after archival (tags preserved for reference)
+- [x] **CHOOSE-01**: User can merge a winning attempt branch back to the base branch
+- [x] **CHOOSE-02**: Non-chosen attempts are tagged as `archived/trajectory/<scope>/<name>/attempt-N`
+- [x] **CHOOSE-03**: Trajectory branches are cleaned up after archival (tags preserved for reference)
 
 ### Integration
 
@@ -93,9 +93,9 @@ Requirements for trajectory engineering milestone. Each maps to roadmap phases.
 | COMP-03 | Phase 48 | Complete | npm test -- --grep compare |
 | COMP-04 | Phase 48 | Complete | npm test -- --grep compare |
 | COMP-05 | Phase 48 | Complete | npm test -- --grep compare |
-| CHOOSE-01 | Phase 49 | Pending | npm test -- --grep choose |
-| CHOOSE-02 | Phase 49 | Pending | npm test -- --grep choose |
-| CHOOSE-03 | Phase 49 | Pending | npm test -- --grep choose |
+| CHOOSE-01 | Phase 49 | Complete | npm test -- --grep choose |
+| CHOOSE-02 | Phase 49 | Complete | npm test -- --grep choose |
+| CHOOSE-03 | Phase 49 | Complete | npm test -- --grep choose |
 | INTEG-01 | Phase 50 | Pending | npm test -- --grep dead-end |
 | INTEG-02 | Phase 50 | Pending | npm test -- --grep init |
 | INTEG-03 | Phase 50 | Pending | npm test -- --grep context |

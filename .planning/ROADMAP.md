@@ -198,7 +198,7 @@ Plans:
   2. Non-chosen attempts are preserved as archived tags (`archived/trajectory/<scope>/<name>/attempt-N`) for future reference
   3. Trajectory working branches are deleted after archival — `git branch` output is not polluted with stale trajectory branches
   4. Journal records the final choice with rationale, completing the trajectory lifecycle
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 Plans:
 - [ ] 49-01-PLAN.md — Choose command implementation (merge, tag archival, branch cleanup, journal)
 - [ ] 49-02-PLAN.md — Comprehensive choose test suite validating all CHOOSE requirements
@@ -230,5 +230,5 @@ Plans:
 | 46. Checkpoint | 2/2 | Complete    | 2026-02-28 | - |
 | 47. Pivot | 2/2 | Complete    | 2026-03-01 | - |
 | 48. Compare | 2/2 | Complete    | 2026-03-01 | - |
-| 49. Choose | v7.1 | 0/TBD | Not started | - |
+| 49. Choose | 1/2 | In Progress|  | - |
 | 50. Integration | v7.1 | 0/TBD | Not started | - |
