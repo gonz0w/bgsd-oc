@@ -24507,7 +24507,156 @@ var require_trajectory = __commonJS({
       lines.push(actionHint("trajectory compare <name>"));
       return lines.join("\n");
     }
-    module2.exports = { cmdTrajectoryCheckpoint, cmdTrajectoryList };
+    function cmdTrajectoryPivot(cwd, args, raw) {
+      const { selectiveRewind } = require_git();
+      const posArgs = [];
+      let scope = "phase";
+      let reasonText = null;
+      let attemptNum = null;
+      let stashFlag = false;
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === "--scope" && args[i + 1]) {
+          scope = args[++i];
+          continue;
+        }
+        if (args[i] === "--reason" && args[i + 1]) {
+          reasonText = args[++i];
+          continue;
+        }
+        if (args[i] === "--attempt" && args[i + 1]) {
+          attemptNum = parseInt(args[++i], 10);
+          continue;
+        }
+        if (args[i] === "--stash") {
+          stashFlag = true;
+          continue;
+        }
+        if (!args[i].startsWith("-")) posArgs.push(args[i]);
+      }
+      const name = posArgs[0];
+      if (!name) error('Missing checkpoint name. Usage: trajectory pivot <checkpoint> --reason "what failed and why"');
+      if (!NAME_RE.test(name)) error(`Invalid checkpoint name "${name}". Use alphanumeric, hyphens, underscores only.`);
+      let stashUsed = false;
+      const statusResult = execGit(cwd, ["status", "--porcelain"]);
+      if (statusResult.exitCode === 0 && statusResult.stdout) {
+        const dirtyNonPlanning = statusResult.stdout.split("\n").filter((line) => line.trim() && !line.slice(3).startsWith(".planning/"));
+        if (dirtyNonPlanning.length > 0) {
+          if (stashFlag) {
+            const stashResult = execGit(cwd, ["stash", "push", "-m", "gsd-pivot-auto-stash"]);
+            if (stashResult.exitCode !== 0) error("Failed to auto-stash: " + stashResult.stderr);
+            stashUsed = true;
+          } else {
+            error("Uncommitted changes detected. Commit or stash before pivoting.\nTo auto-stash: trajectory pivot <checkpoint> --stash");
+          }
+        }
+      }
+      const memDir = path.join(cwd, ".planning", "memory");
+      const trajPath = path.join(memDir, "trajectory.json");
+      let entries = [];
+      try {
+        const data = fs.readFileSync(trajPath, "utf-8");
+        entries = JSON.parse(data);
+        if (!Array.isArray(entries)) entries = [];
+      } catch (e) {
+        debugLog("trajectory.pivot", "no trajectory.json found", e);
+        entries = [];
+      }
+      const matching = entries.filter(
+        (e) => e.category === "checkpoint" && e.checkpoint_name === name && e.scope === scope && !(e.tags && e.tags.includes("abandoned"))
+      );
+      if (matching.length === 0) {
+        const allCheckpoints = entries.filter((e) => e.category === "checkpoint" && !(e.tags && e.tags.includes("abandoned")));
+        const byName = {};
+        for (const cp of allCheckpoints) {
+          const key = `${cp.checkpoint_name} (scope: ${cp.scope})`;
+          if (!byName[key]) byName[key] = [];
+          byName[key].push(cp.attempt);
+        }
+        const availableList = Object.keys(byName).length > 0 ? Object.entries(byName).map(([k, v]) => `  ${k} \u2014 attempt${v.length > 1 ? "s" : ""} ${v.join(", ")}`).join("\n") : "  (none)";
+        if (stashUsed) execGit(cwd, ["stash", "pop"]);
+        error('Checkpoint "' + name + '" not found (scope: ' + scope + ").\nAvailable checkpoints:\n" + availableList);
+      }
+      let targetEntry;
+      if (attemptNum !== null) {
+        targetEntry = matching.find((e) => e.attempt === attemptNum);
+        if (!targetEntry) {
+          if (stashUsed) execGit(cwd, ["stash", "pop"]);
+          error("Attempt " + attemptNum + ' not found for checkpoint "' + name + '" (scope: ' + scope + ").");
+        }
+      } else {
+        targetEntry = matching.reduce((best, e) => !best || e.attempt > best.attempt ? e : best, null);
+      }
+      if (!reasonText) {
+        if (stashUsed) execGit(cwd, ["stash", "pop"]);
+        error('Reason required. Use --reason "what failed, why, what signals" to record why this approach is being abandoned.');
+      }
+      const headResult = execGit(cwd, ["rev-parse", "HEAD"]);
+      const currentHeadSha = headResult.exitCode === 0 ? headResult.stdout : "unknown";
+      const allForName = entries.filter(
+        (e) => e.category === "checkpoint" && e.scope === scope && e.checkpoint_name === name
+      );
+      const abandonedAttempt = allForName.length + 1;
+      const abandonedBranchName = `archived/trajectory/${scope}/${name}/attempt-${abandonedAttempt}`;
+      const brResult = execGit(cwd, ["branch", abandonedBranchName]);
+      if (brResult.exitCode !== 0) {
+        debugLog("trajectory.pivot", "branch creation warning", brResult.stderr);
+      }
+      let id;
+      const existingIds = new Set(entries.map((e) => e.id));
+      do {
+        id = "tj-" + crypto.randomBytes(3).toString("hex");
+      } while (existingIds.has(id));
+      const abandonedEntry = {
+        id,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        category: "checkpoint",
+        text: `Abandoned: ${name} (attempt ${abandonedAttempt})`,
+        scope,
+        checkpoint_name: name,
+        attempt: abandonedAttempt,
+        branch: abandonedBranchName,
+        git_ref: currentHeadSha,
+        description: null,
+        metrics: null,
+        reason: { text: reasonText },
+        tags: ["checkpoint", "abandoned"]
+      };
+      entries.push(abandonedEntry);
+      const result = selectiveRewind(cwd, { ref: targetEntry.git_ref, confirm: true });
+      if (result.error) {
+        if (stashUsed) execGit(cwd, ["stash", "pop"]);
+        error("Rewind failed: " + result.error);
+      }
+      if (stashUsed) {
+        execGit(cwd, ["stash", "pop"]);
+      }
+      fs.mkdirSync(memDir, { recursive: true });
+      fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), "utf-8");
+      output({
+        pivoted: true,
+        checkpoint: name,
+        target_ref: targetEntry.git_ref,
+        abandoned_branch: abandonedBranchName,
+        files_rewound: result.files_changed,
+        stash_used: stashUsed
+      }, { formatter: formatPivotResult });
+    }
+    function formatPivotResult(result) {
+      const lines = [];
+      lines.push(banner("TRAJECTORY PIVOT"));
+      lines.push("");
+      lines.push(summaryLine(`Pivoted to ${color.bold(result.checkpoint)}. Abandoned attempt archived as ${color.cyan(result.abandoned_branch)}.`));
+      lines.push("");
+      lines.push(`  ${SYMBOLS.check} Target ref: ${color.dim(result.target_ref.slice(0, 7))}`);
+      lines.push(`  ${SYMBOLS.check} Files rewound: ${result.files_rewound}`);
+      if (result.stash_used) {
+        lines.push(`  ${SYMBOLS.warning} Working tree auto-stashed and restored`);
+      }
+      lines.push("");
+      lines.push(actionHint("trajectory list"));
+      return lines.join("\n");
+    }
+    module2.exports = { cmdTrajectoryCheckpoint, cmdTrajectoryList, cmdTrajectoryPivot };
   }
 });
 
