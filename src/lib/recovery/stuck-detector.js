@@ -181,6 +181,10 @@ class StuckDetector {
     
     const alternatives = [
       {
+        approach: 'Pivot to checkpoint',
+        description: 'Consider pivoting to a prior checkpoint: trajectory pivot <checkpoint-name> --reason "..."'
+      },
+      {
         approach: 'Take a break',
         description: 'Step away from this task, clear context, return with fresh perspective'
       },
