@@ -929,7 +929,8 @@ async function main() {
         case 'list': lazyTrajectory().cmdTrajectoryList(cwd, args.slice(2), raw); break;
         case 'pivot': lazyTrajectory().cmdTrajectoryPivot(cwd, args.slice(1), raw); break;
         case 'compare': lazyTrajectory().cmdTrajectoryCompare(cwd, args.slice(1), raw); break;
-        default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint, list, pivot, compare');
+        case 'choose': lazyTrajectory().cmdTrajectoryChoose(cwd, args.slice(1), raw); break;
+        default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint, list, pivot, compare, choose');
       }
       break;
     }

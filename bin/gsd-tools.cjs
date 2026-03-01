@@ -981,6 +981,9 @@ Subcommands:
     --reason <text>       Why this approach is being abandoned (required)
     --attempt <N>         Target specific attempt (default: most recent)
     --stash               Auto-stash dirty working tree before pivot
+  choose <name> --attempt <N>   Select winner, archive rest, clean up
+    --scope <scope>       Scope level (default: phase)
+    --reason <text>       Why this attempt was chosen (recorded in journal)
 
 Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
 journal entry to the trajectories memory store with test count, LOC delta,
@@ -992,7 +995,8 @@ Examples:
   gsd-tools trajectory list
   gsd-tools trajectory list --scope phase --limit 5
   gsd-tools trajectory compare my-feat
-  gsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"`,
+  gsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
+  gsd-tools trajectory choose my-feat --attempt 2 --reason "Better test coverage"`,
       "trajectory compare": `Usage: gsd-tools trajectory compare <name> [--scope <scope>]
 
 Compare metrics across all attempts for a named checkpoint.
@@ -1010,6 +1014,28 @@ Output: { checkpoint, scope, attempt_count, attempts, best_per_metric, worst_per
 Examples:
   gsd-tools trajectory compare my-feat
   gsd-tools trajectory compare try-redis --scope task`,
+      "trajectory choose": `Usage: gsd-tools trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
+
+Select the winning attempt, merge its code, archive non-chosen attempts as tags,
+and delete all trajectory working branches.
+
+Arguments:
+  name              Checkpoint name to finalize
+
+Options:
+  --attempt <N>     Required. The winning attempt number
+  --scope <scope>   Scope level (default: phase)
+  --reason "text"   Why this attempt was chosen (recorded in journal)
+
+What happens:
+  1. Winning attempt branch is merged into current branch (--no-ff)
+  2. Non-chosen attempt branches are archived as lightweight git tags
+  3. All trajectory working branches are deleted (tags preserved)
+  4. Journal records the choice with rationale
+
+Examples:
+  gsd-tools trajectory choose my-feat --attempt 2
+  gsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
       "trajectory pivot": `Usage: gsd-tools trajectory pivot <checkpoint> --reason "what failed and why"
 
 Abandon current approach with recorded reasoning and rewind to checkpoint.
@@ -25928,8 +25954,11 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             case "compare":
               lazyTrajectory().cmdTrajectoryCompare(cwd, args.slice(1), raw);
               break;
+            case "choose":
+              lazyTrajectory().cmdTrajectoryChoose(cwd, args.slice(1), raw);
+              break;
             default:
-              error("Unknown trajectory subcommand: " + trajSub + ". Available: checkpoint, list, pivot, compare");
+              error("Unknown trajectory subcommand: " + trajSub + ". Available: checkpoint, list, pivot, compare, choose");
           }
           break;
         }
