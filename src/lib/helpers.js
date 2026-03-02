@@ -61,10 +61,54 @@ function cachedReadFile(filePath) {
   // Cache miss or stale - read fresh and populate cache
   const content = safeReadFile(filePath);
   if (content !== null) {
+    // Check if this is the first entry being added to trigger auto-warm message
+    const status = cacheEngine.status();
+    if (status.count === 0 && !_autoWarmMessageShown) {
+      _autoWarmMessageShown = true;
+      const fileCount = countPlanningFiles();
+      // Use console.warn for visibility but keep it brief
+      console.warn(`Warming cache... ${fileCount} files`);
+    }
     cacheEngine.set(filePath, content);
   }
   return content;
 }
+
+/** Track whether auto-warm message has been shown in this session */
+let _autoWarmMessageShown = false;
+
+/**
+ * Count .planning/ files for auto-warm message
+ */
+function countPlanningFiles() {
+  const fs = require('fs');
+  const path = require('path');
+  const cwd = process.cwd();
+  const planningDir = path.join(cwd, '.planning');
+  let count = 0;
+  
+  function walk(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(fullPath);
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          count++;
+        }
+      }
+    } catch (e) {}
+  }
+  
+  if (fs.existsSync(planningDir)) {
+    walk(planningDir);
+  }
+  return count;
+}
+
+/** Reset auto-warm flag (call at start of each CLI invocation if needed) */
+// Note: Module is reloaded each CLI invocation, so this resets automatically
 
 /**
  * Invalidate a specific file from cache, or clear entire cache if no path given.
