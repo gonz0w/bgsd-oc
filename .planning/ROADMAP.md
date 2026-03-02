@@ -220,7 +220,7 @@ Plans:
   1. `GSD_PROFILE=1` reports sub-operation timing for file reads, git ops, markdown parsing, and AST analysis
   2. `gsd-tools profiler compare` shows before/after timing deltas with regression highlighting (red for slower, green for faster)
   3. Cache-enabled invocations show measurable speedup over cache-disabled for repeated operations
-**Plans**: 1/2 plans complete
+**Plans**: 2/2 plans complete
 
 - [x] 55-01-PLAN.md — Sub-operation timing instrumentation (file reads, git ops, markdown, AST)
 - [ ] 55-02-PLAN.md — Profiler compare command and cache speedup test
@@ -246,4 +246,4 @@ Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if
 | 52. Cache Integration | v8.0 | 2/2 | Complete | 2026-03-02 |
 | 53. Agent Consolidation | v8.0 | 3/3 | Complete | 2026-03-02 |
 | 54. Command Consolidation | v8.0 | 4/4 | Complete | 2026-03-02 |
-| 55. Profiler & Performance | v8.0 | 1/2 | In Progress | 2026-03-02 |
+| 55. Profiler & Performance | v8.0 | Complete    | 2026-03-02 | 2026-03-02 |
