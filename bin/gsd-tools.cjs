@@ -34,12 +34,10 @@ var require_constants = __commonJS({
       "gsd-executor": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
       "gsd-phase-researcher": { quality: "opus", balanced: "sonnet", budget: "haiku" },
       "gsd-project-researcher": { quality: "opus", balanced: "sonnet", budget: "haiku" },
-      "gsd-research-synthesizer": { quality: "sonnet", balanced: "sonnet", budget: "haiku" },
       "gsd-debugger": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
       "gsd-codebase-mapper": { quality: "sonnet", balanced: "haiku", budget: "haiku" },
       "gsd-verifier": { quality: "sonnet", balanced: "sonnet", budget: "haiku" },
-      "gsd-plan-checker": { quality: "sonnet", balanced: "sonnet", budget: "haiku" },
-      "gsd-integration-checker": { quality: "sonnet", balanced: "sonnet", budget: "haiku" }
+      "gsd-plan-checker": { quality: "sonnet", balanced: "sonnet", budget: "haiku" }
     };
     var CONFIG_SCHEMA = {
       model_profile: { type: "string", default: "balanced", description: "Active model profile (quality/balanced/budget)", aliases: [], nested: null },
@@ -20943,7 +20941,8 @@ var require_init = __commonJS({
       const result = {
         // Models
         researcher_model: resolveModelInternal(cwd, "gsd-project-researcher"),
-        synthesizer_model: resolveModelInternal(cwd, "gsd-research-synthesizer"),
+        synthesizer_model: resolveModelInternal(cwd, "gsd-roadmapper"),
+        // merged from gsd-research-synthesizer
         roadmapper_model: resolveModelInternal(cwd, "gsd-roadmapper"),
         // Config
         commit_docs: config.commit_docs,
@@ -20991,7 +20990,8 @@ var require_init = __commonJS({
       const result = {
         // Models
         researcher_model: resolveModelInternal(cwd, "gsd-project-researcher"),
-        synthesizer_model: resolveModelInternal(cwd, "gsd-research-synthesizer"),
+        synthesizer_model: resolveModelInternal(cwd, "gsd-roadmapper"),
+        // merged from gsd-research-synthesizer
         roadmapper_model: resolveModelInternal(cwd, "gsd-roadmapper"),
         // Config
         commit_docs: config.commit_docs,
@@ -25941,9 +25941,7 @@ var require_agent = __commonJS({
         "gsd-project-researcher",
         "gsd-codebase-mapper",
         "gsd-debugger",
-        "gsd-plan-checker",
-        "gsd-integration-checker",
-        "gsd-research-synthesizer"
+        "gsd-plan-checker"
       ]);
       for (const step of lifecycleSteps) {
         const responsible = stepMapping[step] || [];

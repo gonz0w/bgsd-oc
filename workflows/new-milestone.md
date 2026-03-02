@@ -217,7 +217,7 @@ Synthesize research outputs into SUMMARY.md.
 Write to: .planning/research/SUMMARY.md
 Use template: __OPENCODE_CONFIG__/get-shit-done/templates/research-project/SUMMARY.md
 Commit after writing.
-", subagent_type="gsd-research-synthesizer", model="{synthesizer_model}", description="Synthesize research")
+", subagent_type="gsd-roadmapper", model="{roadmapper_model}", description="Synthesize research")
 ```
 
 Display key findings from SUMMARY.md:

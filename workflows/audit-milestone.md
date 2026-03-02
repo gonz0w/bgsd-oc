@@ -16,9 +16,9 @@ INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init milestone-o
 
 Extract from init JSON: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `commit_docs`.
 
-Resolve integration checker model:
+Resolve verifier model:
 ```bash
-CHECKER_MODEL=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs resolve-model gsd-integration-checker)
+CHECKER_MODEL=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs resolve-model gsd-verifier)
 ```
 
 ## 1. Determine Milestone Scope
@@ -73,8 +73,8 @@ Milestone Requirements:
 MUST map each integration finding to affected requirement IDs where applicable.
 
 Verify cross-phase wiring and E2E user flows.",
-  subagent_type="gsd-integration-checker",
-  model="{integration_checker_model}"
+  subagent_type="gsd-verifier",
+  model="{verifier_model}"
 )
 ```
 
