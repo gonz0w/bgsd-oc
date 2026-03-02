@@ -141,7 +141,7 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
 
 **Milestone Goal:** Make every agent do one thing well, eliminate overlap and gaps across the product lifecycle, and dramatically reduce execution time through caching, context optimization, and command consolidation.
 
-- [x] **Phase 51: Cache Foundation** - SQLite cache module with staleness detection, write invalidation, and graceful degradation (completed 2026-03-02)
+- [x] **Phase 51: Cache Foundation** - SQLite cache module with staleness detection, write invalidation, and graceful degradation (3/3 plans, completed 2026-03-02)
 - [ ] **Phase 52: Cache Integration & Warm-up** - Wire cache into hot paths, add warm command, prove test parity
 - [ ] **Phase 53: Agent Consolidation** - RACI matrix, agent merges, manifest-driven context, token budgets, lifecycle audit
 - [ ] **Phase 54: Command Consolidation** - Namespace grouping, reference updates, milestone docs generation
