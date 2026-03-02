@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { debugLog } = require('./output');
+const { startTimer, endTimer } = require('./profiler');
 
 // ─── Git Execution ───────────────────────────────────────────────────────────
 
@@ -11,14 +12,17 @@ const { debugLog } = require('./output');
  * to bypass shell interpretation overhead (~2ms savings per call).
  */
 function execGit(cwd, args) {
+  const timer = startTimer('git:' + (args[0] || 'unknown'));
   try {
     const stdout = execFileSync('git', args, {
       cwd,
       stdio: 'pipe',
       encoding: 'utf-8',
     });
+    endTimer(timer);
     return { exitCode: 0, stdout: stdout.trim(), stderr: '' };
   } catch (err) {
+    endTimer(timer);
     debugLog('git.exec', 'exec failed', err);
     return {
       exitCode: err.status ?? 1,
@@ -37,6 +41,7 @@ function execGit(cwd, args) {
  * @returns {Array<object>} Array of commit objects
  */
 function structuredLog(cwd, opts = {}) {
+  const timer = startTimer('git:log:structured');
   const count = opts.count || 20;
   const logArgs = ['log', `--format=%H|%an|%ae|%ai|%s`, `-${count}`];
 
@@ -47,6 +52,7 @@ function structuredLog(cwd, opts = {}) {
 
   const logResult = execGit(cwd, logArgs);
   if (logResult.exitCode !== 0 || !logResult.stdout) {
+    endTimer(timer);
     return { error: logResult.stderr || 'No commits found' };
   }
 
@@ -64,7 +70,9 @@ function structuredLog(cwd, opts = {}) {
     const message = parts.slice(4).join('|'); // message may contain pipes
 
     // Get file stats for this commit
+    const diffTimer = startTimer('git:diff-tree');
     const statResult = execGit(cwd, ['diff-tree', '--no-commit-id', '--numstat', '-r', hash]);
+    endTimer(diffTimer);
     const files = [];
     let totalInsertions = 0;
     let totalDeletions = 0;
@@ -101,6 +109,7 @@ function structuredLog(cwd, opts = {}) {
     });
   }
 
+  endTimer(timer);
   return commits;
 }
 
