@@ -173,7 +173,7 @@ Plans:
   1. `gsd-tools cache warm` populates cache for all `.planning/` files and reports count and timing
   2. All 751+ tests pass identically with cache enabled AND with cache disabled (forced fallback)
   3. Second invocation of `gsd-tools init execute-phase` is measurably faster than first (cache hit vs miss)
-**Plans**: 2/2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 - [x] 52-01-PLAN.md — Cache warm auto-discovery and --no-cache flag
@@ -229,7 +229,7 @@ Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
 | 51. Cache Foundation | 2/3 | Complete    | 2026-03-02 |
-| 52. Cache Integration | v8.0 | 2/2 | Complete    | - |
+| 52. Cache Integration | 1/2 | In Progress|  | - |
 | 53. Agent Consolidation | v8.0 | 0/TBD | Not started | - |
 | 54. Command Consolidation | v8.0 | 0/TBD | Not started | - |
 | 55. Profiler & Performance | v8.0 | 0/TBD | Not started | - |
