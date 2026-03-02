@@ -1942,9 +1942,41 @@ var require_helpers = __commonJS({
       }
       const content = safeReadFile(filePath);
       if (content !== null) {
+        const status = cacheEngine.status();
+        if (status.count === 0 && !_autoWarmMessageShown) {
+          _autoWarmMessageShown = true;
+          const fileCount = countPlanningFiles();
+          console.warn(`Warming cache... ${fileCount} files`);
+        }
         cacheEngine.set(filePath, content);
       }
       return content;
+    }
+    var _autoWarmMessageShown = false;
+    function countPlanningFiles() {
+      const fs2 = require("fs");
+      const path2 = require("path");
+      const cwd = process.cwd();
+      const planningDir = path2.join(cwd, ".planning");
+      let count = 0;
+      function walk(dir) {
+        try {
+          const entries = fs2.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path2.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              walk(fullPath);
+            } else if (entry.isFile() && entry.name.endsWith(".md")) {
+              count++;
+            }
+          }
+        } catch (e) {
+        }
+      }
+      if (fs2.existsSync(planningDir)) {
+        walk(planningDir);
+      }
+      return count;
     }
     function invalidateFileCache(filePath) {
       const cacheEngine = getCacheEngine();
@@ -4088,7 +4120,7 @@ var require_phase = __commonJS({
     var fs = require("fs");
     var path = require("path");
     var { output: output2, error, debugLog } = require_output();
-    var { normalizePhaseName, getArchivedPhaseDirs, findPhaseInternal, generateSlugInternal, getMilestoneInfo, invalidateFileCache } = require_helpers();
+    var { normalizePhaseName, getArchivedPhaseDirs, findPhaseInternal, generateSlugInternal, getMilestoneInfo, invalidateFileCache, cachedReadFile } = require_helpers();
     var { extractFrontmatter } = require_frontmatter();
     var { execGit } = require_git();
     function ensureChecklistEntry(content, phaseNum, name, afterPhasePattern) {
@@ -4228,7 +4260,7 @@ var require_phase = __commonJS({
       if (!fs.existsSync(roadmapPath)) {
         error("ROADMAP.md not found");
       }
-      const content = fs.readFileSync(roadmapPath, "utf-8");
+      const content = cachedReadFile(roadmapPath);
       const slug = generateSlugInternal(description);
       const phasePattern = /#{2,4}\s*Phase\s+(\d+)(?:\.\d+)?:/gi;
       let maxPhase = 0;
@@ -4280,7 +4312,7 @@ Plans:
       if (!fs.existsSync(roadmapPath)) {
         error("ROADMAP.md not found");
       }
-      const content = fs.readFileSync(roadmapPath, "utf-8");
+      const content = cachedReadFile(roadmapPath);
       const slug = generateSlugInternal(description);
       const normalizedAfter = normalizePhaseName(afterPhase);
       const unpadded = normalizedAfter.replace(/^0+/, "");
@@ -4467,7 +4499,7 @@ Plans:
           debugLog("phase.remove", "rename failed", e);
         }
       }
-      let roadmapContent = fs.readFileSync(roadmapPath, "utf-8");
+      let roadmapContent = cachedReadFile(roadmapPath);
       const targetEscaped = targetPhase.replace(/\./g, "\\.");
       const sectionPattern = new RegExp(
         `\\n?#{2,4}\\s*Phase\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+Phase\\s+\\d|$)`,
@@ -4513,7 +4545,7 @@ Plans:
       invalidateFileCache(roadmapPath);
       const statePath = path.join(cwd, ".planning", "STATE.md");
       if (fs.existsSync(statePath)) {
-        let stateContent = fs.readFileSync(statePath, "utf-8");
+        let stateContent = cachedReadFile(statePath);
         const totalPattern = /(\*\*Total Phases:\*\*\s*)(\d+)/;
         const totalMatch = stateContent.match(totalPattern);
         if (totalMatch) {
@@ -4552,7 +4584,7 @@ Plans:
         output2({ updated: false, reason: "REQUIREMENTS.md not found", ids: reqIds }, raw, "no requirements file");
         return;
       }
-      let reqContent = fs.readFileSync(reqPath, "utf-8");
+      let reqContent = cachedReadFile(reqPath);
       const updated = [];
       const notFound = [];
       for (const reqId of reqIds) {
@@ -4603,7 +4635,7 @@ Plans:
       const planCount = phaseInfo.plans.length;
       const summaryCount = phaseInfo.summaries.length;
       if (fs.existsSync(roadmapPath)) {
-        let roadmapContent = fs.readFileSync(roadmapPath, "utf-8");
+        let roadmapContent = cachedReadFile(roadmapPath);
         const checkboxPattern = new RegExp(
           `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseNum.replace(".", "\\.")}[:\\s][^\\n]*)`,
           "i"
@@ -4635,7 +4667,7 @@ Plans:
           );
           if (reqMatch) {
             const reqIds = reqMatch[1].replace(/[\[\]]/g, "").split(/[,\s]+/).map((r) => r.trim()).filter(Boolean);
-            let reqContent = fs.readFileSync(reqPath, "utf-8");
+            let reqContent = cachedReadFile(reqPath);
             for (const reqId of reqIds) {
               reqContent = reqContent.replace(
                 new RegExp(`(-\\s*\\[)[ ](\\]\\s*\\*\\*${reqId}\\*\\*)`, "gi"),
@@ -4676,7 +4708,7 @@ Plans:
       let uncheckedRoadmapPhases = [];
       if (fs.existsSync(roadmapPath)) {
         try {
-          const roadmapContent = fs.readFileSync(roadmapPath, "utf-8");
+          const roadmapContent = cachedReadFile(roadmapPath);
           const sectionPhases = [];
           const hp = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
           let hm;
@@ -4726,7 +4758,7 @@ Plans:
         }
       }
       if (fs.existsSync(statePath)) {
-        let stateContent = fs.readFileSync(statePath, "utf-8");
+        let stateContent = cachedReadFile(statePath);
         stateContent = stateContent.replace(
           /(\*\*Current Phase:\*\*\s*).*/,
           `$1${nextPhaseNum || phaseNum}`
@@ -4800,7 +4832,7 @@ Plans:
           totalPlans += plans.length;
           for (const s of summaries) {
             try {
-              const content = fs.readFileSync(path.join(phasesDir, dir, s), "utf-8");
+              const content = cachedReadFile(path.join(phasesDir, dir, s));
               const fm = extractFrontmatter(content);
               if (fm["one-liner"]) {
                 accomplishments.push(fm["one-liner"]);
@@ -4816,11 +4848,11 @@ Plans:
         debugLog("milestone.complete", "frontmatter extraction failed", e);
       }
       if (fs.existsSync(roadmapPath)) {
-        const roadmapContent = fs.readFileSync(roadmapPath, "utf-8");
+        const roadmapContent = cachedReadFile(roadmapPath);
         fs.writeFileSync(path.join(archiveDir, `${version}-ROADMAP.md`), roadmapContent, "utf-8");
       }
       if (fs.existsSync(reqPath)) {
-        const reqContent = fs.readFileSync(reqPath, "utf-8");
+        const reqContent = cachedReadFile(reqPath);
         const archiveHeader = `# Requirements Archive: ${version} ${milestoneName}
 
 **Archived:** ${today}
@@ -4849,7 +4881,7 @@ ${accomplishmentsList || "- (none recorded)"}
 
 `;
       if (fs.existsSync(milestonesPath)) {
-        const existing = fs.readFileSync(milestonesPath, "utf-8");
+        const existing = cachedReadFile(milestonesPath);
         fs.writeFileSync(milestonesPath, existing + "\n" + milestoneEntry, "utf-8");
         invalidateFileCache(milestonesPath);
       } else {
@@ -4859,7 +4891,7 @@ ${milestoneEntry}`, "utf-8");
         invalidateFileCache(milestonesPath);
       }
       if (fs.existsSync(statePath)) {
-        let stateContent = fs.readFileSync(statePath, "utf-8");
+        let stateContent = cachedReadFile(statePath);
         stateContent = stateContent.replace(
           /(\*\*Status:\*\*\s*).*/,
           `$1${version} milestone complete`
@@ -5406,7 +5438,7 @@ var require_verify = __commonJS({
         }
       }
       if (fs.existsSync(roadmapPath)) {
-        const roadmapContent = fs.readFileSync(roadmapPath, "utf-8");
+        const roadmapContent = cachedReadFile(roadmapPath);
         const roadmapPhases = /* @__PURE__ */ new Set();
         const phasePattern = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:/gi;
         let m;
@@ -6723,7 +6755,7 @@ var require_verify = __commonJS({
         }
       }
       if (options && options.repair) {
-        let content = fs.readFileSync(roadmapPath, "utf-8");
+        let content = cachedReadFile(roadmapPath);
         let fixed = false;
         for (const [n, info] of sections) {
           if (!checklist.has(n)) {
@@ -22422,7 +22454,7 @@ var require_misc = __commonJS({
         output2(result2, raw, "failed");
         return;
       }
-      const content = fs.readFileSync(fullPath, "utf-8");
+      const content = cachedReadFile(fullPath);
       const errors = [];
       const mentionedFiles = /* @__PURE__ */ new Set();
       const patterns = [
@@ -22488,7 +22520,7 @@ var require_misc = __commonJS({
       }
       try {
         const fullPath = path.join(cwd, planPath);
-        const content = fs.readFileSync(fullPath, "utf-8");
+        const content = cachedReadFile(fullPath);
         const taskMatch = content.match(/###\s*Task\s*\d+/g) || [];
         const taskCount = taskMatch.length;
         const decisionMatch = content.match(/decision/gi) || [];
@@ -22724,7 +22756,7 @@ ${body}
       for (const planFile of planFiles) {
         const planId = planFile.replace("-PLAN.md", "").replace("PLAN.md", "");
         const planPath = path.join(phaseDir, planFile);
-        const content = fs.readFileSync(planPath, "utf-8");
+        const content = cachedReadFile(planPath);
         const fm = extractFrontmatter(content);
         const taskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
         const taskCount = taskMatches.length;
@@ -22775,7 +22807,7 @@ ${body}
         output2({ error: "STATE.md not found" }, raw);
         return;
       }
-      const content = fs.readFileSync(statePath, "utf-8");
+      const content = cachedReadFile(statePath);
       const extractField = (fieldName) => {
         const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, "i");
         const match = content.match(pattern);
@@ -22860,7 +22892,7 @@ ${body}
         output2({ error: "File not found", path: summaryPath }, raw);
         return;
       }
-      const content = fs.readFileSync(fullPath, "utf-8");
+      const content = cachedReadFile(fullPath);
       const fm = extractFrontmatter(content);
       const parseDecisions = (decisionsList) => {
         if (!decisionsList || !Array.isArray(decisionsList)) return [];
@@ -22980,7 +23012,7 @@ ${r.description}`).join("\n\n"));
         output2({ error: "File not found", path: filePath }, raw);
         return;
       }
-      const content = fs.readFileSync(fullPath, "utf-8");
+      const content = cachedReadFile(fullPath);
       const fm = extractFrontmatter(content);
       let parsedValue;
       try {
@@ -23003,7 +23035,7 @@ ${r.description}`).join("\n\n"));
         output2({ error: "File not found", path: filePath }, raw);
         return;
       }
-      const content = fs.readFileSync(fullPath, "utf-8");
+      const content = cachedReadFile(fullPath);
       const fm = extractFrontmatter(content);
       let mergeData;
       try {
@@ -23325,7 +23357,7 @@ _Pending verification_
       }
       let conventionsDoc = null;
       try {
-        conventionsDoc = fs.readFileSync(path.join(cwd, ".planning", "codebase", "CONVENTIONS.md"), "utf-8");
+        conventionsDoc = cachedReadFile(path.join(cwd, ".planning", "codebase", "CONVENTIONS.md"));
       } catch (e) {
       }
       output2({
@@ -25737,6 +25769,30 @@ var require_cache2 = __commonJS({
       }
       return _cacheEngine;
     }
+    function discoverPlanningFiles(cwd) {
+      const planningDir = path.join(cwd, ".planning");
+      const files = [];
+      if (!fs.existsSync(planningDir)) {
+        return files;
+      }
+      function walk(dir) {
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              walk(fullPath);
+            } else if (entry.isFile() && entry.name.endsWith(".md")) {
+              files.push(fullPath);
+            }
+          }
+        } catch (e) {
+          debugLog("cache", "failed to walk directory", e);
+        }
+      }
+      walk(planningDir);
+      return files;
+    }
     function cmdCacheStatus(cwd, args, raw) {
       const cacheEngine = getCacheEngine();
       if (!cacheEngine) {
@@ -25767,17 +25823,24 @@ var require_cache2 = __commonJS({
         output2({ warmed: 0, error: "CacheEngine failed to load" }, raw, "Failed to warm cache");
         return;
       }
-      const filePaths = args.slice(1);
+      const filePaths = args.slice(2);
+      let resolvedPaths;
       if (filePaths.length === 0) {
-        output2({ warmed: 0, error: "No files specified" }, raw, "No files to warm");
-        return;
+        resolvedPaths = discoverPlanningFiles(cwd);
+        if (resolvedPaths.length === 0) {
+          output2({ warmed: 0, error: "No .planning/ files found" }, raw, "No files to warm");
+          return;
+        }
+      } else {
+        resolvedPaths = filePaths.map((p) => {
+          if (path.isAbsolute(p)) return p;
+          return path.join(cwd, p);
+        });
       }
-      const resolvedPaths = filePaths.map((p) => {
-        if (path.isAbsolute(p)) return p;
-        return path.join(cwd, p);
-      });
+      const start = Date.now();
       const warmed = cacheEngine.warm(resolvedPaths);
-      output2({ warmed }, raw, `Warmed ${warmed} file(s)`);
+      const elapsed = Date.now() - start;
+      output2({ warmed, elapsed_ms: elapsed }, raw, `Warmed ${warmed} files in ${elapsed}ms`);
     }
     function registerCacheCommand(router) {
       return router;
@@ -25956,6 +26019,11 @@ var require_router = __commonJS({
       if (manifestIdx !== -1) {
         global._gsdManifestMode = true;
         args.splice(manifestIdx, 1);
+      }
+      const noCacheIdx = args.indexOf("--no-cache");
+      if (noCacheIdx !== -1) {
+        process.env.GSD_CACHE_FORCE_MAP = "1";
+        args.splice(noCacheIdx, 1);
       }
       const command = args[0];
       const cwd = process.cwd();
