@@ -194,7 +194,7 @@ Plans:
 Plans:
 - [x] 53-01-PLAN.md — RACI matrix document and agent audit command
 - [x] 53-02-PLAN.md — Merge integration-checker into verifier, synthesizer into roadmapper
-- [ ] 53-03-PLAN.md — Token budgets in manifests and workflow reference updates
+- [x] 53-03-PLAN.md — Token budgets in manifests and workflow reference updates
 
 ### Phase 54: Command Consolidation
 **Goal**: CLI commands are organized under logical namespaces with zero orphan commands

@@ -78,8 +78,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGENT-01 | Phase 53 | Complete | npm test |
 | AGENT-02 | Phase 53 | Complete | npm test |
 | AGENT-03 | Phase 53 | Complete | npm test |
-| AGENT-04 | Phase 53 | Pending | npm test |
-| AGENT-05 | Phase 53 | Pending | npm test |
+| AGENT-04 | Phase 53 | Complete | npm test |
+| AGENT-05 | Phase 53 | Complete | npm test |
 | CMD-01 | Phase 54 | Pending | npm test |
 | CMD-02 | Phase 54 | Pending | npm test |
 | CMD-03 | Phase 54 | Pending | npm test |
