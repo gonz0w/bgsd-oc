@@ -145,7 +145,7 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
 - [x] **Phase 52: Cache Integration & Warm-up** - Wire cache into hot paths, add warm command, prove test parity (2/2 plans, ready to execute)
 - [x] **Phase 53: Agent Consolidation** - RACI matrix, agent merges, manifest-driven context, token budgets, lifecycle audit (completed 2026-03-02)
 - [x] **Phase 54: Command Consolidation** - Namespace grouping, reference updates, milestone docs generation (completed 2026-03-02)
-- [ ] **Phase 55: Profiler & Performance Validation** - Hot-path instrumentation, baseline comparison, prove speedup
+- [ ] **Phase 55: Profiler & Performance Validation** - Hot-path instrumentation, baseline comparison, prove speedup (2/2 plans)
 
 ## Phase Details
 
@@ -220,7 +220,10 @@ Plans:
   1. `GSD_PROFILE=1` reports sub-operation timing for file reads, git ops, markdown parsing, and AST analysis
   2. `gsd-tools profiler compare` shows before/after timing deltas with regression highlighting (red for slower, green for faster)
   3. Cache-enabled invocations show measurable speedup over cache-disabled for repeated operations
-**Plans**: TBD
+**Plans**: 2 plans
+
+- [ ] 55-01-PLAN.md — Sub-operation timing instrumentation (file reads, git ops, markdown, AST)
+- [ ] 55-02-PLAN.md — Profiler compare command and cache speedup test
 
 ## Progress
 
@@ -243,4 +246,4 @@ Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if
 | 52. Cache Integration | v8.0 | 2/2 | Complete | 2026-03-02 |
 | 53. Agent Consolidation | v8.0 | Complete    | 2026-03-02 | - |
 | 54. Command Consolidation | v8.0 | Complete    | 2026-03-02 | - |
-| 55. Profiler & Performance | v8.0 | 0/TBD | Not started | - |
+| 55. Profiler & Performance | v8.0 | 0/2 | Planning | - |
