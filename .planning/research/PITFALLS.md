@@ -1,448 +1,369 @@
-# Domain Pitfalls: Trajectory Engineering
+# Pitfalls Research
 
-**Domain:** Adding checkpoint/pivot/compare/choose exploration system to an existing Node.js CLI that manages git state and markdown planning documents
-**Researched:** 2026-02-28
-**Confidence:** HIGH — based on codebase analysis (34 src/ modules, 669 tests, git.js + worktree.js integration surfaces), Kiro checkpointing architecture, Claude Code checkpoint patterns, git branch management literature, and prior v2.0 pitfall research
+**Domain:** Adding SQLite cache layer, agent architecture consolidation, command restructuring, and performance optimization to an existing Node.js single-file CLI tool (1058KB bundle, 751 tests, esbuild pipeline, file-copy deploy)
+**Researched:** 2026-03-01
+**Confidence:** HIGH — based on codebase analysis (34 src/ modules, 751 tests, existing in-memory Map cache, esbuild bundler config, deploy.sh pipeline), Node.js v25 `node:sqlite` official docs, esbuild native addon documentation, better-sqlite3 bundling issues, and prior v7.1 pitfall research
 
-## Compact Summary
+<!-- section: compact -->
+<pitfalls_compact>
+**Top pitfalls:**
+1. **Native SQLite addon breaks single-file deploy** — use `node:sqlite` (built-in) not `better-sqlite3`; requires Node ≥22.5 and still experimental (Phase: Cache Foundation)
+2. **Cache grows stale while markdown stays authoritative** — invalidate on every write via existing `invalidateFileCache()` pattern; hash-stamp entries; never trust cache over disk (Phase: Cache Foundation)
+3. **Agent consolidation breaks workflow spawn chains** — map ALL 41+ command wrappers and 19+ workflows to agent roles BEFORE merging; verify no spawn references break (Phase: Agent Audit)
+4. **Command rename breaks 751 tests and all workflows** — use alias-based migration: old names work for 1 version, emit deprecation warning, remove in v9.0 (Phase: Command Consolidation)
+5. **esbuild bundles WASM blob inflating bundle past 1500KB budget** — if using sql.js WASM, bundle size jumps ~1MB; `node:sqlite` adds 0KB to bundle (Phase: Cache Foundation)
 
-The 9 pitfalls below distill into three failure modes:
+**Tech debt traps:** premature SQLite schema, caching write paths not just reads, over-normalizing markdown into SQL tables, creating a migration framework for a single-file cache
 
-1. **State coherence failures** (Pitfalls 1, 2, 5): Trajectory operations create divergent copies of `.planning/` files. If checkpoint/pivot/choose don't maintain bidirectional consistency between git branch state and planning document state, agents act on stale or contradictory information. This is THE critical risk for this codebase.
+**Security risks:** SQLite file permissions in shared environments, SQL injection from unsanitized markdown content used in queries
 
-2. **Git complexity explosion** (Pitfalls 3, 4, 6): Every checkpoint creates a branch. Every pivot creates another. Without aggressive lifecycle management, the repo accumulates `traj-*` branches that pollute `git branch` output, confuse the existing worktree system, and make `branchInfo()` return unexpected data. Single-developer doesn't mean single-branch-count.
+**"Looks done but isn't" checks:**
+- Cache layer: verify `cachedReadFile()` and SQLite cache return IDENTICAL results for all 751 tests
+- Agent consolidation: verify every workflow `.md` file's agent spawn references resolve to an existing agent
+- Command rename: verify all 41 command wrappers in `commands/` use new names or valid aliases
+- Performance: verify `GSD_PROFILE=1` baselines show improvement, not regression
+</pitfalls_compact>
+<!-- /section -->
 
-3. **Context window pollution** (Pitfalls 7, 8, 9): Decision journals, comparison metrics, and trajectory metadata are valuable for preventing re-exploration — but each token of trajectory history displaces a token of actual work context. The existing 200K-token context window and 50% target utilization leave ~100K tokens for work; a verbose decision journal can consume 10-20% of that.
-
----
-
+<!-- section: critical_pitfalls -->
 ## Critical Pitfalls
 
-Mistakes that cause data loss, agent confusion, or features that make the system actively worse.
-
----
-
-### Pitfall 1: .planning/ File State Divergence Across Trajectory Branches
+### Pitfall 1: Native SQLite Addon Destroys Single-File Deploy Model
 
 **What goes wrong:**
-`checkpoint` creates a git branch (snapshot of code + planning files). The developer continues working on the original branch — STATE.md gets updated, PLAN.md progress changes, decisions accumulate. When `pivot` rewinds to the checkpoint branch, the `.planning/` files revert to their checkpoint-time state: wrong current plan, wrong progress percentage, missing decisions, stale session continuity data. The agent now operates on a STATE.md that says "Plan 2 of 5, 40% complete" when the actual trajectory context is "Attempt 2 of approach B, starting fresh from checkpoint."
+`better-sqlite3` is a native C++ addon. It compiles a `.node` binary during `npm install` that is platform-specific (linux-x64, darwin-arm64, etc.). esbuild cannot bundle `.node` files — the esbuild documentation explicitly states: "a native `.node` extension has expectations about the layout of the file system that are no longer true after bundling" (esbuild CHANGELOG-2022, issue #2830). The current build pipeline (`build.js`) produces a single `bin/gsd-tools.cjs` file that `deploy.sh` copies to `~/.config/oc/get-shit-done/bin/`. With `better-sqlite3`, deploy must ALSO copy `node_modules/better-sqlite3/build/Release/better_sqlite3.node` — plus ensure the load path resolves correctly from the deployed location.
 
-Worse: `compare` needs to read STATE.md from multiple branches to extract metrics. Each branch has its own STATE.md with its own position/progress. The comparison output shows conflicting "current state" data because it's reading per-branch STATE.md rather than a centralized trajectory record.
+This breaks three guarantees simultaneously:
+- **Single-file deploy:** `deploy.sh` copies `bin/`, `workflows/`, `templates/`, `references/`, `src/`, `agents/`. Adding a native addon means also copying `node_modules/` or the `.node` file, plus updating the require path.
+- **Cross-machine portability:** The `.node` binary compiled on the dev machine won't work if deployed to a machine with a different Node.js ABI version (`NODE_MODULE_VERSION` mismatch — documented in better-sqlite3 issue #1411 and multiple Reddit reports).
+- **esbuild bundling:** Must mark `better-sqlite3` as `external` in build.js, meaning it's resolved at runtime from `node_modules/`, not bundled.
 
 **Why it happens:**
-The existing architecture stores ALL state in `.planning/` markdown files within the git tree. This design is perfect for linear execution (one branch, one timeline) but breaks down for branching timelines. Git handles code divergence natively but `.planning/` files contain cross-cutting concerns (overall project progress, session state, decisions) that shouldn't diverge.
+`better-sqlite3` is the most-recommended SQLite library for Node.js (3,977 dependents on npm). Its synchronous API is a perfect fit for this CLI's synchronous I/O pattern. The temptation is strong. But "best library for a web server" ≠ "best library for a single-file CLI deployed by file copy."
 
-Specifically in this codebase:
-- `cmdStateLoad()` reads `.planning/STATE.md` from `cwd` — whatever branch is checked out
-- `cmdStatePatch()` writes to `.planning/STATE.md` in the current branch
-- `stateReplaceField()` operates on the content of the currently-checked-out STATE.md
-- `cmdStateValidate()` compares STATE.md against `.planning/phases/` which are also branch-local
-
-**Consequences:**
-- Agent resumes from checkpoint and sees stale decisions — re-explores dead ends
-- `state validate` fires false positives after pivot (STATE.md references plans that exist on the previous branch but not this one)
-- `cmdStateAdvancePlan()` advances plan count on a trajectory branch, creating phantom progress
-- `state update-progress` computes completion percentage from branch-local phase directories, producing incorrect overall progress
-
-**Prevention:**
-1. **Separate trajectory-scoped state from branch-local state.** Create `.planning/trajectory/` directory that is NOT part of the trajectory branches. Trajectory metadata (which checkpoint we're on, attempt count, decision journal) lives in the *original* branch only, or in a sidecar file outside git.
-2. **`checkpoint` must snapshot STATE.md's current-position fields but NOT let them diverge.** When creating a checkpoint branch, strip the position/progress fields from the branch copy of STATE.md (or replace with a pointer: "Trajectory branch — see original branch for current state").
-3. **`pivot` must NOT revert STATE.md to checkpoint state.** It reverts CODE, but carries forward the current STATE.md (or at minimum: current decisions, current blockers, current session continuity). Implement this as: `git checkout checkpoint-branch -- . ':!.planning/STATE.md' ':!.planning/memory/'` — exclude planning state from the revert.
-4. **Test the round-trip:** checkpoint → work → update state → pivot → verify STATE.md is current, not stale. This is the #1 test case for the entire feature.
+**How to avoid:**
+1. **Use `node:sqlite` (built-in).** Node.js v22.5+ includes `node:sqlite` as a built-in module. As of Node v25.7.0, it is **Stability 1.2 (Release Candidate)** — no longer behind `--experimental-sqlite` flag since v23.4.0/v22.13.0. It provides `DatabaseSync` with synchronous API (matching the CLI's sync I/O pattern), requires zero bundle size increase (it's a Node.js built-in), and needs no native compilation.
+2. **If `node:sqlite` stability is unacceptable,** use `sql.js` (SQLite compiled to WASM via emscripten). Pure JavaScript, no native addon, esbuild can bundle it. BUT: adds ~1MB WASM blob to bundle (exceeds 1500KB budget) and is 2-5x slower than native SQLite. This is a fallback, not a preference.
+3. **NEVER use `better-sqlite3` for this project.** The deployment model is incompatible. Period.
+4. **Bump minimum Node.js version to 22.5+ in package.json engines field.** Currently `>=18`. The `node:sqlite` module requires 22.5+. This is a breaking change that must be documented and announced.
+5. **Wrap `node:sqlite` import in a try/catch with graceful fallback.** If the user's Node.js doesn't support `node:sqlite`, fall back to the existing in-memory Map cache. The cache is an optimization, not a requirement.
 
 **Warning signs:**
-- Agent says "I see we're on Plan 2" after pivot when we should be starting fresh
-- `state validate` fires errors immediately after `pivot`
-- Decision journal entries disappear after `pivot` (they were on the abandoned branch)
-- `compare` shows two different "Current Plan" values from the same trajectory
+- `better-sqlite3` appears in `package.json` dependencies
+- `build.js` adds `better-sqlite3` to `external` array
+- `deploy.sh` gains `cp -r node_modules/` lines
+- CI/CD runs `npm install` with `--build-from-source` flags
+- Bundle size jumps past 1500KB budget
 
-**Detection:** After any trajectory operation, run `state validate` — if it reports position/progress issues, state divergence has occurred.
-
-**Phase to address:** FIRST phase. This is the architectural foundation. Every other feature (pivot, compare, choose) depends on state coherence.
+**Phase to address:**
+Cache Foundation — the FIRST decision. Technology choice gates everything else.
 
 ---
 
-### Pitfall 2: Losing Uncommitted Work During Pivot/Rewind
+### Pitfall 2: Cache Becomes Source of Truth Instead of Markdown
 
 **What goes wrong:**
-Developer (or agent) is mid-edit when `pivot` fires. They've modified 3 source files and `.planning/PLAN.md` but haven't committed. `pivot` does `git checkout checkpoint-branch` which fails with "Your local changes to the following files would be overwritten" — or worse, with `--force` it silently destroys uncommitted work.
+The system reads STATE.md, ROADMAP.md, PLAN.md dozens of times per CLI invocation. A SQLite cache eliminates repeated parsing by storing parsed results. But over time, code starts reading from cache WITHOUT checking if the markdown file changed. Three failure modes:
 
-This is especially dangerous in this codebase because `execGit()` runs synchronously and the commit command (`cmdCommit()`) requires explicit invocation. There's no auto-save. The agent operates in a "modify files → test → commit" cycle, and the gap between "modify" and "commit" is exactly when pivot is most tempting (tests failed, want to try different approach).
+1. **External edit invalidation:** User edits ROADMAP.md in their editor. CLI reads cached version. Agent acts on stale roadmap data. Plans get created for a phase that was restructured.
+2. **Write-through failure:** `cmdStatePatch()` writes to STATE.md but doesn't update the cache. Next `cmdStateLoad()` reads stale cache. STATE.md says "Phase 5" but cache says "Phase 4."
+3. **Cache corruption silent fallback:** SQLite database file gets corrupted (power loss, concurrent access). CLI silently reads corrupt data instead of falling back to disk parsing. All downstream operations produce garbage.
+
+This is especially dangerous because the project has an established convention: `cachedReadFile()` (helpers.js line 30) explicitly documents "lives for single CLI invocation, no TTL needed." A persistent SQLite cache changes this assumption fundamentally — it persists ACROSS invocations. Every code path that assumes "cache = this invocation only" breaks.
 
 **Why it happens:**
-The existing `worktree.js` handles this for worktrees via `--force` flag in `cmdWorktreeRemove()` (line 399: `['worktree', 'remove', worktreePath, '--force']`). This is intentional for worktree cleanup but would be destructive for trajectory pivots. The worktree system creates isolated directories; trajectory engineering operates on the SAME working directory.
+The current in-memory Map cache is inherently safe: it's created at process start and discarded at process exit. There is zero staleness risk. SQLite persistence introduces a new failure mode that didn't exist before. Developers who are used to the "Map cache = always fresh" assumption will not think to add invalidation checks when reading from SQLite.
 
-`execGit()` returns `{ exitCode, stdout, stderr }` — a failed checkout due to dirty state returns exitCode 1. If the pivot command doesn't check for this AND handle it gracefully, one of two things happens: (a) pivot fails silently, leaving the user confused, or (b) pivot forces the checkout, destroying work.
-
-**Consequences:**
-- Uncommitted code changes permanently lost
-- Agent's in-progress work destroyed mid-task
-- User trust in the tool destroyed after one data loss incident
-- If auto-stash is used naively, stash pile-up creates its own confusion
-
-**Prevention:**
-1. **Pre-flight dirty check is MANDATORY before any branch-switching operation.** Use the existing `branchInfo()` which already detects `has_dirty_files` and `dirty_file_count`. If dirty: refuse to pivot and output a clear message: `"Cannot pivot: N uncommitted files. Commit or stash first."`
-2. **Offer auto-commit, not auto-stash.** `git stash` creates invisible state that's easy to lose. Instead: `pivot` should offer: "Uncommitted changes detected. Options: (a) commit current work first, (b) discard changes, (c) abort pivot." For agent workflows, always choose (a) — commit with message `"wip: checkpoint before pivot to [name]"`.
-3. **NEVER use `--force` for checkout in trajectory operations.** Unlike worktree removal (which operates on separate directories), trajectory checkout operates on the user's working directory. Force = data loss.
-4. **Test: create dirty state → attempt pivot → verify pivot refuses AND work is preserved.** This must be a test case, not just documentation.
+**How to avoid:**
+1. **Hash-based invalidation.** Every cached entry stores the file's `mtime` (from `fs.statSync()`) and size. Before returning cached data, check: `current_mtime === cached_mtime && current_size === cached_size`. If mismatch, re-parse from disk and update cache. This adds one `statSync()` call per read — much cheaper than full file read + regex parsing.
+2. **Extend `invalidateFileCache(filePath)` to also invalidate SQLite cache.** Every existing call site that invalidates the Map cache (helpers.js line 46) must also invalidate the SQLite entry. Grep for all `invalidateFileCache` calls and ensure SQLite is included.
+3. **Write-through on ALL mutations.** Every command that writes a markdown file (`cmdStatePatch`, `cmdStateUpdate`, `cmdFrontmatterSet`, `cmdFrontmatterMerge`, `cmdMemoryWrite`) must update the SQLite cache in the same operation. Wrap file-write + cache-update in a single function.
+4. **Fallback-first design.** If SQLite open fails, cache read fails, or cache data fails validation: silently fall back to disk read. NEVER crash, NEVER return partial data. Match the existing pattern from `cachedReadFile()` which returns `null` on error.
+5. **Test with cache AND without cache.** Run the full 751-test suite with SQLite cache enabled AND disabled. Results must be identical. Any difference reveals a cache coherence bug.
 
 **Warning signs:**
-- `pivot` command doesn't call `branchInfo()` before switching
-- Any git checkout call that doesn't check for dirty files first
-- Stash references appearing in trajectory metadata (means auto-stash was used)
-- Agent outputs "pivot successful" without mentioning dirty file handling
+- Tests pass with cache but fail without (or vice versa)
+- `init execute-phase` output differs between first run (cold cache) and second run (warm cache)
+- User reports "I edited ROADMAP.md but the tool still shows old data"
+- `GSD_DEBUG=1` shows "cache hit" for a file that was just modified
 
-**Phase to address:** Checkpoint & Pivot phase — the `pivot` command implementation. Build the dirty-check as the first operation, before any git operations.
+**Phase to address:**
+Cache Foundation — invalidation strategy must be designed before ANY caching code is written.
 
 ---
 
-### Pitfall 3: Branch Proliferation from Unbounded Trajectory Creation
+### Pitfall 3: Agent Consolidation Breaks Workflow Spawn References
 
 **What goes wrong:**
-Each `checkpoint` creates a branch. Each `pivot` may create another. A developer exploring 3 approaches to a problem creates 3 checkpoint branches + 3 attempt branches = 6 branches. Do this for 5 tasks in a phase = 30 branches. Over a milestone with 15 plans = potentially 90+ trajectory branches in the repo.
+The codebase has 11 agent definitions (in `agents/gsd-*.md`) and 41+ command wrappers (in `commands/gsd-*.md`) that spawn agents by name. Workflows (in `workflows/`) reference agents via spawn syntax (e.g., "spawn gsd-executor", "@agent gsd-planner"). If agent `gsd-plan-checker` is merged into `gsd-planner` (consolidation), every workflow that explicitly spawns `gsd-plan-checker` breaks.
 
-`git branch` output becomes noise. The existing `branchInfo()` function returns `branch` as the current branch name — but listing branches via `git branch` (which worktree.js uses for cleanup) returns ALL branches, including trajectory detritus. The existing worktree system creates branches with pattern `worktree-NN-MM-W` — if trajectory branches use a similar pattern, cleanup logic could collide.
+The dependency chain is:
+```
+commands/gsd-plan-phase.md → workflows/plan-phase.md → spawns gsd-planner + gsd-plan-checker
+commands/gsd-execute-phase.md → workflows/execute-phase.md → spawns gsd-executor + gsd-verifier
+commands/gsd-verify-work.md → workflows/verify-work.md → spawns gsd-verifier
+```
+
+Renaming or merging an agent without updating EVERY reference in this chain causes the orchestrator to fail when it tries to spawn a non-existent agent. The host editor renders this as a silent failure (agent doesn't spawn) or an error dialog, depending on implementation.
+
+Additionally, `AGENT_MANIFESTS` in `src/lib/context.js` (line 99) has per-agent field whitelists. If `gsd-plan-checker` is merged into `gsd-planner`, the manifest for `gsd-planner` must be updated to include fields that `gsd-plan-checker` needed (e.g., `plans`, `plan_count`). Missing fields = missing context for the merged agent's checker behavior.
 
 **Why it happens:**
-Git branches are cheap to create but expensive to manage mentally. The Kiro checkpointing system avoids this by using a "shadow repository" (separate bare git repo) that's cleaned up per session. Claude Code's checkpoints are session-scoped. Both recognized that persistent branches create persistent mess.
+Agent names are string references scattered across markdown files, not typed imports. There's no compile-time checking. A rename that would be caught by a linter in TypeScript is invisible in markdown until runtime.
 
-This codebase's trajectory system is designed to be persistent (decision journal survives sessions) — which means branches must also persist until explicitly cleaned up. But "persist until cleaned up" in practice means "persist forever" because cleanup is the first thing developers forget.
-
-**Consequences:**
-- `git branch` output becomes unusable
-- `branchInfo()` upstream detection breaks on trajectory branches (they have no upstream)
-- Disk usage grows (each branch retains its own tree objects)
-- `worktree check-overlap` and `worktree merge` may accidentally discover trajectory branches
-- Agent confusion: "Which branch should I be on?"
-
-**Prevention:**
-1. **Namespacing: all trajectory branches MUST use prefix `traj/`** (e.g., `traj/task-21-02/checkpoint-1`, `traj/task-21-02/attempt-2`). This makes them: (a) filterable with `git branch --list 'traj/*'`, (b) distinguishable from worktree branches (`worktree-*`), (c) groupable in git GUIs.
-2. **`choose` command must delete non-winning branches.** When a trajectory is resolved (approach B wins), the `choose` command merges B and deletes the `traj/` branches for that task. This is the archival step. Without it, branches accumulate indefinitely.
-3. **Automatic cleanup on phase/milestone completion.** When `cmdPhaseComplete()` or `cmdMilestoneComplete()` runs, add a step: prune all `traj/` branches whose task is in the completed phase. This mirrors how `cmdWorktreeCleanup()` prunes worktrees.
-4. **Hard limit: configurable max trajectory branches per task (default: 5).** If a developer has 5 active attempts at one task, something is wrong. The 6th `checkpoint` should warn: "5 trajectory branches exist for this task. Clean up or increase limit."
-5. **`trajectory list` command that shows ONLY trajectory branches** with age, task association, and committed/merged status. Like `worktree list` but for trajectories.
+**How to avoid:**
+1. **Build an agent dependency map BEFORE any consolidation.** Run: `grep -r 'gsd-' agents/ commands/ workflows/ | grep -v '.git'` to find every cross-reference. Document which files reference which agents. This is the blast radius analysis.
+2. **Consolidation must be a rename-first, merge-second process.** Step 1: Add the new agent name as an alias (existing agent accepts both names). Step 2: Update all references to new name. Step 3: Remove old agent definition. Never do step 3 before step 2.
+3. **Update `AGENT_MANIFESTS` in context.js.** When merging agents, the new manifest must be the UNION of both old manifests' fields. A merged `gsd-planner` that also does plan-checking needs: `fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count', 'research_enabled', 'plan_checker_enabled', 'intent_summary', 'plans']` (union of planner + plan-checker fields).
+4. **Add a validation command:** `gsd-tools validate-agents` that reads all workflow `.md` files, extracts agent spawn references, and verifies each referenced agent exists in `agents/`. Run this as part of `deploy.sh` smoke test.
+5. **Update `deploy.sh` to verify agent count.** Currently it reports `AGENT_COUNT=$(ls "$AGENT_DIR"/gsd-*.md 2>/dev/null | wc -l)`. After consolidation, the expected count changes. Update the assertion.
 
 **Warning signs:**
-- `git branch | wc -l` exceeds 20 in a single-developer repo
-- `worktree merge` finds unexpected branches
-- Agent asks "which branch am I on?" or "should I switch branches?"
-- `git branch --list 'traj/*'` returns branches from 3+ tasks ago
+- Workflow says "spawn gsd-plan-checker" but `agents/gsd-plan-checker.md` no longer exists
+- `init execute-phase --manifest gsd-planner` returns fewer fields than before
+- Plan-checking step in `/gsd-plan-phase` silently skips (agent not found, no error)
+- Agent count in deploy output drops unexpectedly
 
-**Phase to address:** Checkpoint phase (naming convention) and Choose phase (cleanup). Also: add cleanup hook to existing `cmdPhaseComplete()` and `cmdMilestoneComplete()`.
+**Phase to address:**
+Agent Audit — complete the dependency map and consolidation plan BEFORE removing any agent definitions.
 
 ---
 
-### Pitfall 4: Breaking Existing Worktree Functionality
+### Pitfall 4: Command Rename Breaks 751 Tests and External Consumers
 
 **What goes wrong:**
-The existing worktree system (`worktree.js`, 791 lines) manages branches with pattern `worktree-NN-MM-W` and operates on paths under `/tmp/gsd-worktrees/`. It has:
-- `parsePlanId()` for branch naming
-- `parseWorktreeListPorcelain()` for listing
-- `isAutoResolvable()` for merge conflict handling
-- `cmdWorktreeMerge()` with `merge-tree` dry-run
+The router.js has 85 `case` branches. Command consolidation (e.g., merging `find-phase`, `list-phases`, `phases` into `phase list`, `phase find`) changes the command string that callers use. Three categories of callers break:
 
-If trajectory engineering introduces its own branch creation, checkout operations, or merge logic, it can collide with worktree operations in several ways:
+1. **Test suite (751 tests, 17,965 lines).** Tests call commands via `execSync('node bin/gsd-tools.cjs find-phase 3')`. Renaming `find-phase` to `phase find` breaks every test that uses the old name.
+2. **Workflow files.** Workflows contain `gsd-tools find-phase` calls. There are 27+ workflow files with embedded CLI calls.
+3. **Agent system prompts.** Agent markdown files reference CLI commands for agents to call. `gsd-executor.md` (481 lines) contains multiple `gsd-tools` invocations.
+4. **User muscle memory.** External users who've memorized `gsd-tools find-phase` will get errors.
 
-1. **Branch name collision.** A checkpoint branch `traj/worktree-21-02-1` (if poorly named) matches the worktree pattern. `cmdWorktreeList()` filters by path prefix, but `cmdWorktreeRemove()` finds branches by name pattern. An accidental match deletes the wrong branch.
-2. **Concurrent branch switching.** If a worktree is active on branch `worktree-21-02-1` and the main repo pivots to a checkpoint, the worktree's state becomes ambiguous. `git worktree list` shows both; `merge-tree` dry-run may pick up changes from the trajectory.
-3. **Merge conflict resolution collision.** `cmdWorktreeMerge()` uses `git merge-tree --write-tree` for dry-run and `git merge --no-ff` for actual merge. If a trajectory branch has been cherry-picked or partially merged, the merge-tree output includes those changes, creating phantom conflicts.
-4. **Config interaction.** Worktree config lives in `.planning/config.json` under `worktree` key. Trajectory config must NOT overlap with this namespace.
+A big-bang rename that changes all commands at once is a 1000+ line diff touching tests, workflows, agents, and the router. If any reference is missed, it causes a runtime failure that may not surface until that specific code path is exercised.
 
 **Why it happens:**
-Both systems (worktree and trajectory) manage git branches, but for different purposes. Worktrees create isolated directories for parallel execution; trajectories create branches for sequential exploration. Without explicit boundary enforcement, they leak into each other's operations.
+Command names are string identifiers used across a distributed set of markdown and JavaScript files. There's no refactoring tool that renames a CLI command across markdown, JavaScript, and bash contexts simultaneously.
 
-**Consequences:**
-- Worktree merge picks up trajectory changes → corrupted merge
-- `worktree cleanup` deletes trajectory branches → lost exploration data
-- `worktree create` fails because the branch name is "already in use" by a trajectory
-- 669 existing tests start failing because worktree test fixtures encounter trajectory branches
-
-**Prevention:**
-1. **Strict namespace separation:** Worktree branches = `worktree-*`. Trajectory branches = `traj/*`. Add an assertion in both systems: worktree operations MUST reject branches matching `traj/*`; trajectory operations MUST reject branches matching `worktree-*`.
-2. **Filter trajectory branches from worktree list.** In `parseWorktreeListPorcelain()`, add: `if (wt.branch && wt.branch.startsWith('traj/')) continue;`
-3. **Trajectory operations must check for active worktrees.** Before `pivot` does a branch switch, verify no worktree is currently active (via `git worktree list`). If a worktree exists, pivot should refuse or warn.
-4. **Separate test suites.** Trajectory tests must NOT create branches that match worktree patterns. Worktree tests must NOT create branches that match trajectory patterns. Add cross-contamination assertions to both test suites.
-5. **Add `trajectory` as a new top-level command** (like `worktree`), not as subcommands on existing commands. This maintains separation in the router and prevents argument parsing collisions.
+**How to avoid:**
+1. **Alias-based migration (MANDATORY).** In router.js, add aliases: `case 'find-phase': /* fall through */ case 'phase': { if (args[1] === 'find') { ... } }`. Old command works, new command works. Both route to the same handler.
+2. **Deprecation warnings.** When old command name is used, emit to stderr: `"[DEPRECATED] 'find-phase' is now 'phase find'. Old name will be removed in v9.0."` Use the existing `debugLog` pattern but write to stderr unconditionally.
+3. **Migrate tests incrementally.** Don't rename all tests at once. Add new tests using new command names. Mark old-name tests with comments. Remove old names in a future version.
+4. **Update workflows and agents IN THE SAME PHASE as the router change.** The command rename, workflow update, and agent update must be atomic — merged in the same commit. Otherwise there's a window where deployed workflows reference commands that don't exist.
+5. **Add a `COMMAND_ALIASES` map in constants.js.** `{ 'find-phase': 'phase find', 'list-phases': 'phase list', ... }`. Router checks aliases before failing with "unknown command." This also enables `--help` to show the canonical name.
+6. **Contract tests.** The existing snapshot tests for command output must be updated for new command names. But keep old-name snapshots until aliases are removed.
 
 **Warning signs:**
-- Worktree tests start failing after trajectory code is added
-- `worktree list` shows trajectory branches
-- `worktree cleanup` deletes more branches than expected
-- `worktree merge` reports conflicts on files that weren't modified in the worktree
+- Tests fail with "Unknown command: find-phase" after rename
+- Agent says "running gsd-tools find-phase" and gets an error
+- Workflow stops mid-execution because CLI call returned non-zero exit code
+- `COMMAND_HELP` entries don't match actual command names
 
-**Phase to address:** FIRST phase (architecture). Define namespace conventions before writing any git operations. Add namespace guard to worktree.js as an early safety task.
+**Phase to address:**
+Command Consolidation — implement aliases FIRST (old + new both work), then migrate callers, then (v9.0) remove old names.
 
 ---
 
-### Pitfall 5: Stale Checkpoint Data Leading Agents to Re-Explore Dead Ends
+### Pitfall 5: node:sqlite Experimental Status and Node.js Version Constraint
 
 **What goes wrong:**
-The decision journal records "Approach A failed because tests X and Y broke." Three sessions later, a new agent resumes the project. The decision journal is in `.planning/trajectory/journal.md` or `memory/trajectories.json`. But:
+`node:sqlite` is Stability 1.2 (Release Candidate) as of Node v25.7.0. The API has changed between versions:
+- v22.5.0: Added (experimental, behind `--experimental-sqlite` flag)
+- v23.4.0/v22.13.0: Flag removed, but still experimental
+- v24.0.0/v22.16.0: `timeout` option added, `aggregate` added
+- v25.5.0: `defensive` enabled by default
+- v25.7.0: Release Candidate status
 
-1. **The agent doesn't load the journal.** Trajectory history isn't part of the `init execute-phase` output. The agent starts work, encounters the same problem, tries Approach A again, fails again, wastes 15 minutes rediscovering what was already known.
-2. **The journal IS loaded but is stale.** The codebase changed since the checkpoint. Tests X and Y were fixed in a later plan. Approach A would actually work now, but the journal says "dead end." The agent avoids a viable approach based on outdated failure data.
-3. **The journal is too verbose.** Every checkpoint, every pivot, every micro-decision is logged. The journal is 3,000 tokens. The agent reads all of it, consuming 3% of context for historical data that's mostly noise.
+The current `package.json` specifies `"node": ">=18"`. Using `node:sqlite` requires bumping to `>=22.5`. Users running Node 18 or 20 (both still in LTS) will get: `Error: Cannot find module 'node:sqlite'`.
+
+Additionally, the API may change before reaching Stability 2 (Stable). Code written against v22.5 API may break on v25 due to new default options (`defensive: true` in v25.5 changes behavior — writes to shadow tables now fail by default).
 
 **Why it happens:**
-Decision journals solve a real problem (preventing re-exploration) but create the same tension as cross-session memory: too little data = agents repeat mistakes; too much data = context pollution; stale data = agents make wrong decisions based on obsolete facts. This is literally Pitfall 2 from the v2.0 research ("Cross-Session Memory That Bloats Context") applied to trajectory data.
+Node.js built-in SQLite is the RIGHT technology choice for this project (zero bundle impact, sync API, no native addon). But "right choice" doesn't mean "mature choice." Experimental APIs change.
 
-The existing memory system has this exact pattern: `SACRED_STORES = ['decisions', 'lessons']` are never pruned (memory.js line 8). If trajectory decisions join sacred stores, they accumulate forever.
-
-**Consequences:**
-- Agent wastes tokens re-exploring known-dead approaches (no journal loaded)
-- Agent avoids viable approaches because journal says they failed (stale journal)
-- Context window consumed by trajectory history instead of current work (verbose journal)
-- Two agents in different sessions make contradictory decisions based on partial journal reads
-
-**Prevention:**
-1. **Trajectory journal must be part of `init execute-phase` output** — but ONLY the active task's trajectory data. Not the full journal. Maximum 500 tokens of trajectory context per task.
-2. **Journal entries must be time-stamped and code-hash-stamped.** Each entry records the git commit hash at the time of the decision. When the journal is loaded, entries whose code-hash is more than N commits behind current HEAD are marked as `[possibly stale — codebase changed]`. The agent can still read them but knows to re-evaluate.
-3. **Compaction: resolve > archive.** When `choose` picks a winner, the journal entry for that task should be compacted to: `"Tried A (failed: tests broke), tried B (succeeded: all tests pass). Chose B."` — one line. The per-attempt detail gets archived (moved to `.planning/trajectory/archive/`), not kept in the active journal.
-4. **Token budget for trajectory context: 500 tokens per task, 2000 tokens total in any workflow.** Use the existing `context-budget` estimation. If trajectory context exceeds budget, oldest entries get summarized.
-5. **Distinguish "definitively dead" from "failed this time."** A journal entry should classify: `dead_end: true` (approach is fundamentally wrong) vs `failed_attempt: true` (approach might work with different parameters). Agents should re-try `failed_attempt` entries but avoid `dead_end` entries.
+**How to avoid:**
+1. **Graceful capability detection.** Wrap `node:sqlite` import in try/catch:
+   ```javascript
+   let DatabaseSync = null;
+   try { ({ DatabaseSync } = require('node:sqlite')); }
+   catch { /* node:sqlite not available — cache disabled */ }
+   ```
+   If `DatabaseSync` is null, all cache operations return `null` and the system falls back to in-memory Map + disk reads (current behavior). Zero degradation for users on older Node.js.
+2. **Pin API surface.** Only use `DatabaseSync`, `prepare`, `run`, `all`, `get`, `exec`, `close`. These have been stable since v22.5.0. Avoid newer features (`aggregate`, `createTagStore`, `setAuthorizer`) that were added later and may change.
+3. **Isolate SQLite behind an abstraction layer.** Create `src/lib/cache.js` that exports `cacheGet(key)`, `cacheSet(key, value, mtime)`, `cacheInvalidate(key)`, `cacheStats()`. The implementation uses `node:sqlite` if available, in-memory Map otherwise. No other module imports `node:sqlite` directly.
+4. **Document the version requirement.** In `AGENTS.md`, `package.json`, and `--help` output: "SQLite cache requires Node.js ≥22.5. Cache is automatically disabled on older versions."
+5. **Test on both Node 22 LTS and Node 18.** CI must run tests with cache enabled (Node 22+) AND cache disabled (Node 18). Both must pass.
+6. **Use `enableDefensive(false)` explicitly** if schema requires shadow table writes, to avoid behavior change between v24 and v25.
 
 **Warning signs:**
-- Agent says "Let me try approach X" when journal says X was already tried
-- `init execute-phase` output grows by >1000 tokens after trajectory feature ships
-- Journal file exceeds 5KB
-- Agent spends first 30 seconds reading trajectory history before starting work
+- `npm test` passes on developer's Node 25 but fails on user's Node 20
+- SQLite-related error in stack trace for user who didn't opt into caching
+- API change in new Node.js version breaks cache silently (wrong results, not crash)
+- Build succeeds but smoke test fails on deploy target machine
 
-**Phase to address:** Decision Journal phase. Design the compaction strategy and token budget BEFORE implementing persistence.
-
----
-
-## Moderate Pitfalls
-
-Mistakes that cause rework or wasted effort but don't corrupt data.
+**Phase to address:**
+Cache Foundation — implement capability detection and fallback in the first task.
 
 ---
 
-### Pitfall 6: Merge Conflicts When `choose` Merges Winning Attempt Back
+### Pitfall 6: Caching Parsed Markdown Creates Schema Coupling
 
 **What goes wrong:**
-Developer checkpoints at commit C, creates attempt A (3 commits) and attempt B (4 commits). Both modify some of the same files (both attempts solve the same problem, so they naturally touch the same code). `choose B` tries to merge attempt B back to the main branch, which has advanced past C. The merge hits conflicts in the files that both attempts modified.
+ROADMAP.md is parsed by 309+ regex patterns into a structured object: `{ phases: [...], milestones: [...], active_milestone: {...} }`. This parsed result is cached in SQLite. But the parsing logic evolves — new regex patterns are added, field names change, nested structures are restructured. The cached data has the OLD schema. Two failure modes:
 
-This is especially tricky because the existing `cmdWorktreeMerge()` has sophisticated conflict handling: `merge-tree --write-tree` dry-run, `isAutoResolvable()` for lockfiles, and auto-resolution via `checkout --theirs`. But trajectory merges are conceptually different from worktree merges: worktree merges combine *parallel* work; trajectory merges replace *alternative* work. The winning attempt should fully replace the code at the divergence point — it's not a merge, it's a "take theirs completely."
+1. **Schema mismatch:** Code expects `result.phases[0].status` but cached data has `result.phases[0].state` (field renamed in a parser update). Runtime error.
+2. **Missing fields:** New parser extracts `intent_drift_score` from PLAN.md. Cached version doesn't have this field. Code does `if (result.intent_drift_score > 50)` → `undefined > 50` → false → drift never detected.
+3. **Schema version hell:** Adding a `schema_version` field to cache entries means writing migration code for a cache that's meant to be disposable. This is over-engineering.
 
-**Why it happens:**
-The merge-based mental model is wrong for trajectory resolution. When you choose attempt B, you want B's code state, not a merge of B with whatever happened on main after the checkpoint. But `git merge` tries to combine both sides.
-
-**Prevention:**
-1. **`choose` should NOT use `git merge`.** Instead: (a) record the winning branch name, (b) on the target branch, do `git checkout winning-branch -- .` to take all files from the winner, (c) commit with message `"choose: accept attempt B for task X"`. This is a "theirs wins entirely" strategy, not a merge.
-2. **Or use `git merge -X theirs` equivalent:** which resolves all conflicts by taking the winning branch's version.
-3. **Pre-flight: verify no work has been done on main after the checkpoint.** If main has advanced (new commits after the checkpoint), the merge is more complex. `choose` should warn: "Main branch has N commits since checkpoint. Merge may have conflicts." In this case, fall back to interactive merge or abort.
-4. **Reuse `isAutoResolvable()` from worktree.js** for any remaining conflicts (lockfiles, baselines). Don't reinvent conflict classification.
-
-**Warning signs:**
-- `choose` attempts `git merge` and hits conflicts on files the winning attempt modified
-- User has to manually resolve conflicts after `choose` (should be automatic for the winning attempt)
-- `choose` output says "merged" but the code is a hybrid of both attempts (merge, not replacement)
-
-**Phase to address:** Choose phase. Implement as `checkout --` file replacement, not `merge`.
-
----
-
-### Pitfall 7: Context Window Pollution from Over-Engineered Comparison Metrics
-
-**What goes wrong:**
-`compare` is designed to show outcome metrics across attempts: test results, code complexity, LOC delta, etc. The temptation is to make comparison comprehensive — show everything: test counts, LOC, complexity scores, file lists, commit counts, duration, AST deltas, dependency changes, coverage. This is ~500 tokens per attempt. With 3 attempts = 1,500 tokens of comparison data. The agent reads all of it, reasons about each metric, and produces a 2,000-token analysis. Total: 3,500 tokens spent on comparison — more than most PLAN.md files.
-
-Meanwhile, the actual decision factors are usually just: "Which attempt passes all tests?" and "Which is simpler?"
+This is especially acute for this codebase because the regex patterns are the product's core logic — they change frequently (309+ patterns accumulated over 7 versions). Caching their output means caching something that changes shape every milestone.
 
 **Why it happens:**
-Comparison metrics feel objectively valuable. Each metric seems cheap to add. But the aggregate cost — in tokens consumed and agent reasoning time — is substantial. This is the Verification Pitfall from v2.0 research applied to comparison: more metrics ≠ better decisions.
+The temptation to cache parsed results (save regex time) conflicts with the reality that parsed results are tightly coupled to parser version. Web applications solve this with database migrations. CLI tools should NOT have migrations for a cache.
 
-The existing `codebase complexity` and `codebase ast` commands already produce rich metrics. The temptation to pipe all of them into `compare` is strong but wrong.
-
-**Consequences:**
-- Agent spends more time comparing than building
-- Comparison output exceeds context budget for the decision
-- Marginal metrics (coverage delta, AST complexity) add noise without changing the decision
-- The "decision" becomes an analysis exercise instead of a clear signal
-
-**Prevention:**
-1. **Compare output must be ≤300 tokens total.** Hard limit. This forces metric selection.
-2. **Default metrics: test pass/fail, LOC delta, file count.** These three are the decision-relevant signals. Everything else is opt-in via `--verbose`.
-3. **Decision signal, not data dump.** The compare output should end with a recommendation: `"Attempt B: all tests pass, +15 LOC vs +342 LOC for A. Recommended: B."` — one sentence. The agent doesn't need to reason about the data; the tool already did.
-4. **Leverage existing commands, don't duplicate.** `compare` should call `git diff --stat` and the test runner, not reimplement LOC counting or complexity analysis.
+**How to avoid:**
+1. **Cache raw file content + mtime, NOT parsed results.** The cache stores `(file_path, content_text, mtime, size)`. Parsing happens in-process from cached content. This eliminates schema coupling entirely — the cache is a filesystem accelerator, not a parsed-data store.
+2. **If parsed results ARE cached**, use a version stamp: `cache_version = hash(parser_source_code)`. On startup, compute hash of the relevant parser module. If it differs from cached version, invalidate entire cache. Crude but effective.
+3. **Make cache disposable.** `gsd-tools cache clear` deletes the SQLite file. No migrations, no schema evolution. If the cache is invalid, nuke it. The system must work perfectly with an empty cache.
+4. **Store cache in `.planning/.cache/` directory** (which is already gitignored — confirmed by `.planning/.gitignore`). Cache file is project-scoped, not global. Different projects don't pollute each other's cache.
 
 **Warning signs:**
-- Compare output exceeds 500 tokens
-- Agent writes multi-paragraph analysis of comparison results
-- Comparison includes metrics that never change the decision (e.g., commit count)
-- `compare` takes >5 seconds to run (means it's running expensive analysis)
+- Cache entry has a `CREATE TABLE` with >5 columns (over-structured for a cache)
+- Migration code appears for cache schema
+- Tests create SQLite databases with specific schema versions
+- Error messages mention "cache schema mismatch" or "migration needed"
 
-**Phase to address:** Compare phase — define the metric set (3 defaults) in the first task. Resist pressure to add more.
+**Phase to address:**
+Cache Foundation — decide "cache raw content" vs "cache parsed results" in the architecture phase. Strong recommendation: cache raw content only.
 
----
+<!-- /section -->
 
-### Pitfall 8: Decision Journal Becomes a Second Memory System
+<!-- section: tech_debt -->
+## Technical Debt Patterns
 
-**What goes wrong:**
-The existing memory system has 4 stores: `decisions`, `bookmarks`, `lessons`, `todos` (memory.js). The trajectory decision journal is conceptually a 5th store. But if it's implemented as a separate system (e.g., `.planning/trajectory/journal.json`), the codebase now has TWO systems that record decisions:
+Shortcuts that seem reasonable but create long-term problems.
 
-1. `memory write --store decisions --entry '{"summary":"..."}'`
-2. `trajectory journal add --entry '{"approach":"A", "outcome":"failed"}'`
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Cache parsed results instead of raw content | Saves regex parsing time (~5ms per file) | Schema coupling; cache invalidation bugs; migration complexity | Never for this project — regex parsing is fast enough |
+| Skip alias migration for command renames | Simpler router, fewer code paths | All external consumers break simultaneously; no migration path | Never — backward compat is a project constraint |
+| Merge agents without updating manifests | Faster consolidation | Merged agent gets wrong context; token waste or missing data | Never — manifest is the agent's contract |
+| Hard-code Node.js ≥22.5 without fallback | Simpler code; no conditional imports | Users on Node 18/20 LTS can't use the tool AT ALL | Only when Node 22 reaches "Maintenance" LTS phase |
+| Global SQLite cache file (`~/.cache/gsd/`) | Shared cache across projects | Cross-project data leakage; wrong project's data served | Never — cache must be project-scoped |
+| Bypass existing `invalidateFileCache()` for SQLite | Avoid touching helpers.js | Two invalidation systems drift; one gets stale | Never — extend existing function |
 
-Agents don't know which to query. Workflows inject `memory read --store decisions` but not `trajectory journal read`. Important trajectory decisions get recorded in the journal but never surface in the decisions memory store. Or vice versa: the agent records a trajectory outcome in memory/decisions instead of the journal, and `compare` can't find it.
+## Integration Gotchas
 
-**Why it happens:**
-The memory system was designed before trajectory engineering was planned. The journal is a natural extension of decisions, but implementing it separately is easier than extending the existing memory system. This is the "second system" trap — building a parallel structure instead of extending the first.
+Common mistakes when connecting cache layer to existing systems.
 
-**Consequences:**
-- Agent queries wrong store for trajectory decisions
-- Decisions duplicated across both systems (waste + divergence risk)
-- `memory compact` doesn't know about journal entries
-- `search-decisions` slash command doesn't search trajectory journal
-- Token overhead of loading both systems
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| `cachedReadFile()` → SQLite | Replacing Map cache with SQLite entirely | Layer SQLite UNDER Map cache: SQLite → Map → disk. Map is per-invocation L1; SQLite is cross-invocation L2 |
+| `getPhaseTree()` → SQLite | Caching the full phase tree object | Cache individual file contents; let `getPhaseTree()` build the tree from cached file reads |
+| `init execute-phase` → SQLite | Caching the full init output blob | Cache input files (STATE.md, ROADMAP.md, plans); let init re-compose from cached inputs |
+| `cmdStatePatch()` → SQLite | Forgetting to invalidate cache after write | Add `cacheInvalidate(statePath)` call inside `cmdStatePatch()` immediately after `fs.writeFileSync()` |
+| `deploy.sh` → SQLite | Deploying the cache database file | Add `.planning/.cache/*.db` to deploy exclusion; cache is per-machine, not deployable |
+| `npm test` → SQLite | Tests sharing a SQLite cache between test cases | Each test creates its own temp directory; SQLite file is inside the temp directory; zero shared state |
+| Agent manifest → consolidated agent | Keeping old manifest key for removed agent | Remove old key from `AGENT_MANIFESTS`; add combined manifest under new agent name |
+<!-- /section -->
 
-**Prevention:**
-1. **Trajectory journal IS a memory store.** Add `trajectories` to `VALID_STORES` in memory.js. Entries follow the same `{ timestamp, ... }` pattern. This means `memory read --store trajectories` works, `memory compact` works, and the existing `search-decisions` command can be extended to search trajectories.
-2. **OR: journal entries auto-copy to decisions store.** When `choose` resolves a trajectory, it writes a summary entry to `memory write --store decisions`. The detailed per-attempt data stays in trajectory-specific storage, but the outcome is in the canonical decisions store.
-3. **NEVER create a parallel persistence mechanism.** No new JSON files, no new directories, no new read/write patterns. Use the existing `cmdMemoryWrite` / `cmdMemoryRead` infrastructure. If it needs extension, extend it.
-4. **Add `trajectories` to `SACRED_STORES`** (like `decisions` and `lessons`). Trajectory outcomes should never be auto-compacted.
+<!-- section: performance -->
+## Performance Traps
 
-**Warning signs:**
-- New JSON file created outside `.planning/memory/`
-- New read/write code that doesn't use `cmdMemoryWrite`/`cmdMemoryRead`
-- Agent asks "Where do I record this trajectory outcome?"
-- `memory list` doesn't show trajectory entries
+Patterns that work at small scale but fail as usage grows.
 
-**Phase to address:** Decision Journal phase — first task: decide memory integration, not storage format.
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Opening SQLite connection per CLI invocation | 10-30ms overhead per command; negates caching benefit for fast commands | Lazy-open: only connect to SQLite if a cache-eligible read is requested | Always — every invocation pays the cost |
+| WAL mode on network filesystem | SQLite WAL requires shared memory; NFS doesn't support it; silent corruption | Use `journal_mode=DELETE` for safety, or detect filesystem type first | When `.planning/` is on NFS/CIFS/SMB mount |
+| Caching files that are rarely re-read | SQLite write overhead for files read once per invocation; net slower | Only cache files read 2+ times per invocation: STATE.md, ROADMAP.md, config.json | Immediately — most files are read once |
+| Full-table scan for cache lookup | `SELECT * FROM cache WHERE path = ?` without index | `CREATE INDEX idx_path ON cache(path)` | At ~100 cached files (unlikely, but defensive) |
+| Synchronous SQLite blocking process exit | `database.close()` not called; SQLite WAL checkpoint blocks on exit | Register `process.on('exit', () => db.close())` or use `Symbol.dispose` | When WAL mode is enabled and writes pending |
+| Profiling with `GSD_PROFILE=1` but not measuring cache hit rate | Can't tell if cache is helping or hurting | Add cache hit/miss counters to profiler output; export via `cacheStats()` | Can't diagnose performance issues without this |
+<!-- /section -->
 
----
+<!-- section: security -->
+## Security Mistakes
 
-### Pitfall 9: Agent Confusion from Multiple Active Trajectories in Context
+Domain-specific security issues beyond general web security.
 
-**What goes wrong:**
-An agent reads the init output which includes: current plan, current trajectory state (attempt 2 of 3), checkpoint data, journal entries for this task, AND journal entries from the previous task's trajectory. The agent's context now contains information about multiple exploration paths simultaneously. It conflates "Approach A failed for Task 5" with "Approach A failed for Task 6" and avoids Approach A for Task 6 when it might have worked.
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| SQLite file readable by other users | Other processes on shared machine can read cached project data | `fs.chmodSync(dbPath, 0o600)` after creation; verify umask |
+| SQL injection from markdown content | Markdown content containing `'; DROP TABLE` stored via string concatenation | Always use parameterized queries (`db.prepare('INSERT INTO cache VALUES (?, ?)').run(path, content)`); never interpolate |
+| Cache file path traversal | Attacker-crafted file path in cache key escapes `.planning/` | Validate all cache keys: `path.resolve(key).startsWith(path.resolve(cwd))` |
+| Stale cache serving old security patches | Security fix in PLAN.md not picked up because cache serves pre-fix version | mtime-based invalidation catches this; but test explicitly |
+<!-- /section -->
 
-Or: the agent is on trajectory attempt B for a task, but the context includes code snippets from attempt A (from the comparison output). The agent accidentally references attempt A's implementation patterns while building attempt B, creating a hybrid that doesn't match either approach.
+<!-- section: ux -->
+## UX Pitfalls
 
-**Why it happens:**
-The existing `init execute-phase` output already includes plan context, phase context, decisions, and blockers. Adding trajectory context (journal, comparison data, attempt history) to this creates a multi-layered context that LLMs struggle with. LLMs are sequential reasoners; simultaneous awareness of multiple alternative timelines is inherently confusing.
+Common user experience mistakes when restructuring CLI commands.
 
-This is "Context Confusion" from the Philschmid context engineering research: multiple valid-but-contradictory pieces of information in the same context window.
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Removing old command names without deprecation period | User scripts and muscle memory break instantly | Alias old → new for one major version; deprecation warning to stderr |
+| Consolidating too many concepts under one command | `phase` command with 15 subcommands is as bad as 15 separate commands | Max 7 subcommands per parent command; group by user intent, not implementation |
+| Changing output format during rename | Command works but output JSON schema changed; downstream consumers break | Renames ONLY change the command name; output schema stays identical |
+| Silent cache degradation | User doesn't know cache is disabled because Node.js is too old | On first run, if cache unavailable: `[info] SQLite cache unavailable (Node.js >=22.5 required). Using in-memory cache.` |
+| Help text showing only new names | User tries `--help` with old name, gets "unknown command" | Help system resolves aliases: `gsd-tools find-phase --help` shows help AND says "Note: this command is now `phase find`" |
+<!-- /section -->
 
-**Consequences:**
-- Agent conflates decisions from different tasks' trajectories
-- Agent references wrong attempt's code patterns
-- Agent's confidence about approach viability is based on wrong trajectory data
-- Increased hallucination rate from contradictory context
-
-**Prevention:**
-1. **Trajectory context is task-scoped, ALWAYS.** When working on Task 6, the agent sees ONLY Task 6's trajectory data. No journal entries from Task 5. No comparison data from Task 4. This requires the init output to filter trajectory data by current task ID.
-2. **Only the ACTIVE trajectory is in context.** If we're on attempt B, don't inject attempt A's code, metrics, or reasoning into context. The journal entry for A should be one line: "Attempt A: failed (test X broke)." Not the full approach description.
-3. **Comparison output is ephemeral.** `compare` produces output, the agent reads it, makes a decision, and the comparison data is NOT injected into subsequent init outputs. It's consumed once at decision time.
-4. **Clear trajectory framing in init output.** Instead of mixing trajectory data into the general context, use a clear section: `## Active Trajectory\nTask: 21-02 | Attempt: 2/3 | Checkpoint: abc123 | Previous: A (failed: tests), B (in progress)`. This is ≤100 tokens and orients the agent without confusion.
-
-**Warning signs:**
-- Init output includes trajectory data from multiple tasks
-- Agent references "attempt A showed that..." while building attempt B
-- Agent context grows >5% from trajectory metadata
-- Agent asks "Which attempt am I on?"
-
-**Phase to address:** Architecture phase (context injection design) and Decision Journal phase (scoping rules).
-
----
-
-## Minor Pitfalls
-
-Annoyances that waste time but don't derail the project.
-
----
-
-### Pitfall 10: Over-Engineering Multi-Level Trajectory Support
-
-The spec says "works at task, plan, and phase level." In practice, 95% of trajectory exploration happens at task level (trying different implementations of a specific change). Plan-level trajectories (trying different plan decompositions) are rare. Phase-level trajectories (trying entirely different phase structures) are almost never needed — that's what the roadmap revision workflow handles.
-
-**Prevention:** Implement task-level trajectories first. Plan-level and phase-level are stretch goals. Don't design for three levels upfront; design for one level well and ensure it can be extended later. The naming convention `traj/<scope>/<task-id>/...` supports future extension without current complexity.
-
----
-
-### Pitfall 11: Checkpoint Command Conflicting with Existing Git Pre-Commit Checks
-
-The existing `cmdCommit()` in misc.js has pre-commit safety checks (git trailers, agent attribution). If `checkpoint` creates commits (to snapshot state), those commits need to either: (a) go through the same pre-commit pipeline, which adds overhead to what should be a lightweight operation, or (b) bypass pre-commit, which creates commits without proper attribution.
-
-**Prevention:** Checkpoint commits should use a lightweight commit path: `execGit(cwd, ['commit', '-m', 'checkpoint: <name>', '--allow-empty'])`. No pre-commit hooks, no trailers. Mark these commits with a `checkpoint:` prefix so they're identifiable. If pre-commit hooks are configured, use `--no-verify` ONLY for checkpoint commits.
-
----
-
-### Pitfall 12: Test Suite Fragility from Git State Mutations
-
-Trajectory tests will create branches, switch branches, create commits, and delete branches. The existing 669 tests run in temp directories with isolated git repos (per test fixture setup). But if trajectory tests don't properly isolate their git state, they can:
-- Leave `traj/` branches in the test repo that affect subsequent tests
-- Change HEAD to a trajectory branch, making subsequent tests run on wrong branch
-- Create merge commits that change the git log output for other tests
-
-**Prevention:** Every trajectory test must: (a) create its own temp directory with fresh git repo, (b) verify current branch on test teardown matches test setup, (c) delete all `traj/*` branches on teardown. Use the pattern from existing worktree tests. Add a `cleanup` helper that runs `git branch --list 'traj/*' | xargs git branch -D` on teardown.
-
----
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Architecture / Foundation | STATE.md divergence across branches (P1), worktree collision (P4) | Separate trajectory state from branch-local state; enforce namespace guards |
-| Checkpoint Implementation | Losing uncommitted work (P2), pre-commit hook conflict (P11) | Mandatory dirty check; lightweight checkpoint commits |
-| Pivot Implementation | STATE.md revert to stale state (P1), dirty file loss (P2) | Exclude .planning/ from git checkout; pre-flight dirty check |
-| Compare Implementation | Over-engineered metrics (P7), context pollution (P9) | 300-token output limit; 3 default metrics only |
-| Choose Implementation | Merge conflicts (P6), branch cleanup (P3) | File replacement not merge; delete non-winning branches |
-| Decision Journal | Second memory system (P8), stale data (P5), context pollution (P9) | Use existing memory stores; task-scoped context; 500-token budget |
-| Multi-Level Support | Over-engineering (P10) | Task-level only in v7.1; plan/phase level deferred |
-| Testing | Git state fragility (P12), worktree test collision (P4) | Per-test isolation; branch cleanup on teardown; namespace separation |
-
-## Integration Gotchas with Existing Systems
-
-| Existing System | Trajectory Feature | What Goes Wrong | Prevention |
-|----------------|-------------------|----------------|------------|
-| `worktree.js` branch naming | `checkpoint` branch creation | Name collision: `traj-*` looks like `worktree-*` to grep | Strict prefix: `traj/` (with slash) vs `worktree-` (with dash) |
-| `worktree merge` dry-run | `choose` merge | `merge-tree` picks up trajectory branch changes | Filter `traj/` branches from worktree operations |
-| `worktree cleanup` | trajectory branch cleanup | `git branch -D` deletes trajectory branches | Scope cleanup to `worktree-*` pattern only |
-| `branchInfo()` upstream detection | trajectory branches | `rev-list HEAD...@{upstream}` fails on branches without upstream | Handle null upstream gracefully (already does, but verify) |
-| `cmdCommit()` pre-commit checks | checkpoint commits | Pre-commit hooks slow down what should be instant snapshots | `--no-verify` for checkpoint-prefixed commits only |
-| `STATE.md` update/patch | `pivot` branch switch | STATE.md reverts to checkpoint-era content | Exclude STATE.md from git checkout during pivot |
-| `memory.js` stores | decision journal | Parallel persistence = two decision systems | Journal IS a memory store, or journal auto-copies to decisions |
-| `cmdStateValidate()` | post-pivot state | Validator finds mismatches between STATE.md and phase files | Validator knows about active trajectories; suppress known-divergent checks |
-| `init execute-phase` output | trajectory context | Output grows by 1000+ tokens with trajectory data | Task-scoped injection; 500-token trajectory budget |
-| `cachedReadFile()` | branch switching | File cache returns pre-switch content | Call `invalidateFileCache()` after any branch switch |
-| `getPhaseTree()` cache | branch switching | Phase tree cache returns pre-switch directory listing | Reset `_phaseTreeCache` after any branch switch |
-| Snapshot tests (`state-read.json`) | new trajectory fields | Adding trajectory fields to state output breaks snapshots | Don't add trajectory fields to existing state output; use separate command |
-
+<!-- section: looks_done -->
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Checkpoint "works":** Create checkpoint → modify 5 files → pivot back → ALL 5 files restored to checkpoint state AND STATE.md is still current (not reverted). The round-trip preserves planning state while reverting code state.
-- [ ] **Pivot "safe":** With 3 uncommitted files, attempt pivot → pivot REFUSES with clear message. No data lost. Commit the files → pivot succeeds.
-- [ ] **Compare "useful":** Compare output for 3 attempts is ≤300 tokens total. An agent reading the output can immediately identify the winner without additional analysis.
-- [ ] **Choose "clean":** After choosing attempt B: (a) main branch has B's code, (b) all `traj/` branches for this task are deleted, (c) journal records the choice, (d) `git branch --list 'traj/*'` returns empty for this task.
-- [ ] **Journal "compact":** After 5 tasks with trajectories (15 total attempts), the journal is ≤2000 tokens. Resolved tasks have one-line entries. Only the active task has detailed attempt data.
-- [ ] **Worktree "unbroken":** All 669 existing tests pass. `worktree create`, `worktree list`, `worktree merge`, `worktree cleanup` work exactly as before. No trajectory branches appear in worktree output.
-- [ ] **File cache "coherent":** After `pivot` switches branch, `cachedReadFile()` for STATE.md returns the new branch's content, not the cached pre-switch content. Explicitly test: `invalidateFileCache()` is called after every branch switch.
-- [ ] **State validation "aware":** After `pivot`, `state validate` does NOT report false positives for trajectory-related state differences. Validator either knows about active trajectories or trajectory operations update state to be consistent.
+Things that appear complete but are missing critical pieces.
 
+- [ ] **SQLite cache "works":** Run full 751-test suite with `NODE_SQLITE_CACHE=1` AND `NODE_SQLITE_CACHE=0`. Both must produce identical results. Any diff = cache coherence bug.
+- [ ] **Cache invalidation "complete":** Edit STATE.md externally (via editor, not CLI). Run `gsd-tools state` twice. Second run must show the edited content, not cached stale content. Verify mtime check works.
+- [ ] **Agent consolidation "safe":** Run `grep -r 'gsd-plan-checker\|gsd-codebase-mapper\|gsd-integration-checker' workflows/ commands/ agents/` — zero hits for any removed agent name. All references updated.
+- [ ] **Command aliases "working":** Old command name produces identical output to new command name. `gsd-tools find-phase 3` === `gsd-tools phase find 3`. Deprecation warning goes to stderr, not stdout (would corrupt JSON piping).
+- [ ] **Bundle size "within budget":** After adding cache module, `build.js` reports ≤1500KB. If using `node:sqlite` (built-in), bundle size should be unchanged (~1058KB).
+- [ ] **Node 18 fallback "graceful":** On Node 18, tool starts without errors. Cache features silently disabled. All existing functionality works. `GSD_DEBUG=1` shows "node:sqlite not available."
+- [ ] **deploy.sh "updated":** After agent consolidation, `AGENT_COUNT` matches new expected count. Old agent files are NOT deployed. `.planning/.cache/*.db` is NOT deployed.
+- [ ] **Manifest "merged":** After merging `gsd-plan-checker` into `gsd-planner`, run `gsd-tools init execute-phase --manifest gsd-planner`. Output includes fields from BOTH old manifests: `plans`, `plan_count`, `phase_dir`, `phase_number`, `phase_name`, `research_enabled`, `plan_checker_enabled`, `intent_summary`.
+<!-- /section -->
+
+<!-- section: recovery -->
 ## Recovery Strategies
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|--------------|----------------|
-| STATE.md divergence (P1) | HIGH | Redesign state separation; affects all trajectory commands |
-| Lost uncommitted work (P2) | UNRECOVERABLE | Data is gone. Prevention is the only strategy. |
-| Branch proliferation (P3) | LOW | `git branch --list 'traj/*' \| xargs git branch -D` + add cleanup to choose |
-| Worktree collision (P4) | MEDIUM | Rename trajectory branches; add namespace guards to both systems |
-| Stale journal (P5) | LOW | Add code-hash stamps; mark old entries as stale |
-| Choose merge conflicts (P6) | LOW | Switch from `merge` to `checkout --` file replacement |
-| Comparison bloat (P7) | LOW | Reduce metrics to 3 defaults; add token limit |
-| Dual memory systems (P8) | MEDIUM | Migrate journal to memory store; delete separate persistence |
-| Context confusion (P9) | LOW | Add task-scoping filter to init output |
+When pitfalls occur despite prevention, how to recover.
 
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Native addon breaks deploy (P1) | HIGH | Remove `better-sqlite3`; refactor all SQLite code to use `node:sqlite` or remove cache entirely |
+| Cache serves stale data (P2) | LOW | `gsd-tools cache clear` (delete SQLite file); fix invalidation logic; re-run |
+| Agent spawn reference broken (P3) | MEDIUM | Grep all workflow/command files; add missing agent definitions or fix references; re-deploy |
+| Command rename breaks tests (P4) | MEDIUM | Add aliases for old names in router.js; all tests pass again immediately; migrate incrementally |
+| Node.js version too old (P5) | LOW | Cache auto-disables; no recovery needed; user upgrades Node.js when ready |
+| Schema coupling in cache (P6) | LOW | Delete cache file; it rebuilds automatically on next run |
+| Agent manifest incomplete (P3) | LOW | Update `AGENT_MANIFESTS` in context.js; merged agent gets full field set |
+
+## Pitfall-to-Phase Mapping
+
+How roadmap phases should address these pitfalls.
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| P1: Native addon breaks deploy | Cache Foundation (technology decision) | `build.js` produces single file; `deploy.sh` succeeds; no `node_modules/` copied |
+| P2: Cache serves stale data | Cache Foundation (invalidation strategy) | Edit-then-read test: external edit → CLI reads fresh content |
+| P3: Agent spawn references break | Agent Audit (dependency map) | `validate-agents` command returns zero errors; all workflow spawns resolve |
+| P4: Command rename breaks callers | Command Consolidation (aliases) | Old AND new command names produce identical output |
+| P5: node:sqlite experimental | Cache Foundation (capability detection) | Tests pass on Node 18 (no cache) AND Node 22+ (with cache) |
+| P6: Schema coupling in cache | Cache Foundation (architecture) | Cache stores raw content only; no schema version field; `cache clear` fully recovers |
+<!-- /section -->
+
+<!-- section: sources -->
 ## Sources
 
-- **Codebase analysis:** `src/lib/git.js` (301 lines, execGit/branchInfo/diffSummary), `src/commands/worktree.js` (791 lines, full worktree lifecycle), `src/commands/state.js` (716 lines, state load/patch/validate), `src/commands/memory.js` (307 lines, 4-store memory system), `src/lib/helpers.js` (cachedReadFile/invalidateFileCache/getPhaseTree), `src/lib/output.js` (196 lines), `src/router.js` (897 lines, command routing)
-- **Kiro checkpointing docs** (2025): Shadow repository architecture, session-scoped checkpoints, auto-cleanup on session end — validates the "don't persist branches forever" pattern — https://kiro.dev/docs/cli/experimental/checkpointing/
-- **Claude Code checkpoint feature** (2025): Conversation history unwinds with checkpoint restore — validates the "state must unwind consistently" pattern
-- **Git branch proliferation literature** (2025): Multiple sources confirm branches are cheap to create, expensive to manage; cleanup must be automated — https://pullpanda.io/blog/deleting-feature-branches-cleanup-strategies
-- **Prior v2.0 PITFALLS.md:** Cross-session memory bloat (Pitfall 2), verification overhead (Pitfall 4) — same patterns apply to trajectory data
-- **Philschmid context engineering** (2025): Context Confusion — "multiple valid-but-contradictory pieces of information" directly maps to multi-trajectory context
+- **Node.js v25.7.0 `node:sqlite` docs** (https://nodejs.org/api/sqlite.html): Stability 1.2 Release Candidate; `DatabaseSync` synchronous API; available since v22.5.0; flag removed since v23.4.0/v22.13.0 — HIGH confidence
+- **esbuild CHANGELOG-2022** (via Context7, /evanw/esbuild): Native `.node` extensions cannot be bundled; must use `external` flag; packages must be resolved at runtime from `node_modules` — HIGH confidence
+- **better-sqlite3 npm page** (https://www.npmjs.com/package/better-sqlite3): 3,977 dependents; requires native compilation; prebuilt binaries for LTS only — HIGH confidence
+- **esbuild issue #2830** (https://github.com/evanw/esbuild/issues/2830): SQLite3 prebuilt binaries cannot be bundled; require external + manual file copy — HIGH confidence
+- **better-sqlite3 issue #1411** (https://github.com/WiseLibs/better-sqlite3/issues/1411): Build fails on Node 25; native compilation fragility — HIGH confidence
+- **sql.js** (https://github.com/sql-js/sql.js): SQLite compiled to WASM; pure JS; no native addon; ~1MB bundle size — HIGH confidence
+- **SQLite corruption docs** (https://www.sqlite.org/howtocorrupt.html): Cache invalidation failures, WAL mode on network filesystems — HIGH confidence
+- **Codebase analysis:** `build.js` (94 lines, esbuild config with external Node builtins), `deploy.sh` (87 lines, file-copy deploy), `src/lib/helpers.js` (946 lines, Map cache, `cachedReadFile`, `invalidateFileCache`), `src/lib/context.js` (389 lines, `AGENT_MANIFESTS`), `src/router.js` (947 lines, 85 case branches), `package.json` (engines: `>=18`)
+- **Prior v7.1 PITFALLS.md:** Integration gotchas for file cache invalidation after branch switch, worktree namespace separation — directly applicable patterns
 
 ---
-*Pitfalls research for: GSD Plugin v7.1 Trajectory Engineering*
-*Researched: 2026-02-28*
+*Pitfalls research for: GSD Plugin v8.0 Performance & Agent Architecture*
+*Researched: 2026-03-01*
