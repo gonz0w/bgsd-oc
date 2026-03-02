@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { normalizePhaseName, getArchivedPhaseDirs, findPhaseInternal, generateSlugInternal, getMilestoneInfo } = require('../lib/helpers');
+const { normalizePhaseName, getArchivedPhaseDirs, findPhaseInternal, generateSlugInternal, getMilestoneInfo, invalidateFileCache } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 
@@ -214,6 +214,7 @@ function cmdPhaseAdd(cwd, description, raw) {
 
   updatedContent = ensureChecklistEntry(updatedContent, newPhaseNum, description);
   fs.writeFileSync(roadmapPath, updatedContent, 'utf-8');
+  invalidateFileCache(roadmapPath);
 
   const result = {
     phase_number: newPhaseNum,
@@ -297,6 +298,7 @@ function cmdPhaseInsert(cwd, afterPhase, description, raw) {
   const parentPat = new RegExp(`(- \\[[ x]\\] \\*\\*Phase\\s+0*${afterPhaseEscaped}:[^\\n]+\\n)`);
   updatedContent = ensureChecklistEntry(updatedContent, decimalPhase, `${description} (INSERTED)`, parentPat);
   fs.writeFileSync(roadmapPath, updatedContent, 'utf-8');
+  invalidateFileCache(roadmapPath);
 
   const result = {
     phase_number: decimalPhase,
@@ -511,6 +513,7 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
   }
 
   fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+  invalidateFileCache(roadmapPath);
 
   // Update STATE.md phase count
   const statePath = path.join(cwd, '.planning', 'STATE.md');
@@ -529,6 +532,7 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
       stateContent = stateContent.replace(ofPattern, `$1${oldTotal - 1}$3`);
     }
     fs.writeFileSync(statePath, stateContent, 'utf-8');
+    invalidateFileCache(statePath);
   }
 
   const result = {
@@ -596,6 +600,7 @@ function cmdRequirementsMarkComplete(cwd, reqIdsRaw, raw) {
 
   if (updated.length > 0) {
     fs.writeFileSync(reqPath, reqContent, 'utf-8');
+    invalidateFileCache(reqPath);
   }
 
   output({
@@ -655,6 +660,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     );
 
     fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+    invalidateFileCache(roadmapPath);
 
     // Update REQUIREMENTS.md traceability for this phase's requirements
     const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
@@ -679,6 +685,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
         }
 
         fs.writeFileSync(reqPath, reqContent, 'utf-8');
+        invalidateFileCache(reqPath);
       }
     }
   }
@@ -811,6 +818,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     );
 
     fs.writeFileSync(statePath, stateContent, 'utf-8');
+    invalidateFileCache(statePath);
   }
 
   const result = {
@@ -905,8 +913,10 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
   if (fs.existsSync(milestonesPath)) {
     const existing = fs.readFileSync(milestonesPath, 'utf-8');
     fs.writeFileSync(milestonesPath, existing + '\n' + milestoneEntry, 'utf-8');
+    invalidateFileCache(milestonesPath);
   } else {
     fs.writeFileSync(milestonesPath, `# Milestones\n\n${milestoneEntry}`, 'utf-8');
+    invalidateFileCache(milestonesPath);
   }
 
   // Update STATE.md
@@ -925,6 +935,7 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
       `$1${version} milestone completed and archived`
     );
     fs.writeFileSync(statePath, stateContent, 'utf-8');
+    invalidateFileCache(statePath);
   }
 
   // Auto-archive phase directories
