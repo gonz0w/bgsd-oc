@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-28)
+See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v7.1 Trajectory Engineering — SHIPPED 2026-03-02
+**Current focus:** v8.0 Performance & Agent Architecture
 
 ## Current Position
 
-Phase: Milestone complete
-Plan: N/A
-Status: v7.1 shipped
-Last activity: 2026-03-02 - Milestone v7.1 archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-01 — Milestone v8.0 started
 
 Progress: [██████████████████████████████] 112/112 plans complete (v1.0-v7.1)
 
@@ -86,7 +86,7 @@ None — milestone starting fresh.
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: v7.1 milestone archived and tagged
+Last session: 2026-03-01
+Stopped at: v8.0 milestone initialized
 Resume file: None
-Next step: `/gsd-new-milestone` to start next milestone
+Next step: Define requirements and create roadmap
