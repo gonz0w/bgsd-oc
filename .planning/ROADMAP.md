@@ -11,7 +11,7 @@
 - ✅ **v6.0 UX & Developer Experience** — Phases 30-36 (shipped 2026-02-27)
 - ✅ **v7.0 Agent Orchestration & Efficiency** — Phases 37-44 (shipped 2026-02-27)
 - ✅ **v7.1 Trajectory Engineering** — Phases 45-50 (shipped 2026-03-02)
-- 🚧 **v8.0 Performance & Agent Architecture** — Phases 51-55 (in progress)
+- 🚧 **v8.0 Performance & Agent Architecture** — Phases 51-55 (1/2 plans complete in Phase 55)
 
 ## Phases
 
@@ -207,10 +207,10 @@ Plans:
 **Plans**: 4/4 plans complete
 
 Plans:
-- [ ] 54-01-PLAN.md — Router.js namespace routing implementation
-- [ ] 54-02-PLAN.md — Test file command reference updates
-- [ ] 54-03-PLAN.md — Workflow and command file reference updates
-- [ ] 54-04-PLAN.md — Milestone wrapup documentation generation
+- [x] 54-01-PLAN.md — Router.js namespace routing implementation
+- [x] 54-02-PLAN.md — Test file command reference updates
+- [x] 54-03-PLAN.md — Workflow and command file reference updates
+- [x] 54-04-PLAN.md — Milestone wrapup documentation generation
 
 ### Phase 55: Profiler & Performance Validation
 **Goal**: Hot-path performance is measured, baselined, and proven faster than v7.1
@@ -220,9 +220,9 @@ Plans:
   1. `GSD_PROFILE=1` reports sub-operation timing for file reads, git ops, markdown parsing, and AST analysis
   2. `gsd-tools profiler compare` shows before/after timing deltas with regression highlighting (red for slower, green for faster)
   3. Cache-enabled invocations show measurable speedup over cache-disabled for repeated operations
-**Plans**: 2 plans
+**Plans**: 1/2 plans complete
 
-- [ ] 55-01-PLAN.md — Sub-operation timing instrumentation (file reads, git ops, markdown, AST)
+- [x] 55-01-PLAN.md — Sub-operation timing instrumentation (file reads, git ops, markdown, AST)
 - [ ] 55-02-PLAN.md — Profiler compare command and cache speedup test
 
 ## Progress
@@ -244,6 +244,6 @@ Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
 | 51. Cache Foundation | v8.0 | 3/3 | Complete | 2026-03-02 |
 | 52. Cache Integration | v8.0 | 2/2 | Complete | 2026-03-02 |
-| 53. Agent Consolidation | v8.0 | Complete    | 2026-03-02 | - |
-| 54. Command Consolidation | v8.0 | Complete    | 2026-03-02 | - |
-| 55. Profiler & Performance | v8.0 | 0/2 | Planning | - |
+| 53. Agent Consolidation | v8.0 | 3/3 | Complete | 2026-03-02 |
+| 54. Command Consolidation | v8.0 | 4/4 | Complete | 2026-03-02 |
+| 55. Profiler & Performance | v8.0 | 1/2 | In Progress | 2026-03-02 |
