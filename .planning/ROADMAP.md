@@ -158,7 +158,11 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
   2. Cached reads return identical content to direct filesystem reads for every file in `.planning/`
   3. Editing a `.planning/` file and immediately reading it via gsd-tools returns the updated content (never stale)
   4. Running on Node <22.5 produces identical behavior to Node ≥22.5 — no crashes, no warnings, Map fallback transparent
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 51-01-PLAN.md — Create CacheEngine class with SQLite/Map backend
+- [ ] 51-02-PLAN.md — Add cache CLI commands and integrate into cachedReadFile
 
 ### Phase 52: Cache Integration & Warm-up
 **Goal**: Cache is wired into all hot-path file readers and users can pre-populate it
