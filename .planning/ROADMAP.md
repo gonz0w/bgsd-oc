@@ -11,6 +11,7 @@
 - ✅ **v6.0 UX & Developer Experience** — Phases 30-36 (shipped 2026-02-27)
 - ✅ **v7.0 Agent Orchestration & Efficiency** — Phases 37-44 (shipped 2026-02-27)
 - ✅ **v7.1 Trajectory Engineering** — Phases 45-50 (shipped 2026-03-02)
+- 🚧 **v8.0 Performance & Agent Architecture** — Phases 51-55 (in progress)
 
 ## Phases
 
@@ -136,10 +137,79 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
 
 </details>
 
+### 🚧 v8.0 Performance & Agent Architecture (In Progress)
+
+**Milestone Goal:** Make every agent do one thing well, eliminate overlap and gaps across the product lifecycle, and dramatically reduce execution time through caching, context optimization, and command consolidation.
+
+- [ ] **Phase 51: Cache Foundation** - SQLite cache module with staleness detection, write invalidation, and graceful degradation
+- [ ] **Phase 52: Cache Integration & Warm-up** - Wire cache into hot paths, add warm command, prove test parity
+- [ ] **Phase 53: Agent Consolidation** - RACI matrix, agent merges, manifest-driven context, token budgets, lifecycle audit
+- [ ] **Phase 54: Command Consolidation** - Namespace grouping, reference updates, milestone docs generation
+- [ ] **Phase 55: Profiler & Performance Validation** - Hot-path instrumentation, baseline comparison, prove speedup
+
+## Phase Details
+
+### Phase 51: Cache Foundation
+**Goal**: Persistent read cache exists as a correct, self-contained module with proven correctness guarantees
+**Depends on**: Nothing (first phase of v8.0)
+**Requirements**: CACHE-01, CACHE-02, CACHE-03, CACHE-04
+**Success Criteria** (what must be TRUE):
+  1. `gsd-tools cache status` reports cache backend (SQLite or Map fallback) and entry count
+  2. Cached reads return identical content to direct filesystem reads for every file in `.planning/`
+  3. Editing a `.planning/` file and immediately reading it via gsd-tools returns the updated content (never stale)
+  4. Running on Node <22.5 produces identical behavior to Node ≥22.5 — no crashes, no warnings, Map fallback transparent
+**Plans**: TBD
+
+### Phase 52: Cache Integration & Warm-up
+**Goal**: Cache is wired into all hot-path file readers and users can pre-populate it
+**Depends on**: Phase 51
+**Requirements**: CACHE-05
+**Success Criteria** (what must be TRUE):
+  1. `gsd-tools cache warm` populates cache for all `.planning/` files and reports count and timing
+  2. All 751+ tests pass identically with cache enabled AND with cache disabled (forced fallback)
+  3. Second invocation of `gsd-tools init execute-phase` is measurably faster than first (cache hit vs miss)
+**Plans**: TBD
+
+### Phase 53: Agent Consolidation
+**Goal**: Every lifecycle step maps to exactly one agent with no overlap, no gaps, and deterministic context loading
+**Depends on**: Nothing (independent of cache work)
+**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, AGENT-05
+**Success Criteria** (what must be TRUE):
+  1. RACI matrix document exists mapping every product lifecycle step to exactly one responsible agent
+  2. Running `gsd-tools agent audit` reports zero gaps and zero overlaps across all lifecycle steps
+  3. Agent count is 9 (down from 11) — integration-checker merged into verifier, synthesizer merged into roadmapper
+  4. Agent manifests declare max token budgets and context builder refuses to exceed them (logged warning on truncation)
+  5. All workflows and command wrappers reference correct agent names — no broken spawn chains
+**Plans**: TBD
+
+### Phase 54: Command Consolidation
+**Goal**: CLI commands are organized under logical namespaces with zero orphan commands
+**Depends on**: Nothing (independent of cache and agent work)
+**Requirements**: CMD-01, CMD-02, CMD-03
+**Success Criteria** (what must be TRUE):
+  1. Top-level command count reduced — orphan commands grouped under namespaced parents (e.g., `cache status`, `session summary`)
+  2. All tests, workflows, and agent prompts reference new command names — no references to old names remain
+  3. Milestone wrapup workflow generates a documentation artifact automatically (changelog from git log + STATE.md)
+**Plans**: TBD
+
+### Phase 55: Profiler & Performance Validation
+**Goal**: Hot-path performance is measured, baselined, and proven faster than v7.1
+**Depends on**: Phase 52 (cache must be integrated to measure real improvement)
+**Requirements**: PERF-01, PERF-02, CACHE-06
+**Success Criteria** (what must be TRUE):
+  1. `GSD_PROFILE=1` reports sub-operation timing for file reads, git ops, markdown parsing, and AST analysis
+  2. `gsd-tools profiler compare` shows before/after timing deltas with regression highlighting (red for slower, green for faster)
+  3. Cache-enabled invocations show measurable speedup over cache-disabled for repeated operations
+**Plans**: TBD
+
 ## Progress
 
-| Phase | Milestone | Plans | Status | Completed |
-|-------|-----------|-------|--------|-----------|
+**Execution Order:**
+Phases execute in numeric order: 51 → 52 → 53 → 54 → 55
+Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if needed.
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
 | 1-5 | v1.0 | 14/14 | Complete | 2026-02-22 |
 | 6-9 | v1.1 | 10/10 | Complete | 2026-02-22 |
 | 10-13 | v2.0 | 13/13 | Complete | 2026-02-24 |
@@ -149,3 +219,8 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
+| 51. Cache Foundation | v8.0 | 0/TBD | Not started | - |
+| 52. Cache Integration | v8.0 | 0/TBD | Not started | - |
+| 53. Agent Consolidation | v8.0 | 0/TBD | Not started | - |
+| 54. Command Consolidation | v8.0 | 0/TBD | Not started | - |
+| 55. Profiler & Performance | v8.0 | 0/TBD | Not started | - |

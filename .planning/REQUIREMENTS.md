@@ -69,28 +69,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| CACHE-01 | Pending | Pending | npm test |
-| CACHE-02 | Pending | Pending | npm test |
-| CACHE-03 | Pending | Pending | npm test |
-| CACHE-04 | Pending | Pending | npm test |
-| CACHE-05 | Pending | Pending | npm test |
-| CACHE-06 | Pending | Pending | npm test |
-| AGENT-01 | Pending | Pending | npm test |
-| AGENT-02 | Pending | Pending | npm test |
-| AGENT-03 | Pending | Pending | npm test |
-| AGENT-04 | Pending | Pending | npm test |
-| AGENT-05 | Pending | Pending | npm test |
-| CMD-01 | Pending | Pending | npm test |
-| CMD-02 | Pending | Pending | npm test |
-| CMD-03 | Pending | Pending | npm test |
-| PERF-01 | Pending | Pending | npm test |
-| PERF-02 | Pending | Pending | npm test |
+| CACHE-01 | Phase 51 | Pending | npm test |
+| CACHE-02 | Phase 51 | Pending | npm test |
+| CACHE-03 | Phase 51 | Pending | npm test |
+| CACHE-04 | Phase 51 | Pending | npm test |
+| CACHE-05 | Phase 52 | Pending | npm test |
+| CACHE-06 | Phase 55 | Pending | npm test |
+| AGENT-01 | Phase 53 | Pending | npm test |
+| AGENT-02 | Phase 53 | Pending | npm test |
+| AGENT-03 | Phase 53 | Pending | npm test |
+| AGENT-04 | Phase 53 | Pending | npm test |
+| AGENT-05 | Phase 53 | Pending | npm test |
+| CMD-01 | Phase 54 | Pending | npm test |
+| CMD-02 | Phase 54 | Pending | npm test |
+| CMD-03 | Phase 54 | Pending | npm test |
+| PERF-01 | Phase 55 | Pending | npm test |
+| PERF-02 | Phase 55 | Pending | npm test |
 
 **Coverage:**
 - v8.0 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-01*
-*Last updated: 2026-03-01 after initial definition*
+*Last updated: 2026-03-01 after roadmap creation (phases 51-55)*
