@@ -9,13 +9,11 @@ const MODEL_PROFILES = {
   'gsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
   'gsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
   'gsd-phase-researcher':     { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-project-researcher':   { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-research-synthesizer': { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
+  'gsd-project-researcher':    { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
   'gsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
   'gsd-codebase-mapper':      { quality: 'sonnet', balanced: 'haiku', budget: 'haiku' },
   'gsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
   'gsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-integration-checker':  { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
 };
 
 // ─── Config Schema ───────────────────────────────────────────────────────────

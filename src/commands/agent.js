@@ -127,7 +127,7 @@ function cmdAgentAudit(cwd, raw) {
   const validAgentNames = new Set([
     'gsd-executor', 'gsd-planner', 'gsd-verifier', 'gsd-roadmapper',
     'gsd-phase-researcher', 'gsd-project-researcher', 'gsd-codebase-mapper',
-    'gsd-debugger', 'gsd-plan-checker', 'gsd-integration-checker', 'gsd-research-synthesizer'
+    'gsd-debugger', 'gsd-plan-checker'
   ]);
   
   for (const step of lifecycleSteps) {
