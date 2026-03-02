@@ -203,8 +203,14 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Top-level command count reduced — orphan commands grouped under namespaced parents (e.g., `cache status`, `session summary`)
   2. All tests, workflows, and agent prompts reference new command names — no references to old names remain
-  3. Milestone wrapup workflow generates a documentation artifact automatically (changelog from git log + STATE.md)
-**Plans**: TBD
+   3. Milestone wrapup workflow generates a documentation artifact automatically (changelog from git log + STATE.md)
+**Plans**: 4/4 plans
+
+Plans:
+- [ ] 54-01-PLAN.md — Router.js namespace routing implementation
+- [ ] 54-02-PLAN.md — Test file command reference updates
+- [ ] 54-03-PLAN.md — Workflow and command file reference updates
+- [ ] 54-04-PLAN.md — Milestone wrapup documentation generation
 
 ### Phase 55: Profiler & Performance Validation
 **Goal**: Hot-path performance is measured, baselined, and proven faster than v7.1
@@ -236,5 +242,5 @@ Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if
 | 51. Cache Foundation | v8.0 | 3/3 | Complete | 2026-03-02 |
 | 52. Cache Integration | v8.0 | 2/2 | Complete | 2026-03-02 |
 | 53. Agent Consolidation | v8.0 | Complete    | 2026-03-02 | - |
-| 54. Command Consolidation | v8.0 | 0/TBD | Not started | - |
+| 54. Command Consolidation | v8.0 | 0/4 | Not started | - |
 | 55. Profiler & Performance | v8.0 | 0/TBD | Not started | - |
