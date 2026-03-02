@@ -51,7 +51,7 @@ describe('history-digest command', () => {
   });
 
   test('empty phases directory returns valid schema', () => {
-    const result = runGsdTools('history-digest', tmpDir);
+    const result = runGsdTools('util:history-digest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const digest = JSON.parse(result.output);
@@ -92,7 +92,7 @@ key-decisions:
 
     fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), summaryContent);
 
-    const result = runGsdTools('history-digest', tmpDir);
+    const result = runGsdTools('util:history-digest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const digest = JSON.parse(result.output);
@@ -174,7 +174,7 @@ tech-stack:
 `
     );
 
-    const result = runGsdTools('history-digest', tmpDir);
+    const result = runGsdTools('util:history-digest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const digest = JSON.parse(result.output);
@@ -222,7 +222,7 @@ broken: [unclosed
 `
     );
 
-    const result = runGsdTools('history-digest', tmpDir);
+    const result = runGsdTools('util:history-digest', tmpDir);
     assert.ok(result.success, `Command should succeed despite malformed files: ${result.error}`);
 
     const digest = JSON.parse(result.output);
@@ -247,7 +247,7 @@ provides:
 `
     );
 
-    const result = runGsdTools('history-digest', tmpDir);
+    const result = runGsdTools('util:history-digest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const digest = JSON.parse(result.output);
@@ -272,7 +272,7 @@ patterns-established: ["Pattern X", "Pattern Y"]
 `
     );
 
-    const result = runGsdTools('history-digest', tmpDir);
+    const result = runGsdTools('util:history-digest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const digest = JSON.parse(result.output);
@@ -305,7 +305,7 @@ describe('phases list command', () => {
   });
 
   test('empty phases directory returns empty array', () => {
-    const result = runGsdTools('phases list', tmpDir);
+    const result = runGsdTools('plan:phases list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -319,7 +319,7 @@ describe('phases list command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-foundation'), { recursive: true });
 
-    const result = runGsdTools('phases list', tmpDir);
+    const result = runGsdTools('plan:phases list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -337,7 +337,7 @@ describe('phases list command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02.2-patch'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-ui'), { recursive: true });
 
-    const result = runGsdTools('phases list', tmpDir);
+    const result = runGsdTools('plan:phases list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -356,7 +356,7 @@ describe('phases list command', () => {
     fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary');
     fs.writeFileSync(path.join(phaseDir, 'RESEARCH.md'), '# Research');
 
-    const result = runGsdTools('phases list --type plans', tmpDir);
+    const result = runGsdTools('plan:phases list --type plans', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -374,7 +374,7 @@ describe('phases list command', () => {
     fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary 1');
     fs.writeFileSync(path.join(phaseDir, '01-02-SUMMARY.md'), '# Summary 2');
 
-    const result = runGsdTools('phases list --type summaries', tmpDir);
+    const result = runGsdTools('plan:phases list --type summaries', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -393,7 +393,7 @@ describe('phases list command', () => {
     fs.writeFileSync(path.join(phase01, '01-01-PLAN.md'), '# Plan');
     fs.writeFileSync(path.join(phase02, '02-01-PLAN.md'), '# Plan');
 
-    const result = runGsdTools('phases list --type plans --phase 01', tmpDir);
+    const result = runGsdTools('plan:phases list --type plans --phase 01', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -436,7 +436,7 @@ Some description here.
 `
     );
 
-    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -456,7 +456,7 @@ Some description here.
 `
     );
 
-    const result = runGsdTools('roadmap get-phase 5', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 5', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -476,7 +476,7 @@ Some description here.
 `
     );
 
-    const result = runGsdTools('roadmap get-phase 2.1', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 2.1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -503,7 +503,7 @@ This phase covers:
 `
     );
 
-    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -513,7 +513,7 @@ This phase covers:
   });
 
   test('handles missing ROADMAP.md gracefully', () => {
-    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -535,7 +535,7 @@ This phase covers:
 `
     );
 
-    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -556,7 +556,7 @@ This phase covers:
 `
     );
 
-    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    const result = runGsdTools('plan:roadmap get-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -585,7 +585,7 @@ describe('phase next-decimal command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06-feature'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '07-next'), { recursive: true });
 
-    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    const result = runGsdTools('plan:phase next-decimal 06', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -598,7 +598,7 @@ describe('phase next-decimal command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.1-hotfix'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.2-patch'), { recursive: true });
 
-    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    const result = runGsdTools('plan:phase next-decimal 06', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -611,7 +611,7 @@ describe('phase next-decimal command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.1-first'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.3-third'), { recursive: true });
 
-    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    const result = runGsdTools('plan:phase next-decimal 06', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -622,7 +622,7 @@ describe('phase next-decimal command', () => {
   test('handles single-digit phase input', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06-feature'), { recursive: true });
 
-    const result = runGsdTools('phase next-decimal 6', tmpDir);
+    const result = runGsdTools('plan:phase next-decimal 6', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -633,7 +633,7 @@ describe('phase next-decimal command', () => {
   test('returns error if base phase does not exist', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-start'), { recursive: true });
 
-    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    const result = runGsdTools('plan:phase next-decimal 06', tmpDir);
     assert.ok(result.success, `Command should succeed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1117,7 +1117,7 @@ describe('init commands', () => {
     fs.mkdirSync(phaseDir, { recursive: true });
     fs.writeFileSync(path.join(phaseDir, '03-01-PLAN.md'), '# Plan');
 
-    const result = runGsdTools('init execute-phase 03 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 03 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1134,7 +1134,7 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(phaseDir, '03-VERIFICATION.md'), '# Verification');
     fs.writeFileSync(path.join(phaseDir, '03-UAT.md'), '# UAT');
 
-    const result = runGsdTools('init plan-phase 03 --verbose', tmpDir);
+    const result = runGsdTools('init:plan-phase 03 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1148,7 +1148,7 @@ describe('init commands', () => {
   });
 
   test('init progress returns file paths', () => {
-    const result = runGsdTools('init progress --verbose', tmpDir);
+    const result = runGsdTools('init:progress --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1166,7 +1166,7 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(phaseDir, '03-VERIFICATION.md'), '# Verification');
     fs.writeFileSync(path.join(phaseDir, '03-UAT.md'), '# UAT');
 
-    const result = runGsdTools('init phase-op 03 --verbose', tmpDir);
+    const result = runGsdTools('init:phase-op 03 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1183,7 +1183,7 @@ describe('init commands', () => {
     const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
     fs.mkdirSync(phaseDir, { recursive: true });
 
-    const result = runGsdTools('init plan-phase 03 --verbose', tmpDir);
+    const result = runGsdTools('init:plan-phase 03 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1194,7 +1194,7 @@ describe('init commands', () => {
   // --compact flag tests
 
   test('init commands return full output with --verbose', () => {
-    const result = runGsdTools('init progress --verbose', tmpDir);
+    const result = runGsdTools('init:progress --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1211,7 +1211,7 @@ describe('init commands', () => {
   });
 
   test('init progress --compact returns essential-only fields', () => {
-    const result = runGsdTools('init progress --compact', tmpDir);
+    const result = runGsdTools('init:progress --compact', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1275,7 +1275,7 @@ describe('init commands', () => {
   });
 
   test('--compact and --fields can be used together', () => {
-    const result = runGsdTools('init progress --compact --fields milestone_version,phase_count', tmpDir);
+    const result = runGsdTools('init:progress --compact --fields milestone_version,phase_count', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1324,7 +1324,7 @@ describe('init commands', () => {
   // --compact manifest tests
 
   test('compact --manifest output includes _manifest with files array', () => {
-    const result = runGsdTools('init progress --compact --manifest', tmpDir);
+    const result = runGsdTools('init:progress --compact --manifest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1341,7 +1341,7 @@ describe('init commands', () => {
     fs.mkdirSync(phaseDir, { recursive: true });
     fs.writeFileSync(path.join(phaseDir, '07-01-PLAN.md'), '# Plan');
 
-    const result = runGsdTools('init plan-phase 07 --compact --manifest', tmpDir);
+    const result = runGsdTools('init:plan-phase 07 --compact --manifest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1370,7 +1370,7 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State\n## Current Position\nPhase: 6');
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), '# Roadmap\n## Phase 6\nTest');
 
-    const result = runGsdTools('init execute-phase 06 --compact --manifest', tmpDir);
+    const result = runGsdTools('init:execute-phase 06 --compact --manifest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1390,7 +1390,7 @@ describe('init commands', () => {
     fs.mkdirSync(phaseDir, { recursive: true });
     fs.writeFileSync(path.join(phaseDir, '07-01-PLAN.md'), '# Plan');
 
-    const result = runGsdTools('init plan-phase 07 --compact --manifest', tmpDir);
+    const result = runGsdTools('init:plan-phase 07 --compact --manifest', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1404,7 +1404,7 @@ describe('init commands', () => {
   });
 
   test('non-compact output does not include _manifest', () => {
-    const result = runGsdTools('init progress', tmpDir);
+    const result = runGsdTools('init:progress', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1412,7 +1412,7 @@ describe('init commands', () => {
   });
 
   test('--compact without --manifest excludes _manifest', () => {
-    const result = runGsdTools('init progress --compact', tmpDir);
+    const result = runGsdTools('init:progress --compact', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output._manifest, undefined, 'compact-only has no _manifest');
@@ -1467,7 +1467,7 @@ describe('roadmap analyze command', () => {
   });
 
   test('missing ROADMAP.md returns error', () => {
-    const result = runGsdTools('roadmap analyze', tmpDir);
+    const result = runGsdTools('plan:roadmap analyze', tmpDir);
     assert.ok(result.success, `Command should succeed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1500,7 +1500,7 @@ describe('roadmap analyze command', () => {
     fs.mkdirSync(p2, { recursive: true });
     fs.writeFileSync(path.join(p2, '02-01-PLAN.md'), '# Plan');
 
-    const result = runGsdTools('roadmap analyze', tmpDir);
+    const result = runGsdTools('plan:roadmap analyze', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1531,7 +1531,7 @@ describe('roadmap analyze command', () => {
 `
     );
 
-    const result = runGsdTools('roadmap analyze', tmpDir);
+    const result = runGsdTools('plan:roadmap analyze', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1572,7 +1572,7 @@ describe('phase add command', () => {
 `
     );
 
-    const result = runGsdTools('phase add User Dashboard', tmpDir);
+    const result = runGsdTools('plan:phase add User Dashboard', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1597,7 +1597,7 @@ describe('phase add command', () => {
       `# Roadmap v1.0\n`
     );
 
-    const result = runGsdTools('phase add Initial Setup', tmpDir);
+    const result = runGsdTools('plan:phase add Initial Setup', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1634,7 +1634,7 @@ describe('phase insert command', () => {
     );
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-foundation'), { recursive: true });
 
-    const result = runGsdTools('phase insert 1 Fix Critical Bug', tmpDir);
+    const result = runGsdTools('plan:phase insert 1 Fix Critical Bug', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1667,7 +1667,7 @@ describe('phase insert command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-foundation'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01.1-hotfix'), { recursive: true });
 
-    const result = runGsdTools('phase insert 1 Another Fix', tmpDir);
+    const result = runGsdTools('plan:phase insert 1 Another Fix', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1680,7 +1680,7 @@ describe('phase insert command', () => {
       `# Roadmap\n### Phase 1: Test\n**Goal:** Test\n`
     );
 
-    const result = runGsdTools('phase insert 99 Fix Something', tmpDir);
+    const result = runGsdTools('plan:phase insert 99 Fix Something', tmpDir);
     assert.ok(!result.success, 'should fail for missing phase');
     assert.ok(result.error.includes('not found'), 'error mentions not found');
   });
@@ -1700,7 +1700,7 @@ describe('phase insert command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '09.05-existing'), { recursive: true });
 
     // Pass unpadded "9.05" but roadmap has "09.05"
-    const result = runGsdTools('phase insert 9.05 Padding Test', tmpDir);
+    const result = runGsdTools('plan:phase insert 9.05 Padding Test', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1726,7 +1726,7 @@ describe('phase insert command', () => {
     );
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '05-feature-work'), { recursive: true });
 
-    const result = runGsdTools('phase insert 5 Hotfix', tmpDir);
+    const result = runGsdTools('plan:phase insert 5 Hotfix', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1782,7 +1782,7 @@ describe('phase remove command', () => {
     fs.writeFileSync(path.join(p3, '03-02-PLAN.md'), '# Plan 2');
 
     // Remove phase 2
-    const result = runGsdTools('phase remove 2', tmpDir);
+    const result = runGsdTools('plan:phase remove 2', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1826,12 +1826,12 @@ describe('phase remove command', () => {
     );
 
     // Should fail without --force
-    const result = runGsdTools('phase remove 1', tmpDir);
+    const result = runGsdTools('plan:phase remove 1', tmpDir);
     assert.ok(!result.success, 'should fail without --force');
     assert.ok(result.error.includes('executed plan'), 'error mentions executed plans');
 
     // Should succeed with --force
-    const forceResult = runGsdTools('phase remove 1 --force', tmpDir);
+    const forceResult = runGsdTools('plan:phase remove 1 --force', tmpDir);
     assert.ok(forceResult.success, `Force remove failed: ${forceResult.error}`);
   });
 
@@ -1846,7 +1846,7 @@ describe('phase remove command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.2-fix-b'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.3-fix-c'), { recursive: true });
 
-    const result = runGsdTools('phase remove 6.2', tmpDir);
+    const result = runGsdTools('plan:phase remove 6.2', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     // 06.3 should become 06.2
@@ -1872,7 +1872,7 @@ describe('phase remove command', () => {
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-a'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-b'), { recursive: true });
 
-    runGsdTools('phase remove 2', tmpDir);
+    runGsdTools('plan:phase remove 2', tmpDir);
 
     const state = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
     assert.ok(state.includes('**Total Phases:** 1'), 'total phases should be decremented');
@@ -1921,7 +1921,7 @@ describe('phase complete command', () => {
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Summary');
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
 
-    const result = runGsdTools('phase complete 1', tmpDir);
+    const result = runGsdTools('plan:phase complete 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -1957,7 +1957,7 @@ describe('phase complete command', () => {
     fs.writeFileSync(path.join(p1, '01-01-PLAN.md'), '# Plan');
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Summary');
 
-    const result = runGsdTools('phase complete 1', tmpDir);
+    const result = runGsdTools('plan:phase complete 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2022,7 +2022,7 @@ describe('phase complete command', () => {
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Summary');
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
 
-    const result = runGsdTools('phase complete 1', tmpDir);
+    const result = runGsdTools('plan:phase complete 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const req = fs.readFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), 'utf-8');
@@ -2095,7 +2095,7 @@ describe('phase complete command', () => {
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Summary');
     fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
 
-    const result = runGsdTools('phase complete 1', tmpDir);
+    const result = runGsdTools('plan:phase complete 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const req = fs.readFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), 'utf-8');
@@ -2151,7 +2151,7 @@ describe('phase complete command', () => {
     fs.writeFileSync(path.join(p1, '01-01-PLAN.md'), '# Plan');
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Summary');
 
-    const result = runGsdTools('phase complete 1', tmpDir);
+    const result = runGsdTools('plan:phase complete 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     // REQUIREMENTS.md should be unchanged
@@ -2182,7 +2182,7 @@ describe('phase complete command', () => {
     fs.writeFileSync(path.join(p1, '01-01-PLAN.md'), '# Plan');
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Summary');
 
-    const result = runGsdTools('phase complete 1', tmpDir);
+    const result = runGsdTools('plan:phase complete 1', tmpDir);
     assert.ok(result.success, `Command should succeed even without REQUIREMENTS.md: ${result.error}`);
   });
 });
@@ -2223,7 +2223,7 @@ describe('milestone complete command', () => {
       `---\none-liner: Set up project infrastructure\n---\n# Summary\n`
     );
 
-    const result = runGsdTools('milestone complete v1.0 --name MVP Foundation', tmpDir);
+    const result = runGsdTools('plan:milestone complete v1.0 --name MVP Foundation', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2266,7 +2266,7 @@ describe('milestone complete command', () => {
       `# State\n\n**Status:** In progress\n**Last Activity:** 2025-01-01\n**Last Activity Description:** Working\n`
     );
 
-    const result = runGsdTools('milestone complete v1.0 --name Beta', tmpDir);
+    const result = runGsdTools('plan:milestone complete v1.0 --name Beta', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const milestones = fs.readFileSync(path.join(tmpDir, '.planning', 'MILESTONES.md'), 'utf-8');
@@ -2371,7 +2371,7 @@ describe('progress command', () => {
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Done');
     fs.writeFileSync(path.join(p1, '01-02-PLAN.md'), '# Plan 2');
 
-    const result = runGsdTools('progress json', tmpDir);
+    const result = runGsdTools('util:progress json', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2392,7 +2392,7 @@ describe('progress command', () => {
     fs.writeFileSync(path.join(p1, '01-01-PLAN.md'), '# Plan');
     fs.writeFileSync(path.join(p1, '01-01-SUMMARY.md'), '# Done');
 
-    const result = runGsdTools('progress bar', tmpDir);
+    const result = runGsdTools('util:progress bar', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     assert.ok(result.output.includes('1/1'), 'should include count');
     assert.ok(result.output.includes('100%'), 'should include 100%');
@@ -2407,7 +2407,7 @@ describe('progress command', () => {
     fs.mkdirSync(p1, { recursive: true });
     fs.writeFileSync(path.join(p1, '01-01-PLAN.md'), '# Plan');
 
-    const result = runGsdTools('progress table', tmpDir);
+    const result = runGsdTools('util:progress table', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     assert.ok(result.output.includes('Phase'), 'should have table header');
     assert.ok(result.output.includes('foundation'), 'should include phase name');
@@ -2437,7 +2437,7 @@ describe('todo complete command', () => {
       `title: Add dark mode\narea: ui\ncreated: 2025-01-01\n`
     );
 
-    const result = runGsdTools('todo complete add-dark-mode.md', tmpDir);
+    const result = runGsdTools('util:todo complete add-dark-mode.md', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2462,7 +2462,7 @@ describe('todo complete command', () => {
   });
 
   test('fails for nonexistent todo', () => {
-    const result = runGsdTools('todo complete nonexistent.md', tmpDir);
+    const result = runGsdTools('util:todo complete nonexistent.md', tmpDir);
     assert.ok(!result.success, 'should fail');
     assert.ok(result.error.includes('not found'), 'error mentions not found');
   });
@@ -2625,7 +2625,7 @@ describe('state update command', () => {
   });
 
   test('updates a single field (Status)', () => {
-    const result = runGsdTools('state update Status Complete', tmpDir);
+    const result = runGsdTools('verify:state update Status Complete', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2636,7 +2636,7 @@ describe('state update command', () => {
   });
 
   test('updates Phase field with complex value', () => {
-    const result = runGsdTools('state update Phase "2 of 3 (API)"', tmpDir);
+    const result = runGsdTools('verify:state update Phase "2 of 3 (API)"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2647,7 +2647,7 @@ describe('state update command', () => {
   });
 
   test('returns updated: false for nonexistent field', () => {
-    const result = runGsdTools('state update NonExistentField value', tmpDir);
+    const result = runGsdTools('verify:state update NonExistentField value', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2672,7 +2672,7 @@ describe('state patch command', () => {
   });
 
   test('updates multiple fields at once', () => {
-    const result = runGsdTools('state patch --Status Review --"Last Activity" 2026-02-01', tmpDir);
+    const result = runGsdTools('verify:state patch --Status Review --"Last Activity" 2026-02-01', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2686,7 +2686,7 @@ describe('state patch command', () => {
   });
 
   test('reports failed fields that do not exist', () => {
-    const result = runGsdTools('state patch --Status Done --FakeField value', tmpDir);
+    const result = runGsdTools('verify:state patch --Status Done --FakeField value', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2712,7 +2712,7 @@ describe('state add-decision command', () => {
   });
 
   test('appends decision and removes placeholder', () => {
-    const result = runGsdTools('state add-decision --phase 1 --summary "Use esbuild" --rationale "Fastest bundler"', tmpDir);
+    const result = runGsdTools('verify:state add-decision --phase 1 --summary "Use esbuild" --rationale "Fastest bundler"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2729,9 +2729,9 @@ describe('state add-decision command', () => {
 
   test('adds second decision without removing first', () => {
     // Add first decision
-    runGsdTools('state add-decision --phase 1 --summary "Use esbuild" --rationale "Fastest bundler"', tmpDir);
+    runGsdTools('verify:state add-decision --phase 1 --summary "Use esbuild" --rationale "Fastest bundler"', tmpDir);
     // Add second decision
-    const result = runGsdTools('state add-decision --phase 2 --summary "Use Postgres" --rationale "Best for relational data"', tmpDir);
+    const result = runGsdTools('verify:state add-decision --phase 2 --summary "Use Postgres" --rationale "Best for relational data"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2749,7 +2749,7 @@ describe('state add-decision command', () => {
       '# Project State\n\n**Status:** In progress\n'
     );
 
-    const result = runGsdTools('state add-decision --phase 1 --summary "Test"', tmpDir);
+    const result = runGsdTools('verify:state add-decision --phase 1 --summary "Test"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2774,7 +2774,7 @@ describe('state add-blocker command', () => {
   });
 
   test('appends blocker and removes placeholder', () => {
-    const result = runGsdTools('state add-blocker --text "Config drift issue"', tmpDir);
+    const result = runGsdTools('verify:state add-blocker --text "Config drift issue"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2787,7 +2787,7 @@ describe('state add-blocker command', () => {
   });
 
   test('returns added: true in JSON output', () => {
-    const result = runGsdTools('state add-blocker --text "Missing API key"', tmpDir);
+    const result = runGsdTools('verify:state add-blocker --text "Missing API key"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2814,13 +2814,13 @@ describe('state resolve-blocker command', () => {
 
   test('resolves an existing blocker by text match', () => {
     // First add a blocker
-    runGsdTools('state add-blocker --text "Config drift"', tmpDir);
+    runGsdTools('verify:state add-blocker --text "Config drift"', tmpDir);
     // Verify it was added
     let content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
     assert.ok(content.includes('Config drift'), 'Blocker should be present before resolve');
 
     // Now resolve it
-    const result = runGsdTools('state resolve-blocker --text "Config drift"', tmpDir);
+    const result = runGsdTools('verify:state resolve-blocker --text "Config drift"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2832,7 +2832,7 @@ describe('state resolve-blocker command', () => {
 
   test('returns resolved: true even for nonexistent blocker', () => {
     // The resolve-blocker command filters lines that match — if none match, it still writes back
-    const result = runGsdTools('state resolve-blocker --text "nonexistent blocker"', tmpDir);
+    const result = runGsdTools('verify:state resolve-blocker --text "nonexistent blocker"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2841,8 +2841,8 @@ describe('state resolve-blocker command', () => {
 
   test('restores None placeholder when last blocker resolved', () => {
     // Add a blocker then resolve it — section should get "None" placeholder
-    runGsdTools('state add-blocker --text "Only blocker"', tmpDir);
-    runGsdTools('state resolve-blocker --text "Only blocker"', tmpDir);
+    runGsdTools('verify:state add-blocker --text "Only blocker"', tmpDir);
+    runGsdTools('verify:state resolve-blocker --text "Only blocker"', tmpDir);
 
     const content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
     const blockersMatch = content.match(/###?\s*Blockers\/Concerns\s*\n([\s\S]*?)(?=\n###?|\n##[^#]|$)/i);
@@ -2868,7 +2868,7 @@ describe('state record-session command', () => {
   });
 
   test('updates all session continuity fields', () => {
-    const result = runGsdTools('state record-session --stopped-at "Phase 2 API work" --resume-file "None"', tmpDir);
+    const result = runGsdTools('verify:state record-session --stopped-at "Phase 2 API work" --resume-file "None"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2883,7 +2883,7 @@ describe('state record-session command', () => {
   });
 
   test('returns recorded: true in JSON output', () => {
-    const result = runGsdTools('state record-session --stopped-at "Test checkpoint"', tmpDir);
+    const result = runGsdTools('verify:state record-session --stopped-at "Test checkpoint"', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2909,7 +2909,7 @@ describe('state advance-plan command', () => {
   });
 
   test('advances plan number from 1 to 2', () => {
-    const result = runGsdTools('state advance-plan', tmpDir);
+    const result = runGsdTools('verify:state advance-plan', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2924,9 +2924,9 @@ describe('state advance-plan command', () => {
 
   test('detects last plan in phase and sets phase complete', () => {
     // Set Current Plan to 3 (equal to Total Plans in Phase: 3)
-    runGsdTools('state update "Current Plan" 3', tmpDir);
+    runGsdTools('verify:state update "Current Plan" 3', tmpDir);
 
-    const result = runGsdTools('state advance-plan', tmpDir);
+    const result = runGsdTools('verify:state advance-plan', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2938,7 +2938,7 @@ describe('state advance-plan command', () => {
   });
 
   test('updates Last Activity date', () => {
-    const result = runGsdTools('state advance-plan', tmpDir);
+    const result = runGsdTools('verify:state advance-plan', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
@@ -2964,7 +2964,7 @@ describe('state record-metric command', () => {
   });
 
   test('appends a row to the Performance Metrics table', () => {
-    const result = runGsdTools('state record-metric --phase 01 --plan 01 --duration 45m --tasks 3 --files 5', tmpDir);
+    const result = runGsdTools('verify:state record-metric --phase 01 --plan 01 --duration 45m --tasks 3 --files 5', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2978,7 +2978,7 @@ describe('state record-metric command', () => {
   });
 
   test('returns recorded: true with metric details', () => {
-    const result = runGsdTools('state record-metric --phase 02 --plan 03 --duration 12m --tasks 5 --files 8', tmpDir);
+    const result = runGsdTools('verify:state record-metric --phase 02 --plan 03 --duration 12m --tasks 5 --files 8', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -2989,7 +2989,7 @@ describe('state record-metric command', () => {
   });
 
   test('returns error when required fields missing', () => {
-    const result = runGsdTools('state record-metric --phase 01', tmpDir);
+    const result = runGsdTools('verify:state record-metric --phase 01', tmpDir);
     assert.ok(result.success, `Command should succeed with error in JSON: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -3931,7 +3931,7 @@ describe('file cache', () => {
   test('init progress returns valid JSON with cache enabled', () => {
     // cachedReadFile is used internally — test that compound commands
     // (which read files multiple times) still produce valid output
-    const result = runGsdTools('init progress --verbose');
+    const result = runGsdTools('init:progress --verbose');
     assert.ok(result.success, 'init progress should succeed');
     const data = JSON.parse(result.output);
     // phase_count may be 0 if all milestones are complete (no active milestone)
@@ -3997,7 +3997,7 @@ describe('codebase-impact batch grep', () => {
 describe('codebase-impact graph-first path (WKFL-03)', () => {
   test('uses cached graph when intel has dependencies', () => {
     // First ensure deps are built
-    runGsdTools('codebase deps');
+    runGsdTools('util:codebase deps');
     const result = runGsdTools('codebase-impact src/lib/helpers.js');
     assert.ok(result.success, 'codebase-impact should succeed');
     const data = JSON.parse(result.output);
@@ -4091,7 +4091,7 @@ describe('configurable context window', () => {
 
 describe('--fields flag', () => {
   test('filters top-level fields from JSON output', () => {
-    const result = runGsdTools('init progress --fields milestone_version,phase_count');
+    const result = runGsdTools('init:progress --fields milestone_version,phase_count');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -4103,7 +4103,7 @@ describe('--fields flag', () => {
   });
 
   test('missing fields return null', () => {
-    const result = runGsdTools('init progress --fields milestone_version,nonexistent_field');
+    const result = runGsdTools('init:progress --fields milestone_version,nonexistent_field');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -4112,7 +4112,7 @@ describe('--fields flag', () => {
   });
 
   test('without --fields returns full output with --verbose', () => {
-    const result = runGsdTools('init progress --verbose');
+    const result = runGsdTools('init:progress --verbose');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -4700,7 +4700,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -4736,7 +4736,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -4779,7 +4779,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -4814,7 +4814,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -4858,7 +4858,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -4905,7 +4905,7 @@ None.
       return;
     }
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -4960,7 +4960,7 @@ None.
       return;
     }
 
-    const result = runGsdTools('state validate --fix', tmpDir);
+    const result = runGsdTools('verify:state validate --fix', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5012,7 +5012,7 @@ None yet.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5063,7 +5063,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5075,7 +5075,7 @@ None.
 
   test('returns error status when both ROADMAP.md and STATE.md are missing', () => {
     // Remove the files (createTempProject only creates the dirs)
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5116,7 +5116,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5178,7 +5178,7 @@ describe('state validate pre-flight', () => {
 `
     );
 
-    const result = runGsdTools('init execute-phase 1', tmpDir);
+    const result = runGsdTools('init:execute-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5224,7 +5224,7 @@ describe('state validate pre-flight', () => {
       JSON.stringify({ gates: { pre_flight_validation: false } }, null, 2)
     );
 
-    const result = runGsdTools('init execute-phase 1', tmpDir);
+    const result = runGsdTools('init:execute-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5286,7 +5286,7 @@ None.
     }
 
     // Step 1: Run --fix to auto-correct plan count drift
-    const fixResult = runGsdTools('state validate --fix', tmpDir);
+    const fixResult = runGsdTools('verify:state validate --fix', tmpDir);
     assert.ok(fixResult.success, `Fix command failed: ${fixResult.error}`);
 
     const fixOutput = JSON.parse(fixResult.output);
@@ -5295,7 +5295,7 @@ None.
     assert.strictEqual(fixOutput.fixes_applied[0].new, '3');
 
     // Step 2: Run validate again — should be clean (or at least no plan_count_drift)
-    const validateResult = runGsdTools('state validate', tmpDir);
+    const validateResult = runGsdTools('verify:state validate', tmpDir);
     assert.ok(validateResult.success, `Validate command failed: ${validateResult.error}`);
 
     const validateOutput = JSON.parse(validateResult.output);
@@ -5344,7 +5344,7 @@ None.
 `
     );
 
-    const result = runGsdTools('state validate', tmpDir);
+    const result = runGsdTools('verify:state validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5395,7 +5395,7 @@ None.
 `
     );
 
-    const result = runGsdTools('init execute-phase 1 --compact', tmpDir);
+    const result = runGsdTools('init:execute-phase 1 --compact', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5418,7 +5418,7 @@ describe('memory commands', () => {
   });
 
   test('memory list returns empty when no memory dir', () => {
-    const result = runGsdTools('memory list', tmpDir);
+    const result = runGsdTools('util:memory list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.deepStrictEqual(output.stores, [], 'stores should be empty array');
@@ -5464,7 +5464,7 @@ describe('memory commands', () => {
   });
 
   test('memory read returns empty for missing store', () => {
-    const result = runGsdTools('memory read --store decisions', tmpDir);
+    const result = runGsdTools('util:memory read --store decisions', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.deepStrictEqual(output.entries, []);
@@ -5484,7 +5484,7 @@ describe('memory commands', () => {
     ];
     fs.writeFileSync(path.join(memDir, 'decisions.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store decisions --query esbuild', tmpDir);
+    const result = runGsdTools('util:memory read --store decisions --query esbuild', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.count, 2, 'should match 2 entries containing esbuild');
@@ -5501,7 +5501,7 @@ describe('memory commands', () => {
     ];
     fs.writeFileSync(path.join(memDir, 'lessons.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store lessons --phase 03', tmpDir);
+    const result = runGsdTools('util:memory read --store lessons --phase 03', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.count, 2, 'should match 2 entries with phase 03');
@@ -5516,7 +5516,7 @@ describe('memory commands', () => {
     }));
     fs.writeFileSync(path.join(memDir, 'todos.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store todos --limit 3', tmpDir);
+    const result = runGsdTools('util:memory read --store todos --limit 3', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.count, 3, 'should return only 3 entries');
@@ -5537,7 +5537,7 @@ describe('memory commands', () => {
       runGsdTools(`memory write --store bookmarks --entry '${JSON.stringify({ file: `new-${i}.js` })}'`, tmpDir);
     }
 
-    const result = runGsdTools('memory read --store bookmarks', tmpDir);
+    const result = runGsdTools('util:memory read --store bookmarks', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.total, 20, 'bookmarks should be capped at 20');
@@ -5552,7 +5552,7 @@ describe('memory commands', () => {
       assert.ok(result.success, `Write ${i} failed: ${result.error}`);
     }
 
-    const result = runGsdTools('memory read --store decisions', tmpDir);
+    const result = runGsdTools('util:memory read --store decisions', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.total, 30, 'all 30 decisions should be preserved');
@@ -5571,7 +5571,7 @@ describe('memory commands', () => {
       { file: 'a.js' },
     ]));
 
-    const result = runGsdTools('memory list', tmpDir);
+    const result = runGsdTools('util:memory list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
 
@@ -5599,7 +5599,7 @@ describe('init memory', () => {
   });
 
   test('returns minimal stub when no memory exists', () => {
-    const result = runGsdTools('init memory', tmpDir);
+    const result = runGsdTools('init:memory', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5624,7 +5624,7 @@ describe('init memory', () => {
 `;
     fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), stateContent);
 
-    const result = runGsdTools('init memory', tmpDir);
+    const result = runGsdTools('init:memory', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5644,7 +5644,7 @@ describe('init memory', () => {
       { summary: 'Memory stores as JSON', phase: '11' },
     ]));
 
-    const result = runGsdTools('init memory', tmpDir);
+    const result = runGsdTools('init:memory', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5663,7 +5663,7 @@ describe('init memory', () => {
       { summary: 'Memory stores as JSON', phase: '11' },
     ]));
 
-    const result = runGsdTools('init memory --phase 11', tmpDir);
+    const result = runGsdTools('init:memory --phase 11', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5679,7 +5679,7 @@ describe('init memory', () => {
       { phase: '10', plan: '02', task: 1, total_tasks: 3, last_file: 'src/init.js', saved_at: '2026-02-21T08:00:00Z' },
     ]));
 
-    const result = runGsdTools('init memory', tmpDir);
+    const result = runGsdTools('init:memory', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5699,7 +5699,7 @@ describe('init memory', () => {
     fs.writeFileSync(path.join(codebaseDir, 'CONCERNS.md'), '# Concerns\nPerformance.');
 
     // execute-phase should load CONVENTIONS + ARCHITECTURE
-    const r1 = runGsdTools('init memory --workflow execute-phase', tmpDir);
+    const r1 = runGsdTools('init:memory --workflow execute-phase', tmpDir);
     assert.ok(r1.success, `Command failed: ${r1.error}`);
     const o1 = JSON.parse(r1.output);
     assert.ok(o1.codebase.sections_loaded.includes('CONVENTIONS.md'), 'execute-phase loads CONVENTIONS');
@@ -5707,14 +5707,14 @@ describe('init memory', () => {
     assert.ok(!o1.codebase.sections_loaded.includes('TESTING.md'), 'execute-phase does not load TESTING');
 
     // verify-work should load TESTING + CONVENTIONS
-    const r2 = runGsdTools('init memory --workflow verify-work', tmpDir);
+    const r2 = runGsdTools('init:memory --workflow verify-work', tmpDir);
     assert.ok(r2.success, `Command failed: ${r2.error}`);
     const o2 = JSON.parse(r2.output);
     assert.ok(o2.codebase.sections_loaded.includes('TESTING.md'), 'verify-work loads TESTING');
     assert.ok(o2.codebase.sections_loaded.includes('CONVENTIONS.md'), 'verify-work loads CONVENTIONS');
 
     // plan-phase should load ARCHITECTURE + STACK + CONCERNS
-    const r3 = runGsdTools('init memory --workflow plan-phase', tmpDir);
+    const r3 = runGsdTools('init:memory --workflow plan-phase', tmpDir);
     assert.ok(r3.success, `Command failed: ${r3.error}`);
     const o3 = JSON.parse(r3.output);
     assert.ok(o3.codebase.sections_loaded.includes('ARCHITECTURE.md'), 'plan-phase loads ARCHITECTURE');
@@ -5734,13 +5734,13 @@ describe('init memory', () => {
     fs.writeFileSync(path.join(memDir, 'decisions.json'), JSON.stringify(decisions));
 
     // Verbose mode: up to 10 decisions
-    const r1 = runGsdTools('init memory --verbose', tmpDir);
+    const r1 = runGsdTools('init:memory --verbose', tmpDir);
     assert.ok(r1.success, `Command failed: ${r1.error}`);
     const o1 = JSON.parse(r1.output);
     assert.strictEqual(o1.decisions.length, 10, 'verbose mode: 10 decisions');
 
     // Default (compact) mode: up to 5 decisions
-    const r2 = runGsdTools('init memory', tmpDir);
+    const r2 = runGsdTools('init:memory', tmpDir);
     assert.ok(r2.success, `Command failed: ${r2.error}`);
     const o2 = JSON.parse(r2.output);
     assert.ok(o2.decisions.length <= 5, 'compact mode: 5 or fewer decisions');
@@ -5765,7 +5765,7 @@ describe('init memory', () => {
 `;
     fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), stateContent);
 
-    const result = runGsdTools('init memory', tmpDir);
+    const result = runGsdTools('init:memory', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5801,7 +5801,7 @@ describe('memory compact', () => {
     }));
     fs.writeFileSync(path.join(memDir, 'decisions.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory compact --store decisions', tmpDir);
+    const result = runGsdTools('util:memory compact --store decisions', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5822,7 +5822,7 @@ describe('memory compact', () => {
     }));
     fs.writeFileSync(path.join(memDir, 'lessons.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory compact --store lessons', tmpDir);
+    const result = runGsdTools('util:memory compact --store lessons', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5842,7 +5842,7 @@ describe('memory compact', () => {
     }));
     fs.writeFileSync(path.join(memDir, 'bookmarks.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory compact --store bookmarks', tmpDir);
+    const result = runGsdTools('util:memory compact --store bookmarks', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5873,7 +5873,7 @@ describe('memory compact', () => {
     const originalJson = JSON.stringify(entries);
     fs.writeFileSync(path.join(memDir, 'bookmarks.json'), originalJson);
 
-    const result = runGsdTools('memory compact --store bookmarks --dry-run', tmpDir);
+    const result = runGsdTools('util:memory compact --store bookmarks --dry-run', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5910,7 +5910,7 @@ describe('memory compact', () => {
     }));
     fs.writeFileSync(path.join(memDir, 'lessons.json'), JSON.stringify(lessons));
 
-    const result = runGsdTools('memory compact', tmpDir);
+    const result = runGsdTools('util:memory compact', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5941,7 +5941,7 @@ describe('memory compact', () => {
     }
     fs.writeFileSync(path.join(memDir, 'todos.json'), JSON.stringify(todos));
 
-    const result = runGsdTools('memory compact --store todos', tmpDir);
+    const result = runGsdTools('util:memory compact --store todos', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -5999,13 +5999,13 @@ describe('memory compact', () => {
     fs.writeFileSync(path.join(memDir, 'bookmarks.json'), JSON.stringify(entries));
 
     // With default threshold (50), should not compact
-    const result1 = runGsdTools('memory compact --store bookmarks', tmpDir);
+    const result1 = runGsdTools('util:memory compact --store bookmarks', tmpDir);
     assert.ok(result1.success, `Command failed: ${result1.error}`);
     const output1 = JSON.parse(result1.output);
     assert.strictEqual(output1.summaries_created.bookmarks, 0, 'should not compact at default threshold');
 
     // With custom threshold of 20, should compact
-    const result2 = runGsdTools('memory compact --store bookmarks --threshold 20', tmpDir);
+    const result2 = runGsdTools('util:memory compact --store bookmarks --threshold 20', tmpDir);
     assert.ok(result2.success, `Command failed: ${result2.error}`);
     const output2 = JSON.parse(result2.output);
     assert.strictEqual(output2.compacted, true, 'should compact at custom threshold');
@@ -6106,7 +6106,7 @@ describe('memory trajectories', () => {
     ];
     fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store trajectories --category decision', tmpDir);
+    const result = runGsdTools('util:memory read --store trajectories --category decision', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.count, 2, 'should match 2 decision entries');
@@ -6124,13 +6124,13 @@ describe('memory trajectories', () => {
     fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
 
     // Single tag
-    const r1 = runGsdTools('memory read --store trajectories --tags perf', tmpDir);
+    const r1 = runGsdTools('util:memory read --store trajectories --tags perf', tmpDir);
     assert.ok(r1.success, `Command failed: ${r1.error}`);
     const o1 = JSON.parse(r1.output);
     assert.strictEqual(o1.count, 2, 'should match 2 entries with perf tag');
 
     // Multi-tag (AND logic)
-    const r2 = runGsdTools('memory read --store trajectories --tags perf,memory', tmpDir);
+    const r2 = runGsdTools('util:memory read --store trajectories --tags perf,memory', tmpDir);
     assert.ok(r2.success, `Command failed: ${r2.error}`);
     const o2 = JSON.parse(r2.output);
     assert.strictEqual(o2.count, 1, 'should match 1 entry with both perf AND memory');
@@ -6146,7 +6146,7 @@ describe('memory trajectories', () => {
     ];
     fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store trajectories --from 2026-01-01 --to 2026-12-31', tmpDir);
+    const result = runGsdTools('util:memory read --store trajectories --from 2026-01-01 --to 2026-12-31', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.count, 2, 'should match 2 entries in 2026');
@@ -6162,7 +6162,7 @@ describe('memory trajectories', () => {
     ];
     fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store trajectories', tmpDir);
+    const result = runGsdTools('util:memory read --store trajectories', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.entries[0].text, 'Third', 'newest entry should be first');
@@ -6179,7 +6179,7 @@ describe('memory trajectories', () => {
     ];
     fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory read --store trajectories --asc', tmpDir);
+    const result = runGsdTools('util:memory read --store trajectories --asc', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.entries[0].text, 'First', 'oldest entry should be first with --asc');
@@ -6193,7 +6193,7 @@ describe('memory trajectories', () => {
     assert.ok(writeResult.success, `Write failed: ${writeResult.error}`);
 
     // Read back (simulating new session — separate process invocation)
-    const readResult = runGsdTools('memory read --store trajectories', tmpDir);
+    const readResult = runGsdTools('util:memory read --store trajectories', tmpDir);
     assert.ok(readResult.success, `Read failed: ${readResult.error}`);
     const output = JSON.parse(readResult.output);
     assert.strictEqual(output.count, 1, 'entry should persist');
@@ -6230,7 +6230,7 @@ describe('memory trajectories', () => {
     }));
     fs.writeFileSync(path.join(memDir, 'trajectory.json'), JSON.stringify(entries));
 
-    const result = runGsdTools('memory compact --store trajectories', tmpDir);
+    const result = runGsdTools('util:memory compact --store trajectories', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.strictEqual(output.compacted, false, 'should not compact');
@@ -7368,20 +7368,20 @@ describe('integration: workflow sequences', () => {
 
   test('init → state → roadmap sequence', () => {
     // Step 1: init progress
-    const progressResult = runGsdTools('init progress --verbose', tmpDir);
+    const progressResult = runGsdTools('init:progress --verbose', tmpDir);
     assert.ok(progressResult.success, `init progress failed: ${progressResult.error}`);
     const progressData = JSON.parse(progressResult.output);
     assert.strictEqual(progressData.project_exists, true, 'project should exist');
     assert.ok(progressData.phase_count > 0, 'should have phases');
 
     // Step 2: state load
-    const stateResult = runGsdTools('state load', tmpDir);
+    const stateResult = runGsdTools('verify:state load', tmpDir);
     assert.ok(stateResult.success, `state load failed: ${stateResult.error}`);
     const stateData = JSON.parse(stateResult.output);
     assert.strictEqual(stateData.state_exists, true, 'state should exist');
 
     // Step 3: roadmap analyze
-    const roadmapResult = runGsdTools('roadmap analyze', tmpDir);
+    const roadmapResult = runGsdTools('plan:roadmap analyze', tmpDir);
     assert.ok(roadmapResult.success, `roadmap analyze failed: ${roadmapResult.error}`);
     const roadmapData = JSON.parse(roadmapResult.output);
     assert.ok(roadmapData.phase_count > 0, 'roadmap should have phases');
@@ -7389,19 +7389,19 @@ describe('integration: workflow sequences', () => {
 
   test('state mutation sequence: patch → get', () => {
     // Patch multiple fields (no --raw: returns JSON with updated/failed arrays)
-    const patchResult = runGsdTools('state patch --Phase "2 of 2" --Status "Planning"', tmpDir);
+    const patchResult = runGsdTools('verify:state patch --Phase "2 of 2" --Status "Planning"', tmpDir);
     assert.ok(patchResult.success, `state patch failed: ${patchResult.error}`);
     const patchData = JSON.parse(patchResult.output);
     assert.ok(patchData.updated.length > 0, 'should have updated fields');
     assert.deepStrictEqual(patchData.failed, [], 'no fields should fail');
 
     // Get back each field (no --raw: returns JSON object)
-    const phaseResult = runGsdTools('state get Phase', tmpDir);
+    const phaseResult = runGsdTools('verify:state get Phase', tmpDir);
     assert.ok(phaseResult.success, `state get Phase failed: ${phaseResult.error}`);
     const phaseData = JSON.parse(phaseResult.output);
     assert.strictEqual(phaseData.Phase, '2 of 2', 'Phase should be updated');
 
-    const statusResult = runGsdTools('state get Status', tmpDir);
+    const statusResult = runGsdTools('verify:state get Status', tmpDir);
     assert.ok(statusResult.success, `state get Status failed: ${statusResult.error}`);
     const statusData = JSON.parse(statusResult.output);
     assert.strictEqual(statusData.Status, 'Planning', 'Status should be updated');
@@ -7419,7 +7419,7 @@ describe('integration: workflow sequences', () => {
     assert.strictEqual(writeData.store, 'decisions', 'store name should match');
 
     // Read it back
-    const readResult = runGsdTools('memory read --store decisions', tmpDir);
+    const readResult = runGsdTools('util:memory read --store decisions', tmpDir);
     assert.ok(readResult.success, `memory read failed: ${readResult.error}`);
     const readData = JSON.parse(readResult.output);
     assert.ok(readData.count > 0, 'should have entries');
@@ -7427,7 +7427,7 @@ describe('integration: workflow sequences', () => {
     assert.ok(readData.entries.length > 0, 'entries array should not be empty');
 
     // List all stores
-    const listResult = runGsdTools('memory list', tmpDir);
+    const listResult = runGsdTools('util:memory list', tmpDir);
     assert.ok(listResult.success, `memory list failed: ${listResult.error}`);
     const listData = JSON.parse(listResult.output);
     assert.ok(listData.stores.length > 0, 'should have at least one store');
@@ -7476,7 +7476,7 @@ describe('integration: state round-trip', () => {
 
   test('full state lifecycle: patch fields, get each, add decision', () => {
     // Patch Phase, Plan, Status (no --raw: returns JSON with updated/failed)
-    const patchResult = runGsdTools('state patch --Phase "2 of 3" --Plan "02" --Status "Planning"', tmpDir);
+    const patchResult = runGsdTools('verify:state patch --Phase "2 of 3" --Plan "02" --Status "Planning"', tmpDir);
     assert.ok(patchResult.success, `state patch failed: ${patchResult.error}`);
     const patchData = JSON.parse(patchResult.output);
     assert.ok(patchData.updated.includes('Phase'), 'Phase should be updated');
@@ -7484,15 +7484,15 @@ describe('integration: state round-trip', () => {
     assert.ok(patchData.updated.includes('Status'), 'Status should be updated');
 
     // Get each back (no --raw: returns JSON object)
-    const phaseGet = runGsdTools('state get Phase', tmpDir);
+    const phaseGet = runGsdTools('verify:state get Phase', tmpDir);
     assert.ok(phaseGet.success);
     assert.strictEqual(JSON.parse(phaseGet.output).Phase, '2 of 3');
 
-    const planGet = runGsdTools('state get Plan', tmpDir);
+    const planGet = runGsdTools('verify:state get Plan', tmpDir);
     assert.ok(planGet.success);
     assert.strictEqual(JSON.parse(planGet.output).Plan, '02');
 
-    const statusGet = runGsdTools('state get Status', tmpDir);
+    const statusGet = runGsdTools('verify:state get Status', tmpDir);
     assert.ok(statusGet.success);
     assert.strictEqual(JSON.parse(statusGet.output).Status, 'Planning');
 
@@ -7681,7 +7681,7 @@ describe('integration: e2e simulation', () => {
     );
 
     // Step 1: init progress --verbose → verify project_exists
-    const progressResult = runGsdTools('init progress --verbose', tmpDir);
+    const progressResult = runGsdTools('init:progress --verbose', tmpDir);
     assert.ok(progressResult.success, `init progress failed: ${progressResult.error}`);
     const progressData = JSON.parse(progressResult.output);
     assert.strictEqual(progressData.project_exists, true, 'project should exist');
@@ -7733,7 +7733,7 @@ describe('integration: e2e simulation', () => {
     assert.strictEqual(bookmarkData.written, true, 'bookmark should be written');
 
     // Init memory → verify decisions and bookmark present
-    const memoryResult = runGsdTools('init memory', tmpDir);
+    const memoryResult = runGsdTools('init:memory', tmpDir);
     assert.ok(memoryResult.success, `init memory failed: ${memoryResult.error}`);
     const memoryData = JSON.parse(memoryResult.output);
 
@@ -7760,7 +7760,7 @@ describe('integration: snapshot tests', () => {
   const PROJECT_DIR = path.resolve(__dirname, '..');
 
   test('init progress output structure', () => {
-    const result = runGsdTools('init progress --verbose', PROJECT_DIR);
+    const result = runGsdTools('init:progress --verbose', PROJECT_DIR);
     assert.ok(result.success, `init progress failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -7776,7 +7776,7 @@ describe('integration: snapshot tests', () => {
   });
 
   test('init execute-phase output structure', () => {
-    const result = runGsdTools('init execute-phase 13', PROJECT_DIR);
+    const result = runGsdTools('init:execute-phase 13', PROJECT_DIR);
     const out = result.output || '';
     if (result.success && out.startsWith('{')) {
       const data = JSON.parse(out);
@@ -7790,7 +7790,7 @@ describe('integration: snapshot tests', () => {
   });
 
   test('init plan-phase output structure', () => {
-    const result = runGsdTools('init plan-phase 13', PROJECT_DIR);
+    const result = runGsdTools('init:plan-phase 13', PROJECT_DIR);
     const out = result.output || '';
     if (result.success && out.startsWith('{')) {
       const data = JSON.parse(out);
@@ -7802,7 +7802,7 @@ describe('integration: snapshot tests', () => {
   });
 
   test('state load output structure', () => {
-    const result = runGsdTools('state load', PROJECT_DIR);
+    const result = runGsdTools('verify:state load', PROJECT_DIR);
     assert.ok(result.success, `state load failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -7930,7 +7930,7 @@ describe('compact default behavior', () => {
   const PROJECT_DIR = path.resolve(__dirname, '..');
 
   test('default output is compact (no --compact needed)', () => {
-    const result = runGsdTools('init progress', PROJECT_DIR);
+    const result = runGsdTools('init:progress', PROJECT_DIR);
     assert.ok(result.success, `init progress failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -7944,7 +7944,7 @@ describe('compact default behavior', () => {
   });
 
   test('--verbose restores full output', () => {
-    const result = runGsdTools('init progress --verbose', PROJECT_DIR);
+    const result = runGsdTools('init:progress --verbose', PROJECT_DIR);
     assert.ok(result.success, `init progress --verbose failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -8829,7 +8829,7 @@ Test plan objective.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
         '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
 
-      const result = runGsdTools('init execute-phase 14', tmpDir);
+      const result = runGsdTools('init:execute-phase 14', tmpDir);
       assert.ok(result.success, `init execute-phase failed: ${result.error}`);
 
       const data = JSON.parse(result.output);
@@ -8882,7 +8882,7 @@ Test plan objective.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
         '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
 
-      const result = runGsdTools('init progress', tmpDir);
+      const result = runGsdTools('init:progress', tmpDir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.intent_summary, null, 'intent_summary should be null when no INTENT.md');
@@ -8897,7 +8897,7 @@ Test plan objective.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
         '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
 
-      const result = runGsdTools('init progress', tmpDir);
+      const result = runGsdTools('init:progress', tmpDir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -8921,7 +8921,7 @@ Test plan objective.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
         '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
 
-      const result = runGsdTools('init execute-phase 14', tmpDir);
+      const result = runGsdTools('init:execute-phase 14', tmpDir);
       assert.ok(result.success, `init execute-phase failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -8940,7 +8940,7 @@ Test plan objective.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
         '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
 
-      const result = runGsdTools('init plan-phase 14', tmpDir);
+      const result = runGsdTools('init:plan-phase 14', tmpDir);
       assert.ok(result.success, `init plan-phase failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -8960,7 +8960,7 @@ Test plan objective.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase', '14-01-PLAN.md'),
         '---\nphase: 14-first-phase\nplan: 01\ntype: execute\n---\n<objective>Test</objective>\n<tasks><task type="auto"><name>T1</name><action>A</action><verify>V</verify><done>D</done></task></tasks>', 'utf-8');
 
-      const result = runGsdTools('init plan-phase 14', tmpDir);
+      const result = runGsdTools('init:plan-phase 14', tmpDir);
       assert.ok(result.success, `init plan-phase failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -9171,7 +9171,7 @@ describe('env scan', () => {
 
   // Helper to run env scan on a directory
   function envScan(dir) {
-    return runGsdTools('env scan', dir || tmpDir);
+    return runGsdTools('util:env scan', dir || tmpDir);
   }
 
   // Helper to parse env scan output
@@ -9565,7 +9565,7 @@ describe('env scan', () => {
     test('env scan writes env-manifest.json when .planning/ exists', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
-      const result = runGsdTools('env scan --force', tmpDir);
+      const result = runGsdTools('util:env scan --force', tmpDir);
       assert.ok(result.success, `env scan failed: ${result.error}`);
       const manifestPath = path.join(tmpDir, '.planning', 'env-manifest.json');
       assert.ok(fs.existsSync(manifestPath), 'env-manifest.json should exist');
@@ -9577,7 +9577,7 @@ describe('env scan', () => {
 
     test('env scan does NOT write manifest when .planning/ does not exist', () => {
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
-      const result = runGsdTools('env scan --force', tmpDir);
+      const result = runGsdTools('util:env scan --force', tmpDir);
       assert.ok(result.success, `env scan failed: ${result.error}`);
       const manifestPath = path.join(tmpDir, '.planning', 'env-manifest.json');
       assert.ok(!fs.existsSync(manifestPath), 'env-manifest.json should NOT exist without .planning/');
@@ -9587,7 +9587,7 @@ describe('env scan', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
       fs.writeFileSync(path.join(tmpDir, 'package-lock.json'), '{}');
-      const result = runGsdTools('env scan --force', tmpDir);
+      const result = runGsdTools('util:env scan --force', tmpDir);
       assert.ok(result.success, `env scan failed: ${result.error}`);
       const profilePath = path.join(tmpDir, '.planning', 'project-profile.json');
       assert.ok(fs.existsSync(profilePath), 'project-profile.json should exist');
@@ -9601,7 +9601,7 @@ describe('env scan', () => {
     test('env scan creates .planning/.gitignore with env-manifest.json entry', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
-      runGsdTools('env scan --force', tmpDir);
+      runGsdTools('util:env scan --force', tmpDir);
       const gitignorePath = path.join(tmpDir, '.planning', '.gitignore');
       assert.ok(fs.existsSync(gitignorePath), '.planning/.gitignore should exist');
       const content = fs.readFileSync(gitignorePath, 'utf-8');
@@ -9612,7 +9612,7 @@ describe('env scan', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
       fs.writeFileSync(path.join(tmpDir, 'package-lock.json'), '{}');
-      const result = runGsdTools('env scan --force', tmpDir);
+      const result = runGsdTools('util:env scan --force', tmpDir);
       assert.ok(result.success);
       const data = JSON.parse(result.output);
       assert.ok(data.watched_files.includes('package.json'), 'watched should include package.json');
@@ -9626,11 +9626,11 @@ describe('env scan', () => {
       // Create .planning/ and run initial scan to create manifest
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
-      const scanResult = runGsdTools('env scan --force', tmpDir);
+      const scanResult = runGsdTools('util:env scan --force', tmpDir);
       assert.ok(scanResult.success, `initial scan failed: ${scanResult.error}`);
 
       // Check staleness via env status
-      const statusResult = runGsdTools('env status', tmpDir);
+      const statusResult = runGsdTools('util:env status', tmpDir);
       assert.ok(statusResult.success, `env status failed: ${statusResult.error}`);
       const status = JSON.parse(statusResult.output);
       assert.strictEqual(status.exists, true, 'manifest should exist');
@@ -9640,14 +9640,14 @@ describe('env scan', () => {
     test('staleness: touching a watched file makes manifest stale', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
-      runGsdTools('env scan --force', tmpDir);
+      runGsdTools('util:env scan --force', tmpDir);
 
       // Touch the watched file (update mtime to future)
       const pkgPath = path.join(tmpDir, 'package.json');
       const futureTime = Date.now() + 5000;
       fs.utimesSync(pkgPath, futureTime / 1000, futureTime / 1000);
 
-      const statusResult = runGsdTools('env status', tmpDir);
+      const statusResult = runGsdTools('util:env status', tmpDir);
       assert.ok(statusResult.success);
       const status = JSON.parse(statusResult.output);
       assert.strictEqual(status.stale, true, 'should be stale after touching watched file');
@@ -9657,7 +9657,7 @@ describe('env scan', () => {
 
     test('staleness: missing manifest reports stale with reason no_manifest', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
-      const statusResult = runGsdTools('env status', tmpDir);
+      const statusResult = runGsdTools('util:env status', tmpDir);
       assert.ok(statusResult.success);
       const status = JSON.parse(statusResult.output);
       assert.strictEqual(status.exists, false, 'manifest should not exist');
@@ -9670,7 +9670,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
 
       // Initial scan
-      runGsdTools('env scan --force', tmpDir);
+      runGsdTools('util:env scan --force', tmpDir);
       const firstManifest = JSON.parse(
         fs.readFileSync(path.join(tmpDir, '.planning', 'env-manifest.json'), 'utf-8')
       );
@@ -9679,7 +9679,7 @@ describe('env scan', () => {
       const origTime = firstManifest.scanned_at;
 
       // Force rescan (even though manifest is fresh)
-      const forceResult = runGsdTools('env scan --force', tmpDir);
+      const forceResult = runGsdTools('util:env scan --force', tmpDir);
       assert.ok(forceResult.success, `force scan failed: ${forceResult.error}`);
       const secondManifest = JSON.parse(
         fs.readFileSync(path.join(tmpDir, '.planning', 'env-manifest.json'), 'utf-8')
@@ -9694,7 +9694,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
 
       // Initial scan
-      runGsdTools('env scan --force', tmpDir);
+      runGsdTools('util:env scan --force', tmpDir);
 
       // Touch file to make stale
       const pkgPath = path.join(tmpDir, 'package.json');
@@ -9702,24 +9702,24 @@ describe('env scan', () => {
       fs.utimesSync(pkgPath, futureTime / 1000, futureTime / 1000);
 
       // Verify stale
-      const statusBefore = JSON.parse(runGsdTools('env status', tmpDir).output);
+      const statusBefore = JSON.parse(runGsdTools('util:env status', tmpDir).output);
       assert.strictEqual(statusBefore.stale, true, 'should be stale before rescan');
 
       // Run scan WITHOUT --force — should auto-rescan since stale
-      const rescanResult = runGsdTools('env scan', tmpDir);
+      const rescanResult = runGsdTools('util:env scan', tmpDir);
       assert.ok(rescanResult.success, `auto-rescan failed: ${rescanResult.error}`);
 
       // After auto-rescan, manifest should be fresh again
-      const statusAfter = JSON.parse(runGsdTools('env status', tmpDir).output);
+      const statusAfter = JSON.parse(runGsdTools('util:env status', tmpDir).output);
       assert.strictEqual(statusAfter.stale, false, 'manifest should be fresh after auto-rescan');
     });
 
     test('env status returns correct structure', () => {
       fs.mkdirSync(path.join(tmpDir, '.planning'));
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
-      runGsdTools('env scan --force', tmpDir);
+      runGsdTools('util:env scan --force', tmpDir);
 
-      const result = runGsdTools('env status', tmpDir);
+      const result = runGsdTools('util:env status', tmpDir);
       assert.ok(result.success);
       const status = JSON.parse(result.output);
       assert.strictEqual(typeof status.exists, 'boolean');
@@ -9736,13 +9736,13 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}');
 
       // Initial scan
-      runGsdTools('env scan --force', tmpDir);
+      runGsdTools('util:env scan --force', tmpDir);
       const firstManifest = JSON.parse(
         fs.readFileSync(path.join(tmpDir, '.planning', 'env-manifest.json'), 'utf-8')
       );
 
       // Second scan without changes — should exit early (manifest unchanged)
-      const secondResult = runGsdTools('env scan', tmpDir);
+      const secondResult = runGsdTools('util:env scan', tmpDir);
       assert.ok(secondResult.success, `idempotent scan failed: ${secondResult.error}`);
       const secondOutput = JSON.parse(secondResult.output);
       // Should return the existing manifest data (same scanned_at)
@@ -9782,7 +9782,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), '# Roadmap\n## Milestones\n- 🔵 v1.0\n## Phases\n');
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.ok(data.env_summary, 'should have env_summary');
@@ -9801,7 +9801,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), '# Roadmap\n## Milestones\n- 🔵 v1.0\n## Phases\n');
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
       // In verbose mode, null env_summary is omitted (trimmed) to reduce tokens
@@ -9825,7 +9825,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), '# Roadmap\n## Milestones\n- 🔵 v1.0\n## Phases\n');
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
       // In verbose mode, null env_summary is omitted (trimmed) to reduce tokens
@@ -9854,7 +9854,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), '# Roadmap\n## Milestones\n- 🔵 v1.0\n## Phases\n');
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.ok(data.env_summary, 'should have env_summary');
@@ -9883,7 +9883,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), '# Roadmap\n## Milestones\n- 🔵 v1.0\n## Phases\n');
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.ok(data.env_summary, 'should have env_summary');
@@ -9902,7 +9902,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
       // No env-manifest.json exists yet
       assert.ok(!fs.existsSync(path.join(dir, '.planning', 'env-manifest.json')), 'manifest should not exist before');
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       // After init, manifest should have been created
       assert.ok(fs.existsSync(path.join(dir, '.planning', 'env-manifest.json')), 'manifest should be auto-created after init');
@@ -9920,10 +9920,10 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
       // First: create manifest via env scan
-      runGsdTools('env scan --force', dir);
+      runGsdTools('util:env scan --force', dir);
       const firstManifest = JSON.parse(fs.readFileSync(path.join(dir, '.planning', 'env-manifest.json'), 'utf-8'));
       // Second: init progress should use existing (fresh) manifest
-      const result = runGsdTools('init progress --verbose', dir);
+      const result = runGsdTools('init:progress --verbose', dir);
       assert.ok(result.success, `init progress failed: ${result.error}`);
       const secondManifest = JSON.parse(fs.readFileSync(path.join(dir, '.planning', 'env-manifest.json'), 'utf-8'));
       assert.strictEqual(secondManifest.scanned_at, firstManifest.scanned_at,
@@ -9940,7 +9940,7 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'STATE.md'), '# Project State\n## Current Position\n**Phase:** 1\n**Status:** Executing');
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
       fs.writeFileSync(path.join(dir, '.planning', 'config.json'), '{}');
-      const result = runGsdTools('init execute-phase 1 --verbose', dir);
+      const result = runGsdTools('init:execute-phase 1 --verbose', dir);
       assert.ok(result.success, `init execute-phase failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.ok(data.env_summary !== undefined, 'should have env_summary field');
@@ -9951,8 +9951,8 @@ describe('env scan', () => {
       const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-envstatus-'));
       fs.mkdirSync(path.join(dir, '.planning'));
       fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"test-status"}');
-      runGsdTools('env scan --force', dir);
-      const result = runGsdTools('env status', dir);
+      runGsdTools('util:env scan --force', dir);
+      const result = runGsdTools('util:env status', dir);
       assert.ok(result.success, `env status failed: ${result.error}`);
       const status = JSON.parse(result.output);
       assert.strictEqual(typeof status.exists, 'boolean');
@@ -9976,19 +9976,19 @@ describe('env scan', () => {
       fs.writeFileSync(path.join(dir, '.planning', 'MILESTONES.md'), '# Milestones\n- 🔵 v1.0 — Test');
 
       // Step 1: Run env scan
-      const scanResult = runGsdTools('env scan --force', dir);
+      const scanResult = runGsdTools('util:env scan --force', dir);
       assert.ok(scanResult.success, `scan failed: ${scanResult.error}`);
       assert.ok(fs.existsSync(path.join(dir, '.planning', 'env-manifest.json')), 'manifest should exist');
 
       // Step 2: Verify env status reports fresh
-      const statusResult = runGsdTools('env status', dir);
+      const statusResult = runGsdTools('util:env status', dir);
       assert.ok(statusResult.success);
       const status = JSON.parse(statusResult.output);
       assert.strictEqual(status.stale, false, 'manifest should be fresh');
       assert.ok(status.languages_count >= 2, 'should detect at least 2 languages');
 
       // Step 3: init progress should include Tools line
-      const progressResult = runGsdTools('init progress --verbose', dir);
+      const progressResult = runGsdTools('init:progress --verbose', dir);
       assert.ok(progressResult.success, `progress failed: ${progressResult.error}`);
       const progressData = JSON.parse(progressResult.output);
       assert.ok(progressData.env_summary, 'should have env_summary');
@@ -10329,7 +10329,7 @@ describe('mcp-profile', () => {
       const origHome = process.env.HOME;
       process.env.HOME = tmpDir;
       try {
-        const result = runGsdTools('mcp profile', tmpDir);
+        const result = runGsdTools('util:mcp profile', tmpDir);
         assert.ok(result.success, `mcp profile failed: ${result.error}`);
         const data = JSON.parse(result.output);
         assert.strictEqual(data.server_count, 1, 'should find 1 server via mcp profile');
@@ -10827,7 +10827,7 @@ describe('assertions commands', () => {
 
   test('parseAssertionsMd with sample content returns 3 requirements', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
-    const result = runGsdTools('assertions list', tmpDir);
+    const result = runGsdTools('verify:assertions list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.total_requirements, 3, 'should have 3 requirements');
@@ -10836,7 +10836,7 @@ describe('assertions commands', () => {
 
   test('assertions list counts must-have and nice-to-have correctly', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
-    const result = runGsdTools('assertions list', tmpDir);
+    const result = runGsdTools('verify:assertions list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.must_have_count, 4, 'should have 4 must-have');
@@ -10845,7 +10845,7 @@ describe('assertions commands', () => {
 
   test('assertions list --req filters to specific requirement', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
-    const result = runGsdTools('assertions list --req SREQ-01', tmpDir);
+    const result = runGsdTools('verify:assertions list --req SREQ-01', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.total_requirements, 1, 'should have 1 requirement');
@@ -10856,7 +10856,7 @@ describe('assertions commands', () => {
 
   test('assertions list preserves when/then/type fields', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
-    const result = runGsdTools('assertions list', tmpDir);
+    const result = runGsdTools('verify:assertions list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
     const sreq01 = data.requirements['SREQ-01'];
@@ -10867,7 +10867,7 @@ describe('assertions commands', () => {
   });
 
   test('assertions list with missing ASSERTIONS.md returns soft error', () => {
-    const result = runGsdTools('assertions list', tmpDir);
+    const result = runGsdTools('verify:assertions list', tmpDir);
     assert.ok(result.success, `Command should not crash: ${result.error}`);
     assert.ok(result.output.includes('ASSERTIONS.md not found') || result.output.includes('error'), 'should report not found');
   });
@@ -10875,7 +10875,7 @@ describe('assertions commands', () => {
   test('assertions validate reports valid for well-formed content', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
     fs.writeFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), SAMPLE_REQUIREMENTS);
-    const result = runGsdTools('assertions validate', tmpDir);
+    const result = runGsdTools('verify:assertions validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     assert.ok(result.output.includes('valid'), 'should be valid');
   });
@@ -10893,7 +10893,7 @@ describe('assertions commands', () => {
   priority: must-have
 `;
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), badContent);
-    const result = runGsdTools('assertions validate', tmpDir);
+    const result = runGsdTools('verify:assertions validate', tmpDir);
     assert.ok(result.success, `Command should not crash: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.valid, false, 'should be invalid');
@@ -10914,7 +10914,7 @@ describe('assertions commands', () => {
   priority: must-have
 `;
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), badContent);
-    const result = runGsdTools('assertions validate', tmpDir);
+    const result = runGsdTools('verify:assertions validate', tmpDir);
     assert.ok(result.success, `Command should not crash: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.valid, false, 'should be invalid');
@@ -10934,7 +10934,7 @@ describe('assertions commands', () => {
 `;
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), content);
     fs.writeFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), SAMPLE_REQUIREMENTS);
-    const result = runGsdTools('assertions validate', tmpDir);
+    const result = runGsdTools('verify:assertions validate', tmpDir);
     assert.ok(result.success, `Command should not crash: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.ok(data.issues.some(i => i.issue.includes('not found in REQUIREMENTS.md')), 'should warn about unknown req');
@@ -10943,7 +10943,7 @@ describe('assertions commands', () => {
   test('assertions validate computes coverage percent', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
     fs.writeFileSync(path.join(tmpDir, '.planning', 'REQUIREMENTS.md'), SAMPLE_REQUIREMENTS);
-    const result = runGsdTools('assertions validate', tmpDir);
+    const result = runGsdTools('verify:assertions validate', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
     // SAMPLE_ASSERTIONS has 3 reqs (SREQ-01, SREQ-03, ENV-01), REQUIREMENTS has 6 (SREQ-01-05 + ENV-01)
@@ -10953,14 +10953,14 @@ describe('assertions commands', () => {
   });
 
   test('assertions validate with missing ASSERTIONS.md returns soft error', () => {
-    const result = runGsdTools('assertions validate', tmpDir);
+    const result = runGsdTools('verify:assertions validate', tmpDir);
     assert.ok(result.success, `Command should not crash: ${result.error}`);
     assert.ok(result.output.includes('ASSERTIONS.md not found') || result.output.includes('error'), 'should report not found');
   });
 
   test('parseAssertionsMd handles empty content gracefully', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), '# Empty\n\nNo assertions here.\n');
-    const result = runGsdTools('assertions list', tmpDir);
+    const result = runGsdTools('verify:assertions list', tmpDir);
     assert.ok(result.success, `Command should not crash: ${result.error}`);
     const data = JSON.parse(result.output);
     assert.strictEqual(data.total_requirements, 0, 'should have 0 requirements');
@@ -10969,7 +10969,7 @@ describe('assertions commands', () => {
 
   test('assertions list rawValue has correct format', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'ASSERTIONS.md'), SAMPLE_ASSERTIONS);
-    const result = runGsdTools('assertions list', tmpDir);
+    const result = runGsdTools('verify:assertions list', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     // In piped mode, output is JSON with structured assertion data
     const data = JSON.parse(result.output);
@@ -12268,7 +12268,7 @@ Stopped at: N/A
   test('worktree fields present when enabled', () => {
     createGitProject();
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12338,7 +12338,7 @@ Stopped at: N/A
 
     execSync('git add . && git commit -m "init"', { cwd: tmpDir, stdio: 'pipe' });
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12381,7 +12381,7 @@ files_modified:
 
     execSync('git add . && git commit -m "add plans"', { cwd: tmpDir, stdio: 'pipe' });
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12419,7 +12419,7 @@ files_modified:
 
     execSync('git add . && git commit -m "add plans"', { cwd: tmpDir, stdio: 'pipe' });
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12444,7 +12444,7 @@ wave: 1
     const createResult = runGsdTools('worktree create 21-01', tmpDir);
     assert.ok(createResult.success, `Worktree create failed: ${createResult.error}`);
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12457,7 +12457,7 @@ wave: 1
   test('init graceful when worktree base_path does not exist yet', () => {
     createGitProject({ base_path: '/tmp/gsd-wt-nonexistent-test-dir-' + Date.now() });
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command should succeed even with non-existent base_path: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12468,7 +12468,7 @@ wave: 1
   test('config max_concurrent surfaces in init output', () => {
     createGitProject({ max_concurrent: 7 });
 
-    const result = runGsdTools('init execute-phase 21 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 21 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const data = JSON.parse(result.output);
 
@@ -12675,7 +12675,7 @@ describe('codebase intelligence', () => {
 
   describe('codebase analyze', () => {
     test('codebase analyze --raw succeeds on a project with source files', () => {
-      const result = runGsdTools('codebase analyze', tmpDir);
+      const result = runGsdTools('util:codebase analyze', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
 
       const data = JSON.parse(result.output);
@@ -12685,14 +12685,14 @@ describe('codebase intelligence', () => {
     });
 
     test('codebase analyze creates codebase-intel.json', () => {
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
       assert.ok(fs.existsSync(intelPath), 'codebase-intel.json should exist after analyze');
     });
 
     test('intel JSON has required fields', () => {
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
       const intel = JSON.parse(fs.readFileSync(intelPath, 'utf-8'));
@@ -12709,13 +12709,13 @@ describe('codebase intelligence', () => {
 
     test('running analyze twice — second run reports incremental or cached mode', () => {
       // First run: full
-      const first = runGsdTools('codebase analyze', tmpDir);
+      const first = runGsdTools('util:codebase analyze', tmpDir);
       assert.ok(first.success, `First run failed: ${first.error}`);
       const firstData = JSON.parse(first.output);
       assert.strictEqual(firstData.mode, 'full');
 
       // Second run: should be cached (no changes)
-      const second = runGsdTools('codebase analyze', tmpDir);
+      const second = runGsdTools('util:codebase analyze', tmpDir);
       assert.ok(second.success, `Second run failed: ${second.error}`);
       const secondData = JSON.parse(second.output);
       assert.strictEqual(secondData.mode, 'cached', 'Second run with no changes should be cached');
@@ -12723,10 +12723,10 @@ describe('codebase intelligence', () => {
 
     test('codebase analyze --full forces full analysis', () => {
       // First run
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Second run with --full: should force full mode
-      const result = runGsdTools('codebase analyze --full', tmpDir);
+      const result = runGsdTools('util:codebase analyze --full', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.mode, 'full', '--full should force full mode');
@@ -12739,16 +12739,16 @@ describe('codebase intelligence', () => {
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
       try { fs.unlinkSync(intelPath); } catch (e) { /* may not exist */ }
 
-      const result = runGsdTools('codebase status', tmpDir);
+      const result = runGsdTools('util:codebase status', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.exists, false);
     });
 
     test('codebase status after analyze returns exists: true, stale: false', () => {
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
-      const result = runGsdTools('codebase status', tmpDir);
+      const result = runGsdTools('util:codebase status', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.exists, true);
@@ -12756,13 +12756,13 @@ describe('codebase intelligence', () => {
     });
 
     test('after modifying a tracked file, status returns stale: true', () => {
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Modify a file and commit (git config already set in createCodebaseProject)
       fs.writeFileSync(path.join(tmpDir, 'src', 'index.js'), 'const x = 2;\nconst y = 3;\nmodule.exports = { x, y };\n');
       execSync('git add -A && git commit -m "modify file"', { cwd: tmpDir, stdio: 'pipe' });
 
-      const result = runGsdTools('codebase status', tmpDir);
+      const result = runGsdTools('util:codebase status', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.exists, true);
@@ -12773,13 +12773,13 @@ describe('codebase intelligence', () => {
   describe('incremental analysis', () => {
     test('after modifying one file, analyze reports incremental mode', () => {
       // Full analysis first
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Modify one file and commit (git config already set in createCodebaseProject)
       fs.writeFileSync(path.join(tmpDir, 'src', 'utils.js'), 'function helper() { return false; }\nfunction extra() { return 1; }\nmodule.exports = { helper, extra };\n');
       execSync('git add -A && git commit -m "modify utils"', { cwd: tmpDir, stdio: 'pipe' });
 
-      const result = runGsdTools('codebase analyze', tmpDir);
+      const result = runGsdTools('util:codebase analyze', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.mode, 'incremental', 'Should use incremental mode after single file change');
@@ -12790,20 +12790,20 @@ describe('codebase intelligence', () => {
   describe('error handling', () => {
     test('codebase analyze on directory with .planning handles gracefully', () => {
       // .planning already exists in our test project, this should work fine
-      const result = runGsdTools('codebase analyze', tmpDir);
+      const result = runGsdTools('util:codebase analyze', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
     });
 
     test('corrupt codebase-intel.json triggers full rescan', () => {
       // First analyze to create valid intel
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Corrupt the intel file
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
       fs.writeFileSync(intelPath, '{ invalid json !!!');
 
       // Analyze again — should handle gracefully (full rescan)
-      const result = runGsdTools('codebase analyze', tmpDir);
+      const result = runGsdTools('util:codebase analyze', tmpDir);
       assert.ok(result.success, `Command should handle corrupt intel: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.mode, 'full', 'Should fall back to full mode on corrupt intel');
@@ -12818,9 +12818,9 @@ describe('codebase intelligence', () => {
       fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan\n');
 
       // Run analyze first so intel exists
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
-      const result = runGsdTools('init execute-phase 01 --verbose', tmpDir);
+      const result = runGsdTools('init:execute-phase 01 --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.ok(data.codebase_stats, 'Should include codebase_stats field');
@@ -12838,7 +12838,7 @@ describe('codebase intelligence', () => {
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
       try { fs.unlinkSync(intelPath); } catch (e) { /* may not exist */ }
 
-      const result = runGsdTools('init execute-phase 01 --verbose', tmpDir);
+      const result = runGsdTools('init:execute-phase 01 --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       // codebase fields should be null or undefined (trimmed from verbose output)
@@ -12849,9 +12849,9 @@ describe('codebase intelligence', () => {
 
     test('init progress includes codebase_intel_exists flag', () => {
       // Run analyze first
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
-      const result = runGsdTools('init progress --verbose', tmpDir);
+      const result = runGsdTools('init:progress --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
       assert.strictEqual(data.codebase_intel_exists, true, 'Should report codebase_intel_exists: true');
@@ -12861,9 +12861,9 @@ describe('codebase intelligence', () => {
   describe('phase 26: init context summary', () => {
     test('three-field summary format — codebase_stats has confidence', () => {
       // Run analyze to populate intel
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
-      const result = runGsdTools('init progress --verbose', tmpDir);
+      const result = runGsdTools('init:progress --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -12877,10 +12877,10 @@ describe('codebase intelligence', () => {
 
     test('convention field present when conventions data exists', () => {
       // Run analyze + conventions to populate data
-      runGsdTools('codebase analyze', tmpDir);
-      runGsdTools('codebase conventions', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
+      runGsdTools('util:codebase conventions', tmpDir);
 
-      const result = runGsdTools('init progress --verbose', tmpDir);
+      const result = runGsdTools('init:progress --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -12891,10 +12891,10 @@ describe('codebase intelligence', () => {
 
     test('dependencies field present when deps data exists', () => {
       // Run analyze + deps to populate data
-      runGsdTools('codebase analyze', tmpDir);
-      runGsdTools('codebase deps', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
+      runGsdTools('util:codebase deps', tmpDir);
 
-      const result = runGsdTools('init progress --verbose', tmpDir);
+      const result = runGsdTools('init:progress --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -12906,7 +12906,7 @@ describe('codebase intelligence', () => {
 
     test('null handling — stats exist but no conventions/deps data', () => {
       // Only run analyze (no conventions/deps)
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Read intel and verify no conventions/dependencies keys
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
@@ -12916,7 +12916,7 @@ describe('codebase intelligence', () => {
       delete intel.dependencies;
       fs.writeFileSync(intelPath, JSON.stringify(intel, null, 2) + '\n');
 
-      const result = runGsdTools('init progress --verbose', tmpDir);
+      const result = runGsdTools('init:progress --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -12929,7 +12929,7 @@ describe('codebase intelligence', () => {
 
     test('hybrid staleness — time-based detection', () => {
       // Run analyze first
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Modify intel to have old generated_at but matching git hash
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
@@ -12939,7 +12939,7 @@ describe('codebase intelligence', () => {
       intel.generated_at = twoHoursAgo;
       fs.writeFileSync(intelPath, JSON.stringify(intel, null, 2) + '\n');
 
-      const result = runGsdTools('codebase status', tmpDir);
+      const result = runGsdTools('util:codebase status', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -12949,7 +12949,7 @@ describe('codebase intelligence', () => {
 
     test('lock file prevents concurrent background triggers', () => {
       // Run analyze first
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Create a fresh lock file manually
       const cacheDir = path.join(tmpDir, '.planning', '.cache');
@@ -12965,7 +12965,7 @@ describe('codebase intelligence', () => {
       fs.writeFileSync(intelPath, JSON.stringify(intel, null, 2) + '\n');
 
       // Run init progress (triggers autoTriggerCodebaseIntel which should see lock and skip)
-      runGsdTools('init progress --verbose', tmpDir);
+      runGsdTools('init:progress --verbose', tmpDir);
 
       // Verify lock file PID hasn't changed (no new spawn happened)
       const lockContent = fs.readFileSync(lockPath, 'utf-8');
@@ -12974,7 +12974,7 @@ describe('codebase intelligence', () => {
 
     test('stale lock file gets cleaned up', () => {
       // Run analyze first
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Create a stale lock file (mtime > 5 minutes old)
       const cacheDir = path.join(tmpDir, '.planning', '.cache');
@@ -12992,7 +12992,7 @@ describe('codebase intelligence', () => {
       fs.writeFileSync(intelPath, JSON.stringify(intel, null, 2) + '\n');
 
       // Run init progress — stale lock should be cleaned up
-      runGsdTools('init progress --verbose', tmpDir);
+      runGsdTools('init:progress --verbose', tmpDir);
 
       // Lock file should be different (either new PID or cleaned up)
       if (fs.existsSync(lockPath)) {
@@ -13004,7 +13004,7 @@ describe('codebase intelligence', () => {
 
     test('--refresh forces synchronous analysis with fresh data', () => {
       // Run analyze to create initial intel
-      runGsdTools('codebase analyze', tmpDir);
+      runGsdTools('util:codebase analyze', tmpDir);
 
       // Read current intel timestamp
       const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
@@ -13016,7 +13016,7 @@ describe('codebase intelligence', () => {
       fs.writeFileSync(intelPath, JSON.stringify(oldIntel, null, 2) + '\n');
 
       // Run init progress with --refresh — should force synchronous re-analysis
-      const result = runGsdTools('init progress --refresh --verbose', tmpDir);
+      const result = runGsdTools('init:progress --refresh --verbose', tmpDir);
       assert.ok(result.success, `Command failed: ${result.error}`);
       const data = JSON.parse(result.output);
 
@@ -13068,8 +13068,8 @@ describe('codebase conventions', () => {
       'package.json': '{"name":"test"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
-    const result = runGsdTools('codebase conventions --all', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    const result = runGsdTools('util:codebase conventions --all', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13094,8 +13094,8 @@ describe('codebase conventions', () => {
       'package.json': '{"name":"test"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
-    const result = runGsdTools('codebase conventions', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    const result = runGsdTools('util:codebase conventions', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13120,8 +13120,8 @@ describe('codebase conventions', () => {
     files['src/myComponent.js'] = '';
     tmpDir = createConventionProject(files);
 
-    runGsdTools('codebase analyze', tmpDir);
-    const result = runGsdTools('codebase conventions --all', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    const result = runGsdTools('util:codebase conventions --all', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13145,11 +13145,11 @@ describe('codebase conventions', () => {
       'package.json': '{"name":"test"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
     // Run conventions first to populate intel
-    runGsdTools('codebase conventions', tmpDir);
+    runGsdTools('util:codebase conventions', tmpDir);
 
-    const result = runGsdTools('codebase rules', tmpDir);
+    const result = runGsdTools('util:codebase rules', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13182,10 +13182,10 @@ describe('codebase conventions', () => {
     }
     tmpDir = createConventionProject(files);
 
-    runGsdTools('codebase analyze', tmpDir);
-    runGsdTools('codebase conventions --all', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    runGsdTools('util:codebase conventions --all', tmpDir);
 
-    const result = runGsdTools('codebase rules', tmpDir);
+    const result = runGsdTools('util:codebase rules', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13199,9 +13199,9 @@ describe('codebase conventions', () => {
       'package.json': '{"name":"test"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
 
-    const result = runGsdTools('codebase rules', tmpDir);
+    const result = runGsdTools('util:codebase rules', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     // In piped mode, output is JSON with rules_text for plain text rendering
@@ -13534,7 +13534,7 @@ describe('codebase context', () => {
   // with dependency graph and conventions data from prior phases.
 
   test('basic output structure: success, files, file_count', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13545,7 +13545,7 @@ describe('codebase context', () => {
   });
 
   test('per-file fields present: imports, dependents, risk_level, relevance_score', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13558,7 +13558,7 @@ describe('codebase context', () => {
   });
 
   test('no-data stub for nonexistent file', () => {
-    const result = runGsdTools('codebase context --files nonexistent-file-12345.js');
+    const result = runGsdTools('util:codebase context --files nonexistent-file-12345.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13569,7 +13569,7 @@ describe('codebase context', () => {
   });
 
   test('imports capped at 8', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13579,7 +13579,7 @@ describe('codebase context', () => {
   });
 
   test('dependents capped at 8', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13593,7 +13593,7 @@ describe('codebase context', () => {
     // We test the logic by constructing a scenario description,
     // but actually test through the CLI for integration confidence.
     // The real test: request the output and verify risk_level is a valid value.
-    const result = runGsdTools('codebase context --files src/lib/output.js');
+    const result = runGsdTools('util:codebase context --files src/lib/output.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13605,7 +13605,7 @@ describe('codebase context', () => {
 
   test('risk level: file with few dependents returns "normal"', () => {
     // src/lib/frontmatter.js is a utility with limited dependents
-    const result = runGsdTools('codebase context --files src/lib/frontmatter.js');
+    const result = runGsdTools('util:codebase context --files src/lib/frontmatter.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13616,7 +13616,7 @@ describe('codebase context', () => {
   });
 
   test('relevance score: target file gets score 1.0', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13627,7 +13627,7 @@ describe('codebase context', () => {
 
   test('relevance score: --plan flag provides plan-scope signal', () => {
     // Request with --plan pointing to a plan file
-    const result = runGsdTools('codebase context --files src/commands/codebase.js --plan .planning/milestones/v5.0-phases/27-task-scoped-context/27-02-PLAN.md');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js --plan .planning/milestones/v5.0-phases/27-task-scoped-context/27-02-PLAN.md');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13636,7 +13636,7 @@ describe('codebase context', () => {
   });
 
   test('token budget respected: 10+ files output under 20K chars', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js src/lib/deps.js src/lib/conventions.js src/lib/context.js src/lib/git.js src/lib/frontmatter.js src/lib/output.js src/lib/helpers.js src/lib/config.js src/router.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js src/lib/deps.js src/lib/conventions.js src/lib/context.js src/lib/git.js src/lib/frontmatter.js src/lib/output.js src/lib/helpers.js src/lib/config.js src/router.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const charCount = result.output.length;
@@ -13644,7 +13644,7 @@ describe('codebase context', () => {
   });
 
   test('truncation flag is boolean', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13652,7 +13652,7 @@ describe('codebase context', () => {
   });
 
   test('usage error when no files provided', () => {
-    const result = runGsdTools('codebase context');
+    const result = runGsdTools('util:codebase context');
     // Should fail or output error
     assert.ok(!result.success || result.error.includes('Usage'), 'Should show usage error when no files provided');
   });
@@ -13670,7 +13670,7 @@ describe('codebase context', () => {
   });
 
   test('conventions field: either null or has naming property', () => {
-    const result = runGsdTools('codebase context --files src/commands/codebase.js');
+    const result = runGsdTools('util:codebase context --files src/commands/codebase.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13887,11 +13887,11 @@ describe('codebase lifecycle', () => {
     });
 
     // First run analyze to populate intel
-    const analyzeResult = runGsdTools('codebase analyze', tmpDir);
+    const analyzeResult = runGsdTools('util:codebase analyze', tmpDir);
     assert.ok(analyzeResult.success, `codebase analyze failed: ${analyzeResult.error}`);
 
     // Now run lifecycle
-    const result = runGsdTools('codebase lifecycle', tmpDir);
+    const result = runGsdTools('util:codebase lifecycle', tmpDir);
     assert.ok(result.success, `codebase lifecycle failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13913,8 +13913,8 @@ describe('codebase lifecycle', () => {
       'package.json': '{"name":"test-lifecycle"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
-    const result = runGsdTools('codebase lifecycle', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    const result = runGsdTools('util:codebase lifecycle', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13931,8 +13931,8 @@ describe('codebase lifecycle', () => {
       'package.json': '{"name":"test-no-lifecycle"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
-    const result = runGsdTools('codebase lifecycle', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    const result = runGsdTools('util:codebase lifecycle', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
@@ -13947,8 +13947,8 @@ describe('codebase lifecycle', () => {
       'package.json': '{"name":"test-cache"}\n',
     });
 
-    runGsdTools('codebase analyze', tmpDir);
-    runGsdTools('codebase lifecycle', tmpDir);
+    runGsdTools('util:codebase analyze', tmpDir);
+    runGsdTools('util:codebase lifecycle', tmpDir);
 
     // Read the intel file and verify lifecycle was cached
     const intelPath = path.join(tmpDir, '.planning', 'codebase', 'codebase-intel.json');
@@ -13968,7 +13968,7 @@ describe('codebase lifecycle', () => {
     });
 
     // Do NOT run analyze first — lifecycle should handle missing intel
-    const result = runGsdTools('codebase lifecycle', tmpDir);
+    const result = runGsdTools('util:codebase lifecycle', tmpDir);
     // Should either fail or produce an error message about missing intel
     assert.ok(!result.success || result.error.includes('intel'), 'Should fail or warn about missing intel');
   });
@@ -14568,7 +14568,7 @@ type: execute
   afterEach(() => { cleanup(tmpDir); });
 
   test('init phase-op output matches snapshot', () => {
-    const result = runGsdTools('init phase-op 1 --verbose', tmpDir);
+    const result = runGsdTools('init:phase-op 1 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const actual = JSON.parse(result.output);
 
@@ -14665,7 +14665,7 @@ describe('contract: init plan-phase fields', () => {
   afterEach(() => { cleanup(tmpDir); });
 
   test('init plan-phase has required fields', () => {
-    const result = runGsdTools('init plan-phase 1 --verbose', tmpDir);
+    const result = runGsdTools('init:plan-phase 1 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const actual = JSON.parse(result.output);
 
@@ -14685,7 +14685,7 @@ describe('contract: init plan-phase fields', () => {
   });
 
   test('adding new field to plan-phase does not break contract', () => {
-    const result = runGsdTools('init plan-phase 1 --verbose', tmpDir);
+    const result = runGsdTools('init:plan-phase 1 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const actual = JSON.parse(result.output);
 
@@ -14713,7 +14713,7 @@ describe('contract: init new-project fields', () => {
   afterEach(() => { cleanup(tmpDir); });
 
   test('init new-project has required fields', () => {
-    const result = runGsdTools('init new-project', tmpDir);
+    const result = runGsdTools('init:new-project', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const actual = JSON.parse(result.output);
 
@@ -14746,7 +14746,7 @@ describe('contract: init execute-phase fields', () => {
   afterEach(() => { cleanup(tmpDir); });
 
   test('init execute-phase has required fields', () => {
-    const result = runGsdTools('init execute-phase 1 --verbose', tmpDir);
+    const result = runGsdTools('init:execute-phase 1 --verbose', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const actual = JSON.parse(result.output);
 
@@ -14831,7 +14831,7 @@ describe('contract: init progress fields', () => {
   afterEach(() => { cleanup(tmpDir); });
 
   test('init progress has required fields', () => {
-    const result = runGsdTools('init progress', tmpDir);
+    const result = runGsdTools('init:progress', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const actual = JSON.parse(result.output);
 
@@ -15353,7 +15353,7 @@ module.exports = { formatDate, parseQuery };
   });
 
   test('repo map returns summary string with file entries', () => {
-    const result = runGsdTools('codebase repo-map --raw', tmpDir);
+    const result = runGsdTools('util:codebase repo-map --raw', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
@@ -15365,7 +15365,7 @@ module.exports = { formatDate, parseQuery };
   });
 
   test('repo map token_estimate is roughly within budget', () => {
-    const result = runGsdTools('codebase repo-map --budget 2000 --raw', tmpDir);
+    const result = runGsdTools('util:codebase repo-map --budget 2000 --raw', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
@@ -15374,7 +15374,7 @@ module.exports = { formatDate, parseQuery };
   });
 
   test('repo map includes source files with signatures', () => {
-    const result = runGsdTools('codebase repo-map --raw', tmpDir);
+    const result = runGsdTools('util:codebase repo-map --raw', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
@@ -15387,8 +15387,8 @@ module.exports = { formatDate, parseQuery };
   });
 
   test('repo map --budget flag controls output size', () => {
-    const bigResult = runGsdTools('codebase repo-map --budget 5000 --raw', tmpDir);
-    const smallResult = runGsdTools('codebase repo-map --budget 100 --raw', tmpDir);
+    const bigResult = runGsdTools('util:codebase repo-map --budget 5000 --raw', tmpDir);
+    const smallResult = runGsdTools('util:codebase repo-map --budget 100 --raw', tmpDir);
 
     assert.ok(bigResult.success, `Big budget failed: ${bigResult.error}`);
     assert.ok(smallResult.success, `Small budget failed: ${smallResult.error}`);
@@ -15407,7 +15407,7 @@ module.exports = { formatDate, parseQuery };
 
 describe('codebase repo-map integration', () => {
   test('repo-map on gsd-tools project produces valid JSON with files > 0', () => {
-    const result = runGsdTools('codebase repo-map --raw');
+    const result = runGsdTools('util:codebase repo-map --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
@@ -15785,7 +15785,7 @@ describe('orchestration: classify phase CLI', () => {
 
 describe('orchestration: init execute-phase integration', () => {
   test('init execute-phase on incomplete phase includes task_routing field', () => {
-    const result = runGsdTools('init execute-phase 39 --raw');
+    const result = runGsdTools('init:execute-phase 39 --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
@@ -15993,7 +15993,7 @@ describe('agent manifests: compactDepGraph', () => {
 
 describe('agent manifests: init --agent integration', () => {
   test('init execute-phase --agent=gsd-executor returns scoped output', () => {
-    const result = runGsdTools('init execute-phase 38 --agent=gsd-executor --raw');
+    const result = runGsdTools('init:execute-phase 38 --agent=gsd-executor --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
@@ -16006,8 +16006,8 @@ describe('agent manifests: init --agent integration', () => {
   });
 
   test('init execute-phase --agent=gsd-verifier returns fewer fields than executor', () => {
-    const execResult = runGsdTools('init execute-phase 38 --agent=gsd-executor --raw');
-    const verResult = runGsdTools('init execute-phase 38 --agent=gsd-verifier --raw');
+    const execResult = runGsdTools('init:execute-phase 38 --agent=gsd-executor --raw');
+    const verResult = runGsdTools('init:execute-phase 38 --agent=gsd-verifier --raw');
     assert.ok(execResult.success && verResult.success);
 
     const exec = JSON.parse(execResult.output);
@@ -16091,7 +16091,7 @@ describe('buildTaskContext: unit tests', () => {
 
 describe('buildTaskContext: integration tests (CLI)', () => {
   test('codebase context --task returns JSON with context_files and stats', () => {
-    const result = runGsdTools('codebase context --task src/lib/output.js --raw');
+    const result = runGsdTools('util:codebase context --task src/lib/output.js --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
     const parsed = JSON.parse(result.output);
     assert.ok(parsed.success, 'Should return success');
@@ -16104,8 +16104,8 @@ describe('buildTaskContext: integration tests (CLI)', () => {
   });
 
   test('codebase context --task with --budget respects budget, fewer files', () => {
-    const fullResult = runGsdTools('codebase context --task src/lib/output.js --raw');
-    const budgetResult = runGsdTools('codebase context --task src/lib/output.js --budget 200 --raw');
+    const fullResult = runGsdTools('util:codebase context --task src/lib/output.js --raw');
+    const budgetResult = runGsdTools('util:codebase context --task src/lib/output.js --budget 200 --raw');
     assert.ok(fullResult.success && budgetResult.success);
     const full = JSON.parse(fullResult.output);
     const constrained = JSON.parse(budgetResult.output);
@@ -16114,7 +16114,7 @@ describe('buildTaskContext: integration tests (CLI)', () => {
   });
 
   test('stats.reduction_pct > 0 proves context was reduced vs all candidates', () => {
-    const result = runGsdTools('codebase context --task src/lib/output.js --budget 1000 --raw');
+    const result = runGsdTools('util:codebase context --task src/lib/output.js --budget 1000 --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
     const parsed = JSON.parse(result.output);
     // With budget constraint of 1000, if there are many candidates, reduction should be > 0
@@ -16126,7 +16126,7 @@ describe('buildTaskContext: integration tests (CLI)', () => {
   test('quality baseline: known task includes direct deps and importers', () => {
     // src/lib/codebase-intel.js imports src/lib/output.js, src/lib/git.js, src/lib/helpers.js
     // So testing codebase-intel.js should find its deps in context
-    const result = runGsdTools('codebase context --task src/lib/codebase-intel.js --raw');
+    const result = runGsdTools('util:codebase context --task src/lib/codebase-intel.js --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
     const parsed = JSON.parse(result.output);
     const paths = parsed.context_files.map(f => f.path);
@@ -17825,7 +17825,7 @@ describe('trajectory init integration (INTEG-02)', () => {
       }
     ]);
 
-    const result = runGsdTools('init execute-phase 10', tmpDir);
+    const result = runGsdTools('init:execute-phase 10', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     assert.ok(output.previous_attempts !== null && output.previous_attempts !== undefined, 'previous_attempts should be present');
@@ -17841,7 +17841,7 @@ describe('trajectory init integration (INTEG-02)', () => {
     fs.mkdirSync(phaseDir, { recursive: true });
     fs.writeFileSync(path.join(phaseDir, '10-01-PLAN.md'), '---\nphase: 10-test-phase\nplan: 01\n---\n# Plan');
 
-    const result = runGsdTools('init execute-phase 10', tmpDir);
+    const result = runGsdTools('init:execute-phase 10', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
     const output = JSON.parse(result.output);
     // previous_attempts should be null or absent (trimmed from verbose output)
