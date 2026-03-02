@@ -192,7 +192,7 @@ Plans:
 **Plans:** 3/3 plans
 
 Plans:
-- [ ] 53-01-PLAN.md — RACI matrix document and agent audit command
+- [x] 53-01-PLAN.md — RACI matrix document and agent audit command
 - [ ] 53-02-PLAN.md — Merge integration-checker into verifier, synthesizer into roadmapper
 - [ ] 53-03-PLAN.md — Token budgets in manifests and workflow reference updates
 
