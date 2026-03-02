@@ -7,8 +7,29 @@ const { cachedRegex, PHASE_DIR_NUMBER } = require('./regex-cache');
 
 // ─── File Helpers ────────────────────────────────────────────────────────────
 
-/** Module-level file cache — lives for single CLI invocation, no TTL needed */
-const fileCache = new Map();
+/** Lazy-loaded persistent cache engine */
+let _cacheEngine = null;
+
+function getCacheEngine() {
+  if (!_cacheEngine) {
+    try {
+      const { CacheEngine } = require('./cache');
+      _cacheEngine = new CacheEngine();
+    } catch (e) {
+      debugLog('cache', 'failed to load CacheEngine, using in-memory fallback', e);
+      // Return a simple fallback object
+      _cacheEngine = {
+        get: () => null,
+        set: () => {},
+        invalidate: () => {},
+        clear: () => {},
+        status: () => ({ backend: 'fallback', count: 0, hits: 0, misses: 0 }),
+        warm: () => 0
+      };
+    }
+  }
+  return _cacheEngine;
+}
 
 /** Module-level directory listing cache — avoids redundant readdirSync calls */
 const dirCache = new Map();
@@ -23,18 +44,24 @@ function safeReadFile(filePath) {
 }
 
 /**
- * Cached wrapper around safeReadFile. Returns cached content on repeated reads
- * of the same path within a single CLI invocation. Use safeReadFile directly
- * when you need a guaranteed fresh read.
+ * Cached wrapper around safeReadFile using persistent CacheEngine.
+ * CacheEngine handles staleness detection via mtime comparison.
+ * Use safeReadFile directly when you need a guaranteed fresh read.
  */
 function cachedReadFile(filePath) {
-  if (fileCache.has(filePath)) {
+  const cacheEngine = getCacheEngine();
+  
+  // Try to get from persistent cache (CacheEngine checks staleness via mtime)
+  const cached = cacheEngine.get(filePath);
+  if (cached !== null) {
     debugLog('file.cache', `cache hit: ${filePath}`);
-    return fileCache.get(filePath);
+    return cached;
   }
+  
+  // Cache miss or stale - read fresh and populate cache
   const content = safeReadFile(filePath);
   if (content !== null) {
-    fileCache.set(filePath, content);
+    cacheEngine.set(filePath, content);
   }
   return content;
 }
@@ -44,10 +71,11 @@ function cachedReadFile(filePath) {
  * Call after writing a file to ensure subsequent reads get fresh content.
  */
 function invalidateFileCache(filePath) {
+  const cacheEngine = getCacheEngine();
   if (filePath) {
-    fileCache.delete(filePath);
+    cacheEngine.invalidate(filePath);
   } else {
-    fileCache.clear();
+    cacheEngine.clear();
   }
 }
 
