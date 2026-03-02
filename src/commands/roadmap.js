@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { normalizePhaseName, cachedReadFile, findPhaseInternal, getPhaseTree } = require('../lib/helpers');
+const { normalizePhaseName, cachedReadFile, findPhaseInternal, getPhaseTree, invalidateFileCache } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 
 // ─── Roadmap Commands ────────────────────────────────────────────────────────
@@ -281,6 +281,7 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
   }
 
   fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+  invalidateFileCache(roadmapPath);
 
   output({
     updated: true,
