@@ -1462,7 +1462,8 @@ Research infrastructure commands.
 Subcommands:
   capabilities    Report available research tools, tier, and recommendations
   yt-search       Search YouTube via yt-dlp with filtering and quality scoring
-  yt-transcript   Extract clean plain-text transcript from YouTube video`,
+  yt-transcript   Extract clean plain-text transcript from YouTube video
+  collect         Orchestrate multi-source collection pipeline with tier degradation`,
       "research capabilities": `Usage: gsd-tools research capabilities
 
 Report available research tools, current degradation tier, and recommendations.
@@ -1566,7 +1567,67 @@ Examples:
   gsd-tools research:yt-transcript dQw4w9WgXcQ
   gsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   gsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
-  gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`
+  gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+      "research collect": `Usage: gsd-tools research collect "topic" [options]
+
+Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --quick            Bypass pipeline entirely, return tier 4 with empty sources
+
+Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
+
+Tiers:
+  1 \u2014 Full RAG (all tools + NotebookLM synthesis)
+  2 \u2014 Sources without synthesis (YouTube + MCP, LLM synthesizes)
+  3 \u2014 Brave/Context7 only (web search, no video)
+  4 \u2014 Pure LLM (no external sources)
+
+Pipeline stages:
+  [1/3] Web sources via Brave Search API (util:websearch subprocess)
+  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
+  [3/3] Context7 availability note (MCP \u2014 agent accesses directly)
+
+agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
+At Tier 4 (--quick or no tools), agent_context is empty string.
+
+Examples:
+  gsd-tools research collect "nodejs subprocess patterns"
+  gsd-tools research:collect --quick "test query"
+  gsd-tools research:collect "react hooks" --pretty`,
+      "research:collect": `Usage: gsd-tools research:collect "topic" [options]
+
+Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --quick            Bypass pipeline entirely, return tier 4 with empty sources
+
+Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
+
+Tiers:
+  1 \u2014 Full RAG (all tools + NotebookLM synthesis)
+  2 \u2014 Sources without synthesis (YouTube + MCP, LLM synthesizes)
+  3 \u2014 Brave/Context7 only (web search, no video)
+  4 \u2014 Pure LLM (no external sources)
+
+Pipeline stages:
+  [1/3] Web sources via Brave Search API (util:websearch subprocess)
+  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
+  [3/3] Context7 availability note (MCP \u2014 agent accesses directly)
+
+agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
+At Tier 4 (--quick or no tools), agent_context is empty string.
+
+Examples:
+  gsd-tools research:collect "nodejs subprocess patterns"
+  gsd-tools research:collect --quick "test query"
+  gsd-tools research:collect "react hooks" --pretty`
     };
     module2.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
@@ -19725,7 +19786,7 @@ var require_research = __commonJS({
     var { execFileSync } = require("child_process");
     var { checkBinary } = require_env();
     var { loadConfig } = require_config();
-    var { output: output2, debugLog } = require_output();
+    var { output: output2, status, debugLog } = require_output();
     var { banner, sectionHeader, formatTable, color, SYMBOLS, truncate } = require_format();
     var TIER_DEFINITIONS = [
       { number: 1, name: "Full RAG", description: "All tools available \u2014 YouTube + MCP + NotebookLM synthesis" },
@@ -19905,9 +19966,9 @@ var require_research = __commonJS({
         if (info.configured && info.enabled) statusIcon = color.green(SYMBOLS.check);
         else if (info.configured && !info.enabled) statusIcon = color.yellow(SYMBOLS.warning);
         else statusIcon = color.red(SYMBOLS.cross);
-        const status = info.configured ? info.enabled ? "enabled" : "disabled" : "not configured";
+        const status2 = info.configured ? info.enabled ? "enabled" : "disabled" : "not configured";
         const match = info.name_match || color.dim("\u2014");
-        return [statusIcon, id, status, match];
+        return [statusIcon, id, status2, match];
       });
       lines.push(formatTable(["", "Server", "Status", "Config Key"], mcpRows));
       if (data.warning) {
@@ -20388,7 +20449,210 @@ var require_research = __commonJS({
         }
       }
     }
-    module2.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, parseVtt };
+    function collectWebSources(cwd, query, config, timeout) {
+      try {
+        const stdout = execFileSync(process.execPath, [
+          process.argv[1],
+          "util:websearch",
+          query,
+          "--limit",
+          "5"
+        ], { encoding: "utf-8", timeout, stdio: "pipe", cwd });
+        const data = JSON.parse(stdout);
+        if (data.results && Array.isArray(data.results)) {
+          return data.results.map((r) => ({
+            type: "web",
+            title: r.title || "",
+            url: r.url || "",
+            snippet: r.description || "",
+            source: "brave_search"
+          }));
+        }
+        return [];
+      } catch (err) {
+        debugLog("research.collect", `collectWebSources failed: ${err.message}`);
+        return [];
+      }
+    }
+    function collectYouTubeSources(cwd, query, config, timeout) {
+      try {
+        const searchStdout = execFileSync(process.execPath, [
+          process.argv[1],
+          "research:yt-search",
+          query,
+          "--count",
+          "3"
+        ], { encoding: "utf-8", timeout, stdio: "pipe", cwd });
+        const searchData = JSON.parse(searchStdout);
+        if (!searchData.results || searchData.results.length === 0) {
+          return [];
+        }
+        const sources = searchData.results.map((r) => ({
+          type: "youtube",
+          title: r.title || "",
+          url: r.url || "",
+          channel: r.channel || "",
+          duration: r.duration,
+          quality_score: r.quality_score,
+          source: "yt-dlp",
+          transcript: null
+        }));
+        const topVideo = searchData.results[0];
+        if (topVideo && topVideo.id) {
+          try {
+            const transcriptStdout = execFileSync(process.execPath, [
+              process.argv[1],
+              "research:yt-transcript",
+              topVideo.id
+            ], { encoding: "utf-8", timeout, stdio: "pipe", cwd });
+            const transcriptData = JSON.parse(transcriptStdout);
+            if (transcriptData.has_subtitles && transcriptData.transcript) {
+              sources[0].transcript = transcriptData.transcript;
+            }
+          } catch (err) {
+            debugLog("research.collect", `transcript fetch failed for ${topVideo.id}: ${err.message}`);
+          }
+        }
+        return sources;
+      } catch (err) {
+        debugLog("research.collect", `collectYouTubeSources failed: ${err.message}`);
+        return [];
+      }
+    }
+    function escapeXmlAttr(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function truncateTranscript(text, maxChars) {
+      if (!text) return "";
+      maxChars = maxChars || 3e3;
+      if (text.length <= maxChars) return text;
+      const truncated = text.slice(0, maxChars);
+      const lastSpace = truncated.lastIndexOf(" ");
+      const cutPoint = lastSpace > 0 ? lastSpace : maxChars;
+      return text.slice(0, cutPoint) + "\n[...transcript truncated]";
+    }
+    function formatSourcesForAgent(sources, query) {
+      if (!sources || sources.length === 0) return "";
+      const lines = [];
+      lines.push("<collected_sources>");
+      lines.push(`<research_query>${escapeXmlAttr(query)}</research_query>`);
+      for (const src of sources) {
+        if (src.type === "youtube") {
+          lines.push(`<source type="youtube" title="${escapeXmlAttr(src.title)}" url="${escapeXmlAttr(src.url)}" channel="${escapeXmlAttr(src.channel)}">`);
+          if (src.transcript) {
+            lines.push(truncateTranscript(src.transcript));
+          } else {
+            lines.push(`[Video: ${escapeXmlAttr(src.title)} \u2014 transcript unavailable]`);
+          }
+          lines.push("</source>");
+        } else {
+          lines.push(`<source type="web" title="${escapeXmlAttr(src.title)}" url="${escapeXmlAttr(src.url)}">`);
+          lines.push(src.snippet || "");
+          lines.push("</source>");
+        }
+      }
+      lines.push("</collected_sources>");
+      return lines.join("\n");
+    }
+    function formatCollect(data) {
+      const lines = [];
+      lines.push(banner("Research Collection"));
+      lines.push("");
+      const tierColor = data.tier <= 2 ? color.green : data.tier === 3 ? color.yellow : color.red;
+      lines.push(color.bold("Tier: ") + tierColor(`${data.tier} \u2014 ${data.tier_name}`));
+      if (data.skipped) {
+        lines.push(color.dim(`Skipped: ${data.skipped}`));
+        return lines.join("\n");
+      }
+      lines.push("");
+      if (data.sources && data.sources.length > 0) {
+        const rows = data.sources.map((s) => {
+          const typeIcon = s.type === "youtube" ? color.red("YT") : color.blue("WEB");
+          return [typeIcon, truncate(s.title || "", 50), s.source || ""];
+        });
+        lines.push(formatTable(["Type", "Title", "Source"], rows));
+      } else {
+        lines.push(color.dim("No sources collected"));
+      }
+      if (data.timing) {
+        lines.push("");
+        const webSec = data.timing.web_ms ? (data.timing.web_ms / 1e3).toFixed(1) + "s" : "\u2014";
+        const ytSec = data.timing.youtube_ms ? (data.timing.youtube_ms / 1e3).toFixed(1) + "s" : "\u2014";
+        const totalSec = data.timing.total_ms ? (data.timing.total_ms / 1e3).toFixed(1) + "s" : "\u2014";
+        lines.push(color.dim(`Timing: web ${webSec} | youtube ${ytSec} | total ${totalSec}`));
+      }
+      return lines.join("\n");
+    }
+    function cmdResearchCollect(cwd, args, raw) {
+      const config = loadConfig(cwd);
+      const ragEnabled = config.rag_enabled !== false;
+      const quick = args.includes("--quick");
+      if (quick || !ragEnabled) {
+        const result2 = {
+          tier: 4,
+          tier_name: "Pure LLM",
+          query: args.filter((a) => !a.startsWith("--")).join(" ").trim() || "",
+          skipped: quick ? "quick_flag" : "rag_disabled",
+          source_count: 0,
+          sources: [],
+          timing: { web_ms: 0, youtube_ms: 0, total_ms: 0 },
+          agent_context: ""
+        };
+        output2(result2, { formatter: formatCollect, raw });
+        return;
+      }
+      const cliTools = detectCliTools(cwd);
+      const mcpServers = detectMcpServers(cwd);
+      const tier = calculateTier(cliTools, mcpServers, ragEnabled);
+      const flagValues = /* @__PURE__ */ new Set();
+      for (let i = 0; i < args.length; i++) {
+        if (args[i].startsWith("--") && i + 1 < args.length && !args[i + 1].startsWith("--")) {
+          flagValues.add(args[i + 1]);
+        }
+      }
+      const query = args.filter((a) => !a.startsWith("--")).filter((a) => !flagValues.has(a)).join(" ").trim();
+      if (!query) {
+        const result2 = { error: "Missing search query", usage: 'research:collect "topic" [--quick]' };
+        output2(result2, { formatter: formatCollect, raw });
+        return;
+      }
+      const stageTimeout = Math.max(5e3, Math.floor((config.rag_timeout || 30) * 1e3 / 2));
+      const allSources = [];
+      const timing = {};
+      const pipelineStart = Date.now();
+      status("[1/3] Collecting web sources...");
+      const webStart = Date.now();
+      const webSources = collectWebSources(cwd, query, config, stageTimeout);
+      timing.web_ms = Date.now() - webStart;
+      allSources.push(...webSources);
+      if (cliTools["yt-dlp"] && cliTools["yt-dlp"].available) {
+        status("[2/3] Searching YouTube...");
+        const ytStart = Date.now();
+        const ytSources = collectYouTubeSources(cwd, query, config, stageTimeout);
+        timing.youtube_ms = Date.now() - ytStart;
+        allSources.push(...ytSources);
+      } else {
+        status("[2/3] YouTube: skipped (yt-dlp not installed)");
+        timing.youtube_ms = 0;
+      }
+      timing.context7_available = !!(mcpServers["context7"] && mcpServers["context7"].configured && mcpServers["context7"].enabled);
+      status("[3/3] Context7: available to agent directly via MCP");
+      timing.total_ms = Date.now() - pipelineStart;
+      const agent_context = formatSourcesForAgent(allSources, query);
+      status(`Research collection complete: ${allSources.length} sources, Tier ${tier.number} (${timing.total_ms}ms)`);
+      const result = {
+        tier: tier.number,
+        tier_name: tier.name,
+        query,
+        source_count: allSources.length,
+        sources: allSources,
+        timing,
+        agent_context
+      };
+      output2(result, { formatter: formatCollect, raw });
+    }
+    module2.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, cmdResearchCollect, collectWebSources, collectYouTubeSources, formatSourcesForAgent, parseVtt };
   }
 });
 
@@ -27645,7 +27909,7 @@ var require_router = __commonJS({
         });
       }
       if (!command) {
-        error("Usage: gsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript>");
+        error("Usage: gsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript|collect>");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -28211,8 +28475,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
               lazyResearch().cmdResearchYtSearch(cwd, restArgs, raw);
             } else if (subCmd === "yt-transcript") {
               lazyResearch().cmdResearchYtTranscript(cwd, restArgs, raw);
+            } else if (subCmd === "collect") {
+              lazyResearch().cmdResearchCollect(cwd, restArgs, raw);
             } else {
-              error("Unknown research subcommand. Available: capabilities, yt-search, yt-transcript");
+              error("Unknown research subcommand. Available: capabilities, yt-search, yt-transcript, collect");
             }
             break;
           }
