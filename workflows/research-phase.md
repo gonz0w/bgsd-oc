@@ -64,6 +64,8 @@ AGENT_CONTEXT=$(echo "$COLLECT_OUTPUT" | jq -r '.agent_context // ""')
 - If `TIER == 4` OR `AGENT_CONTEXT` is empty: use the existing prompt unchanged. **Do NOT inject empty tags or error messages.** This ensures zero regression — the researcher works exactly as before when no tools are available.
 - If `research:collect` fails entirely (command not found, JSON parse error): treat as tier 4 — no sources injected, researcher proceeds normally.
 
+**Tier 1 note:** At Tier 1 (Full RAG — all tools available), `agent_context` includes `<nlm_synthesis>` with NotebookLM-grounded analysis alongside raw sources. The existing conditional injection (`if TIER < 4 AND AGENT_CONTEXT is non-empty`) already handles Tier 1 output — the synthesis block appears before raw sources so the researcher sees grounded analysis first, then raw sources for verification. When NotebookLM is unavailable or auth fails, the pipeline falls back silently to Tier 2 (sources without synthesis).
+
 ## Step 4: Spawn Researcher
 
 ```
