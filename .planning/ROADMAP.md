@@ -224,7 +224,11 @@ Plans:
 
 **Research needed:** Yes — optimal source-to-LLM feeding format for Tier 2 (how to structure YouTube transcripts + web results as agent input)
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 58-01-PLAN.md — research:collect pipeline command with source collectors, tier-aware orchestration, and agent_context formatting
+- [ ] 58-02-PLAN.md — Agent workflow integration and zero-regression verification
 
 ### Phase 59: notebooklm-integration
 
