@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Phase 55 — Profiler & Performance Validation
+**Current focus:** v8.0 complete — ready for next milestone
 
 ## Current Position
 
 Phase: 55 of 55 (Profiler & Performance Validation)
 Plan: 2 of 2 in current phase
-Status: Plan complete
-Last activity: 2026-03-03 — Completed quick task 5: Fix all docs to rename /gsd-* → /bgsd-*
+Status: Milestone complete
+Last activity: 2026-03-03 — Completed v8.0 milestone (Performance & Agent Architecture)
 
-Progress: [██████████████████████████████████████] 100% (v8.0)
+Progress: [██████████████████████████████████████] 100% (v8.0 SHIPPED)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 112 (v1.0-v7.1)
+- Total plans completed: 126 (v1.0-v8.0)
 - Average duration: ~15 min/plan
 - Total execution time: ~27 hours
 
@@ -36,7 +36,7 @@ Progress: [███████████████████████
 | v6.0 | 7 | 11 | 1 day |
 | v7.0 | 8 | 15 | 2 days |
 | v7.1 | 6 | 12 | 3 days |
-| v8.0 | 5 | TBD | — |
+| v8.0 | 5 | 14 | 3 days |
 | Phase 51-cache-foundation P02 | 5min | 3 tasks | 4 files |
 | Phase 51-cache-foundation P03 | 10min | 3 tasks | 3 files |
 | Phase 52-cache-integration P02 | 5min | 4 tasks | 3 files |
@@ -95,5 +95,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Quick task 5 complete (all docs renamed /gsd-* to /bgsd-*)
-Next step: v8.0 milestone complete
+Stopped at: v8.0 milestone archived and tagged
+Next step: /bgsd-new-milestone (after /clear)

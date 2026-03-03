@@ -11,7 +11,7 @@
 - ✅ **v6.0 UX & Developer Experience** — Phases 30-36 (shipped 2026-02-27)
 - ✅ **v7.0 Agent Orchestration & Efficiency** — Phases 37-44 (shipped 2026-02-27)
 - ✅ **v7.1 Trajectory Engineering** — Phases 45-50 (shipped 2026-03-02)
-- 🚧 **v8.0 Performance & Agent Architecture** — Phases 51-55 (2/2 plans complete in Phase 55)
+- ✅ **v8.0 Performance & Agent Architecture** — Phases 51-55 (shipped 2026-03-03)
 
 ## Phases
 
@@ -137,99 +137,20 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
 
 </details>
 
-### 🚧 v8.0 Performance & Agent Architecture (In Progress)
+<details>
+<summary>v8.0 Performance & Agent Architecture (Phases 51-55) -- SHIPPED 2026-03-03</summary>
 
-**Milestone Goal:** Make every agent do one thing well, eliminate overlap and gaps across the product lifecycle, and dramatically reduce execution time through caching, context optimization, and command consolidation.
+- [x] Phase 51: Cache Foundation (3/3 plans) -- completed 2026-03-02
+- [x] Phase 52: Cache Integration & Warm-up (2/2 plans) -- completed 2026-03-02
+- [x] Phase 53: Agent Consolidation (3/3 plans) -- completed 2026-03-02
+- [x] Phase 54: Command Consolidation (4/4 plans) -- completed 2026-03-02
+- [x] Phase 55: Profiler & Performance Validation (2/2 plans) -- completed 2026-03-02
 
-- [x] **Phase 51: Cache Foundation** - SQLite cache module with staleness detection, write invalidation, and graceful degradation (3/3 plans, completed 2026-03-02)
-- [x] **Phase 52: Cache Integration & Warm-up** - Wire cache into hot paths, add warm command, prove test parity (2/2 plans, ready to execute)
-- [x] **Phase 53: Agent Consolidation** - RACI matrix, agent merges, manifest-driven context, token budgets, lifecycle audit (completed 2026-03-02)
-- [x] **Phase 54: Command Consolidation** - Namespace grouping, reference updates, milestone docs generation (completed 2026-03-02)
-- [x] **Phase 55: Profiler & Performance Validation** - Hot-path instrumentation, baseline comparison, prove speedup (2/2 plans)
+Full details: `.planning/milestones/v8.0-ROADMAP.md`
 
-## Phase Details
-
-### Phase 51: Cache Foundation
-**Goal**: Persistent read cache exists as a correct, self-contained module with proven correctness guarantees
-**Depends on**: Nothing (first phase of v8.0)
-**Requirements**: CACHE-01, CACHE-02, CACHE-03, CACHE-04
-**Success Criteria** (what must be TRUE):
-  1. `gsd-tools cache status` reports cache backend (SQLite or Map fallback) and entry count
-  2. Cached reads return identical content to direct filesystem reads for every file in `.planning/`
-  3. Editing a `.planning/` file and immediately reading it via gsd-tools returns the updated content (never stale)
-  4. Running on Node <22.5 produces identical behavior to Node ≥22.5 — no crashes, no warnings, Map fallback transparent
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 51-01-PLAN.md — Create CacheEngine class with SQLite/Map backend
-- [x] 51-02-PLAN.md — Add cache CLI commands and integrate into cachedReadFile
-- [x] 51-03-PLAN.md — Add cache invalidation to phase.js and roadmap.js (CACHE-03 gap closure)
-
-### Phase 52: Cache Integration & Warm-up
-**Goal**: Cache is wired into all hot-path file readers and users can pre-populate it
-**Depends on**: Phase 51
-**Requirements**: CACHE-05
-**Success Criteria** (what must be TRUE):
-  1. `gsd-tools cache warm` populates cache for all `.planning/` files and reports count and timing
-  2. All 751+ tests pass identically with cache enabled AND with cache disabled (forced fallback)
-  3. Second invocation of `gsd-tools init execute-phase` is measurably faster than first (cache hit vs miss)
-**Plans**: 2/2 plans complete
-
-Plans:
-- [x] 52-01-PLAN.md — Cache warm auto-discovery and --no-cache flag
-- [x] 52-02-PLAN.md — Hot-path wiring and test parity verification
-
-### Phase 53: Agent Consolidation
-**Goal**: Every lifecycle step maps to exactly one agent with no overlap, no gaps, and deterministic context loading
-**Depends on**: Nothing (independent of cache work)
-**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, AGENT-05
-**Success Criteria** (what must be TRUE):
-  1. RACI matrix document exists mapping every product lifecycle step to exactly one responsible agent
-  2. Running `gsd-tools agent audit` reports zero gaps and zero overlaps across all lifecycle steps
-  3. Agent count is 9 (down from 11) — integration-checker merged into verifier, synthesizer merged into roadmapper
-  4. Agent manifests declare max token budgets and context builder refuses to exceed them (logged warning on truncation)
-  5. All workflows and command wrappers reference correct agent names — no broken spawn chains
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 53-01-PLAN.md — RACI matrix document and agent audit command
-- [x] 53-02-PLAN.md — Merge integration-checker into verifier, synthesizer into roadmapper
-- [x] 53-03-PLAN.md — Token budgets in manifests and workflow reference updates
-
-### Phase 54: Command Consolidation
-**Goal**: CLI commands are organized under logical namespaces with zero orphan commands
-**Depends on**: Nothing (independent of cache and agent work)
-**Requirements**: CMD-01, CMD-02, CMD-03
-**Success Criteria** (what must be TRUE):
-  1. Top-level command count reduced — orphan commands grouped under namespaced parents (e.g., `cache status`, `session summary`)
-  2. All tests, workflows, and agent prompts reference new command names — no references to old names remain
-   3. Milestone wrapup workflow generates a documentation artifact automatically (changelog from git log + STATE.md)
-**Plans**: 4/4 plans complete
-
-Plans:
-- [x] 54-01-PLAN.md — Router.js namespace routing implementation
-- [x] 54-02-PLAN.md — Test file command reference updates
-- [x] 54-03-PLAN.md — Workflow and command file reference updates
-- [x] 54-04-PLAN.md — Milestone wrapup documentation generation
-
-### Phase 55: Profiler & Performance Validation
-**Goal**: Hot-path performance is measured, baselined, and proven faster than v7.1
-**Depends on**: Phase 52 (cache must be integrated to measure real improvement)
-**Requirements**: PERF-01, PERF-02, CACHE-06
-**Success Criteria** (what must be TRUE):
-  1. `GSD_PROFILE=1` reports sub-operation timing for file reads, git ops, markdown parsing, and AST analysis
-  2. `gsd-tools profiler compare` shows before/after timing deltas with regression highlighting (red for slower, green for faster)
-  3. Cache-enabled invocations show measurable speedup over cache-disabled for repeated operations
-**Plans**: 2/2 plans complete
-
-- [x] 55-01-PLAN.md — Sub-operation timing instrumentation (file reads, git ops, markdown, AST)
-- [ ] 55-02-PLAN.md — Profiler compare command and cache speedup test
+</details>
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 51 → 52 → 53 → 54 → 55
-Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if needed.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -242,8 +163,4 @@ Note: Phases 53 and 54 are independent of 51-52 and could execute in parallel if
 | 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
-| 51. Cache Foundation | v8.0 | 3/3 | Complete | 2026-03-02 |
-| 52. Cache Integration | v8.0 | 2/2 | Complete | 2026-03-02 |
-| 53. Agent Consolidation | v8.0 | 3/3 | Complete | 2026-03-02 |
-| 54. Command Consolidation | v8.0 | 4/4 | Complete | 2026-03-02 |
-| 55. Profiler & Performance | v8.0 | Complete    | 2026-03-02 | 2026-03-02 |
+| 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |

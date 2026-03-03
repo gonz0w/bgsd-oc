@@ -2,29 +2,28 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Eight versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), and v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection).
+A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Nine versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), and v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix).
 
 ## Core Value
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v8.0 Performance & Agent Architecture
-
-**Goal:** Make every agent do one thing well, eliminate overlap and gaps across the product lifecycle, and dramatically reduce execution time through caching (SQLite or similar), context optimization, and command consolidation.
-
-**Target features:**
-- Agent architecture audit — identify overlap, gaps, and consolidate roles
-- SQLite (or similar) read cache layer — markdown stays authoritative, cache eliminates repeated disk I/O
-- Context optimization — each agent gets exactly what it needs, deterministic context loading
-- Command consolidation — reduce sprawl via subcommand patterns (`/phase plan`, `/phase execute`)
-- Performance profiling — identify and fix disk I/O and memory bottlenecks
-- Milestone documentation — add docs generation to milestone wrapup workflow
-
 ## Current State
 
-**Last shipped:** v7.1 Trajectory Engineering (2026-03-02)
+**Last shipped:** v8.0 Performance & Agent Architecture (2026-03-03)
 
-**Shipped in v7.1:**
+**Shipped in v8.0:**
+- Two-layer SQLite caching (L1 in-memory Map + L2 SQLite via `node:sqlite`) with graceful degradation to Map-only on Node <22.5
+- Agent consolidation (11→9): merged gsd-integration-checker into gsd-verifier, gsd-research-synthesizer into gsd-roadmapper
+- RACI matrix mapping every lifecycle step to exactly one responsible agent, with automated audit command
+- Token budgets (60-80K) declared in all 9 agent manifests, context builder enforces limits
+- Namespace routing for CLI commands (`init:`, `plan:`, `execute:`, `verify:`, `util:` prefixes)
+- Profiler instrumentation on hot paths (`GSD_PROFILE=1`), compare command with regression highlighting
+- Auto changelog generation in milestone wrapup workflow
+
+<details>
+<summary>Previous: v7.1 Trajectory Engineering (shipped 2026-03-02)</summary>
+
 - Decision journal foundation with trajectories sacred memory store, crypto-generated IDs, cross-session persistence
 - Selective git rewind preserving `.planning/` state via protected-path denylist
 - Checkpoint system with named snapshots, auto-collected metrics (tests, LOC delta, complexity), branch-based tracking
@@ -33,6 +32,8 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - Choose & cleanup lifecycle — merge winner via `--no-ff`, archive alternatives as tags, branch cleanup
 - Agent context integration — dead-end detection, `previous_attempts` in init execute-phase, scope validation
 - Commit attribution via git trailers, anti-pattern detection, stuck/loop recovery
+
+</details>
 
 <details>
 <summary>Previous: v7.0 Agent Orchestration & Efficiency (shipped 2026-02-27)</summary>
@@ -110,7 +111,7 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Cross-session memory with dual-store pattern and sacred data protection — v2.0
 - ✓ Comprehensive verification (test gating, requirement checking, regression detection) — v2.0
 - ✓ Multi-dimensional quality scoring with A-F grades and trend tracking — v2.0
-- ✓ Integration test suite: 669 tests, E2E simulation, snapshot tests — v2.0+
+- ✓ Integration test suite: 762 tests, E2E simulation, snapshot tests — v2.0+
 - ✓ INTENT.md template and CRUD commands — v3.0
 - ✓ Intent drift validation (4 signals, 0-100 score, advisory pre-flight) — v3.0
 - ✓ Workflow-wide intent injection — v3.0
@@ -127,7 +128,7 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Smart output detection (TTY-aware, --raw, --pretty) — v6.0
 - ✓ All user-facing commands produce branded output in TTY mode — v6.0
 - ✓ Workflow output tightened (455-line reduction across 27 files) — v6.0
-- ✓ 11 slash command wrappers created and deployed — v6.0
+- ✓ 41 slash command wrappers created and deployed — v6.0+v8.0
 - ✓ Contract tests (snapshot-based) for all init/state JSON output — v7.0
 - ✓ Enhanced git.js (structured log, diff, blame, branch info, pre-commit checks) — v7.0
 - ✓ AST intelligence via acorn (signatures, exports, complexity, repo map) — v7.0
@@ -145,15 +146,16 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - ✓ Choose command with merge, tag archival, branch cleanup — v7.1
 - ✓ Dead-end detection and agent context integration — v7.1
 - ✓ Multi-level trajectory support (task, plan, phase) — v7.1
+- ✓ SQLite L1/L2 caching with graceful Map fallback on Node <22.5 — v8.0
+- ✓ Agent consolidation 11→9 with RACI matrix and automated lifecycle audit — v8.0
+- ✓ Manifest-driven agent context loading with token budgets (60-80K) — v8.0
+- ✓ Namespace routing for CLI commands (init:, plan:, execute:, verify:, util:) — v8.0
+- ✓ Profiler instrumentation and baseline comparison tool — v8.0
+- ✓ Auto changelog generation in milestone wrapup workflow — v8.0
 
 ### Active
 
-- [ ] Agent architecture audit and consolidation (no overlap, no gaps)
-- [ ] SQLite/cache read layer for context loading (markdown authoritative)
-- [ ] Deterministic context loading per agent (only what's needed)
-- [ ] Command consolidation via subcommand patterns
-- [ ] Performance profiling and optimization (disk I/O, memory)
-- [ ] Milestone documentation generation in wrapup workflow
+None — all v8.0 requirements shipped. Ready for next milestone.
 
 ### Out of Scope
 
@@ -167,17 +169,18 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - TypeScript migration — Not worth 34-module migration cost
 - Autonomous agent teams — Human-in-the-loop is correct
 - Dynamic agent spawning — Pre-planned parallelism over self-spawning
-- Agent role explosion — Cap at 12 roles; intelligence = data, not agents
+- Agent role explosion — Cap at 9 roles; intelligence = data, not agents
 
 ## Context
 
-Shipped v1.0 through v7.1. 751 tests passing, 34 src/ modules, 1058KB bundle, esbuild bundler.
+Shipped v1.0 through v8.0. 762 tests passing, 34 src/ modules, ~1133KB bundle, esbuild bundler.
 Platform: OC (host editor).
-Tech stack: Node.js 18+, node:test, esbuild, tokenx (bundled), acorn (bundled).
+Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 34 modules — `src/lib/` (18 modules) and `src/commands/` (14 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
+9 specialized AI agents, 41 slash commands, 45 workflows.
 
-Known tech debt: Bundle at 1058KB (slightly over 1050KB budget).
+Known tech debt: Bundle at ~1133KB (over 1050KB budget). `node:sqlite` is Stability 1.2 (Release Candidate).
 
 ## Constraints
 
@@ -186,7 +189,7 @@ Known tech debt: Bundle at 1058KB (slightly over 1050KB budget).
 - **Single-file deploy**: `deploy.sh` must continue to work — bundle to single file if splitting source
 - **Node.js 18+**: Minimum version (for fetch, node:test) — formalized in package.json
 - **Test against current project**: Always test against current working directory's `.planning/`
-- **Agent cap**: Maximum 12 agent roles; new intelligence delivered as CLI data, not new agents
+- **Agent cap**: Maximum 9 agent roles; new intelligence delivered as CLI data, not new agents
 
 ## Key Decisions
 
@@ -220,6 +223,12 @@ Known tech debt: Bundle at 1058KB (slightly over 1050KB budget).
 | Trajectory exploration over worktrees | Sequential exploration sufficient; worktrees disk-expensive |
 | Automatic pivot without human signal | Human-in-the-loop is a core GSD principle |
 | Trajectory analytics | Deferred to future milestone |
+| `node:sqlite` over `better-sqlite3` | Preserves single-file deploy, zero dependencies | Good — graceful Map fallback on Node <22.5 |
+| Two-layer cache (Map L1 + SQLite L2) | In-memory for speed, SQLite for persistence across invocations | Good — transparent to consumers via cachedReadFile |
+| Agent consolidation 11→9 | Merged integration-checker→verifier, synthesizer→roadmapper | Good — fewer agents, same capabilities |
+| RACI matrix for agent lifecycle | Every step has exactly one responsible agent | Good — eliminates ambiguity |
+| Token budgets per agent manifest | 60-80K caps prevent context rot | Good — context builder warns on exceedance |
+| Namespace routing (colon syntax) | Semantic grouping for 100+ CLI commands | Good — discoverable, backward-compatible |
 
 ---
-*Last updated: 2026-03-01 after v8.0 milestone start*
+*Last updated: 2026-03-03 after v8.0 milestone complete*
