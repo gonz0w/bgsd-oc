@@ -1546,7 +1546,8 @@ Research infrastructure commands.
 Subcommands:
   capabilities    Report available research tools, tier, and recommendations
   yt-search       Search YouTube via yt-dlp with filtering and quality scoring
-  yt-transcript   Extract clean plain-text transcript from YouTube video`,
+  yt-transcript   Extract clean plain-text transcript from YouTube video
+  collect         Orchestrate multi-source collection pipeline with tier degradation`,
   'research capabilities': `Usage: gsd-tools research capabilities
 
 Report available research tools, current degradation tier, and recommendations.
@@ -1651,6 +1652,66 @@ Examples:
   gsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   gsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
   gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+  'research collect': `Usage: gsd-tools research collect "topic" [options]
+
+Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --quick            Bypass pipeline entirely, return tier 4 with empty sources
+
+Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
+
+Tiers:
+  1 — Full RAG (all tools + NotebookLM synthesis)
+  2 — Sources without synthesis (YouTube + MCP, LLM synthesizes)
+  3 — Brave/Context7 only (web search, no video)
+  4 — Pure LLM (no external sources)
+
+Pipeline stages:
+  [1/3] Web sources via Brave Search API (util:websearch subprocess)
+  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
+  [3/3] Context7 availability note (MCP — agent accesses directly)
+
+agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
+At Tier 4 (--quick or no tools), agent_context is empty string.
+
+Examples:
+  gsd-tools research collect "nodejs subprocess patterns"
+  gsd-tools research:collect --quick "test query"
+  gsd-tools research:collect "react hooks" --pretty`,
+  'research:collect': `Usage: gsd-tools research:collect "topic" [options]
+
+Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --quick            Bypass pipeline entirely, return tier 4 with empty sources
+
+Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
+
+Tiers:
+  1 — Full RAG (all tools + NotebookLM synthesis)
+  2 — Sources without synthesis (YouTube + MCP, LLM synthesizes)
+  3 — Brave/Context7 only (web search, no video)
+  4 — Pure LLM (no external sources)
+
+Pipeline stages:
+  [1/3] Web sources via Brave Search API (util:websearch subprocess)
+  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
+  [3/3] Context7 availability note (MCP — agent accesses directly)
+
+agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
+At Tier 4 (--quick or no tools), agent_context is empty string.
+
+Examples:
+  gsd-tools research:collect "nodejs subprocess patterns"
+  gsd-tools research:collect --quick "test query"
+  gsd-tools research:collect "react hooks" --pretty`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
