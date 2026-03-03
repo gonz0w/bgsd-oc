@@ -201,7 +201,11 @@ Plans:
 
 **Research needed:** No — yt-dlp is well-documented (Context7 HIGH confidence, benchmark 92.2), execFileSync pattern matches git.js
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 57-01-PLAN.md — YouTube search with quality scoring and filtering
+- [ ] 57-02-PLAN.md — YouTube transcript extraction with VTT parsing
 
 ### Phase 58: research-orchestration
 
