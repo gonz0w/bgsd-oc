@@ -8,10 +8,10 @@
 
 ## NotebookLM Integration
 
-- [ ] **NLM-01**: User can create NotebookLM notebooks and add sources (URLs, YouTube URLs, plain text, PDFs) via notebooklm-py CLI
+- [x] **NLM-01**: User can create NotebookLM notebooks and add sources (URLs, YouTube URLs, plain text, PDFs) via notebooklm-py CLI
 - [ ] **NLM-02**: User can ask domain-specific questions against loaded notebook sources and receive grounded, cited answers via NotebookLM chat synthesis
 - [ ] **NLM-03**: User can generate structured research reports (briefing docs, study guides) from NotebookLM notebooks
-- [ ] **NLM-04**: System checks NotebookLM auth health (cookie validity) before operations and provides clear re-auth messaging when expired
+- [x] **NLM-04**: System checks NotebookLM auth health (cookie validity) before operations and provides clear re-auth messaging when expired
 
 ## Research Orchestration
 
@@ -52,10 +52,10 @@
 | YT-01 | Phase 57 | Complete |
 | YT-02 | Phase 57 | Complete |
 | YT-03 | Phase 57 | Complete |
-| NLM-01 | Phase 59 | Pending |
+| NLM-01 | Phase 59 | Complete |
 | NLM-02 | Phase 59 | Pending |
 | NLM-03 | Phase 59 | Pending |
-| NLM-04 | Phase 59 | Pending |
+| NLM-04 | Phase 59 | Complete |
 | ORCH-01 | Phase 58 | Complete |
 | ORCH-02 | Phase 58 | Complete |
 | ORCH-03 | Phase 58 | Complete |
