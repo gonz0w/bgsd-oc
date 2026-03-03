@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 59 of 60 (notebooklm-integration)
-Plan: 2 of 2
-Status: Plan 59-02 complete — Full Tier 1 RAG pipeline delivered
-Last activity: 2026-03-03 — Completed 59-02-PLAN.md (NLM ask/report + Tier 1 synthesis)
+Phase: 60 of 60 (testing-caching-polish)
+Plan: 1 of 1
+Status: Plan 60-01 complete — research_cache table, API, and cache:research commands delivered
+Last activity: 2026-03-03 — Completed 60-01-PLAN.md (research cache integration)
 
 Progress: [########################################] 100% (v8.1)
 
@@ -45,6 +45,7 @@ Progress: [########################################] 100% (v8.1)
 | Phase 58 P02 | 2 min | 2 tasks | 1 files |
 | Phase 59 P01 | 11 min | 2 tasks | 4 files |
 | Phase 59 P02 | 8min | 2 tasks | 5 files |
+| Phase 60 P01 | 13 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 59]: nlm-add-source uses 60s timeout — source processing (URL fetch + indexing) is slow, 30s causes false failures
 - [Phase Phase 59]: collectNlmSynthesis() wrapped in single try/catch — any error returns null for silent Tier 1 fallback
 - [Phase Phase 59]: Tier 1 synthesis loads top 3 URL sources into session notebook — balances coverage against NLM API timeout risk
+- [Phase 60]: research cache keyed on query string — exact match semantics, TTL 1 hour, LRU eviction
+- [Phase 60]: cache write skipped if source_count=0 — avoids caching empty/failed pipeline runs
+- [Phase 60]: 'cache' namespace added to router (cache:research-stats, cache:research-clear) for symmetry with 'research' namespace
 
 ### Pending Todos
 
@@ -82,11 +86,11 @@ None — milestone starting fresh.
 - NotebookLM unofficial API (notebooklm-py) uses cookie auth that expires every few weeks — Google can break it anytime
 - yt-dlp in perpetual arms race with YouTube — nsig/SABR breakage requires frequent updates
 - Full RAG pipeline latency 3-8 min vs 10-30 sec LLM-only — progressive output and --quick flag mitigate
-- Bundle at ~1204KB — 14KB added in Phase 59 P02 (nlm-ask/report + Tier 1 pipeline), monitor against 1500KB budget
+- Bundle at ~1212KB — 8KB added in Phase 60 P01 (research cache integration), monitor against 1500KB budget
 - Two pre-existing config-migrate test failures (from Phase 56 RAG key additions) need cleanup
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 59-02-PLAN.md (NLM ask/report + Tier 1 synthesis)
-Next step: Phase 59 complete — all plans done. Ready for milestone completion or Phase 60.
+Stopped at: Completed 60-01-PLAN.md (research cache integration)
+Next step: Phase 60 Plan 01 complete. All plans in phase 60 done — ready for milestone completion.

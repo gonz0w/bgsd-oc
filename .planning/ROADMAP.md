@@ -268,7 +268,7 @@ Plans:
 
 **Research needed:** No — SQLite cache extension follows v8.0 cache.js patterns, session persistence is standard JSON file
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 60-01-PLAN.md — Research cache: SQLite research_cache table + cmdResearchCollect cache integration + cache:research-stats/clear commands
@@ -294,4 +294,4 @@ Plans:
 | 57. youtube-integration | 2/2 | Complete    | 2026-03-03 | - |
 | 58. research-orchestration | 2/2 | Complete    | 2026-03-03 | - |
 | 59. notebooklm-integration | 2/2 | Complete    | 2026-03-03 | - |
-| 60. testing-caching-polish | v8.1 | 0/? | Not started | - |
+| 60. testing-caching-polish | 1/2 | In Progress|  | - |

@@ -25,7 +25,7 @@
 
 - [x] **INFRA-01**: config.json schema extended with RAG settings (rag_enabled, tool paths, search parameters, research timeout)
 - [x] **INFRA-02**: `research:capabilities` command reports available tools, current degradation tier, and missing tool recommendations
-- [ ] **INFRA-03**: Research results (notebook IDs, synthesis outputs, transcripts) cached in v8.0 SQLite cache to avoid re-running expensive operations
+- [x] **INFRA-03**: Research results (notebook IDs, synthesis outputs, transcripts) cached in v8.0 SQLite cache to avoid re-running expensive operations
 - [x] **INFRA-04**: System detects available research MCP servers (Brave Search, Context7, Exa) and recommends missing ones
 - [ ] **INFRA-05**: Interrupted research sessions can be saved and resumed via session persistence file
 
@@ -63,6 +63,6 @@
 | ORCH-05 | Phase 58 | Complete |
 | INFRA-01 | Phase 56 | Complete |
 | INFRA-02 | Phase 56 | Complete |
-| INFRA-03 | Phase 60 | Pending |
+| INFRA-03 | Phase 60 | Complete |
 | INFRA-04 | Phase 56 | Complete |
 | INFRA-05 | Phase 60 | Pending |
