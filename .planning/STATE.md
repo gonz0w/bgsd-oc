@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 Phase: 55 of 55 (Profiler & Performance Validation)
 Plan: 2 of 2 in current phase
 Status: Plan complete
-Last activity: 2026-03-03 — Completed quick task 3: Audit codebase for stale links, old commands/agents, cleanup for release
+Last activity: 2026-03-03 — Completed quick task 4: Update all docs for v8.0 release readiness
 
 Progress: [██████████████████████████████████████] 100% (v8.0)
 
@@ -82,6 +82,7 @@ None — milestone starting fresh.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 3 | Audit codebase for stale links, old commands/agents, cleanup for release | 2026-03-03 | e620ea9 | .planning/quick/3-audit-codebase-for-stale-links-old-comma |
+| 4 | Update all docs, remove stale docs, document v8.0 for release | 2026-03-03 | 4a974fd | .planning/quick/4-update-all-docs-remove-stale-docs-docume |
 
 ### Blockers/Concerns
 
@@ -92,5 +93,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Quick task 3 complete (codebase audit and cleanup for release)
+Stopped at: Quick task 4 complete (all docs updated for v8.0 release readiness)
 Next step: v8.0 milestone complete
