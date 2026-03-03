@@ -1070,6 +1070,29 @@ gsd-tools requirements mark-complete <ids>
 gsd-tools phases list [--type type] [--phase N] [--include-archived]
 ```
 
+#### `cache` — SQLite Caching (v8.0)
+
+```bash
+gsd-tools cache warm          # Pre-populate cache with .planning/ files
+gsd-tools cache stats         # Cache hit/miss statistics
+gsd-tools cache clear         # Clear the SQLite cache
+```
+
+#### `profiler` — Performance Profiling (v8.0)
+
+```bash
+gsd-tools profiler compare    # Before/after timing deltas with color-coded regression highlighting
+gsd-tools cache-speedup       # Validate cache effectiveness with timing data
+```
+
+Enable profiling for any command: `GSD_PROFILE=1 node bin/gsd-tools.cjs <command>`
+
+#### `agent-audit` — Agent System Validation (v8.0)
+
+```bash
+gsd-tools agent-audit         # Validate RACI matrix, token budgets, agent manifests
+```
+
 ---
 
 ## Related Documentation

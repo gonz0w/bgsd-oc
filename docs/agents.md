@@ -74,15 +74,17 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 ---
 
-#### gsd-reviewer
+#### Code Review (workflow-embedded)
 
 **Role:** Reviews code changes against project conventions and plan spec before completion.
+
+> **Note:** Code review is a step within the `execute-plan.md` workflow, not a standalone agent with its own definition file. The review logic lives in `src/lib/review/` and is invoked by the executor after plan completion. This keeps the agent count at 9 while retaining full review capabilities.
 
 **Inputs:** Git diff, PLAN.md task requirements, CONVENTIONS.md, dependency graph.
 
 **Outputs:** Review findings with severity classification, integrated into SUMMARY.md.
 
-**Spawned by:** `/gsd-execute-phase` (post-execution review step)
+**Triggered by:** `/gsd-execute-phase` (post-execution review step in `execute-plan.md`)
 
 **Key behaviors:**
 - Two-stage review:
@@ -224,7 +226,6 @@ Three profiles control which AI model each agent uses:
 | gsd-planner | opus | opus | sonnet |
 | gsd-executor | opus | sonnet | sonnet |
 | gsd-verifier | sonnet | sonnet | haiku |
-| gsd-reviewer | sonnet | sonnet | haiku |
 | gsd-debugger | opus | sonnet | sonnet |
 | gsd-phase-researcher | opus | sonnet | haiku |
 | gsd-project-researcher | opus | sonnet | haiku |
@@ -306,9 +307,9 @@ Each agent type declares required context via manifest:
     "fields": ["plans", "config", "conventions", "task_routing"],
     "optional": ["codebase_context", "env_summary"]
   },
-  "gsd-reviewer": {
-    "fields": ["conventions", "dependencies"],
-    "optional": []
+  "gsd-verifier": {
+    "fields": ["must_haves", "roadmap_criteria"],
+    "optional": ["conventions"]
   }
 }
 ```

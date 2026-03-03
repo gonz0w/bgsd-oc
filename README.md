@@ -187,13 +187,14 @@ bGSD doesn't use one generic agent for everything. Each task gets a purpose-buil
 | **gsd-planner** | Creates executable plans with task breakdown, dependencies, waves |
 | **gsd-executor** | Implements code, runs tests, commits per-task with attribution |
 | **gsd-verifier** | Verifies phase goals were actually achieved (not just tasks completed) |
-| **gsd-reviewer** | Two-stage review: spec compliance + code quality with severity classification |
 | **gsd-debugger** | Systematic debugging with hypothesis testing |
 | **gsd-phase-researcher** | Researches implementation approaches for a phase |
 | **gsd-project-researcher** | Parallel domain research (stack, features, architecture, pitfalls) |
 | **gsd-roadmapper** | Creates phased roadmaps from requirements |
 | **gsd-plan-checker** | Reviews plan quality with revision loop |
 | **gsd-codebase-mapper** | Parallel codebase analysis (4 agents, 7 documents) |
+
+Code review (two-stage: spec compliance + code quality with BLOCKER/WARNING/INFO severity) is embedded in the execution workflow.
 
 See the **[Agent System Guide](docs/agents.md)** for full details on each agent.
 

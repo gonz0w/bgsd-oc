@@ -91,7 +91,7 @@ execute-phase.md workflow
 ```
 src/
   index.js                 # Entry point, argument parsing
-  router.js                # Command dispatch, global flags (--raw, --verbose, --fields)
+  router.js                # Command dispatch, namespace routing (init:, plan:, etc.), global flags
   commands/
     init.js                # 13 init subcommands — compound context for each workflow
     intent.js              # INTENT.md CRUD, traceability, drift scoring
@@ -123,6 +123,7 @@ src/
     lifecycle.js           # Lifecycle awareness
     orchestration.js       # Task classification/routing
     profiler.js            # Performance profiling
+    cache.js               # L1/L2 caching (Map + SQLite)
     regex-cache.js         # Compiled regex cache
     review/
       stage-review.js      # Two-stage review (spec+quality)
@@ -131,7 +132,7 @@ src/
       stuck-detector.js    # Stuck/loop detection + recovery
 ```
 
-**Build:** esbuild bundles all source into a single `bin/gsd-tools.cjs` file. Zero runtime dependencies in the built artifact.
+**Build:** esbuild bundles all source into a single `bin/gsd-tools.cjs` file (~1058KB). Zero runtime dependencies in the built artifact.
 
 **Lazy loading:** Command modules are loaded on demand via `lazyState`, `lazyRoadmap`, etc. — only the needed module is loaded per invocation.
 
@@ -152,7 +153,8 @@ src/
 | **gsd-project-researcher** | Domain research | Project description, focus area | Research document |
 | **gsd-roadmapper** | Create roadmap + synthesize research | Requirements, research, project context | ROADMAP.md |
 | **gsd-codebase-mapper** | Analyze codebase | Focus area (tech/arch/quality/concerns) | Codebase documents |
-| **gsd-reviewer** | Post-execution code review | Git diff, PLAN.md, CONVENTIONS.md | Severity-classified findings |
+
+> **Note:** Code review (spec compliance + code quality with BLOCKER/WARNING/INFO severity) is a step within the `execute-plan.md` workflow, not a standalone agent. Review logic lives in `src/lib/review/` and is invoked by the executor after plan completion.
 
 ### Model Profiles
 
@@ -381,6 +383,24 @@ VERIFICATION.md      -> pass / gaps_found / human_needed
 - Blocker/todo age reasonable?
 
 `--fix` auto-corrects mismatches.
+
+---
+
+## Caching Layer
+
+Two-layer cache for hot-path file reads (v8.0):
+
+- **L1 (in-memory Map)** — Per-invocation cache. Instant hits for repeated reads within a single CLI call.
+- **L2 (SQLite via `node:sqlite`)** — Persistent cache across CLI invocations using Node's built-in `DatabaseSync`. Keyed by file path + mtime for automatic invalidation.
+
+Falls back gracefully to Map-only on Node <22.5. Wired into `cachedReadFile()` for hot-path commands (phase, verify, misc). Explicit cache invalidation on all gsd-tools file writes ensures immediate consistency.
+
+**Commands:**
+```bash
+gsd-tools cache warm          # Pre-populate cache with .planning/ files
+gsd-tools cache stats         # Cache hit/miss statistics
+gsd-tools cache clear         # Clear the SQLite cache
+```
 
 ---
 

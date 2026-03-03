@@ -23,9 +23,9 @@ Common issues and solutions for bGSD.
 
 ### Node.js version errors
 
-**Cause:** bGSD requires Node.js >= 18.
+**Cause:** bGSD requires Node.js >= 22.5 for full functionality (SQLite caching). Older versions work but fall back to in-memory caching.
 
-**Fix:** Update Node.js. Check with `node --version`.
+**Fix:** Update Node.js. Check with `node --version`. Node 22.5+ is recommended for the best experience.
 
 ---
 
@@ -163,9 +163,19 @@ Each task gets its own commit, enabling precise rollback.
 ### CLI commands slow
 
 **Fix:**
-1. Check bundle size: `ls -la bin/gsd-tools.cjs` (should be ~1000KB)
+1. Check bundle size: `ls -la bin/gsd-tools.cjs` (should be ~1058KB)
 2. Enable profiling: `GSD_PROFILE=1 node bin/gsd-tools.cjs <command>`
 3. Check for stale codebase analysis: `node bin/gsd-tools.cjs codebase status`
+4. Warm the SQLite cache: `node bin/gsd-tools.cjs cache warm`
+
+### SQLite caching issues
+
+If SQLite caching issues occur on Node <22.5, bGSD falls back to in-memory Map cache automatically. No action needed — performance is slightly lower but all functionality works correctly.
+
+To check cache status:
+```bash
+node bin/gsd-tools.cjs cache stats
+```
 
 ### Workflows consuming too many tokens
 

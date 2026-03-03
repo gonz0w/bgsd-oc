@@ -27,7 +27,7 @@ Why bGSD is built the way it is. Every major architectural and product decision 
 - Python-based orchestration framework — rejected because it adds runtime dependencies and complexity
 - Direct LLM API calls from CLI — rejected because bGSD produces prompts, it doesn't call LLM APIs directly
 
-**Outcome:** Good. 669+ tests cover the deterministic layer. Workflows are portable across any LLM that follows markdown instructions. State changes are atomic and predictable.
+**Outcome:** Good. 762 tests cover the deterministic layer. Workflows are portable across any LLM that follows markdown instructions. State changes are atomic and predictable.
 
 ---
 
@@ -42,7 +42,7 @@ Why bGSD is built the way it is. Every major architectural and product decision 
 - ESM output — rejected because CJS avoids `__dirname`/`require` rewriting issues
 - Multiple bundled chunks — rejected for deployment simplicity
 
-**Outcome:** Good. The build produces one file (1000KB), deploys with `cp`, and has zero runtime dependency issues.
+**Outcome:** Good. The build produces one file (~1058KB), deploys with `cp`, and has zero runtime dependency issues.
 
 ---
 

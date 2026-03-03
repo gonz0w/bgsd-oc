@@ -201,7 +201,6 @@ Best results, highest cost. Use for critical projects or complex domains.
 | gsd-planner | opus |
 | gsd-executor | opus |
 | gsd-verifier | sonnet |
-| gsd-reviewer | sonnet |
 | gsd-debugger | opus |
 | gsd-roadmapper | opus |
 | gsd-phase-researcher | opus |
@@ -217,7 +216,6 @@ Good balance of quality and cost. Planning uses stronger models; execution uses 
 | gsd-planner | opus |
 | gsd-executor | sonnet |
 | gsd-verifier | sonnet |
-| gsd-reviewer | sonnet |
 | gsd-debugger | sonnet |
 | gsd-roadmapper | opus |
 | gsd-phase-researcher | sonnet |
@@ -233,7 +231,6 @@ Lowest cost. Suitable for well-defined tasks with clear requirements.
 | gsd-planner | sonnet |
 | gsd-executor | sonnet |
 | gsd-verifier | haiku |
-| gsd-reviewer | haiku |
 | gsd-debugger | sonnet |
 | gsd-roadmapper | sonnet |
 | gsd-phase-researcher | haiku |

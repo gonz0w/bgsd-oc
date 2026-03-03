@@ -151,7 +151,7 @@ Research-backed review gate design patterns.
 
 DeepMind scaling research shows coordination overhead grows quadratically with agent count. Error amplification reaches 17x in unstructured networks. The correct approach is fewer agents with better data, not more specialized agents.
 
-**bGSD response:** Hard cap at 12 agent roles. New capabilities delivered as CLI data for existing agents.
+**bGSD response:** Hard cap at 9 agent roles (consolidated from 12 in v8.0). New capabilities delivered as CLI data for existing agents.
 
 ### 2. Human-in-the-Loop is Correct
 

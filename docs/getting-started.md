@@ -5,7 +5,7 @@ This guide walks you through your first project using the easy flow. bGSD handle
 ## Prerequisites
 
 - [OpenCode](https://github.com/opencode-ai/opencode) installed and configured
-- Node.js >= 18
+- Node.js >= 22.5 (for SQLite caching; falls back to in-memory cache on older versions)
 
 ## Installation
 
