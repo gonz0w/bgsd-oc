@@ -9,6 +9,21 @@ const { loadConfig } = require('../lib/config');
 const { output, status, debugLog } = require('../lib/output');
 const { banner, sectionHeader, formatTable, color, SYMBOLS, truncate } = require('../lib/format');
 
+// ─── Research Cache (lazy singleton) ─────────────────────────────────────────
+
+let _researchCache = null;
+function getResearchCache() {
+  if (!_researchCache) {
+    try {
+      const { CacheEngine } = require('../lib/cache');
+      _researchCache = new CacheEngine();
+    } catch (e) {
+      return null;
+    }
+  }
+  return _researchCache;
+}
+
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 
 /**
@@ -1173,6 +1188,11 @@ function formatCollect(data) {
   const tierColor = data.tier <= 2 ? color.green : data.tier === 3 ? color.yellow : color.red;
   lines.push(color.bold('Tier: ') + tierColor(`${data.tier} — ${data.tier_name}`));
 
+  // Cache hit indicator
+  if (data.cache_hit) {
+    lines.push(color.dim('(cached result — use --no-cache to refresh)'));
+  }
+
   if (data.skipped) {
     lines.push(color.dim(`Skipped: ${data.skipped}`));
     return lines.join('\n');
@@ -1216,8 +1236,9 @@ function cmdResearchCollect(cwd, args, raw) {
   const config = loadConfig(cwd);
   const ragEnabled = config.rag_enabled !== false;
 
-  // Parse --quick flag
+  // Parse --quick and --no-cache flags
   const quick = args.includes('--quick');
+  const noCache = args.includes('--no-cache');
 
   // Quick mode: bypass pipeline entirely
   if (quick || !ragEnabled) {
@@ -1253,6 +1274,18 @@ function cmdResearchCollect(cwd, args, raw) {
     const result = { error: 'Missing search query', usage: 'research:collect "topic" [--quick]' };
     output(result, { formatter: formatCollect, raw });
     return;
+  }
+
+  // Cache check (skip if --no-cache)
+  if (!noCache) {
+    const cache = getResearchCache();
+    if (cache) {
+      const cached = cache.getResearch(query);
+      if (cached) {
+        output({ ...cached, cache_hit: true }, { formatter: formatCollect, raw });
+        return;
+      }
+    }
   }
 
   // Allocate per-stage timeout
@@ -1319,6 +1352,14 @@ function cmdResearchCollect(cwd, args, raw) {
     nlm_synthesis: nlmSynthesis,
     agent_context,
   };
+
+  // Cache write (skip if --no-cache or no sources collected)
+  if (!noCache && result.source_count > 0) {
+    const cache = getResearchCache();
+    if (cache) {
+      cache.setResearch(query, result);
+    }
+  }
 
   output(result, { formatter: formatCollect, raw });
 }

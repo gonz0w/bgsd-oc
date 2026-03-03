@@ -20110,6 +20110,18 @@ var require_research = __commonJS({
     var { loadConfig } = require_config();
     var { output: output2, status, debugLog } = require_output();
     var { banner, sectionHeader, formatTable, color, SYMBOLS, truncate } = require_format();
+    var _researchCache = null;
+    function getResearchCache() {
+      if (!_researchCache) {
+        try {
+          const { CacheEngine } = require_cache();
+          _researchCache = new CacheEngine();
+        } catch (e) {
+          return null;
+        }
+      }
+      return _researchCache;
+    }
     var TIER_DEFINITIONS = [
       { number: 1, name: "Full RAG", description: "All tools available \u2014 YouTube + MCP + NotebookLM synthesis" },
       { number: 2, name: "Sources without synthesis", description: "YouTube + MCP sources, LLM synthesizes" },
@@ -20888,6 +20900,9 @@ var require_research = __commonJS({
       lines.push("");
       const tierColor = data.tier <= 2 ? color.green : data.tier === 3 ? color.yellow : color.red;
       lines.push(color.bold("Tier: ") + tierColor(`${data.tier} \u2014 ${data.tier_name}`));
+      if (data.cache_hit) {
+        lines.push(color.dim("(cached result \u2014 use --no-cache to refresh)"));
+      }
       if (data.skipped) {
         lines.push(color.dim(`Skipped: ${data.skipped}`));
         return lines.join("\n");
@@ -20915,6 +20930,7 @@ var require_research = __commonJS({
       const config = loadConfig(cwd);
       const ragEnabled = config.rag_enabled !== false;
       const quick = args.includes("--quick");
+      const noCache = args.includes("--no-cache");
       if (quick || !ragEnabled) {
         const result2 = {
           tier: 4,
@@ -20943,6 +20959,16 @@ var require_research = __commonJS({
         const result2 = { error: "Missing search query", usage: 'research:collect "topic" [--quick]' };
         output2(result2, { formatter: formatCollect, raw });
         return;
+      }
+      if (!noCache) {
+        const cache = getResearchCache();
+        if (cache) {
+          const cached = cache.getResearch(query);
+          if (cached) {
+            output2({ ...cached, cache_hit: true }, { formatter: formatCollect, raw });
+            return;
+          }
+        }
       }
       const stageTimeout = Math.max(5e3, Math.floor((config.rag_timeout || 30) * 1e3 / 2));
       const totalStages = tier.number === 1 ? 4 : 3;
@@ -20991,6 +21017,12 @@ var require_research = __commonJS({
         nlm_synthesis: nlmSynthesis,
         agent_context
       };
+      if (!noCache && result.source_count > 0) {
+        const cache = getResearchCache();
+        if (cache) {
+          cache.setResearch(query, result);
+        }
+      }
       output2(result, { formatter: formatCollect, raw });
     }
     function getNlmBinary(cwd) {
@@ -28051,6 +28083,29 @@ var require_cache2 = __commonJS({
       const elapsed = Date.now() - start;
       output2({ warmed, elapsed_ms: elapsed }, raw, `Warmed ${warmed} files in ${elapsed}ms`);
     }
+    function cmdCacheResearchStats(cwd, args, raw) {
+      const cacheEngine = getCacheEngine();
+      if (!cacheEngine) {
+        output2({
+          count: 0,
+          hits: 0,
+          misses: 0,
+          error: "CacheEngine failed to load"
+        }, raw, "Research cache unavailable");
+        return;
+      }
+      const researchStatus = cacheEngine.statusResearch();
+      output2(researchStatus, raw, `research cache: ${researchStatus.count} entries, ${researchStatus.hits} hits, ${researchStatus.misses} misses`);
+    }
+    function cmdCacheResearchClear(cwd, args, raw) {
+      const cacheEngine = getCacheEngine();
+      if (!cacheEngine) {
+        output2({ cleared: false, error: "CacheEngine failed to load" }, raw, "Failed to clear research cache");
+        return;
+      }
+      cacheEngine.clearResearch();
+      output2({ cleared: true }, raw, "Research cache cleared");
+    }
     function registerCacheCommand(router) {
       return router;
     }
@@ -28058,6 +28113,8 @@ var require_cache2 = __commonJS({
       cmdCacheStatus,
       cmdCacheClear,
       cmdCacheWarm,
+      cmdCacheResearchStats,
+      cmdCacheResearchClear,
       registerCacheCommand
     };
   }
@@ -29210,9 +29267,26 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             }
             break;
           }
+          // cache namespace
+          case "cache": {
+            if (subCmd === "research-stats") {
+              lazyCache().cmdCacheResearchStats(cwd, restArgs, raw);
+            } else if (subCmd === "research-clear") {
+              lazyCache().cmdCacheResearchClear(cwd, restArgs, raw);
+            } else if (subCmd === "status") {
+              lazyCache().cmdCacheStatus(cwd, restArgs, raw);
+            } else if (subCmd === "clear") {
+              lazyCache().cmdCacheClear(cwd, restArgs, raw);
+            } else if (subCmd === "warm") {
+              lazyCache().cmdCacheWarm(cwd, restArgs, raw);
+            } else {
+              error("Unknown cache subcommand. Available: research-stats, research-clear, status, clear, warm");
+            }
+            break;
+          }
           // Unknown namespace
           default:
-            error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research`);
+            error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache`);
         }
         return;
       }

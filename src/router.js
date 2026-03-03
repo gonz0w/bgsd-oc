@@ -720,9 +720,27 @@ async function main() {
         break;
       }
 
+      // cache namespace
+      case 'cache': {
+        if (subCmd === 'research-stats') {
+          lazyCache().cmdCacheResearchStats(cwd, restArgs, raw);
+        } else if (subCmd === 'research-clear') {
+          lazyCache().cmdCacheResearchClear(cwd, restArgs, raw);
+        } else if (subCmd === 'status') {
+          lazyCache().cmdCacheStatus(cwd, restArgs, raw);
+        } else if (subCmd === 'clear') {
+          lazyCache().cmdCacheClear(cwd, restArgs, raw);
+        } else if (subCmd === 'warm') {
+          lazyCache().cmdCacheWarm(cwd, restArgs, raw);
+        } else {
+          error('Unknown cache subcommand. Available: research-stats, research-clear, status, clear, warm');
+        }
+        break;
+      }
+
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache`);
     }
     return; // Exit after handling namespaced command
   }

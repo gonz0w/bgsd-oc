@@ -129,6 +129,41 @@ function cmdCacheWarm(cwd, args, raw) {
 }
 
 /**
+ * Research cache stats command - reports entry count and hit/miss stats
+ */
+function cmdCacheResearchStats(cwd, args, raw) {
+  const cacheEngine = getCacheEngine();
+
+  if (!cacheEngine) {
+    output({
+      count: 0,
+      hits: 0,
+      misses: 0,
+      error: 'CacheEngine failed to load'
+    }, raw, 'Research cache unavailable');
+    return;
+  }
+
+  const researchStatus = cacheEngine.statusResearch();
+  output(researchStatus, raw, `research cache: ${researchStatus.count} entries, ${researchStatus.hits} hits, ${researchStatus.misses} misses`);
+}
+
+/**
+ * Research cache clear command - clears all research cache entries
+ */
+function cmdCacheResearchClear(cwd, args, raw) {
+  const cacheEngine = getCacheEngine();
+
+  if (!cacheEngine) {
+    output({ cleared: false, error: 'CacheEngine failed to load' }, raw, 'Failed to clear research cache');
+    return;
+  }
+
+  cacheEngine.clearResearch();
+  output({ cleared: true }, raw, 'Research cache cleared');
+}
+
+/**
  * Register cache commands with router
  * Called from router.js to add cache command handling
  */
@@ -142,5 +177,7 @@ module.exports = {
   cmdCacheStatus,
   cmdCacheClear,
   cmdCacheWarm,
+  cmdCacheResearchStats,
+  cmdCacheResearchClear,
   registerCacheCommand
 };
