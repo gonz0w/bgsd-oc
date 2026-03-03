@@ -6,6 +6,9 @@ const path = require('path');
 // Cache statistics - module level
 const stats = { hits: 0, misses: 0 };
 
+// Research cache statistics - module level
+const researchStats = { hits: 0, misses: 0 };
+
 /**
  * SQLite backend for persistent cache storage.
  * Uses node:sqlite (available in Node.js v22.5+).
@@ -39,6 +42,15 @@ class SQLiteBackend {
         mtime REAL NOT NULL,
         created REAL NOT NULL,
         accessed REAL NOT NULL
+      )
+    `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS research_cache (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        created REAL NOT NULL,
+        accessed REAL NOT NULL,
+        expires REAL NOT NULL
       )
     `);
   }
@@ -187,6 +199,94 @@ class SQLiteBackend {
     }
     return warmed;
   }
+
+  /**
+   * Get research result from cache.
+   * Returns null if not found or expired.
+   */
+  getResearch(key) {
+    try {
+      const stmt = this.db.prepare('SELECT * FROM research_cache WHERE key = ?');
+      const row = stmt.get(key);
+
+      if (!row) {
+        researchStats.misses++;
+        return null;
+      }
+
+      // Check TTL expiry
+      if (Date.now() > row.expires) {
+        this.db.prepare('DELETE FROM research_cache WHERE key = ?').run(key);
+        researchStats.misses++;
+        return null;
+      }
+
+      // Update access time
+      this.db.prepare('UPDATE research_cache SET accessed = ? WHERE key = ?')
+        .run(Date.now(), key);
+
+      researchStats.hits++;
+      return JSON.parse(row.value);
+    } catch (e) {
+      researchStats.misses++;
+      return null;
+    }
+  }
+
+  /**
+   * Set research result in cache with TTL and LRU eviction.
+   */
+  setResearch(key, value, ttlMs = 3600000) {
+    try {
+      const serialized = JSON.stringify(value);
+      const now = Date.now();
+
+      // LRU eviction: remove oldest if at capacity
+      const countResult = this.db.prepare('SELECT COUNT(*) as cnt FROM research_cache').get();
+      if (countResult.cnt >= this.maxSize) {
+        const oldest = this.db.prepare(
+          'SELECT key FROM research_cache ORDER BY accessed ASC LIMIT 1'
+        ).get();
+        if (oldest) {
+          this.db.prepare('DELETE FROM research_cache WHERE key = ?').run(oldest.key);
+        }
+      }
+
+      this.db.prepare(`
+        INSERT OR REPLACE INTO research_cache (key, value, created, accessed, expires)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(key, serialized, now, now, now + ttlMs);
+    } catch (e) {
+      // Silently fail on cache write errors
+    }
+  }
+
+  /**
+   * Clear all research cache entries.
+   */
+  clearResearch() {
+    try {
+      this.db.prepare('DELETE FROM research_cache').run();
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  /**
+   * Get research cache status.
+   */
+  statusResearch() {
+    try {
+      const countResult = this.db.prepare('SELECT COUNT(*) as cnt FROM research_cache').get();
+      return {
+        count: countResult.cnt,
+        hits: researchStats.hits,
+        misses: researchStats.misses,
+      };
+    } catch (e) {
+      return { count: 0, hits: researchStats.hits, misses: researchStats.misses };
+    }
+  }
 }
 
 /**
@@ -198,6 +298,7 @@ class MapBackend {
     this.maxSize = options.maxSize || 1000;
     this.ttl = options.ttl || 3600000;
     this.cache = new Map();
+    this.researchMap = new Map();
   }
 
   /**
@@ -321,6 +422,77 @@ class MapBackend {
     }
     return warmed;
   }
+
+  /**
+   * Get research result from cache.
+   * Returns null if not found or expired.
+   */
+  getResearch(key) {
+    const entry = this.researchMap.get(key);
+    if (!entry) {
+      researchStats.misses++;
+      return null;
+    }
+
+    // Check TTL expiry
+    if (Date.now() > entry.expires) {
+      this.researchMap.delete(key);
+      researchStats.misses++;
+      return null;
+    }
+
+    // LRU re-insert (delete + set to maintain insertion order)
+    this.researchMap.delete(key);
+    this.researchMap.set(key, { ...entry, accessed: Date.now() });
+
+    researchStats.hits++;
+    return JSON.parse(entry.value);
+  }
+
+  /**
+   * Set research result in cache with TTL and LRU eviction.
+   */
+  setResearch(key, value, ttlMs = 3600000) {
+    const now = Date.now();
+
+    // Remove if already exists (to update LRU order)
+    if (this.researchMap.has(key)) {
+      this.researchMap.delete(key);
+    }
+
+    // LRU eviction at maxSize
+    if (this.researchMap.size >= this.maxSize) {
+      const oldestKey = this.researchMap.keys().next().value;
+      if (oldestKey) {
+        this.researchMap.delete(oldestKey);
+      }
+    }
+
+    this.researchMap.set(key, {
+      value: JSON.stringify(value),
+      created: now,
+      accessed: now,
+      expires: now + ttlMs,
+    });
+  }
+
+  /**
+   * Clear all research cache entries.
+   */
+  clearResearch() {
+    this.researchMap.clear();
+  }
+
+  /**
+   * Get research cache status.
+   */
+  statusResearch() {
+    return {
+      count: this.researchMap.size,
+      hits: researchStats.hits,
+      misses: researchStats.misses,
+    };
+  }
 }
 
 /**
@@ -417,6 +589,40 @@ class CacheEngine {
    */
   warm(files) {
     return this.backend.warm(files);
+  }
+
+  /**
+   * Get research result from cache.
+   * @param {string} key - Cache key (query string)
+   * @returns {object|null} Cached research result or null
+   */
+  getResearch(key) {
+    return this.backend.getResearch(key);
+  }
+
+  /**
+   * Set research result in cache.
+   * @param {string} key - Cache key (query string)
+   * @param {object} value - Research result to cache
+   * @param {number} [ttlMs] - TTL in milliseconds (default: 1 hour)
+   */
+  setResearch(key, value, ttlMs) {
+    this.backend.setResearch(key, value, ttlMs);
+  }
+
+  /**
+   * Clear all research cache entries.
+   */
+  clearResearch() {
+    this.backend.clearResearch();
+  }
+
+  /**
+   * Get research cache status.
+   * @returns {{ count: number, hits: number, misses: number }}
+   */
+  statusResearch() {
+    return this.backend.statusResearch();
   }
 }
 

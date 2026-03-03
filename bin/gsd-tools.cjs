@@ -2088,6 +2088,7 @@ var require_cache = __commonJS({
     var fs = require("fs");
     var path = require("path");
     var stats = { hits: 0, misses: 0 };
+    var researchStats = { hits: 0, misses: 0 };
     var SQLiteBackend = class {
       constructor(options = {}) {
         this.maxSize = options.maxSize || 1e3;
@@ -2110,6 +2111,15 @@ var require_cache = __commonJS({
         mtime REAL NOT NULL,
         created REAL NOT NULL,
         accessed REAL NOT NULL
+      )
+    `);
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS research_cache (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        created REAL NOT NULL,
+        accessed REAL NOT NULL,
+        expires REAL NOT NULL
       )
     `);
       }
@@ -2234,12 +2244,85 @@ var require_cache = __commonJS({
         }
         return warmed;
       }
+      /**
+       * Get research result from cache.
+       * Returns null if not found or expired.
+       */
+      getResearch(key) {
+        try {
+          const stmt = this.db.prepare("SELECT * FROM research_cache WHERE key = ?");
+          const row = stmt.get(key);
+          if (!row) {
+            researchStats.misses++;
+            return null;
+          }
+          if (Date.now() > row.expires) {
+            this.db.prepare("DELETE FROM research_cache WHERE key = ?").run(key);
+            researchStats.misses++;
+            return null;
+          }
+          this.db.prepare("UPDATE research_cache SET accessed = ? WHERE key = ?").run(Date.now(), key);
+          researchStats.hits++;
+          return JSON.parse(row.value);
+        } catch (e) {
+          researchStats.misses++;
+          return null;
+        }
+      }
+      /**
+       * Set research result in cache with TTL and LRU eviction.
+       */
+      setResearch(key, value, ttlMs = 36e5) {
+        try {
+          const serialized = JSON.stringify(value);
+          const now = Date.now();
+          const countResult = this.db.prepare("SELECT COUNT(*) as cnt FROM research_cache").get();
+          if (countResult.cnt >= this.maxSize) {
+            const oldest = this.db.prepare(
+              "SELECT key FROM research_cache ORDER BY accessed ASC LIMIT 1"
+            ).get();
+            if (oldest) {
+              this.db.prepare("DELETE FROM research_cache WHERE key = ?").run(oldest.key);
+            }
+          }
+          this.db.prepare(`
+        INSERT OR REPLACE INTO research_cache (key, value, created, accessed, expires)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(key, serialized, now, now, now + ttlMs);
+        } catch (e) {
+        }
+      }
+      /**
+       * Clear all research cache entries.
+       */
+      clearResearch() {
+        try {
+          this.db.prepare("DELETE FROM research_cache").run();
+        } catch (e) {
+        }
+      }
+      /**
+       * Get research cache status.
+       */
+      statusResearch() {
+        try {
+          const countResult = this.db.prepare("SELECT COUNT(*) as cnt FROM research_cache").get();
+          return {
+            count: countResult.cnt,
+            hits: researchStats.hits,
+            misses: researchStats.misses
+          };
+        } catch (e) {
+          return { count: 0, hits: researchStats.hits, misses: researchStats.misses };
+        }
+      }
     };
     var MapBackend = class {
       constructor(options = {}) {
         this.maxSize = options.maxSize || 1e3;
         this.ttl = options.ttl || 36e5;
         this.cache = /* @__PURE__ */ new Map();
+        this.researchMap = /* @__PURE__ */ new Map();
       }
       /**
        * Get value from cache with staleness check.
@@ -2342,6 +2425,63 @@ var require_cache = __commonJS({
         }
         return warmed;
       }
+      /**
+       * Get research result from cache.
+       * Returns null if not found or expired.
+       */
+      getResearch(key) {
+        const entry = this.researchMap.get(key);
+        if (!entry) {
+          researchStats.misses++;
+          return null;
+        }
+        if (Date.now() > entry.expires) {
+          this.researchMap.delete(key);
+          researchStats.misses++;
+          return null;
+        }
+        this.researchMap.delete(key);
+        this.researchMap.set(key, { ...entry, accessed: Date.now() });
+        researchStats.hits++;
+        return JSON.parse(entry.value);
+      }
+      /**
+       * Set research result in cache with TTL and LRU eviction.
+       */
+      setResearch(key, value, ttlMs = 36e5) {
+        const now = Date.now();
+        if (this.researchMap.has(key)) {
+          this.researchMap.delete(key);
+        }
+        if (this.researchMap.size >= this.maxSize) {
+          const oldestKey = this.researchMap.keys().next().value;
+          if (oldestKey) {
+            this.researchMap.delete(oldestKey);
+          }
+        }
+        this.researchMap.set(key, {
+          value: JSON.stringify(value),
+          created: now,
+          accessed: now,
+          expires: now + ttlMs
+        });
+      }
+      /**
+       * Clear all research cache entries.
+       */
+      clearResearch() {
+        this.researchMap.clear();
+      }
+      /**
+       * Get research cache status.
+       */
+      statusResearch() {
+        return {
+          count: this.researchMap.size,
+          hits: researchStats.hits,
+          misses: researchStats.misses
+        };
+      }
     };
     var CacheEngine = class {
       /**
@@ -2417,6 +2557,36 @@ var require_cache = __commonJS({
        */
       warm(files) {
         return this.backend.warm(files);
+      }
+      /**
+       * Get research result from cache.
+       * @param {string} key - Cache key (query string)
+       * @returns {object|null} Cached research result or null
+       */
+      getResearch(key) {
+        return this.backend.getResearch(key);
+      }
+      /**
+       * Set research result in cache.
+       * @param {string} key - Cache key (query string)
+       * @param {object} value - Research result to cache
+       * @param {number} [ttlMs] - TTL in milliseconds (default: 1 hour)
+       */
+      setResearch(key, value, ttlMs) {
+        this.backend.setResearch(key, value, ttlMs);
+      }
+      /**
+       * Clear all research cache entries.
+       */
+      clearResearch() {
+        this.backend.clearResearch();
+      }
+      /**
+       * Get research cache status.
+       * @returns {{ count: number, hits: number, misses: number }}
+       */
+      statusResearch() {
+        return this.backend.statusResearch();
       }
     };
     module2.exports = { CacheEngine };
