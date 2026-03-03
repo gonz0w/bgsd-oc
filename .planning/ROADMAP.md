@@ -12,6 +12,7 @@
 - ✅ **v7.0 Agent Orchestration & Efficiency** — Phases 37-44 (shipped 2026-02-27)
 - ✅ **v7.1 Trajectory Engineering** — Phases 45-50 (shipped 2026-03-02)
 - ✅ **v8.0 Performance & Agent Architecture** — Phases 51-55 (shipped 2026-03-03)
+- 🚧 **v8.1 RAG-Powered Research Pipeline** — Phases 56-60 (in progress)
 
 ## Phases
 
@@ -138,19 +139,124 @@ Full details: `.planning/milestones/v7.1-ROADMAP.md`
 </details>
 
 <details>
-<summary>v8.0 Performance & Agent Architecture (Phases 51-55) -- SHIPPED 2026-03-03</summary>
+<summary>✅ v8.0 Performance & Agent Architecture (Phases 51-55) — SHIPPED 2026-03-03</summary>
 
-- [x] Phase 51: Cache Foundation (3/3 plans) -- completed 2026-03-02
-- [x] Phase 52: Cache Integration & Warm-up (2/2 plans) -- completed 2026-03-02
-- [x] Phase 53: Agent Consolidation (3/3 plans) -- completed 2026-03-02
-- [x] Phase 54: Command Consolidation (4/4 plans) -- completed 2026-03-02
-- [x] Phase 55: Profiler & Performance Validation (2/2 plans) -- completed 2026-03-02
+- [x] Phase 51: Cache Foundation (3/3 plans) — completed 2026-03-02
+- [x] Phase 52: Cache Integration & Warm-up (2/2 plans) — completed 2026-03-02
+- [x] Phase 53: Agent Consolidation (3/3 plans) — completed 2026-03-02
+- [x] Phase 54: Command Consolidation (4/4 plans) — completed 2026-03-02
+- [x] Phase 55: Profiler & Performance Validation (2/2 plans) — completed 2026-03-02
 
 Full details: `.planning/milestones/v8.0-ROADMAP.md`
 
 </details>
 
+### 🚧 v8.1 RAG-Powered Research Pipeline (In Progress)
+
+**Milestone Goal:** Enhance the research workflow with RAG-powered tools — YouTube search (yt-dlp), NotebookLM API (notebooklm-py), Brave Search, and Context7 — so domain research is synthesized externally, reducing LLM token spend while improving research quality.
+
+- [ ] **Phase 56: foundation-and-config** - Config schema, capability detection, and research tool discovery
+- [ ] **Phase 57: youtube-integration** - YouTube search, transcript extraction, and result filtering via yt-dlp
+- [ ] **Phase 58: research-orchestration** - Multi-source pipeline with graceful degradation and agent integration
+- [ ] **Phase 59: notebooklm-integration** - NotebookLM RAG synthesis via notebooklm-py (highest risk, built last)
+- [ ] **Phase 60: testing-caching-polish** - SQLite caching for research results and session persistence
+
+## Phase Details
+
+### Phase 56: foundation-and-config
+
+**Goal:** Users can configure RAG settings, discover available research tools, and the system detects what's installed
+
+**Depends on:** Nothing (first phase of v8.1)
+
+**Requirements:** INFRA-01, INFRA-02, INFRA-04
+
+**Success criteria:**
+1. User can set `rag_enabled`, tool paths, search parameters, and research timeout in config.json and the system validates the schema
+2. Running `research:capabilities` reports which tools are available (yt-dlp, notebooklm-py, Brave Search MCP, Context7 MCP), the current degradation tier, and recommends missing tools
+3. System auto-detects available research MCP servers (Brave Search, Context7, Exa) and includes missing-tool recommendations in capabilities output
+4. Init output includes `rag_capabilities` field showing detected tools and tier
+
+**Research needed:** No — extends existing CONFIG_SCHEMA and checkBinary patterns
+
+**Plans:** TBD
+
+### Phase 57: youtube-integration
+
+**Goal:** Users can search YouTube for developer content and extract transcripts without leaving the CLI
+
+**Depends on:** Phase 56 (config schema, capability detection)
+
+**Requirements:** YT-01, YT-02, YT-03
+
+**Success criteria:**
+1. User can run `research:yt-search "topic"` and receive structured results (title, duration, views, channel, upload date, video ID) from yt-dlp's `ytsearch:` prefix
+2. User can run `research:yt-transcript <video-id>` and receive cleaned plain-text transcript extracted from VTT subtitles (auto or manual)
+3. User can filter search results by recency, duration range, minimum view count, and channel allowlist before any transcript extraction occurs
+4. When yt-dlp is not installed, commands fail gracefully with a clear installation message instead of crashing
+
+**Research needed:** No — yt-dlp is well-documented (Context7 HIGH confidence, benchmark 92.2), execFileSync pattern matches git.js
+
+**Plans:** TBD
+
+### Phase 58: research-orchestration
+
+**Goal:** Research pipeline collects sources from multiple tools and integrates with existing researcher agents, degrading gracefully when tools are missing
+
+**Depends on:** Phase 57 (YouTube sources available for collection)
+
+**Requirements:** ORCH-01, ORCH-02, ORCH-03, ORCH-04, ORCH-05
+
+**Success criteria:**
+1. Pipeline collects sources from Brave Search, Context7, and YouTube in a defined sequence and produces structured output combining all results
+2. Pipeline degrades through 4 tiers automatically: Full RAG (Tier 1) → Sources without synthesis (Tier 2) → Brave/Context7 only (Tier 3) → Pure LLM (Tier 4) — based on which tools are available
+3. Existing researcher agents (gsd-project-researcher, gsd-phase-researcher) use the new pipeline when tools are available, and produce identical output quality when tools are absent (zero regression)
+4. Pipeline provides progressive status output at each stage with time estimates, and collects sources in parallel where possible
+5. User can pass `--quick` flag to skip RAG pipeline entirely and fall back to pure LLM research
+
+**Research needed:** Yes — optimal source-to-LLM feeding format for Tier 2 (how to structure YouTube transcripts + web results as agent input)
+
+**Plans:** TBD
+
+### Phase 59: notebooklm-integration
+
+**Goal:** Users can create NotebookLM notebooks, load sources, and get RAG-grounded answers — enabling Tier 1 full synthesis
+
+**Depends on:** Phase 58 (orchestration layer ready to integrate NotebookLM as synthesis engine)
+
+**Requirements:** NLM-01, NLM-02, NLM-03, NLM-04
+
+**Success criteria:**
+1. User can create a NotebookLM notebook and add sources (URLs, YouTube URLs, plain text, PDFs) via `research:nlm-create` and `research:nlm-add-source` commands
+2. User can ask domain-specific questions against loaded notebook sources via `research:nlm-ask` and receive grounded answers with citations
+3. User can generate structured research reports (briefing docs, study guides) from a notebook via `research:nlm-report`
+4. System checks NotebookLM auth health (cookie validity) before every operation and provides clear re-auth instructions when cookies expire
+5. When NotebookLM is unavailable or auth fails, pipeline falls back to Tier 2 (sources without synthesis) with no error — NotebookLM is never required
+
+**Research needed:** Yes — notebooklm-py CLI output formats, auth failure modes, rate limits, fire-and-poll patterns for long operations
+
+**Plans:** TBD
+
+### Phase 60: testing-caching-polish
+
+**Goal:** Research results are cached to avoid expensive re-runs, and interrupted sessions can be resumed
+
+**Depends on:** Phase 59 (full pipeline available for integration testing and caching)
+
+**Requirements:** INFRA-03, INFRA-05
+
+**Success criteria:**
+1. Research results (notebook IDs, synthesis outputs, transcripts) are cached in the v8.0 SQLite cache layer, and repeated research on the same topic returns cached results instantly
+2. Interrupted research sessions are saved to a persistence file and can be resumed from the last completed stage instead of starting over
+3. All 762+ existing tests continue to pass with zero regressions after full pipeline integration
+
+**Research needed:** No — SQLite cache extension follows v8.0 cache.js patterns, session persistence is standard JSON file
+
+**Plans:** TBD
+
 ## Progress
+
+**Execution Order:** Phases execute in numeric order: 56 → 57 → 58 → 59 → 60
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -164,3 +270,8 @@ Full details: `.planning/milestones/v8.0-ROADMAP.md`
 | 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
+| 56. foundation-and-config | v8.1 | 0/? | Not started | - |
+| 57. youtube-integration | v8.1 | 0/? | Not started | - |
+| 58. research-orchestration | v8.1 | 0/? | Not started | - |
+| 59. notebooklm-integration | v8.1 | 0/? | Not started | - |
+| 60. testing-caching-polish | v8.1 | 0/? | Not started | - |

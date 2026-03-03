@@ -47,24 +47,22 @@
 
 ## Traceability
 
-<!-- Filled by roadmap — maps each requirement to a phase -->
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| YT-01 | — | — |
-| YT-02 | — | — |
-| YT-03 | — | — |
-| NLM-01 | — | — |
-| NLM-02 | — | — |
-| NLM-03 | — | — |
-| NLM-04 | — | — |
-| ORCH-01 | — | — |
-| ORCH-02 | — | — |
-| ORCH-03 | — | — |
-| ORCH-04 | — | — |
-| ORCH-05 | — | — |
-| INFRA-01 | — | — |
-| INFRA-02 | — | — |
-| INFRA-03 | — | — |
-| INFRA-04 | — | — |
-| INFRA-05 | — | — |
+| YT-01 | Phase 57 | Pending |
+| YT-02 | Phase 57 | Pending |
+| YT-03 | Phase 57 | Pending |
+| NLM-01 | Phase 59 | Pending |
+| NLM-02 | Phase 59 | Pending |
+| NLM-03 | Phase 59 | Pending |
+| NLM-04 | Phase 59 | Pending |
+| ORCH-01 | Phase 58 | Pending |
+| ORCH-02 | Phase 58 | Pending |
+| ORCH-03 | Phase 58 | Pending |
+| ORCH-04 | Phase 58 | Pending |
+| ORCH-05 | Phase 58 | Pending |
+| INFRA-01 | Phase 56 | Pending |
+| INFRA-02 | Phase 56 | Pending |
+| INFRA-03 | Phase 60 | Pending |
+| INFRA-04 | Phase 56 | Pending |
+| INFRA-05 | Phase 60 | Pending |

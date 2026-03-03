@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-01)
+See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
 **Current focus:** v8.1 — RAG-Powered Research Pipeline
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 56 of 60 (foundation-and-config)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-03 — Milestone v8.1 started
+Status: Ready to plan
+Last activity: 2026-03-02 — Roadmap created (5 phases, 17 requirements)
 
 Progress: [                                      ] 0% (v8.1)
 
@@ -37,63 +37,31 @@ Progress: [                                      ] 0% (v8.1)
 | v7.0 | 8 | 15 | 2 days |
 | v7.1 | 6 | 12 | 3 days |
 | v8.0 | 5 | 14 | 3 days |
-| Phase 51-cache-foundation P02 | 5min | 3 tasks | 4 files |
-| Phase 51-cache-foundation P03 | 10min | 3 tasks | 3 files |
-| Phase 52-cache-integration P02 | 5min | 4 tasks | 3 files |
-| Phase 52 P02 | 5min | 4 tasks | 3 files |
-| Phase 53 P01 | 6min | 2 tasks | 3 files |
-| Phase 53-agent-consolidation P02 | 7min | 2 tasks | 6 files |
-| Phase 53-agent-consolidation P03 | 7min | 2 tasks | 13 files |
-| Phase 54-command-consolidation P04 | 3min | 1 task | 1 file |
-| Phase 55-profiler-performance-validation P01 | 2min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-All v1.0-v7.1 decisions recorded in PROJECT.md Key Decisions table with outcomes.
+All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes.
 
-- [v8.0 Research]: Use `node:sqlite` (built-in DatabaseSync), NOT `better-sqlite3` — preserves single-file deploy
-- [v8.0 Research]: No backward compatibility aliases for command renames — single user, just rename and update all references
-- [v8.0 Research]: Merge integration-checker→verifier, synthesizer→roadmapper (11→9 agents)
-- [v8.0 Research]: Two-layer cache: in-memory Map (L1) + SQLite (L2) behind existing `cachedReadFile()` interface
-- [v8.0 Research]: Graceful degradation to Map-only on Node <22.5 — zero crashes, zero warnings
-- [v8.0 Execution 51-01]: XDG_CONFIG_HOME convention for cache database path, transparent Map fallback
-- [v8.0 Execution 51-03]: Explicit cache invalidation on all gsd-tools file writes for immediate consistency
-- [v8.0 Execution 52-01]: Cache warm with auto-discovery, --no-cache flag for test parity, auto-warm message
-- [v8.0 Execution 52-02]: Hot-path commands wired to cachedReadFile, test parity verified
-- [Phase 52]: Hot-path commands wired to cachedReadFile — Performance optimization: Use cachedReadFile instead of fs.readFileSync for .planning files in phase.js, verify.js, misc.js
-- [Phase 53]: Created RACI matrix, implemented agent audit command — Each lifecycle step now has exactly one responsible agent
-- [Phase 53-02]: Merged gsd-integration-checker into verifier, gsd-research-synthesizer into roadmapper — 11→9 agents
-- [Phase 53-03]: Added token budgets to all 9 agent manifests (80k/60k), context builder warns on budget exceedance
-- [Phase 54-01]: Implemented namespace routing in router.js — Supports init:, plan:, execute:, verify:, util: command prefixes with colon syntax
-- [Phase 54-02]: Updated test command references to use namespace format — 126 plan: occurrences, all 762 tests pass
-- [Phase 54-04]: Added automatic changelog generation to milestone wrapup — Creates vX.X-DOCS.md with git log and STATE.md metrics
-- [Phase 55-01]: Added profiler instrumentation to hot paths — file reads, git operations, markdown parsing, and AST analysis emit timing data when GSD_PROFILE=1
-- [Phase 55-02]: Created profiler compare and cache-speedup commands — enables before/after timing deltas with color-coded regression highlighting, cache effectiveness validation
-- [Phase quick-3]: Deleted gsd-research-synthesizer and gsd-integration-checker from repo; updated all docs to 9-agent system, v8.0, 762 tests
-- [Phase quick-5]: Renamed all 622 /gsd-* slash command references to /bgsd-* across 77 doc files; updated AGENTS.md with full 41-command list
+- [v8.1 Research]: Build YouTube/yt-dlp first (low risk), NotebookLM last (highest risk — unofficial API)
+- [v8.1 Research]: 4-tier graceful degradation: Full RAG → Sources without synthesis → Brave/Context7 only → Pure LLM
+- [v8.1 Research]: All external tools invoked via execFileSync subprocess pattern (matching git.js), zero bundled deps
+- [v8.1 Research]: NotebookLM is a quality enhancer, never a requirement — pipeline works at Tier 2-3 without it
 
 ### Pending Todos
 
 None — milestone starting fresh.
 
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 3 | Audit codebase for stale links, old commands/agents, cleanup for release | 2026-03-03 | e620ea9 | .planning/quick/3-audit-codebase-for-stale-links-old-comma |
-| 4 | Update all docs, remove stale docs, document v8.0 for release | 2026-03-03 | 4a974fd | .planning/quick/4-update-all-docs-remove-stale-docs-docume |
-| 5 | Fix all docs: rename /gsd-* → /bgsd-* across 77 files | 2026-03-03 | 0596eaa | .planning/quick/5-fix-all-docs-to-accurately-reflect-actua |
-
 ### Blockers/Concerns
 
-- `node:sqlite` is Stability 1.2 (Release Candidate) — not yet Stable. Abstraction layer + graceful fallback mitigates.
-- Node.js minimum version bump from ≥18 to ≥22.5 needed for SQLite — Node 18 EOL was Sept 2025, reasonable.
-- Bundle at 1058KB (slightly over 1050KB budget) — monitor during v8.0.
+- NotebookLM unofficial API (notebooklm-py) uses cookie auth that expires every few weeks — Google can break it anytime
+- yt-dlp in perpetual arms race with YouTube — nsig/SABR breakage requires frequent updates
+- Full RAG pipeline latency 3-8 min vs 10-30 sec LLM-only — progressive output and --quick flag mitigate
+- Bundle at ~1133KB — ~25KB new code estimated, monitor against 1500KB budget
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: v8.0 milestone archived and tagged
-Next step: /bgsd-new-milestone (after /clear)
+Last session: 2026-03-02
+Stopped at: Roadmap created for v8.1 (5 phases, 56-60)
+Next step: /bgsd-plan-phase 56
