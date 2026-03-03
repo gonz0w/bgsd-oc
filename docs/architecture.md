@@ -17,7 +17,7 @@ This means:
 - AI agents never parse markdown directly — they get clean JSON from gsd-tools
 - State changes are atomic — gsd-tools handles file writes and git commits
 - Workflows are portable — any LLM that follows markdown instructions can execute them
-- Testing is straightforward — 751 tests cover the deterministic layer
+- Testing is straightforward — 762 tests cover the deterministic layer
 
 ---
 
