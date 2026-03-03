@@ -41,7 +41,7 @@ cp "$SRC/VERSION" "$DEST/"
 
 # Step 3b: Deploy command wrappers (only our commands, don't touch others)
 mkdir -p "$CMD_DIR"
-for cmd in "$SRC/commands"/gsd-*.md; do
+for cmd in "$SRC/commands"/bgsd-*.md; do
 	[ -f "$cmd" ] && cp "$cmd" "$CMD_DIR/"
 done
 

@@ -1,9 +1,5 @@
 # bGSD Plugin — Development Workspace
 
-## CRITICAL: Working Directory
-**This project lives at the current working directory (`$PWD`) — ALWAYS.**
-Use `pwd` or the environment's working directory. Never hardcode or guess the path.
-
 ## What This Is
 Development workspace for the Better Getting Stuff Done (bGSD) planning plugin (v8.0).
 The production install lives at `~/.config/OC/get-shit-done/` (where OC = the host editor's config dir).
