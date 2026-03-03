@@ -63,7 +63,7 @@ Workflows are **not code**. They are prompts that any LLM can follow. The determ
 |----------|---------|-------------|
 | `new-milestone.md` | `/gsd-new-milestone` | Start new milestone: questioning, research, requirements, roadmap |
 | `complete-milestone.md` | `/gsd-complete-milestone` | Archive milestone, create historical record, tag release |
-| `audit-milestone.md` | `/gsd-audit-milestone` | Cross-phase integration check via gsd-integration-checker |
+| `audit-milestone.md` | `/gsd-audit-milestone` | Cross-phase integration check via gsd-verifier |
 | `plan-milestone-gaps.md` | `/gsd-plan-milestone-gaps` | Create fix phases for audit gaps |
 
 ### Roadmap Management (3 workflows)
@@ -182,7 +182,7 @@ Several workflows spawn multiple agents simultaneously:
     → Architecture researcher
     → Pitfalls researcher
   Wait for all 4 to complete
-  Spawn 1x gsd-research-synthesizer to merge results
+  Spawn 1x gsd-roadmapper to synthesize and create roadmap
 ```
 
 ### Wave Execution

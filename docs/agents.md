@@ -1,6 +1,6 @@
 # Agent System
 
-bGSD uses 12 specialized AI agents, each purpose-built for a specific task. Agents communicate through files, not conversation history.
+bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agents communicate through files, not conversation history.
 
 ---
 
@@ -8,7 +8,7 @@ bGSD uses 12 specialized AI agents, each purpose-built for a specific task. Agen
 
 - **Specialization over generalization.** A planning agent plans. An execution agent executes. A verification agent verifies. No agent does everything.
 - **Fresh context per invocation.** Each agent starts with a clean context window. Communication happens through files (PLAN.md in, SUMMARY.md out).
-- **Intelligence as data.** New capabilities are delivered as CLI data that existing agents consume, not as new agent roles. Agent count is capped at 12.
+- **Intelligence as data.** New capabilities are delivered as CLI data that existing agents consume, not as new agent roles. Agent count is capped at 9.
 - **Advisory routing.** The orchestrator recommends which agent and model to use. Workflows make the final decision.
 
 ---
@@ -192,18 +192,6 @@ bGSD uses 12 specialized AI agents, each purpose-built for a specific task. Agen
 
 ---
 
-#### gsd-research-synthesizer
-
-**Role:** Merges parallel research outputs into a single summary.
-
-**Inputs:** 4 research documents from gsd-project-researchers.
-
-**Outputs:** `research/SUMMARY.md` with executive summary, key findings, confidence assessment.
-
-**Spawned by:** `/gsd-new-project`, `/gsd-new-milestone`
-
----
-
 ### Codebase Analysis Agents
 
 #### gsd-codebase-mapper
@@ -227,24 +215,6 @@ bGSD uses 12 specialized AI agents, each purpose-built for a specific task. Agen
 
 ---
 
-#### gsd-integration-checker
-
-**Role:** Cross-phase wiring verification at milestone boundaries.
-
-**Inputs:** Phase verifications, summaries, requirement mapping.
-
-**Outputs:** `MILESTONE-AUDIT.md` with integration assessment.
-
-**Spawned by:** `/gsd-audit-milestone`
-
-**Key behaviors:**
-- Verifies artifacts from different phases connect properly
-- Tests end-to-end user flows
-- Checks all requirements are satisfied across the milestone
-- Identifies integration gaps
-
----
-
 ## Model Profiles
 
 Three profiles control which AI model each agent uses:
@@ -258,11 +228,9 @@ Three profiles control which AI model each agent uses:
 | gsd-debugger | opus | sonnet | sonnet |
 | gsd-phase-researcher | opus | sonnet | haiku |
 | gsd-project-researcher | opus | sonnet | haiku |
-| gsd-research-synthesizer | sonnet | sonnet | haiku |
 | gsd-roadmapper | opus | opus | sonnet |
 | gsd-plan-checker | sonnet | sonnet | haiku |
 | gsd-codebase-mapper | sonnet | sonnet | haiku |
-| gsd-integration-checker | opus | sonnet | sonnet |
 
 ### Per-Agent Overrides
 

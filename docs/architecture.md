@@ -150,11 +150,9 @@ src/
 | **gsd-debugger** | Systematic debugging | Symptoms, codebase context | Debug state file, root cause |
 | **gsd-phase-researcher** | Research implementation | Phase goal, ecosystem context | RESEARCH.md |
 | **gsd-project-researcher** | Domain research | Project description, focus area | Research document |
-| **gsd-research-synthesizer** | Merge research | 4 research documents | SUMMARY.md |
-| **gsd-roadmapper** | Create roadmap | Requirements, research, project context | ROADMAP.md |
+| **gsd-roadmapper** | Create roadmap + synthesize research | Requirements, research, project context | ROADMAP.md |
 | **gsd-codebase-mapper** | Analyze codebase | Focus area (tech/arch/quality/concerns) | Codebase documents |
 | **gsd-reviewer** | Post-execution code review | Git diff, PLAN.md, CONVENTIONS.md | Severity-classified findings |
-| **gsd-integration-checker** | Cross-phase wiring | Phase verifications, summaries | Integration report |
 
 ### Model Profiles
 

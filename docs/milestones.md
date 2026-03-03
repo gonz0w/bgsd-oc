@@ -15,7 +15,7 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 | v4.0 | Environment & Execution Intelligence | 5 | 13 | 1 day | 502 | 549KB |
 | v5.0 | Codebase Intelligence | 7 | 14 | 2 days | 572 | 672KB |
 | v6.0 | UX & Developer Experience | 7 | 11 | 1 day | 574 | 681KB |
-| v7.0 | Agent Orchestration & Efficiency | 8 | 15 | 2 days | 669 | 1000KB |
+| v7.0 | Agent Orchestration & Efficiency | 8 | 15 | 2 days | 762 | 1000KB |
 | v7.1 | Trajectory Engineering | 5 | 10 | In progress | 751 | 1050KB |
 | **Total** | | **49+** | **110+** | **~10 days** | | |
 
@@ -60,7 +60,7 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 ### Validation (Phase 42)
 - **Canary cycle** — Full planning-execution-verification on test project
 - **Token measurement** — Validated context reduction against v6.0 baselines
-- **All tests passing** — 669 tests with zero regressions
+- **All tests passing** — 762 tests with zero regressions
 
 **Requirements:** 29 total, all mapped to phases. See `.planning/REQUIREMENTS.md`.
 

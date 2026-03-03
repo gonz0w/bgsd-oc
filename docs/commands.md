@@ -17,7 +17,7 @@ Initialize a new project through the full lifecycle: questioning, research, requ
 | `--auto` | Automatic mode. Expects idea document via `@` reference. Collects settings in 2 rounds instead of interactive questioning. |
 
 **Workflow:** `workflows/new-project.md`
-**Agents:** gsd-project-researcher (x4), gsd-research-synthesizer, gsd-roadmapper
+**Agents:** gsd-project-researcher (x4), gsd-roadmapper
 **Creates:** `PROJECT.md`, `INTENT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `config.json`, optionally `research/`
 
 ---
@@ -179,7 +179,7 @@ Start a new milestone cycle with questioning, research, requirements, and roadma
 | `[name]` | Milestone name (e.g., "v1.1 Notifications") |
 
 **Workflow:** `workflows/new-milestone.md`
-**Agents:** gsd-project-researcher (x4), gsd-research-synthesizer, gsd-roadmapper
+**Agents:** gsd-project-researcher (x4), gsd-roadmapper
 
 ---
 
@@ -204,7 +204,7 @@ Audit milestone against original intent. Cross-phase integration check.
 | `[version]` | Milestone version to audit |
 
 **Workflow:** `workflows/audit-milestone.md`
-**Agents:** gsd-integration-checker
+**Agents:** gsd-verifier
 **Creates:** `MILESTONE-AUDIT.md`
 
 ---
@@ -1077,7 +1077,7 @@ gsd-tools phases list [--type type] [--phase N] [--include-archived]
 - **[Getting Started](getting-started.md)** — First project walkthrough
 - **[Expert Guide](expert-guide.md)** — Full control flow and advanced patterns
 - **[Architecture](architecture.md)** — Internal design
-- **[Agent System](agents.md)** — All 12 agents and their roles
+- **[Agent System](agents.md)** — All 9 agents and their roles
 - **[Workflows](workflows.md)** — All 45 workflows
 - **[TDD Guide](tdd.md)** — TDD execution engine
 - **[Configuration](configuration.md)** — Full configuration reference

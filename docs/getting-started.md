@@ -303,7 +303,7 @@ GSD works out of the box. Customize through `/gsd-settings` or edit `.planning/c
 - **[Expert Guide](expert-guide.md)** — Full control over every step
 - **[Command Reference](commands.md)** — All 41 commands with options
 - **[Architecture](architecture.md)** — How bGSD works internally
-- **[Agent System](agents.md)** — All 12 agents and their roles
+- **[Agent System](agents.md)** — All 9 agents and their roles
 - **[Planning System](planning-system.md)** — How .planning/ works
 - **[TDD Guide](tdd.md)** — Test-driven development with bGSD
 - **[Configuration](configuration.md)** — Full configuration reference

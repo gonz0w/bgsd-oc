@@ -2,7 +2,7 @@
 
 A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**751 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **12 specialized AI agents** | **7 milestones shipped**
+**762 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **7 milestones shipped**
 
 ---
 
@@ -178,7 +178,7 @@ See the **[Full Command Reference](docs/commands.md)** for all 41 commands with 
 
 ## Key Features
 
-### 12 Specialized AI Agents
+### 9 Specialized AI Agents
 
 bGSD doesn't use one generic agent for everything. Each task gets a purpose-built agent:
 
@@ -194,8 +194,6 @@ bGSD doesn't use one generic agent for everything. Each task gets a purpose-buil
 | **gsd-roadmapper** | Creates phased roadmaps from requirements |
 | **gsd-plan-checker** | Reviews plan quality with revision loop |
 | **gsd-codebase-mapper** | Parallel codebase analysis (4 agents, 7 documents) |
-| **gsd-integration-checker** | Cross-phase wiring verification |
-| **gsd-research-synthesizer** | Merges parallel research outputs |
 
 See the **[Agent System Guide](docs/agents.md)** for full details on each agent.
 
@@ -396,7 +394,7 @@ See the **[Full Configuration Reference](docs/configuration.md)** for all option
 | **[Expert Guide](docs/expert-guide.md)** | Full control flow, all options, advanced patterns |
 | **[Command Reference](docs/commands.md)** | Every command with arguments, options, and examples |
 | **[Architecture](docs/architecture.md)** | How bGSD works internally, agent system, tool design |
-| **[Agent System](docs/agents.md)** | All 12 agents, their roles, spawning, model profiles |
+| **[Agent System](docs/agents.md)** | All 9 agents, their roles, spawning, model profiles |
 | **[Workflows](docs/workflows.md)** | All 45 workflows, what they do, how they connect |
 | **[Planning System](docs/planning-system.md)** | How .planning/ works, document structure, lifecycle |
 | **[Configuration](docs/configuration.md)** | Full configuration reference with all options |
@@ -419,7 +417,7 @@ cd bgsd-oc
 npm install
 npm run build
 
-# Run tests (node:test, 751 tests)
+# Run tests (node:test, 762 tests)
 npm test
 
 # Test a specific command

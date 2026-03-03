@@ -5,7 +5,7 @@
 Use `pwd` or the environment's working directory. Never hardcode or guess the path.
 
 ## What This Is
-Development workspace for the Better Getting Stuff Done (bGSD) planning plugin (v7.0).
+Development workspace for the Better Getting Stuff Done (bGSD) planning plugin (v8.0).
 The production install lives at `~/.config/OC/get-shit-done/` (where OC = the host editor's config dir).
 
 ## Project Structure
@@ -24,7 +24,7 @@ build.js                   # Build script — bundles src/ into bin/gsd-tools.cj
 ```bash
 node bin/gsd-tools.cjs <command> [args]   # Test locally
 npm run build                              # Build from source
-npm test                                   # Full test suite (669+ tests)
+npm test                                   # Full test suite (762+ tests)
 ./deploy.sh                                # Deploy to live config
 ```
 
@@ -44,7 +44,7 @@ npm test                                   # Full test suite (669+ tests)
 
 ## Testing
 ```bash
-npm test          # Full test suite (669+ tests)
+npm test          # Full test suite (762+ tests)
 npm run build     # Build validation
 ```
 
