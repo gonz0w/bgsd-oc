@@ -159,7 +159,7 @@ Full details: `.planning/milestones/v8.0-ROADMAP.md`
 - [x] **Phase 57: youtube-integration** - YouTube search, transcript extraction, and result filtering via yt-dlp (completed 2026-03-03)
 - [x] **Phase 58: research-orchestration** - Multi-source pipeline with graceful degradation and agent integration (completed 2026-03-03)
 - [x] **Phase 59: notebooklm-integration** - NotebookLM RAG synthesis via notebooklm-py (highest risk, built last) (completed 2026-03-03)
-- [ ] **Phase 60: testing-caching-polish** - SQLite caching for research results and session persistence
+- [ ] **Phase 60: testing-caching-polish** - SQLite caching for research results and session persistence (2 plans)
 
 ## Phase Details
 
@@ -268,7 +268,11 @@ Plans:
 
 **Research needed:** No — SQLite cache extension follows v8.0 cache.js patterns, session persistence is standard JSON file
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 60-01-PLAN.md — Research cache: SQLite research_cache table + cmdResearchCollect cache integration + cache:research-stats/clear commands
+- [ ] 60-02-PLAN.md — Session persistence: --resume flag + stage checkpointing + full test suite verification
 
 ## Progress
 
