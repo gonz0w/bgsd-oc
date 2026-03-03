@@ -25,7 +25,7 @@ Each layer has dedicated commands, agents, and documents. You can engage with an
 For existing codebases, always map first:
 
 ```
-/gsd-map-codebase
+/bgsd-map-codebase
 ```
 
 Spawns 4 parallel agents that write 7 documents to `.planning/codebase/`:
@@ -42,7 +42,7 @@ These documents feed into planning agents for context-aware plan generation.
 ### Project Initialization
 
 ```
-/gsd-new-project
+/bgsd-new-project
 ```
 
 The full flow:
@@ -57,7 +57,7 @@ The full flow:
 
 **Auto mode:**
 ```
-/gsd-new-project --auto
+/bgsd-new-project --auto
 ```
 Expects a design document via `@` reference. Collects all settings in 2 rounds instead of interactive questioning.
 
@@ -66,7 +66,7 @@ Expects a design document via `@` reference. Collects all settings in 2 rounds i
 INTENT.md captures the "north star" for your project:
 
 ```
-/gsd-new-project           # Creates INTENT.md during initialization
+/bgsd-new-project           # Creates INTENT.md during initialization
 ```
 
 After creation, use intent commands for ongoing alignment:
@@ -100,7 +100,7 @@ Score 0-30 = aligned, 31-60 = drifting, 61-100 = significantly misaligned.
 Before planning, see what the AI assumes:
 
 ```
-/gsd-list-phase-assumptions 1
+/bgsd-list-phase-assumptions 1
 ```
 
 Surfaces assumptions across 5 areas with confidence levels:
@@ -117,7 +117,7 @@ No files created. Purely conversational. Correct assumptions before they become 
 Lock down implementation decisions:
 
 ```
-/gsd-discuss-phase 1
+/bgsd-discuss-phase 1
 ```
 
 bGSD identifies gray areas specific to your phase (layout decisions, behavior edge cases, ordering preferences) and lets you choose which to discuss. Produces `CONTEXT.md` with:
@@ -131,7 +131,7 @@ bGSD identifies gray areas specific to your phase (layout decisions, behavior ed
 For complex or unfamiliar domains:
 
 ```
-/gsd-research-phase 1
+/bgsd-research-phase 1
 ```
 
 Spawns a `gsd-phase-researcher` agent that investigates:
@@ -145,7 +145,7 @@ Produces `{phase}-RESEARCH.md` consumed by the planner.
 ### Step 4: Plan
 
 ```
-/gsd-plan-phase 1
+/bgsd-plan-phase 1
 ```
 
 **Flags:**
@@ -209,7 +209,7 @@ Discovery uses Context7 MCP for library docs and optionally Brave Search for web
 ### Wave Execution
 
 ```
-/gsd-execute-phase 1
+/bgsd-execute-phase 1
 ```
 
 **Pre-flight checks:**
@@ -227,9 +227,9 @@ Discovery uses Context7 MCP for library docs and optionally Brave Search for web
 
 **Gaps-only mode:**
 ```
-/gsd-execute-phase 1 --gaps-only
+/bgsd-execute-phase 1 --gaps-only
 ```
-Only executes plans created by `/gsd-plan-phase --gaps` (from UAT gap closure).
+Only executes plans created by `/bgsd-plan-phase --gaps` (from UAT gap closure).
 
 ### Checkpoint Types
 
@@ -252,7 +252,7 @@ feat(auth): implement login endpoint [phase-01/plan-01/task-03]
 
 This enables precise rollback:
 ```
-/gsd-rollback-info 01-01     # Shows commits and revert command for plan 01-01
+/bgsd-rollback-info 01-01     # Shows commits and revert command for plan 01-01
 ```
 
 ---
@@ -274,7 +274,7 @@ Produces `VERIFICATION.md` with pass/gaps_found/human_needed status.
 ### Manual UAT Testing
 
 ```
-/gsd-verify-work 1
+/bgsd-verify-work 1
 ```
 
 Interactive testing flow:
@@ -282,14 +282,14 @@ Interactive testing flow:
 2. You test and report: pass, skip, or issue
 3. Issues get severity classification (inferred, never asked)
 4. Gaps are diagnosed by parallel debug agents
-5. Fix plans are generated for `/gsd-execute-phase --gaps-only`
+5. Fix plans are generated for `/bgsd-execute-phase --gaps-only`
 
 ### Milestone Audit
 
 Before completing a milestone:
 
 ```
-/gsd-audit-milestone
+/bgsd-audit-milestone
 ```
 
 Spawns `gsd-verifier` to verify cross-phase wiring:
@@ -300,7 +300,7 @@ Spawns `gsd-verifier` to verify cross-phase wiring:
 Produces `MILESTONE-AUDIT.md`. If gaps found:
 
 ```
-/gsd-plan-milestone-gaps     # Creates fix phases for all gaps
+/bgsd-plan-milestone-gaps     # Creates fix phases for all gaps
 ```
 
 ### Quality Scoring
@@ -336,8 +336,8 @@ bGSD maintains 5 memory stores in `.planning/memory/`:
 ### Searching Memory
 
 ```
-/gsd-search-decisions "database"      # Find past decisions
-/gsd-search-lessons "auth"            # Find lessons learned
+/bgsd-search-decisions "database"      # Find past decisions
+/bgsd-search-lessons "auth"            # Find lessons learned
 ```
 
 ### Memory in Context
@@ -353,9 +353,9 @@ Memory is trimmed by priority when approaching token budget limits.
 ### Todo Management
 
 ```
-/gsd-add-todo Fix the edge case in user validation
-/gsd-check-todos                      # List and work on todos
-/gsd-check-todos auth                 # Filter by area
+/bgsd-add-todo Fix the edge case in user validation
+/bgsd-check-todos                      # List and work on todos
+/bgsd-check-todos auth                 # Filter by area
 ```
 
 ---
@@ -581,7 +581,7 @@ For true parallel execution without merge conflicts:
 {
   "worktree": {
     "enabled": true,
-    "base_path": "/tmp/gsd-worktrees",
+    "base_path": "/tmp/bgsd-worktrees",
     "sync_files": [".env", ".env.local", ".planning/config.json"],
     "setup_hooks": ["npm install"],
     "max_concurrent": 3
@@ -600,7 +600,7 @@ Each plan executes in its own git worktree, merged back to main after completion
 Need to insert urgent work between phases 3 and 4?
 
 ```
-/gsd-insert-phase 3 "Fix critical auth vulnerability"
+/bgsd-insert-phase 3 "Fix critical auth vulnerability"
 ```
 
 Creates phase 3.1 with all the same planning/execution capabilities.
@@ -608,15 +608,15 @@ Creates phase 3.1 with all the same planning/execution capabilities.
 ### Roadmap Evolution
 
 ```
-/gsd-add-phase "Add export functionality"     # Append to roadmap
-/gsd-remove-phase 7                            # Remove unstarted phase
-/gsd-insert-phase 4 "Emergency hotfix"         # Insert between phases
+/bgsd-add-phase "Add export functionality"     # Append to roadmap
+/bgsd-remove-phase 7                            # Remove unstarted phase
+/bgsd-insert-phase 4 "Emergency hotfix"         # Insert between phases
 ```
 
 ### Debug Sessions
 
 ```
-/gsd-debug The payment webhook is timing out
+/bgsd-debug The payment webhook is timing out
 ```
 
 Persistent debug state survives `/clear`:
@@ -739,7 +739,7 @@ node bin/gsd-tools.cjs mcp profile --restore       # Restore from backup
 
   "worktree": {
     "enabled": false,
-    "base_path": "/tmp/gsd-worktrees",
+    "base_path": "/tmp/bgsd-worktrees",
     "sync_files": [".env", ".env.local", ".planning/config.json"],
     "setup_hooks": [],
     "max_concurrent": 3
@@ -759,7 +759,7 @@ node bin/gsd-tools.cjs validate-config                   # Schema validation
 
 Or interactively:
 ```
-/gsd-settings
+/bgsd-settings
 ```
 
 ### User Defaults
@@ -772,32 +772,32 @@ Save preferred settings globally at `~/.gsd/defaults.json`. These are applied wh
 
 ```
 # 1. Map existing codebase (brownfield)
-/gsd-map-codebase
+/bgsd-map-codebase
 
 # 2. Initialize project with full research
-/gsd-new-project
+/bgsd-new-project
 # -> Answer questions, approve research, review roadmap
 
 # 3. For each phase:
-/gsd-list-phase-assumptions 1        # Check AI's assumptions
-/gsd-discuss-phase 1                  # Lock implementation decisions
-/gsd-plan-phase 1 --research          # Plan with domain research
-/gsd-execute-phase 1                  # Execute with wave parallelism
-/gsd-verify-work 1                    # Manual UAT testing
+/bgsd-list-phase-assumptions 1        # Check AI's assumptions
+/bgsd-discuss-phase 1                  # Lock implementation decisions
+/bgsd-plan-phase 1 --research          # Plan with domain research
+/bgsd-execute-phase 1                  # Execute with wave parallelism
+/bgsd-verify-work 1                    # Manual UAT testing
 
 # 4. If UAT finds gaps:
-/gsd-plan-phase 1 --gaps              # Plan fixes for gaps
-/gsd-execute-phase 1 --gaps-only      # Execute only gap plans
+/bgsd-plan-phase 1 --gaps              # Plan fixes for gaps
+/bgsd-execute-phase 1 --gaps-only      # Execute only gap plans
 
 # 5. Before milestone completion:
-/gsd-audit-milestone                  # Cross-phase integration check
-/gsd-plan-milestone-gaps              # Fix any integration gaps
+/bgsd-audit-milestone                  # Cross-phase integration check
+/bgsd-plan-milestone-gaps              # Fix any integration gaps
 
 # 6. Complete milestone:
-/gsd-complete-milestone
+/bgsd-complete-milestone
 
 # 7. Start next cycle:
-/gsd-new-milestone
+/bgsd-new-milestone
 ```
 
 ---

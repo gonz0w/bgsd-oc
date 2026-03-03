@@ -25,7 +25,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** One or more PLAN.md files with YAML frontmatter (phase, plan, type, wave, dependencies, must_haves) and XML task definitions.
 
-**Spawned by:** `/gsd-plan-phase`, `/gsd-quick`
+**Spawned by:** `/bgsd-plan-phase`, `/bgsd-quick`
 
 **Key behaviors:**
 - Breaks phase goals into numbered tasks with file paths and instructions
@@ -43,7 +43,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** Code changes, SUMMARY.md documenting what was built, git commits with trailers.
 
-**Spawned by:** `/gsd-execute-phase`, `/gsd-quick`
+**Spawned by:** `/bgsd-execute-phase`, `/bgsd-quick`
 
 **Key behaviors:**
 - Follows task instructions sequentially
@@ -63,7 +63,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** VERIFICATION.md with pass/gaps_found/human_needed status.
 
-**Spawned by:** `/gsd-execute-phase` (after all plans complete)
+**Spawned by:** `/bgsd-execute-phase` (after all plans complete)
 
 **Key behaviors:**
 - Checks truths: Are behavioral claims actually true in the codebase?
@@ -84,7 +84,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** Review findings with severity classification, integrated into SUMMARY.md.
 
-**Triggered by:** `/gsd-execute-phase` (post-execution review step in `execute-plan.md`)
+**Triggered by:** `/bgsd-execute-phase` (post-execution review step in `execute-plan.md`)
 
 **Key behaviors:**
 - Two-stage review:
@@ -106,7 +106,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** Debug state file (`.planning/debug/{slug}.md`) with symptoms, hypotheses, evidence, timeline.
 
-**Spawned by:** `/gsd-debug`
+**Spawned by:** `/bgsd-debug`
 
 **Key behaviors:**
 - Captures symptoms in structured format
@@ -127,7 +127,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** Revision feedback or approval.
 
-**Spawned by:** `/gsd-plan-phase` (when `plan_checker` enabled)
+**Spawned by:** `/bgsd-plan-phase` (when `plan_checker` enabled)
 
 **Key behaviors:**
 - Checks task specificity (no vague instructions)
@@ -146,7 +146,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** `{phase}-RESEARCH.md` consumed by the planner.
 
-**Spawned by:** `/gsd-plan-phase --research`, `/gsd-research-phase`
+**Spawned by:** `/bgsd-plan-phase --research`, `/bgsd-research-phase`
 
 **Key behaviors:**
 - Investigates ecosystem standard approaches
@@ -164,7 +164,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** ROADMAP.md with phases, goals, dependencies, success criteria.
 
-**Spawned by:** `/gsd-new-project`, `/gsd-new-milestone`
+**Spawned by:** `/bgsd-new-project`, `/bgsd-new-milestone`
 
 **Key behaviors:**
 - Groups requirements into logical phases
@@ -184,7 +184,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** Research document (STACK.md, FEATURES.md, ARCHITECTURE.md, or PITFALLS.md).
 
-**Spawned by:** `/gsd-new-project`, `/gsd-new-milestone` (4 parallel instances)
+**Spawned by:** `/bgsd-new-project`, `/bgsd-new-milestone` (4 parallel instances)
 
 **Focus areas:**
 - **Stack** — Technology choices, dependencies, tooling
@@ -204,7 +204,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 **Outputs:** Codebase document in `.planning/codebase/`.
 
-**Spawned by:** `/gsd-map-codebase` (4 parallel instances)
+**Spawned by:** `/bgsd-map-codebase` (4 parallel instances)
 
 **Focus areas and outputs:**
 
@@ -278,10 +278,10 @@ Each agent gets a **fresh context window**. There is no shared conversation hist
 
 | Workflow | Parallel Agents | Count |
 |----------|----------------|-------|
-| `/gsd-new-project` | gsd-project-researcher | 4 (Stack, Features, Architecture, Pitfalls) |
-| `/gsd-map-codebase` | gsd-codebase-mapper | 4 (tech, arch, quality, concerns) |
-| `/gsd-execute-phase` | gsd-executor | N per wave (independent plans) |
-| `/gsd-verify-work` | debug agents | N per UAT gap |
+| `/bgsd-new-project` | gsd-project-researcher | 4 (Stack, Features, Architecture, Pitfalls) |
+| `/bgsd-map-codebase` | gsd-codebase-mapper | 4 (tech, arch, quality, concerns) |
+| `/bgsd-execute-phase` | gsd-executor | N per wave (independent plans) |
+| `/bgsd-verify-work` | debug agents | N per UAT gap |
 
 ---
 

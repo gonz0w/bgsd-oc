@@ -46,17 +46,17 @@ npm run build     # Build validation
 
 ## Slash Commands
 11 commands available in `commands/`:
-- `/gsd-velocity` — Execution velocity metrics and completion forecast
-- `/gsd-codebase-impact` — Module dependencies and blast radius analysis
-- `/gsd-context-budget` — Token usage estimation for plan files
-- `/gsd-rollback-info` — Commits and revert command for a plan
-- `/gsd-search-decisions` — Search past decisions across STATE.md and archives
-- `/gsd-search-lessons` — Search completed phase lessons for patterns
-- `/gsd-session-diff` — Git commits since last session activity
-- `/gsd-test-run` — Parse test output with pass/fail gating
-- `/gsd-trace-requirement` — Trace requirement from spec to files on disk
-- `/gsd-validate-config` — Schema validation for config.json
-- `/gsd-validate-deps` — Phase dependency graph validation
+- `/bgsd-velocity` — Execution velocity metrics and completion forecast
+- `/bgsd-codebase-impact` — Module dependencies and blast radius analysis
+- `/bgsd-context-budget` — Token usage estimation for plan files
+- `/bgsd-rollback-info` — Commits and revert command for a plan
+- `/bgsd-search-decisions` — Search past decisions across STATE.md and archives
+- `/bgsd-search-lessons` — Search completed phase lessons for patterns
+- `/bgsd-session-diff` — Git commits since last session activity
+- `/bgsd-test-run` — Parse test output with pass/fail gating
+- `/bgsd-trace-requirement` — Trace requirement from spec to files on disk
+- `/bgsd-validate-config` — Schema validation for config.json
+- `/bgsd-validate-deps` — Phase dependency graph validation
 
 ## IMPORTANT: String Replacement Warning
 The Anthropic auth plugin rewrites ALL system prompt text, replacing the host editor

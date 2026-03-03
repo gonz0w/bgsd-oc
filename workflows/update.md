@@ -110,7 +110,7 @@ Exit.
 ⚠️  **Note:** The installer performs a clean install of bGSD folders:
 - `commands/gsd/` will be wiped and replaced
 - `get-shit-done/` will be wiped and replaced
-- `agents/gsd-*` files will be replaced
+- `agents/bgsd-*` files will be replaced
 
 (Paths are relative to your install location: `__OPENCODE_CONFIG__/` for global, `./.OC/` for local)
 
@@ -145,12 +145,12 @@ Clear the update cache so statusline indicator disappears:
 
 **If LOCAL install:**
 ```bash
-rm -f ./.OC/cache/gsd-update-check.json
+rm -f ./.OC/cache/bgsd-update-check.json
 ```
 
 **If GLOBAL install:**
 ```bash
-rm -f __OPENCODE_CONFIG__/cache/gsd-update-check.json
+rm -f __OPENCODE_CONFIG__/cache/bgsd-update-check.json
 ```
 (Paths are templated at install time for runtime compatibility)
 </step>

@@ -1,8 +1,8 @@
-# /gsd-context-budget
+# /bgsd-context-budget
 
 Estimate token usage for a plan file. Warns when plan content exceeds the configured context window threshold (default: 50% of 200K tokens).
 
-**Usage:** `/gsd-context-budget <plan-path>`
+**Usage:** `/bgsd-context-budget <plan-path>`
 
 <process>
 
@@ -15,9 +15,9 @@ PLAN_PATH="$ARGUMENTS"
 
 If no path provided:
 ```
-Usage: /gsd-context-budget <plan-path>
+Usage: /bgsd-context-budget <plan-path>
 
-Example: /gsd-context-budget .planning/phases/03-developer-experience/03-01-PLAN.md
+Example: /bgsd-context-budget .planning/phases/03-developer-experience/03-01-PLAN.md
 ```
 Exit.
 </step>

@@ -1,8 +1,8 @@
-# /gsd-rollback-info
+# /bgsd-rollback-info
 
 Show commits and revert command for a specific plan. Useful when a plan's changes need to be undone.
 
-**Usage:** `/gsd-rollback-info <plan-id>`
+**Usage:** `/bgsd-rollback-info <plan-id>`
 
 <process>
 
@@ -15,10 +15,10 @@ PLAN_ID="$ARGUMENTS"
 
 If no plan ID provided:
 ```
-Usage: /gsd-rollback-info <plan-id>
+Usage: /bgsd-rollback-info <plan-id>
 
-Example: /gsd-rollback-info 01-02
-Example: /gsd-rollback-info 03-01
+Example: /bgsd-rollback-info 01-02
+Example: /bgsd-rollback-info 03-01
 ```
 Exit.
 </step>

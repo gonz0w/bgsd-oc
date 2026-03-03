@@ -189,7 +189,7 @@ Agents start with symptoms pre-filled (no gathering). Agents only diagnose — p
 
 <failure_handling>
 **Single agent fails:** Mark "needs manual review", continue with others.
-**Agent times out:** Check DEBUG-{slug}.md for partial progress, resume with /gsd-debug.
+**Agent times out:** Check DEBUG-{slug}.md for partial progress, resume with /bgsd-debug.
 **All fail:** Report for manual investigation, fall back to plan-phase --gaps without root causes.
 </failure_handling>
 

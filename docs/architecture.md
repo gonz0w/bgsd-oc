@@ -30,7 +30,7 @@ User
 OpenCode Session
   |
   v
-Slash Command (/gsd-*)
+Slash Command (/bgsd-*)
   |
   v
 Workflow (.md file)                    <-- AI follows step-by-step
@@ -52,7 +52,7 @@ Workflow (.md file)                    <-- AI follows step-by-step
 ### Data Flow Example: Plan and Execute
 
 ```
-/gsd-plan-phase 1
+/bgsd-plan-phase 1
   |
   v
 plan-phase.md workflow
@@ -66,7 +66,7 @@ plan-phase.md workflow
   +-- spawn gsd-plan-checker agent     -> Reviews, requests revisions (max 3)
   |
   v
-/gsd-execute-phase 1
+/bgsd-execute-phase 1
   |
   v
 execute-phase.md workflow
@@ -200,10 +200,10 @@ Several workflows spawn multiple agents in parallel:
 
 | Workflow | Parallel Agents |
 |----------|----------------|
-| `/gsd-new-project` | 4x gsd-project-researcher (Stack, Features, Architecture, Pitfalls) |
-| `/gsd-map-codebase` | 4x gsd-codebase-mapper (tech, arch, quality, concerns) |
-| `/gsd-execute-phase` | N x gsd-executor (within each wave) |
-| `/gsd-verify-work` | N x debug agents (one per UAT gap) |
+| `/bgsd-new-project` | 4x gsd-project-researcher (Stack, Features, Architecture, Pitfalls) |
+| `/bgsd-map-codebase` | 4x gsd-codebase-mapper (tech, arch, quality, concerns) |
+| `/bgsd-execute-phase` | N x gsd-executor (within each wave) |
+| `/bgsd-verify-work` | N x debug agents (one per UAT gap) |
 
 ### Trajectory Engineering Data Flow
 

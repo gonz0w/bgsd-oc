@@ -25,7 +25,7 @@ This installs bGSD into your OpenCode configuration. Restart OpenCode to pick up
 Open a terminal in your project directory and launch OpenCode. Then:
 
 ```
-/gsd-new-project
+/bgsd-new-project
 ```
 
 bGSD asks you one question: **"What do you want to build?"**
@@ -50,13 +50,13 @@ Created .planning/:
   STATE.md         - Project state tracker
   config.json      - Workflow configuration
 
-Next up: /gsd-plan-phase 1
+Next up: /bgsd-plan-phase 1
 ```
 
 ### Step 2: Plan the First Phase
 
 ```
-/gsd-plan-phase 1
+/bgsd-plan-phase 1
 ```
 
 bGSD reads your roadmap, understands the phase goal, and creates executable plans. Each plan is a detailed task breakdown with:
@@ -74,7 +74,7 @@ Plans go through a quality review (gsd-plan-checker agent) with up to 3 revision
 ### Step 3: Execute the Phase
 
 ```
-/gsd-execute-phase 1
+/bgsd-execute-phase 1
 ```
 
 bGSD executes all plans in the phase:
@@ -96,31 +96,31 @@ Wave 2: [01-03 IN PROGRESS]
 ### Step 4: Check Progress
 
 ```
-/gsd-progress
+/bgsd-progress
 ```
 
 Shows milestone progress, recent work, and intelligently routes you to the next action:
 
-- More plans to execute? Routes to `/gsd-execute-phase`
-- Phase needs planning? Routes to `/gsd-plan-phase`
-- All phases done? Routes to `/gsd-complete-milestone`
+- More plans to execute? Routes to `/bgsd-execute-phase`
+- Phase needs planning? Routes to `/bgsd-plan-phase`
+- All phases done? Routes to `/bgsd-complete-milestone`
 
 ### Step 5: Continue Through Phases
 
 Repeat the plan-execute cycle for each phase:
 
 ```
-/gsd-plan-phase 2
-/gsd-execute-phase 2
-/gsd-plan-phase 3
-/gsd-execute-phase 3
+/bgsd-plan-phase 2
+/bgsd-execute-phase 2
+/bgsd-plan-phase 3
+/bgsd-execute-phase 3
 ...
 ```
 
 Or let bGSD auto-advance by setting YOLO mode:
 
 ```
-/gsd-settings
+/bgsd-settings
 # Set mode to "yolo" — bGSD auto-continues between phases
 ```
 
@@ -129,7 +129,7 @@ Or let bGSD auto-advance by setting YOLO mode:
 When all phases are done:
 
 ```
-/gsd-complete-milestone
+/bgsd-complete-milestone
 ```
 
 bGSD archives the milestone, creates a historical record in `MILESTONES.md`, tags the release in git, and prepares for the next milestone.
@@ -143,7 +143,7 @@ bGSD archives the milestone, creates a historical record in `MILESTONES.md`, tag
 Need to stop mid-phase?
 
 ```
-/gsd-pause-work
+/bgsd-pause-work
 ```
 
 Creates a `.continue-here.md` file capturing exactly where you are, what's done, what's remaining, and your current mental context.
@@ -153,7 +153,7 @@ Creates a `.continue-here.md` file capturing exactly where you are, what's done,
 Next session:
 
 ```
-/gsd-resume-work
+/bgsd-resume-work
 ```
 
 bGSD reads the handoff file and restores full context. You're back exactly where you left off.
@@ -163,7 +163,7 @@ bGSD reads the handoff file and restores full context. You're back exactly where
 Need to do something small outside the main plan?
 
 ```
-/gsd-quick Fix the login button alignment
+/bgsd-quick Fix the login button alignment
 ```
 
 Creates a minimal plan, executes it, commits with tracking — all with bGSD's guarantees but without the full ceremony.
@@ -261,22 +261,22 @@ node bin/gsd-tools.cjs memory read --store trajectories
 If you're adding bGSD to an existing codebase, map it first:
 
 ```
-/gsd-map-codebase          # 4 parallel agents analyze your code
-/gsd-new-project            # Uses codebase analysis for better planning
+/bgsd-map-codebase          # 4 parallel agents analyze your code
+/bgsd-new-project            # Uses codebase analysis for better planning
 ```
 
 ### Checking What's Available
 
 ```
-/gsd-help                   # Full command reference
-/gsd-health                 # Check .planning/ directory integrity
-/gsd-progress               # Current state and next action
+/bgsd-help                   # Full command reference
+/bgsd-health                 # Check .planning/ directory integrity
+/bgsd-progress               # Current state and next action
 ```
 
 ### Debugging Issues
 
 ```
-/gsd-debug Something is broken with the auth flow
+/bgsd-debug Something is broken with the auth flow
 ```
 
 Launches a systematic debugger that persists state across sessions — hypothesis, evidence, and investigation timeline all tracked in `.planning/debug/`.
@@ -285,7 +285,7 @@ Launches a systematic debugger that persists state across sessions — hypothesi
 
 ## Configuration Quick Reference
 
-GSD works out of the box. Customize through `/gsd-settings` or edit `.planning/config.json`:
+GSD works out of the box. Customize through `/bgsd-settings` or edit `.planning/config.json`:
 
 | Setting | What It Controls |
 |---------|-----------------|
@@ -313,26 +313,26 @@ GSD works out of the box. Customize through `/gsd-settings` or edit `.planning/c
 
 ## Troubleshooting
 
-### "command not found" for /gsd-* commands
+### "command not found" for /bgsd-* commands
 
 Restart OpenCode after installation. bGSD registers commands at `~/.config/opencode/command/`.
 
 ### Plans seem too large or too small
 
-Adjust planning depth in `/gsd-settings`, or use `/gsd-discuss-phase` before planning to lock down scope.
+Adjust planning depth in `/bgsd-settings`, or use `/bgsd-discuss-phase` before planning to lock down scope.
 
 ### Want to skip research/verification
 
 ```
-/gsd-plan-phase 1 --skip-research    # Skip research phase
-/gsd-settings                         # Toggle agents off permanently
+/bgsd-plan-phase 1 --skip-research    # Skip research phase
+/bgsd-settings                         # Toggle agents off permanently
 ```
 
 ### Context window filling up
 
 ```
 /clear                                # Clear context, then resume
-/gsd-resume-work                      # Restores state from files
+/bgsd-resume-work                      # Restores state from files
 ```
 
 bGSD is designed for context resets. All state lives in `.planning/` files, not in conversation history.

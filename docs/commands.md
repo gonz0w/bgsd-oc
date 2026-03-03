@@ -8,7 +8,7 @@ Complete reference for all bGSD slash commands and CLI operations.
 
 ### Project Initialization
 
-#### `/gsd-new-project`
+#### `/bgsd-new-project`
 
 Initialize a new project through the full lifecycle: questioning, research, requirements, roadmap.
 
@@ -22,7 +22,7 @@ Initialize a new project through the full lifecycle: questioning, research, requ
 
 ---
 
-#### `/gsd-map-codebase`
+#### `/bgsd-map-codebase`
 
 Analyze an existing codebase using 4 parallel mapper agents. Produces structured analysis documents.
 
@@ -38,21 +38,21 @@ Analyze an existing codebase using 4 parallel mapper agents. Produces structured
 
 ### Phase Planning
 
-#### `/gsd-discuss-phase`
+#### `/bgsd-discuss-phase`
 
 Gather implementation decisions through adaptive questioning. Produces CONTEXT.md for downstream planning agents.
 
 | Argument | Description |
 |----------|-------------|
 | `<phase>` | Phase number to discuss |
-| `--auto` | Auto-advance to `/gsd-plan-phase` after |
+| `--auto` | Auto-advance to `/bgsd-plan-phase` after |
 
 **Workflow:** `workflows/discuss-phase.md`
 **Creates:** `{phase_dir}/{padded_phase}-CONTEXT.md`
 
 ---
 
-#### `/gsd-list-phase-assumptions`
+#### `/bgsd-list-phase-assumptions`
 
 Surface the AI's assumptions about a phase approach before planning. Conversational only — no files created.
 
@@ -64,7 +64,7 @@ Surface the AI's assumptions about a phase approach before planning. Conversatio
 
 ---
 
-#### `/gsd-research-phase`
+#### `/bgsd-research-phase`
 
 Standalone deep research for a specific phase. Spawns a dedicated researcher agent.
 
@@ -78,7 +78,7 @@ Standalone deep research for a specific phase. Spawns a dedicated researcher age
 
 ---
 
-#### `/gsd-plan-phase`
+#### `/bgsd-plan-phase`
 
 Create executable plans (PLAN.md files) for a phase. Includes optional research, plan quality review with revision loop.
 
@@ -99,7 +99,7 @@ Create executable plans (PLAN.md files) for a phase. Includes optional research,
 
 ### Execution
 
-#### `/gsd-execute-phase`
+#### `/bgsd-execute-phase`
 
 Execute all plans in a phase with wave-based parallel execution.
 
@@ -114,7 +114,7 @@ Execute all plans in a phase with wave-based parallel execution.
 
 ---
 
-#### `/gsd-quick`
+#### `/bgsd-quick`
 
 Execute small ad-hoc tasks with bGSD tracking (atomic commits, state updates) but minimal ceremony.
 
@@ -131,7 +131,7 @@ Execute small ad-hoc tasks with bGSD tracking (atomic commits, state updates) bu
 
 ### Roadmap Management
 
-#### `/gsd-add-phase`
+#### `/bgsd-add-phase`
 
 Add a new phase to the end of the current milestone.
 
@@ -143,7 +143,7 @@ Add a new phase to the end of the current milestone.
 
 ---
 
-#### `/gsd-insert-phase`
+#### `/bgsd-insert-phase`
 
 Insert urgent work as a decimal phase (e.g., 3.1 between phases 3 and 4).
 
@@ -156,7 +156,7 @@ Insert urgent work as a decimal phase (e.g., 3.1 between phases 3 and 4).
 
 ---
 
-#### `/gsd-remove-phase`
+#### `/bgsd-remove-phase`
 
 Remove an unstarted future phase and renumber subsequent phases.
 
@@ -170,7 +170,7 @@ Remove an unstarted future phase and renumber subsequent phases.
 
 ### Milestone Management
 
-#### `/gsd-new-milestone`
+#### `/bgsd-new-milestone`
 
 Start a new milestone cycle with questioning, research, requirements, and roadmap.
 
@@ -183,7 +183,7 @@ Start a new milestone cycle with questioning, research, requirements, and roadma
 
 ---
 
-#### `/gsd-complete-milestone`
+#### `/bgsd-complete-milestone`
 
 Archive completed milestone, create historical record, tag release.
 
@@ -195,7 +195,7 @@ Archive completed milestone, create historical record, tag release.
 
 ---
 
-#### `/gsd-audit-milestone`
+#### `/bgsd-audit-milestone`
 
 Audit milestone against original intent. Cross-phase integration check.
 
@@ -209,7 +209,7 @@ Audit milestone against original intent. Cross-phase integration check.
 
 ---
 
-#### `/gsd-plan-milestone-gaps`
+#### `/bgsd-plan-milestone-gaps`
 
 Create phases to close all gaps identified by milestone audit.
 
@@ -220,7 +220,7 @@ Create phases to close all gaps identified by milestone audit.
 
 ### Progress & Session
 
-#### `/gsd-progress`
+#### `/bgsd-progress`
 
 Check project progress and get intelligently routed to the next action.
 
@@ -228,7 +228,7 @@ Check project progress and get intelligently routed to the next action.
 
 ---
 
-#### `/gsd-resume-work`
+#### `/bgsd-resume-work`
 
 Restore context from a previous session.
 
@@ -236,7 +236,7 @@ Restore context from a previous session.
 
 ---
 
-#### `/gsd-pause-work`
+#### `/bgsd-pause-work`
 
 Create a handoff file for session continuity.
 
@@ -247,7 +247,7 @@ Create a handoff file for session continuity.
 
 ### Verification
 
-#### `/gsd-verify-work`
+#### `/bgsd-verify-work`
 
 Conversational UAT testing with gap tracking and fix plan generation.
 
@@ -262,7 +262,7 @@ Conversational UAT testing with gap tracking and fix plan generation.
 
 ### Debugging
 
-#### `/gsd-debug`
+#### `/bgsd-debug`
 
 Systematic debugging with persistent state across context resets.
 
@@ -278,7 +278,7 @@ Systematic debugging with persistent state across context resets.
 
 ### Todo Management
 
-#### `/gsd-add-todo`
+#### `/bgsd-add-todo`
 
 Capture an idea or task from current conversation context.
 
@@ -291,7 +291,7 @@ Capture an idea or task from current conversation context.
 
 ---
 
-#### `/gsd-check-todos`
+#### `/bgsd-check-todos`
 
 List pending todos, select one to work on.
 
@@ -305,7 +305,7 @@ List pending todos, select one to work on.
 
 ### Configuration
 
-#### `/gsd-settings`
+#### `/bgsd-settings`
 
 Interactive configuration of workflow agents and model profile.
 
@@ -314,7 +314,7 @@ Interactive configuration of workflow agents and model profile.
 
 ---
 
-#### `/gsd-set-profile`
+#### `/bgsd-set-profile`
 
 Quick switch model profile for bGSD agents.
 
@@ -328,7 +328,7 @@ Quick switch model profile for bGSD agents.
 
 ### Utility
 
-#### `/gsd-health`
+#### `/bgsd-health`
 
 Check `.planning/` directory integrity. Optionally repair issues.
 
@@ -340,7 +340,7 @@ Check `.planning/` directory integrity. Optionally repair issues.
 
 ---
 
-#### `/gsd-cleanup`
+#### `/bgsd-cleanup`
 
 Archive phase directories from completed milestones.
 
@@ -348,7 +348,7 @@ Archive phase directories from completed milestones.
 
 ---
 
-#### `/gsd-update`
+#### `/bgsd-update`
 
 Check for and install bGSD updates via npm.
 
@@ -356,7 +356,7 @@ Check for and install bGSD updates via npm.
 
 ---
 
-#### `/gsd-help`
+#### `/bgsd-help`
 
 Display the complete bGSD command reference.
 
@@ -364,7 +364,7 @@ Display the complete bGSD command reference.
 
 ---
 
-#### `/gsd-reapply-patches`
+#### `/bgsd-reapply-patches`
 
 Reapply local modifications after a GSD update. Intelligently merges user's previously saved local changes back into newly installed files, handling conflicts when both upstream and local versions changed.
 
@@ -374,7 +374,7 @@ Reapply local modifications after a GSD update. Intelligently merges user's prev
 
 ### Analytics & Utility
 
-#### `/gsd-velocity`
+#### `/bgsd-velocity`
 
 Show execution velocity metrics: plans completed per day, average duration, and completion forecast for the current milestone.
 
@@ -382,7 +382,7 @@ Show execution velocity metrics: plans completed per day, average duration, and 
 
 ---
 
-#### `/gsd-codebase-impact`
+#### `/bgsd-codebase-impact`
 
 Show module dependencies and blast radius for given files. Analyzes which modules import/reference the specified files.
 
@@ -394,7 +394,7 @@ Show module dependencies and blast radius for given files. Analyzes which module
 
 ---
 
-#### `/gsd-context-budget`
+#### `/bgsd-context-budget`
 
 Estimate token usage for a plan file and warn if over context budget. Warns when plan content exceeds the configured context window threshold (default: 50% of 200K tokens).
 
@@ -406,7 +406,7 @@ Estimate token usage for a plan file and warn if over context budget. Warns when
 
 ---
 
-#### `/gsd-rollback-info`
+#### `/bgsd-rollback-info`
 
 Show commits and revert command for a specific plan. Useful when a plan's changes need to be undone.
 
@@ -418,7 +418,7 @@ Show commits and revert command for a specific plan. Useful when a plan's change
 
 ---
 
-#### `/gsd-search-decisions`
+#### `/bgsd-search-decisions`
 
 Search STATE.md and archived states for past decisions matching a query. Useful for understanding past architectural and implementation choices.
 
@@ -430,7 +430,7 @@ Search STATE.md and archived states for past decisions matching a query. Useful 
 
 ---
 
-#### `/gsd-search-lessons`
+#### `/bgsd-search-lessons`
 
 Search completed phase lessons for relevant patterns and insights. Surfaces lessons learned from past execution to inform current planning.
 
@@ -442,7 +442,7 @@ Search completed phase lessons for relevant patterns and insights. Surfaces less
 
 ---
 
-#### `/gsd-session-diff`
+#### `/bgsd-session-diff`
 
 Show git commits since last planning session activity. Useful for understanding what changed since the last session.
 
@@ -450,7 +450,7 @@ Show git commits since last planning session activity. Useful for understanding 
 
 ---
 
-#### `/gsd-test-run`
+#### `/bgsd-test-run`
 
 Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go test, pytest, Node.js test runner) and reports structured results.
 
@@ -458,7 +458,7 @@ Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go
 
 ---
 
-#### `/gsd-trace-requirement`
+#### `/bgsd-trace-requirement`
 
 Trace a requirement from REQUIREMENTS.md through plans to actual files on disk. Shows the full implementation chain for a specific requirement ID.
 
@@ -470,7 +470,7 @@ Trace a requirement from REQUIREMENTS.md through plans to actual files on disk. 
 
 ---
 
-#### `/gsd-validate-config`
+#### `/bgsd-validate-config`
 
 Validate `.planning/config.json` against the schema. Checks for missing fields, invalid values, and typos in field names.
 
@@ -478,7 +478,7 @@ Validate `.planning/config.json` against the schema. Checks for missing fields, 
 
 ---
 
-#### `/gsd-validate-deps`
+#### `/bgsd-validate-deps`
 
 Validate the dependency graph for a phase. Checks that all plan dependencies are satisfiable and flags circular or missing dependencies.
 
@@ -492,7 +492,7 @@ Validate the dependency graph for a phase. Checks that all plan dependencies are
 
 ### Community
 
-#### `/gsd-join-discord`
+#### `/bgsd-join-discord`
 
 Display the Discord invite link for the GSD community server. Connect with other GSD users, get help, share what you're building.
 
@@ -518,7 +518,7 @@ node bin/gsd-tools.cjs <command> [args] --raw
 | `--fields f1,f2` | Filter JSON to specified dot-notation fields |
 | `--help` / `-h` | Print help text |
 
-When JSON output exceeds 50KB, it's written to a temp file and stdout emits `@file:/tmp/gsd-TIMESTAMP.json`.
+When JSON output exceeds 50KB, it's written to a temp file and stdout emits `@file:/tmp/bgsd-TIMESTAMP.json`.
 
 ---
 

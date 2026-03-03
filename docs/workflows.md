@@ -7,7 +7,7 @@ bGSD workflows are markdown files that define step-by-step behavior for AI agent
 ## How Workflows Work
 
 ```
-User types /gsd-plan-phase 1
+User types /bgsd-plan-phase 1
   → OpenCode loads workflows/plan-phase.md
   → AI follows step-by-step instructions
   → Calls gsd-tools.cjs for structured data (JSON)
@@ -25,89 +25,89 @@ Workflows are **not code**. They are prompts that any LLM can follow. The determ
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `new-project.md` | `/gsd-new-project` | Full project initialization: questioning, research (4 parallel agents), requirements, roadmap |
-| `map-codebase.md` | `/gsd-map-codebase` | Spawns 4 parallel codebase mapper agents to analyze existing code |
+| `new-project.md` | `/bgsd-new-project` | Full project initialization: questioning, research (4 parallel agents), requirements, roadmap |
+| `map-codebase.md` | `/bgsd-map-codebase` | Spawns 4 parallel codebase mapper agents to analyze existing code |
 | `discovery-phase.md` | (internal) | Research phase within planning — quick verify, standard, or deep dive |
-| `help.md` | `/gsd-help` | Displays complete command reference |
-| `update.md` | `/gsd-update` | Checks for and installs updates |
+| `help.md` | `/bgsd-help` | Displays complete command reference |
+| `update.md` | `/bgsd-update` | Checks for and installs updates |
 
 ### Phase Planning (5 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `plan-phase.md` | `/gsd-plan-phase` | Creates PLAN.md files: optional research → planner agent → plan-checker review |
-| `discuss-phase.md` | `/gsd-discuss-phase` | Interactive decision gathering, produces CONTEXT.md |
-| `list-phase-assumptions.md` | `/gsd-list-phase-assumptions` | Surfaces AI assumptions (conversational, no files created) |
-| `research-phase.md` | `/gsd-research-phase` | Spawns phase researcher for domain investigation |
+| `plan-phase.md` | `/bgsd-plan-phase` | Creates PLAN.md files: optional research → planner agent → plan-checker review |
+| `discuss-phase.md` | `/bgsd-discuss-phase` | Interactive decision gathering, produces CONTEXT.md |
+| `list-phase-assumptions.md` | `/bgsd-list-phase-assumptions` | Surfaces AI assumptions (conversational, no files created) |
+| `research-phase.md` | `/bgsd-research-phase` | Spawns phase researcher for domain investigation |
 | `tdd.md` | (internal) | TDD plan execution workflow (RED-GREEN-REFACTOR state machine) |
 
 ### Execution (3 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `execute-phase.md` | `/gsd-execute-phase` | Wave-based plan execution with parallel agents, verification |
+| `execute-phase.md` | `/bgsd-execute-phase` | Wave-based plan execution with parallel agents, verification |
 | `execute-plan.md` | (internal) | Single plan execution: task loop, commits, checkpoints, review |
-| `quick.md` | `/gsd-quick` | Minimal-ceremony task execution with GSD guarantees |
+| `quick.md` | `/bgsd-quick` | Minimal-ceremony task execution with GSD guarantees |
 
 ### Verification (3 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
 | `verify-phase.md` | (internal) | Automated phase goal verification via gsd-verifier |
-| `verify-work.md` | `/gsd-verify-work` | Interactive UAT with gap tracking and fix plan generation |
+| `verify-work.md` | `/bgsd-verify-work` | Interactive UAT with gap tracking and fix plan generation |
 | `transition.md` | (internal) | Phase completion transitions |
 
 ### Milestone Management (4 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `new-milestone.md` | `/gsd-new-milestone` | Start new milestone: questioning, research, requirements, roadmap |
-| `complete-milestone.md` | `/gsd-complete-milestone` | Archive milestone, create historical record, tag release |
-| `audit-milestone.md` | `/gsd-audit-milestone` | Cross-phase integration check via gsd-verifier |
-| `plan-milestone-gaps.md` | `/gsd-plan-milestone-gaps` | Create fix phases for audit gaps |
+| `new-milestone.md` | `/bgsd-new-milestone` | Start new milestone: questioning, research, requirements, roadmap |
+| `complete-milestone.md` | `/bgsd-complete-milestone` | Archive milestone, create historical record, tag release |
+| `audit-milestone.md` | `/bgsd-audit-milestone` | Cross-phase integration check via gsd-verifier |
+| `plan-milestone-gaps.md` | `/bgsd-plan-milestone-gaps` | Create fix phases for audit gaps |
 
 ### Roadmap Management (3 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `add-phase.md` | `/gsd-add-phase` | Append new phase to current milestone |
-| `insert-phase.md` | `/gsd-insert-phase` | Insert decimal phase (e.g., 3.1 between 3 and 4) |
-| `remove-phase.md` | `/gsd-remove-phase` | Remove unstarted phase and renumber |
+| `add-phase.md` | `/bgsd-add-phase` | Append new phase to current milestone |
+| `insert-phase.md` | `/bgsd-insert-phase` | Insert decimal phase (e.g., 3.1 between 3 and 4) |
+| `remove-phase.md` | `/bgsd-remove-phase` | Remove unstarted phase and renumber |
 
 ### Session Management (3 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `resume-project.md` | `/gsd-resume-work` | Restore context from previous session |
-| `pause-work.md` | `/gsd-pause-work` | Create handoff file (.continue-here.md) |
-| `progress.md` | `/gsd-progress` | Show progress, intelligently route to next action |
+| `resume-project.md` | `/bgsd-resume-work` | Restore context from previous session |
+| `pause-work.md` | `/bgsd-pause-work` | Create handoff file (.continue-here.md) |
+| `progress.md` | `/bgsd-progress` | Show progress, intelligently route to next action |
 
 ### Todo Management (2 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `add-todo.md` | `/gsd-add-todo` | Capture idea/task from current conversation |
-| `check-todos.md` | `/gsd-check-todos` | List and work on pending todos |
+| `add-todo.md` | `/bgsd-add-todo` | Capture idea/task from current conversation |
+| `check-todos.md` | `/bgsd-check-todos` | List and work on pending todos |
 
 ### Configuration (3 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `settings.md` | `/gsd-settings` | Interactive workflow configuration |
-| `set-profile.md` | `/gsd-set-profile` | Quick model profile switch |
-| `health.md` | `/gsd-health` | Check .planning/ integrity, optionally repair |
+| `settings.md` | `/bgsd-settings` | Interactive workflow configuration |
+| `set-profile.md` | `/bgsd-set-profile` | Quick model profile switch |
+| `health.md` | `/bgsd-health` | Check .planning/ integrity, optionally repair |
 
 ### Debugging (1 workflow)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `diagnose-issues.md` | `/gsd-debug` | Systematic debugging with persistent state |
+| `diagnose-issues.md` | `/bgsd-debug` | Systematic debugging with persistent state |
 
 ### Utility (2 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `cleanup.md` | `/gsd-cleanup` | Archive completed milestone phase directories |
+| `cleanup.md` | `/bgsd-cleanup` | Archive completed milestone phase directories |
 | `complete-and-clear.md` | (internal) | Session summary + clean handoff |
 
 ### Slash Command Workflows (11 workflows)
@@ -116,17 +116,17 @@ These are thin wrappers that call `gsd-tools.cjs` for data and format the output
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `cmd-velocity.md` | `/gsd-velocity` | Execution velocity metrics and completion forecast |
-| `cmd-codebase-impact.md` | `/gsd-codebase-impact` | Module dependencies and blast radius analysis |
-| `cmd-context-budget.md` | `/gsd-context-budget` | Token usage estimation for plan files |
-| `cmd-rollback-info.md` | `/gsd-rollback-info` | Commits and revert command for a plan |
-| `cmd-search-decisions.md` | `/gsd-search-decisions` | Search past decisions across STATE.md and archives |
-| `cmd-search-lessons.md` | `/gsd-search-lessons` | Search completed phase lessons for patterns |
-| `cmd-session-diff.md` | `/gsd-session-diff` | Git commits since last session activity |
-| `cmd-test-run.md` | `/gsd-test-run` | Parse test output with pass/fail gating |
-| `cmd-trace-requirement.md` | `/gsd-trace-requirement` | Trace requirement from spec to files on disk |
-| `cmd-validate-config.md` | `/gsd-validate-config` | Schema validation for config.json |
-| `cmd-validate-deps.md` | `/gsd-validate-deps` | Phase dependency graph validation |
+| `cmd-velocity.md` | `/bgsd-velocity` | Execution velocity metrics and completion forecast |
+| `cmd-codebase-impact.md` | `/bgsd-codebase-impact` | Module dependencies and blast radius analysis |
+| `cmd-context-budget.md` | `/bgsd-context-budget` | Token usage estimation for plan files |
+| `cmd-rollback-info.md` | `/bgsd-rollback-info` | Commits and revert command for a plan |
+| `cmd-search-decisions.md` | `/bgsd-search-decisions` | Search past decisions across STATE.md and archives |
+| `cmd-search-lessons.md` | `/bgsd-search-lessons` | Search completed phase lessons for patterns |
+| `cmd-session-diff.md` | `/bgsd-session-diff` | Git commits since last session activity |
+| `cmd-test-run.md` | `/bgsd-test-run` | Parse test output with pass/fail gating |
+| `cmd-trace-requirement.md` | `/bgsd-trace-requirement` | Trace requirement from spec to files on disk |
+| `cmd-validate-config.md` | `/bgsd-validate-config` | Schema validation for config.json |
+| `cmd-validate-deps.md` | `/bgsd-validate-deps` | Phase dependency graph validation |
 
 ---
 
@@ -175,7 +175,7 @@ Plan-checker requests revision → Workflow re-spawns planner (max 3 cycles)
 Several workflows spawn multiple agents simultaneously:
 
 ```
-/gsd-new-project:
+/bgsd-new-project:
   Spawn 4x gsd-project-researcher in parallel
     → Stack researcher
     → Features researcher
@@ -188,7 +188,7 @@ Several workflows spawn multiple agents simultaneously:
 ### Wave Execution
 
 ```
-/gsd-execute-phase:
+/bgsd-execute-phase:
   Read plan index → Group by wave
   Wave 1: Spawn agents for plans with wave=1 (parallel)
   Wait for Wave 1 completion
@@ -200,7 +200,7 @@ Several workflows spawn multiple agents simultaneously:
 ### Quality Review Loop
 
 ```
-/gsd-plan-phase:
+/bgsd-plan-phase:
   Spawn gsd-planner → Creates PLAN.md
   Spawn gsd-plan-checker → Reviews PLAN.md
   If revision needed:
@@ -212,7 +212,7 @@ Several workflows spawn multiple agents simultaneously:
 ### TDD State Machine
 
 ```
-/gsd-execute-phase (for type: tdd plans):
+/bgsd-execute-phase (for type: tdd plans):
   RED phase:
     Write failing test → Run tests → Verify failure
     Commit with GSD-Phase: red trailer
@@ -227,11 +227,11 @@ Several workflows spawn multiple agents simultaneously:
 ### Session Continuity
 
 ```
-/gsd-pause-work:
+/bgsd-pause-work:
   Read STATE.md → Capture current context
   Write .continue-here.md with position + mental context
 
-/gsd-resume-work:
+/bgsd-resume-work:
   Read .continue-here.md → Restore context
   Read STATE.md → Verify position
   Route to next action

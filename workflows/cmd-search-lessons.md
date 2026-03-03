@@ -1,8 +1,8 @@
-# /gsd-search-lessons
+# /bgsd-search-lessons
 
 Search completed phase lessons for relevant patterns and insights. Surfaces lessons learned from past execution to inform current planning.
 
-**Usage:** `/gsd-search-lessons <query>`
+**Usage:** `/bgsd-search-lessons <query>`
 
 <process>
 
@@ -15,10 +15,10 @@ QUERY="$ARGUMENTS"
 
 If no query provided:
 ```
-Usage: /gsd-search-lessons <query>
+Usage: /bgsd-search-lessons <query>
 
-Example: /gsd-search-lessons "testing strategy"
-Example: /gsd-search-lessons frontmatter
+Example: /bgsd-search-lessons "testing strategy"
+Example: /bgsd-search-lessons frontmatter
 ```
 Exit.
 </step>

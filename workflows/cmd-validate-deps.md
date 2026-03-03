@@ -1,8 +1,8 @@
-# /gsd-validate-deps
+# /bgsd-validate-deps
 
 Validate the dependency graph for a phase. Checks that all plan dependencies are satisfiable and flags circular or missing dependencies.
 
-**Usage:** `/gsd-validate-deps <phase>`
+**Usage:** `/bgsd-validate-deps <phase>`
 
 <process>
 
@@ -15,10 +15,10 @@ PHASE="$ARGUMENTS"
 
 If no phase provided:
 ```
-Usage: /gsd-validate-deps <phase>
+Usage: /bgsd-validate-deps <phase>
 
-Example: /gsd-validate-deps 3
-Example: /gsd-validate-deps 03-developer-experience
+Example: /bgsd-validate-deps 3
+Example: /bgsd-validate-deps 03-developer-experience
 ```
 Exit.
 </step>

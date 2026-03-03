@@ -9,9 +9,9 @@ Display the complete bGSD command reference. Output ONLY the reference content �
 
 ## Quick Start
 
-1. `/gsd-new-project` - Initialize project (includes research, requirements, roadmap)
-2. `/gsd-plan-phase 1` - Create detailed plan for first phase
-3. `/gsd-execute-phase 1` - Execute the phase
+1. `/bgsd-new-project` - Initialize project (includes research, requirements, roadmap)
+2. `/bgsd-plan-phase 1` - Create detailed plan for first phase
+3. `/bgsd-execute-phase 1` - Execute the phase
 
 ## Staying Updated
 
@@ -24,143 +24,143 @@ cd $GSD_DEV_DIR && git pull && npm run build && ./deploy.sh
 ## Core Workflow
 
 ```
-/gsd-new-project → /gsd-plan-phase → /gsd-execute-phase → repeat
+/bgsd-new-project → /bgsd-plan-phase → /bgsd-execute-phase → repeat
 ```
 
 ### Project Initialization
 
-**`/gsd-new-project`**
+**`/bgsd-new-project`**
 Initialize new project through unified flow.
 
 Deep questioning → optional research → requirements → roadmap. Creates all `.planning/` artifacts (PROJECT.md, config.json, research/, REQUIREMENTS.md, ROADMAP.md, STATE.md).
 
-Usage: `/gsd-new-project`
+Usage: `/bgsd-new-project`
 
-**`/gsd-map-codebase`**
-Map existing codebase with parallel agents → `.planning/codebase/` (7 docs: stack, architecture, structure, conventions, testing, integrations, concerns). Use before `/gsd-new-project` on existing codebases.
+**`/bgsd-map-codebase`**
+Map existing codebase with parallel agents → `.planning/codebase/` (7 docs: stack, architecture, structure, conventions, testing, integrations, concerns). Use before `/bgsd-new-project` on existing codebases.
 
-Usage: `/gsd-map-codebase`
+Usage: `/bgsd-map-codebase`
 
 ### Phase Planning
 
-**`/gsd-discuss-phase <number>`**
+**`/bgsd-discuss-phase <number>`**
 Capture your vision for a phase → creates CONTEXT.md with decisions and boundaries.
-Usage: `/gsd-discuss-phase 2`
+Usage: `/bgsd-discuss-phase 2`
 
-**`/gsd-research-phase <number>`**
+**`/bgsd-research-phase <number>`**
 Ecosystem research for niche domains → RESEARCH.md with stack, patterns, pitfalls.
-Usage: `/gsd-research-phase 3`
+Usage: `/bgsd-research-phase 3`
 
-**`/gsd-list-phase-assumptions <number>`**
+**`/bgsd-list-phase-assumptions <number>`**
 See agent's intended approach before planning. Conversational only, no files.
-Usage: `/gsd-list-phase-assumptions 3`
+Usage: `/bgsd-list-phase-assumptions 3`
 
-**`/gsd-plan-phase <number>`**
+**`/bgsd-plan-phase <number>`**
 Create execution plan → `.planning/phases/XX-name/XX-YY-PLAN.md` with tasks, verification, success criteria.
-Usage: `/gsd-plan-phase 1`
+Usage: `/bgsd-plan-phase 1`
 
 ### Execution
 
-**`/gsd-execute-phase <phase-number>`**
+**`/bgsd-execute-phase <phase-number>`**
 Execute all plans in a phase. Waves sequential, plans within waves parallel. Verifies phase goal, updates REQUIREMENTS/ROADMAP/STATE.
-Usage: `/gsd-execute-phase 5`
+Usage: `/bgsd-execute-phase 5`
 
 ### Quick Mode
 
-**`/gsd-quick`**
+**`/bgsd-quick`**
 Execute small, ad-hoc tasks with bGSD guarantees but skip optional agents.
 
 Planner + executor only (skips researcher, checker, verifier). Tasks in `.planning/quick/`. Updates STATE.md, not ROADMAP.md.
-Usage: `/gsd-quick`
+Usage: `/bgsd-quick`
 
 ### Roadmap Management
 
-**`/gsd-add-phase <description>`**
-Append new phase to current milestone. Usage: `/gsd-add-phase "Add admin dashboard"`
+**`/bgsd-add-phase <description>`**
+Append new phase to current milestone. Usage: `/bgsd-add-phase "Add admin dashboard"`
 
-**`/gsd-insert-phase <after> <description>`**
-Insert decimal phase between existing (e.g., 7.1). Usage: `/gsd-insert-phase 7 "Fix critical auth bug"`
+**`/bgsd-insert-phase <after> <description>`**
+Insert decimal phase between existing (e.g., 7.1). Usage: `/bgsd-insert-phase 7 "Fix critical auth bug"`
 
-**`/gsd-remove-phase <number>`**
-Remove future phase, renumber subsequent. Usage: `/gsd-remove-phase 17`
+**`/bgsd-remove-phase <number>`**
+Remove future phase, renumber subsequent. Usage: `/bgsd-remove-phase 17`
 
 ### Milestone Management
 
-**`/gsd-new-milestone <name>`**
-Start new milestone: questioning → research → requirements → roadmap. Mirrors `/gsd-new-project` for brownfield.
-Usage: `/gsd-new-milestone "v2.0 Features"`
+**`/bgsd-new-milestone <name>`**
+Start new milestone: questioning → research → requirements → roadmap. Mirrors `/bgsd-new-project` for brownfield.
+Usage: `/bgsd-new-milestone "v2.0 Features"`
 
-**`/gsd-complete-milestone <version>`**
+**`/bgsd-complete-milestone <version>`**
 Archive milestone (MILESTONES.md entry, git tag, workspace cleanup).
-Usage: `/gsd-complete-milestone 1.0.0`
+Usage: `/bgsd-complete-milestone 1.0.0`
 
 ### Progress Tracking
 
-**`/gsd-progress`**
+**`/bgsd-progress`**
 Show progress, recent work, current position, decisions, issues. Routes to next action.
-Usage: `/gsd-progress`
+Usage: `/bgsd-progress`
 
 ### Session Management
 
-**`/gsd-resume-work`**
+**`/bgsd-resume-work`**
 Restore full context from previous session. Shows position, offers next actions.
-Usage: `/gsd-resume-work`
+Usage: `/bgsd-resume-work`
 
-**`/gsd-pause-work`**
+**`/bgsd-pause-work`**
 Create .continue-here handoff with current state. Updates STATE.md.
-Usage: `/gsd-pause-work`
+Usage: `/bgsd-pause-work`
 
 ### Debugging
 
-**`/gsd-debug [issue description]`**
+**`/bgsd-debug [issue description]`**
 Systematic debugging with persistent state. Creates `.planning/debug/[slug].md`. Survives `/clear`.
-Usage: `/gsd-debug "login button doesn't work"` or `/gsd-debug` (resume)
+Usage: `/bgsd-debug "login button doesn't work"` or `/bgsd-debug` (resume)
 
 ### Todo Management
 
-**`/gsd-add-todo [description]`**
+**`/bgsd-add-todo [description]`**
 Capture idea/task as structured todo in `.planning/todos/pending/`. Infers area, checks duplicates.
-Usage: `/gsd-add-todo` or `/gsd-add-todo Add auth token refresh`
+Usage: `/bgsd-add-todo` or `/bgsd-add-todo Add auth token refresh`
 
-**`/gsd-check-todos [area]`**
+**`/bgsd-check-todos [area]`**
 List pending todos, select one to work on. Optional area filter.
-Usage: `/gsd-check-todos` or `/gsd-check-todos api`
+Usage: `/bgsd-check-todos` or `/bgsd-check-todos api`
 
 ### User Acceptance Testing
 
-**`/gsd-verify-work [phase]`**
+**`/bgsd-verify-work [phase]`**
 Conversational UAT — extracts testable deliverables, diagnoses failures, creates fix plans.
-Usage: `/gsd-verify-work 3`
+Usage: `/bgsd-verify-work 3`
 
 ### Milestone Auditing
 
-**`/gsd-audit-milestone [version]`**
+**`/bgsd-audit-milestone [version]`**
 Audit milestone against intent. Checks requirements, integration, creates MILESTONE-AUDIT.md.
-Usage: `/gsd-audit-milestone`
+Usage: `/bgsd-audit-milestone`
 
-**`/gsd-plan-milestone-gaps`**
+**`/bgsd-plan-milestone-gaps`**
 Create phases from audit gaps. Prioritizes must/should/nice, adds to ROADMAP.md.
-Usage: `/gsd-plan-milestone-gaps`
+Usage: `/bgsd-plan-milestone-gaps`
 
 ### Configuration
 
-**`/gsd-settings`**
+**`/bgsd-settings`**
 Configure workflow toggles and model profile. Updates `.planning/config.json`.
-Usage: `/gsd-settings`
+Usage: `/bgsd-settings`
 
-**`/gsd-set-profile <profile>`**
+**`/bgsd-set-profile <profile>`**
 Switch model profile: quality (Opus everywhere) / balanced (default) / budget (Sonnet+Haiku).
-Usage: `/gsd-set-profile budget`
+Usage: `/bgsd-set-profile budget`
 
 ### Utility Commands
 
-**`/gsd-cleanup`**
+**`/bgsd-cleanup`**
 Archive phase directories from completed milestones to reduce clutter.
-Usage: `/gsd-cleanup`
+Usage: `/bgsd-cleanup`
 
-**`/gsd-help`** — Show this reference.
+**`/bgsd-help`** — Show this reference.
 
-**`/gsd-update`** — Update bGSD with changelog preview. Usage: `/gsd-update`
+**`/bgsd-update`** — Update bGSD with changelog preview. Usage: `/bgsd-update`
 
 ## Files & Structure
 
@@ -178,7 +178,7 @@ Usage: `/gsd-cleanup`
 ├── milestones/
 │   ├── v1.0-ROADMAP.md       # Archived roadmap snapshot
 │   ├── v1.0-REQUIREMENTS.md  # Archived requirements
-│   └── v1.0-phases/          # Archived phase dirs (via /gsd-cleanup or --archive-phases)
+│   └── v1.0-phases/          # Archived phase dirs (via /bgsd-cleanup or --archive-phases)
 │       ├── 01-foundation/
 │       └── 02-core-features/
 ├── codebase/             # Codebase map (brownfield projects)
@@ -203,7 +203,7 @@ Usage: `/gsd-cleanup`
 **Interactive** — Confirms decisions, pauses at checkpoints.
 **YOLO** — Auto-approves, only stops for critical checkpoints.
 
-Set during `/gsd-new-project`. Change via `.planning/config.json`.
+Set during `/bgsd-new-project`. Change via `.planning/config.json`.
 
 ## Planning Configuration
 
@@ -215,54 +215,54 @@ Set during `/gsd-new-project`. Change via `.planning/config.json`.
 **Starting a new project:**
 
 ```
-/gsd-new-project        # Unified flow: questioning → research → requirements → roadmap
+/bgsd-new-project        # Unified flow: questioning → research → requirements → roadmap
 /clear
-/gsd-plan-phase 1       # Create plans for first phase
+/bgsd-plan-phase 1       # Create plans for first phase
 /clear
-/gsd-execute-phase 1    # Execute all plans in phase
+/bgsd-execute-phase 1    # Execute all plans in phase
 ```
 
 **Resuming work after a break:**
 
 ```
-/gsd-progress  # See where you left off and continue
+/bgsd-progress  # See where you left off and continue
 ```
 
 **Adding urgent mid-milestone work:**
 
 ```
-/gsd-insert-phase 5 "Critical security fix"
-/gsd-plan-phase 5.1
-/gsd-execute-phase 5.1
+/bgsd-insert-phase 5 "Critical security fix"
+/bgsd-plan-phase 5.1
+/bgsd-execute-phase 5.1
 ```
 
 **Completing a milestone:**
 
 ```
-/gsd-complete-milestone 1.0.0
+/bgsd-complete-milestone 1.0.0
 /clear
-/gsd-new-milestone  # Start next milestone (questioning → research → requirements → roadmap)
+/bgsd-new-milestone  # Start next milestone (questioning → research → requirements → roadmap)
 ```
 
 **Capturing ideas during work:**
 
 ```
-/gsd-add-todo                    # Capture from conversation context
-/gsd-add-todo Fix modal z-index  # Capture with explicit description
-/gsd-check-todos                 # Review and work on todos
-/gsd-check-todos api             # Filter by area
+/bgsd-add-todo                    # Capture from conversation context
+/bgsd-add-todo Fix modal z-index  # Capture with explicit description
+/bgsd-check-todos                 # Review and work on todos
+/bgsd-check-todos api             # Filter by area
 ```
 
 **Debugging an issue:**
 
 ```
-/gsd-debug "form submission fails silently"  # Start debug session
+/bgsd-debug "form submission fails silently"  # Start debug session
 # ... investigation happens, context fills up ...
 /clear
-/gsd-debug                                    # Resume from where you left off
+/bgsd-debug                                    # Resume from where you left off
 ```
 
 ## Getting Help
 
-Read `.planning/PROJECT.md` (vision), `.planning/STATE.md` (context), `.planning/ROADMAP.md` (status), or run `/gsd-progress`.
+Read `.planning/PROJECT.md` (vision), `.planning/STATE.md` (context), `.planning/ROADMAP.md` (status), or run `/bgsd-progress`.
 </reference>

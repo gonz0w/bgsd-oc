@@ -16,7 +16,7 @@ Call session-summary to get structured session data:
 SUMMARY=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs session-summary)
 ```
 
-Parse the JSON response. If error field present, display "No session data available" and suggest `/gsd-resume`.
+Parse the JSON response. If error field present, display "No session data available" and suggest `/bgsd-resume`.
 </step>
 
 <step name="display">
@@ -58,7 +58,7 @@ node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs verify:state record-ses
   --resume-file "None"
 ```
 
-This stamps STATE.md with accurate session ending info for the next `/gsd-resume`.
+This stamps STATE.md with accurate session ending info for the next `/bgsd-resume`.
 </step>
 
 <step name="suggest_next">
@@ -78,11 +78,11 @@ Display the Next Up block from next_action:
 ───────────────────────────────────────────────────────────────
 ```
 
-**Edge case:** If no next action determinable (command is `/gsd-resume`), show:
+**Edge case:** If no next action determinable (command is `/bgsd-resume`), show:
 ```
 ## ▶ Next Up
 
-Run `/gsd-resume` to pick up where you left off.
+Run `/bgsd-resume` to pick up where you left off.
 ```
 
 Remind the user to `/clear` for a fresh context window before starting the next session.

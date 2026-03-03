@@ -6,7 +6,7 @@ Common issues and solutions for bGSD.
 
 ## Installation Issues
 
-### "command not found" for /gsd-* commands
+### "command not found" for /bgsd-* commands
 
 **Cause:** OpenCode hasn't loaded the command wrappers.
 
@@ -34,9 +34,9 @@ Common issues and solutions for bGSD.
 ### Plans seem too large or too small
 
 **Fix:** Adjust planning depth:
-- Use `/gsd-discuss-phase` before planning to lock down scope
+- Use `/bgsd-discuss-phase` before planning to lock down scope
 - Set `depth` in config: `"quick"`, `"standard"`, or `"deep"`
-- Use `/gsd-list-phase-assumptions` to check what the AI assumes before planning
+- Use `/bgsd-list-phase-assumptions` to check what the AI assumes before planning
 
 ### Plan quality review keeps requesting revisions
 
@@ -44,7 +44,7 @@ Common issues and solutions for bGSD.
 
 **Fix:**
 - This is normal — plans improve through review
-- Skip review with `--skip-verify` flag: `/gsd-plan-phase 1 --skip-verify`
+- Skip review with `--skip-verify` flag: `/bgsd-plan-phase 1 --skip-verify`
 - Disable permanently: set `plan_checker: false` in config
 
 ### "No phase found" errors
@@ -54,7 +54,7 @@ Common issues and solutions for bGSD.
 **Fix:**
 1. Check ROADMAP.md for valid phase numbers
 2. Run `node bin/gsd-tools.cjs find-phase <N>` to check phase directory
-3. Run `/gsd-health` to check .planning/ integrity
+3. Run `/bgsd-health` to check .planning/ integrity
 
 ---
 
@@ -67,7 +67,7 @@ Common issues and solutions for bGSD.
 **Fix:**
 ```
 /clear                     # Clear context
-/gsd-resume-work           # Restores state from files
+/bgsd-resume-work           # Restores state from files
 ```
 
 bGSD is designed for context resets. All state lives in `.planning/` files, not in conversation history.
@@ -77,9 +77,9 @@ bGSD is designed for context resets. All state lives in `.planning/` files, not 
 **Cause:** Context exhaustion, agent error, or checkpoint requiring human input.
 
 **Fix:**
-1. Run `/gsd-progress` to see current state
-2. Run `/gsd-resume-work` to restore context
-3. Continue with `/gsd-execute-phase <N>` — it picks up where it left off
+1. Run `/bgsd-progress` to see current state
+2. Run `/bgsd-resume-work` to restore context
+3. Continue with `/bgsd-execute-phase <N>` — it picks up where it left off
 
 ### Tests failing during execution
 
@@ -88,7 +88,7 @@ bGSD is designed for context resets. All state lives in `.planning/` files, not 
 **Fix:**
 - If `test_gate: true` (default), execution pauses on test failure
 - The executor will attempt to fix the failure
-- If stuck, check `/gsd-debug` for systematic debugging
+- If stuck, check `/bgsd-debug` for systematic debugging
 - Disable test gating temporarily: set `test_gate: false` in config
 
 ### Worktree conflicts
@@ -113,7 +113,7 @@ bGSD is designed for context resets. All state lives in `.planning/` files, not 
 node bin/gsd-tools.cjs state validate --fix    # Auto-fix unambiguous issues
 ```
 
-Or run `/gsd-health --repair` for full integrity check.
+Or run `/bgsd-health --repair` for full integrity check.
 
 ### "Two sources of truth" confusion
 
@@ -151,7 +151,7 @@ node bin/gsd-tools.cjs state update-progress    # Recalculate from disk
 
 **Fix:**
 ```
-/gsd-rollback-info <plan-id>    # Shows exact revert command
+/bgsd-rollback-info <plan-id>    # Shows exact revert command
 ```
 
 Each task gets its own commit, enabling precise rollback.
@@ -180,7 +180,7 @@ node bin/gsd-tools.cjs cache stats
 ### Workflows consuming too many tokens
 
 **Fix:**
-1. Check token usage: `/gsd-context-budget`
+1. Check token usage: `/bgsd-context-budget`
 2. Use `--compact` flag for init commands
 3. Set context target: `context_target_percent: 50` in config
 4. Ensure agent context manifests are working (v7.0+)
@@ -201,7 +201,7 @@ node bin/gsd-tools.cjs config-migrate     # Add missing keys with defaults
 
 **Cause:** Config changes require reloading.
 
-**Fix:** Run `/gsd-settings` for interactive configuration, or verify the JSON syntax in `.planning/config.json`.
+**Fix:** Run `/bgsd-settings` for interactive configuration, or verify the JSON syntax in `.planning/config.json`.
 
 ---
 
@@ -219,8 +219,8 @@ This enables stderr logging for all 96 catch blocks, showing exactly where issue
 
 ## Getting Help
 
-- Run `/gsd-help` for the full command reference
-- Run `/gsd-health` to check system integrity
+- Run `/bgsd-help` for the full command reference
+- Run `/bgsd-health` to check system integrity
 - Check [GitHub Issues](https://github.com/gonz0w/bgsd-oc/issues) for known problems
 - See [Architecture](architecture.md) for understanding how the system works internally
 

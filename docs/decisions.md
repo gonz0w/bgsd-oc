@@ -179,7 +179,7 @@ Why bGSD is built the way it is. Every major architectural and product decision 
 
 **Why:** New users need guidance. Experienced users need control. A single flow either overwhelms beginners or frustrates experts.
 
-**Outcome:** Good. New users start with `/gsd-new-project` and get walked through. Experts use individual commands for fine-grained control.
+**Outcome:** Good. New users start with `/bgsd-new-project` and get walked through. Experts use individual commands for fine-grained control.
 
 ---
 

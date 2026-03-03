@@ -35,7 +35,7 @@ Every bGSD project creates a `.planning/` directory in the project root. This di
 
 ### PROJECT.md
 
-The project definition. Created during `/gsd-new-project` and updated as the project evolves.
+The project definition. Created during `/bgsd-new-project` and updated as the project evolves.
 
 **Contains:**
 - What the project is (one-paragraph summary)
@@ -88,7 +88,7 @@ Checkable requirements with traceable IDs.
 
 **Updated:** During milestone planning and as requirements are completed.
 
-**Why it exists:** Provides clear, measurable targets. The traceability table ensures every requirement maps to a phase. The `/gsd-trace-requirement` command traces from requirement to plan to code on disk.
+**Why it exists:** Provides clear, measurable targets. The traceability table ensures every requirement maps to a phase. The `/bgsd-trace-requirement` command traces from requirement to plan to code on disk.
 
 ---
 
@@ -129,7 +129,7 @@ The living state of the project. Changes frequently.
 
 **Updated:** After every plan completion, decision, blocker, or session boundary.
 
-**Why it exists:** Enables session resumption. When an agent starts with `/gsd-resume-work`, STATE.md tells it exactly where things stand. The `state validate` command detects drift between STATE.md and filesystem reality.
+**Why it exists:** Enables session resumption. When an agent starts with `/bgsd-resume-work`, STATE.md tells it exactly where things stand. The `state validate` command detects drift between STATE.md and filesystem reality.
 
 ---
 
@@ -139,7 +139,7 @@ Workflow configuration.
 
 **Contains:** Mode, model profile, gate settings, parallelization options, branching strategy, worktree config. See [Configuration Reference](configuration.md) for full schema.
 
-**Updated:** Via `/gsd-settings` or direct editing.
+**Updated:** Via `/bgsd-settings` or direct editing.
 
 ---
 
@@ -155,8 +155,8 @@ phases/
     37-02-PLAN.md           # Second plan
     37-02-SUMMARY.md
     37-VERIFICATION.md      # Phase goal verification report
-    37-CONTEXT.md           # Implementation decisions (from /gsd-discuss-phase)
-    37-RESEARCH.md          # Domain research (from /gsd-research-phase)
+    37-CONTEXT.md           # Implementation decisions (from /bgsd-discuss-phase)
+    37-RESEARCH.md          # Domain research (from /bgsd-research-phase)
 ```
 
 ### PLAN.md
@@ -214,7 +214,7 @@ Created by the gsd-verifier agent after all plans in a phase complete.
 ### Creation Flow
 
 ```
-/gsd-new-project
+/bgsd-new-project
   ├── Creates PROJECT.md
   ├── Creates INTENT.md
   ├── Creates REQUIREMENTS.md (with REQ-IDs)
@@ -222,15 +222,15 @@ Created by the gsd-verifier agent after all plans in a phase complete.
   ├── Creates STATE.md
   └── Creates config.json
 
-/gsd-plan-phase N
+/bgsd-plan-phase N
   ├── Creates {phase}-{plan}-PLAN.md files
   └── Optionally creates {phase}-RESEARCH.md, {phase}-CONTEXT.md
 
-/gsd-execute-phase N
+/bgsd-execute-phase N
   ├── Creates {phase}-{plan}-SUMMARY.md files
   └── Creates {phase}-VERIFICATION.md
 
-/gsd-complete-milestone
+/bgsd-complete-milestone
   ├── Archives phase directories to milestones/
   ├── Archives ROADMAP.md and REQUIREMENTS.md
   ├── Updates MILESTONES.md with completion record
@@ -281,8 +281,8 @@ Persistent stores in `.planning/memory/`:
 ### Memory Access
 
 ```
-/gsd-search-decisions "database"     # Search decisions
-/gsd-search-lessons "auth"           # Search lessons
+/bgsd-search-decisions "database"     # Search decisions
+/bgsd-search-lessons "auth"           # Search lessons
 ```
 
 Memory is loaded into workflows via `init memory`. It's trimmed by priority when approaching token budget limits.
@@ -303,13 +303,13 @@ Research lives in `.planning/research/`:
 | `TDD-EXECUTION.md` | TDD system analysis |
 | `AGENTIC-AUDIT.md` | Competitive audit of agent systems |
 
-Research is created during `/gsd-new-project` (4 parallel researchers) or `/gsd-new-milestone`.
+Research is created during `/bgsd-new-project` (4 parallel researchers) or `/bgsd-new-milestone`.
 
 ---
 
 ## Codebase Analysis
 
-For brownfield projects, `/gsd-map-codebase` creates 7 documents in `.planning/codebase/`:
+For brownfield projects, `/bgsd-map-codebase` creates 7 documents in `.planning/codebase/`:
 
 | File | Focus |
 |------|-------|
@@ -327,7 +327,7 @@ These feed into planning agents for context-aware plan generation.
 
 ## Quick Tasks
 
-Ad-hoc tasks via `/gsd-quick` get their own directory:
+Ad-hoc tasks via `/bgsd-quick` get their own directory:
 
 ```
 quick/
@@ -362,7 +362,7 @@ Performance measurement data in `.planning/baselines/`:
 | `bundle-size.json` | Current bundle size vs budget |
 | `baseline-*.json` | Token measurements for workflows |
 
-Used by `/gsd-context-budget compare` to measure token savings across versions.
+Used by `/bgsd-context-budget compare` to measure token savings across versions.
 
 ---
 

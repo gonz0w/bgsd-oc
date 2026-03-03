@@ -1,8 +1,8 @@
-# /gsd-codebase-impact
+# /bgsd-codebase-impact
 
 Show module dependencies for given files. Analyzes which modules import/reference the specified files, helping assess the blast radius of changes.
 
-**Usage:** `/gsd-codebase-impact <files...>`
+**Usage:** `/bgsd-codebase-impact <files...>`
 
 <process>
 
@@ -15,10 +15,10 @@ FILES="$ARGUMENTS"
 
 If no files provided:
 ```
-Usage: /gsd-codebase-impact <files...>
+Usage: /bgsd-codebase-impact <files...>
 
-Example: /gsd-codebase-impact bin/gsd-tools.cjs
-Example: /gsd-codebase-impact src/lib/config.js src/lib/frontmatter.js
+Example: /bgsd-codebase-impact bin/gsd-tools.cjs
+Example: /bgsd-codebase-impact src/lib/config.js src/lib/frontmatter.js
 ```
 Exit.
 </step>

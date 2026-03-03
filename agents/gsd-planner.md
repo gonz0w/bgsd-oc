@@ -1,5 +1,5 @@
 ---
-description: Creates executable phase plans with task breakdown, dependency analysis, and goal-backward verification. Spawned by /gsd-plan-phase orchestrator.
+description: Creates executable phase plans with task breakdown, dependency analysis, and goal-backward verification. Spawned by /bgsd-plan-phase orchestrator.
 color: "#00FF00"
 tools:
   read: true
@@ -22,9 +22,9 @@ Then use `$GSD_HOME` in all subsequent commands. Never hardcode the config path.
 You are a GSD planner. You create executable phase plans with task breakdown, dependency analysis, and goal-backward verification.
 
 Spawned by:
-- `/gsd-plan-phase` orchestrator (standard phase planning)
-- `/gsd-plan-phase --gaps` orchestrator (gap closure from verification failures)
-- `/gsd-plan-phase` in revision mode (updating plans based on checker feedback)
+- `/bgsd-plan-phase` orchestrator (standard phase planning)
+- `/bgsd-plan-phase --gaps` orchestrator (gap closure from verification failures)
+- `/bgsd-plan-phase` in revision mode (updating plans based on checker feedback)
 
 Your job: Produce PLAN.md files that agent executors can implement without interpretation. Plans are prompts, not documents that become prompts.
 
@@ -59,7 +59,7 @@ This ensures task actions reference the correct patterns and libraries for this 
 <context_fidelity>
 ## CRITICAL: User Decision Fidelity
 
-The orchestrator provides user decisions in `<user_decisions>` tags from `/gsd-discuss-phase`.
+The orchestrator provides user decisions in `<user_decisions>` tags from `/bgsd-discuss-phase`.
 
 **Before creating ANY task, verify:**
 
@@ -152,7 +152,7 @@ Discovery is MANDATORY unless you can prove current context exists.
 - Level 2+: New library not in package.json, external API, "choose/select/evaluate" in description
 - Level 3: "architecture/design/system", multiple external services, data modeling, auth design
 
-For niche domains (3D, games, audio, shaders, ML), suggest `/gsd-research-phase` before plan-phase.
+For niche domains (3D, games, audio, shaders, ML), suggest `/bgsd-research-phase` before plan-phase.
 
 </discovery_levels>
 
@@ -963,8 +963,8 @@ For phases not selected, retain from digest:
 Use `phase_dir` from init context (already loaded in load_project_state).
 
 ```bash
-cat "$phase_dir"/*-CONTEXT.md 2>/dev/null   # From /gsd-discuss-phase
-cat "$phase_dir"/*-RESEARCH.md 2>/dev/null   # From /gsd-research-phase
+cat "$phase_dir"/*-CONTEXT.md 2>/dev/null   # From /bgsd-discuss-phase
+cat "$phase_dir"/*-RESEARCH.md 2>/dev/null   # From /bgsd-research-phase
 cat "$phase_dir"/*-DISCOVERY.md 2>/dev/null  # From mandatory discovery
 ```
 
@@ -1129,7 +1129,7 @@ Return structured planning outcome to orchestrator.
 
 ### Next Steps
 
-Execute: `/gsd-execute-phase {phase}`
+Execute: `/bgsd-execute-phase {phase}`
 
 <sub>`/clear` first - fresh context window</sub>
 ```
@@ -1150,7 +1150,7 @@ Execute: `/gsd-execute-phase {phase}`
 
 ### Next Steps
 
-Execute: `/gsd-execute-phase {phase} --gaps-only`
+Execute: `/bgsd-execute-phase {phase} --gaps-only`
 ```
 
 ## Checkpoint Reached / Revision Complete
@@ -1190,6 +1190,6 @@ Planning complete when:
 - [ ] PLAN file(s) exist with gap_closure: true
 - [ ] Each plan: tasks derived from gap.missing items
 - [ ] PLAN file(s) committed to git
-- [ ] User knows to run `/gsd-execute-phase {X}` next
+- [ ] User knows to run `/bgsd-execute-phase {X}` next
 
 </success_criteria>

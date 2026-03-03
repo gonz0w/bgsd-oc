@@ -1,4 +1,4 @@
-# /gsd-session-diff
+# /bgsd-session-diff
 
 Show git commits since last activity. Useful for understanding what changed since the last planning session.
 

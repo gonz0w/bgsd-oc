@@ -14,10 +14,10 @@ Check for local patches directory:
 
 ```bash
 # Global install (path templated at install time)
-PATCHES_DIR=__OPENCODE_CONFIG__/gsd-local-patches
+PATCHES_DIR=__OPENCODE_CONFIG__/bgsd-local-patches
 # Local install fallback
 if [ ! -d "$PATCHES_DIR" ]; then
-  PATCHES_DIR=./.oc/gsd-local-patches
+  PATCHES_DIR=./.oc/bgsd-local-patches
 fi
 ```
 

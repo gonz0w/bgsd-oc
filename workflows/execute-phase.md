@@ -360,7 +360,7 @@ Create VERIFICATION.md.",
 Read status from VERIFICATION.md:
 - `passed` → update_roadmap
 - `human_needed` → present items for human testing
-- `gaps_found` → present gap summary, offer `/gsd-plan-phase {X} --gaps`
+- `gaps_found` → present gap summary, offer `/bgsd-plan-phase {X} --gaps`
 </step>
 
 <step name="update_roadmap">
@@ -383,11 +383,11 @@ If `gaps_found`: skip (verify_phase_goal already presented gap-closure path).
 **Auto-advance** (`--auto` flag OR `config-get workflow.auto_advance` true, AND verification passed):
 Read and follow `transition.md` inline, passing `--auto` flag.
 
-**Otherwise:** Workflow ends. User runs `/gsd-progress` or invokes transition manually.
+**Otherwise:** Workflow ends. User runs `/bgsd-progress` or invokes transition manually.
 </step>
 
 </process>
 
 <resumption>
-Re-run `/gsd-execute-phase {phase}` → discovers completed SUMMARYs → skips them → resumes from first incomplete plan.
+Re-run `/bgsd-execute-phase {phase}` → discovers completed SUMMARYs → skips them → resumes from first incomplete plan.
 </resumption>

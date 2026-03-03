@@ -146,7 +146,7 @@ bGSD ▶ PROGRESS
  36     Integration & Polish            0/2    ○ Not started
 ────────────────────────────────────────────────────────────
 3/7 phases complete — next: Phase 32
-→ /gsd-execute-phase 32
+→ /bgsd-execute-phase 32
 ```
 
 ### `verify quality`
@@ -215,8 +215,8 @@ Always at end of major completions.
 ────────────────────────────────────────────────────────────
 
 **Also available:**
-- `/gsd-alternative-1` — description
-- `/gsd-alternative-2` — description
+- `/bgsd-alternative-1` — description
+- `/bgsd-alternative-2` — description
 
 ────────────────────────────────────────────────────────────
 ```

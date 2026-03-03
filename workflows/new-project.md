@@ -25,14 +25,14 @@ INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init:new-project
 
 Parse: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `project_exists`, `needs_codebase_map`, `has_git`, `project_path`.
 
-If `project_exists` true → error, use `/gsd-progress`.
+If `project_exists` true → error, use `/bgsd-progress`.
 If `has_git` false → `git init`.
 
 ## 2. Brownfield Offer
 
 **Auto mode:** Skip to Step 4.
 
-If `needs_codebase_map` true: ask "Map codebase first?" or "Skip mapping". If map → run `/gsd-map-codebase`, exit. Otherwise continue.
+If `needs_codebase_map` true: ask "Map codebase first?" or "Skip mapping". If map → run `/bgsd-map-codebase`, exit. Otherwise continue.
 
 ## 2a. Auto Mode Config (auto only)
 
@@ -147,28 +147,28 @@ Ask: "Research domain ecosystem?" → Yes/No.
 **If yes:** Create `.planning/research/`, spawn 4 parallel researchers:
 
 ```
-Task(prompt="Read __OPENCODE_CONFIG__/agents/gsd-project-researcher.md for instructions.
+Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
 Research: Stack dimension for [domain]. [greenfield|subsequent] context.
 Question: What's the standard 2025 stack for [domain]?
 Read: {project_path}
 Write to: .planning/research/STACK.md (use template research-project/STACK.md)
 ", subagent_type="general", model="{researcher_model}", description="Stack research")
 
-Task(prompt="Read __OPENCODE_CONFIG__/agents/gsd-project-researcher.md for instructions.
+Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
 Research: Features dimension for [domain]. [greenfield|subsequent] context.
 Question: What features do [domain] products have? Table stakes vs differentiating?
 Read: {project_path}
 Write to: .planning/research/FEATURES.md (use template research-project/FEATURES.md)
 ", subagent_type="general", model="{researcher_model}", description="Features research")
 
-Task(prompt="Read __OPENCODE_CONFIG__/agents/gsd-project-researcher.md for instructions.
+Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
 Research: Architecture dimension for [domain]. [greenfield|subsequent] context.
 Question: How are [domain] systems typically structured?
 Read: {project_path}
 Write to: .planning/research/ARCHITECTURE.md (use template research-project/ARCHITECTURE.md)
 ", subagent_type="general", model="{researcher_model}", description="Architecture research")
 
-Task(prompt="Read __OPENCODE_CONFIG__/agents/gsd-project-researcher.md for instructions.
+Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
 Research: Pitfalls dimension for [domain]. [greenfield|subsequent] context.
 Question: What do [domain] projects commonly get wrong?
 Read: {project_path}
@@ -247,13 +247,13 @@ node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:commit "docs: c
 
 Present completion: project name, artifact locations, phase/requirement counts.
 
-**Auto mode:** Auto-advance → invoke `/gsd-discuss-phase 1 --auto`.
+**Auto mode:** Auto-advance → invoke `/bgsd-discuss-phase 1 --auto`.
 
 **Interactive:**
 ```
 ## ▶ Next Up
 **Phase 1: [Name]** — [Goal]
-/gsd-discuss-phase 1
+/bgsd-discuss-phase 1
 ```
 
 </process>

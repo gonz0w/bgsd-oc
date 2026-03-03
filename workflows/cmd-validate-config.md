@@ -1,4 +1,4 @@
-# /gsd-validate-config
+# /bgsd-validate-config
 
 Validate the `.planning/config.json` file against the schema. Checks for missing fields, invalid values, and typos in field names.
 

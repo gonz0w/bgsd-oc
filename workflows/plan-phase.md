@@ -21,7 +21,7 @@ File paths: `state_path`, `roadmap_path`, `requirements_path`, `context_path`, `
 
 Intent fields (from 16-01): `intent_summary` (objective, outcome count, top P1 outcomes — null if no INTENT.md), `intent_path` (path to INTENT.md for @context references — null if absent). Use these to inject intent context into researcher and planner spawns when available.
 
-If no `.planning/`: error — run `/gsd-new-project`.
+If no `.planning/`: error — run `/bgsd-new-project`.
 
 ## 2. Parse Arguments
 
@@ -53,7 +53,7 @@ PHASE_REQ_IDS=$(echo "$PHASE_DESC" | grep -i "Requirements:" | head -1 | sed 's/
 
 ```
 Task(
-  prompt="Read __OPENCODE_CONFIG__/agents/gsd-phase-researcher.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/bgsd-phase-researcher.md for instructions.
 Research Phase {phase_number}: {phase_name}.
 Question: What do I need to know to PLAN this phase well?
 Read: {context_path}, {requirements_path}, {state_path}
@@ -97,7 +97,7 @@ Display assertion count and coverage. If none found: note "No assertions for {re
 
 ```
 Task(
-  prompt="Read __OPENCODE_CONFIG__/agents/gsd-planner.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/bgsd-planner.md for instructions.
 
 Phase: {phase_number}, Mode: {standard|gap_closure}
 Read: {state_path}, {roadmap_path}, {requirements_path}, {context_path}, {research_path}, .planning/INTENT.md (if exists)
@@ -132,7 +132,7 @@ PASSED → step 14. ISSUES → revision loop (max 3):
 
 ```
 Task(
-  prompt="Read __OPENCODE_CONFIG__/agents/gsd-planner.md for instructions.
+  prompt="Read __OPENCODE_CONFIG__/agents/bgsd-planner.md for instructions.
 Revision mode. Read: {phase_dir}/*-PLAN.md
 Checker issues: {structured_issues}. Make targeted updates, return what changed.",
   subagent_type="general", model="{planner_model}", description="Revise Phase {phase} plans"
@@ -149,7 +149,7 @@ Route to offer_next or auto_advance.
 
 If `--auto` or `config-get workflow.auto_advance` true:
 ```
-Task(prompt="Run /gsd-execute-phase ${PHASE} --auto", subagent_type="general", description="Execute Phase ${PHASE}")
+Task(prompt="Run /bgsd-execute-phase ${PHASE} --auto", subagent_type="general", description="Execute Phase ${PHASE}")
 ```
 PHASE COMPLETE → done. GAPS/FAILED → stop chain, display for manual review.
 
@@ -161,7 +161,7 @@ Otherwise: offer_next.
 Phase {X} planned: {N} plans in {M} waves. Table of waves/objectives.
 Research: completed/existing/skipped. Verification: passed/overridden/skipped.
 
-Next: `/gsd-execute-phase {X}` (after `/clear`).
+Next: `/bgsd-execute-phase {X}` (after `/clear`).
 Also: review plans, re-research.
 </offer_next>
 

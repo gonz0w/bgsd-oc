@@ -1,8 +1,8 @@
-# /gsd-search-decisions
+# /bgsd-search-decisions
 
 Search STATE.md and archived states for decisions matching a query. Useful for understanding past architectural and implementation choices.
 
-**Usage:** `/gsd-search-decisions <query>`
+**Usage:** `/bgsd-search-decisions <query>`
 
 <process>
 
@@ -15,10 +15,10 @@ QUERY="$ARGUMENTS"
 
 If no query provided:
 ```
-Usage: /gsd-search-decisions <query>
+Usage: /bgsd-search-decisions <query>
 
-Example: /gsd-search-decisions "auth approach"
-Example: /gsd-search-decisions config
+Example: /bgsd-search-decisions "auth approach"
+Example: /bgsd-search-decisions config
 ```
 Exit.
 </step>

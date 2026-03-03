@@ -40,7 +40,7 @@ clone this repo, run deploy.sh (we are in dev mode, no npx plugin yet)
 Then in OpenCode:
 
 ```
-/gsd-new-project
+/bgsd-new-project
 ```
 
 That's it. bGSD walks you through everything: what you want to build, how to break it down, and then executes it phase by phase.
@@ -56,25 +56,25 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 **Easy Flow** — Let bGSD drive. Answer questions, approve plans, watch execution:
 
 ```
-/gsd-new-project           # Answer "what do you want to build?"
+/bgsd-new-project           # Answer "what do you want to build?"
                             # bGSD creates requirements, roadmap, phases
-/gsd-plan-phase 1           # bGSD creates executable plans for phase 1
-/gsd-execute-phase 1        # bGSD builds it, commits per-task, verifies
-/gsd-progress               # See where things stand, get routed to next action
+/bgsd-plan-phase 1           # bGSD creates executable plans for phase 1
+/bgsd-execute-phase 1        # bGSD builds it, commits per-task, verifies
+/bgsd-progress               # See where things stand, get routed to next action
 ```
 
 **Expert Flow** — Control every decision. Research domains, discuss assumptions, tune agents:
 
 ```
-/gsd-map-codebase                       # Analyze existing code first (brownfield)
-/gsd-new-project                        # Full questioning + parallel research
-/gsd-discuss-phase 1                    # Lock down implementation decisions
-/gsd-list-phase-assumptions 1           # See what the AI assumes before planning
-/gsd-research-phase 1                   # Deep domain research
-/gsd-plan-phase 1 --research            # Plan with integrated research
-/gsd-execute-phase 1                    # Execute with wave parallelism
-/gsd-verify-work 1                      # Manual UAT testing
-/gsd-audit-milestone                    # Cross-phase integration check
+/bgsd-map-codebase                       # Analyze existing code first (brownfield)
+/bgsd-new-project                        # Full questioning + parallel research
+/bgsd-discuss-phase 1                    # Lock down implementation decisions
+/bgsd-list-phase-assumptions 1           # See what the AI assumes before planning
+/bgsd-research-phase 1                   # Deep domain research
+/bgsd-plan-phase 1 --research            # Plan with integrated research
+/bgsd-execute-phase 1                    # Execute with wave parallelism
+/bgsd-verify-work 1                      # Manual UAT testing
+/bgsd-audit-milestone                    # Cross-phase integration check
 ```
 
 ### What Gets Created
@@ -112,65 +112,65 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-new-project` | Initialize project: questioning, research, roadmap |
-| `/gsd-map-codebase` | Analyze existing codebase (brownfield projects) |
-| `/gsd-plan-phase [N]` | Create executable plans for a phase |
-| `/gsd-execute-phase N` | Execute all plans in a phase |
-| `/gsd-progress` | View progress, get routed to next action |
-| `/gsd-verify-work [N]` | Manual UAT testing with gap tracking |
-| `/gsd-new-milestone` | Start next milestone cycle |
-| `/gsd-complete-milestone` | Archive completed milestone |
+| `/bgsd-new-project` | Initialize project: questioning, research, roadmap |
+| `/bgsd-map-codebase` | Analyze existing codebase (brownfield projects) |
+| `/bgsd-plan-phase [N]` | Create executable plans for a phase |
+| `/bgsd-execute-phase N` | Execute all plans in a phase |
+| `/bgsd-progress` | View progress, get routed to next action |
+| `/bgsd-verify-work [N]` | Manual UAT testing with gap tracking |
+| `/bgsd-new-milestone` | Start next milestone cycle |
+| `/bgsd-complete-milestone` | Archive completed milestone |
 
 ### Session Management
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-resume-work` | Restore context from previous session |
-| `/gsd-pause-work` | Create handoff file for later |
-| `/gsd-quick` | Execute small tasks with bGSD guarantees |
-| `/gsd-debug` | Systematic debugging with persistent state |
+| `/bgsd-resume-work` | Restore context from previous session |
+| `/bgsd-pause-work` | Create handoff file for later |
+| `/bgsd-quick` | Execute small tasks with bGSD guarantees |
+| `/bgsd-debug` | Systematic debugging with persistent state |
 
 ### Configuration
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-settings` | Interactive workflow configuration |
-| `/gsd-set-profile [quality\|balanced\|budget]` | Switch AI model tier |
-| `/gsd-health` | Check `.planning/` integrity |
-| `/gsd-update` | Update bGSD to latest version |
+| `/bgsd-settings` | Interactive workflow configuration |
+| `/bgsd-set-profile [quality\|balanced\|budget]` | Switch AI model tier |
+| `/bgsd-health` | Check `.planning/` integrity |
+| `/bgsd-update` | Update bGSD to latest version |
 
 ### Analytics & Utility
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-velocity` | Execution velocity metrics and completion forecast |
-| `/gsd-codebase-impact` | Module dependencies and blast radius analysis |
-| `/gsd-context-budget` | Token usage estimation for plan files |
-| `/gsd-rollback-info` | Commits and revert command for a plan |
-| `/gsd-search-decisions` | Search past decisions across archives |
-| `/gsd-search-lessons` | Search completed phase lessons |
-| `/gsd-session-diff` | Git commits since last session activity |
-| `/gsd-test-run` | Parse test output with pass/fail gating |
-| `/gsd-trace-requirement` | Trace requirement from spec to files on disk |
-| `/gsd-validate-config` | Schema validation for config.json |
-| `/gsd-validate-deps` | Phase dependency graph validation |
+| `/bgsd-velocity` | Execution velocity metrics and completion forecast |
+| `/bgsd-codebase-impact` | Module dependencies and blast radius analysis |
+| `/bgsd-context-budget` | Token usage estimation for plan files |
+| `/bgsd-rollback-info` | Commits and revert command for a plan |
+| `/bgsd-search-decisions` | Search past decisions across archives |
+| `/bgsd-search-lessons` | Search completed phase lessons |
+| `/bgsd-session-diff` | Git commits since last session activity |
+| `/bgsd-test-run` | Parse test output with pass/fail gating |
+| `/bgsd-trace-requirement` | Trace requirement from spec to files on disk |
+| `/bgsd-validate-config` | Schema validation for config.json |
+| `/bgsd-validate-deps` | Phase dependency graph validation |
 
 ### Roadmap Management
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-add-phase` | Add a new phase to the end of the roadmap |
-| `/gsd-insert-phase` | Insert urgent work as a decimal phase (e.g., 3.1) |
-| `/gsd-remove-phase` | Remove an unstarted future phase |
+| `/bgsd-add-phase` | Add a new phase to the end of the roadmap |
+| `/bgsd-insert-phase` | Insert urgent work as a decimal phase (e.g., 3.1) |
+| `/bgsd-remove-phase` | Remove an unstarted future phase |
 
 ### Todo & Community
 
 | Command | What It Does |
 |---------|-------------|
-| `/gsd-add-todo` | Capture an idea or task from context |
-| `/gsd-check-todos` | List pending todos, select one to work on |
-| `/gsd-join-discord` | Join the GSD Discord community |
-| `/gsd-reapply-patches` | Reapply local modifications after update |
+| `/bgsd-add-todo` | Capture an idea or task from context |
+| `/bgsd-check-todos` | List pending todos, select one to work on |
+| `/bgsd-join-discord` | Join the GSD Discord community |
+| `/bgsd-reapply-patches` | Reapply local modifications after update |
 
 See the **[Full Command Reference](docs/commands.md)** for all 41 commands with options and examples.
 
@@ -218,7 +218,7 @@ Control cost vs quality with three profiles:
 | **budget** | Sonnet | Sonnet | Haiku |
 
 ```
-/gsd-set-profile budget    # Switch to budget mode
+/bgsd-set-profile budget    # Switch to budget mode
 ```
 
 Override individual agents in `.planning/config.json`:
@@ -285,9 +285,9 @@ See the **[TDD Guide](docs/tdd.md)** for full details.
 Decisions, lessons, bookmarks, and trajectory journals persist across `/clear` and session restarts:
 
 ```
-/gsd-search-decisions "database choice"   # Find past decisions
-/gsd-search-lessons "auth"                # Find lessons learned
-/gsd-velocity                             # Plans/day, completion forecast
+/bgsd-search-decisions "database choice"   # Find past decisions
+/bgsd-search-lessons "auth"                # Find lessons learned
+/bgsd-velocity                             # Plans/day, completion forecast
 ```
 
 ### Performance & Architecture (v8.0)
@@ -393,7 +393,7 @@ bGSD is configured through `.planning/config.json`:
 | `branching_strategy` | `"none"` | `"none"`, `"phase"`, `"milestone"` |
 | `brave_search` | `false` | Enable web search in research |
 
-Interactive configuration: `/gsd-settings`
+Interactive configuration: `/bgsd-settings`
 
 See the **[Full Configuration Reference](docs/configuration.md)** for all options.
 

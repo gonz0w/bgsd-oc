@@ -7,8 +7,8 @@ Complete reference for all bGSD configuration options. Configuration lives in `.
 ## Managing Configuration
 
 ```
-/gsd-settings                              # Interactive configuration
-/gsd-set-profile quality                   # Quick model switch
+/bgsd-settings                              # Interactive configuration
+/bgsd-set-profile quality                   # Quick model switch
 ```
 
 CLI commands:
@@ -78,7 +78,7 @@ node bin/gsd-tools.cjs validate-config                   # Schema validation
 
   "worktree": {
     "enabled": false,
-    "base_path": "/tmp/gsd-worktrees",
+    "base_path": "/tmp/bgsd-worktrees",
     "sync_files": [".env", ".env.local", ".planning/config.json"],
     "setup_hooks": [],
     "max_concurrent": 3
@@ -183,7 +183,7 @@ In `yolo` mode, most gates auto-approve. `decision` and `human-action` checkpoin
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `worktree.enabled` | `false` | Enable git worktree isolation for parallel execution |
-| `worktree.base_path` | `"/tmp/gsd-worktrees"` | Directory for worktree creation |
+| `worktree.base_path` | `"/tmp/bgsd-worktrees"` | Directory for worktree creation |
 | `worktree.sync_files` | `[".env", ".env.local", ".planning/config.json"]` | Files copied to each worktree |
 | `worktree.setup_hooks` | `[]` | Commands run after worktree creation (e.g., `["npm install"]`) |
 | `worktree.max_concurrent` | `3` | Maximum simultaneous worktrees |
@@ -241,7 +241,7 @@ Lowest cost. Suitable for well-defined tasks with clear requirements.
 
 ## User Defaults
 
-Save preferred settings globally at `~/.gsd/defaults.json`. These are applied when creating new projects via `/gsd-new-project`.
+Save preferred settings globally at `~/.gsd/defaults.json`. These are applied when creating new projects via `/bgsd-new-project`.
 
 ```json
 {

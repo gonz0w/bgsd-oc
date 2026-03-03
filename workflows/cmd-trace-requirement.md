@@ -1,8 +1,8 @@
-# /gsd-trace-requirement
+# /bgsd-trace-requirement
 
 Trace a requirement from REQUIREMENTS.md through plans to actual files on disk. Shows the full implementation chain for a specific requirement ID.
 
-**Usage:** `/gsd-trace-requirement <req-id>`
+**Usage:** `/bgsd-trace-requirement <req-id>`
 
 <process>
 
@@ -15,10 +15,10 @@ REQ_ID="$ARGUMENTS"
 
 If no requirement ID provided:
 ```
-Usage: /gsd-trace-requirement <req-id>
+Usage: /bgsd-trace-requirement <req-id>
 
-Example: /gsd-trace-requirement DX-02
-Example: /gsd-trace-requirement FOUND-01
+Example: /bgsd-trace-requirement DX-02
+Example: /bgsd-trace-requirement FOUND-01
 ```
 Exit.
 </step>

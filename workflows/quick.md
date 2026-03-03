@@ -35,7 +35,7 @@ INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init:quick "$DES
 
 Parse JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
 
-**If `roadmap_exists` false:** Error — run `/gsd-new-project` first.
+**If `roadmap_exists` false:** Error — run `/bgsd-new-project` first.
 
 ---
 
@@ -137,7 +137,7 @@ Task(
 
 ```
 Task(
-  prompt="First, read __OPENCODE_CONFIG__/agents/gsd-planner.md for your role.\n\n
+  prompt="First, read __OPENCODE_CONFIG__/agents/bgsd-planner.md for your role.\n\n
 <revision_context>
 **Mode:** quick-full (revision)
 <files_to_read>
@@ -260,7 +260,7 @@ Quick Task ${next_num}: ${DESCRIPTION}
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Verification: ${QUICK_DIR}/${next_num}-VERIFICATION.md (${VERIFICATION_STATUS})
 Commit: ${commit_hash}
-Ready for next task: /gsd-quick
+Ready for next task: /bgsd-quick
 ```
 
 **If NOT `$FULL_MODE`:**
@@ -269,7 +269,7 @@ bGSD > QUICK TASK COMPLETE
 Quick Task ${next_num}: ${DESCRIPTION}
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Commit: ${commit_hash}
-Ready for next task: /gsd-quick
+Ready for next task: /bgsd-quick
 ```
 </process>
 

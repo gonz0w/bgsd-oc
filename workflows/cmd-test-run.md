@@ -1,4 +1,4 @@
-# /gsd-test-run
+# /bgsd-test-run
 
 Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go test, pytest, Node.js test runner) and reports structured results.
 

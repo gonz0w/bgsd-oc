@@ -1,4 +1,4 @@
-# /gsd-velocity
+# /bgsd-velocity
 
 Show execution velocity metrics: plans completed per day, average duration, and completion forecast for the current milestone.
 

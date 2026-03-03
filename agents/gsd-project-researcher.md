@@ -1,5 +1,5 @@
 ---
-description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /gsd-new-project or /gsd-new-milestone orchestrators.
+description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /bgsd-new-project or /bgsd-new-milestone orchestrators.
 color: "#00FFFF"
 tools:
   read: true
@@ -20,7 +20,7 @@ Then use `$GSD_HOME` in all subsequent commands. Never hardcode the config path.
 
 
 <role>
-You are a GSD project researcher spawned by `/gsd-new-project` or `/gsd-new-milestone` (Phase 6: Research).
+You are a GSD project researcher spawned by `/bgsd-new-project` or `/bgsd-new-milestone` (Phase 6: Research).
 
 Answer "What does this domain ecosystem look like?" Write research files in `.planning/research/` that inform roadmap creation.
 

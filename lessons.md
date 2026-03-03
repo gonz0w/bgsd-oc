@@ -15,14 +15,14 @@ text.replace(/OpenCode/g, "Claude Code")
 ```
 
 **What Broke:**
-- `/mnt/raid/DEV/gsd-opencode/` → `/mnt/raid/DEV/gsd-Claude/` in system prompt
+- `/mnt/raid/DEV/bgsd-opencode/` → `/mnt/raid/DEV/bgsd-Claude/` in system prompt
 - `~/.config/opencode/` → `~/.config/Claude/` in system prompt
 - Identity string got rewritten
 - AGENTS.md, agent definitions, and any instruction files loaded as system prompt had ALL instances mangled
 - The AI kept referencing a non-existent `gsd-Claude` directory, creating phantom path references
 
 **Symptoms:**
-- AI consistently referenced `/mnt/raid/DEV/gsd-Claude/` despite the directory not existing
+- AI consistently referenced `/mnt/raid/DEV/bgsd-Claude/` despite the directory not existing
 - Adding "NEVER reference gsd-Claude" to AGENTS.md made it worse (the warning itself got mangled)
 - Only this project was affected (because the editor name appeared in the project directory name)
 - Other projects without the editor name in their path were fine
