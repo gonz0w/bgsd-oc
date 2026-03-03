@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 Phase: 55 of 55 (Profiler & Performance Validation)
 Plan: 2 of 2 in current phase
 Status: Plan complete
-Last activity: 2026-03-03 — Completed quick task 4: Update all docs for v8.0 release readiness
+Last activity: 2026-03-03 — Completed quick task 5: Fix all docs to rename /gsd-* → /bgsd-*
 
 Progress: [██████████████████████████████████████] 100% (v8.0)
 
@@ -72,6 +72,7 @@ All v1.0-v7.1 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 55-01]: Added profiler instrumentation to hot paths — file reads, git operations, markdown parsing, and AST analysis emit timing data when GSD_PROFILE=1
 - [Phase 55-02]: Created profiler compare and cache-speedup commands — enables before/after timing deltas with color-coded regression highlighting, cache effectiveness validation
 - [Phase quick-3]: Deleted gsd-research-synthesizer and gsd-integration-checker from repo; updated all docs to 9-agent system, v8.0, 762 tests
+- [Phase quick-5]: Renamed all 622 /gsd-* slash command references to /bgsd-* across 77 doc files; updated AGENTS.md with full 41-command list
 
 ### Pending Todos
 
@@ -83,6 +84,7 @@ None — milestone starting fresh.
 |---|-------------|------|--------|-----------|
 | 3 | Audit codebase for stale links, old commands/agents, cleanup for release | 2026-03-03 | e620ea9 | .planning/quick/3-audit-codebase-for-stale-links-old-comma |
 | 4 | Update all docs, remove stale docs, document v8.0 for release | 2026-03-03 | 4a974fd | .planning/quick/4-update-all-docs-remove-stale-docs-docume |
+| 5 | Fix all docs: rename /gsd-* → /bgsd-* across 77 files | 2026-03-03 | 0596eaa | .planning/quick/5-fix-all-docs-to-accurately-reflect-actua |
 
 ### Blockers/Concerns
 
@@ -93,5 +95,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Quick task 4 complete (all docs updated for v8.0 release readiness)
+Stopped at: Quick task 5 complete (all docs renamed /gsd-* to /bgsd-*)
 Next step: v8.0 milestone complete
