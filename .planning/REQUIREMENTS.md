@@ -15,11 +15,11 @@
 
 ## Research Orchestration
 
-- [ ] **ORCH-01**: Research pipeline collects sources from Brave Search, Context7, YouTube, and NotebookLM in a defined sequence with structured output
-- [ ] **ORCH-02**: Pipeline degrades gracefully through 4 tiers (Full RAG → Sources without synthesis → Brave/Context7 only → Pure LLM) based on available tools
+- [x] **ORCH-01**: Research pipeline collects sources from Brave Search, Context7, YouTube, and NotebookLM in a defined sequence with structured output
+- [x] **ORCH-02**: Pipeline degrades gracefully through 4 tiers (Full RAG → Sources without synthesis → Brave/Context7 only → Pure LLM) based on available tools
 - [ ] **ORCH-03**: Researcher agents (gsd-project-researcher, gsd-phase-researcher) use new RAG pipeline when tools are available, with no regression when tools are absent
-- [ ] **ORCH-04**: Pipeline provides progressive output at each stage with time estimates and parallel source collection
-- [ ] **ORCH-05**: User can skip RAG pipeline entirely via `--quick` flag for speed-sensitive research workflows
+- [x] **ORCH-04**: Pipeline provides progressive output at each stage with time estimates and parallel source collection
+- [x] **ORCH-05**: User can skip RAG pipeline entirely via `--quick` flag for speed-sensitive research workflows
 
 ## Infrastructure & Configuration
 
@@ -56,11 +56,11 @@
 | NLM-02 | Phase 59 | Pending |
 | NLM-03 | Phase 59 | Pending |
 | NLM-04 | Phase 59 | Pending |
-| ORCH-01 | Phase 58 | Pending |
-| ORCH-02 | Phase 58 | Pending |
+| ORCH-01 | Phase 58 | Complete |
+| ORCH-02 | Phase 58 | Complete |
 | ORCH-03 | Phase 58 | Pending |
-| ORCH-04 | Phase 58 | Pending |
-| ORCH-05 | Phase 58 | Pending |
+| ORCH-04 | Phase 58 | Complete |
+| ORCH-05 | Phase 58 | Complete |
 | INFRA-01 | Phase 56 | Complete |
 | INFRA-02 | Phase 56 | Complete |
 | INFRA-03 | Phase 60 | Pending |

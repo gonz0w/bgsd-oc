@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 57 of 60 (youtube-integration)
-Plan: 2 of 2 ✓
-Status: Phase 57 complete — all plans executed
-Last activity: 2026-03-03 — Completed 57-02-PLAN.md (yt-transcript extraction)
+Phase: 58 of 60 (research-orchestration)
+Plan: 1 of 2
+Status: Executing Phase 58 — plan 01 complete
+Last activity: 2026-03-03 — Completed 58-01-PLAN.md (research collect pipeline)
 
-Progress: [######                                ] 15% (v8.1)
+Progress: [####################                  ] 50% (v8.1)
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Progress: [######                                ] 15% (v8.1)
 | Phase 56 P02 | 7 min | 2 tasks | 5 files |
 | Phase 57 P01 | 5 min | 2 tasks | 4 files |
 | Phase 57 P02 | 5min | 2 tasks | 4 files |
+| Phase 58 P01 | 5 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 57]: yt-dlp check runs before query validation — fail fast on missing dependency
 - [Phase 57]: VTT auto-sub deduplication strips consecutive identical lines for clean agent consumption
 - [Phase 57]: Full transcript always returned in JSON — TTY display truncation only, no data loss
+- [Phase 58]: Per-stage timeout splits rag_timeout budget evenly — prevents one slow stage consuming all time
+- [Phase 58]: Only top YouTube video gets transcript — expensive operation with diminishing returns beyond first
+- [Phase 58]: agent_context uses XML tags not JSON — LLMs parse XML attributes reliably in context windows
 
 ### Pending Todos
 
@@ -70,10 +74,10 @@ None — milestone starting fresh.
 - NotebookLM unofficial API (notebooklm-py) uses cookie auth that expires every few weeks — Google can break it anytime
 - yt-dlp in perpetual arms race with YouTube — nsig/SABR breakage requires frequent updates
 - Full RAG pipeline latency 3-8 min vs 10-30 sec LLM-only — progressive output and --quick flag mitigate
-- Bundle at ~1170KB — 11KB added in Phase 57 P02, monitor against 1500KB budget
+- Bundle at ~1180KB — 10KB added in Phase 58 P01, monitor against 1500KB budget
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 57-02-PLAN.md (yt-transcript extraction)
-Next step: Phase 57 complete — next phase in RAG research pipeline
+Stopped at: Completed 58-01-PLAN.md (research collect pipeline)
+Next step: Execute 58-02-PLAN.md (workflow integration)
