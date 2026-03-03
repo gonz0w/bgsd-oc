@@ -1461,7 +1461,8 @@ Research infrastructure commands.
 
 Subcommands:
   capabilities    Report available research tools, tier, and recommendations
-  yt-search       Search YouTube via yt-dlp with filtering and quality scoring`,
+  yt-search       Search YouTube via yt-dlp with filtering and quality scoring
+  yt-transcript   Extract clean plain-text transcript from YouTube video`,
       "research capabilities": `Usage: gsd-tools research capabilities
 
 Report available research tools, current degradation tier, and recommendations.
@@ -1519,7 +1520,53 @@ Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30p
 
 Examples:
   gsd-tools research:yt-search "nodejs streams tutorial"
-  gsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`
+  gsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
+      "research yt-transcript": `Usage: gsd-tools research yt-transcript <video-id|url> [options]
+
+Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
+
+Arguments:
+  video-id|url       YouTube video ID or full URL (required)
+
+Options:
+  --timestamps       Preserve [HH:MM:SS] timestamp markers (default: stripped)
+  --lang LANG        Subtitle language code (default: en)
+
+Output: { video_id, has_subtitles, language, auto_generated, transcript, word_count, char_count }
+
+When no subtitles are available: { video_id, has_subtitles: false, message: "No subtitles available" }
+When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip install yt-dlp" }
+
+Full transcript is always returned \u2014 no truncation in JSON output.
+
+Examples:
+  gsd-tools research yt-transcript dQw4w9WgXcQ
+  gsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  gsd-tools research yt-transcript dQw4w9WgXcQ --timestamps
+  gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+      "research:yt-transcript": `Usage: gsd-tools research:yt-transcript <video-id|url> [options]
+
+Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
+
+Arguments:
+  video-id|url       YouTube video ID or full URL (required)
+
+Options:
+  --timestamps       Preserve [HH:MM:SS] timestamp markers (default: stripped)
+  --lang LANG        Subtitle language code (default: en)
+
+Output: { video_id, has_subtitles, language, auto_generated, transcript, word_count, char_count }
+
+When no subtitles are available: { video_id, has_subtitles: false, message: "No subtitles available" }
+When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip install yt-dlp" }
+
+Full transcript is always returned \u2014 no truncation in JSON output.
+
+Examples:
+  gsd-tools research:yt-transcript dQw4w9WgXcQ
+  gsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  gsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
+  gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`
     };
     module2.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
@@ -19673,6 +19720,7 @@ var require_research = __commonJS({
   "src/commands/research.js"(exports2, module2) {
     "use strict";
     var fs = require("fs");
+    var os = require("os");
     var path = require("path");
     var { execFileSync } = require("child_process");
     var { checkBinary } = require_env();
@@ -20113,7 +20161,234 @@ var require_research = __commonJS({
       };
       output2(result, { formatter: formatYtSearch, raw });
     }
-    module2.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch };
+    function parseVtt(vttContent, keepTimestamps) {
+      const lines = vttContent.split("\n");
+      const cues = [];
+      let currentTimestamp = null;
+      let currentLines = [];
+      let inCue = false;
+      const timestampRe = /^(\d{2}:\d{2}:\d{2})\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}/;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === "WEBVTT" || trimmed.startsWith("Kind:") || trimmed.startsWith("Language:") || trimmed.startsWith("NOTE")) {
+          continue;
+        }
+        const tsMatch = trimmed.match(timestampRe);
+        if (tsMatch) {
+          if (currentLines.length > 0) {
+            cues.push({ timestamp: currentTimestamp, text: currentLines.join(" ") });
+          }
+          currentTimestamp = tsMatch[1];
+          currentLines = [];
+          inCue = true;
+          continue;
+        }
+        if (/^\d+$/.test(trimmed)) {
+          continue;
+        }
+        if (trimmed === "") {
+          if (inCue && currentLines.length > 0) {
+            cues.push({ timestamp: currentTimestamp, text: currentLines.join(" ") });
+            currentLines = [];
+            inCue = false;
+          }
+          continue;
+        }
+        if (inCue) {
+          let cleaned = trimmed.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+          if (cleaned) {
+            currentLines.push(cleaned);
+          }
+        }
+      }
+      if (currentLines.length > 0) {
+        cues.push({ timestamp: currentTimestamp, text: currentLines.join(" ") });
+      }
+      const deduped = [];
+      let prevText = null;
+      for (const cue of cues) {
+        if (cue.text !== prevText) {
+          deduped.push(cue);
+          prevText = cue.text;
+        }
+      }
+      let result;
+      if (keepTimestamps) {
+        result = deduped.map((c) => `[${c.timestamp}] ${c.text}`).join("\n");
+      } else {
+        result = deduped.map((c) => c.text).join(" ");
+      }
+      result = result.replace(/  +/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+      return result;
+    }
+    function extractVideoId(input) {
+      if (!input) return null;
+      if (/^[\w-]{11}$/.test(input)) {
+        return input;
+      }
+      try {
+        const url = new URL(input);
+        if (url.searchParams.has("v")) {
+          return url.searchParams.get("v");
+        }
+        if (url.hostname === "youtu.be") {
+          return url.pathname.slice(1).split("/")[0] || null;
+        }
+        const embedMatch = url.pathname.match(/\/(embed|v)\/([\w-]+)/);
+        if (embedMatch) {
+          return embedMatch[2];
+        }
+      } catch {
+      }
+      return input;
+    }
+    function formatYtTranscript(data) {
+      const lines = [];
+      lines.push(banner("YouTube Transcript"));
+      lines.push("");
+      if (data.error) {
+        lines.push(color.red(`Error: ${data.error}`));
+        if (data.install_hint) {
+          lines.push(color.yellow(`Install: ${data.install_hint}`));
+        }
+        return lines.join("\n");
+      }
+      if (!data.has_subtitles) {
+        lines.push(color.yellow(data.message || "No subtitles available for this video"));
+        lines.push(color.dim(`Video ID: ${data.video_id}`));
+        return lines.join("\n");
+      }
+      lines.push(color.bold("Video ID: ") + data.video_id);
+      lines.push(color.dim(`Language: ${data.language}${data.auto_generated ? " (auto-generated)" : ""}`));
+      lines.push(color.dim(`Words: ${data.word_count} | Characters: ${data.char_count}`));
+      lines.push("");
+      const displayLimit = 2e3;
+      if (data.transcript.length > displayLimit) {
+        lines.push(data.transcript.slice(0, displayLimit));
+        lines.push("");
+        lines.push(color.dim(`... truncated for display (${data.char_count} chars total). Use JSON output for full transcript.`));
+      } else {
+        lines.push(data.transcript);
+      }
+      return lines.join("\n");
+    }
+    function cmdResearchYtTranscript(cwd, args, raw) {
+      const cliTools = detectCliTools(cwd);
+      if (!cliTools["yt-dlp"].available) {
+        const result = { error: "yt-dlp not installed", install_hint: "pip install yt-dlp", available: false };
+        output2(result, { formatter: formatYtTranscript, raw });
+        return;
+      }
+      const keepTimestamps = args.includes("--timestamps");
+      const lang = parseFlag(args, "--lang", "en");
+      const positional = args.filter((a) => !a.startsWith("--"));
+      const flagValues = /* @__PURE__ */ new Set();
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--lang" && i + 1 < args.length) {
+          flagValues.add(args[i + 1]);
+        }
+      }
+      const videoInput = positional.filter((a) => !flagValues.has(a))[0];
+      if (!videoInput) {
+        const result = { error: "Missing video ID or URL", usage: "research:yt-transcript <video-id|url> [--timestamps] [--lang LANG]" };
+        output2(result, { formatter: formatYtTranscript, raw });
+        return;
+      }
+      const videoId = extractVideoId(videoInput);
+      if (!videoId) {
+        const result = { error: "Could not parse video ID from input", input: videoInput };
+        output2(result, { formatter: formatYtTranscript, raw });
+        return;
+      }
+      const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const ytdlpPath = cliTools["yt-dlp"].path || "yt-dlp";
+      let tmpDir;
+      try {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gsd-yt-"));
+      } catch (e) {
+        const result = { error: "Failed to create temp directory", details: e.message };
+        output2(result, { formatter: formatYtTranscript, raw });
+        return;
+      }
+      try {
+        try {
+          execFileSync(ytdlpPath, [
+            "--write-sub",
+            "--write-auto-sub",
+            "--sub-lang",
+            lang + ",en,en-auto",
+            "--sub-format",
+            "vtt",
+            "--skip-download",
+            "--no-warnings",
+            "-o",
+            path.join(tmpDir, "%(id)s"),
+            videoUrl
+          ], { encoding: "utf-8", timeout: 3e4, stdio: "pipe" });
+        } catch (err) {
+          debugLog("research.yt-transcript", `yt-dlp exited with error: ${err.message}`);
+        }
+        let vttFiles;
+        try {
+          vttFiles = fs.readdirSync(tmpDir).filter((f) => f.endsWith(".vtt"));
+        } catch {
+          vttFiles = [];
+        }
+        if (vttFiles.length === 0) {
+          const result2 = {
+            video_id: videoId,
+            error: null,
+            transcript: null,
+            message: "No subtitles available for this video",
+            has_subtitles: false
+          };
+          output2(result2, { formatter: formatYtTranscript, raw });
+          return;
+        }
+        let selectedFile = vttFiles[0];
+        let autoGenerated = true;
+        let detectedLang = lang;
+        for (const f of vttFiles) {
+          const parts = f.replace(".vtt", "").split(".");
+          const fileLang = parts.length > 1 ? parts.slice(1).join(".") : "";
+          if (fileLang === lang) {
+            selectedFile = f;
+            autoGenerated = false;
+            detectedLang = lang;
+            break;
+          }
+          if (fileLang === "en" && lang !== "en") {
+            selectedFile = f;
+            autoGenerated = false;
+            detectedLang = "en";
+          }
+        }
+        if (selectedFile.includes("-auto")) {
+          autoGenerated = true;
+        }
+        const vttContent = fs.readFileSync(path.join(tmpDir, selectedFile), "utf-8");
+        const transcript = parseVtt(vttContent, keepTimestamps);
+        const wordCount = transcript.split(/\s+/).filter(Boolean).length;
+        const charCount = transcript.length;
+        const result = {
+          video_id: videoId,
+          has_subtitles: true,
+          language: detectedLang,
+          auto_generated: autoGenerated,
+          transcript,
+          word_count: wordCount,
+          char_count: charCount
+        };
+        output2(result, { formatter: formatYtTranscript, raw });
+      } finally {
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch {
+          debugLog("research.yt-transcript", `failed to clean up tmpDir: ${tmpDir}`);
+        }
+      }
+    }
+    module2.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, parseVtt };
   }
 });
 
@@ -27370,7 +27645,7 @@ var require_router = __commonJS({
         });
       }
       if (!command) {
-        error("Usage: gsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search>");
+        error("Usage: gsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript>");
       }
       if (args.includes("--help") || args.includes("-h")) {
         const subForHelp = args[1] && !args[1].startsWith("-") ? args[1] : "";
@@ -27934,8 +28209,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
               lazyResearch().cmdResearchCapabilities(cwd, restArgs, raw);
             } else if (subCmd === "yt-search") {
               lazyResearch().cmdResearchYtSearch(cwd, restArgs, raw);
+            } else if (subCmd === "yt-transcript") {
+              lazyResearch().cmdResearchYtTranscript(cwd, restArgs, raw);
             } else {
-              error("Unknown research subcommand. Available: capabilities, yt-search");
+              error("Unknown research subcommand. Available: capabilities, yt-search, yt-transcript");
             }
             break;
           }
@@ -28748,8 +29025,10 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
             lazyResearch().cmdResearchCapabilities(cwd, args.slice(2), raw);
           } else if (resSub === "yt-search") {
             lazyResearch().cmdResearchYtSearch(cwd, args.slice(2), raw);
+          } else if (resSub === "yt-transcript") {
+            lazyResearch().cmdResearchYtTranscript(cwd, args.slice(2), raw);
           } else {
-            error("Unknown research subcommand. Available: capabilities, yt-search");
+            error("Unknown research subcommand. Available: capabilities, yt-search, yt-transcript");
           }
           break;
         }
