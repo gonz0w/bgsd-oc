@@ -301,6 +301,31 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     result.codebase_freshness = null;
   }
 
+  // RAG capabilities — non-blocking advisory
+  try {
+    const research = require('./research');
+    const cliTools = research.detectCliTools(cwd);
+    const mcpServers = research.detectMcpServers(cwd);
+    const cliAvailable = Object.entries(cliTools)
+      .filter(([, t]) => t.available)
+      .map(([name]) => name);
+    const mcpAvailable = Object.entries(mcpServers)
+      .filter(([k, s]) => k !== 'warning' && s.configured && s.enabled)
+      .map(([id]) => id);
+    const allTools = [...cliAvailable, ...mcpAvailable];
+    const ragEnabled = config.rag_enabled !== false;
+    const tier = research.calculateTier(cliTools, mcpServers, ragEnabled);
+
+    result.rag_capabilities = {
+      tier: tier.number,
+      tool_count: allTools.length,
+      tools: allTools,
+    };
+  } catch (e) {
+    debugLog('init.executePhase', 'rag capabilities failed (non-blocking)', e);
+    result.rag_capabilities = null;
+  }
+
   // Trajectory dead-end context — previous attempts for this phase
   try {
     const { queryDeadEnds, formatDeadEndContext } = require('./trajectory');
@@ -434,6 +459,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       file_overlaps: result.file_overlaps,
       task_routing: result.task_routing || null,
       previous_attempts: result.previous_attempts || null,
+      rag_capabilities: result.rag_capabilities || null,
     };
     if (global._gsdManifestMode) {
       compactResult._manifest = {
@@ -457,6 +483,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   if (result.codebase_dependencies === null) delete result.codebase_dependencies;
   if (result.codebase_freshness === null) delete result.codebase_freshness;
   if (result.previous_attempts === null) delete result.previous_attempts;
+  if (result.rag_capabilities === null) delete result.rag_capabilities;
 
   output(result, raw);
 }
@@ -539,6 +566,31 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     result.codebase_freshness = null;
   }
 
+  // RAG capabilities — non-blocking advisory
+  try {
+    const research = require('./research');
+    const cliTools = research.detectCliTools(cwd);
+    const mcpServers = research.detectMcpServers(cwd);
+    const cliAvailable = Object.entries(cliTools)
+      .filter(([, t]) => t.available)
+      .map(([name]) => name);
+    const mcpAvailable = Object.entries(mcpServers)
+      .filter(([k, s]) => k !== 'warning' && s.configured && s.enabled)
+      .map(([id]) => id);
+    const allTools = [...cliAvailable, ...mcpAvailable];
+    const ragEnabled = loadConfig(cwd).rag_enabled !== false;
+    const tier = research.calculateTier(cliTools, mcpServers, ragEnabled);
+
+    result.rag_capabilities = {
+      tier: tier.number,
+      tool_count: allTools.length,
+      tools: allTools,
+    };
+  } catch (e) {
+    debugLog('init.planPhase', 'rag capabilities failed (non-blocking)', e);
+    result.rag_capabilities = null;
+  }
+
   if (phaseInfo?.directory) {
     // Find *-CONTEXT.md in phase directory
     const phaseDirFull = path.join(cwd, phaseInfo.directory);
@@ -598,6 +650,7 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     if (result.research_path) compactResult.research_path = result.research_path;
     if (result.verification_path) compactResult.verification_path = result.verification_path;
     if (result.uat_path) compactResult.uat_path = result.uat_path;
+    if (result.rag_capabilities) compactResult.rag_capabilities = result.rag_capabilities;
 
     if (global._gsdManifestMode) {
       const manifestFiles = [
@@ -617,6 +670,7 @@ function cmdInitPlanPhase(cwd, phase, raw) {
   // Trim null intent fields from verbose output
   if (result.intent_summary === null) delete result.intent_summary;
   if (result.intent_path === null) delete result.intent_path;
+  if (result.rag_capabilities === null) delete result.rag_capabilities;
   if (result.codebase_stats === null) delete result.codebase_stats;
   if (result.codebase_conventions === null) delete result.codebase_conventions;
   if (result.codebase_dependencies === null) delete result.codebase_dependencies;
