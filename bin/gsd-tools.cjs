@@ -57,7 +57,16 @@ var require_constants = __commonJS({
       test_commands: { type: "object", default: {}, description: "Test commands by framework", aliases: [], nested: null },
       test_gate: { type: "boolean", default: true, description: "Block plan completion on test failure", aliases: [], nested: null },
       context_window: { type: "number", default: 2e5, description: "Context window size in tokens", aliases: [], nested: null },
-      context_target_percent: { type: "number", default: 50, description: "Target context utilization percent (1-100)", aliases: [], nested: null }
+      context_target_percent: { type: "number", default: 50, description: "Target context utilization percent (1-100)", aliases: [], nested: null },
+      // ─── RAG Research Pipeline ───
+      rag_enabled: { type: "boolean", default: true, description: "Enable RAG-powered research pipeline", aliases: [], nested: { section: "workflow", field: "rag" } },
+      rag_timeout: { type: "number", default: 30, description: "Per-tool research timeout in seconds", aliases: [], nested: { section: "workflow", field: "rag_timeout" } },
+      ytdlp_path: { type: "string", default: "", description: "Path to yt-dlp binary (auto-detects if empty)", aliases: [], nested: null },
+      nlm_path: { type: "string", default: "", description: "Path to notebooklm-py binary (auto-detects if empty)", aliases: [], nested: null },
+      mcp_config_path: { type: "string", default: "", description: "Path to MCP server config file (auto-detects if empty)", aliases: [], nested: null },
+      mcp_brave_enabled: { type: "boolean", default: false, description: "Enable Brave Search MCP for research", aliases: ["brave_search"], nested: null },
+      mcp_context7_enabled: { type: "boolean", default: false, description: "Enable Context7 MCP for research", aliases: [], nested: null },
+      mcp_exa_enabled: { type: "boolean", default: false, description: "Enable Exa MCP for research", aliases: [], nested: null }
     };
     var COMMAND_HELP = {
       "state": `Usage: gsd-tools state <subcommand> [options]
