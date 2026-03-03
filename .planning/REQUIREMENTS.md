@@ -17,7 +17,7 @@
 
 - [x] **ORCH-01**: Research pipeline collects sources from Brave Search, Context7, YouTube, and NotebookLM in a defined sequence with structured output
 - [x] **ORCH-02**: Pipeline degrades gracefully through 4 tiers (Full RAG → Sources without synthesis → Brave/Context7 only → Pure LLM) based on available tools
-- [ ] **ORCH-03**: Researcher agents (gsd-project-researcher, gsd-phase-researcher) use new RAG pipeline when tools are available, with no regression when tools are absent
+- [x] **ORCH-03**: Researcher agents (gsd-project-researcher, gsd-phase-researcher) use new RAG pipeline when tools are available, with no regression when tools are absent
 - [x] **ORCH-04**: Pipeline provides progressive output at each stage with time estimates and parallel source collection
 - [x] **ORCH-05**: User can skip RAG pipeline entirely via `--quick` flag for speed-sensitive research workflows
 
@@ -58,7 +58,7 @@
 | NLM-04 | Phase 59 | Pending |
 | ORCH-01 | Phase 58 | Complete |
 | ORCH-02 | Phase 58 | Complete |
-| ORCH-03 | Phase 58 | Pending |
+| ORCH-03 | Phase 58 | Complete |
 | ORCH-04 | Phase 58 | Complete |
 | ORCH-05 | Phase 58 | Complete |
 | INFRA-01 | Phase 56 | Complete |
