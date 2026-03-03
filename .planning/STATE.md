@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 59 of 60 (notebooklm-integration)
-Plan: 1 of 2
-Status: Plan 59-01 complete — NLM notebook management commands delivered
-Last activity: 2026-03-03 — Completed 59-01-PLAN.md (NLM commands)
+Plan: 2 of 2
+Status: Plan 59-02 complete — Full Tier 1 RAG pipeline delivered
+Last activity: 2026-03-03 — Completed 59-02-PLAN.md (NLM ask/report + Tier 1 synthesis)
 
 Progress: [########################################] 100% (v8.1)
 
@@ -44,6 +44,7 @@ Progress: [########################################] 100% (v8.1)
 | Phase 58 P01 | 5 min | 2 tasks | 4 files |
 | Phase 58 P02 | 2 min | 2 tasks | 1 files |
 | Phase 59 P01 | 11 min | 2 tasks | 4 files |
+| Phase 59 P02 | 8min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 58]: Workflow source injection conditional on tier < 4 — zero regression at tier 4, collection failure = silent fallback
 - [Phase 59]: Auth health probe uses 'notebooklm list --json' — cheapest NLM operation that validates cookies before any mutation
 - [Phase 59]: nlm-add-source uses 60s timeout — source processing (URL fetch + indexing) is slow, 30s causes false failures
+- [Phase Phase 59]: collectNlmSynthesis() wrapped in single try/catch — any error returns null for silent Tier 1 fallback
+- [Phase Phase 59]: Tier 1 synthesis loads top 3 URL sources into session notebook — balances coverage against NLM API timeout risk
 
 ### Pending Todos
 
@@ -79,11 +82,11 @@ None — milestone starting fresh.
 - NotebookLM unofficial API (notebooklm-py) uses cookie auth that expires every few weeks — Google can break it anytime
 - yt-dlp in perpetual arms race with YouTube — nsig/SABR breakage requires frequent updates
 - Full RAG pipeline latency 3-8 min vs 10-30 sec LLM-only — progressive output and --quick flag mitigate
-- Bundle at ~1190KB — 10KB added in Phase 59 P01, monitor against 1500KB budget
+- Bundle at ~1204KB — 14KB added in Phase 59 P02 (nlm-ask/report + Tier 1 pipeline), monitor against 1500KB budget
 - Two pre-existing config-migrate test failures (from Phase 56 RAG key additions) need cleanup
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 59-01-PLAN.md (NLM notebook management commands)
-Next step: Execute Phase 59 Plan 02 — RAG synthesis via NotebookLM query commands
+Stopped at: Completed 59-02-PLAN.md (NLM ask/report + Tier 1 synthesis)
+Next step: Phase 59 complete — all plans done. Ready for milestone completion or Phase 60.
