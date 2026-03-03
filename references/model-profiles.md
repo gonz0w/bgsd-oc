@@ -11,12 +11,10 @@ Model profiles control which AI model each bGSD agent uses, balancing quality vs
 | gsd-executor | opus | sonnet | sonnet |
 | gsd-phase-researcher | opus | sonnet | haiku |
 | gsd-project-researcher | opus | sonnet | haiku |
-| gsd-research-synthesizer | sonnet | sonnet | haiku |
 | gsd-debugger | opus | sonnet | sonnet |
 | gsd-codebase-mapper | sonnet | haiku | haiku |
 | gsd-verifier | sonnet | sonnet | haiku |
 | gsd-plan-checker | sonnet | sonnet | haiku |
-| gsd-integration-checker | sonnet | sonnet | haiku |
 
 ## Profile Philosophy
 
