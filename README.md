@@ -2,7 +2,7 @@
 
 A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**762 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **8 milestones shipped**
+**762 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **11 milestones shipped**
 
 ---
 
@@ -290,9 +290,35 @@ Decisions, lessons, bookmarks, and trajectory journals persist across `/clear` a
 /bgsd-velocity                             # Plans/day, completion forecast
 ```
 
-### Performance & Architecture (v8.0)
+### RAG-Powered Research Pipeline (v8.1)
 
-The latest milestone focused on runtime performance, system simplification, and release readiness:
+Research enhanced with external tools — YouTube search, NotebookLM synthesis, multi-source orchestration — reducing LLM token spend while improving research quality. All tools are optional; the system gracefully degrades through 4 tiers.
+
+**Research Commands:**
+
+| Command | What It Does |
+|---------|-------------|
+| `research:capabilities` | Report available tools, current tier, and recommendations |
+| `research:yt-search "topic"` | Search YouTube for developer content via yt-dlp |
+| `research:yt-transcript <id\|url>` | Extract plain-text transcript from a YouTube video |
+| `research:collect "topic"` | Full pipeline: web + YouTube + NotebookLM synthesis |
+| `research:nlm-create "title"` | Create a NotebookLM notebook |
+| `research:nlm-add-source <id> "url"` | Add a source (URL, YouTube, PDF) to a notebook |
+| `research:nlm-ask <id> "question"` | Ask a RAG-grounded question against notebook sources |
+| `research:nlm-report <id>` | Generate a structured report (briefing doc, study guide) |
+
+**4-Tier Degradation:**
+
+| Tier | Available When | What You Get |
+|------|---------------|--------------|
+| **Tier 1** — Full RAG | yt-dlp + notebooklm-py + MCP servers | Web + YouTube + NotebookLM synthesis |
+| **Tier 2** — Sources only | yt-dlp + MCP servers (no NotebookLM) | Web + YouTube sources, no synthesis |
+| **Tier 3** — Web only | MCP servers only (no yt-dlp) | Brave Search + Context7 results |
+| **Tier 4** — Pure LLM | No external tools | Standard LLM research (no regression) |
+
+See [RAG Research Setup](#rag-research-pipeline-setup) below for installation and configuration.
+
+### Performance & Architecture (v8.0)
 
 - **SQLite Caching (L1/L2)** — Two-layer cache: in-memory Map (L1) for instant hits + SQLite via `node:sqlite` (L2) for persistent cache across CLI invocations. Graceful degradation to Map-only on Node <22.5. Zero dependencies — uses Node's built-in `DatabaseSync`.
 - **Agent Consolidation (12→9)** — Merged gsd-integration-checker into gsd-verifier, gsd-research-synthesizer into gsd-roadmapper. Fewer agents, same capabilities, less coordination overhead.
@@ -392,8 +418,125 @@ bGSD is configured through `.planning/config.json`:
 | `test_gate` | `true` | Block on test failure |
 | `branching_strategy` | `"none"` | `"none"`, `"phase"`, `"milestone"` |
 | `brave_search` | `false` | Enable web search in research |
+| `rag_enabled` | `true` | Enable RAG-powered research pipeline |
+| `rag_timeout` | `30` | Per-tool research timeout in seconds |
 
 Interactive configuration: `/bgsd-settings`
+
+### RAG Research Pipeline Setup
+
+The research pipeline uses external tools to gather and synthesize domain knowledge. All tools are **optional** — bGSD detects what's available and adjusts automatically.
+
+#### 1. YouTube Integration (yt-dlp)
+
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) enables YouTube search and transcript extraction:
+
+```bash
+# Install yt-dlp
+pip install yt-dlp
+# or
+brew install yt-dlp
+
+# Verify it works
+yt-dlp --version
+
+# Test search
+node bin/gsd-tools.cjs research:yt-search "react server components" --count 3
+
+# Test transcript extraction
+node bin/gsd-tools.cjs research:yt-transcript "VIDEO_ID_HERE"
+```
+
+**Optional config** (auto-detects by default):
+```json
+{
+  "ytdlp_path": "/usr/local/bin/yt-dlp"
+}
+```
+
+#### 2. NotebookLM Integration (notebooklm-py)
+
+[notebooklm-py](https://github.com/nicholasgasior/notebooklm-py) provides RAG-grounded synthesis via Google's NotebookLM:
+
+```bash
+# Install notebooklm-py with browser automation
+pip install "notebooklm-py[browser]"
+playwright install chromium
+
+# Authenticate (opens browser, saves cookies)
+notebooklm login
+
+# Verify auth
+notebooklm list --json
+
+# Test: create notebook, add source, ask question
+node bin/gsd-tools.cjs research:nlm-create "Test Notebook"
+node bin/gsd-tools.cjs research:nlm-add-source <notebook-id> "https://example.com/article"
+node bin/gsd-tools.cjs research:nlm-ask <notebook-id> "What are the key points?"
+```
+
+**Auth notes:**
+- NotebookLM uses browser cookies (not API keys) — re-auth with `notebooklm login` when cookies expire
+- bGSD checks auth health before every operation and provides clear re-auth messaging
+- When auth fails, pipeline falls back to Tier 2 automatically
+
+**Optional config** (auto-detects by default):
+```json
+{
+  "nlm_path": "/usr/local/bin/notebooklm"
+}
+```
+
+#### 3. MCP Research Servers
+
+If you have MCP servers configured in your editor, bGSD can use them for web search:
+
+```json
+{
+  "mcp_brave_enabled": true,
+  "mcp_context7_enabled": true,
+  "mcp_exa_enabled": true,
+  "mcp_config_path": "/path/to/mcp-servers.json"
+}
+```
+
+#### RAG Configuration Reference
+
+All RAG settings in `.planning/config.json`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `rag_enabled` | `true` | Enable/disable the RAG pipeline globally |
+| `rag_timeout` | `30` | Per-tool timeout in seconds |
+| `ytdlp_path` | `""` | Path to yt-dlp binary (auto-detects if empty) |
+| `nlm_path` | `""` | Path to notebooklm-py binary (auto-detects if empty) |
+| `mcp_config_path` | `""` | Path to MCP server config file (auto-detects if empty) |
+| `mcp_brave_enabled` | `false` | Enable Brave Search MCP server |
+| `mcp_context7_enabled` | `false` | Enable Context7 MCP server |
+| `mcp_exa_enabled` | `false` | Enable Exa MCP server |
+
+**Check your current tier:**
+```bash
+node bin/gsd-tools.cjs research:capabilities
+```
+
+**Run the full pipeline:**
+```bash
+# Full pipeline (uses best available tier)
+node bin/gsd-tools.cjs research:collect "your research topic"
+
+# Quick mode (skip RAG, pure LLM)
+node bin/gsd-tools.cjs research:collect --quick "your research topic"
+
+# Resume interrupted research
+node bin/gsd-tools.cjs research:collect --resume "your research topic"
+```
+
+Research results are cached in SQLite to avoid expensive re-runs. Manage the cache:
+```bash
+node bin/gsd-tools.cjs cache research-stats    # View cache stats
+node bin/gsd-tools.cjs cache research-clear    # Clear research cache
+```
 
 See the **[Full Configuration Reference](docs/configuration.md)** for all options.
 
@@ -461,6 +604,7 @@ src/
     codebase.js            # Codebase intelligence
     env.js                 # Environment detection
     mcp.js                 # MCP server operations
+    research.js            # RAG pipeline (YouTube, NotebookLM, collect, cache)
   lib/
     config.js              # Config loading, migration, schema validation
     constants.js           # Command help, schemas, model profiles
