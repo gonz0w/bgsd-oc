@@ -4,6 +4,10 @@ A structured project planning and execution system for [OpenCode](https://github
 
 **762 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **11 milestones shipped**
 
+
+**NOTE** create symlink in your home directory ~/.opencode ~/.oc 
+   When using this plugin to develop itself, the anthropic nodejs module has a blanket replace of oppencode with Claude, and boy does that mess things up. the fix for now is the symlink.  
+  I assume the anthrpoic nodejs module does this to fake out the LLM, but it took a while to figure that one out.  careful using this plugin to develop itself (inception style)
 ---
 
 ## The Problem
