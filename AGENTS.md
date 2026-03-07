@@ -45,7 +45,7 @@ npm run build     # Build validation
 ```
 
 ## Slash Commands
-41 commands available in `commands/`:
+40 commands available in `commands/`:
 
 **Project Lifecycle:**
 - `/bgsd-new-project` — Initialize a new project with planning structure
@@ -98,8 +98,6 @@ npm run build     # Build validation
 - `/bgsd-reapply-patches` — Reapply editor patches
 - `/bgsd-cleanup` — Clean up stale planning artifacts
 - `/bgsd-help` — Show help and available commands
-- `/bgsd-join-discord` — Join the bGSD Discord community
-
 ## IMPORTANT: String Replacement Warning
 The Anthropic auth plugin rewrites ALL system prompt text, replacing the host editor
 name with "Claude Code" and its lowercase form with "Claude". This means any file path,

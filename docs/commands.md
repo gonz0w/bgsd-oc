@@ -4,7 +4,7 @@ Complete reference for all bGSD slash commands and CLI operations.
 
 ---
 
-## Slash Commands (41)
+## Slash Commands (40)
 
 ### Project Initialization
 
@@ -487,16 +487,6 @@ Validate the dependency graph for a phase. Checks that all plan dependencies are
 | `[phase]` | Optional phase number (defaults to current phase) |
 
 **Workflow:** `workflows/cmd-validate-deps.md`
-
----
-
-### Community
-
-#### `/bgsd-join-discord`
-
-Display the Discord invite link for the GSD community server. Connect with other GSD users, get help, share what you're building.
-
-**Workflow:** Inline (no external workflow)
 
 ---
 

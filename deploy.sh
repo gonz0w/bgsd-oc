@@ -24,11 +24,22 @@ if [ -d "$DEST" ]; then
 fi
 
 # Step 2b: Backup command directory
-CMD_DIR="$HOME/.config/opencode/command"
+CMD_DIR="$HOME/.config/opencode/commands"
 CMD_BACKUP="$CMD_DIR.bak-$(date +%Y%m%d-%H%M%S)"
 if [ -d "$CMD_DIR" ]; then
 	cp -r "$CMD_DIR" "$CMD_BACKUP" 2>/dev/null || true
 	echo "  Backed up commands to: $CMD_BACKUP"
+fi
+
+# Migrate: if old singular command/ exists and new commands/ doesn't yet, rename it
+OLD_CMD_DIR="$HOME/.config/opencode/command"
+if [ -d "$OLD_CMD_DIR" ] && [ "$CMD_DIR" != "$OLD_CMD_DIR" ]; then
+	if [ ! -d "$CMD_DIR" ]; then
+		mv "$OLD_CMD_DIR" "$CMD_DIR"
+		echo "  Migrated command/ → commands/ (OpenCode plural convention)"
+	else
+		echo "  Note: old command/ dir exists alongside commands/ — clean up manually"
+	fi
 fi
 
 # Step 3: Manifest-based file sync

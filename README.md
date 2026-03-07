@@ -2,7 +2,7 @@
 
 A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**762 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **11 milestones shipped**
+**762 tests** | **Zero runtime dependencies** | **40 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **11 milestones shipped**
 
 
 **NOTE** create symlink in your home directory ~/.opencode ~/.oc 
@@ -167,16 +167,15 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 | `/bgsd-insert-phase` | Insert urgent work as a decimal phase (e.g., 3.1) |
 | `/bgsd-remove-phase` | Remove an unstarted future phase |
 
-### Todo & Community
+### Todo & Maintenance
 
 | Command | What It Does |
 |---------|-------------|
 | `/bgsd-add-todo` | Capture an idea or task from context |
 | `/bgsd-check-todos` | List pending todos, select one to work on |
-| `/bgsd-join-discord` | Join the GSD Discord community |
 | `/bgsd-reapply-patches` | Reapply local modifications after update |
 
-See the **[Full Command Reference](docs/commands.md)** for all 41 commands with options and examples.
+See the **[Full Command Reference](docs/commands.md)** for all 40 commands with options and examples.
 
 ---
 
