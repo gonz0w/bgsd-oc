@@ -184,6 +184,58 @@ async function build() {
     fs.writeFileSync('/tmp/gsd-metafile.json', JSON.stringify(result.metafile, null, 2));
     console.log('Wrote /tmp/gsd-metafile.json');
   }
+
+  // --- Manifest generation: list all deployable files ---
+  const path = require('path');
+  const manifestFiles = [];
+
+  /**
+   * Recursively collect files from a directory matching an optional filter.
+   * @param {string} dir - Directory to scan (relative to project root)
+   * @param {function} [filter] - Optional predicate on filename
+   */
+  function collectFiles(dir, filter) {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { recursive: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry);
+      // Skip directories (readdirSync with recursive returns dirs too)
+      if (!fs.statSync(fullPath).isFile()) continue;
+      const relPath = fullPath.split(path.sep).join('/');
+      if (!filter || filter(path.basename(entry))) {
+        manifestFiles.push(relPath);
+      }
+    }
+  }
+
+  // bin/ — all files
+  collectFiles('bin', () => true);
+  // workflows/ — all .md files
+  collectFiles('workflows', (name) => name.endsWith('.md'));
+  // templates/ — all .md files
+  collectFiles('templates', (name) => name.endsWith('.md'));
+  // references/ — all .md files
+  collectFiles('references', (name) => name.endsWith('.md'));
+  // src/ — all files
+  collectFiles('src', () => true);
+  // commands/ — bgsd-*.md files
+  collectFiles('commands', (name) => name.startsWith('bgsd-') && name.endsWith('.md'));
+  // agents/ — gsd-*.md files
+  collectFiles('agents', (name) => name.startsWith('gsd-') && name.endsWith('.md'));
+  // VERSION file
+  if (fs.existsSync('VERSION')) {
+    manifestFiles.push('VERSION');
+  }
+
+  // Sort for stable output
+  manifestFiles.sort();
+
+  const manifest = {
+    generated: new Date().toISOString(),
+    files: manifestFiles,
+  };
+  fs.writeFileSync('bin/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+  console.log(`\nManifest: ${manifestFiles.length} files`);
 }
 
 build().catch(err => {

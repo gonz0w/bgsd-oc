@@ -31,26 +31,84 @@ if [ -d "$CMD_DIR" ]; then
 	echo "  Backed up commands to: $CMD_BACKUP"
 fi
 
-# Step 3: Copy files (preserve dest directory, overwrite contents)
-cp -r "$SRC/bin" "$DEST/"
-cp -r "$SRC/workflows" "$DEST/"
-cp -r "$SRC/templates" "$DEST/"
-cp -r "$SRC/references" "$DEST/"
-cp -r "$SRC/src" "$DEST/"
-cp "$SRC/VERSION" "$DEST/"
-
-# Step 3b: Deploy command wrappers (only our commands, don't touch others)
-mkdir -p "$CMD_DIR"
-for cmd in "$SRC/commands"/bgsd-*.md; do
-	[ -f "$cmd" ] && cp "$cmd" "$CMD_DIR/"
-done
-
-# Step 3d: Deploy agent definitions (only our agents, don't touch others)
+# Step 3: Manifest-based file sync
 AGENT_DIR="$HOME/.config/opencode/agents"
-mkdir -p "$AGENT_DIR"
-for agent in "$SRC/agents"/gsd-*.md; do
-	[ -f "$agent" ] && cp "$agent" "$AGENT_DIR/"
+MANIFEST="$SRC/bin/manifest.json"
+OLD_MANIFEST="$DEST/bin/manifest.json"
+
+if [ ! -f "$MANIFEST" ]; then
+	echo "  ERROR: bin/manifest.json not found — build may have failed."
+	exit 1
+fi
+
+# Map a manifest file path to its deploy destination
+dest_for_file() {
+	local file="$1"
+	case "$file" in
+	commands/bgsd-*.md) echo "$CMD_DIR/$(basename "$file")" ;;
+	agents/gsd-*.md) echo "$AGENT_DIR/$(basename "$file")" ;;
+	*) echo "$DEST/$file" ;;
+	esac
+}
+
+mkdir -p "$CMD_DIR" "$AGENT_DIR"
+
+# Snapshot old manifest BEFORE copying (copy loop overwrites it)
+HAS_OLD_MANIFEST=false
+OLD_FILES=""
+if [ -f "$OLD_MANIFEST" ]; then
+	HAS_OLD_MANIFEST=true
+	OLD_FILES=$(mktemp)
+	jq -r '.files[]' "$OLD_MANIFEST" | sort >"$OLD_FILES"
+fi
+
+# Copy each file in the new manifest
+ADDED=0
+UPDATED=0
+for file in $(jq -r '.files[]' "$MANIFEST"); do
+	src_path="$SRC/$file"
+	dst_path=$(dest_for_file "$file")
+
+	if [ ! -f "$src_path" ]; then
+		echo "  ⚠ Manifest lists $file but source not found — skipping"
+		continue
+	fi
+
+	mkdir -p "$(dirname "$dst_path")"
+	if [ -f "$dst_path" ]; then
+		UPDATED=$((UPDATED + 1))
+	else
+		ADDED=$((ADDED + 1))
+	fi
+	cp "$src_path" "$dst_path"
 done
+
+# Remove stale files (in old manifest but not in new manifest)
+REMOVED=0
+if [ "$HAS_OLD_MANIFEST" = true ]; then
+	NEW_FILES=$(mktemp)
+	jq -r '.files[]' "$MANIFEST" | sort >"$NEW_FILES"
+
+	# Find files only in old manifest
+	while IFS= read -r stale_file; do
+		stale_dst=$(dest_for_file "$stale_file")
+		if [ -f "$stale_dst" ]; then
+			rm "$stale_dst"
+			echo "  Removed stale: $stale_file"
+			REMOVED=$((REMOVED + 1))
+		fi
+	done < <(comm -23 "$OLD_FILES" "$NEW_FILES")
+
+	rm -f "$OLD_FILES" "$NEW_FILES"
+
+	if [ "$REMOVED" -gt 0 ]; then
+		echo "  Cleaned $REMOVED stale files"
+	fi
+else
+	echo "  First manifest deploy — no cleanup needed"
+fi
+
+echo "  Sync: $ADDED added, $UPDATED updated, $REMOVED removed"
 
 # Step 3e: Substitute path placeholders with actual install paths
 # CRITICAL: Use the ~/.config/oc symlink (-> ~/.config/opencode) to avoid
@@ -77,8 +135,8 @@ if [ -z "$SMOKE" ]; then
 fi
 echo "  ✅ Smoke test passed: $SMOKE"
 
-CMD_COUNT=$(ls "$CMD_DIR"/gsd-*.md 2>/dev/null | wc -l)
-AGENT_COUNT=$(ls "$AGENT_DIR"/gsd-*.md 2>/dev/null | wc -l)
+CMD_COUNT=$(find "$CMD_DIR" -maxdepth 1 -name 'bgsd-*.md' 2>/dev/null | wc -l)
+AGENT_COUNT=$(find "$AGENT_DIR" -maxdepth 1 -name 'gsd-*.md' 2>/dev/null | wc -l)
 echo "  Commands deployed: $CMD_COUNT"
 echo "  Agents deployed: $AGENT_COUNT"
 
