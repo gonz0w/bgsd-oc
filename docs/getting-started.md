@@ -10,13 +10,28 @@ This guide walks you through your first project using the easy flow. bGSD handle
 ## Installation
 
 ```bash
-git clone https://github.com/gonz0w/bgsd-oc.git
-cd bgsd-oc
-npm install && npm run build
-./deploy.sh
+npx get-shit-done-oc
 ```
 
-This installs bGSD into your OpenCode configuration. Restart OpenCode to pick up the new commands.
+This installs all bGSD commands, agents, workflows, and the plugin into your OpenCode config directory (`~/.config/opencode/`).
+
+Restart OpenCode to pick up the new commands.
+
+### Updating
+
+```bash
+npx get-shit-done-oc@latest
+```
+
+### Uninstalling
+
+```bash
+npx get-shit-done-oc --uninstall
+```
+
+### For Contributors
+
+To develop bGSD itself, see [Development](../README.md#development) in the main README.
 
 ## Your First Project
 
