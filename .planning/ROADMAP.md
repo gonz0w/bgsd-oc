@@ -178,7 +178,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   - [x] 63-01-PLAN.md — Dead file removal + internal helper export cleanup (95 exports across 24 files)
   - [x] 63-02-PLAN.md — Constants audit + config cleanup (COMMAND_HELP, CONFIG_SCHEMA)
   - [ ] 63-03-PLAN.md — Gap closure: remove 11 dead .md files (workflows, templates, references)
-- [ ] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references (2 plans)
+- [x] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references (2 plans) (completed 2026-03-07)
   Plans:
   - [ ] 64-01-PLAN.md — Router namespace completion + backward-compat block removal
   - [ ] 64-02-PLAN.md — Reference migration + test fixes + internal cleanup
@@ -238,7 +238,7 @@ Plans:
   3. Overlapping commands are consolidated into subcommand groups with fewer top-level entries
   4. All markdown references (agents, workflows, templates) use namespaced command forms — backward-compat router block removed
   5. All 762+ tests still pass after command changes
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 Plans:
 - [ ] 64-01-PLAN.md — Router namespace completion + backward-compat block removal
 - [ ] 64-02-PLAN.md — Reference migration + test fixes + internal cleanup
@@ -285,6 +285,6 @@ Plans:
 | 61. Tooling & Safety Net | 2/2 | Complete    | 2026-03-07 | - |
 | 62. Audit & Discovery | 2/2 | Complete    | 2026-03-07 | - |
 | 63. Dead Code Removal | 3/3 | Complete    | 2026-03-07 | - |
-| 64. Command & Workflow Cleanup | 1/2 | In Progress|  | - |
+| 64. Command & Workflow Cleanup | 2/2 | Complete   | 2026-03-07 | - |
 | 65. Performance Tuning | v8.2 | 0/0 | Not started | - |
 | 66. Agent Architecture Refinement | v8.2 | 0/0 | Not started | - |

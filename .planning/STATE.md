@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 64 of 66 (Command & Workflow Cleanup)
-Plan: 1 of 2 in current phase ✓
-Status: Plan 1 complete
-Last activity: 2026-03-07 — Completed 64-01 (Namespace Routing Migration)
+Plan: 2 of 2 in current phase ✓
+Status: Phase complete
+Last activity: 2026-03-07 — Completed 64-02 (Flat-Form Reference Migration)
 
 Progress: [█████████_______________________________] 23% (v8.2)
 
@@ -56,6 +56,7 @@ Progress: [█████████_______________________________] 23% (v8.2
 | Phase 63 PP02 | 16 min | 2 tasks | 3 files |
 | Phase 63 P03 | 17 min | 2 tasks | 12 files |
 | Phase 64 P01 | 29 min | 2 tasks | 5 files |
+| Phase 64 P02 | 83 min | 2 tasks | 34 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,9 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 63]: All 11 dead .md files confirmed via rg safety check before deletion — verify-phase reference replaced with verify-work in roadmap template
 - [Phase Phase 64]: Namespace-only routing: all 20 flat-only commands migrated to namespace routes, ~890-line backward-compat block removed
 - [Phase Phase 64]: Semantic duplicate codebase-impact (features.js) removed with flat block; util:codebase impact (codebase.js) is canonical
+- [Phase 64]: verify:verify sub-subcommand pattern: analyze-plan, regression, plan-wave, plan-deps, plan-structure, quality all route via verify:verify
+- [Phase 64]: util:mcp profile is the canonical form for mcp-profile command (accessed as util namespace, mcp subcommand, profile sub-subcommand)
+- [Phase 64]: COMMAND_HELP cleaned to namespaced-only keys; init:* internal entries removed, util:config-migrate restored as user-facing
 
 ### Pending Todos
 
@@ -121,5 +125,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 64-01-PLAN.md
-Next step: Execute 64-02-PLAN.md (test migration, workflow reference updates)
+Stopped at: Completed 64-02-PLAN.md — Phase 64 complete
+Next step: Plan or execute Phase 65

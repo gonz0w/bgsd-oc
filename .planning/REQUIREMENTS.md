@@ -26,7 +26,7 @@ Requirements for the cleanup, performance & validation milestone. Each maps to r
 ### Command Structure
 
 - [x] **CMD-01**: Stale commands removed (join-discord and any other non-functional commands)
-- [ ] **CMD-02**: Internal-only CLI calls no longer exposed as user-facing slash commands
+- [x] **CMD-02**: Internal-only CLI calls no longer exposed as user-facing slash commands
 - [x] **CMD-03**: Overlapping commands consolidated into subcommand groups
 - [x] **CMD-04**: All markdown references migrated from flat command forms to namespaced forms, backward-compat router block removed
 
@@ -85,7 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEAD-03 | Phase 63 | Complete | npm test |
 | DEAD-04 | Phase 63 | Complete | npm test |
 | CMD-01 | Phase 64 | Complete | npm test |
-| CMD-02 | Phase 64 | Pending | npm test |
+| CMD-02 | Phase 64 | Complete | npm test |
 | CMD-03 | Phase 64 | Complete | npm test |
 | CMD-04 | Phase 64 | Complete | npm test |
 | PERF-01 | Phase 65 | Pending | npm test |
