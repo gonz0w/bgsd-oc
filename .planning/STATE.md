@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 63 of 66 (Dead Code Removal)
-Plan: 2 of 2 in current phase
-Status: Ready to execute
-Last activity: 2026-03-07 — Completed 63-01 (Dead File & Export Cleanup)
+Phase: 63 of 66 (Dead Code Removal) ✓
+Plan: 2 of 2 in current phase ✓
+Status: Phase complete
+Last activity: 2026-03-07 — Completed 63-02 (Constants Cleanup)
 
 Progress: [█████████_______________________________] 23% (v8.2)
 
@@ -53,6 +53,7 @@ Progress: [█████████_______________________________] 23% (v8.2
 | Phase 62 P01 | 3 min | 2 tasks | 4 files |
 | Phase 62 P02 | 3 min | 2 tasks | 4 files |
 | Phase 63 P01 | 16 min | 2 tasks | 24 files |
+| Phase 63 PP02 | 16 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 63]: ~80 internal helper exports removed from module.exports across 24 files — 15 fewer than planned due to cross-module false positives
 - [Phase 63]: branchInfo/trajectoryBranch kept in git.js — router-consumed, not internal despite audit classification
 - [Phase 63]: detectCliTools/detectMcpServers/calculateTier kept in research.js — cross-module imports from init.js
+- [Phase 63]: Both colon-form and space-form COMMAND_HELP entries retained — help lookup uses exact key match
+- [Phase 63]: Removed 4 dead CONFIG_SCHEMA keys (model_profiles, mcp_brave_enabled, mcp_context7_enabled, mcp_exa_enabled) — never consumed by source
 
 ### Pending Todos
 
@@ -113,5 +116,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 63-01-PLAN.md
-Next step: Execute Phase 63 Plan 02 (CONFIG_SCHEMA & COMMAND_HELP cleanup)
+Stopped at: Completed 63-02-PLAN.md
+Next step: Phase 63 complete — proceed to next phase (64)
