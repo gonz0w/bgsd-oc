@@ -13,7 +13,7 @@ Requirements for the cleanup, performance & validation milestone. Each maps to r
 - [ ] **AUDIT-02**: Dead code detection identifies all unused exports, files, and dependencies across src/ modules
 - [ ] **AUDIT-03**: Circular dependency check confirms zero cycles across the module graph
 - [ ] **AUDIT-04**: Command reference map cross-references all CLI commands against their markdown consumers (agents, workflows, commands, templates)
-- [ ] **AUDIT-05**: Performance baselines captured for init command timing, bundle size, and file I/O counts
+- [x] **AUDIT-05**: Performance baselines captured for init command timing, bundle size, and file I/O counts
 - [x] **AUDIT-06**: Deploy script uses manifest-based sync to remove stale files from deploy target
 
 ### Dead Code Removal
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
 | AUDIT-01 | Phase 61 | Complete | npm run build |
-| AUDIT-05 | Phase 61 | Pending | npm test |
+| AUDIT-05 | Phase 61 | Complete | npm test |
 | AUDIT-06 | Phase 61 | Complete | ./deploy.sh |
 | AUDIT-02 | Phase 62 | Pending | npm test |
 | AUDIT-03 | Phase 62 | Pending | npm test |

@@ -165,7 +165,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
 
 </details>
 
-- [ ] **Phase 61: Tooling & Safety Net** - Install audit tools, enable metafile, harden deploy.sh, capture performance baselines (2 plans)
+- [x] **Phase 61: Tooling & Safety Net** - Install audit tools, enable metafile, harden deploy.sh, capture performance baselines (2 plans) (completed 2026-03-07)
   Plans:
   - [ ] 61-01-PLAN.md — Build metafile analysis & dev tool installation (knip, madge)
   - [ ] 61-02-PLAN.md — Manifest-based deploy sync & performance baseline capture
@@ -186,7 +186,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   2. Deploy script uses manifest-based sync that removes files from deploy target when they no longer exist in source
   3. Performance baselines (init timing, bundle size, file I/O counts) are captured and stored for before/after comparison
   4. Dev tools (knip, madge) are installed and configured with working invocation commands
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ### Phase 62: Audit & Discovery
 **Goal**: Produce a complete inventory of dead code, circular dependencies, and command references — reports only, no deletions
@@ -262,7 +262,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
-| 61. Tooling & Safety Net | 1/2 | In Progress|  | - |
+| 61. Tooling & Safety Net | 2/2 | Complete   | 2026-03-07 | - |
 | 62. Audit & Discovery | v8.2 | 0/0 | Not started | - |
 | 63. Dead Code Removal | v8.2 | 0/0 | Not started | - |
 | 64. Command & Workflow Cleanup | v8.2 | 0/0 | Not started | - |

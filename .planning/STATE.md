@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 61 of 66 (Tooling & Safety Net)
-Plan: 1 of 2 in current phase
-Status: Ready to execute
-Last activity: 2026-03-07 — Completed 61-01 (Tooling & Safety Net)
+Phase: 61 of 66 (Tooling & Safety Net) — COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-03-07 — Completed 61-02 (Deploy Sync & Performance Baselines)
 
-Progress: [██______________________________________] 5% (v8.2)
+Progress: [████____________________________________] 10% (v8.2)
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [██______________________________________] 5% (v8.2)
 | Phase 60 P02 | 18 min | 2 tasks | 3 files |
 | Phase 60 P02 | 18 min | 2 tasks | 3 files |
 | Phase 61 P01 | 23 min | 2 tasks | 3 files |
+| Phase 61 P02 | 9 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 61]: Metafile analysis groups by directory prefix — scoped packages handled via @org/pkg detection
 - [Phase 61]: build-analysis.json stays gitignored — regenerated each build, avoids noisy diffs
 - [Phase 61]: Source files >50KB warn but don't fail — visibility for Phase 65 optimization targets
+- [Phase 61]: Old manifest snapshot before copy loop — prevents self-comparison during stale file detection
+- [Phase 61]: /proc/self/io for fs I/O counting — reliable on Linux without strace, falls back to zeros
+- [Phase 61]: performance.json un-gitignored — git history preserves baseline snapshots per CONTEXT.md decision
 
 ### Pending Todos
 
@@ -98,5 +102,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 61-01-PLAN.md
-Next step: Next phase plan — `/bgsd-execute-phase 62`
+Stopped at: Completed 61-02-PLAN.md
+Next step: Next phase — `/bgsd-execute-phase 62`
