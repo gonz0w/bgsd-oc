@@ -1,12 +1,5 @@
 ---
 description: Create phases to close all gaps identified by milestone audit
-tools:
-  read: true
-  write: true
-  bash: true
-  glob: true
-  grep: true
-  question: true
 ---
 <objective>
 Create all phases necessary to close gaps identified by `/bgsd-audit-milestone`.

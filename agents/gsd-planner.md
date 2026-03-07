@@ -1,5 +1,6 @@
 ---
 description: Creates executable phase plans with task breakdown, dependency analysis, and goal-backward verification. Spawned by /bgsd-plan-phase orchestrator.
+mode: subagent
 color: "#00FF00"
 # estimated_tokens: ~20k (system prompt: 1212 lines)
 tools:
@@ -10,23 +11,6 @@ tools:
   grep: true
   webfetch: true
   mcp__context7__*: true
-inputs:
-  - file: "{phase}-RESEARCH.md"
-    required_sections: ["## Standard Stack", "## Architecture Patterns", "## Common Pitfalls"]
-    source: "gsd-phase-researcher"
-  - file: ".planning/ROADMAP.md"
-    required_sections: ["## Phase Details", "### Phase N: with Goal, Requirements, Success Criteria"]
-    source: "gsd-roadmapper"
-  - file: "{phase}-CONTEXT.md"
-    required_sections: ["## Implementation Decisions", "## Agent's Discretion", "## Deferred Ideas"]
-    source: "User (via /bgsd-discuss-phase)"
-  - file: ".planning/codebase/*.md"
-    required_sections: ["varies by document type"]
-    source: "gsd-codebase-mapper"
-outputs:
-  - file: "{phase}-{plan}-PLAN.md"
-    required_sections: ["frontmatter (phase, plan, type, wave, depends_on, files_modified, autonomous, requirements, must_haves)", "<objective>", "<tasks>", "<verification>", "<success_criteria>"]
-    consumer: "gsd-plan-checker, gsd-executor"
 ---
 
 **PATH SETUP:** Before running any gsd-tools commands, first resolve:

@@ -1,11 +1,5 @@
 ---
 description: Capture idea or task as todo from current conversation context
-argument-hint: [optional description]
-tools:
-  read: true
-  write: true
-  bash: true
-  question: true
 ---
 
 <objective>

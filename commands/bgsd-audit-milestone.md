@@ -1,13 +1,5 @@
 ---
 description: Audit milestone completion against original intent before archiving
-argument-hint: "[version]"
-tools:
-  read: true
-  glob: true
-  grep: true
-  bash: true
-  task: true
-  write: true
 ---
 <objective>
 Verify milestone achieved its definition of done. Check requirements coverage, cross-phase integration, and end-to-end flows.

@@ -1,10 +1,5 @@
 ---
 description: Show execution velocity metrics — plans/day rate, average duration, and completion forecast
-tools:
-  read: true
-  bash: true
-  grep: true
-  glob: true
 ---
 <objective>
 Show execution velocity metrics: plans completed per day, average duration, and completion forecast for the current milestone.

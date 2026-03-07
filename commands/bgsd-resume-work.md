@@ -1,11 +1,5 @@
 ---
 description: Resume work from previous session with full context restoration
-tools:
-  read: true
-  bash: true
-  write: true
-  question: true
-  skill: true
 ---
 
 <objective>

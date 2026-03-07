@@ -1,14 +1,5 @@
 ---
 description: Gather phase context through adaptive questioning before planning
-argument-hint: "<phase> [--auto]"
-tools:
-  read: true
-  write: true
-  bash: true
-  glob: true
-  grep: true
-  question: true
-  task: true
 ---
 
 <objective>

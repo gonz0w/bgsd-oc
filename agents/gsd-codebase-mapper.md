@@ -1,5 +1,6 @@
 ---
 description: Explores codebase and writes structured analysis documents. Spawned by map-codebase with a focus area (tech, arch, quality, concerns). Writes documents directly to reduce orchestrator context load.
+mode: subagent
 color: "#00FFFF"
 # estimated_tokens: ~13k (system prompt: 794 lines)
 tools:
@@ -8,32 +9,6 @@ tools:
   grep: true
   glob: true
   write: true
-inputs:
-  - file: "codebase files"
-    required_sections: ["source code", "config files", "package manifests"]
-    source: "project codebase (no agent dependency)"
-outputs:
-  - file: ".planning/codebase/STACK.md"
-    required_sections: ["## Languages", "## Frameworks", "## Key Dependencies"]
-    consumer: "gsd-planner, gsd-executor"
-  - file: ".planning/codebase/ARCHITECTURE.md"
-    required_sections: ["## Pattern Overview", "## Layers", "## Data Flow"]
-    consumer: "gsd-planner, gsd-executor"
-  - file: ".planning/codebase/CONVENTIONS.md"
-    required_sections: ["## Naming Patterns", "## Code Style", "## Import Organization"]
-    consumer: "gsd-planner, gsd-executor"
-  - file: ".planning/codebase/STRUCTURE.md"
-    required_sections: ["## Directory Layout", "## Where to Add New Code"]
-    consumer: "gsd-planner, gsd-executor"
-  - file: ".planning/codebase/TESTING.md"
-    required_sections: ["## Test Framework", "## Test Structure", "## Mocking"]
-    consumer: "gsd-planner, gsd-executor"
-  - file: ".planning/codebase/CONCERNS.md"
-    required_sections: ["## Tech Debt", "## Known Bugs", "## Performance Bottlenecks"]
-    consumer: "gsd-planner, gsd-executor"
-  - file: ".planning/codebase/INTEGRATIONS.md"
-    required_sections: ["## APIs & External Services", "## Data Storage"]
-    consumer: "gsd-planner, gsd-executor"
 ---
 
 <role>

@@ -1,10 +1,5 @@
 ---
 description: Research how to implement a phase (standalone - usually use /bgsd-plan-phase instead)
-argument-hint: "[phase]"
-tools:
-  read: true
-  bash: true
-  task: true
 ---
 
 <objective>

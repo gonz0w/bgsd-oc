@@ -1,5 +1,6 @@
 ---
 description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /bgsd-new-project or /bgsd-new-milestone orchestrators.
+mode: subagent
 color: "#00FFFF"
 # estimated_tokens: ~11k (system prompt: 655 lines)
 tools:
@@ -11,26 +12,6 @@ tools:
   websearch: true
   webfetch: true
   mcp__context7__*: true
-inputs:
-  - file: "research dimensions"
-    required_sections: ["project description", "research mode", "specific questions"]
-    source: "orchestrator (/bgsd-new-project)"
-outputs:
-  - file: ".planning/research/SUMMARY.md"
-    required_sections: ["## Executive Summary", "## Key Findings", "## Implications for Roadmap", "## Confidence Assessment"]
-    consumer: "gsd-roadmapper"
-  - file: ".planning/research/STACK.md"
-    required_sections: ["## Recommended Stack", "## Alternatives Considered", "## Installation"]
-    consumer: "gsd-roadmapper"
-  - file: ".planning/research/FEATURES.md"
-    required_sections: ["## Table Stakes", "## Differentiators", "## MVP Recommendation"]
-    consumer: "gsd-roadmapper"
-  - file: ".planning/research/ARCHITECTURE.md"
-    required_sections: ["## Recommended Architecture", "## Patterns to Follow"]
-    consumer: "gsd-roadmapper"
-  - file: ".planning/research/PITFALLS.md"
-    required_sections: ["## Critical Pitfalls", "## Phase-Specific Warnings"]
-    consumer: "gsd-roadmapper"
 ---
 
 **PATH SETUP:** Before running any gsd-tools commands, first resolve:

@@ -1,16 +1,6 @@
 ---
 description: Create detailed phase plan (PLAN.md) with verification loop
-argument-hint: "[phase] [--auto] [--research] [--skip-research] [--gaps] [--skip-verify]"
 agent: gsd-planner
-tools:
-  read: true
-  write: true
-  bash: true
-  glob: true
-  grep: true
-  task: true
-  webfetch: true
-  mcp__context7__*: true
 ---
 <objective>
 Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.

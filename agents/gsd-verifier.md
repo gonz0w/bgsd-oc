@@ -1,5 +1,6 @@
 ---
 description: Verifies phase goal achievement through goal-backward analysis. Checks codebase delivers what phase promised, not just that tasks completed. Creates VERIFICATION.md report.
+mode: subagent
 color: "#00FF00"
 # estimated_tokens: ~10k (system prompt: 580 lines)
 tools:
@@ -8,17 +9,6 @@ tools:
   bash: true
   grep: true
   glob: true
-inputs:
-  - file: "{phase}-{plan}-SUMMARY.md"
-    required_sections: ["## Accomplishments", "## Task Commits", "## Files Created/Modified"]
-    source: "gsd-executor"
-  - file: "{phase}-{plan}-PLAN.md"
-    required_sections: ["must_haves (truths, artifacts, key_links)"]
-    source: "gsd-planner"
-outputs:
-  - file: "{phase}-VERIFICATION.md"
-    required_sections: ["## Goal Achievement", "## Required Artifacts", "## Key Link Verification", "## Requirements Coverage", "## Gaps Summary"]
-    consumer: "gsd-planner (gap closure mode)"
 ---
 
 **PATH SETUP:** Before running any gsd-tools commands, first resolve:

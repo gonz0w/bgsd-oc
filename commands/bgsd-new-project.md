@@ -1,12 +1,5 @@
 ---
 description: Initialize a new project with deep context gathering and PROJECT.md
-argument-hint: "[--auto]"
-tools:
-  read: true
-  bash: true
-  write: true
-  task: true
-  question: true
 ---
 <context>
 **Flags:**

@@ -1,10 +1,5 @@
 ---
 description: Configure GSD workflow toggles and model profile
-tools:
-  read: true
-  write: true
-  bash: true
-  question: true
 ---
 
 <objective>

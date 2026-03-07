@@ -1,10 +1,5 @@
 ---
 description: Parse test output and apply pass/fail gating across test frameworks
-tools:
-  read: true
-  bash: true
-  grep: true
-  glob: true
 ---
 <objective>
 Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go test, pytest, Node.js test runner) and reports structured results.

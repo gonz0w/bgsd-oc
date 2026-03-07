@@ -1,8 +1,5 @@
 ---
 description: Update GSD to latest version with changelog display
-tools:
-  bash: true
-  question: true
 ---
 
 <objective>

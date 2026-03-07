@@ -1,11 +1,5 @@
 ---
 description: List pending todos and select one to work on
-argument-hint: [area filter]
-tools:
-  read: true
-  write: true
-  bash: true
-  question: true
 ---
 
 <objective>

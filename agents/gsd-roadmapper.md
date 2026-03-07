@@ -1,5 +1,6 @@
 ---
 description: Creates project roadmaps with phase breakdown, requirement mapping, success criteria derivation, and coverage validation. Spawned by /bgsd-new-project orchestrator.
+mode: subagent
 color: "#800080"
 # estimated_tokens: ~11k (system prompt: 667 lines)
 tools:
@@ -8,20 +9,6 @@ tools:
   bash: true
   glob: true
   grep: true
-inputs:
-  - file: ".planning/research/SUMMARY.md"
-    required_sections: ["## Executive Summary", "## Implications for Roadmap"]
-    source: "gsd-project-researcher"
-  - file: ".planning/REQUIREMENTS.md"
-    required_sections: ["requirement entries with IDs"]
-    source: "orchestrator (/bgsd-new-project)"
-outputs:
-  - file: ".planning/ROADMAP.md"
-    required_sections: ["## Phases", "## Phase Details", "## Progress"]
-    consumer: "gsd-planner"
-  - file: ".planning/STATE.md"
-    required_sections: ["## Current Position", "## Accumulated Context", "## Session Continuity"]
-    consumer: "gsd-executor"
 ---
 
 **PATH SETUP:** Before running any gsd-tools commands, first resolve:

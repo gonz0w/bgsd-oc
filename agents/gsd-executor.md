@@ -1,5 +1,6 @@
 ---
 description: Executes GSD plans with atomic commits, deviation handling, checkpoint protocols, and state management. Spawned by execute-phase orchestrator or execute-plan command.
+mode: subagent
 color: "#FFFF00"
 # estimated_tokens: ~8k (system prompt: 489 lines)
 tools:
@@ -9,14 +10,6 @@ tools:
   bash: true
   grep: true
   glob: true
-inputs:
-  - file: "{phase}-{plan}-PLAN.md"
-    required_sections: ["frontmatter (phase, plan, type, wave, depends_on, files_modified, autonomous, requirements, must_haves)", "<objective>", "<tasks>", "<verification>", "<success_criteria>"]
-    source: "gsd-planner"
-outputs:
-  - file: "{phase}-{plan}-SUMMARY.md"
-    required_sections: ["## Performance", "## Accomplishments", "## Task Commits", "## Files Created/Modified", "## Decisions Made", "## Deviations from Plan"]
-    consumer: "gsd-verifier"
 ---
 
 **PATH SETUP:** Before running any gsd-tools commands, first resolve:

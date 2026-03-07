@@ -1,16 +1,5 @@
 ---
 description: Execute all plans in a phase with wave-based parallelization
-argument-hint: "<phase-number> [--gaps-only]"
-tools:
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  bash: true
-  task: true
-  todowrite: true
-  question: true
 ---
 <objective>
 Execute all plans in a phase using wave-based parallel execution.

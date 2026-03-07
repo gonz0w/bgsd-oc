@@ -1,11 +1,5 @@
 ---
-type: prompt
 description: Archive completed milestone and prepare for next version
-argument-hint: <version>
-tools:
-  read: true
-  write: true
-  bash: true
 ---
 
 <objective>

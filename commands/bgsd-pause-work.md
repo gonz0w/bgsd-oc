@@ -1,9 +1,5 @@
 ---
 description: Create context handoff when pausing work mid-phase
-tools:
-  read: true
-  write: true
-  bash: true
 ---
 
 <objective>

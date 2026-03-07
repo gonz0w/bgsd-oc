@@ -1,10 +1,5 @@
 ---
 description: Show commits and revert command for a specific plan
-tools:
-  read: true
-  bash: true
-  grep: true
-  glob: true
 ---
 <objective>
 Show commits and revert command for a specific plan. Useful when a plan's changes need to be undone.

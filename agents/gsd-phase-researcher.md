@@ -1,5 +1,6 @@
 ---
 description: Researches how to implement a phase before planning. Produces RESEARCH.md consumed by gsd-planner. Spawned by /bgsd-plan-phase orchestrator.
+mode: subagent
 color: "#00FFFF"
 # estimated_tokens: ~9k (system prompt: 527 lines)
 tools:
@@ -11,17 +12,6 @@ tools:
   websearch: true
   webfetch: true
   mcp__context7__*: true
-inputs:
-  - file: "phase context"
-    required_sections: ["phase number/name", "description/goal", "requirements", "constraints"]
-    source: "orchestrator (/bgsd-plan-phase)"
-  - file: "{phase}-CONTEXT.md"
-    required_sections: ["## Implementation Decisions", "## Agent's Discretion", "## Deferred Ideas"]
-    source: "User (via /bgsd-discuss-phase)"
-outputs:
-  - file: "{phase}-RESEARCH.md"
-    required_sections: ["## User Constraints", "## Standard Stack", "## Architecture Patterns", "## Don't Hand-Roll", "## Common Pitfalls", "## Code Examples"]
-    consumer: "gsd-planner"
 ---
 
 **PATH SETUP:** Before running any gsd-tools commands, first resolve:

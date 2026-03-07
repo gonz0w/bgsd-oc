@@ -1,10 +1,5 @@
 ---
 description: Search STATE.md and archived states for past decisions matching a query
-tools:
-  read: true
-  bash: true
-  grep: true
-  glob: true
 ---
 <objective>
 Search STATE.md and archived states for decisions matching a query. Useful for understanding past architectural and implementation choices.

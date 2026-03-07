@@ -1,11 +1,5 @@
 ---
 description: Systematic debugging with persistent state across context resets
-argument-hint: [issue description]
-tools:
-  read: true
-  bash: true
-  task: true
-  question: true
 ---
 
 <objective>

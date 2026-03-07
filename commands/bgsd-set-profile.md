@@ -1,10 +1,5 @@
 ---
 description: Switch model profile for GSD agents (quality/balanced/budget)
-argument-hint: <profile>
-tools:
-  read: true
-  write: true
-  bash: true
 ---
 
 <objective>

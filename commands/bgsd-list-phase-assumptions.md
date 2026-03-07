@@ -1,11 +1,5 @@
 ---
 description: Surface the agent's assumptions about a phase approach before planning
-argument-hint: "[phase]"
-tools:
-  read: true
-  bash: true
-  grep: true
-  glob: true
 ---
 
 <objective>

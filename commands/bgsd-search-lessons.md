@@ -1,10 +1,5 @@
 ---
 description: Search completed phase lessons for relevant patterns and insights
-tools:
-  read: true
-  bash: true
-  grep: true
-  glob: true
 ---
 <objective>
 Search completed phase lessons for relevant patterns and insights. Surfaces lessons learned from past execution to inform current planning.
