@@ -1169,9 +1169,7 @@ function autoTriggerEnvScan(cwd) {
 }
 
 module.exports = {
-  cmdEnvScan, cmdEnvStatus, checkEnvManifestStaleness,
-  LANG_MANIFESTS, scanManifests, checkBinary, detectPackageManager, matchSimpleGlob,
-  performEnvScan, writeManifest, ensureManifestGitignored, writeProjectProfile,
-  getWatchedFiles, getWatchedFilesMtimes,
+  cmdEnvScan, cmdEnvStatus,
+  LANG_MANIFESTS, checkBinary,
   readEnvManifest, formatEnvSummary, autoTriggerEnvScan,
 };

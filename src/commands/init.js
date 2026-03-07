@@ -1866,5 +1866,4 @@ module.exports = {
   cmdInitMapCodebase,
   cmdInitProgress,
   cmdInitMemory,
-  getSessionDiffSummary,
 };

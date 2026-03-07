@@ -703,8 +703,6 @@ module.exports = {
   cmdStateGet,
   cmdStatePatch,
   cmdStateUpdate,
-  stateExtractField,
-  stateReplaceField,
   cmdStateAdvancePlan,
   cmdStateRecordMetric,
   cmdStateUpdateProgress,

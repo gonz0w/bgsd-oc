@@ -4715,8 +4715,6 @@ var require_state = __commonJS({
       cmdStateGet,
       cmdStatePatch,
       cmdStateUpdate,
-      stateExtractField,
-      stateReplaceField,
       cmdStateAdvancePlan,
       cmdStateRecordMetric,
       cmdStateUpdateProgress,
@@ -9760,18 +9758,8 @@ var require_env = __commonJS({
     module2.exports = {
       cmdEnvScan,
       cmdEnvStatus,
-      checkEnvManifestStaleness,
       LANG_MANIFESTS,
-      scanManifests,
       checkBinary,
-      detectPackageManager,
-      matchSimpleGlob,
-      performEnvScan,
-      writeManifest,
-      ensureManifestGitignored,
-      writeProjectProfile,
-      getWatchedFiles,
-      getWatchedFilesMtimes,
       readEnvManifest,
       formatEnvSummary,
       autoTriggerEnvScan
@@ -19501,13 +19489,7 @@ var require_codebase = __commonJS({
       checkCodebaseIntelStaleness,
       autoTriggerCodebaseIntel,
       spawnBackgroundAnalysis,
-      // Exported for testing (Plan 02)
-      scoreRelevance,
-      getRecentlyModifiedFiles,
-      getPlanFiles,
-      enforceTokenBudget,
-      computeRiskLevel,
-      matchFileConventions
+      computeRiskLevel
     };
   }
 });
@@ -20050,10 +20032,7 @@ var require_worktree = __commonJS({
       getWorktreeConfig,
       parsePlanId,
       parseWorktreeListPorcelain,
-      getPhaseFilesModified,
-      parseMergeTreeConflicts,
-      isAutoResolvable,
-      WORKTREE_DEFAULTS
+      getPhaseFilesModified
     };
   }
 });
@@ -21429,7 +21408,7 @@ var require_research = __commonJS({
         output2({ error: "Failed to add source", notebook_id: notebookId, source_url: sourceUrl, details: (err.message || "").slice(0, 300) }, { formatter: formatNlmAddSource, raw });
       }
     }
-    module2.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, cmdResearchCollect, cmdResearchNlmCreate, cmdResearchNlmAddSource, cmdResearchNlmAsk, cmdResearchNlmReport, collectWebSources, collectYouTubeSources, collectNlmSynthesis, formatSourcesForAgent, parseVtt, saveSession, loadSession, deleteSession };
+    module2.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, cmdResearchCollect, cmdResearchNlmCreate, cmdResearchNlmAddSource, cmdResearchNlmAsk, cmdResearchNlmReport };
   }
 });
 
@@ -24145,8 +24124,7 @@ var require_init = __commonJS({
       cmdInitMilestoneOp,
       cmdInitMapCodebase,
       cmdInitProgress,
-      cmdInitMemory,
-      getSessionDiffSummary
+      cmdInitMemory
     };
   }
 });
@@ -25613,7 +25591,6 @@ _Pending verification_
       cmdHistoryDigest,
       cmdResolveModel,
       cmdFindPhase,
-      preCommitChecks,
       cmdCommit,
       cmdVerifySummary,
       cmdTemplateSelect,
@@ -25625,7 +25602,6 @@ _Pending verification_
       cmdFrontmatterGet,
       cmdFrontmatterSet,
       cmdFrontmatterMerge,
-      FRONTMATTER_SCHEMAS,
       cmdFrontmatterValidate,
       cmdProgressRender,
       cmdTodoComplete,
@@ -27320,7 +27296,6 @@ Improved: ${improved} | Unchanged: ${unchanged} | Worsened: ${worsened}
       cmdValidateConfig,
       cmdQuickTaskSummary,
       cmdExtractSections,
-      extractSectionsFromFile,
       cmdTokenBudget,
       cmdTestCoverage,
       cmdSessionSummary
@@ -27957,25 +27932,7 @@ var require_mcp = __commonJS({
       output2(result, raw);
     }
     module2.exports = {
-      cmdMcpProfile,
-      discoverMcpServers,
-      estimateTokenCost,
-      scoreServerRelevance,
-      generateRecommendations,
-      applyRecommendations,
-      restoreBackup,
-      MCP_KNOWN_SERVERS,
-      RELEVANCE_INDICATORS,
-      DEFAULT_CONTEXT_WINDOW,
-      DEFAULT_TOKENS_PER_TOOL,
-      DEFAULT_BASE_TOKENS,
-      LOW_COST_THRESHOLD,
-      // Internal helpers exported for testing
-      extractFromMcpJson,
-      extractFromOpencodeJson,
-      safeReadJson,
-      matchIndicatorKey,
-      checkEnvHints
+      cmdMcpProfile
     };
   }
 });
@@ -28096,16 +28053,12 @@ var require_cache2 = __commonJS({
       cacheEngine.clearResearch();
       output2({ cleared: true }, raw, "Research cache cleared");
     }
-    function registerCacheCommand(router) {
-      return router;
-    }
     module2.exports = {
       cmdCacheStatus,
       cmdCacheClear,
       cmdCacheWarm,
       cmdCacheResearchStats,
-      cmdCacheResearchClear,
-      registerCacheCommand
+      cmdCacheResearchClear
     };
   }
 });
@@ -28240,9 +28193,7 @@ var require_agent = __commonJS({
     }
     module2.exports = {
       cmdAgentAudit,
-      cmdAgentList,
-      scanAgents,
-      parseRaciMatrix
+      cmdAgentList
     };
   }
 });

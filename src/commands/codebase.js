@@ -1478,11 +1478,5 @@ module.exports = {
   checkCodebaseIntelStaleness,
   autoTriggerCodebaseIntel,
   spawnBackgroundAnalysis,
-  // Exported for testing (Plan 02)
-  scoreRelevance,
-  getRecentlyModifiedFiles,
-  getPlanFiles,
-  enforceTokenBudget,
   computeRiskLevel,
-  matchFileConventions,
 };

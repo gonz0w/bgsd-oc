@@ -188,6 +188,4 @@ function cmdAgentList(cwd, raw) {
 module.exports = {
   cmdAgentAudit,
   cmdAgentList,
-  scanAgents,
-  parseRaciMatrix
 };

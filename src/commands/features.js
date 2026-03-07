@@ -2009,7 +2009,6 @@ module.exports = {
   cmdValidateConfig,
   cmdQuickTaskSummary,
   cmdExtractSections,
-  extractSectionsFromFile,
   cmdTokenBudget,
   cmdTestCoverage,
   cmdSessionSummary,

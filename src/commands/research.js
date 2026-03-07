@@ -1999,4 +1999,4 @@ function cmdResearchNlmAddSource(cwd, args, raw) {
   }
 }
 
-module.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, cmdResearchCollect, cmdResearchNlmCreate, cmdResearchNlmAddSource, cmdResearchNlmAsk, cmdResearchNlmReport, collectWebSources, collectYouTubeSources, collectNlmSynthesis, formatSourcesForAgent, parseVtt, saveSession, loadSession, deleteSession };
+module.exports = { detectCliTools, detectMcpServers, calculateTier, cmdResearchCapabilities, cmdResearchYtSearch, cmdResearchYtTranscript, cmdResearchCollect, cmdResearchNlmCreate, cmdResearchNlmAddSource, cmdResearchNlmAsk, cmdResearchNlmReport };

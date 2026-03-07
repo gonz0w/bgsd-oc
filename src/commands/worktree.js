@@ -785,7 +785,4 @@ module.exports = {
   parsePlanId,
   parseWorktreeListPorcelain,
   getPhaseFilesModified,
-  parseMergeTreeConflicts,
-  isAutoResolvable,
-  WORKTREE_DEFAULTS,
 };

@@ -179,5 +179,4 @@ module.exports = {
   cmdCacheWarm,
   cmdCacheResearchStats,
   cmdCacheResearchClear,
-  registerCacheCommand
 };

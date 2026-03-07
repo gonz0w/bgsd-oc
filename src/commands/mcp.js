@@ -384,22 +384,4 @@ function cmdMcpProfile(cwd, args, raw) {
 
 module.exports = {
   cmdMcpProfile,
-  discoverMcpServers,
-  estimateTokenCost,
-  scoreServerRelevance,
-  generateRecommendations,
-  applyRecommendations,
-  restoreBackup,
-  MCP_KNOWN_SERVERS,
-  RELEVANCE_INDICATORS,
-  DEFAULT_CONTEXT_WINDOW,
-  DEFAULT_TOKENS_PER_TOOL,
-  DEFAULT_BASE_TOKENS,
-  LOW_COST_THRESHOLD,
-  // Internal helpers exported for testing
-  extractFromMcpJson,
-  extractFromOpencodeJson,
-  safeReadJson,
-  matchIndicatorKey,
-  checkEnvHints,
 };
