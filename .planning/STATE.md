@@ -141,5 +141,5 @@ None — milestone starting fresh.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Archived v8.2 milestone
+Stopped at: Completed quick-6 OpenCode best practices audit
 Next step: Run `/bgsd-new-milestone` to define next milestone
