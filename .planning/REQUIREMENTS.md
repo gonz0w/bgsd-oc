@@ -74,33 +74,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| AUDIT-01 | — | Pending | npm run build |
-| AUDIT-02 | — | Pending | npm test |
-| AUDIT-03 | — | Pending | npm test |
-| AUDIT-04 | — | Pending | npm test |
-| AUDIT-05 | — | Pending | npm test |
-| AUDIT-06 | — | Pending | ./deploy.sh |
-| DEAD-01 | — | Pending | npm test |
-| DEAD-02 | — | Pending | npm test |
-| DEAD-03 | — | Pending | npm test |
-| DEAD-04 | — | Pending | npm test |
-| CMD-01 | — | Pending | npm test |
-| CMD-02 | — | Pending | npm test |
-| CMD-03 | — | Pending | npm test |
-| CMD-04 | — | Pending | npm test |
-| AGENT-01 | — | Pending | npm test |
-| AGENT-02 | — | Pending | npm test |
-| AGENT-03 | — | Pending | npm test |
-| AGENT-04 | — | Pending | npm test |
-| PERF-01 | — | Pending | npm test |
-| PERF-02 | — | Pending | npm run build |
-| PERF-03 | — | Pending | npm test |
-| PERF-04 | — | Pending | npm test |
+| AUDIT-01 | Phase 61 | Pending | npm run build |
+| AUDIT-05 | Phase 61 | Pending | npm test |
+| AUDIT-06 | Phase 61 | Pending | ./deploy.sh |
+| AUDIT-02 | Phase 62 | Pending | npm test |
+| AUDIT-03 | Phase 62 | Pending | npm test |
+| AUDIT-04 | Phase 62 | Pending | npm test |
+| DEAD-01 | Phase 63 | Pending | npm test |
+| DEAD-02 | Phase 63 | Pending | npm test |
+| DEAD-03 | Phase 63 | Pending | npm test |
+| DEAD-04 | Phase 63 | Pending | npm test |
+| CMD-01 | Phase 64 | Pending | npm test |
+| CMD-02 | Phase 64 | Pending | npm test |
+| CMD-03 | Phase 64 | Pending | npm test |
+| CMD-04 | Phase 64 | Pending | npm test |
+| PERF-01 | Phase 65 | Pending | npm test |
+| PERF-02 | Phase 65 | Pending | npm run build |
+| PERF-03 | Phase 65 | Pending | npm test |
+| PERF-04 | Phase 65 | Pending | npm test |
+| AGENT-01 | Phase 66 | Pending | npm test |
+| AGENT-02 | Phase 66 | Pending | npm test |
+| AGENT-03 | Phase 66 | Pending | npm test |
+| AGENT-04 | Phase 66 | Pending | npm test |
 
 **Coverage:**
 - v8.2 requirements: 22 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 22
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*

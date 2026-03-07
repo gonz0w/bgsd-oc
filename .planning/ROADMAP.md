@@ -13,6 +13,7 @@
 - ✅ **v7.1 Trajectory Engineering** — Phases 45-50 (shipped 2026-03-02)
 - ✅ **v8.0 Performance & Agent Architecture** — Phases 51-55 (shipped 2026-03-03)
 - ✅ **v8.1 RAG-Powered Research Pipeline** — Phases 56-60 (shipped 2026-03-03)
+- 🚧 **v8.2 Cleanup, Performance & Validation** — Phases 61-66 (in progress)
 
 ## Phases
 
@@ -164,13 +165,86 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
 
 </details>
 
+- [ ] **Phase 61: Tooling & Safety Net** - Install audit tools, enable metafile, harden deploy.sh, capture performance baselines
+- [ ] **Phase 62: Audit & Discovery** - Run dead code detection, circular dependency check, build command reference map
+- [ ] **Phase 63: Dead Code Removal** - Remove confirmed dead exports, unused files, stale constants and config
+- [ ] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references
+- [ ] **Phase 65: Performance Tuning** - Profile hot paths, optimize bottlenecks, reduce bundle size, improve init times
+- [ ] **Phase 66: Agent Architecture Refinement** - Re-validate RACI, tighten manifests, document handoff contracts, evaluate merges
+
 ## Phase Details
 
-No active phases. All phases complete.
+### Phase 61: Tooling & Safety Net
+**Goal**: Establish audit infrastructure, deploy safety, and performance baselines before any code changes
+**Depends on**: Nothing (first phase of v8.2)
+**Requirements**: AUDIT-01, AUDIT-05, AUDIT-06
+**Success Criteria** (what must be TRUE):
+  1. Running `npm run build` produces esbuild metafile with per-module byte attribution visible in build output
+  2. Deploy script uses manifest-based sync that removes files from deploy target when they no longer exist in source
+  3. Performance baselines (init timing, bundle size, file I/O counts) are captured and stored for before/after comparison
+  4. Dev tools (knip, madge) are installed and configured with working invocation commands
+**Plans**: TBD
+
+### Phase 62: Audit & Discovery
+**Goal**: Produce a complete inventory of dead code, circular dependencies, and command references — reports only, no deletions
+**Depends on**: Phase 61
+**Requirements**: AUDIT-02, AUDIT-03, AUDIT-04
+**Success Criteria** (what must be TRUE):
+  1. Dead code detection report identifies all unused exports, files, and dependencies across src/ modules
+  2. Circular dependency check confirms zero cycles in the module graph (or flags any found)
+  3. Command reference map shows every CLI command cross-referenced against all 49+ markdown consumers (agents, workflows, commands, templates)
+  4. Reports distinguish between truly dead code and code consumed only by markdown files (invisible to JS static analysis)
+**Plans**: TBD
+
+### Phase 63: Dead Code Removal
+**Goal**: Remove all confirmed dead exports, unreferenced files, stale constants, and orphaned config — verified by test suite after each batch
+**Depends on**: Phase 62
+**Requirements**: DEAD-01, DEAD-02, DEAD-03, DEAD-04
+**Success Criteria** (what must be TRUE):
+  1. All unused function exports identified by audit (cross-referenced against command reference map) are removed from src/ modules
+  2. All unreferenced workflow, template, and reference files are removed from the project
+  3. constants.js has been audited and unused regex patterns, constants, and mappings are removed
+  4. Stale config.json keys and agent manifest fields are cleaned up
+  5. All 762+ tests still pass after removals
+**Plans**: TBD
+
+### Phase 64: Command & Workflow Cleanup
+**Goal**: Clean the command surface — remove stale commands, hide internal-only commands, consolidate overlapping commands, and migrate all references to namespaced forms
+**Depends on**: Phase 63
+**Requirements**: CMD-01, CMD-02, CMD-03, CMD-04
+**Success Criteria** (what must be TRUE):
+  1. Stale commands (join-discord and any other non-functional commands) are removed from router and slash command wrappers
+  2. Internal-only CLI calls are no longer exposed as user-facing slash commands
+  3. Overlapping commands are consolidated into subcommand groups with fewer top-level entries
+  4. All markdown references (agents, workflows, templates) use namespaced command forms — backward-compat router block removed
+  5. All 762+ tests still pass after command changes
+**Plans**: TBD
+
+### Phase 65: Performance Tuning
+**Goal**: Profile and optimize hot paths, reduce bundle size, and improve init command timing — data-driven from Phase 61 baselines
+**Depends on**: Phase 64
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04
+**Success Criteria** (what must be TRUE):
+  1. CPU hot paths have been profiled and the top bottlenecks are optimized with measurable improvement
+  2. Bundle size is measurably reduced compared to v8.1 baseline (~1216KB)
+  3. Init commands complete in <100ms with cache layer (vs current baseline)
+  4. Redundant file reads and parsing in hot paths are identified and reduced
+**Plans**: TBD
+
+### Phase 66: Agent Architecture Refinement
+**Goal**: Sharpen agent boundaries, validate manifests against actual usage, document handoff contracts, and evaluate merge opportunities — based on stable command surface from prior phases
+**Depends on**: Phase 65
+**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04
+**Success Criteria** (what must be TRUE):
+  1. RACI matrix re-validated with zero overlap warnings across all 9 agents
+  2. Agent manifests tightened — unused context fields removed and token budgets verified against actual measured usage
+  3. Structured handoff contracts documented for each agent-to-agent transition (what context passes, what format, what the receiving agent expects)
+  4. Agent merge evaluation completed — any agents with >50% overlapping responsibilities merged or restructured
+**Plans**: TBD
 
 ## Progress
 
-**Execution Order:** Phases execute in numeric order: 56 → 57 → 58 → 59 → 60
+**Execution Order:** Phases execute in numeric order: 61 → 62 → 63 → 64 → 65 → 66
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -185,3 +259,9 @@ No active phases. All phases complete.
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
+| 61. Tooling & Safety Net | v8.2 | 0/0 | Not started | - |
+| 62. Audit & Discovery | v8.2 | 0/0 | Not started | - |
+| 63. Dead Code Removal | v8.2 | 0/0 | Not started | - |
+| 64. Command & Workflow Cleanup | v8.2 | 0/0 | Not started | - |
+| 65. Performance Tuning | v8.2 | 0/0 | Not started | - |
+| 66. Agent Architecture Refinement | v8.2 | 0/0 | Not started | - |
