@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-07T02:25:45.367Z",
+  "timestamp": "2026-03-07T16:55:00.000Z",
   "init_timing_ms": 132,
   "init_timing_runs": [
     132,
@@ -8,11 +8,14 @@
     124,
     214
   ],
-  "bundle_size_kb": 1216,
-  "bundle_size_bytes": 1244687,
+  "bundle_size_kb": 1153,
+  "bundle_size_bytes": 1180702,
   "fs_read_count": 531,
   "fs_write_count": 90,
-  "source_file_count": 40,
-  "source_total_lines": 31096,
-  "node_version": "v25.7.0"
+  "source_file_count": 41,
+  "source_total_lines": 30100,
+  "node_version": "v25.7.0",
+  "acorn_lazy_loaded": true,
+  "effective_cold_start_kb": 923,
+  "notes": "Acorn (230KB) lazy-loaded as of Phase 65. Bundle file size unchanged but effective cold-start reduced by 230KB for non-AST commands."
 }
