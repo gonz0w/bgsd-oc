@@ -1,67 +1,70 @@
 {
   "version": 1,
-  "generated_at": "2026-02-27T04:35:20.444Z",
-  "git_commit_hash": "491e9681163ecf24395f03c35526dafb0f665125",
+  "generated_at": "2026-03-07T20:35:54.016Z",
+  "git_commit_hash": "d0b76de5b4e989fb0b36d3add9f27172957b17c2",
   "git_branch": "main",
-  "analysis_duration_ms": 33,
+  "analysis_duration_ms": 106,
   "source_dirs": [
     ".",
+    "agents",
     "bin",
+    "commands",
     "docs",
     "references",
     "src",
     "templates",
+    "test",
     "workflows"
   ],
   "languages": {
     "markdown": {
-      "count": 176,
+      "count": 560,
       "extensions": [
         ".md"
       ],
-      "lines": 32579
+      "lines": 95118
     },
     "javascript": {
-      "count": 32,
+      "count": 46,
       "extensions": [
         ".cjs",
         ".js"
       ],
-      "lines": 52298
+      "lines": 78119
     },
     "shell": {
       "count": 1,
       "extensions": [
         ".sh"
       ],
-      "lines": 50
+      "lines": 145
     },
     "json": {
-      "count": 5,
+      "count": 16,
       "extensions": [
         ".json"
       ],
-      "lines": 1580
+      "lines": 9715
     }
   },
   "files": {
     ".gitignore": {
       "language": null,
-      "size_bytes": 32,
-      "lines": 2,
-      "last_modified": "2026-02-22T16:01:59.430Z"
+      "size_bytes": 91,
+      "lines": 8,
+      "last_modified": "2026-02-28T05:04:50.682Z"
     },
     "AGENTS.md": {
       "language": "markdown",
-      "size_bytes": 5208,
-      "lines": 90,
-      "last_modified": "2026-02-26T22:25:17.780Z"
+      "size_bytes": 5207,
+      "lines": 108,
+      "last_modified": "2026-03-03T02:06:31.691Z"
     },
     "README.md": {
       "language": "markdown",
-      "size_bytes": 11481,
-      "lines": 316,
-      "last_modified": "2026-02-26T22:25:14.706Z"
+      "size_bytes": 27829,
+      "lines": 646,
+      "last_modified": "2026-03-07T00:46:52.136Z"
     },
     "VERSION": {
       "language": null,
@@ -71,39 +74,39 @@
     },
     "bin/gsd-tools.cjs": {
       "language": "javascript",
-      "size_bytes": 697698,
-      "lines": 17032,
-      "last_modified": "2026-02-27T04:33:27.308Z"
+      "size_bytes": 1190966,
+      "lines": 28817,
+      "last_modified": "2026-03-07T20:24:28.226Z"
     },
     "bin/gsd-tools.test.cjs": {
       "language": "javascript",
-      "size_bytes": 573754,
-      "lines": 13736,
-      "last_modified": "2026-02-27T03:55:07.486Z"
+      "size_bytes": 769319,
+      "lines": 18125,
+      "last_modified": "2026-03-07T18:25:28.574Z"
     },
     "build.js": {
       "language": "javascript",
-      "size_bytes": 2786,
-      "lines": 94,
-      "last_modified": "2026-02-25T22:45:12.301Z"
+      "size_bytes": 8337,
+      "lines": 244,
+      "last_modified": "2026-03-07T13:52:15.507Z"
     },
     "deploy.sh": {
       "language": "shell",
-      "size_bytes": 1326,
-      "lines": 50,
-      "last_modified": "2026-02-22T16:07:44.623Z"
+      "size_bytes": 4224,
+      "lines": 145,
+      "last_modified": "2026-03-07T18:48:09.607Z"
     },
     "package-lock.json": {
       "language": "json",
-      "size_bytes": 14917,
-      "lines": 514,
-      "last_modified": "2026-02-25T21:54:06.990Z"
+      "size_bytes": 109616,
+      "lines": 3256,
+      "last_modified": "2026-03-07T01:48:52.484Z"
     },
     "package.json": {
       "language": "json",
-      "size_bytes": 421,
-      "lines": 22,
-      "last_modified": "2026-02-25T21:54:06.971Z"
+      "size_bytes": 839,
+      "lines": 31,
+      "last_modified": "2026-03-07T02:48:13.674Z"
     },
     "references/checkpoints.md": {
       "language": "markdown",
@@ -113,51 +116,33 @@
     },
     "references/continuation-format.md": {
       "language": "markdown",
-      "size_bytes": 4421,
+      "size_bytes": 4437,
       "lines": 254,
-      "last_modified": "2026-02-22T19:18:22.499Z"
-    },
-    "references/decimal-phase-calculation.md": {
-      "language": "markdown",
-      "size_bytes": 1420,
-      "lines": 64,
-      "last_modified": "2026-02-27T04:26:45.146Z"
+      "last_modified": "2026-03-03T02:05:19.731Z"
     },
     "references/git-integration.md": {
       "language": "markdown",
-      "size_bytes": 6838,
+      "size_bytes": 6841,
       "lines": 248,
-      "last_modified": "2026-02-27T04:26:20.746Z"
-    },
-    "references/git-planning-commit.md": {
-      "language": "markdown",
-      "size_bytes": 1446,
-      "lines": 38,
-      "last_modified": "2026-02-22T06:39:11.213Z"
+      "last_modified": "2026-03-07T14:24:07.087Z"
     },
     "references/model-profile-resolution.md": {
       "language": "markdown",
-      "size_bytes": 1118,
+      "size_bytes": 1111,
       "lines": 34,
-      "last_modified": "2026-02-22T06:39:11.213Z"
+      "last_modified": "2026-03-03T02:05:19.731Z"
     },
     "references/model-profiles.md": {
       "language": "markdown",
-      "size_bytes": 3208,
-      "lines": 92,
-      "last_modified": "2026-02-27T04:26:37.529Z"
+      "size_bytes": 3107,
+      "lines": 90,
+      "last_modified": "2026-03-03T02:05:19.730Z"
     },
     "references/phase-argument-parsing.md": {
       "language": "markdown",
-      "size_bytes": 1642,
+      "size_bytes": 1636,
       "lines": 61,
-      "last_modified": "2026-02-27T04:26:41.914Z"
-    },
-    "references/planning-config.md": {
-      "language": "markdown",
-      "size_bytes": 7269,
-      "lines": 196,
-      "last_modified": "2026-02-27T04:26:23.361Z"
+      "last_modified": "2026-03-07T14:23:55.447Z"
     },
     "references/questioning.md": {
       "language": "markdown",
@@ -167,99 +152,99 @@
     },
     "references/tdd.md": {
       "language": "markdown",
-      "size_bytes": 7682,
-      "lines": 263,
-      "last_modified": "2026-02-22T06:39:11.214Z"
+      "size_bytes": 10525,
+      "lines": 340,
+      "last_modified": "2026-03-07T14:24:25.841Z"
     },
     "references/ui-brand.md": {
       "language": "markdown",
-      "size_bytes": 8059,
+      "size_bytes": 8062,
       "lines": 238,
-      "last_modified": "2026-02-27T04:26:29.612Z"
+      "last_modified": "2026-03-03T02:05:19.731Z"
     },
     "references/verification-patterns.md": {
       "language": "markdown",
-      "size_bytes": 16354,
+      "size_bytes": 16347,
       "lines": 612,
-      "last_modified": "2026-02-27T04:31:14.801Z"
+      "last_modified": "2026-03-03T02:05:19.728Z"
     },
     "src/commands/codebase.js": {
       "language": "javascript",
-      "size_bytes": 40141,
-      "lines": 1220,
-      "last_modified": "2026-02-27T04:33:21.821Z"
+      "size_bytes": 48565,
+      "lines": 1482,
+      "last_modified": "2026-03-07T03:10:53.373Z"
     },
     "src/commands/env.js": {
       "language": "javascript",
-      "size_bytes": 37915,
-      "lines": 1177,
-      "last_modified": "2026-02-25T22:45:12.301Z"
+      "size_bytes": 37712,
+      "lines": 1175,
+      "last_modified": "2026-03-07T03:10:39.448Z"
     },
     "src/commands/features.js": {
       "language": "javascript",
-      "size_bytes": 74753,
-      "lines": 2016,
-      "last_modified": "2026-02-27T04:26:37.597Z"
+      "size_bytes": 74726,
+      "lines": 2015,
+      "last_modified": "2026-03-07T03:10:32.785Z"
     },
     "src/commands/init.js": {
       "language": "javascript",
-      "size_bytes": 65996,
-      "lines": 1743,
-      "last_modified": "2026-02-27T04:26:19.842Z"
+      "size_bytes": 71525,
+      "lines": 1883,
+      "last_modified": "2026-03-07T17:07:19.495Z"
     },
     "src/commands/intent.js": {
       "language": "javascript",
-      "size_bytes": 55962,
-      "lines": 1592,
-      "last_modified": "2026-02-25T11:04:46.901Z"
+      "size_bytes": 58075,
+      "lines": 1625,
+      "last_modified": "2026-02-27T04:33:10.032Z"
     },
     "src/commands/mcp.js": {
       "language": "javascript",
-      "size_bytes": 17836,
-      "lines": 405,
-      "last_modified": "2026-02-25T15:52:10.966Z"
+      "size_bytes": 17412,
+      "lines": 387,
+      "last_modified": "2026-03-07T03:10:43.915Z"
     },
     "src/commands/memory.js": {
       "language": "javascript",
-      "size_bytes": 9110,
-      "lines": 307,
-      "last_modified": "2026-02-24T23:20:40.253Z"
+      "size_bytes": 11802,
+      "lines": 378,
+      "last_modified": "2026-02-28T21:24:13.117Z"
     },
     "src/commands/misc.js": {
       "language": "javascript",
-      "size_bytes": 47821,
-      "lines": 1431,
-      "last_modified": "2026-02-25T22:45:12.302Z"
+      "size_bytes": 55908,
+      "lines": 1616,
+      "last_modified": "2026-03-07T03:10:35.004Z"
     },
     "src/commands/phase.js": {
       "language": "javascript",
-      "size_bytes": 30512,
-      "lines": 901,
-      "last_modified": "2026-02-22T15:44:54.239Z"
+      "size_bytes": 34601,
+      "lines": 998,
+      "last_modified": "2026-03-02T16:59:27.123Z"
     },
     "src/commands/roadmap.js": {
       "language": "javascript",
-      "size_bytes": 10772,
-      "lines": 295,
-      "last_modified": "2026-02-25T21:17:35.070Z"
+      "size_bytes": 11071,
+      "lines": 300,
+      "last_modified": "2026-03-02T14:28:58.997Z"
     },
     "src/commands/state.js": {
       "language": "javascript",
-      "size_bytes": 28345,
-      "lines": 716,
-      "last_modified": "2026-02-27T04:27:22.074Z"
+      "size_bytes": 28303,
+      "lines": 714,
+      "last_modified": "2026-03-07T03:10:23.862Z"
     },
     "src/commands/verify.js": {
       "language": "javascript",
-      "size_bytes": 73591,
-      "lines": 2089,
-      "last_modified": "2026-02-27T04:26:38.278Z"
+      "size_bytes": 77996,
+      "lines": 2179,
+      "last_modified": "2026-03-02T17:00:40.999Z"
     },
     "src/commands/worktree.js": {
       "language": "javascript",
-      "size_bytes": 25587,
-      "lines": 791,
-      "last_modified": "2026-02-25T22:45:12.303Z"
+      "size_bytes": 25519,
+      "lines": 788,
+      "last_modified": "2026-03-07T03:10:47.507Z"
     },
     "src/index.js": {
       "language": "javascript",
@@ -269,81 +254,81 @@
     },
     "src/lib/codebase-intel.js": {
       "language": "javascript",
-      "size_bytes": 17897,
-      "lines": 570,
-      "last_modified": "2026-02-26T15:59:25.015Z"
+      "size_bytes": 18656,
+      "lines": 591,
+      "last_modified": "2026-03-07T17:00:52.766Z"
     },
     "src/lib/config.js": {
       "language": "javascript",
       "size_bytes": 2512,
       "lines": 76,
-      "last_modified": "2026-02-25T22:45:12.303Z"
+      "last_modified": "2026-02-28T00:30:38.053Z"
     },
     "src/lib/constants.js": {
       "language": "javascript",
-      "size_bytes": 40504,
-      "lines": 1088,
-      "last_modified": "2026-02-26T22:25:02.093Z"
+      "size_bytes": 40869,
+      "lines": 906,
+      "last_modified": "2026-03-07T18:11:23.155Z"
     },
     "src/lib/context.js": {
       "language": "javascript",
-      "size_bytes": 3349,
-      "lines": 97,
-      "last_modified": "2026-02-22T17:12:19.614Z"
+      "size_bytes": 14929,
+      "lines": 397,
+      "last_modified": "2026-03-07T03:07:30.054Z"
     },
     "src/lib/frontmatter.js": {
       "language": "javascript",
       "size_bytes": 6166,
       "lines": 166,
-      "last_modified": "2026-02-25T22:45:12.303Z"
+      "last_modified": "2026-02-28T00:30:38.067Z"
     },
     "src/lib/git.js": {
       "language": "javascript",
-      "size_bytes": 970,
-      "lines": 29,
-      "last_modified": "2026-02-25T21:19:24.472Z"
+      "size_bytes": 15046,
+      "lines": 401,
+      "last_modified": "2026-03-07T03:08:10.859Z"
     },
     "src/lib/helpers.js": {
       "language": "javascript",
-      "size_bytes": 33206,
-      "lines": 946,
-      "last_modified": "2026-02-25T22:45:12.303Z"
+      "size_bytes": 35625,
+      "lines": 1024,
+      "last_modified": "2026-03-07T03:07:36.379Z"
     },
     "src/lib/output.js": {
       "language": "javascript",
-      "size_bytes": 7785,
+      "size_bytes": 7762,
       "lines": 196,
-      "last_modified": "2026-02-27T04:33:25.394Z"
+      "last_modified": "2026-03-07T03:07:27.391Z"
     },
     "src/lib/regex-cache.js": {
       "language": "javascript",
-      "size_bytes": 2919,
-      "lines": 83,
-      "last_modified": "2026-02-25T21:50:01.527Z"
+      "size_bytes": 2765,
+      "lines": 75,
+      "last_modified": "2026-03-07T03:07:55.448Z"
     },
     "src/router.js": {
       "language": "javascript",
-      "size_bytes": 30051,
-      "lines": 791,
-      "last_modified": "2026-02-26T22:23:27.278Z"
+      "size_bytes": 47186,
+      "lines": 930,
+      "last_modified": "2026-03-07T18:11:17.211Z"
     },
     "templates/DEBUG.md": {
       "language": "markdown",
-      "size_bytes": 4384,
+      "size_bytes": 4385,
       "lines": 159,
-      "last_modified": "2026-02-25T20:45:06.785Z"
+      "last_modified": "2026-03-03T02:05:19.734Z"
     },
     "templates/UAT.md": {
       "language": "markdown",
-      "size_bytes": 6186,
+      "size_bytes": 6189,
       "lines": 247,
-      "last_modified": "2026-02-22T06:39:11.214Z"
+      "last_modified": "2026-03-03T02:05:19.735Z"
     },
     "templates/assertions.md": {
       "language": "markdown",
-      "size_bytes": 3275,
+      "size_bytes": 3276,
       "lines": 94,
-      "last_modified": "2026-02-25T17:11:52.806Z"
+      "last_modified": "2026-03-03T02:05:19.737Z"
     },
     "templates/codebase/architecture.md": {
       "language": "markdown",
@@ -377,9 +362,9 @@
     },
     "templates/codebase/structure.md": {
       "language": "markdown",
-      "size_bytes": 8169,
+      "size_bytes": 8162,
       "lines": 285,
-      "last_modified": "2026-02-25T20:45:06.785Z"
+      "last_modified": "2026-03-03T02:05:19.737Z"
     },
     "templates/codebase/testing.md": {
       "language": "markdown",
@@ -407,21 +392,15 @@
     },
     "templates/debug-subagent-prompt.md": {
       "language": "markdown",
-      "size_bytes": 1802,
+      "size_bytes": 1803,
       "lines": 91,
-      "last_modified": "2026-02-22T06:39:11.215Z"
-    },
-    "templates/dependency-eval.md": {
-      "language": "markdown",
-      "size_bytes": 730,
-      "lines": 18,
-      "last_modified": "2026-02-24T23:20:40.409Z"
+      "last_modified": "2026-03-03T02:05:19.733Z"
     },
     "templates/discovery.md": {
       "language": "markdown",
-      "size_bytes": 4077,
+      "size_bytes": 4079,
       "lines": 146,
-      "last_modified": "2026-02-22T06:39:11.215Z"
+      "last_modified": "2026-03-03T02:05:19.735Z"
     },
     "templates/intent.md": {
       "language": "markdown",
@@ -441,41 +420,29 @@
       "lines": 115,
       "last_modified": "2026-02-22T06:39:11.215Z"
     },
-    "templates/phase-prompt.md": {
-      "language": "markdown",
-      "size_bytes": 17031,
-      "lines": 569,
-      "last_modified": "2026-02-25T20:45:06.785Z"
-    },
-    "templates/planner-subagent-prompt.md": {
-      "language": "markdown",
-      "size_bytes": 2682,
-      "lines": 117,
-      "last_modified": "2026-02-22T06:39:11.215Z"
-    },
     "templates/plans/discovery.md": {
       "language": "markdown",
-      "size_bytes": 4185,
+      "size_bytes": 4171,
       "lines": 136,
-      "last_modified": "2026-02-22T19:57:34.008Z"
+      "last_modified": "2026-03-03T02:05:19.733Z"
     },
     "templates/plans/execute.md": {
       "language": "markdown",
-      "size_bytes": 2495,
+      "size_bytes": 2481,
       "lines": 98,
-      "last_modified": "2026-02-22T19:56:55.472Z"
+      "last_modified": "2026-03-03T02:05:19.732Z"
     },
     "templates/plans/tdd.md": {
       "language": "markdown",
-      "size_bytes": 2804,
+      "size_bytes": 2783,
       "lines": 91,
-      "last_modified": "2026-02-22T19:57:12.932Z"
+      "last_modified": "2026-03-03T02:05:19.733Z"
     },
     "templates/project.md": {
       "language": "markdown",
-      "size_bytes": 4951,
+      "size_bytes": 4952,
       "lines": 184,
-      "last_modified": "2026-02-25T20:45:06.785Z"
+      "last_modified": "2026-03-03T02:05:19.737Z"
     },
     "templates/requirements.md": {
       "language": "markdown",
@@ -515,21 +482,21 @@
     },
     "templates/research.md": {
       "language": "markdown",
-      "size_bytes": 17745,
+      "size_bytes": 17746,
       "lines": 602,
-      "last_modified": "2026-02-25T20:45:06.786Z"
+      "last_modified": "2026-03-03T02:05:19.737Z"
     },
     "templates/roadmap.md": {
       "language": "markdown",
-      "size_bytes": 5668,
-      "lines": 202,
-      "last_modified": "2026-02-22T06:39:11.216Z"
+      "size_bytes": 6083,
+      "lines": 208,
+      "last_modified": "2026-03-07T12:53:01.051Z"
     },
     "templates/state.md": {
       "language": "markdown",
-      "size_bytes": 4551,
+      "size_bytes": 4553,
       "lines": 176,
-      "last_modified": "2026-02-25T20:45:06.786Z"
+      "last_modified": "2026-03-03T02:05:19.735Z"
     },
     "templates/summary-complex.md": {
       "language": "markdown",
@@ -551,15 +518,9 @@
     },
     "templates/summary.md": {
       "language": "markdown",
-      "size_bytes": 7826,
-      "lines": 248,
-      "last_modified": "2026-02-22T06:39:11.216Z"
-    },
-    "templates/user-setup.md": {
-      "language": "markdown",
-      "size_bytes": 9074,
-      "lines": 311,
-      "last_modified": "2026-02-25T20:45:06.786Z"
+      "size_bytes": 8441,
+      "lines": 264,
+      "last_modified": "2026-03-03T02:05:19.732Z"
     },
     "templates/verification-report.md": {
       "language": "markdown",
@@ -569,537 +530,327 @@
     },
     "workflows/add-phase.md": {
       "language": "markdown",
-      "size_bytes": 2731,
+      "size_bytes": 2729,
       "lines": 111,
-      "last_modified": "2026-02-22T06:39:11.217Z"
+      "last_modified": "2026-03-03T02:05:19.718Z"
     },
     "workflows/add-todo.md": {
       "language": "markdown",
-      "size_bytes": 4044,
+      "size_bytes": 4038,
       "lines": 157,
-      "last_modified": "2026-02-27T04:30:24.902Z"
+      "last_modified": "2026-03-07T14:24:40.827Z"
     },
     "workflows/audit-milestone.md": {
       "language": "markdown",
-      "size_bytes": 10452,
+      "size_bytes": 10387,
       "lines": 297,
-      "last_modified": "2026-02-27T04:30:20.930Z"
+      "last_modified": "2026-03-07T14:22:43.057Z"
     },
     "workflows/check-todos.md": {
       "language": "markdown",
-      "size_bytes": 4531,
+      "size_bytes": 4533,
       "lines": 176,
-      "last_modified": "2026-02-22T06:39:11.218Z"
+      "last_modified": "2026-03-03T02:05:19.715Z"
     },
     "workflows/cleanup.md": {
       "language": "markdown",
-      "size_bytes": 3411,
+      "size_bytes": 3412,
       "lines": 152,
-      "last_modified": "2026-02-22T06:39:11.218Z"
+      "last_modified": "2026-03-03T02:05:19.720Z"
     },
     "workflows/cmd-codebase-impact.md": {
       "language": "markdown",
-      "size_bytes": 1294,
+      "size_bytes": 1297,
       "lines": 57,
-      "last_modified": "2026-02-26T22:24:15.884Z"
+      "last_modified": "2026-03-07T14:23:07.006Z"
     },
     "workflows/cmd-context-budget.md": {
       "language": "markdown",
-      "size_bytes": 1451,
+      "size_bytes": 1455,
       "lines": 61,
-      "last_modified": "2026-02-26T22:24:15.840Z"
+      "last_modified": "2026-03-07T14:23:42.334Z"
     },
     "workflows/cmd-rollback-info.md": {
       "language": "markdown",
-      "size_bytes": 1148,
+      "size_bytes": 1154,
       "lines": 60,
-      "last_modified": "2026-02-26T22:24:15.859Z"
+      "last_modified": "2026-03-07T14:23:29.598Z"
     },
     "workflows/cmd-search-decisions.md": {
       "language": "markdown",
-      "size_bytes": 1108,
+      "size_bytes": 1113,
       "lines": 56,
-      "last_modified": "2026-02-26T22:24:15.882Z"
+      "last_modified": "2026-03-07T14:23:13.617Z"
     },
     "workflows/cmd-search-lessons.md": {
       "language": "markdown",
-      "size_bytes": 1115,
+      "size_bytes": 1120,
       "lines": 55,
-      "last_modified": "2026-02-26T22:24:15.873Z"
+      "last_modified": "2026-03-07T14:23:16.480Z"
     },
     "workflows/cmd-session-diff.md": {
       "language": "markdown",
-      "size_bytes": 739,
+      "size_bytes": 741,
       "lines": 35,
-      "last_modified": "2026-02-26T22:24:15.896Z"
+      "last_modified": "2026-03-07T14:23:10.512Z"
     },
     "workflows/cmd-test-run.md": {
       "language": "markdown",
-      "size_bytes": 1128,
+      "size_bytes": 1130,
       "lines": 50,
-      "last_modified": "2026-02-26T22:24:15.844Z"
+      "last_modified": "2026-03-07T14:23:35.963Z"
     },
     "workflows/cmd-trace-requirement.md": {
       "language": "markdown",
-      "size_bytes": 1541,
+      "size_bytes": 1544,
       "lines": 70,
-      "last_modified": "2026-02-26T22:24:15.850Z"
+      "last_modified": "2026-03-07T14:23:32.513Z"
     },
     "workflows/cmd-validate-config.md": {
       "language": "markdown",
-      "size_bytes": 1247,
+      "size_bytes": 1248,
       "lines": 58,
-      "last_modified": "2026-02-26T22:24:15.856Z"
+      "last_modified": "2026-03-07T14:23:25.537Z"
     },
     "workflows/cmd-validate-deps.md": {
       "language": "markdown",
-      "size_bytes": 1330,
+      "size_bytes": 1335,
       "lines": 68,
-      "last_modified": "2026-02-26T22:24:15.863Z"
+      "last_modified": "2026-03-07T14:23:22.778Z"
     },
     "workflows/cmd-velocity.md": {
       "language": "markdown",
-      "size_bytes": 1188,
+      "size_bytes": 1190,
       "lines": 46,
-      "last_modified": "2026-02-26T22:24:15.865Z"
-    },
-    "workflows/complete-and-clear.md": {
-      "language": "markdown",
-      "size_bytes": 3059,
-      "lines": 97,
-      "last_modified": "2026-02-27T04:28:10.443Z"
+      "last_modified": "2026-03-07T14:23:19.867Z"
     },
     "workflows/complete-milestone.md": {
       "language": "markdown",
-      "size_bytes": 4637,
-      "lines": 133,
-      "last_modified": "2026-02-22T19:31:16.581Z"
+      "size_bytes": 7466,
+      "lines": 224,
+      "last_modified": "2026-03-07T14:22:51.052Z"
     },
     "workflows/diagnose-issues.md": {
       "language": "markdown",
-      "size_bytes": 6278,
+      "size_bytes": 6280,
       "lines": 203,
-      "last_modified": "2026-02-27T04:31:45.254Z"
-    },
-    "workflows/discovery-phase.md": {
-      "language": "markdown",
-      "size_bytes": 8115,
-      "lines": 281,
-      "last_modified": "2026-02-27T04:31:31.934Z"
+      "last_modified": "2026-03-03T02:05:19.720Z"
     },
     "workflows/discuss-phase.md": {
       "language": "markdown",
-      "size_bytes": 15282,
+      "size_bytes": 15279,
       "lines": 464,
-      "last_modified": "2026-02-27T04:29:30.103Z"
+      "last_modified": "2026-03-03T02:05:19.725Z"
     },
     "workflows/execute-phase.md": {
       "language": "markdown",
-      "size_bytes": 15507,
-      "lines": 391,
-      "last_modified": "2026-02-27T04:29:09.464Z"
+      "size_bytes": 16546,
+      "lines": 415,
+      "last_modified": "2026-03-07T14:21:56.030Z"
     },
     "workflows/execute-plan.md": {
       "language": "markdown",
-      "size_bytes": 9131,
-      "lines": 237,
-      "last_modified": "2026-02-26T22:24:15.887Z"
+      "size_bytes": 12081,
+      "lines": 304,
+      "last_modified": "2026-03-07T14:22:08.669Z"
     },
     "workflows/health.md": {
       "language": "markdown",
-      "size_bytes": 4187,
+      "size_bytes": 4192,
       "lines": 156,
-      "last_modified": "2026-02-27T04:30:23.879Z"
+      "last_modified": "2026-03-07T14:22:24.959Z"
     },
     "workflows/help.md": {
       "language": "markdown",
-      "size_bytes": 8817,
-      "lines": 270,
-      "last_modified": "2026-02-27T04:34:02.760Z"
+      "size_bytes": 8891,
+      "lines": 268,
+      "last_modified": "2026-03-03T02:05:19.726Z"
     },
     "workflows/insert-phase.md": {
       "language": "markdown",
-      "size_bytes": 3570,
+      "size_bytes": 3567,
       "lines": 129,
-      "last_modified": "2026-02-22T06:39:11.220Z"
+      "last_modified": "2026-03-03T02:05:19.725Z"
     },
     "workflows/list-phase-assumptions.md": {
       "language": "markdown",
-      "size_bytes": 4316,
+      "size_bytes": 4320,
       "lines": 178,
-      "last_modified": "2026-02-25T20:45:06.786Z"
+      "last_modified": "2026-03-03T02:05:19.721Z"
     },
     "workflows/map-codebase.md": {
       "language": "markdown",
-      "size_bytes": 8354,
+      "size_bytes": 8352,
       "lines": 305,
-      "last_modified": "2026-02-27T04:31:24.170Z"
+      "last_modified": "2026-03-03T02:05:19.717Z"
     },
     "workflows/new-milestone.md": {
       "language": "markdown",
-      "size_bytes": 16109,
-      "lines": 435,
-      "last_modified": "2026-02-27T04:30:12.785Z"
+      "size_bytes": 16346,
+      "lines": 441,
+      "last_modified": "2026-03-07T14:24:44.602Z"
     },
     "workflows/new-project.md": {
       "language": "markdown",
-      "size_bytes": 11041,
-      "lines": 274,
-      "last_modified": "2026-02-27T04:30:17.597Z"
+      "size_bytes": 11108,
+      "lines": 275,
+      "last_modified": "2026-03-07T14:22:57.003Z"
     },
     "workflows/pause-work.md": {
       "language": "markdown",
-      "size_bytes": 3320,
+      "size_bytes": 3318,
       "lines": 127,
-      "last_modified": "2026-02-26T22:24:15.868Z"
+      "last_modified": "2026-03-07T14:23:03.150Z"
     },
     "workflows/plan-milestone-gaps.md": {
       "language": "markdown",
-      "size_bytes": 6785,
+      "size_bytes": 6792,
       "lines": 274,
-      "last_modified": "2026-02-27T04:30:19.954Z"
+      "last_modified": "2026-03-03T02:05:19.724Z"
     },
     "workflows/plan-phase.md": {
       "language": "markdown",
-      "size_bytes": 7093,
+      "size_bytes": 7067,
       "lines": 175,
-      "last_modified": "2026-02-26T22:24:15.877Z"
+      "last_modified": "2026-03-07T14:22:14.878Z"
     },
     "workflows/progress.md": {
       "language": "markdown",
-      "size_bytes": 8025,
+      "size_bytes": 8033,
       "lines": 345,
-      "last_modified": "2026-02-27T04:28:48.028Z"
+      "last_modified": "2026-03-07T14:22:28.236Z"
     },
     "workflows/quick.md": {
       "language": "markdown",
-      "size_bytes": 8531,
+      "size_bytes": 8522,
       "lines": 287,
-      "last_modified": "2026-02-27T04:30:18.662Z"
+      "last_modified": "2026-03-03T02:05:19.723Z"
     },
     "workflows/remove-phase.md": {
       "language": "markdown",
-      "size_bytes": 4089,
+      "size_bytes": 4085,
       "lines": 154,
-      "last_modified": "2026-02-22T06:39:11.222Z"
+      "last_modified": "2026-03-03T02:05:19.715Z"
     },
     "workflows/research-phase.md": {
       "language": "markdown",
-      "size_bytes": 2132,
-      "lines": 75,
-      "last_modified": "2026-02-25T10:41:09.965Z"
+      "size_bytes": 4260,
+      "lines": 109,
+      "last_modified": "2026-03-03T13:00:47.233Z"
     },
     "workflows/resume-project.md": {
       "language": "markdown",
-      "size_bytes": 8399,
+      "size_bytes": 8394,
       "lines": 284,
-      "last_modified": "2026-02-27T04:30:07.246Z"
+      "last_modified": "2026-03-03T02:05:19.726Z"
     },
     "workflows/set-profile.md": {
       "language": "markdown",
-      "size_bytes": 1843,
+      "size_bytes": 1841,
       "lines": 80,
-      "last_modified": "2026-02-27T04:30:25.807Z"
+      "last_modified": "2026-03-07T14:22:31.489Z"
     },
     "workflows/settings.md": {
       "language": "markdown",
-      "size_bytes": 6106,
+      "size_bytes": 6110,
       "lines": 200,
-      "last_modified": "2026-02-27T04:30:21.845Z"
+      "last_modified": "2026-03-07T14:22:18.758Z"
     },
     "workflows/transition.md": {
       "language": "markdown",
-      "size_bytes": 11728,
+      "size_bytes": 11679,
       "lines": 513,
-      "last_modified": "2026-02-27T04:29:50.810Z"
+      "last_modified": "2026-03-03T02:05:19.717Z"
     },
     "workflows/update.md": {
       "language": "markdown",
-      "size_bytes": 5412,
-      "lines": 204,
-      "last_modified": "2026-02-27T04:30:22.891Z"
-    },
-    "workflows/verify-phase.md": {
-      "language": "markdown",
-      "size_bytes": 5341,
-      "lines": 138,
-      "last_modified": "2026-02-26T22:24:15.898Z"
+      "size_bytes": 5293,
+      "lines": 198,
+      "last_modified": "2026-03-03T02:05:19.725Z"
     },
     "workflows/verify-work.md": {
       "language": "markdown",
-      "size_bytes": 5542,
+      "size_bytes": 5523,
       "lines": 146,
-      "last_modified": "2026-02-25T20:45:06.787Z"
+      "last_modified": "2026-03-03T02:05:19.719Z"
     },
     ".planning/codebase/codebase-intel.json": {
       "language": "json",
-      "size_bytes": 22840,
-      "lines": 839,
-      "last_modified": "2026-02-26T13:35:41.654Z"
-    },
-    ".planning/REQUIREMENTS.md": {
-      "language": "markdown",
-      "size_bytes": 5647,
-      "lines": 116,
-      "last_modified": "2026-02-27T04:28:20.471Z"
+      "size_bytes": 50268,
+      "lines": 1759,
+      "last_modified": "2026-03-07T20:24:29.497Z"
     },
     ".planning/ROADMAP.md": {
       "language": "markdown",
-      "size_bytes": 12759,
-      "lines": 225,
-      "last_modified": "2026-02-27T04:28:08.004Z"
+      "size_bytes": 9065,
+      "lines": 197,
+      "last_modified": "2026-03-07T20:17:34.816Z"
     },
     ".planning/STATE.md": {
       "language": "markdown",
-      "size_bytes": 2477,
-      "lines": 70,
-      "last_modified": "2026-02-27T04:28:04.395Z"
-    },
-    ".planning/phases/23-infrastructure-storage/23-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4862,
-      "lines": 106,
-      "last_modified": "2026-02-26T13:36:52.649Z"
-    },
-    ".planning/phases/23-infrastructure-storage/23-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4577,
-      "lines": 100,
-      "last_modified": "2026-02-26T14:02:19.121Z"
-    },
-    ".planning/phases/23-infrastructure-storage/23-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 8891,
-      "lines": 89,
-      "last_modified": "2026-02-26T14:11:26.708Z"
-    },
-    ".planning/phases/24-convention-extraction/24-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 8495,
-      "lines": 181,
-      "last_modified": "2026-02-26T14:14:29.949Z"
-    },
-    ".planning/phases/24-convention-extraction/24-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 9706,
-      "lines": 195,
-      "last_modified": "2026-02-26T14:15:24.367Z"
-    },
-    ".planning/phases/24-convention-extraction/24-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 5310,
-      "lines": 116,
-      "last_modified": "2026-02-26T14:22:46.574Z"
+      "size_bytes": 9909,
+      "lines": 145,
+      "last_modified": "2026-03-07T20:20:10.056Z"
     },
     "src/lib/conventions.js": {
       "language": "javascript",
-      "size_bytes": 23139,
-      "lines": 644,
-      "last_modified": "2026-02-26T14:27:27.556Z"
-    },
-    ".planning/phases/24-convention-extraction/24-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4616,
-      "lines": 107,
-      "last_modified": "2026-02-26T14:32:23.657Z"
-    },
-    ".planning/phases/24-convention-extraction/24-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 6831,
-      "lines": 81,
-      "last_modified": "2026-02-26T14:38:08.268Z"
-    },
-    ".planning/phases/25-dependency-graph/25-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 8853,
-      "lines": 208,
-      "last_modified": "2026-02-26T14:42:20.691Z"
-    },
-    ".planning/phases/25-dependency-graph/25-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4212,
-      "lines": 100,
-      "last_modified": "2026-02-26T14:51:03.458Z"
-    },
-    ".planning/phases/25-dependency-graph/25-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 10238,
-      "lines": 223,
-      "last_modified": "2026-02-26T14:43:10.751Z"
+      "size_bytes": 23033,
+      "lines": 640,
+      "last_modified": "2026-03-07T03:07:50.114Z"
     },
     "src/lib/deps.js": {
       "language": "javascript",
-      "size_bytes": 20802,
-      "lines": 697,
-      "last_modified": "2026-02-26T14:53:42.093Z"
-    },
-    ".planning/phases/25-dependency-graph/25-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4338,
-      "lines": 102,
-      "last_modified": "2026-02-26T15:02:27.686Z"
+      "size_bytes": 20768,
+      "lines": 695,
+      "last_modified": "2026-03-07T03:07:38.975Z"
     },
     ".planning/codebase/ARCHITECTURE.md": {
       "language": "markdown",
-      "size_bytes": 13843,
-      "lines": 233,
-      "last_modified": "2026-02-26T19:35:14.014Z"
+      "size_bytes": 11965,
+      "lines": 205,
+      "last_modified": "2026-03-07T20:24:52.431Z"
     },
     ".planning/codebase/CONCERNS.md": {
       "language": "markdown",
-      "size_bytes": 20934,
-      "lines": 231,
-      "last_modified": "2026-02-26T19:36:37.347Z"
+      "size_bytes": 23563,
+      "lines": 236,
+      "last_modified": "2026-03-07T20:27:19.221Z"
     },
     ".planning/codebase/CONVENTIONS.md": {
       "language": "markdown",
-      "size_bytes": 11575,
-      "lines": 272,
-      "last_modified": "2026-02-26T19:35:07.555Z"
+      "size_bytes": 16917,
+      "lines": 373,
+      "last_modified": "2026-03-07T20:28:13.258Z"
     },
     ".planning/codebase/INTEGRATIONS.md": {
       "language": "markdown",
-      "size_bytes": 10968,
-      "lines": 231,
-      "last_modified": "2026-02-26T19:35:45.131Z"
+      "size_bytes": 15253,
+      "lines": 280,
+      "last_modified": "2026-03-07T20:26:36.582Z"
     },
     ".planning/codebase/STACK.md": {
       "language": "markdown",
-      "size_bytes": 7413,
-      "lines": 181,
-      "last_modified": "2026-02-26T19:34:39.937Z"
+      "size_bytes": 11306,
+      "lines": 218,
+      "last_modified": "2026-03-07T20:24:54.507Z"
     },
     ".planning/codebase/STRUCTURE.md": {
       "language": "markdown",
-      "size_bytes": 13491,
-      "lines": 248,
-      "last_modified": "2026-02-26T19:36:23.829Z"
+      "size_bytes": 16728,
+      "lines": 254,
+      "last_modified": "2026-03-07T20:26:33.559Z"
     },
     ".planning/codebase/TESTING.md": {
       "language": "markdown",
-      "size_bytes": 13850,
-      "lines": 361,
-      "last_modified": "2026-02-26T19:36:24.973Z"
-    },
-    ".planning/phases/25-dependency-graph/25-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 7241,
-      "lines": 98,
-      "last_modified": "2026-02-26T15:08:51.468Z"
-    },
-    ".planning/phases/26-init-integration-context-summary/26-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 3345,
-      "lines": 71,
-      "last_modified": "2026-02-26T15:28:55.740Z"
-    },
-    ".planning/phases/26-init-integration-context-summary/26-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 9896,
-      "lines": 194,
-      "last_modified": "2026-02-26T15:32:28.502Z"
-    },
-    ".planning/phases/26-init-integration-context-summary/26-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 12846,
-      "lines": 268,
-      "last_modified": "2026-02-26T15:43:46.453Z"
-    },
-    ".planning/phases/26-init-integration-context-summary/26-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 5616,
-      "lines": 122,
-      "last_modified": "2026-02-26T16:10:09.985Z"
+      "size_bytes": 20841,
+      "lines": 487,
+      "last_modified": "2026-03-07T20:30:14.311Z"
     },
     ".planning/.gitignore": {
       "language": null,
-      "size_bytes": 26,
-      "lines": 2,
-      "last_modified": "2026-02-26T16:14:19.920Z"
-    },
-    ".planning/phases/26-init-integration-context-summary/26-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4715,
-      "lines": 108,
-      "last_modified": "2026-02-26T16:29:52.779Z"
-    },
-    ".planning/phases/26-init-integration-context-summary/26-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 6722,
-      "lines": 81,
-      "last_modified": "2026-02-26T16:45:32.238Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 3689,
-      "lines": 72,
-      "last_modified": "2026-02-26T16:48:10.751Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-RESEARCH.md": {
-      "language": "markdown",
-      "size_bytes": 21148,
-      "lines": 397,
-      "last_modified": "2026-02-26T16:53:58.933Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 9057,
-      "lines": 201,
-      "last_modified": "2026-02-26T16:56:50.383Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 11482,
-      "lines": 214,
-      "last_modified": "2026-02-26T16:57:55.635Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 3879,
-      "lines": 103,
-      "last_modified": "2026-02-26T17:06:08.437Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4372,
-      "lines": 108,
-      "last_modified": "2026-02-26T17:21:52.102Z"
-    },
-    ".planning/phases/27-task-scoped-context/27-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 7309,
-      "lines": 99,
-      "last_modified": "2026-02-26T17:30:35.382Z"
-    },
-    ".planning/phases/28-lifecycle-analysis/28-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 3710,
-      "lines": 71,
-      "last_modified": "2026-02-26T17:33:16.258Z"
-    },
-    ".planning/phases/28-lifecycle-analysis/28-RESEARCH.md": {
-      "language": "markdown",
-      "size_bytes": 30105,
-      "lines": 545,
-      "last_modified": "2026-02-26T17:37:55.016Z"
-    },
-    ".planning/phases/28-lifecycle-analysis/28-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 11795,
-      "lines": 195,
-      "last_modified": "2026-02-26T17:41:08.991Z"
-    },
-    ".planning/phases/28-lifecycle-analysis/28-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 13180,
-      "lines": 292,
-      "last_modified": "2026-02-26T17:42:14.140Z"
-    },
-    ".planning/phases/28-lifecycle-analysis/28-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4270,
-      "lines": 99,
-      "last_modified": "2026-02-26T17:56:27.237Z"
+      "size_bytes": 71,
+      "lines": 4,
+      "last_modified": "2026-03-07T02:22:27.755Z"
     },
     "src/lib/lifecycle.js": {
       "language": "javascript",
@@ -1107,209 +858,29 @@
       "lines": 569,
       "last_modified": "2026-02-26T17:52:15.089Z"
     },
-    ".planning/phases/28-lifecycle-analysis/28-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 5184,
-      "lines": 113,
-      "last_modified": "2026-02-26T18:06:00.471Z"
-    },
-    ".planning/phases/28-lifecycle-analysis/28-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 9524,
-      "lines": 96,
-      "last_modified": "2026-02-26T18:12:03.156Z"
-    },
-    ".planning/phases/29-workflow-integration/29-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 2643,
-      "lines": 61,
-      "last_modified": "2026-02-26T19:01:18.338Z"
-    },
-    ".planning/phases/29-workflow-integration/29-RESEARCH.md": {
-      "language": "markdown",
-      "size_bytes": 20107,
-      "lines": 368,
-      "last_modified": "2026-02-26T19:04:00.018Z"
-    },
     ".planning/INTENT.md": {
       "language": "markdown",
-      "size_bytes": 5426,
-      "lines": 73,
-      "last_modified": "2026-02-26T20:13:56.081Z"
+      "size_bytes": 7037,
+      "lines": 89,
+      "last_modified": "2026-03-07T00:55:54.355Z"
     },
     ".planning/MILESTONES.md": {
       "language": "markdown",
-      "size_bytes": 7639,
-      "lines": 128,
-      "last_modified": "2026-02-26T20:09:34.229Z"
+      "size_bytes": 15503,
+      "lines": 265,
+      "last_modified": "2026-03-07T20:18:19.738Z"
     },
     ".planning/PROJECT.md": {
       "language": "markdown",
-      "size_bytes": 16020,
-      "lines": 203,
-      "last_modified": "2026-02-26T20:10:30.177Z"
+      "size_bytes": 15167,
+      "lines": 212,
+      "last_modified": "2026-03-07T20:19:52.555Z"
     },
     ".planning/memory/bookmarks.json": {
       "language": "json",
       "size_bytes": 3082,
       "lines": 162,
-      "last_modified": "2026-02-27T04:09:58.523Z"
-    },
-    ".planning/phases/29-workflow-integration/29-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 7541,
-      "lines": 156,
-      "last_modified": "2026-02-26T19:06:24.141Z"
-    },
-    ".planning/phases/29-workflow-integration/29-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 3436,
-      "lines": 95,
-      "last_modified": "2026-02-26T19:16:32.509Z"
-    },
-    ".planning/phases/29-workflow-integration/29-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 8877,
-      "lines": 184,
-      "last_modified": "2026-02-26T19:07:05.029Z"
-    },
-    ".planning/phases/29-workflow-integration/29-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4330,
-      "lines": 108,
-      "last_modified": "2026-02-26T19:24:23.671Z"
-    },
-    ".planning/phases/29-workflow-integration/29-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 7717,
-      "lines": 77,
-      "last_modified": "2026-02-26T19:28:12.525Z"
-    },
-    ".planning/phases/30-formatting-foundation-smart-output/30-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 10078,
-      "lines": 205,
-      "last_modified": "2026-02-26T22:09:44.964Z"
-    },
-    ".planning/phases/30-formatting-foundation-smart-output/30-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 4380,
-      "lines": 103,
-      "last_modified": "2026-02-26T22:19:25.627Z"
-    },
-    ".planning/phases/30-formatting-foundation-smart-output/30-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 12242,
-      "lines": 246,
-      "last_modified": "2026-02-26T22:10:46.627Z"
-    },
-    ".planning/phases/30-formatting-foundation-smart-output/30-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 5165,
-      "lines": 119,
-      "last_modified": "2026-02-26T22:27:01.789Z"
-    },
-    ".planning/phases/30-formatting-foundation-smart-output/30-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 6136,
-      "lines": 100,
-      "last_modified": "2026-02-26T22:01:19.799Z"
-    },
-    ".planning/phases/30-formatting-foundation-smart-output/30-VERIFICATION.md": {
-      "language": "markdown",
-      "size_bytes": 9775,
-      "lines": 107,
-      "last_modified": "2026-02-26T22:31:27.807Z"
-    },
-    ".planning/phases/31-quality-gates-format-testing/31-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 6742,
-      "lines": 145,
-      "last_modified": "2026-02-27T03:10:52.814Z"
-    },
-    ".planning/phases/31-quality-gates-format-testing/31-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 6586,
-      "lines": 132,
-      "last_modified": "2026-02-27T04:03:14.255Z"
-    },
-    ".planning/phases/31-quality-gates-format-testing/31-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 6149,
-      "lines": 152,
-      "last_modified": "2026-02-27T03:11:25.359Z"
-    },
-    ".planning/phases/31-quality-gates-format-testing/31-02-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 3651,
-      "lines": 101,
-      "last_modified": "2026-02-27T04:10:44.572Z"
-    },
-    ".planning/phases/31-quality-gates-format-testing/31-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 2479,
-      "lines": 59,
-      "last_modified": "2026-02-27T03:05:24.853Z"
-    },
-    ".planning/phases/32-init-state-command-renderers/32-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 6491,
-      "lines": 148,
-      "last_modified": "2026-02-27T04:20:08.889Z"
-    },
-    ".planning/phases/32-init-state-command-renderers/32-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 1042,
-      "lines": 20,
-      "last_modified": "2026-02-27T04:18:18.670Z"
-    },
-    ".planning/phases/33-verify-codebase-command-renderers/33-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 7295,
-      "lines": 160,
-      "last_modified": "2026-02-27T04:20:39.306Z"
-    },
-    ".planning/phases/33-verify-codebase-command-renderers/33-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 1046,
-      "lines": 21,
-      "last_modified": "2026-02-27T04:18:23.055Z"
-    },
-    ".planning/phases/34-feature-intent-command-renderers/34-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 8075,
-      "lines": 179,
-      "last_modified": "2026-02-27T04:21:12.945Z"
-    },
-    ".planning/phases/34-feature-intent-command-renderers/34-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 1065,
-      "lines": 22,
-      "last_modified": "2026-02-27T04:18:28.448Z"
-    },
-    ".planning/phases/35-workflow-output-tightening/35-01-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 3923,
-      "lines": 102,
-      "last_modified": "2026-02-27T04:21:35.060Z"
-    },
-    ".planning/phases/35-workflow-output-tightening/35-01-SUMMARY.md": {
-      "language": "markdown",
-      "size_bytes": 3178,
-      "lines": 87,
-      "last_modified": "2026-02-27T04:27:25.590Z"
-    },
-    ".planning/phases/35-workflow-output-tightening/35-02-PLAN.md": {
-      "language": "markdown",
-      "size_bytes": 5763,
-      "lines": 114,
-      "last_modified": "2026-02-27T04:22:02.485Z"
-    },
-    ".planning/phases/35-workflow-output-tightening/35-CONTEXT.md": {
-      "language": "markdown",
-      "size_bytes": 734,
-      "lines": 17,
-      "last_modified": "2026-02-27T04:18:33.392Z"
+      "last_modified": "2026-03-07T17:10:59.248Z"
     },
     "bin/format.test.cjs": {
       "language": "javascript",
@@ -1319,38 +890,2924 @@
     },
     "docs/architecture.md": {
       "language": "markdown",
-      "size_bytes": 13153,
-      "lines": 391,
-      "last_modified": "2026-02-26T19:50:20.500Z"
+      "size_bytes": 17768,
+      "lines": 490,
+      "last_modified": "2026-03-03T02:05:19.707Z"
     },
     "docs/commands.md": {
       "language": "markdown",
-      "size_bytes": 16125,
-      "lines": 636,
-      "last_modified": "2026-02-26T19:49:04.124Z"
+      "size_bytes": 31735,
+      "lines": 1106,
+      "last_modified": "2026-03-03T02:05:19.709Z"
     },
     "docs/expert-guide.md": {
       "language": "markdown",
-      "size_bytes": 17668,
-      "lines": 615,
-      "last_modified": "2026-02-26T19:47:43.398Z"
+      "size_bytes": 25226,
+      "lines": 817,
+      "last_modified": "2026-03-03T02:05:19.711Z"
     },
     "docs/getting-started.md": {
       "language": "markdown",
-      "size_bytes": 6501,
-      "lines": 246,
-      "last_modified": "2026-02-26T19:46:04.017Z"
+      "size_bytes": 9653,
+      "lines": 338,
+      "last_modified": "2026-03-03T02:05:19.711Z"
     },
     "src/lib/format.js": {
       "language": "javascript",
       "size_bytes": 14750,
       "lines": 431,
       "last_modified": "2026-02-26T22:18:35.697Z"
+    },
+    ".planning/baselines/audit/audit-summary.json": {
+      "language": "json",
+      "size_bytes": 20909,
+      "lines": 817,
+      "last_modified": "2026-03-07T02:48:25.394Z"
+    },
+    ".planning/baselines/audit/circular-deps-report.json": {
+      "language": "json",
+      "size_bytes": 149,
+      "lines": 8,
+      "last_modified": "2026-03-07T02:40:28.260Z"
+    },
+    ".planning/baselines/audit/command-reference-map.json": {
+      "language": "json",
+      "size_bytes": 48515,
+      "lines": 2397,
+      "last_modified": "2026-03-07T02:48:25.245Z"
+    },
+    ".planning/baselines/audit/dead-code-report.json": {
+      "language": "json",
+      "size_bytes": 20730,
+      "lines": 896,
+      "last_modified": "2026-03-07T03:42:11.409Z"
+    },
+    ".planning/baselines/bundle-size.json": {
+      "language": "json",
+      "size_bytes": 150,
+      "lines": 7,
+      "last_modified": "2026-03-07T20:24:28.353Z"
+    },
+    ".planning/baselines/performance.json": {
+      "language": "json",
+      "size_bytes": 1940,
+      "lines": 53,
+      "last_modified": "2026-03-07T17:09:18.506Z"
+    },
+    ".planning/memory/quality-scores.json": {
+      "language": "json",
+      "size_bytes": 627,
+      "lines": 37,
+      "last_modified": "2026-02-28T00:30:37.886Z"
+    },
+    ".planning/milestones/v1.0-phases/01-foundation-safety-nets/01-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5209,
+      "lines": 140,
+      "last_modified": "2026-02-28T05:02:06.947Z"
+    },
+    ".planning/milestones/v1.0-phases/01-foundation-safety-nets/01-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 13296,
+      "lines": 224,
+      "last_modified": "2026-02-28T22:00:58.226Z"
+    },
+    ".planning/milestones/v1.0-phases/01-foundation-safety-nets/01-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9489,
+      "lines": 218,
+      "last_modified": "2026-02-28T05:02:06.948Z"
+    },
+    ".planning/milestones/v1.0-phases/01-foundation-safety-nets/01-04-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10227,
+      "lines": 278,
+      "last_modified": "2026-02-28T05:02:06.947Z"
+    },
+    ".planning/milestones/v1.0-phases/01-foundation-safety-nets/01-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 27759,
+      "lines": 429,
+      "last_modified": "2026-02-28T05:02:06.947Z"
+    },
+    ".planning/milestones/v1.0-phases/02-error-handling-hardening/02-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7319,
+      "lines": 133,
+      "last_modified": "2026-02-28T05:02:06.949Z"
+    },
+    ".planning/milestones/v1.0-phases/02-error-handling-hardening/02-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7915,
+      "lines": 160,
+      "last_modified": "2026-02-28T05:02:06.949Z"
+    },
+    ".planning/milestones/v1.0-phases/03-developer-experience/03-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7011,
+      "lines": 175,
+      "last_modified": "2026-02-28T05:02:06.948Z"
+    },
+    ".planning/milestones/v1.0-phases/03-developer-experience/03-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6276,
+      "lines": 147,
+      "last_modified": "2026-02-28T05:02:06.949Z"
+    },
+    ".planning/milestones/v1.0-phases/03-developer-experience/03-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5937,
+      "lines": 147,
+      "last_modified": "2026-02-28T05:02:06.949Z"
+    },
+    ".planning/milestones/v1.0-phases/04-build-system/04-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6107,
+      "lines": 171,
+      "last_modified": "2026-02-28T05:02:06.946Z"
+    },
+    ".planning/milestones/v1.0-phases/04-build-system/04-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8925,
+      "lines": 187,
+      "last_modified": "2026-02-28T05:02:06.946Z"
+    },
+    ".planning/milestones/v1.0-phases/04-build-system/04-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 3695,
+      "lines": 120,
+      "last_modified": "2026-02-28T05:02:06.946Z"
+    },
+    ".planning/milestones/v1.0-phases/05-performance-polish/05-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7985,
+      "lines": 166,
+      "last_modified": "2026-02-28T05:02:06.950Z"
+    },
+    ".planning/milestones/v1.0-phases/05-performance-polish/05-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7300,
+      "lines": 178,
+      "last_modified": "2026-02-28T05:02:06.949Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12620,
+      "lines": 256,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3424,
+      "lines": 72,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9535,
+      "lines": 222,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3250,
+      "lines": 63,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8850,
+      "lines": 215,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2846,
+      "lines": 64,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3377,
+      "lines": 69,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/06-token-measurement-output-infrastructure/06-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9374,
+      "lines": 105,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9711,
+      "lines": 165,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4017,
+      "lines": 96,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9305,
+      "lines": 198,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4810,
+      "lines": 110,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 13476,
+      "lines": 307,
+      "last_modified": "2026-02-28T22:00:58.226Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4236,
+      "lines": 106,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/07-init-command-compaction/07-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8899,
+      "lines": 128,
+      "last_modified": "2026-02-28T05:02:06.974Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10046,
+      "lines": 207,
+      "last_modified": "2026-02-28T05:02:06.972Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4572,
+      "lines": 107,
+      "last_modified": "2026-02-28T05:02:06.972Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9752,
+      "lines": 221,
+      "last_modified": "2026-02-28T05:02:06.972Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 6393,
+      "lines": 144,
+      "last_modified": "2026-02-28T05:02:06.972Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9020,
+      "lines": 221,
+      "last_modified": "2026-02-28T05:02:06.972Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5039,
+      "lines": 109,
+      "last_modified": "2026-02-28T05:02:06.973Z"
+    },
+    ".planning/milestones/v1.1-phases/08-workflow-reference-compression/08-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 10655,
+      "lines": 116,
+      "last_modified": "2026-02-28T05:02:06.972Z"
+    },
+    ".planning/milestones/v1.1-phases/09-tech-debt-cleanup/09-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9658,
+      "lines": 235,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v1.1-phases/09-tech-debt-cleanup/09-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3768,
+      "lines": 99,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v1.1-phases/09-tech-debt-cleanup/09-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 4980,
+      "lines": 77,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v2.0-phases/10-state-intelligence/10-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12505,
+      "lines": 249,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/10-state-intelligence/10-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5105,
+      "lines": 124,
+      "last_modified": "2026-02-28T05:02:06.968Z"
+    },
+    ".planning/milestones/v2.0-phases/10-state-intelligence/10-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9265,
+      "lines": 205,
+      "last_modified": "2026-02-28T05:02:06.968Z"
+    },
+    ".planning/milestones/v2.0-phases/10-state-intelligence/10-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4613,
+      "lines": 109,
+      "last_modified": "2026-02-28T05:02:06.968Z"
+    },
+    ".planning/milestones/v2.0-phases/10-state-intelligence/10-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3413,
+      "lines": 72,
+      "last_modified": "2026-02-28T05:02:06.968Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9177,
+      "lines": 196,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2391,
+      "lines": 74,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10473,
+      "lines": 238,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2442,
+      "lines": 74,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10743,
+      "lines": 224,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2756,
+      "lines": 85,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/11-session-continuity/11-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3939,
+      "lines": 68,
+      "last_modified": "2026-02-28T05:02:06.971Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6809,
+      "lines": 171,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 1829,
+      "lines": 75,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6281,
+      "lines": 168,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2112,
+      "lines": 79,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6001,
+      "lines": 187,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 1737,
+      "lines": 74,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-04-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6440,
+      "lines": 192,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/12-quality-gates/12-04-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2160,
+      "lines": 79,
+      "last_modified": "2026-02-28T05:02:06.969Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4264,
+      "lines": 113,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 1872,
+      "lines": 72,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5408,
+      "lines": 168,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2305,
+      "lines": 82,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6668,
+      "lines": 210,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2462,
+      "lines": 91,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-04-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4596,
+      "lines": 159,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v2.0-phases/13-test-infrastructure-polish/13-04-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 1820,
+      "lines": 73,
+      "last_modified": "2026-02-28T05:02:06.970Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9707,
+      "lines": 221,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3574,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9950,
+      "lines": 230,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4234,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9539,
+      "lines": 253,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4137,
+      "lines": 101,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 7325,
+      "lines": 93,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/14-intent-capture-foundation/14-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8498,
+      "lines": 97,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/15-intent-tracing-validation/15-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9749,
+      "lines": 243,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/15-intent-tracing-validation/15-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4438,
+      "lines": 106,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/15-intent-tracing-validation/15-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12885,
+      "lines": 306,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/15-intent-tracing-validation/15-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4532,
+      "lines": 107,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/15-intent-tracing-validation/15-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8171,
+      "lines": 95,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7646,
+      "lines": 190,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3503,
+      "lines": 96,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6542,
+      "lines": 172,
+      "last_modified": "2026-02-28T22:00:58.226Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3063,
+      "lines": 91,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8700,
+      "lines": 187,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4358,
+      "lines": 100,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/16-workflow-integration-self-application/16-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7560,
+      "lines": 103,
+      "last_modified": "2026-02-28T05:02:06.961Z"
+    },
+    ".planning/milestones/v3.0-phases/17-intent-enhancement/17-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 13921,
+      "lines": 318,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/17-intent-enhancement/17-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4231,
+      "lines": 109,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/17-intent-enhancement/17-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12413,
+      "lines": 285,
+      "last_modified": "2026-02-28T05:02:06.963Z"
+    },
+    ".planning/milestones/v3.0-phases/17-intent-enhancement/17-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3608,
+      "lines": 97,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v3.0-phases/17-intent-enhancement/17-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9328,
+      "lines": 99,
+      "last_modified": "2026-02-28T05:02:06.962Z"
+    },
+    ".planning/milestones/v4.0-phases/18-environment-awareness/18-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 14235,
+      "lines": 282,
+      "last_modified": "2026-02-28T22:00:58.226Z"
+    },
+    ".planning/milestones/v4.0-phases/18-environment-awareness/18-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10235,
+      "lines": 225,
+      "last_modified": "2026-02-28T05:02:06.966Z"
+    },
+    ".planning/milestones/v4.0-phases/18-environment-awareness/18-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11503,
+      "lines": 272,
+      "last_modified": "2026-02-28T05:02:06.965Z"
+    },
+    ".planning/milestones/v4.0-phases/18-environment-awareness/18-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 10800,
+      "lines": 151,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v4.0-phases/19-mcp-server-profiling/19-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10982,
+      "lines": 233,
+      "last_modified": "2026-02-28T05:02:06.964Z"
+    },
+    ".planning/milestones/v4.0-phases/19-mcp-server-profiling/19-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11038,
+      "lines": 250,
+      "last_modified": "2026-02-28T05:02:06.964Z"
+    },
+    ".planning/milestones/v4.0-phases/19-mcp-server-profiling/19-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8415,
+      "lines": 175,
+      "last_modified": "2026-02-28T05:02:06.964Z"
+    },
+    ".planning/milestones/v4.0-phases/20-structured-requirements/20-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9271,
+      "lines": 241,
+      "last_modified": "2026-02-28T05:02:06.967Z"
+    },
+    ".planning/milestones/v4.0-phases/20-structured-requirements/20-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10529,
+      "lines": 278,
+      "last_modified": "2026-02-28T05:02:06.967Z"
+    },
+    ".planning/milestones/v4.0-phases/20-structured-requirements/20-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9407,
+      "lines": 229,
+      "last_modified": "2026-02-28T05:02:06.968Z"
+    },
+    ".planning/milestones/v4.0-phases/21-worktree-parallelism/21-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9785,
+      "lines": 224,
+      "last_modified": "2026-02-28T05:02:06.966Z"
+    },
+    ".planning/milestones/v4.0-phases/21-worktree-parallelism/21-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8648,
+      "lines": 204,
+      "last_modified": "2026-02-28T05:02:06.967Z"
+    },
+    ".planning/milestones/v4.0-phases/21-worktree-parallelism/21-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10871,
+      "lines": 258,
+      "last_modified": "2026-02-28T05:02:06.966Z"
+    },
+    ".planning/milestones/v4.0-phases/22-workflow-polish/22-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10928,
+      "lines": 269,
+      "last_modified": "2026-02-28T05:02:06.965Z"
+    },
+    ".planning/milestones/v4.0-phases/22-workflow-polish/22-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8149,
+      "lines": 121,
+      "last_modified": "2026-02-28T05:02:06.964Z"
+    },
+    ".planning/milestones/v5.0-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 4226,
+      "lines": 84,
+      "last_modified": "2026-02-28T05:02:06.960Z"
+    },
+    ".planning/milestones/v5.0-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 6878,
+      "lines": 153,
+      "last_modified": "2026-02-28T05:02:06.950Z"
+    },
+    ".planning/milestones/v5.0-phases/23-infrastructure-storage/23-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 13479,
+      "lines": 250,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v5.0-phases/23-infrastructure-storage/23-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4862,
+      "lines": 106,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v5.0-phases/23-infrastructure-storage/23-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9452,
+      "lines": 214,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v5.0-phases/23-infrastructure-storage/23-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4577,
+      "lines": 100,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v5.0-phases/23-infrastructure-storage/23-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3121,
+      "lines": 70,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v5.0-phases/23-infrastructure-storage/23-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8891,
+      "lines": 89,
+      "last_modified": "2026-02-28T05:02:06.975Z"
+    },
+    ".planning/milestones/v5.0-phases/24-convention-extraction/24-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8481,
+      "lines": 181,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/24-convention-extraction/24-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5310,
+      "lines": 116,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/24-convention-extraction/24-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9692,
+      "lines": 195,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/24-convention-extraction/24-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4616,
+      "lines": 107,
+      "last_modified": "2026-02-28T05:02:06.980Z"
+    },
+    ".planning/milestones/v5.0-phases/24-convention-extraction/24-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 6831,
+      "lines": 81,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/25-dependency-graph/25-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8834,
+      "lines": 208,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v5.0-phases/25-dependency-graph/25-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4207,
+      "lines": 100,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v5.0-phases/25-dependency-graph/25-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10224,
+      "lines": 223,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/25-dependency-graph/25-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4338,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/25-dependency-graph/25-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7236,
+      "lines": 98,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v5.0-phases/26-init-integration-context-summary/26-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9882,
+      "lines": 194,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/26-init-integration-context-summary/26-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5616,
+      "lines": 122,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/26-init-integration-context-summary/26-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12832,
+      "lines": 268,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/26-init-integration-context-summary/26-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4715,
+      "lines": 108,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/26-init-integration-context-summary/26-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3345,
+      "lines": 71,
+      "last_modified": "2026-02-28T05:02:06.979Z"
+    },
+    ".planning/milestones/v5.0-phases/26-init-integration-context-summary/26-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 6722,
+      "lines": 81,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9043,
+      "lines": 201,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3879,
+      "lines": 103,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11468,
+      "lines": 214,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4372,
+      "lines": 108,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3689,
+      "lines": 72,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 21148,
+      "lines": 397,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/27-task-scoped-context/27-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7309,
+      "lines": 99,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10395,
+      "lines": 181,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4155,
+      "lines": 99,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 13091,
+      "lines": 292,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5184,
+      "lines": 113,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3710,
+      "lines": 71,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 30105,
+      "lines": 545,
+      "last_modified": "2026-02-28T05:02:06.978Z"
+    },
+    ".planning/milestones/v5.0-phases/28-lifecycle-analysis/28-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9421,
+      "lines": 96,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7527,
+      "lines": 156,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3436,
+      "lines": 95,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8863,
+      "lines": 184,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4330,
+      "lines": 108,
+      "last_modified": "2026-02-28T05:02:06.976Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2643,
+      "lines": 61,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 20093,
+      "lines": 368,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v5.0-phases/29-workflow-integration/29-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7717,
+      "lines": 77,
+      "last_modified": "2026-02-28T05:02:06.977Z"
+    },
+    ".planning/milestones/v6.0-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 4040,
+      "lines": 86,
+      "last_modified": "2026-02-28T05:02:06.960Z"
+    },
+    ".planning/milestones/v6.0-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 6060,
+      "lines": 147,
+      "last_modified": "2026-02-28T05:02:06.960Z"
+    },
+    ".planning/milestones/v6.0-phases/30-formatting-foundation-smart-output/30-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10057,
+      "lines": 205,
+      "last_modified": "2026-02-28T05:02:06.981Z"
+    },
+    ".planning/milestones/v6.0-phases/30-formatting-foundation-smart-output/30-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4380,
+      "lines": 103,
+      "last_modified": "2026-02-28T05:02:06.981Z"
+    },
+    ".planning/milestones/v6.0-phases/30-formatting-foundation-smart-output/30-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12214,
+      "lines": 246,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/30-formatting-foundation-smart-output/30-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5165,
+      "lines": 119,
+      "last_modified": "2026-02-28T05:02:06.981Z"
+    },
+    ".planning/milestones/v6.0-phases/30-formatting-foundation-smart-output/30-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 6136,
+      "lines": 100,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/30-formatting-foundation-smart-output/30-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9775,
+      "lines": 107,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/31-quality-gates-format-testing/31-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6728,
+      "lines": 145,
+      "last_modified": "2026-02-28T05:02:06.988Z"
+    },
+    ".planning/milestones/v6.0-phases/31-quality-gates-format-testing/31-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 6586,
+      "lines": 132,
+      "last_modified": "2026-02-28T05:02:06.987Z"
+    },
+    ".planning/milestones/v6.0-phases/31-quality-gates-format-testing/31-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6135,
+      "lines": 152,
+      "last_modified": "2026-02-28T05:02:06.987Z"
+    },
+    ".planning/milestones/v6.0-phases/31-quality-gates-format-testing/31-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3651,
+      "lines": 101,
+      "last_modified": "2026-02-28T05:02:06.988Z"
+    },
+    ".planning/milestones/v6.0-phases/31-quality-gates-format-testing/31-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2479,
+      "lines": 59,
+      "last_modified": "2026-02-28T05:02:06.988Z"
+    },
+    ".planning/milestones/v6.0-phases/32-init-state-command-renderers/32-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6477,
+      "lines": 148,
+      "last_modified": "2026-02-28T05:02:06.983Z"
+    },
+    ".planning/milestones/v6.0-phases/32-init-state-command-renderers/32-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3959,
+      "lines": 99,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/32-init-state-command-renderers/32-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 1042,
+      "lines": 20,
+      "last_modified": "2026-02-28T05:02:06.983Z"
+    },
+    ".planning/milestones/v6.0-phases/33-verify-codebase-command-renderers/33-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7281,
+      "lines": 160,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/33-verify-codebase-command-renderers/33-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4383,
+      "lines": 96,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/33-verify-codebase-command-renderers/33-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 1046,
+      "lines": 21,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/34-feature-intent-command-renderers/34-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8061,
+      "lines": 179,
+      "last_modified": "2026-02-28T05:02:06.983Z"
+    },
+    ".planning/milestones/v6.0-phases/34-feature-intent-command-renderers/34-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5238,
+      "lines": 112,
+      "last_modified": "2026-02-28T05:02:06.983Z"
+    },
+    ".planning/milestones/v6.0-phases/34-feature-intent-command-renderers/34-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 1065,
+      "lines": 22,
+      "last_modified": "2026-02-28T05:02:06.983Z"
+    },
+    ".planning/milestones/v6.0-phases/35-workflow-output-tightening/35-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 3909,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/35-workflow-output-tightening/35-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3178,
+      "lines": 87,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/35-workflow-output-tightening/35-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5749,
+      "lines": 114,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/35-workflow-output-tightening/35-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 7207,
+      "lines": 141,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/35-workflow-output-tightening/35-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 734,
+      "lines": 17,
+      "last_modified": "2026-02-28T05:02:06.984Z"
+    },
+    ".planning/milestones/v6.0-phases/36-integration-polish/36-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8331,
+      "lines": 218,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/36-integration-polish/36-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4589,
+      "lines": 117,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/36-integration-polish/36-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5375,
+      "lines": 135,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/36-integration-polish/36-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3073,
+      "lines": 96,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/36-integration-polish/36-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3463,
+      "lines": 78,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v6.0-phases/36-integration-polish/36-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8053,
+      "lines": 111,
+      "last_modified": "2026-02-28T05:02:06.982Z"
+    },
+    ".planning/milestones/v7.0-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 4270,
+      "lines": 81,
+      "last_modified": "2026-02-28T05:02:58.302Z"
+    },
+    ".planning/milestones/v7.0-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 4984,
+      "lines": 113,
+      "last_modified": "2026-02-28T05:03:13.111Z"
+    },
+    ".planning/milestones/v7.0-phases/37-foundation-safety-net/37-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11420,
+      "lines": 216,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/37-foundation-safety-net/37-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4135,
+      "lines": 106,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/37-foundation-safety-net/37-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12631,
+      "lines": 243,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/37-foundation-safety-net/37-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4953,
+      "lines": 113,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/37-foundation-safety-net/37-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2939,
+      "lines": 63,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/38-ast-intelligence-repo-map/38-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9220,
+      "lines": 205,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/38-ast-intelligence-repo-map/38-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5056,
+      "lines": 121,
+      "last_modified": "2026-02-28T05:02:06.953Z"
+    },
+    ".planning/milestones/v7.0-phases/38-ast-intelligence-repo-map/38-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8183,
+      "lines": 211,
+      "last_modified": "2026-02-28T05:02:06.953Z"
+    },
+    ".planning/milestones/v7.0-phases/38-ast-intelligence-repo-map/38-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5355,
+      "lines": 126,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/39-orchestration-intelligence/39-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11917,
+      "lines": 287,
+      "last_modified": "2026-02-28T05:02:06.953Z"
+    },
+    ".planning/milestones/v7.0-phases/39-orchestration-intelligence/39-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4939,
+      "lines": 105,
+      "last_modified": "2026-02-28T05:02:06.953Z"
+    },
+    ".planning/milestones/v7.0-phases/40-context-efficiency/40-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9845,
+      "lines": 223,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/40-context-efficiency/40-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3644,
+      "lines": 70,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/40-context-efficiency/40-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8239,
+      "lines": 188,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/40-context-efficiency/40-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3983,
+      "lines": 90,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/41-agent-quality-gates/41-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8683,
+      "lines": 211,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/41-agent-quality-gates/41-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5072,
+      "lines": 124,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/41-agent-quality-gates/41-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12878,
+      "lines": 328,
+      "last_modified": "2026-02-28T05:03:02.676Z"
+    },
+    ".planning/milestones/v7.0-phases/41-agent-quality-gates/41-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4300,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/41-agent-quality-gates/41-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9886,
+      "lines": 99,
+      "last_modified": "2026-02-28T05:02:06.952Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4255,
+      "lines": 136,
+      "last_modified": "2026-02-28T05:02:06.950Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3907,
+      "lines": 124,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4860,
+      "lines": 154,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2951,
+      "lines": 98,
+      "last_modified": "2026-02-28T05:02:06.950Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 3808,
+      "lines": 123,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2611,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.950Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2988,
+      "lines": 69,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 17906,
+      "lines": 475,
+      "last_modified": "2026-02-28T22:00:58.227Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/42-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 4337,
+      "lines": 79,
+      "last_modified": "2026-02-28T05:02:06.951Z"
+    },
+    ".planning/milestones/v7.0-phases/42-integration-validation/VALIDATION-REPORT.md": {
+      "language": "markdown",
+      "size_bytes": 3060,
+      "lines": 61,
+      "last_modified": "2026-02-28T05:02:06.950Z"
+    },
+    ".planning/milestones/v7.0-phases/43-tdd-execution-engine/43-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9431,
+      "lines": 161,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/43-tdd-execution-engine/43-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4020,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/43-tdd-execution-engine/43-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12959,
+      "lines": 252,
+      "last_modified": "2026-02-28T05:02:06.958Z"
+    },
+    ".planning/milestones/v7.0-phases/43-tdd-execution-engine/43-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4381,
+      "lines": 102,
+      "last_modified": "2026-02-28T05:02:06.958Z"
+    },
+    ".planning/milestones/v7.0-phases/43-tdd-execution-engine/43-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 11227,
+      "lines": 134,
+      "last_modified": "2026-02-28T05:02:06.958Z"
+    },
+    ".planning/milestones/v7.0-phases/44-review-gate-hardening/44-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 3992,
+      "lines": 135,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/44-review-gate-hardening/44-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2503,
+      "lines": 91,
+      "last_modified": "2026-02-28T05:02:06.959Z"
+    },
+    ".planning/milestones/v7.0-phases/44-review-gate-hardening/44-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 1398,
+      "lines": 47,
+      "last_modified": "2026-02-28T05:02:06.960Z"
+    },
+    ".planning/milestones/v7.0-phases/44-review-gate-hardening/VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 1086,
+      "lines": 48,
+      "last_modified": "2026-02-28T05:02:06.960Z"
+    },
+    ".planning/milestones/v7.1-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 5059,
+      "lines": 93,
+      "last_modified": "2026-03-02T04:29:41.778Z"
+    },
+    ".planning/milestones/v7.1-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 6576,
+      "lines": 142,
+      "last_modified": "2026-03-02T04:29:14.599Z"
+    },
+    ".planning/milestones/v7.1-phases/45-foundation-decision-journal-state-coherence/45-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10430,
+      "lines": 176,
+      "last_modified": "2026-02-28T19:41:43.539Z"
+    },
+    ".planning/milestones/v7.1-phases/45-foundation-decision-journal-state-coherence/45-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4781,
+      "lines": 114,
+      "last_modified": "2026-02-28T21:42:56.770Z"
+    },
+    ".planning/milestones/v7.1-phases/45-foundation-decision-journal-state-coherence/45-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10887,
+      "lines": 188,
+      "last_modified": "2026-02-28T19:41:43.541Z"
+    },
+    ".planning/milestones/v7.1-phases/45-foundation-decision-journal-state-coherence/45-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4724,
+      "lines": 119,
+      "last_modified": "2026-02-28T21:35:39.328Z"
+    },
+    ".planning/milestones/v7.1-phases/45-foundation-decision-journal-state-coherence/45-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3147,
+      "lines": 70,
+      "last_modified": "2026-02-28T19:31:45.459Z"
+    },
+    ".planning/milestones/v7.1-phases/45-foundation-decision-journal-state-coherence/45-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8790,
+      "lines": 84,
+      "last_modified": "2026-02-28T21:49:12.515Z"
+    },
+    ".planning/milestones/v7.1-phases/46-checkpoint-snapshot-metrics-collection/46-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12089,
+      "lines": 230,
+      "last_modified": "2026-02-28T21:52:48.248Z"
+    },
+    ".planning/milestones/v7.1-phases/46-checkpoint-snapshot-metrics-collection/46-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4893,
+      "lines": 115,
+      "last_modified": "2026-02-28T22:08:14.722Z"
+    },
+    ".planning/milestones/v7.1-phases/46-checkpoint-snapshot-metrics-collection/46-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8939,
+      "lines": 208,
+      "last_modified": "2026-02-28T21:53:30.376Z"
+    },
+    ".planning/milestones/v7.1-phases/46-checkpoint-snapshot-metrics-collection/46-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3505,
+      "lines": 97,
+      "last_modified": "2026-02-28T22:20:16.763Z"
+    },
+    ".planning/milestones/v7.1-phases/46-checkpoint-snapshot-metrics-collection/46-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7988,
+      "lines": 88,
+      "last_modified": "2026-02-28T22:33:45.148Z"
+    },
+    ".planning/milestones/v7.1-phases/47-pivot-selective-rewind-attempt-archival/47-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11571,
+      "lines": 230,
+      "last_modified": "2026-03-01T01:57:35.696Z"
+    },
+    ".planning/milestones/v7.1-phases/47-pivot-selective-rewind-attempt-archival/47-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3624,
+      "lines": 100,
+      "last_modified": "2026-03-01T02:14:44.264Z"
+    },
+    ".planning/milestones/v7.1-phases/47-pivot-selective-rewind-attempt-archival/47-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9503,
+      "lines": 192,
+      "last_modified": "2026-03-01T01:58:23.141Z"
+    },
+    ".planning/milestones/v7.1-phases/47-pivot-selective-rewind-attempt-archival/47-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4375,
+      "lines": 109,
+      "last_modified": "2026-03-01T02:31:59.664Z"
+    },
+    ".planning/milestones/v7.1-phases/47-pivot-selective-rewind-attempt-archival/47-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3330,
+      "lines": 70,
+      "last_modified": "2026-03-01T01:51:53.628Z"
+    },
+    ".planning/milestones/v7.1-phases/47-pivot-selective-rewind-attempt-archival/47-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9788,
+      "lines": 84,
+      "last_modified": "2026-03-01T02:38:18.623Z"
+    },
+    ".planning/milestones/v7.1-phases/48-compare-multi-attempt-metrics-aggregation/48-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9557,
+      "lines": 202,
+      "last_modified": "2026-03-01T02:59:30.578Z"
+    },
+    ".planning/milestones/v7.1-phases/48-compare-multi-attempt-metrics-aggregation/48-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3593,
+      "lines": 100,
+      "last_modified": "2026-03-01T03:10:35.150Z"
+    },
+    ".planning/milestones/v7.1-phases/48-compare-multi-attempt-metrics-aggregation/48-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8011,
+      "lines": 194,
+      "last_modified": "2026-03-01T03:00:15.837Z"
+    },
+    ".planning/milestones/v7.1-phases/48-compare-multi-attempt-metrics-aggregation/48-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3194,
+      "lines": 93,
+      "last_modified": "2026-03-01T03:25:29.358Z"
+    },
+    ".planning/milestones/v7.1-phases/48-compare-multi-attempt-metrics-aggregation/48-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 24343,
+      "lines": 542,
+      "last_modified": "2026-03-01T02:57:12.251Z"
+    },
+    ".planning/milestones/v7.1-phases/48-compare-multi-attempt-metrics-aggregation/48-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8045,
+      "lines": 96,
+      "last_modified": "2026-03-01T03:31:57.364Z"
+    },
+    ".planning/milestones/v7.1-phases/49-choose-merge-winner-cleanup/49-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9156,
+      "lines": 209,
+      "last_modified": "2026-03-01T03:40:13.005Z"
+    },
+    ".planning/milestones/v7.1-phases/49-choose-merge-winner-cleanup/49-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3447,
+      "lines": 103,
+      "last_modified": "2026-03-01T03:51:15.201Z"
+    },
+    ".planning/milestones/v7.1-phases/49-choose-merge-winner-cleanup/49-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6573,
+      "lines": 132,
+      "last_modified": "2026-03-01T03:40:45.084Z"
+    },
+    ".planning/milestones/v7.1-phases/49-choose-merge-winner-cleanup/49-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3906,
+      "lines": 106,
+      "last_modified": "2026-03-01T04:01:03.000Z"
+    },
+    ".planning/milestones/v7.1-phases/49-choose-merge-winner-cleanup/49-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7369,
+      "lines": 95,
+      "last_modified": "2026-03-01T04:05:21.843Z"
+    },
+    ".planning/milestones/v7.1-phases/50-integration-agent-context-dead-end-detection/50-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7681,
+      "lines": 145,
+      "last_modified": "2026-03-02T03:49:59.714Z"
+    },
+    ".planning/milestones/v7.1-phases/50-integration-agent-context-dead-end-detection/50-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4484,
+      "lines": 117,
+      "last_modified": "2026-03-02T04:03:39.187Z"
+    },
+    ".planning/milestones/v7.1-phases/50-integration-agent-context-dead-end-detection/50-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8128,
+      "lines": 161,
+      "last_modified": "2026-03-02T03:50:40.239Z"
+    },
+    ".planning/milestones/v7.1-phases/50-integration-agent-context-dead-end-detection/50-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4245,
+      "lines": 113,
+      "last_modified": "2026-03-02T04:13:01.873Z"
+    },
+    ".planning/milestones/v7.1-phases/50-integration-agent-context-dead-end-detection/50-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7526,
+      "lines": 83,
+      "last_modified": "2026-03-02T04:24:23.172Z"
+    },
+    ".planning/milestones/v8.0-DOCS.md": {
+      "language": "markdown",
+      "size_bytes": 3357,
+      "lines": 84,
+      "last_modified": "2026-03-03T02:30:13.905Z"
+    },
+    ".planning/milestones/v8.0-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 4390,
+      "lines": 96,
+      "last_modified": "2026-03-03T02:29:53.218Z"
+    },
+    ".planning/milestones/v8.0-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 6269,
+      "lines": 122,
+      "last_modified": "2026-03-03T02:29:48.375Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 2782,
+      "lines": 91,
+      "last_modified": "2026-03-02T13:54:59.038Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2917,
+      "lines": 97,
+      "last_modified": "2026-03-02T14:02:59.268Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4082,
+      "lines": 133,
+      "last_modified": "2026-03-02T13:57:02.833Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3314,
+      "lines": 104,
+      "last_modified": "2026-03-02T14:11:10.286Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4864,
+      "lines": 143,
+      "last_modified": "2026-03-02T14:20:44.022Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2789,
+      "lines": 94,
+      "last_modified": "2026-03-02T14:35:00.083Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2284,
+      "lines": 67,
+      "last_modified": "2026-03-02T13:05:46.043Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 14081,
+      "lines": 389,
+      "last_modified": "2026-03-02T13:53:31.284Z"
+    },
+    ".planning/milestones/v8.0-phases/51-cache-foundation/51-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 4372,
+      "lines": 89,
+      "last_modified": "2026-03-02T14:42:01.347Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5038,
+      "lines": 138,
+      "last_modified": "2026-03-02T16:26:12.850Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3105,
+      "lines": 96,
+      "last_modified": "2026-03-02T16:55:00.401Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5330,
+      "lines": 162,
+      "last_modified": "2026-03-02T16:26:47.984Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3181,
+      "lines": 100,
+      "last_modified": "2026-03-02T17:06:58.154Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 1548,
+      "lines": 54,
+      "last_modified": "2026-03-02T16:19:44.734Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 9498,
+      "lines": 249,
+      "last_modified": "2026-03-02T16:24:42.069Z"
+    },
+    ".planning/milestones/v8.0-phases/52-cache-integration-warm-up/52-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 4341,
+      "lines": 81,
+      "last_modified": "2026-03-02T17:15:30.291Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 3320,
+      "lines": 96,
+      "last_modified": "2026-03-02T17:36:21.551Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3023,
+      "lines": 99,
+      "last_modified": "2026-03-02T17:50:14.436Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4333,
+      "lines": 108,
+      "last_modified": "2026-03-02T17:36:33.088Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3291,
+      "lines": 108,
+      "last_modified": "2026-03-02T18:00:08.879Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 4163,
+      "lines": 118,
+      "last_modified": "2026-03-02T17:36:46.229Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3712,
+      "lines": 103,
+      "last_modified": "2026-03-02T18:09:25.022Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 3527,
+      "lines": 106,
+      "last_modified": "2026-03-02T17:35:31.078Z"
+    },
+    ".planning/milestones/v8.0-phases/53-agent-consolidation/53-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 3949,
+      "lines": 80,
+      "last_modified": "2026-03-02T18:22:54.797Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 3370,
+      "lines": 91,
+      "last_modified": "2026-03-02T19:24:05.889Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2568,
+      "lines": 91,
+      "last_modified": "2026-03-02T20:39:31.555Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 2483,
+      "lines": 74,
+      "last_modified": "2026-03-02T19:20:42.028Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2680,
+      "lines": 85,
+      "last_modified": "2026-03-02T21:24:53.567Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 2716,
+      "lines": 89,
+      "last_modified": "2026-03-02T19:20:48.919Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2778,
+      "lines": 96,
+      "last_modified": "2026-03-02T21:44:05.464Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-04-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 2329,
+      "lines": 75,
+      "last_modified": "2026-03-02T19:20:56.052Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-04-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2377,
+      "lines": 86,
+      "last_modified": "2026-03-02T21:48:56.555Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2453,
+      "lines": 66,
+      "last_modified": "2026-03-02T19:15:04.114Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 8861,
+      "lines": 196,
+      "last_modified": "2026-03-02T19:18:46.686Z"
+    },
+    ".planning/milestones/v8.0-phases/54-command-consolidation/54-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 4226,
+      "lines": 74,
+      "last_modified": "2026-03-02T21:55:45.934Z"
+    },
+    ".planning/milestones/v8.0-phases/55-profiler-performance-validation/55-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6587,
+      "lines": 178,
+      "last_modified": "2026-03-02T23:01:00.427Z"
+    },
+    ".planning/milestones/v8.0-phases/55-profiler-performance-validation/55-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3514,
+      "lines": 98,
+      "last_modified": "2026-03-02T23:44:48.374Z"
+    },
+    ".planning/milestones/v8.0-phases/55-profiler-performance-validation/55-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6415,
+      "lines": 183,
+      "last_modified": "2026-03-02T23:01:19.311Z"
+    },
+    ".planning/milestones/v8.0-phases/55-profiler-performance-validation/55-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3791,
+      "lines": 111,
+      "last_modified": "2026-03-02T23:54:40.125Z"
+    },
+    ".planning/milestones/v8.0-phases/55-profiler-performance-validation/55-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 1868,
+      "lines": 68,
+      "last_modified": "2026-03-02T22:57:56.449Z"
+    },
+    ".planning/milestones/v8.0-phases/55-profiler-performance-validation/55-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 4508,
+      "lines": 81,
+      "last_modified": "2026-03-02T23:59:04.986Z"
+    },
+    ".planning/milestones/v8.1-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 4229,
+      "lines": 77,
+      "last_modified": "2026-03-03T16:23:29.836Z"
+    },
+    ".planning/milestones/v8.1-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 15443,
+      "lines": 297,
+      "last_modified": "2026-03-03T16:23:29.831Z"
+    },
+    ".planning/milestones/v8.1-phases/56-foundation-and-config/56-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8897,
+      "lines": 176,
+      "last_modified": "2026-03-03T03:25:43.428Z"
+    },
+    ".planning/milestones/v8.1-phases/56-foundation-and-config/56-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4027,
+      "lines": 99,
+      "last_modified": "2026-03-03T03:39:38.840Z"
+    },
+    ".planning/milestones/v8.1-phases/56-foundation-and-config/56-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11378,
+      "lines": 250,
+      "last_modified": "2026-03-03T03:26:39.214Z"
+    },
+    ".planning/milestones/v8.1-phases/56-foundation-and-config/56-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5454,
+      "lines": 121,
+      "last_modified": "2026-03-03T03:50:10.212Z"
+    },
+    ".planning/milestones/v8.1-phases/56-foundation-and-config/56-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 4568,
+      "lines": 73,
+      "last_modified": "2026-03-03T03:17:47.352Z"
+    },
+    ".planning/milestones/v8.1-phases/56-foundation-and-config/56-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7409,
+      "lines": 93,
+      "last_modified": "2026-03-03T03:54:06.916Z"
+    },
+    ".planning/milestones/v8.1-phases/57-youtube-integration/57-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9570,
+      "lines": 190,
+      "last_modified": "2026-03-03T04:10:01.842Z"
+    },
+    ".planning/milestones/v8.1-phases/57-youtube-integration/57-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4153,
+      "lines": 99,
+      "last_modified": "2026-03-03T04:21:07.501Z"
+    },
+    ".planning/milestones/v8.1-phases/57-youtube-integration/57-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9754,
+      "lines": 202,
+      "last_modified": "2026-03-03T04:10:47.533Z"
+    },
+    ".planning/milestones/v8.1-phases/57-youtube-integration/57-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4726,
+      "lines": 103,
+      "last_modified": "2026-03-03T04:29:17.154Z"
+    },
+    ".planning/milestones/v8.1-phases/57-youtube-integration/57-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 2963,
+      "lines": 63,
+      "last_modified": "2026-03-03T04:06:56.043Z"
+    },
+    ".planning/milestones/v8.1-phases/57-youtube-integration/57-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9203,
+      "lines": 128,
+      "last_modified": "2026-03-03T04:32:12.727Z"
+    },
+    ".planning/milestones/v8.1-phases/58-research-orchestration/58-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11120,
+      "lines": 189,
+      "last_modified": "2026-03-03T04:41:52.848Z"
+    },
+    ".planning/milestones/v8.1-phases/58-research-orchestration/58-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4574,
+      "lines": 102,
+      "last_modified": "2026-03-03T11:51:47.138Z"
+    },
+    ".planning/milestones/v8.1-phases/58-research-orchestration/58-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7191,
+      "lines": 160,
+      "last_modified": "2026-03-03T04:42:37.200Z"
+    },
+    ".planning/milestones/v8.1-phases/58-research-orchestration/58-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3701,
+      "lines": 93,
+      "last_modified": "2026-03-03T11:55:48.846Z"
+    },
+    ".planning/milestones/v8.1-phases/58-research-orchestration/58-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 32293,
+      "lines": 628,
+      "last_modified": "2026-03-03T04:38:42.166Z"
+    },
+    ".planning/milestones/v8.1-phases/58-research-orchestration/58-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8076,
+      "lines": 86,
+      "last_modified": "2026-03-03T12:01:28.113Z"
+    },
+    ".planning/milestones/v8.1-phases/59-notebooklm-integration/59-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10492,
+      "lines": 177,
+      "last_modified": "2026-03-03T12:06:47.193Z"
+    },
+    ".planning/milestones/v8.1-phases/59-notebooklm-integration/59-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 6093,
+      "lines": 119,
+      "last_modified": "2026-03-03T12:56:49.984Z"
+    },
+    ".planning/milestones/v8.1-phases/59-notebooklm-integration/59-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 13390,
+      "lines": 229,
+      "last_modified": "2026-03-03T12:08:08.273Z"
+    },
+    ".planning/milestones/v8.1-phases/59-notebooklm-integration/59-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 7333,
+      "lines": 128,
+      "last_modified": "2026-03-03T13:08:23.475Z"
+    },
+    ".planning/milestones/v8.1-phases/59-notebooklm-integration/59-RESEARCH.md": {
+      "language": "markdown",
+      "size_bytes": 15755,
+      "lines": 293,
+      "last_modified": "2026-03-03T12:05:32.624Z"
+    },
+    ".planning/milestones/v8.1-phases/59-notebooklm-integration/59-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 11961,
+      "lines": 161,
+      "last_modified": "2026-03-03T13:14:48.229Z"
+    },
+    ".planning/milestones/v8.1-phases/60-testing-caching-polish/60-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10257,
+      "lines": 223,
+      "last_modified": "2026-03-03T13:42:27.478Z"
+    },
+    ".planning/milestones/v8.1-phases/60-testing-caching-polish/60-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5462,
+      "lines": 122,
+      "last_modified": "2026-03-03T14:02:19.619Z"
+    },
+    ".planning/milestones/v8.1-phases/60-testing-caching-polish/60-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10652,
+      "lines": 231,
+      "last_modified": "2026-03-03T13:43:21.456Z"
+    },
+    ".planning/milestones/v8.1-phases/60-testing-caching-polish/60-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4802,
+      "lines": 113,
+      "last_modified": "2026-03-03T14:26:29.026Z"
+    },
+    ".planning/milestones/v8.1-phases/60-testing-caching-polish/60-UAT.md": {
+      "language": "markdown",
+      "size_bytes": 2837,
+      "lines": 74,
+      "last_modified": "2026-03-03T14:56:23.384Z"
+    },
+    ".planning/milestones/v8.1-phases/60-testing-caching-polish/60-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8224,
+      "lines": 112,
+      "last_modified": "2026-03-03T14:51:05.142Z"
+    },
+    ".planning/milestones/v8.2-REQUIREMENTS.md": {
+      "language": "markdown",
+      "size_bytes": 4619,
+      "lines": 79,
+      "last_modified": "2026-03-07T20:15:46.238Z"
+    },
+    ".planning/milestones/v8.2-ROADMAP.md": {
+      "language": "markdown",
+      "size_bytes": 13969,
+      "lines": 258,
+      "last_modified": "2026-03-07T20:15:26.009Z"
+    },
+    ".planning/phases/61-tooling-safety-net/61-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6895,
+      "lines": 173,
+      "last_modified": "2026-03-07T01:41:25.017Z"
+    },
+    ".planning/phases/61-tooling-safety-net/61-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4309,
+      "lines": 107,
+      "last_modified": "2026-03-07T02:11:00.727Z"
+    },
+    ".planning/phases/61-tooling-safety-net/61-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10084,
+      "lines": 232,
+      "last_modified": "2026-03-07T01:44:54.611Z"
+    },
+    ".planning/phases/61-tooling-safety-net/61-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 6327,
+      "lines": 131,
+      "last_modified": "2026-03-07T02:23:36.725Z"
+    },
+    ".planning/phases/61-tooling-safety-net/61-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3734,
+      "lines": 74,
+      "last_modified": "2026-03-07T01:39:01.415Z"
+    },
+    ".planning/phases/61-tooling-safety-net/61-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9757,
+      "lines": 121,
+      "last_modified": "2026-03-07T02:27:26.516Z"
+    },
+    ".planning/phases/62-audit-discovery/62-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8549,
+      "lines": 189,
+      "last_modified": "2026-03-07T02:34:21.961Z"
+    },
+    ".planning/phases/62-audit-discovery/62-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4022,
+      "lines": 105,
+      "last_modified": "2026-03-07T02:42:21.377Z"
+    },
+    ".planning/phases/62-audit-discovery/62-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11012,
+      "lines": 243,
+      "last_modified": "2026-03-07T02:35:10.132Z"
+    },
+    ".planning/phases/62-audit-discovery/62-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4751,
+      "lines": 108,
+      "last_modified": "2026-03-07T02:49:13.410Z"
+    },
+    ".planning/phases/62-audit-discovery/62-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7594,
+      "lines": 94,
+      "last_modified": "2026-03-07T02:52:27.258Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9158,
+      "lines": 191,
+      "last_modified": "2026-03-07T03:03:21.214Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 9063,
+      "lines": 181,
+      "last_modified": "2026-03-07T03:24:42.372Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 6185,
+      "lines": 139,
+      "last_modified": "2026-03-07T03:03:59.495Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4284,
+      "lines": 115,
+      "last_modified": "2026-03-07T03:43:47.918Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8773,
+      "lines": 183,
+      "last_modified": "2026-03-07T04:12:36.785Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3723,
+      "lines": 115,
+      "last_modified": "2026-03-07T12:59:07.815Z"
+    },
+    ".planning/phases/63-dead-code-removal/63-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7337,
+      "lines": 107,
+      "last_modified": "2026-03-07T13:17:10.832Z"
+    },
+    ".planning/phases/64-command-workflow-cleanup/64-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 10330,
+      "lines": 188,
+      "last_modified": "2026-03-07T13:38:22.552Z"
+    },
+    ".planning/phases/64-command-workflow-cleanup/64-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4193,
+      "lines": 113,
+      "last_modified": "2026-03-07T14:19:02.473Z"
+    },
+    ".planning/phases/64-command-workflow-cleanup/64-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 17360,
+      "lines": 301,
+      "last_modified": "2026-03-07T13:39:47.514Z"
+    },
+    ".planning/phases/64-command-workflow-cleanup/64-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 7533,
+      "lines": 146,
+      "last_modified": "2026-03-07T15:44:59.963Z"
+    },
+    ".planning/phases/64-command-workflow-cleanup/64-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 3777,
+      "lines": 69,
+      "last_modified": "2026-03-07T13:29:32.423Z"
+    },
+    ".planning/phases/64-command-workflow-cleanup/64-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 7515,
+      "lines": 98,
+      "last_modified": "2026-03-07T16:08:14.044Z"
+    },
+    ".planning/phases/65-performance-tuning/65-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 5401,
+      "lines": 127,
+      "last_modified": "2026-03-07T16:24:13.767Z"
+    },
+    ".planning/phases/65-performance-tuning/65-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 3435,
+      "lines": 96,
+      "last_modified": "2026-03-07T16:56:51.164Z"
+    },
+    ".planning/phases/65-performance-tuning/65-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7932,
+      "lines": 174,
+      "last_modified": "2026-03-07T16:24:56.560Z"
+    },
+    ".planning/phases/65-performance-tuning/65-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4513,
+      "lines": 111,
+      "last_modified": "2026-03-07T17:11:39.957Z"
+    },
+    ".planning/phases/65-performance-tuning/65-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 4209,
+      "lines": 60,
+      "last_modified": "2026-03-07T16:20:17.685Z"
+    },
+    ".planning/phases/65-performance-tuning/65-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 8137,
+      "lines": 85,
+      "last_modified": "2026-03-07T17:37:03.850Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-01-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 9275,
+      "lines": 181,
+      "last_modified": "2026-03-07T17:56:53.531Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-01-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5159,
+      "lines": 119,
+      "last_modified": "2026-03-07T18:06:45.308Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-02-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8688,
+      "lines": 178,
+      "last_modified": "2026-03-07T17:57:44.436Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-02-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 9875,
+      "lines": 203,
+      "last_modified": "2026-03-07T18:17:41.047Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-03-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8725,
+      "lines": 220,
+      "last_modified": "2026-03-07T17:58:35.593Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-03-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5810,
+      "lines": 129,
+      "last_modified": "2026-03-07T18:29:40.117Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-CONTEXT.md": {
+      "language": "markdown",
+      "size_bytes": 4536,
+      "lines": 73,
+      "last_modified": "2026-03-07T17:52:58.265Z"
+    },
+    ".planning/phases/66-agent-architecture-refinement/66-VERIFICATION.md": {
+      "language": "markdown",
+      "size_bytes": 9960,
+      "lines": 107,
+      "last_modified": "2026-03-07T18:42:18.128Z"
+    },
+    ".planning/project-profile.json": {
+      "language": "json",
+      "size_bytes": 244,
+      "lines": 12,
+      "last_modified": "2026-03-07T02:54:05.282Z"
+    },
+    ".planning/quick/1-research-and-optimize-gsd-tool-performan/1-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 8254,
+      "lines": 179,
+      "last_modified": "2026-02-28T05:02:06.980Z"
+    },
+    ".planning/quick/2-update-docs-and-readme-md-for-all-new-un/2-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 12412,
+      "lines": 249,
+      "last_modified": "2026-02-28T22:54:10.896Z"
+    },
+    ".planning/quick/2-update-docs-and-readme-md-for-all-new-un/2-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 2887,
+      "lines": 84,
+      "last_modified": "2026-02-28T22:59:11.186Z"
+    },
+    ".planning/quick/3-audit-codebase-for-stale-links-old-comma/3-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 7181,
+      "lines": 168,
+      "last_modified": "2026-03-03T01:11:29.437Z"
+    },
+    ".planning/quick/3-audit-codebase-for-stale-links-old-comma/3-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5072,
+      "lines": 117,
+      "last_modified": "2026-03-03T01:25:13.797Z"
+    },
+    ".planning/quick/4-update-all-docs-remove-stale-docs-docume/4-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 14893,
+      "lines": 225,
+      "last_modified": "2026-03-03T01:31:31.373Z"
+    },
+    ".planning/quick/4-update-all-docs-remove-stale-docs-docume/4-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 5022,
+      "lines": 127,
+      "last_modified": "2026-03-03T01:39:58.274Z"
+    },
+    ".planning/quick/5-fix-all-docs-to-accurately-reflect-actua/5-PLAN.md": {
+      "language": "markdown",
+      "size_bytes": 11227,
+      "lines": 253,
+      "last_modified": "2026-03-03T02:04:07.756Z"
+    },
+    ".planning/quick/5-fix-all-docs-to-accurately-reflect-actua/5-SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 4138,
+      "lines": 118,
+      "last_modified": "2026-03-03T02:12:38.537Z"
+    },
+    ".planning/research/AGENTIC-AUDIT.md": {
+      "language": "markdown",
+      "size_bytes": 32577,
+      "lines": 427,
+      "last_modified": "2026-02-28T05:02:58.299Z"
+    },
+    ".planning/research/ARCHITECTURE.md": {
+      "language": "markdown",
+      "size_bytes": 26282,
+      "lines": 615,
+      "last_modified": "2026-03-07T01:02:02.384Z"
+    },
+    ".planning/research/FEATURES.md": {
+      "language": "markdown",
+      "size_bytes": 5924,
+      "lines": 85,
+      "last_modified": "2026-03-07T01:02:23.877Z"
+    },
+    ".planning/research/PITFALLS.md": {
+      "language": "markdown",
+      "size_bytes": 39877,
+      "lines": 521,
+      "last_modified": "2026-03-07T01:03:12.961Z"
+    },
+    ".planning/research/STACK.md": {
+      "language": "markdown",
+      "size_bytes": 14210,
+      "lines": 280,
+      "last_modified": "2026-03-07T01:00:51.340Z"
+    },
+    ".planning/research/SUMMARY.md": {
+      "language": "markdown",
+      "size_bytes": 19422,
+      "lines": 228,
+      "last_modified": "2026-03-07T01:09:51.738Z"
+    },
+    ".planning/research/TDD-EXECUTION.md": {
+      "language": "markdown",
+      "size_bytes": 37460,
+      "lines": 708,
+      "last_modified": "2026-02-28T05:03:09.609Z"
+    },
+    "agents/gsd-codebase-mapper.md": {
+      "language": "markdown",
+      "size_bytes": 16363,
+      "lines": 770,
+      "last_modified": "2026-03-07T19:54:45.053Z"
+    },
+    "agents/gsd-debugger.md": {
+      "language": "markdown",
+      "size_bytes": 36385,
+      "lines": 1216,
+      "last_modified": "2026-03-07T19:54:49.938Z"
+    },
+    "agents/gsd-executor.md": {
+      "language": "markdown",
+      "size_bytes": 17779,
+      "lines": 483,
+      "last_modified": "2026-03-07T19:54:55.266Z"
+    },
+    "agents/gsd-phase-researcher.md": {
+      "language": "markdown",
+      "size_bytes": 16184,
+      "lines": 518,
+      "last_modified": "2026-03-07T19:55:02.105Z"
+    },
+    "agents/gsd-plan-checker.md": {
+      "language": "markdown",
+      "size_bytes": 20269,
+      "lines": 655,
+      "last_modified": "2026-03-07T19:55:06.549Z"
+    },
+    "agents/gsd-planner.md": {
+      "language": "markdown",
+      "size_bytes": 38492,
+      "lines": 1197,
+      "last_modified": "2026-03-07T19:55:12.768Z"
+    },
+    "agents/gsd-project-researcher.md": {
+      "language": "markdown",
+      "size_bytes": 16351,
+      "lines": 637,
+      "last_modified": "2026-03-07T19:55:19.441Z"
+    },
+    "agents/gsd-roadmapper.md": {
+      "language": "markdown",
+      "size_bytes": 17460,
+      "lines": 655,
+      "last_modified": "2026-03-07T19:55:24.386Z"
+    },
+    "agents/gsd-verifier.md": {
+      "language": "markdown",
+      "size_bytes": 17891,
+      "lines": 571,
+      "last_modified": "2026-03-07T19:55:27.496Z"
+    },
+    "audit-commands.js": {
+      "language": "javascript",
+      "size_bytes": 24737,
+      "lines": 596,
+      "last_modified": "2026-03-07T02:47:34.349Z"
+    },
+    "audit-exports.js": {
+      "language": "javascript",
+      "size_bytes": 8035,
+      "lines": 218,
+      "last_modified": "2026-03-07T02:39:13.992Z"
+    },
+    "baseline.js": {
+      "language": "javascript",
+      "size_bytes": 5004,
+      "lines": 160,
+      "last_modified": "2026-03-07T02:21:39.417Z"
+    },
+    "bin/manifest.json": {
+      "language": "json",
+      "size_bytes": 6141,
+      "lines": 187,
+      "last_modified": "2026-03-07T20:24:28.368Z"
+    },
+    "commands/bgsd-add-phase.md": {
+      "language": "markdown",
+      "size_bytes": 1065,
+      "lines": 37,
+      "last_modified": "2026-03-07T19:56:45.296Z"
+    },
+    "commands/bgsd-add-todo.md": {
+      "language": "markdown",
+      "size_bytes": 1099,
+      "lines": 40,
+      "last_modified": "2026-03-07T19:57:26.373Z"
+    },
+    "commands/bgsd-audit-milestone.md": {
+      "language": "markdown",
+      "size_bytes": 1114,
+      "lines": 27,
+      "last_modified": "2026-03-07T19:56:40.436Z"
+    },
+    "commands/bgsd-check-todos.md": {
+      "language": "markdown",
+      "size_bytes": 1152,
+      "lines": 38,
+      "last_modified": "2026-03-07T19:56:56.032Z"
+    },
+    "commands/bgsd-cleanup.md": {
+      "language": "markdown",
+      "size_bytes": 578,
+      "lines": 17,
+      "last_modified": "2026-03-03T02:05:19.742Z"
+    },
+    "commands/bgsd-codebase-impact.md": {
+      "language": "markdown",
+      "size_bytes": 443,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:32.676Z"
+    },
+    "commands/bgsd-complete-milestone.md": {
+      "language": "markdown",
+      "size_bytes": 4409,
+      "lines": 129,
+      "last_modified": "2026-03-07T19:56:49.742Z"
+    },
+    "commands/bgsd-context-budget.md": {
+      "language": "markdown",
+      "size_bytes": 447,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:00.564Z"
+    },
+    "commands/bgsd-debug.md": {
+      "language": "markdown",
+      "size_bytes": 3542,
+      "lines": 157,
+      "last_modified": "2026-03-07T19:56:33.235Z"
+    },
+    "commands/bgsd-discuss-phase.md": {
+      "language": "markdown",
+      "size_bytes": 2859,
+      "lines": 73,
+      "last_modified": "2026-03-07T19:57:04.033Z"
+    },
+    "commands/bgsd-execute-phase.md": {
+      "language": "markdown",
+      "size_bytes": 1354,
+      "lines": 31,
+      "last_modified": "2026-03-07T19:56:35.460Z"
+    },
+    "commands/bgsd-health.md": {
+      "language": "markdown",
+      "size_bytes": 548,
+      "lines": 15,
+      "last_modified": "2026-03-07T19:56:42.190Z"
+    },
+    "commands/bgsd-help.md": {
+      "language": "markdown",
+      "size_bytes": 599,
+      "lines": 21,
+      "last_modified": "2026-03-03T02:05:19.741Z"
+    },
+    "commands/bgsd-insert-phase.md": {
+      "language": "markdown",
+      "size_bytes": 989,
+      "lines": 26,
+      "last_modified": "2026-03-07T19:56:47.145Z"
+    },
+    "commands/bgsd-list-phase-assumptions.md": {
+      "language": "markdown",
+      "size_bytes": 1369,
+      "lines": 39,
+      "last_modified": "2026-03-07T19:57:18.378Z"
+    },
+    "commands/bgsd-map-codebase.md": {
+      "language": "markdown",
+      "size_bytes": 2439,
+      "lines": 62,
+      "last_modified": "2026-03-07T19:57:30.367Z"
+    },
+    "commands/bgsd-new-milestone.md": {
+      "language": "markdown",
+      "size_bytes": 1613,
+      "lines": 36,
+      "last_modified": "2026-03-07T19:57:31.636Z"
+    },
+    "commands/bgsd-new-project.md": {
+      "language": "markdown",
+      "size_bytes": 1343,
+      "lines": 34,
+      "last_modified": "2026-03-07T19:57:16.526Z"
+    },
+    "commands/bgsd-pause-work.md": {
+      "language": "markdown",
+      "size_bytes": 992,
+      "lines": 33,
+      "last_modified": "2026-03-07T19:57:24.636Z"
+    },
+    "commands/bgsd-plan-milestone-gaps.md": {
+      "language": "markdown",
+      "size_bytes": 948,
+      "lines": 26,
+      "last_modified": "2026-03-07T19:57:08.026Z"
+    },
+    "commands/bgsd-plan-phase.md": {
+      "language": "markdown",
+      "size_bytes": 1305,
+      "lines": 33,
+      "last_modified": "2026-03-07T19:56:52.914Z"
+    },
+    "commands/bgsd-progress.md": {
+      "language": "markdown",
+      "size_bytes": 650,
+      "lines": 17,
+      "last_modified": "2026-03-07T19:56:54.730Z"
+    },
+    "commands/bgsd-quick.md": {
+      "language": "markdown",
+      "size_bytes": 1187,
+      "lines": 30,
+      "last_modified": "2026-03-07T19:57:10.805Z"
+    },
+    "commands/bgsd-reapply-patches.md": {
+      "language": "markdown",
+      "size_bytes": 3116,
+      "lines": 109,
+      "last_modified": "2026-03-03T02:05:19.741Z"
+    },
+    "commands/bgsd-remove-phase.md": {
+      "language": "markdown",
+      "size_bytes": 898,
+      "lines": 24,
+      "last_modified": "2026-03-07T19:57:28.079Z"
+    },
+    "commands/bgsd-research-phase.md": {
+      "language": "markdown",
+      "size_bytes": 5543,
+      "lines": 183,
+      "last_modified": "2026-03-07T19:56:31.465Z"
+    },
+    "commands/bgsd-resume-work.md": {
+      "language": "markdown",
+      "size_bytes": 1053,
+      "lines": 33,
+      "last_modified": "2026-03-07T19:57:13.410Z"
+    },
+    "commands/bgsd-rollback-info.md": {
+      "language": "markdown",
+      "size_bytes": 389,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:23.189Z"
+    },
+    "commands/bgsd-search-decisions.md": {
+      "language": "markdown",
+      "size_bytes": 451,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:02.240Z"
+    },
+    "commands/bgsd-search-lessons.md": {
+      "language": "markdown",
+      "size_bytes": 443,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:56:43.566Z"
+    },
+    "commands/bgsd-session-diff.md": {
+      "language": "markdown",
+      "size_bytes": 398,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:14.806Z"
+    },
+    "commands/bgsd-set-profile.md": {
+      "language": "markdown",
+      "size_bytes": 861,
+      "lines": 28,
+      "last_modified": "2026-03-07T19:57:21.410Z"
+    },
+    "commands/bgsd-settings.md": {
+      "language": "markdown",
+      "size_bytes": 940,
+      "lines": 30,
+      "last_modified": "2026-03-07T19:56:38.628Z"
+    },
+    "commands/bgsd-test-run.md": {
+      "language": "markdown",
+      "size_bytes": 447,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:56:59.230Z"
+    },
+    "commands/bgsd-trace-requirement.md": {
+      "language": "markdown",
+      "size_bytes": 459,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:12.075Z"
+    },
+    "commands/bgsd-update.md": {
+      "language": "markdown",
+      "size_bytes": 915,
+      "lines": 33,
+      "last_modified": "2026-03-07T19:56:57.355Z"
+    },
+    "commands/bgsd-validate-config.md": {
+      "language": "markdown",
+      "size_bytes": 433,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:56:48.409Z"
+    },
+    "commands/bgsd-validate-deps.md": {
+      "language": "markdown",
+      "size_bytes": 442,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:57:20.085Z"
+    },
+    "commands/bgsd-velocity.md": {
+      "language": "markdown",
+      "size_bytes": 452,
+      "lines": 14,
+      "last_modified": "2026-03-07T19:56:37.240Z"
+    },
+    "commands/bgsd-verify-work.md": {
+      "language": "markdown",
+      "size_bytes": 1202,
+      "lines": 28,
+      "last_modified": "2026-03-07T19:57:06.243Z"
+    },
+    "docs/agents.md": {
+      "language": "markdown",
+      "size_bytes": 11035,
+      "lines": 341,
+      "last_modified": "2026-03-03T02:05:19.710Z"
+    },
+    "docs/configuration.md": {
+      "language": "markdown",
+      "size_bytes": 8373,
+      "lines": 266,
+      "last_modified": "2026-03-03T02:05:19.712Z"
+    },
+    "docs/decisions.md": {
+      "language": "markdown",
+      "size_bytes": 20451,
+      "lines": 361,
+      "last_modified": "2026-03-03T02:05:19.707Z"
+    },
+    "docs/milestones.md": {
+      "language": "markdown",
+      "size_bytes": 16569,
+      "lines": 269,
+      "last_modified": "2026-03-03T02:05:19.708Z"
+    },
+    "docs/planning-system.md": {
+      "language": "markdown",
+      "size_bytes": 12581,
+      "lines": 385,
+      "last_modified": "2026-03-03T02:05:19.713Z"
+    },
+    "docs/research.md": {
+      "language": "markdown",
+      "size_bytes": 11469,
+      "lines": 250,
+      "last_modified": "2026-03-03T02:05:19.712Z"
+    },
+    "docs/tdd.md": {
+      "language": "markdown",
+      "size_bytes": 6814,
+      "lines": 235,
+      "last_modified": "2026-03-03T02:05:19.713Z"
+    },
+    "docs/troubleshooting.md": {
+      "language": "markdown",
+      "size_bytes": 6051,
+      "lines": 229,
+      "last_modified": "2026-03-03T02:05:19.714Z"
+    },
+    "docs/workflows.md": {
+      "language": "markdown",
+      "size_bytes": 9891,
+      "lines": 268,
+      "last_modified": "2026-03-03T02:05:19.714Z"
+    },
+    "lessons.md": {
+      "language": "markdown",
+      "size_bytes": 2833,
+      "lines": 49,
+      "last_modified": "2026-03-03T02:05:16.372Z"
+    },
+    "references/RACI.md": {
+      "language": "markdown",
+      "size_bytes": 14879,
+      "lines": 291,
+      "last_modified": "2026-03-07T18:03:14.684Z"
+    },
+    "references/reviewer-agent.md": {
+      "language": "markdown",
+      "size_bytes": 2873,
+      "lines": 89,
+      "last_modified": "2026-03-07T14:24:29.263Z"
+    },
+    "src/commands/agent.js": {
+      "language": "javascript",
+      "size_bytes": 17654,
+      "lines": 577,
+      "last_modified": "2026-03-07T18:13:27.413Z"
+    },
+    "src/commands/cache.js": {
+      "language": "javascript",
+      "size_bytes": 4634,
+      "lines": 182,
+      "last_modified": "2026-03-07T03:10:55.120Z"
+    },
+    "src/commands/profiler.js": {
+      "language": "javascript",
+      "size_bytes": 11450,
+      "lines": 355,
+      "last_modified": "2026-03-02T23:52:16.948Z"
+    },
+    "src/commands/research.js": {
+      "language": "javascript",
+      "size_bytes": 68780,
+      "lines": 2002,
+      "last_modified": "2026-03-07T03:10:58.442Z"
+    },
+    "src/commands/trajectory.js": {
+      "language": "javascript",
+      "size_bytes": 35462,
+      "lines": 996,
+      "last_modified": "2026-03-02T04:05:57.344Z"
+    },
+    "src/lib/ast.js": {
+      "language": "javascript",
+      "size_bytes": 40178,
+      "lines": 1199,
+      "last_modified": "2026-03-07T16:29:02.769Z"
+    },
+    "src/lib/cache.js": {
+      "language": "javascript",
+      "size_bytes": 15083,
+      "lines": 629,
+      "last_modified": "2026-03-03T13:49:30.659Z"
+    },
+    "src/lib/orchestration.js": {
+      "language": "javascript",
+      "size_bytes": 17305,
+      "lines": 528,
+      "last_modified": "2026-03-07T03:07:44.778Z"
+    },
+    "src/lib/profiler.js": {
+      "language": "javascript",
+      "size_bytes": 3620,
+      "lines": 116,
+      "last_modified": "2026-02-28T00:30:38.075Z"
+    },
+    "src/lib/recovery/stuck-detector.js": {
+      "language": "javascript",
+      "size_bytes": 6125,
+      "lines": 229,
+      "last_modified": "2026-03-07T03:07:40.334Z"
+    },
+    "src/lib/review/severity.js": {
+      "language": "javascript",
+      "size_bytes": 3513,
+      "lines": 139,
+      "last_modified": "2026-03-07T03:07:56.557Z"
+    },
+    "test/__snapshots__/init-phase-op.json": {
+      "language": "json",
+      "size_bytes": 720,
+      "lines": 25,
+      "last_modified": "2026-02-28T00:30:38.084Z"
+    },
+    "test/__snapshots__/state-read.json": {
+      "language": "json",
+      "size_bytes": 1233,
+      "lines": 25,
+      "last_modified": "2026-03-07T03:35:28.425Z"
+    },
+    "workflows/tdd.md": {
+      "language": "markdown",
+      "size_bytes": 7596,
+      "lines": 189,
+      "last_modified": "2026-03-03T02:05:19.724Z"
     }
   },
   "stats": {
-    "total_files": 217,
-    "total_lines": 86512,
+    "total_files": 626,
+    "total_lines": 183110,
     "languages_detected": 4
   },
   "conventions": {
@@ -1754,6 +4211,6 @@
       ],
       "parse_errors": 0
     },
-    "built_at": "2026-03-07T20:13:12.405Z"
+    "built_at": "2026-03-07T20:24:29.494Z"
   }
 }

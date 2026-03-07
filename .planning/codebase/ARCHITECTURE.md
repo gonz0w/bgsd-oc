@@ -4,7 +4,7 @@
 
 ## Pattern Overview
 
-**Overall:** Single-entry CLI with namespace-based command router, lazy-loaded command modules, and a shared library layer. All 36 source modules are bundled by esbuild into one CJS file (`bin/gsd-tools.cjs`) for zero-dependency deployment.
+**Overall:** Single-entry CLI with namespace-based command router, lazy-loaded command modules, and a shared library layer. All 39 source modules are bundled by esbuild into one CJS file (`bin/gsd-tools.cjs`) for zero-dependency deployment.
 
 **Key Characteristics:**
 - **Single-file bundle:** `src/` modules are bundled into `bin/gsd-tools.cjs` (~29K source lines pre-bundle) — only runtime dependency is `tokenx` (token estimation) and `acorn` (AST parsing), both bundled in

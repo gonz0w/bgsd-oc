@@ -33,7 +33,7 @@
 **Testing:**
 - Node.js built-in test runner (`node --test`) — configured in `package.json` as `npm test`
 - No external test framework (jest, vitest, mocha — none used)
-- 762+ tests in `bin/gsd-tools.test.cjs` (~18,125 lines)
+- 812 tests total: 767 in `bin/gsd-tools.test.cjs` (~18,125 lines) + 45 in `bin/format.test.cjs`
 
 **Build/Dev:**
 - esbuild ^0.27.3 (devDependency) — Bundles source modules into single `bin/gsd-tools.cjs`
@@ -97,8 +97,8 @@ npm run audit:all           # all audits combined
 
 ## Source Architecture
 
-**Module count:** 37 source files (18 command modules + 16 lib modules + router + index)
-**Total source lines:** ~38,600
+**Module count:** 39 source files (18 command modules + 19 lib modules + router + index)
+**Total source lines:** ~29,600
 **Test lines:** ~18,125 (`bin/gsd-tools.test.cjs`)
 
 **Source layout:**

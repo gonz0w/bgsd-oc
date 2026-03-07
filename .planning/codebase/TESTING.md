@@ -14,7 +14,7 @@
 
 **Run Commands:**
 ```bash
-npm test                              # Run all 771 tests
+npm test                              # Run all 812 tests (767 main + 45 format)
 node --test bin/gsd-tools.test.cjs    # Run main test suite directly (18,125 lines)
 ```
 
@@ -26,7 +26,7 @@ node --test bin/gsd-tools.test.cjs    # Run main test suite directly (18,125 lin
 - Exception: Some tests directly `require('../src/commands/agent')` for unit-level testing of internal functions
 
 **Naming:**
-- `bin/gsd-tools.test.cjs` — single monolithic test file (18,125 lines, 771 tests, 120 describe blocks)
+- `bin/gsd-tools.test.cjs` — single monolithic test file (18,125 lines, 767 tests, 188 describe blocks)
 
 **Structure:**
 ```
@@ -216,7 +216,7 @@ test('init plan-phase has required fields', () => {
 
 ## Test Categories
 
-**120 describe blocks organized into categories:**
+**188 describe blocks organized into categories:**
 
 **Command Tests (90+ blocks):**
 - One `describe` per CLI command/subcommand
@@ -479,7 +479,7 @@ test('trajectory checkpoint creates entry', () => {
 - **Test runtime:** Full suite takes 2+ minutes due to subprocess spawning per test
 - **No parallel execution:** Tests run sequentially (each creates temp dirs)
 - **No line-level coverage:** Only command-level coverage tracking available
-- **Single file:** All 771 tests in one 18,125-line file (no file splitting)
+- **Single file:** All 767 tests in one 18,125-line file (no file splitting), plus 45 tests in `format.test.cjs`
 - **Build dependency:** Most tests require `npm run build` to have been run first (test against built bundle)
 
 ---

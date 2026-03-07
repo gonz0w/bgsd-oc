@@ -12,7 +12,7 @@ const { extractFrontmatter } = require('../lib/frontmatter');
  */
 function resolveGsdPaths() {
   const GSD_HOME = process.env.GSD_HOME || 
-    (process.env.HOME ? path.join(process.env.HOME, '.config', 'oc', 'get-shit-done') : '/home/cam/.config/oc/get-shit-done');
+    path.join(process.env.HOME || '/tmp', '.config', 'oc', 'get-shit-done');
   const agentsDir = path.join(path.dirname(GSD_HOME), 'agents');
   return { GSD_HOME, agentsDir };
 }

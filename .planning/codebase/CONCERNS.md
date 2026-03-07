@@ -35,10 +35,10 @@
 - Fix approach: Pass an `options` object through command handlers instead of globals. The `output()` function already supports an options argument — extend to include compact/manifest/fields.
 
 **Stale Test Failure Count in STATE.md:**
-- Issue: STATE.md and PROJECT.md both claim "31 pre-existing test failures (config-migrate, compact, codebase-impact, codebase ast CLI handler)" but the actual test results show 669 pass, 0 fail. This documentation is stale and misleading.
+- Issue: STATE.md and PROJECT.md both claim "31 pre-existing test failures (config-migrate, compact, codebase-impact, codebase ast CLI handler)" but the actual test suite has 812 tests (767 main + 45 format). The failure count may be stale.
 - Files: `.planning/STATE.md:139`, `.planning/PROJECT.md:161`
 - Impact: Gives false impression of known defects that no longer exist. May cause unnecessary concern or incorrect prioritization.
-- Fix approach: Update STATE.md and PROJECT.md to reflect current 669/669 pass rate. Remove or downgrade the test failure concern.
+- Fix approach: Run full test suite to verify current pass/fail counts, then update STATE.md and PROJECT.md accordingly.
 
 **Hardcoded User Path Fallback in agent.js:**
 - Issue: `src/commands/agent.js:15` has a hardcoded fallback path `/home/cam/.config/oc/get-shit-done` if `$HOME` is undefined.
@@ -91,7 +91,7 @@
 **Bundle Size at 1163KB (Over Original 1050KB Budget):**
 - Problem: The single-file bundle is 1163KB / 28,817 lines. The `build.js` budget was raised from 1000KB to 1500KB to accommodate growth. Acorn (230KB) is lazy-loaded, reducing effective cold-start to ~923KB.
 - Files: `bin/gsd-tools.cjs`, `build.js:61` (`BUNDLE_BUDGET_KB = 1500`)
-- Cause: 34 source modules (~39K lines of source) plus acorn (230KB) and tokenx (~50KB) bundled as runtime dependencies.
+- Cause: 39 source modules (~29,600 lines of source) plus acorn (230KB) and tokenx (~50KB) bundled as runtime dependencies.
 - Improvement path: Acorn is already lazy-loaded (Phase 65). Further reduction would require: (1) moving MCP_KNOWN_SERVERS data or COMMAND_HELP entries to external JSON, (2) code-splitting rarely-used command modules, (3) minification (currently disabled for debuggability).
 
 **Large Init Commands Do Multiple Disk Scans:**
@@ -151,7 +151,7 @@
 ## Maintenance Burden
 
 **Large Command Modules:**
-- Issue: Five command modules exceed 1000 lines: `src/commands/verify.js` (2179), `src/commands/features.js` (2015), `src/commands/research.js` (2002), `src/commands/init.js` (1883), `src/commands/misc.js` (1616).
+- Issue: Eight command modules exceed 1000 lines: `src/commands/verify.js` (2179), `src/commands/features.js` (2015), `src/commands/research.js` (2002), `src/commands/init.js` (1883), `src/commands/intent.js` (1625), `src/commands/misc.js` (1616), `src/commands/codebase.js` (1482), `src/commands/env.js` (1175).
 - Impact: Hard to navigate, understand ownership boundaries, and review changes. `verify.js` and `features.js` are catch-all modules with many unrelated command handlers.
 - Fix approach: Split `features.js` into focused modules (e.g., `search.js`, `codebase-impact.js`, `context-budget.js`). Split `misc.js` into `template.js`, `tdd.js`, `scaffold.js`.
 
@@ -212,7 +212,7 @@
 ## Recommended Actions
 
 **Priority 1 (High Impact, Low Risk):**
-1. **Fix stale test documentation** — Update STATE.md and PROJECT.md to reflect 669/669 test pass rate (currently claims 31 failures)
+1. **Fix stale test documentation** — Verify actual pass/fail counts (812 total tests) and update STATE.md and PROJECT.md accordingly
 2. **Remove hardcoded user path** — Replace `/home/cam/.config/oc/get-shit-done` fallback in `src/commands/agent.js:15` with a generic fallback
 3. **Add debugLog to empty catch blocks** — Convert 70 empty `catch {}` blocks to `catch { debugLog(...) }` for diagnostic visibility
 

@@ -27219,7 +27219,7 @@ var require_agent = __commonJS({
     var { safeReadFile } = require_helpers();
     var { extractFrontmatter } = require_frontmatter();
     function resolveGsdPaths() {
-      const GSD_HOME = process.env.GSD_HOME || (process.env.HOME ? path.join(process.env.HOME, ".config", "oc", "get-shit-done") : "/home/cam/.config/oc/get-shit-done");
+      const GSD_HOME = process.env.GSD_HOME || path.join(process.env.HOME || "/tmp", ".config", "oc", "get-shit-done");
       const agentsDir = path.join(path.dirname(GSD_HOME), "agents");
       return { GSD_HOME, agentsDir };
     }
