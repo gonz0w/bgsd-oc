@@ -52,7 +52,6 @@ var require_constants = __commonJS({
       parallelization: { type: "boolean", default: true, description: "Enable parallel plan execution", aliases: [], nested: null, coerce: "parallelization" },
       brave_search: { type: "boolean", default: false, description: "Enable Brave Search API", aliases: [], nested: null },
       mode: { type: "string", default: "interactive", description: "Execution mode (interactive or yolo)", aliases: [], nested: null },
-      model_profiles: { type: "object", default: {}, description: "Model assignments per agent", aliases: [], nested: null },
       depth: { type: "string", default: "standard", description: "Planning depth", aliases: [], nested: null },
       test_commands: { type: "object", default: {}, description: "Test commands by framework", aliases: [], nested: null },
       test_gate: { type: "boolean", default: true, description: "Block plan completion on test failure", aliases: [], nested: null },
@@ -63,10 +62,7 @@ var require_constants = __commonJS({
       rag_timeout: { type: "number", default: 30, description: "Per-tool research timeout in seconds", aliases: [], nested: { section: "workflow", field: "rag_timeout" } },
       ytdlp_path: { type: "string", default: "", description: "Path to yt-dlp binary (auto-detects if empty)", aliases: [], nested: null },
       nlm_path: { type: "string", default: "", description: "Path to notebooklm-py binary (auto-detects if empty)", aliases: [], nested: null },
-      mcp_config_path: { type: "string", default: "", description: "Path to MCP server config file (auto-detects if empty)", aliases: [], nested: null },
-      mcp_brave_enabled: { type: "boolean", default: false, description: "Enable Brave Search MCP for research", aliases: ["brave_search"], nested: null },
-      mcp_context7_enabled: { type: "boolean", default: false, description: "Enable Context7 MCP for research", aliases: [], nested: null },
-      mcp_exa_enabled: { type: "boolean", default: false, description: "Enable Exa MCP for research", aliases: [], nested: null }
+      mcp_config_path: { type: "string", default: "", description: "Path to MCP server config file (auto-detects if empty)", aliases: [], nested: null }
     };
     var COMMAND_HELP = {
       "state": `Usage: gsd-tools state <subcommand> [options]
@@ -1145,7 +1141,6 @@ Examples:
   gsd-tools tdd validate-red --test-cmd "npm test"
   gsd-tools tdd detect-antipattern --phase red --files "src/foo.js"`,
       "review": `Usage: gsd-tools review <phase> <plan> \u2014 Review context for reviewer agent`,
-      "profile": "Set GSD_PROFILE=1 to enable performance profiling. Baselines written to .planning/baselines/",
       "git": `Usage: gsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
 
 Structured git intelligence \u2014 JSON output for agents and workflows.

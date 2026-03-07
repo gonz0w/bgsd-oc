@@ -12,7 +12,6 @@
     "parallelization": true,
     "brave_search": false,
     "mode": "interactive",
-    "model_profiles": {},
     "depth": "standard",
     "test_commands": {},
     "test_gate": true,
