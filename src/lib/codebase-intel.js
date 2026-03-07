@@ -553,13 +553,10 @@ function getStalenessAge(intel, cwd) {
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
-  INTEL_PATH,
   LANGUAGE_MAP,
   SKIP_DIRS,
-  BINARY_EXTENSIONS,
   getSourceDirs,
   walkSourceFiles,
-  analyzeFile,
   getGitInfo,
   getChangedFilesSinceCommit,
   checkStaleness,

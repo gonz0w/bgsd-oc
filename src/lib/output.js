@@ -193,4 +193,4 @@ function debugLog(context, message, err) {
   process.stderr.write(line + '\n');
 }
 
-module.exports = { _tmpFiles, filterFields, output, outputMode, status, error, debugLog };
+module.exports = { filterFields, output, status, error, debugLog };

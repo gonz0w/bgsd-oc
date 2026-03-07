@@ -1894,7 +1894,7 @@ var require_output = __commonJS({
       if (err) line += ` | ${err.message || err}`;
       process.stderr.write(line + "\n");
     }
-    module2.exports = { _tmpFiles, filterFields, output: output2, outputMode, status, error, debugLog };
+    module2.exports = { filterFields, output: output2, status, error, debugLog };
   }
 });
 
@@ -1990,26 +1990,10 @@ var require_regex_cache = __commonJS({
       _dynamicRegexCache.set(key, regex);
       return regex;
     }
-    var FRONTMATTER_DELIMITERS = /^---\n([\s\S]+?)\n---/;
-    var PHASE_HEADER = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
-    var ACTIVE_MILESTONE = /[-*]\s*🔵\s*\*\*v(\d+(?:\.\d+)*)\s+([^*]+)\*\*([^\n]*)/;
-    var ACTIVE_TAG_MILESTONE = /[-*]\s*(?:🔵\s*)?\*\*v(\d+(?:\.\d+)*)\s+([^*]+)\*\*([^\n]*\(active\)[^\n]*)/i;
-    var VERSION_PATTERN = /v(\d+\.\d+)/;
-    var DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
     var PHASE_DIR_NUMBER = /^(\d+(?:\.\d+)?)-?(.*)/;
-    var COMMIT_SHA = /\b([a-f0-9]{7,40})\b/g;
-    var UNCHECKED_PHASE = /- \[ \] \*\*Phase/g;
     module2.exports = {
       cachedRegex,
-      FRONTMATTER_DELIMITERS,
-      PHASE_HEADER,
-      ACTIVE_MILESTONE,
-      ACTIVE_TAG_MILESTONE,
-      VERSION_PATTERN,
-      DATE_PATTERN,
-      PHASE_DIR_NUMBER,
-      COMMIT_SHA,
-      UNCHECKED_PHASE
+      PHASE_DIR_NUMBER
     };
   }
 });
@@ -3209,10 +3193,6 @@ var require_helpers = __commonJS({
         return { version: "v1.0", name: "milestone", phaseRange: null };
       }
     }
-    function invalidateMilestoneCache() {
-      _milestoneCache = null;
-      _milestoneCwd = null;
-    }
     function extractAtReferences(content) {
       if (!content || typeof content !== "string") return [];
       const refs = /* @__PURE__ */ new Set();
@@ -3538,13 +3518,11 @@ var require_helpers = __commonJS({
       isValidDateString,
       resolveModelInternal,
       getArchivedPhaseDirs,
-      searchPhaseInDir,
       findPhaseInternal,
       getRoadmapPhaseInternal,
       pathExistsInternal,
       generateSlugInternal,
       getMilestoneInfo,
-      invalidateMilestoneCache,
       extractAtReferences,
       parseIntentMd,
       generateIntentMd,
@@ -10236,13 +10214,10 @@ var require_codebase_intel = __commonJS({
       return { age_ms: ageMs, commits_behind: commitsBehind };
     }
     module2.exports = {
-      INTEL_PATH,
       LANGUAGE_MAP,
       SKIP_DIRS,
-      BINARY_EXTENSIONS,
       getSourceDirs,
       walkSourceFiles,
-      analyzeFile,
       getGitInfo,
       getChangedFilesSinceCommit,
       checkStaleness,
@@ -10698,12 +10673,8 @@ var require_conventions = __commonJS({
       };
     }
     module2.exports = {
-      detectNamingConventions,
-      detectFileOrganization,
-      detectFrameworkConventions,
       extractConventions,
-      generateRules,
-      FRAMEWORK_DETECTORS
+      generateRules
     };
   }
 });
@@ -11114,8 +11085,6 @@ var require_deps = __commonJS({
       };
     }
     module2.exports = {
-      IMPORT_PARSERS,
-      parseImports,
       buildDependencyGraph,
       findCycles,
       getTransitiveDependents,
@@ -18205,13 +18174,7 @@ var require_ast = __commonJS({
       extractSignatures,
       extractExports,
       computeComplexity,
-      generateRepoMap,
-      DETECTOR_REGISTRY,
-      // Internal helpers exposed for testing
-      stripTypeScript,
-      parseWithAcorn,
-      extractCjsExports,
-      extractJsSignaturesRegex
+      generateRepoMap
     };
   }
 });
@@ -18272,10 +18235,6 @@ var require_context = __commonJS({
         recommendation = `Above target: exceeds ${targetPercent}% target. Monitor closely.`;
       }
       return { tokens, percent, warning, recommendation };
-    }
-    function isWithinBudget(text, config = {}) {
-      const tokens = estimateTokens(text);
-      return checkBudget(tokens, config);
     }
     var AGENT_MANIFESTS = {
       "gsd-executor": {
@@ -18561,7 +18520,6 @@ var require_context = __commonJS({
       estimateTokens,
       estimateJsonTokens,
       checkBudget,
-      isWithinBudget,
       AGENT_MANIFESTS,
       scopeContextForAgent,
       compactPlanState,
@@ -22514,40 +22472,6 @@ var require_orchestration = __commonJS({
         };
       }
     }
-    function routeTask(complexity, config) {
-      try {
-        const score = complexity?.score || 3;
-        const baseModel = MODEL_MAP[score] || "sonnet";
-        if (config && config.model_profile) {
-          const { MODEL_PROFILES } = require_constants();
-          const agentModels = MODEL_PROFILES["gsd-executor"];
-          if (agentModels && agentModels[config.model_profile]) {
-            const profileModel = agentModels[config.model_profile];
-            const priority = { haiku: 0, sonnet: 1, opus: 2, inherit: 2 };
-            const profilePriority = priority[profileModel] || 1;
-            const basePriority = priority[baseModel] || 1;
-            const resolvedModel = profilePriority >= basePriority ? profileModel : baseModel;
-            return {
-              model: resolvedModel === "opus" ? "inherit" : resolvedModel,
-              agent: "gsd-executor",
-              reason: `score ${score} (${complexity.label}) via ${config.model_profile} profile`
-            };
-          }
-        }
-        return {
-          model: baseModel === "opus" ? "inherit" : baseModel,
-          agent: "gsd-executor",
-          reason: `score ${score} (${complexity.label})`
-        };
-      } catch (e) {
-        debugLog("orchestration.routeTask", "routing failed", e);
-        return {
-          model: "sonnet",
-          agent: "gsd-executor",
-          reason: "routing error \u2014 defaulting to sonnet"
-        };
-      }
-    }
     function cmdClassifyPlan(cwd, args, raw) {
       const planPath = args[0];
       if (!planPath) {
@@ -22643,7 +22567,6 @@ var require_orchestration = __commonJS({
       classifyTaskComplexity,
       classifyPlan,
       selectExecutionMode,
-      routeTask,
       parseTasksFromPlan,
       cmdClassifyPlan,
       cmdClassifyPhase

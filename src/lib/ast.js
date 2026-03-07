@@ -1196,10 +1196,4 @@ module.exports = {
   extractExports,
   computeComplexity,
   generateRepoMap,
-  DETECTOR_REGISTRY,
-  // Internal helpers exposed for testing
-  stripTypeScript,
-  parseWithAcorn,
-  extractCjsExports,
-  extractJsSignaturesRegex,
 };

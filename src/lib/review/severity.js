@@ -136,10 +136,4 @@ function blocksCompletion(findings) {
 
 module.exports = {
   SEVERITY,
-  classifySeverity,
-  createFinding,
-  filterBySeverity,
-  getSeveritySummary,
-  blocksCompletion,
-  CLASSIFICATION_RULES
 };

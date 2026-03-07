@@ -225,7 +225,5 @@ function createStuckDetector(config) {
 }
 
 module.exports = {
-  StuckDetector,
   createStuckDetector,
-  DEFAULT_CONFIG
 };

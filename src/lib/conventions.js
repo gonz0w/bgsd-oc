@@ -635,10 +635,6 @@ function generateRules(conventions, options = {}) {
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
-  detectNamingConventions,
-  detectFileOrganization,
-  detectFrameworkConventions,
   extractConventions,
   generateRules,
-  FRAMEWORK_DETECTORS,
 };

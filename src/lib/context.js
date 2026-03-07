@@ -391,7 +391,7 @@ function buildTaskContext(cwd, taskFiles, options) {
 }
 
 module.exports = {
-  estimateTokens, estimateJsonTokens, checkBudget, isWithinBudget,
+  estimateTokens, estimateJsonTokens, checkBudget,
   AGENT_MANIFESTS, scopeContextForAgent, compactPlanState, compactDepGraph,
   buildTaskContext,
 };

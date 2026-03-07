@@ -522,7 +522,6 @@ module.exports = {
   classifyTaskComplexity,
   classifyPlan,
   selectExecutionMode,
-  routeTask,
   parseTasksFromPlan,
   cmdClassifyPlan,
   cmdClassifyPhase,

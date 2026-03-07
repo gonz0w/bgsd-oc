@@ -683,8 +683,6 @@ function getTransitiveDependents(graph, filePath, maxDepth = 10) {
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
-  IMPORT_PARSERS,
-  parseImports,
   buildDependencyGraph,
   findCycles,
   getTransitiveDependents,
