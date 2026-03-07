@@ -178,7 +178,10 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   - [x] 63-01-PLAN.md — Dead file removal + internal helper export cleanup (95 exports across 24 files)
   - [x] 63-02-PLAN.md — Constants audit + config cleanup (COMMAND_HELP, CONFIG_SCHEMA)
   - [ ] 63-03-PLAN.md — Gap closure: remove 11 dead .md files (workflows, templates, references)
-- [ ] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references
+- [ ] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references (2 plans)
+  Plans:
+  - [ ] 64-01-PLAN.md — Router namespace completion + backward-compat block removal
+  - [ ] 64-02-PLAN.md — Reference migration + test fixes + internal cleanup
 - [ ] **Phase 65: Performance Tuning** - Profile hot paths, optimize bottlenecks, reduce bundle size, improve init times
 - [ ] **Phase 66: Agent Architecture Refinement** - Re-validate RACI, tighten manifests, document handoff contracts, evaluate merges
 
@@ -235,7 +238,10 @@ Plans:
   3. Overlapping commands are consolidated into subcommand groups with fewer top-level entries
   4. All markdown references (agents, workflows, templates) use namespaced command forms — backward-compat router block removed
   5. All 762+ tests still pass after command changes
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 64-01-PLAN.md — Router namespace completion + backward-compat block removal
+- [ ] 64-02-PLAN.md — Reference migration + test fixes + internal cleanup
 
 ### Phase 65: Performance Tuning
 **Goal**: Profile and optimize hot paths, reduce bundle size, and improve init command timing — data-driven from Phase 61 baselines
@@ -279,6 +285,6 @@ Plans:
 | 61. Tooling & Safety Net | 2/2 | Complete    | 2026-03-07 | - |
 | 62. Audit & Discovery | 2/2 | Complete    | 2026-03-07 | - |
 | 63. Dead Code Removal | 3/3 | Complete    | 2026-03-07 | - |
-| 64. Command & Workflow Cleanup | v8.2 | 0/0 | Not started | - |
+| 64. Command & Workflow Cleanup | v8.2 | 0/2 | Planned | - |
 | 65. Performance Tuning | v8.2 | 0/0 | Not started | - |
 | 66. Agent Architecture Refinement | v8.2 | 0/0 | Not started | - |
