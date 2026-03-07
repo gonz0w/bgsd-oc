@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 63 of 66 (Dead Code Removal) ✓
-Plan: 3 of 3 in current phase ✓
-Status: Phase complete
-Last activity: 2026-03-07 — Completed 63-03 (Dead .md File Removal)
+Phase: 64 of 66 (Command & Workflow Cleanup)
+Plan: 1 of 2 in current phase ✓
+Status: Plan 1 complete
+Last activity: 2026-03-07 — Completed 64-01 (Namespace Routing Migration)
 
 Progress: [█████████_______________________________] 23% (v8.2)
 
@@ -55,6 +55,7 @@ Progress: [█████████_______________________________] 23% (v8.2
 | Phase 63 P01 | 16 min | 2 tasks | 24 files |
 | Phase 63 PP02 | 16 min | 2 tasks | 3 files |
 | Phase 63 P03 | 17 min | 2 tasks | 12 files |
+| Phase 64 P01 | 29 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ All v1.0-v8.0 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 63]: Both colon-form and space-form COMMAND_HELP entries retained — help lookup uses exact key match
 - [Phase 63]: Removed 4 dead CONFIG_SCHEMA keys (model_profiles, mcp_brave_enabled, mcp_context7_enabled, mcp_exa_enabled) — never consumed by source
 - [Phase 63]: All 11 dead .md files confirmed via rg safety check before deletion — verify-phase reference replaced with verify-work in roadmap template
+- [Phase Phase 64]: Namespace-only routing: all 20 flat-only commands migrated to namespace routes, ~890-line backward-compat block removed
+- [Phase Phase 64]: Semantic duplicate codebase-impact (features.js) removed with flat block; util:codebase impact (codebase.js) is canonical
 
 ### Pending Todos
 
@@ -112,11 +115,11 @@ None — milestone starting fresh.
 
 ### Blockers/Concerns
 
-- Bundle at ~1211KB (reduced from 1216KB via export cleanup)
+- Bundle at ~1186KB (reduced from 1221KB via flat-block removal)
 - Two pre-existing config-migrate test failures (from Phase 56 RAG key additions) need cleanup
 
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 64 context gathered
-Next step: Research and plan Phase 64 (Command & Workflow Cleanup)
+Stopped at: Completed 64-01-PLAN.md
+Next step: Execute 64-02-PLAN.md (test migration, workflow reference updates)

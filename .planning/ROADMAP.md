@@ -238,7 +238,7 @@ Plans:
   3. Overlapping commands are consolidated into subcommand groups with fewer top-level entries
   4. All markdown references (agents, workflows, templates) use namespaced command forms — backward-compat router block removed
   5. All 762+ tests still pass after command changes
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 Plans:
 - [ ] 64-01-PLAN.md — Router namespace completion + backward-compat block removal
 - [ ] 64-02-PLAN.md — Reference migration + test fixes + internal cleanup
@@ -285,6 +285,6 @@ Plans:
 | 61. Tooling & Safety Net | 2/2 | Complete    | 2026-03-07 | - |
 | 62. Audit & Discovery | 2/2 | Complete    | 2026-03-07 | - |
 | 63. Dead Code Removal | 3/3 | Complete    | 2026-03-07 | - |
-| 64. Command & Workflow Cleanup | v8.2 | 0/2 | Planned | - |
+| 64. Command & Workflow Cleanup | 1/2 | In Progress|  | - |
 | 65. Performance Tuning | v8.2 | 0/0 | Not started | - |
 | 66. Agent Architecture Refinement | v8.2 | 0/0 | Not started | - |

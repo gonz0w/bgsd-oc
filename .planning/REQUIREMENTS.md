@@ -25,10 +25,10 @@ Requirements for the cleanup, performance & validation milestone. Each maps to r
 
 ### Command Structure
 
-- [ ] **CMD-01**: Stale commands removed (join-discord and any other non-functional commands)
+- [x] **CMD-01**: Stale commands removed (join-discord and any other non-functional commands)
 - [ ] **CMD-02**: Internal-only CLI calls no longer exposed as user-facing slash commands
-- [ ] **CMD-03**: Overlapping commands consolidated into subcommand groups
-- [ ] **CMD-04**: All markdown references migrated from flat command forms to namespaced forms, backward-compat router block removed
+- [x] **CMD-03**: Overlapping commands consolidated into subcommand groups
+- [x] **CMD-04**: All markdown references migrated from flat command forms to namespaced forms, backward-compat router block removed
 
 ### Agent Architecture
 
@@ -84,10 +84,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEAD-02 | Phase 63 | Complete | npm test |
 | DEAD-03 | Phase 63 | Complete | npm test |
 | DEAD-04 | Phase 63 | Complete | npm test |
-| CMD-01 | Phase 64 | Pending | npm test |
+| CMD-01 | Phase 64 | Complete | npm test |
 | CMD-02 | Phase 64 | Pending | npm test |
-| CMD-03 | Phase 64 | Pending | npm test |
-| CMD-04 | Phase 64 | Pending | npm test |
+| CMD-03 | Phase 64 | Complete | npm test |
+| CMD-04 | Phase 64 | Complete | npm test |
 | PERF-01 | Phase 65 | Pending | npm test |
 | PERF-02 | Phase 65 | Pending | npm run build |
 | PERF-03 | Phase 65 | Pending | npm test |
