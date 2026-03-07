@@ -173,10 +173,11 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   Plans:
   - [ ] 62-01-PLAN.md — Dead code audit with router cross-reference & circular dependency check
   - [ ] 62-02-PLAN.md — Command reference map & final audit summary with markdown cross-reference
-- [x] **Phase 63: Dead Code Removal** - Remove confirmed dead exports, unused files, stale constants and config (2 plans) (completed 2026-03-07)
+- [ ] **Phase 63: Dead Code Removal** - Remove confirmed dead exports, unused files, stale constants and config (3 plans)
   Plans:
-  - [ ] 63-01-PLAN.md — Dead file removal + internal helper export cleanup (95 exports across 24 files)
-  - [ ] 63-02-PLAN.md — Constants audit + config cleanup (COMMAND_HELP, CONFIG_SCHEMA)
+  - [x] 63-01-PLAN.md — Dead file removal + internal helper export cleanup (95 exports across 24 files)
+  - [x] 63-02-PLAN.md — Constants audit + config cleanup (COMMAND_HELP, CONFIG_SCHEMA)
+  - [ ] 63-03-PLAN.md — Gap closure: remove 11 dead .md files (workflows, templates, references)
 - [ ] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references
 - [ ] **Phase 65: Performance Tuning** - Profile hot paths, optimize bottlenecks, reduce bundle size, improve init times
 - [ ] **Phase 66: Agent Architecture Refinement** - Re-validate RACI, tighten manifests, document handoff contracts, evaluate merges
@@ -218,10 +219,11 @@ Plans:
   3. constants.js has been audited and unused regex patterns, constants, and mappings are removed
   4. Stale config.json keys and agent manifest fields are cleaned up
   5. All 762+ tests still pass after removals
-**Plans**: 2/2 plans complete
+**Plans**: 3 plans (2 complete, 1 gap closure)
 Plans:
-- [ ] 63-01-PLAN.md — Dead file removal + internal helper export cleanup
-- [ ] 63-02-PLAN.md — Constants audit + config cleanup
+- [x] 63-01-PLAN.md — Dead file removal + internal helper export cleanup
+- [x] 63-02-PLAN.md — Constants audit + config cleanup
+- [ ] 63-03-PLAN.md — Gap closure: remove 11 dead .md files (workflows, templates, references)
 
 ### Phase 64: Command & Workflow Cleanup
 **Goal**: Clean the command surface — remove stale commands, hide internal-only commands, consolidate overlapping commands, and migrate all references to namespaced forms
