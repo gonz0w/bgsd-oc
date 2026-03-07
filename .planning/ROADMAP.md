@@ -186,7 +186,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   2. Deploy script uses manifest-based sync that removes files from deploy target when they no longer exist in source
   3. Performance baselines (init timing, bundle size, file I/O counts) are captured and stored for before/after comparison
   4. Dev tools (knip, madge) are installed and configured with working invocation commands
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 ### Phase 62: Audit & Discovery
 **Goal**: Produce a complete inventory of dead code, circular dependencies, and command references — reports only, no deletions
@@ -262,7 +262,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
 | 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
-| 61. Tooling & Safety Net | v8.2 | 0/0 | Not started | - |
+| 61. Tooling & Safety Net | 1/2 | In Progress|  | - |
 | 62. Audit & Discovery | v8.2 | 0/0 | Not started | - |
 | 63. Dead Code Removal | v8.2 | 0/0 | Not started | - |
 | 64. Command & Workflow Cleanup | v8.2 | 0/0 | Not started | - |
