@@ -10,7 +10,7 @@ const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 const { getIntentDriftData, getIntentSummary } = require('./intent');
 const { autoTriggerEnvScan, formatEnvSummary, readEnvManifest } = require('./env');
-const { autoTriggerCodebaseIntel } = require('./codebase');
+const { autoTriggerCodebaseIntel, readCodebaseIntel } = require('./codebase');
 const { getWorktreeConfig, parseWorktreeListPorcelain, getPhaseFilesModified } = require('./worktree');
 const { getStalenessAge } = require('../lib/codebase-intel');
 
@@ -280,14 +280,19 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     result.env_stale = false;
   }
 
-  // Codebase intelligence — auto-trigger analysis if stale, inject structured context
+  // Codebase intelligence — read existing intel (fast) or auto-trigger if --refresh
   try {
     const refreshMode = process.argv.includes('--refresh');
+    let codebaseIntel;
     if (refreshMode) {
-      // Clear stale lock file before synchronous re-analysis
+      // --refresh mode: clear lock, run synchronous analysis
       try { fs.unlinkSync(path.join(cwd, '.planning', '.cache', '.analyzing')); } catch { /* ignore */ }
+      codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: true });
+    } else {
+      // Fast path: read existing intel without git staleness check (~100ms savings)
+      // Background analysis is triggered by other commands; init just reads cached data
+      codebaseIntel = readCodebaseIntel(cwd);
     }
-    const codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: refreshMode });
     const ctx = formatCodebaseContext(codebaseIntel, cwd);
     result.codebase_stats = ctx.codebase_stats;
     result.codebase_conventions = ctx.codebase_conventions;
@@ -546,13 +551,17 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     debugLog('init.planPhase', 'intent summary failed (non-blocking)', e);
   }
 
-  // Codebase intelligence — auto-trigger analysis if stale, inject structured context
+  // Codebase intelligence — read existing intel (fast) or auto-trigger if --refresh
   try {
     const refreshMode = process.argv.includes('--refresh');
+    let codebaseIntel;
     if (refreshMode) {
       try { fs.unlinkSync(path.join(cwd, '.planning', '.cache', '.analyzing')); } catch { /* ignore */ }
+      codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: true });
+    } else {
+      // Fast path: read existing intel without git staleness check (~100ms savings)
+      codebaseIntel = readCodebaseIntel(cwd);
     }
-    const codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: refreshMode });
     const ctx = formatCodebaseContext(codebaseIntel, cwd);
     result.codebase_stats = ctx.codebase_stats;
     result.codebase_conventions = ctx.codebase_conventions;
@@ -578,7 +587,7 @@ function cmdInitPlanPhase(cwd, phase, raw) {
       .filter(([k, s]) => k !== 'warning' && s.configured && s.enabled)
       .map(([id]) => id);
     const allTools = [...cliAvailable, ...mcpAvailable];
-    const ragEnabled = loadConfig(cwd).rag_enabled !== false;
+    const ragEnabled = config.rag_enabled !== false;
     const tier = research.calculateTier(cliTools, mcpServers, ragEnabled);
 
     result.rag_capabilities = {
@@ -1096,13 +1105,17 @@ function cmdInitPhaseOp(cwd, phase, raw) {
     } catch (e) { debugLog('init.phaseOp', 'read phase files failed', e); }
   }
 
-  // Codebase intelligence — auto-trigger analysis if stale, inject structured context
+  // Codebase intelligence — read existing intel (fast) or auto-trigger if --refresh
   try {
     const refreshMode = process.argv.includes('--refresh');
+    let codebaseIntel;
     if (refreshMode) {
       try { fs.unlinkSync(path.join(cwd, '.planning', '.cache', '.analyzing')); } catch { /* ignore */ }
+      codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: true });
+    } else {
+      // Fast path: read existing intel without git staleness check (~100ms savings)
+      codebaseIntel = readCodebaseIntel(cwd);
     }
-    const codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: refreshMode });
     const ctx = formatCodebaseContext(codebaseIntel, cwd);
     result.codebase_stats = ctx.codebase_stats;
     result.codebase_conventions = ctx.codebase_conventions;

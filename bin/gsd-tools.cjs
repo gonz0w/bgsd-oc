@@ -9140,13 +9140,26 @@ var require_codebase_intel = __commonJS({
         last_modified: stat.mtime.toISOString()
       };
     }
+    var _gitInfoCache = null;
+    var _gitInfoCwd = null;
     function getGitInfo(cwd) {
-      const hashResult = execGit(cwd, ["rev-parse", "HEAD"]);
-      const branchResult = execGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
-      return {
-        commit_hash: hashResult.exitCode === 0 ? hashResult.stdout : null,
-        branch: branchResult.exitCode === 0 ? branchResult.stdout : null
-      };
+      if (_gitInfoCache && _gitInfoCwd === cwd) {
+        return _gitInfoCache;
+      }
+      const combinedResult = execGit(cwd, ["rev-parse", "HEAD", "--abbrev-ref", "HEAD"]);
+      let commit_hash = null;
+      let branch = null;
+      if (combinedResult.exitCode === 0 && combinedResult.stdout) {
+        const lines = combinedResult.stdout.split("\n").filter((l) => l.trim());
+        if (lines.length >= 2) {
+          commit_hash = lines[0].trim();
+          branch = lines[1].trim();
+        }
+      }
+      const result = { commit_hash, branch };
+      _gitInfoCache = result;
+      _gitInfoCwd = cwd;
+      return result;
     }
     function getChangedFilesSinceCommit(cwd, commitHash) {
       if (!commitHash) return null;
@@ -9306,13 +9319,18 @@ var require_codebase_intel = __commonJS({
       const ageMs = Date.now() - new Date(intel.generated_at).getTime();
       let commitsBehind = 0;
       if (cwd && intel.git_commit_hash) {
-        try {
-          const result = execGit(cwd, ["rev-list", "--count", `${intel.git_commit_hash}..HEAD`]);
-          if (result.exitCode === 0 && result.stdout) {
-            commitsBehind = parseInt(result.stdout, 10) || 0;
+        const gitInfo = getGitInfo(cwd);
+        if (gitInfo.commit_hash === intel.git_commit_hash) {
+          commitsBehind = 0;
+        } else {
+          try {
+            const result = execGit(cwd, ["rev-list", "--count", `${intel.git_commit_hash}..HEAD`]);
+            if (result.exitCode === 0 && result.stdout) {
+              commitsBehind = parseInt(result.stdout, 10) || 0;
+            }
+          } catch (e) {
+            debugLog("codebase.getStalenessAge", "git rev-list failed", e);
           }
-        } catch (e) {
-          debugLog("codebase.getStalenessAge", "git rev-list failed", e);
         }
       }
       return { age_ms: ageMs, commits_behind: commitsBehind };
@@ -21683,7 +21701,7 @@ var require_init = __commonJS({
     var { execGit } = require_git();
     var { getIntentDriftData, getIntentSummary } = require_intent();
     var { autoTriggerEnvScan, formatEnvSummary, readEnvManifest } = require_env();
-    var { autoTriggerCodebaseIntel } = require_codebase();
+    var { autoTriggerCodebaseIntel, readCodebaseIntel } = require_codebase();
     var { getWorktreeConfig, parseWorktreeListPorcelain, getPhaseFilesModified } = require_worktree();
     var { getStalenessAge } = require_codebase_intel();
     function formatCodebaseContext(intel, cwd) {
@@ -21882,13 +21900,16 @@ var require_init = __commonJS({
       }
       try {
         const refreshMode = process.argv.includes("--refresh");
+        let codebaseIntel;
         if (refreshMode) {
           try {
             fs.unlinkSync(path.join(cwd, ".planning", ".cache", ".analyzing"));
           } catch {
           }
+          codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: true });
+        } else {
+          codebaseIntel = readCodebaseIntel(cwd);
         }
-        const codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: refreshMode });
         const ctx = formatCodebaseContext(codebaseIntel, cwd);
         result.codebase_stats = ctx.codebase_stats;
         result.codebase_conventions = ctx.codebase_conventions;
@@ -22120,13 +22141,16 @@ var require_init = __commonJS({
       }
       try {
         const refreshMode = process.argv.includes("--refresh");
+        let codebaseIntel;
         if (refreshMode) {
           try {
             fs.unlinkSync(path.join(cwd, ".planning", ".cache", ".analyzing"));
           } catch {
           }
+          codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: true });
+        } else {
+          codebaseIntel = readCodebaseIntel(cwd);
         }
-        const codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: refreshMode });
         const ctx = formatCodebaseContext(codebaseIntel, cwd);
         result.codebase_stats = ctx.codebase_stats;
         result.codebase_conventions = ctx.codebase_conventions;
@@ -22146,7 +22170,7 @@ var require_init = __commonJS({
         const cliAvailable = Object.entries(cliTools).filter(([, t]) => t.available).map(([name]) => name);
         const mcpAvailable = Object.entries(mcpServers).filter(([k, s]) => k !== "warning" && s.configured && s.enabled).map(([id]) => id);
         const allTools = [...cliAvailable, ...mcpAvailable];
-        const ragEnabled = loadConfig(cwd).rag_enabled !== false;
+        const ragEnabled = config.rag_enabled !== false;
         const tier = research.calculateTier(cliTools, mcpServers, ragEnabled);
         result.rag_capabilities = {
           tier: tier.number,
@@ -22590,13 +22614,16 @@ var require_init = __commonJS({
       }
       try {
         const refreshMode = process.argv.includes("--refresh");
+        let codebaseIntel;
         if (refreshMode) {
           try {
             fs.unlinkSync(path.join(cwd, ".planning", ".cache", ".analyzing"));
           } catch {
           }
+          codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: true });
+        } else {
+          codebaseIntel = readCodebaseIntel(cwd);
         }
-        const codebaseIntel = autoTriggerCodebaseIntel(cwd, { synchronous: refreshMode });
         const ctx = formatCodebaseContext(codebaseIntel, cwd);
         result.codebase_stats = ctx.codebase_stats;
         result.codebase_conventions = ctx.codebase_conventions;

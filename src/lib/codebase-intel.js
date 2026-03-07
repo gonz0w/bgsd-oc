@@ -256,14 +256,32 @@ function analyzeFile(filePath) {
  * @param {string} cwd - Project root
  * @returns {{ commit_hash: string|null, branch: string|null }}
  */
-function getGitInfo(cwd) {
-  const hashResult = execGit(cwd, ['rev-parse', 'HEAD']);
-  const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+/** Module-level git info cache — avoids redundant git spawns per invocation */
+let _gitInfoCache = null;
+let _gitInfoCwd = null;
 
-  return {
-    commit_hash: hashResult.exitCode === 0 ? hashResult.stdout : null,
-    branch: branchResult.exitCode === 0 ? branchResult.stdout : null,
-  };
+function getGitInfo(cwd) {
+  // Return cached result if same cwd (single CLI invocation)
+  if (_gitInfoCache && _gitInfoCwd === cwd) {
+    return _gitInfoCache;
+  }
+
+  // Combine two rev-parse calls into one — saves ~7ms subprocess overhead
+  const combinedResult = execGit(cwd, ['rev-parse', 'HEAD', '--abbrev-ref', 'HEAD']);
+  let commit_hash = null;
+  let branch = null;
+  if (combinedResult.exitCode === 0 && combinedResult.stdout) {
+    const lines = combinedResult.stdout.split('\n').filter(l => l.trim());
+    if (lines.length >= 2) {
+      commit_hash = lines[0].trim();
+      branch = lines[1].trim();
+    }
+  }
+
+  const result = { commit_hash, branch };
+  _gitInfoCache = result;
+  _gitInfoCwd = cwd;
+  return result;
 }
 
 /**
@@ -536,13 +554,19 @@ function getStalenessAge(intel, cwd) {
 
   let commitsBehind = 0;
   if (cwd && intel.git_commit_hash) {
-    try {
-      const result = execGit(cwd, ['rev-list', '--count', `${intel.git_commit_hash}..HEAD`]);
-      if (result.exitCode === 0 && result.stdout) {
-        commitsBehind = parseInt(result.stdout, 10) || 0;
+    // Fast path: if git HEAD matches intel commit, zero commits behind
+    const gitInfo = getGitInfo(cwd); // Uses cached result — no git spawn
+    if (gitInfo.commit_hash === intel.git_commit_hash) {
+      commitsBehind = 0;
+    } else {
+      try {
+        const result = execGit(cwd, ['rev-list', '--count', `${intel.git_commit_hash}..HEAD`]);
+        if (result.exitCode === 0 && result.stdout) {
+          commitsBehind = parseInt(result.stdout, 10) || 0;
+        }
+      } catch (e) {
+        debugLog('codebase.getStalenessAge', 'git rev-list failed', e);
       }
-    } catch (e) {
-      debugLog('codebase.getStalenessAge', 'git rev-list failed', e);
     }
   }
 
