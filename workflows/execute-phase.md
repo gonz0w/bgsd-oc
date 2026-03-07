@@ -13,9 +13,31 @@ Read STATE.md before starting.
 <process>
 
 <step name="initialize" priority="first">
+Parse PHASE_ARG to extract phase number and flags:
+
+- Extract first numeric argument as PHASE_NUMBER
+- GAPS_ONLY defaults to false — only set true if the literal string `--gaps-only` appears in PHASE_ARG
+
 ```bash
-INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init:execute-phase "${PHASE_ARG}" --compact)
+# Extract phase number (first numeric argument) and flags from PHASE_ARG
+if [[ "$PHASE_ARG" =~ ^([0-9]+) ]]; then
+  PHASE_NUMBER="${BASH_REMATCH[1]}"
+elif [[ "$PHASE_ARG" =~ ^([0-9]+\.[0-9]+) ]]; then
+  PHASE_NUMBER="${BASH_REMATCH[1]}"
+else
+  echo "ERROR: Invalid phase number: $PHASE_ARG"
+  exit 1
+fi
+
+# GAPS_ONLY is false unless the user explicitly passed --gaps-only
+# Do NOT infer gaps-only from context — only from the literal flag in PHASE_ARG
+GAPS_ONLY="false"
+if [[ "$PHASE_ARG" == *"--gaps-only"* ]]; then
+  GAPS_ONLY="true"
+fi
 ```
+
+INIT=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs init:execute-phase "${PHASE_NUMBER}" --compact)
 
 Parse JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
 
@@ -121,7 +143,7 @@ PLAN_INDEX=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs phase-plan
 
 Parse: `plans[]` (id, wave, autonomous, objective, task_count, has_summary), `waves`, `incomplete`, `has_checkpoints`.
 
-Skip plans with `has_summary: true`. If `--gaps-only`: also skip non-gap_closure plans.
+Skip plans with `has_summary: true`. If GAPS_ONLY=true: also skip non-gap_closure plans (check frontmatter for `gap_closure: true`).
 
 Report execution plan table: Wave | Plans | What it builds.
 </step>
