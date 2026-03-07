@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 Phase: N/A — milestone complete
 Plan: N/A
 Status: v8.2 shipped — ready for `/bgsd-new-milestone`
-Last activity: 2026-03-07 - Completed quick task 6: Review plugin and ensure it follows best practices for an OpenCode plugin
+Last activity: 2026-03-07 - Completed quick task 7: Address critical and warning findings from OpenCode best practices audit
 
 Progress: v8.2 complete — 12 milestones shipped
 
@@ -143,9 +143,10 @@ None — milestone starting fresh.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 6 | Review plugin and ensure it follows best practices for an OpenCode plugin | 2026-03-07 | 053d23a | .planning/quick/6-review-plugin-and-ensure-it-follows-best |
+| 7 | Address critical and warning findings from OpenCode best practices audit | 2026-03-07 | 015b9c5 | .planning/quick/7-address-critical-and-warning-findings-fr |
 
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed quick task 6: OpenCode best practices audit
-Next step: Address findings from 6-REVIEW.md or run `/bgsd-new-milestone`
+Stopped at: Completed quick task 7: Address critical and warning audit findings
+Next step: Run `/bgsd-new-milestone` or address remaining info-level findings from 6-REVIEW.md
