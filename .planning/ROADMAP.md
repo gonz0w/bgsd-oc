@@ -170,6 +170,9 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   - [ ] 61-01-PLAN.md — Build metafile analysis & dev tool installation (knip, madge)
   - [ ] 61-02-PLAN.md — Manifest-based deploy sync & performance baseline capture
 - [ ] **Phase 62: Audit & Discovery** - Run dead code detection, circular dependency check, build command reference map
+  Plans:
+  - [ ] 62-01-PLAN.md — Dead code audit with router cross-reference & circular dependency check
+  - [ ] 62-02-PLAN.md — Command reference map & final audit summary with markdown cross-reference
 - [ ] **Phase 63: Dead Code Removal** - Remove confirmed dead exports, unused files, stale constants and config
 - [ ] **Phase 64: Command & Workflow Cleanup** - Remove stale commands, hide internals, consolidate subgroups, migrate references
 - [ ] **Phase 65: Performance Tuning** - Profile hot paths, optimize bottlenecks, reduce bundle size, improve init times
@@ -197,7 +200,10 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
   2. Circular dependency check confirms zero cycles in the module graph (or flags any found)
   3. Command reference map shows every CLI command cross-referenced against all 49+ markdown consumers (agents, workflows, commands, templates)
   4. Reports distinguish between truly dead code and code consumed only by markdown files (invisible to JS static analysis)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 62-01-PLAN.md — Dead code audit with router cross-reference & circular dependency check
+- [ ] 62-02-PLAN.md — Command reference map & final audit summary with markdown cross-reference
 
 ### Phase 63: Dead Code Removal
 **Goal**: Remove all confirmed dead exports, unreferenced files, stale constants, and orphaned config — verified by test suite after each batch
@@ -263,7 +269,7 @@ Full details: `.planning/milestones/v8.1-ROADMAP.md`
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
 | 61. Tooling & Safety Net | 2/2 | Complete    | 2026-03-07 | - |
-| 62. Audit & Discovery | v8.2 | 0/0 | Not started | - |
+| 62. Audit & Discovery | v8.2 | 0/2 | Planned | - |
 | 63. Dead Code Removal | v8.2 | 0/0 | Not started | - |
 | 64. Command & Workflow Cleanup | v8.2 | 0/0 | Not started | - |
 | 65. Performance Tuning | v8.2 | 0/0 | Not started | - |
