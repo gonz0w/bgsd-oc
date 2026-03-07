@@ -47,7 +47,7 @@ async function build() {
 
   // Smoke test
   try {
-    const result = execSync('node bin/gsd-tools.cjs current-timestamp --raw', {
+    const result = execSync('node bin/gsd-tools.cjs util:current-timestamp --raw', {
       encoding: 'utf-8',
       timeout: 5000,
     });

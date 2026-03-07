@@ -1,5 +1,5 @@
 {
-  "generated": "2026-03-07T13:50:18.090Z",
+  "generated": "2026-03-07T14:16:08.027Z",
   "files": [
     "VERSION",
     "agents/gsd-codebase-mapper.md",
@@ -29,7 +29,6 @@
     "commands/bgsd-health.md",
     "commands/bgsd-help.md",
     "commands/bgsd-insert-phase.md",
-    "commands/bgsd-join-discord.md",
     "commands/bgsd-list-phase-assumptions.md",
     "commands/bgsd-map-codebase.md",
     "commands/bgsd-new-milestone.md",
