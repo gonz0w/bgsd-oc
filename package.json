@@ -10,10 +10,14 @@
   },
   "scripts": {
     "test": "node --test bin/gsd-tools.test.cjs",
-    "build": "node build.js"
+    "build": "node build.js",
+    "audit:dead-code": "npx knip --include exports,files --workspace .",
+    "audit:circular": "npx madge --circular src/"
   },
   "devDependencies": {
-    "esbuild": "^0.27.3"
+    "esbuild": "^0.27.3",
+    "knip": "^5.85.0",
+    "madge": "^8.0.0"
   },
   "private": true,
   "dependencies": {
