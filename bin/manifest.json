@@ -1,10 +1,11 @@
 {
-  "generated": "2026-03-08T19:18:10.511Z",
+  "generated": "2026-03-08T21:16:02.876Z",
   "files": [
     "VERSION",
     "agents/gsd-codebase-mapper.md",
     "agents/gsd-debugger.md",
     "agents/gsd-executor.md",
+    "agents/gsd-github-ci.md",
     "agents/gsd-phase-researcher.md",
     "agents/gsd-plan-checker.md",
     "agents/gsd-planner.md",
@@ -26,6 +27,7 @@
     "commands/bgsd-debug.md",
     "commands/bgsd-discuss-phase.md",
     "commands/bgsd-execute-phase.md",
+    "commands/bgsd-github-ci.md",
     "commands/bgsd-health.md",
     "commands/bgsd-help.md",
     "commands/bgsd-insert-phase.md",
@@ -124,6 +126,7 @@
     "workflows/discuss-phase.md",
     "workflows/execute-phase.md",
     "workflows/execute-plan.md",
+    "workflows/github-ci.md",
     "workflows/health.md",
     "workflows/help.md",
     "workflows/insert-phase.md",
