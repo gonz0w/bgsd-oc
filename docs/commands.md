@@ -4,7 +4,7 @@ Complete reference for all bGSD slash commands and CLI operations.
 
 ---
 
-## Slash Commands (40)
+## Slash Commands (41)
 
 ### Project Initialization
 
@@ -126,6 +126,23 @@ Execute small ad-hoc tasks with bGSD tracking (atomic commits, state updates) bu
 **Workflow:** `workflows/quick.md`
 **Agents:** gsd-planner, gsd-executor, optionally gsd-plan-checker and gsd-verifier
 **Creates:** `.planning/quick/{num}-{slug}/PLAN.md`, `SUMMARY.md`
+
+---
+
+#### `/bgsd-github-ci`
+
+Run the GitHub CI quality gate: push a branch, create a PR, monitor code scanning checks (CodeQL), fix true positive findings, dismiss false positives, and auto-merge when clean.
+
+| Argument | Description |
+|----------|-------------|
+| `--branch <name>` | Custom branch name (default: `ci/{scope}`) |
+| `--base <branch>` | Target branch for PR (default: `main`) |
+| `--no-merge` | Skip auto-merge after checks pass |
+| `--scope <id>` | Context identifier for naming (e.g., `phase-01`, `quick-11`) |
+
+**Workflow:** `workflows/github-ci.md`
+**Agents:** gsd-github-ci
+**Integration:** Also available as an optional post-execution step in `/bgsd-execute-phase` and `/bgsd-quick` via `--ci` flag or `workflow.ci_gate` config.
 
 ---
 
@@ -1090,7 +1107,7 @@ gsd-tools agent-audit         # Validate RACI matrix, token budgets, agent manif
 - **[Getting Started](getting-started.md)** — First project walkthrough
 - **[Expert Guide](expert-guide.md)** — Full control flow and advanced patterns
 - **[Architecture](architecture.md)** — Internal design
-- **[Agent System](agents.md)** — All 9 agents and their roles
+- **[Agent System](agents.md)** — All 10 agents and their roles
 - **[Workflows](workflows.md)** — All 45 workflows
 - **[TDD Guide](tdd.md)** — TDD execution engine
 - **[Configuration](configuration.md)** — Full configuration reference

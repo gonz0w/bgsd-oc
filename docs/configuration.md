@@ -48,7 +48,8 @@ node bin/gsd-tools.cjs validate-config                   # Schema validation
     "research": true,
     "plan_check": true,
     "verifier": true,
-    "auto_advance": false
+    "auto_advance": false,
+    "ci_gate": false
   },
 
   "gates": {
@@ -118,6 +119,7 @@ node bin/gsd-tools.cjs validate-config                   # Schema validation
 | `verifier` | boolean | `true` | Enable phase verification after execution |
 | `test_gate` | boolean | `true` | Block execution on test failure |
 | `brave_search` | boolean | `false` | Enable web search in research phases |
+| `workflow.ci_gate` | boolean | `false` | Run GitHub CI quality gate (push, PR, code scanning, auto-merge) after execution. Also triggered by `--ci` flag on `/bgsd-execute-phase` or `/bgsd-quick` |
 
 ### Context Management
 

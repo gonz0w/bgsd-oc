@@ -807,7 +807,7 @@ Save preferred settings globally at `~/.gsd/defaults.json`. These are applied wh
 - **[Getting Started](getting-started.md)** — Simple first-project walkthrough
 - **[Command Reference](commands.md)** — Every command with full details
 - **[Architecture](architecture.md)** — Internal design and agent system
-- **[Agent System](agents.md)** — All 9 agents and their roles
+- **[Agent System](agents.md)** — All 10 agents and their roles
 - **[Planning System](planning-system.md)** — How .planning/ works
 - **[TDD Guide](tdd.md)** — TDD execution engine
 - **[Configuration](configuration.md)** — Full configuration reference

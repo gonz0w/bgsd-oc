@@ -2,7 +2,7 @@
 
 A structured project planning and execution system for [OpenCode](https://github.com/opencode-ai/opencode). bGSD turns AI-assisted coding from ad-hoc prompting into milestone-driven development with planning, execution, verification, and memory that persists across sessions.
 
-**762 tests** | **Zero runtime dependencies** | **40 slash commands** | **100+ CLI operations** | **9 specialized AI agents** | **11 milestones shipped**
+**762 tests** | **Zero runtime dependencies** | **41 slash commands** | **100+ CLI operations** | **10 specialized AI agents** | **11 milestones shipped**
 
 > **Note:** bGSD creates a `~/.config/oc` symlink pointing to `~/.config/opencode` to work around a path mangling issue in the Anthropic auth module. This is created automatically during installation.
 
@@ -89,7 +89,7 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
 ## Key Features
 
-**[9 Specialized AI Agents](docs/agents.md)** — Planner, executor, verifier, debugger, researchers, roadmapper, plan checker, and codebase mapper. Two-stage code review (spec compliance + code quality) embedded in execution.
+**[10 Specialized AI Agents](docs/agents.md)** — Planner, executor, verifier, debugger, researchers, roadmapper, plan checker, codebase mapper, and GitHub CI agent. Two-stage code review (spec compliance + code quality) embedded in execution.
 
 **Intelligent Orchestration** — Task complexity scoring (1-5) drives automatic model selection. Agent context manifests reduce token usage by 40-60%.
 
@@ -111,7 +111,8 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
 **[Trajectory Engineering](docs/architecture.md)** — Checkpoint, compare metrics, pivot, and choose between implementation approaches while preserving planning state.
 
-**Git Integration** — Per-task atomic commits, pre-commit safety checks, session diffs, rollback info, TDD trailers, branch-per-phase strategies, and selective rewind.
+**Git Integration** — Per-task atomic commits, pre-commit safety checks, session diffs, rollback info, TDD trailers, branch-per-phase strategies, selective rewind, and automated GitHub CI quality gate (push, PR, code scanning, fix loop, auto-merge).
+
 
 **Codebase Intelligence** — Convention extraction, dependency graphs across 6 languages, lifecycle awareness, and environment detection for 26 manifest patterns.
 
@@ -125,8 +126,8 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 | **[Expert Guide](docs/expert-guide.md)** | Full control flow, all options, advanced patterns |
 | **[Command Reference](docs/commands.md)** | Every command with arguments, options, and examples |
 | **[Architecture](docs/architecture.md)** | How bGSD works internally, agent system, tool design |
-| **[Agent System](docs/agents.md)** | All 9 agents, their roles, spawning, model profiles |
-| **[Workflows](docs/workflows.md)** | All 45 workflows, what they do, how they connect |
+| **[Agent System](docs/agents.md)** | All 10 agents, their roles, spawning, model profiles |
+| **[Workflows](docs/workflows.md)** | All 46 workflows, what they do, how they connect |
 | **[Planning System](docs/planning-system.md)** | How .planning/ works, document structure, lifecycle |
 | **[Configuration](docs/configuration.md)** | Full configuration reference with all options |
 | **[TDD Guide](docs/tdd.md)** | TDD execution engine, RED-GREEN-REFACTOR, anti-patterns |
@@ -139,7 +140,7 @@ See the **[Getting Started Guide](docs/getting-started.md)** for the full walkth
 
 ## Commands
 
-bGSD includes **40 slash commands** across project lifecycle, planning, execution, analysis, and configuration. See the **[Full Command Reference](docs/commands.md)**.
+bGSD includes **41 slash commands** across project lifecycle, planning, execution, analysis, and configuration. See the **[Full Command Reference](docs/commands.md)**.
 
 | Command | What It Does |
 |---------|-------------|
@@ -148,6 +149,7 @@ bGSD includes **40 slash commands** across project lifecycle, planning, executio
 | `/bgsd-execute-phase N` | Execute all plans in a phase |
 | `/bgsd-progress` | View progress, get routed to next action |
 | `/bgsd-quick` | Execute small tasks with bGSD guarantees |
+| `/bgsd-github-ci` | Push, create PR, run code scanning, fix loop, auto-merge |
 
 ---
 

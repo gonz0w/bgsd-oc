@@ -1,6 +1,6 @@
 # Agent System
 
-bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agents communicate through files, not conversation history.
+bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agents communicate through files, not conversation history.
 
 ---
 
@@ -8,7 +8,7 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 - **Specialization over generalization.** A planning agent plans. An execution agent executes. A verification agent verifies. No agent does everything.
 - **Fresh context per invocation.** Each agent starts with a clean context window. Communication happens through files (PLAN.md in, SUMMARY.md out).
-- **Intelligence as data.** New capabilities are delivered as CLI data that existing agents consume, not as new agent roles. Agent count is capped at 9.
+- **Intelligence as data.** New capabilities are delivered as CLI data that existing agents consume, not as new agent roles.
 - **Advisory routing.** The orchestrator recommends which agent and model to use. Workflows make the final decision.
 
 ---
@@ -194,6 +194,30 @@ bGSD uses 9 specialized AI agents, each purpose-built for a specific task. Agent
 
 ---
 
+### CI/CD Agents
+
+#### gsd-github-ci
+
+**Role:** Autonomous GitHub CI quality gate — pushes branch, creates PR, monitors code scanning, fixes issues, and auto-merges.
+
+**Inputs:** Branch name, base branch, scope identifier, code scanning alert data.
+
+**Outputs:** Merged PR (or checkpoint if blocked), structured completion report with fix/dismiss details.
+
+**Spawned by:** `/bgsd-github-ci`, `/bgsd-execute-phase --ci`, `/bgsd-quick --ci`
+
+**Key behaviors:**
+- Pushes changes to a new branch and creates a PR with descriptive title/body
+- Polls for CodeQL/code scanning check completion (up to 15 min timeout)
+- Classifies alerts as true positive or false positive based on severity, file context, and rule type
+- Fixes true positives (parameterized queries, input sanitization, etc.) and commits fixes
+- Dismisses false positives via GitHub API with documented reasoning
+- Fix-push-recheck loop capped at 3 iterations to prevent infinite loops
+- Auto-merges via `gh pr merge --squash --delete-branch` when all checks pass
+- Returns structured checkpoint if merge is blocked (branch protection, required reviews)
+
+---
+
 ### Codebase Analysis Agents
 
 #### gsd-codebase-mapper
@@ -232,6 +256,7 @@ Three profiles control which AI model each agent uses:
 | gsd-roadmapper | opus | opus | sonnet |
 | gsd-plan-checker | sonnet | sonnet | haiku |
 | gsd-codebase-mapper | sonnet | sonnet | haiku |
+| gsd-github-ci | sonnet | sonnet | sonnet |
 
 ### Per-Agent Overrides
 

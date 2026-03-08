@@ -41,13 +41,14 @@ Workflows are **not code**. They are prompts that any LLM can follow. The determ
 | `research-phase.md` | `/bgsd-research-phase` | Spawns phase researcher for domain investigation |
 | `tdd.md` | (internal) | TDD plan execution workflow (RED-GREEN-REFACTOR state machine) |
 
-### Execution (3 workflows)
+### Execution (4 workflows)
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
 | `execute-phase.md` | `/bgsd-execute-phase` | Wave-based plan execution with parallel agents, verification |
 | `execute-plan.md` | (internal) | Single plan execution: task loop, commits, checkpoints, review |
 | `quick.md` | `/bgsd-quick` | Minimal-ceremony task execution with GSD guarantees |
+| `github-ci.md` | `/bgsd-github-ci` | Push branch, create PR, monitor code scanning, fix/dismiss, auto-merge |
 
 ### Verification (3 workflows)
 
