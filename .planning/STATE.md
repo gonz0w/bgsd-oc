@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 Phase: N/A — milestone complete
 Plan: N/A
 Status: v8.2 shipped — ready for `/bgsd-new-milestone`
-Last activity: 2026-03-08 - Completed quick task 10: Fix plugin.js GSD_HOME resolution
+Last activity: 2026-03-08 - Completed quick task 11: Setup GitHub CI agent/workflow for automation
 
 Progress: v8.2 complete — 12 milestones shipped
 
@@ -147,9 +147,10 @@ None — milestone starting fresh.
 | 8 | Make bGSD a full OpenCode plugin for npm distribution | 2026-03-07 | 9bd9bd1 | .planning/quick/8-make-bgsd-a-full-opencode-plugin-using-o |
 | 9 | Streamline README and update getting-started.md install method | 2026-03-07 | f07f5a9 | .planning/quick/9-streamline-readme-and-create-docs-folder |
 | 10 | Fix plugin.js GSD_HOME to always resolve via homedir() | 2026-03-08 | dcbdfe5 | .planning/quick/10-fix-plugin-to-always-resolve-get-shit-do |
+| 11 | Setup GitHub CI agent/workflow for automation | 2026-03-08 | db52f5d | .planning/quick/11-setup-github-ci-agent-workflow-for-autom |
 
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed quick task 10: Fix plugin.js GSD_HOME resolution using homedir() instead of __dirname
-Next step: Run `npm publish` when ready, or continue with `/bgsd-new-milestone`
+Stopped at: Completed quick task 11: Setup GitHub CI agent/workflow for automation
+Next step: Run `/bgsd-github-ci` to test the new CI flow, or continue with `/bgsd-new-milestone`

@@ -47,7 +47,7 @@ npm run build     # Build validation
 ```
 
 ## Slash Commands
-40 commands available in `commands/`:
+41 commands available in `commands/`:
 
 **Project Lifecycle:**
 - `/bgsd-new-project` — Initialize a new project with planning structure
@@ -74,6 +74,7 @@ npm run build     # Build validation
 - `/bgsd-check-todos` — Check and manage todo items
 - `/bgsd-add-todo` — Add a todo item
 - `/bgsd-quick` — Quick task execution
+- `/bgsd-github-ci` — Push, create PR, run code scanning, fix loop, and auto-merge
 
 **Analysis & Diagnostics:**
 - `/bgsd-velocity` — Execution velocity metrics and forecast
