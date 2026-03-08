@@ -84,6 +84,24 @@ Update each item to "in_progress" when starting, "completed" when done.
 Skip items not needed (e.g., mark "ci-fix" as "completed" immediately if all checks pass).
 </step>
 
+<step name="record_start_time">
+Record start time for duration tracking in CI COMPLETE:
+```bash
+PLAN_START_EPOCH=$(date +%s)
+```
+Track timing checkpoints during execution:
+- `CHECK_WAIT_START` / `CHECK_WAIT_END` around `wait_for_checks` step
+- `FIX_START` / `FIX_END` around `fix_and_repush` iterations
+
+Calculate at completion:
+```bash
+PLAN_END_EPOCH=$(date +%s)
+TOTAL_TIME=$(( PLAN_END_EPOCH - PLAN_START_EPOCH ))
+WAIT_TIME=$(( CHECK_WAIT_END - CHECK_WAIT_START ))
+FIX_TIME=$(( FIX_END - FIX_START ))
+```
+</step>
+
 <step name="push_branch">
 "Pushing branch to remote..."
 
@@ -100,26 +118,10 @@ git checkout -b "$BRANCH_NAME" 2>/dev/null || git checkout "$BRANCH_NAME"
 git push -u origin "$BRANCH_NAME" 2>&1
 ```
 
-**Auth gate handling:** If push fails with authentication error ("Not authenticated", "Permission denied", "403", "Could not read from remote"), this is an auth gate — STOP and return checkpoint:human-action:
-
-```markdown
-## CHECKPOINT REACHED
-
-**Type:** human-action
-**Status:** blocked
-
-### Checkpoint Details
-Git push failed with authentication error.
-
-### Required Action
-1. Verify git remote is configured: `git remote -v`
-2. Authenticate with GitHub: `gh auth login`
-3. Or set up SSH key / personal access token
-4. Verify: `gh auth status`
-
-### Awaiting
-User to complete authentication, then re-run.
-```
+**Auth gate handling:** If push fails with authentication error ("Not authenticated", "Permission denied", "403", "Could not read from remote"), this is an auth gate — STOP. Run `gh auth status` for diagnostics, then return checkpoint using `<checkpoint_return_format>` with:
+- **Type:** human-action
+- **Checkpoint Details:** Git push auth failure. Include `gh auth status` diagnostic output.
+- **Awaiting:** User to authenticate (`gh auth login` or SSH key/PAT setup), then re-run.
 
 Mark `ci-push` as completed, `ci-pr` as in_progress.
 </step>
@@ -214,7 +216,11 @@ fi
 
 **If any checks fail:** Continue to `analyze_failures` step.
 
-**If timeout reached:** Return checkpoint:human-verify with current status.
+**If timeout reached (15 min):** Return checkpoint immediately using `<checkpoint_return_format>` with:
+- **Type:** human-verify
+- **Checkpoint Details:** Check timeout after 15 minutes. Include current check status (passed/failed/pending counts).
+- **Awaiting:** User to review check status and decide: wait longer, dismiss, or close PR.
+No offer to extend — always escalate immediately per CONTEXT.md decision.
 
 Mark `ci-checks` as completed, `ci-analyze` as in_progress.
 </step>
@@ -307,34 +313,10 @@ done  # end iteration loop
 
 **If MAX_FIX_ITERATIONS exceeded:**
 
-Return checkpoint:human-verify with remaining alerts:
-
-```markdown
-## CHECKPOINT REACHED
-
-**Type:** human-verify
-**PR:** {PR_URL}
-**Status:** Fix iteration limit reached ({MAX_FIX_ITERATIONS} attempts)
-
-### Remaining Alerts
-| # | Rule | File | Severity | Fix Attempted |
-|---|------|------|----------|---------------|
-| {alert_num} | {rule_id} | {file} | {severity} | {yes/no} |
-
-### Fixes Applied
-| Iteration | Rule | File | Commit |
-|-----------|------|------|--------|
-| {N} | {rule_id} | {file} | {hash} |
-
-### Recommendation
-{assessment of remaining issues — can they be dismissed? need architectural change?}
-
-### Awaiting
-Human review of remaining alerts. Options:
-1. Dismiss remaining as acceptable risk
-2. Apply manual fixes and re-run
-3. Close PR without merging
-```
+Return checkpoint using `<checkpoint_return_format>` with:
+- **Type:** human-verify
+- **Checkpoint Details:** Fix iteration limit reached ({MAX_FIX_ITERATIONS} attempts). Include remaining alerts table (alert #, rule, file, severity, fix attempted) and fixes applied table (iteration, rule, file, commit). Add recommendation: can remaining alerts be dismissed, or do they need architectural changes?
+- **Awaiting:** Human review of remaining alerts. Options: (1) Dismiss remaining as acceptable risk, (2) Apply manual fixes and re-run: `/bgsd-github-ci --branch {BRANCH_NAME}`, (3) Close PR without merging.
 
 Mark `ci-fix` as completed.
 </step>
@@ -368,26 +350,10 @@ fi
 
 **If merge blocked** (branch protection, required reviews, etc.):
 
-Return checkpoint:human-action:
-```markdown
-## CHECKPOINT REACHED
-
-**Type:** human-action
-**PR:** {PR_URL}
-**Status:** All checks pass, merge blocked
-
-### Checkpoint Details
-PR #{PR_NUMBER} passed all checks but cannot be auto-merged.
-Likely cause: branch protection rules require review approval.
-
-### Required Action
-1. Review PR at: {PR_URL}
-2. Approve and merge manually
-3. Or adjust repository settings to allow auto-merge
-
-### Awaiting
-Human to approve/merge PR or adjust repository settings.
-```
+Wait 2-3 minutes for auto-review bots to approve. If still blocked, return checkpoint using `<checkpoint_return_format>` with:
+- **Type:** human-action
+- **Checkpoint Details:** PR #{PR_NUMBER} passed all checks but cannot be auto-merged. Likely cause: branch protection rules require review approval.
+- **Awaiting:** User to review PR at {PR_URL}, approve and merge manually, or adjust repository settings to allow auto-merge.
 
 **After successful merge:**
 ```bash
@@ -489,8 +455,41 @@ IS_SPAWNED=$(echo "$PROMPT" | grep -q "<spawned_by>" && echo "true" || echo "fal
 ```
 </state_ownership>
 
-<completion_format>
-Return this structure when CI process completes:
+<checkpoint_return_format>
+When hitting a checkpoint (auth gate, merge blocked, fix limit, check timeout), return:
+
+```markdown
+## CHECKPOINT REACHED
+
+**Type:** [human-verify | human-action]
+**PR:** {PR_URL}
+**Progress:** {step_description} ({completed_steps}/{total_steps})
+**Branch:** {BRANCH_NAME}
+**Iteration:** {FIX_ITERATION}/{MAX_FIX_ITERATIONS}
+
+### Checkpoint Details
+[Type-specific content — what happened, what's blocked, diagnostic output]
+
+### Context for Continuation
+| Field | Value |
+|-------|-------|
+| PR Number | {PR_NUMBER} |
+| Branch | {BRANCH_NAME} |
+| Base | {BASE_BRANCH} |
+| Fix Iteration | {FIX_ITERATION} |
+| Dismissed Alerts | {list of alert numbers already dismissed} |
+| Applied Fixes | {list of commits with fix descriptions} |
+
+### Awaiting
+[What user needs to do — approve, authenticate, review alerts, etc.]
+```
+</checkpoint_return_format>
+
+<structured_returns>
+
+## CI COMPLETE
+
+Return this structure when CI process completes successfully (all checks pass and PR merged or ready):
 
 ```markdown
 ## CI COMPLETE
@@ -498,8 +497,18 @@ Return this structure when CI process completes:
 **PR:** {PR_URL}
 **Status:** {merged | checks-passed-awaiting-merge | needs-human-review}
 **Checks:** {N} passed, {M} fixed, {K} dismissed (false positive)
-**Iterations:** {fix_iteration_count}
+**Iterations:** {fix_iteration_count} / {MAX_FIX_ITERATIONS}
 **Merge:** {squash-merged | rebase-merged | merge-commit | pending | skipped}
+
+**Timing:**
+- Total duration: {total_time}
+- Check wait time: {wait_time}
+- Fix time: {fix_time}
+
+**Decisions Made:**
+| Decision | Type | Reasoning |
+|----------|------|-----------|
+| {description} | auto-fix / dismiss / escalate | {why} |
 
 {If fixes applied:}
 ### Fixes Applied
@@ -513,7 +522,12 @@ Return this structure when CI process completes:
 |-------|------|--------|
 | {id} | {rule_id} | {reason} |
 ```
-</completion_format>
+
+## Checkpoint Reached
+
+See `<checkpoint_return_format>` above for the unified checkpoint structure used by all checkpoint types (auth gate, merge blocked, fix limit, check timeout).
+
+</structured_returns>
 
 <success_criteria>
 CI quality gate complete when:
