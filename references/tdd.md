@@ -91,7 +91,7 @@ After completion, create SUMMARY.md with:
 <execution_flow>
 ## Red-Green-Refactor Cycle
 
-For complete execution instructions with orchestrator-enforced gates, see: **@workflows/tdd.md**
+For complete execution instructions with orchestrator-enforced gates, see: **@__OPENCODE_CONFIG__/get-shit-done/workflows/tdd.md**
 
 The TDD workflow enforces RED→GREEN→REFACTOR transitions via CLI validation gates.
 No phase transition is permitted without the corresponding gate passing.
@@ -111,7 +111,7 @@ Each TDD phase transition is enforced by a CLI gate command. These must pass bef
 
 **validate-red** — Confirms test fails (expected in RED):
 ```bash
-node {config_path}/bin/gsd-tools.cjs execute:tdd validate-red --test-cmd "<test_command>"
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:tdd validate-red --test-cmd "<test_command>"
 ```
 Returns: `{ phase: "red", valid: true/false, snippet: "..." }`
 - `valid: true` → test fails as expected, proceed to GREEN
@@ -119,7 +119,7 @@ Returns: `{ phase: "red", valid: true/false, snippet: "..." }`
 
 **validate-green** — Confirms test passes (expected in GREEN):
 ```bash
-node {config_path}/bin/gsd-tools.cjs execute:tdd validate-green --test-cmd "<test_command>"
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:tdd validate-green --test-cmd "<test_command>"
 ```
 Returns: `{ phase: "green", valid: true/false, snippet: "..." }`
 - `valid: true` → test passes, proceed to REFACTOR
@@ -127,7 +127,7 @@ Returns: `{ phase: "green", valid: true/false, snippet: "..." }`
 
 **validate-refactor** — Confirms tests still pass after cleanup:
 ```bash
-node {config_path}/bin/gsd-tools.cjs execute:tdd validate-refactor --test-cmd "<test_command>"
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:tdd validate-refactor --test-cmd "<test_command>"
 ```
 Returns: `{ phase: "refactor", valid: true/false, snippet: "..." }`
 - `valid: true` → refactor preserved behavior, commit
@@ -135,14 +135,14 @@ Returns: `{ phase: "refactor", valid: true/false, snippet: "..." }`
 
 **auto-test** — Non-blocking test execution for general use:
 ```bash
-node {config_path}/bin/gsd-tools.cjs execute:tdd auto-test --test-cmd "<test_command>"
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:tdd auto-test --test-cmd "<test_command>"
 ```
 Returns: `{ passed: true/false, snippet: "..." }`
 Does NOT set process.exitCode — the workflow decides whether to stop.
 
 **detect-antipattern** — Checks for TDD violations:
 ```bash
-node {config_path}/bin/gsd-tools.cjs execute:tdd detect-antipattern --phase <red|green|refactor> --files <file_list>
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:tdd detect-antipattern --phase <red|green|refactor> --files <file_list>
 ```
 Returns: `{ warnings: [...] }` — array of detected anti-pattern violations.
 </gate_commands>
@@ -166,7 +166,7 @@ Produces: `GSD-Phase: red` (or `green`, `refactor`) in commit message.
 
 **Combined usage in commit command:**
 ```bash
-node {config_path}/bin/gsd-tools.cjs execute:commit "test({phase}-{plan}): add failing test for {feature}" \
+node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:commit "test({phase}-{plan}): add failing test for {feature}" \
   --files <test_file> \
   --agent gsd-executor \
   --tdd-phase red

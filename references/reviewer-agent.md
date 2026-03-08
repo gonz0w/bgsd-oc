@@ -10,7 +10,7 @@ with fresh context (not the executor's spent context).
 ## 1. Load Review Context
 
 ```bash
-REVIEW=$(node {config_path}/bin/gsd-tools.cjs verify:review {phase} {plan} --raw)
+REVIEW=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs verify:review {phase} {plan} --raw)
 ```
 
 This provides: recent commits, diff summary, conventions data, changed files list.

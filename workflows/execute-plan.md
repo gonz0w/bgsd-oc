@@ -111,7 +111,7 @@ Document in SUMMARY: per deviation with rule/category/task/issue/fix/files/commi
 
 <tdd_plan_execution>
 For `type: tdd` plans, follow the dedicated TDD workflow:
-@workflows/tdd.md
+@__OPENCODE_CONFIG__/get-shit-done/workflows/tdd.md
 
 The TDD workflow enforces RED→GREEN→REFACTOR gates via CLI validation commands. Do NOT use the standard task execution flow for TDD plans.
 </tdd_plan_execution>
@@ -126,7 +126,7 @@ After each file modification during task execution (not just at task end), for A
 
 2. Run auto-test:
    ```bash
-   AUTOTEST=$(node {config_path}/bin/gsd-tools.cjs execute:tdd auto-test --test-cmd "<test_command>")
+   AUTOTEST=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs execute:tdd auto-test --test-cmd "<test_command>")
    ```
 
 3. If test fails:
@@ -190,7 +190,7 @@ After plan execution completes (all tasks committed, before SUMMARY creation):
 
 2. Assemble review context:
 ```bash
-REVIEW_CTX=$(node {config_path}/bin/gsd-tools.cjs verify:review ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)
+REVIEW_CTX=$(node __OPENCODE_CONFIG__/get-shit-done/bin/gsd-tools.cjs verify:review ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)
 ```
 
 3. If review context available (non-empty, valid JSON), perform review:
