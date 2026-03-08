@@ -227,7 +227,7 @@ Plans:
   2. Agent definition files are measurably smaller (reduced line counts) because duplicated inline content has been replaced with skill load instructions
   3. Running `deploy.sh` copies skills/ directories alongside agents, commands, and workflows to the host editor config
   4. Skill descriptions are specific enough that agents load the right skills for their tasks — no false positives (loading unneeded skills) or false negatives (missing needed skills) observed during manual testing
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 Plans:
 - [ ] 69-01-PLAN.md — Pipeline infrastructure (build.cjs validation/index, deploy.sh routing, install.js routing)
 - [ ] 69-02-PLAN.md — Create 9 shared protocol skills (project-context, commit-protocol, checkpoint-protocol, etc.)
@@ -269,5 +269,5 @@ Phases execute in numeric order: 67 → 68 → 69 → 70
 | 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
 | 67. GitHub CI Agent Overhaul | 2/2 | Complete    | 2026-03-08 | - |
 | 68. Agent Consistency Audit | 2/2 | Complete    | 2026-03-08 | - |
-| 69. Skills Architecture | 2/5 | In Progress|  | - |
+| 69. Skills Architecture | 3/5 | In Progress|  | - |
 | 70. Test Debt Cleanup | v8.3 | 0/TBD | Not started | - |
