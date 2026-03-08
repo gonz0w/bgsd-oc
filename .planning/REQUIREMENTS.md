@@ -19,8 +19,8 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 ### Agent Consistency
 
 - [x] **ACON-01**: All 10 agents have `<project_context>` discovery block (add to 6 missing: verifier, debugger, roadmapper, project-researcher, codebase-mapper, github-ci)
-- [ ] **ACON-02**: All 10 agents have PATH SETUP block (add to codebase-mapper)
-- [ ] **ACON-03**: codebase-mapper agent has proper `<structured_returns>` section matching other agent patterns
+- [x] **ACON-02**: All 10 agents have PATH SETUP block (add to codebase-mapper)
+- [x] **ACON-03**: codebase-mapper agent has proper `<structured_returns>` section matching other agent patterns
 
 ### Skills Architecture
 
@@ -66,8 +66,8 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 | GHCI-05 | Phase 67 | Complete | grep TodoWrite agents/gsd-github-ci.md |
 | GHCI-06 | Phase 67 | Complete | cat commands/bgsd-github-ci.md |
 | ACON-01 | Phase 68 | Complete | grep -l project_context agents/gsd-*.md \| wc -l |
-| ACON-02 | Phase 68 | Pending | grep PATH.SETUP agents/gsd-codebase-mapper.md |
-| ACON-03 | Phase 68 | Pending | grep structured_returns agents/gsd-codebase-mapper.md |
+| ACON-02 | Phase 68 | Complete | grep PATH.SETUP agents/gsd-codebase-mapper.md |
+| ACON-03 | Phase 68 | Complete | grep structured_returns agents/gsd-codebase-mapper.md |
 | SKIL-01 | Phase 69 | Pending | ls skills/gsd-*/SKILL.md |
 | SKIL-02 | Phase 69 | Pending | wc -l agents/gsd-*.md (reduced line counts) |
 | SKIL-03 | Phase 69 | Pending | grep skills deploy.sh |
