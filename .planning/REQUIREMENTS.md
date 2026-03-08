@@ -59,28 +59,28 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| GHCI-01 | TBD | Pending | grep structured_returns agents/gsd-github-ci.md |
-| GHCI-02 | TBD | Pending | grep project_context agents/gsd-github-ci.md |
-| GHCI-03 | TBD | Pending | grep deviation_rules agents/gsd-github-ci.md |
-| GHCI-04 | TBD | Pending | grep verify:state agents/gsd-github-ci.md |
-| GHCI-05 | TBD | Pending | grep TodoWrite agents/gsd-github-ci.md |
-| GHCI-06 | TBD | Pending | cat commands/bgsd-github-ci.md |
-| ACON-01 | TBD | Pending | grep -l project_context agents/gsd-*.md \| wc -l |
-| ACON-02 | TBD | Pending | grep PATH.SETUP agents/gsd-codebase-mapper.md |
-| ACON-03 | TBD | Pending | grep structured_returns agents/gsd-codebase-mapper.md |
-| SKIL-01 | TBD | Pending | ls skills/gsd-*/SKILL.md |
-| SKIL-02 | TBD | Pending | wc -l agents/gsd-*.md (reduced line counts) |
-| SKIL-03 | TBD | Pending | grep skills deploy.sh |
-| SKIL-04 | TBD | Pending | grep description skills/gsd-*/SKILL.md |
-| TEST-01 | TBD | Pending | npm test -- --grep config-migrate |
-| TEST-02 | TBD | Pending | npm test -- --grep compact |
-| TEST-03 | TBD | Pending | npm test -- --grep codebase-impact |
-| TEST-04 | TBD | Pending | npm test -- --grep "codebase ast" |
+| GHCI-01 | Phase 67 | Pending | grep structured_returns agents/gsd-github-ci.md |
+| GHCI-02 | Phase 67 | Pending | grep project_context agents/gsd-github-ci.md |
+| GHCI-03 | Phase 67 | Pending | grep deviation_rules agents/gsd-github-ci.md |
+| GHCI-04 | Phase 67 | Pending | grep verify:state agents/gsd-github-ci.md |
+| GHCI-05 | Phase 67 | Pending | grep TodoWrite agents/gsd-github-ci.md |
+| GHCI-06 | Phase 67 | Pending | cat commands/bgsd-github-ci.md |
+| ACON-01 | Phase 68 | Pending | grep -l project_context agents/gsd-*.md \| wc -l |
+| ACON-02 | Phase 68 | Pending | grep PATH.SETUP agents/gsd-codebase-mapper.md |
+| ACON-03 | Phase 68 | Pending | grep structured_returns agents/gsd-codebase-mapper.md |
+| SKIL-01 | Phase 69 | Pending | ls skills/gsd-*/SKILL.md |
+| SKIL-02 | Phase 69 | Pending | wc -l agents/gsd-*.md (reduced line counts) |
+| SKIL-03 | Phase 69 | Pending | grep skills deploy.sh |
+| SKIL-04 | Phase 69 | Pending | grep description skills/gsd-*/SKILL.md |
+| TEST-01 | Phase 70 | Pending | npm test -- --grep config-migrate |
+| TEST-02 | Phase 70 | Pending | npm test -- --grep compact |
+| TEST-03 | Phase 70 | Pending | npm test -- --grep codebase-impact |
+| TEST-04 | Phase 70 | Pending | npm test -- --grep "codebase ast" |
 
 **Coverage:**
 - v8.3 requirements: 17 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 17
+- Mapped to phases: 17/17 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-08*

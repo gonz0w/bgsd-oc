@@ -14,6 +14,7 @@
 - ✅ **v8.0 Performance & Agent Architecture** — Phases 51-55 (shipped 2026-03-03)
 - ✅ **v8.1 RAG-Powered Research Pipeline** — Phases 56-60 (shipped 2026-03-03)
 - ✅ **v8.2 Cleanup, Performance & Validation** — Phases 61-66 (shipped 2026-03-07)
+- 🚧 **v8.3 Agent Quality & Skills** — Phases 67-70 (in progress)
 
 ## Phases
 
@@ -179,7 +180,67 @@ Full details: `.planning/milestones/v8.2-ROADMAP.md`
 
 </details>
 
+### 🚧 v8.3 Agent Quality & Skills (In Progress)
+
+**Milestone Goal:** Raise all agents to consistent quality standards, migrate shared agent metadata into OpenCode skills, and eliminate accumulated test debt.
+
+- [ ] **Phase 67: GitHub CI Agent Overhaul** - Bring GitHub CI agent to quality standard with structured returns, discovery, deviation rules, state tracking, and proper workflow gates
+- [ ] **Phase 68: Agent Consistency Audit** - Standardize project_context, PATH SETUP, and structured_returns blocks across all 10 agents
+- [ ] **Phase 69: Skills Architecture** - Extract shared agent content into OpenCode skills, slim agent definitions, update deploy pipeline
+- [ ] **Phase 70: Test Debt Cleanup** - Fix all 31 pre-existing test failures across config-migrate, compact, codebase-impact, and codebase ast
+
+## Phase Details
+
+### Phase 67: GitHub CI Agent Overhaul
+**Goal**: GitHub CI agent operates at the same quality level as gsd-executor and gsd-planner — with structured progress tracking, proper workflow gates, and consistent patterns
+**Depends on**: Nothing (self-contained, builds quality patterns for later phases)
+**Requirements**: GHCI-01, GHCI-02, GHCI-03, GHCI-04, GHCI-05, GHCI-06
+**Success Criteria** (what must be TRUE):
+  1. Running `/bgsd-github-ci` produces structured CHECKPOINT REACHED and CI COMPLETE output matching the format used by executor and planner agents
+  2. GitHub CI agent discovers project context (AGENTS.md, skills) before performing any CI operations
+  3. When a CI check fails, the agent applies deviation rules to auto-fix safe failures and escalate ambiguous ones to the user
+  4. After each CI operation, STATE.md reflects updated metrics and decisions via gsd-tools commands
+  5. The agent uses TodoWrite to track step-by-step progress visible in the host editor during execution
+**Plans**: TBD
+
+### Phase 68: Agent Consistency Audit
+**Goal**: All 10 agents have the same structural quality — project_context discovery, PATH SETUP, and structured_returns blocks are present and consistent
+**Depends on**: Phase 67 (CI agent patterns serve as reference for consistency standards)
+**Requirements**: ACON-01, ACON-02, ACON-03
+**Success Criteria** (what must be TRUE):
+  1. All 10 agent definition files contain a `<project_context>` discovery block (verifiable via grep across agents/gsd-*.md)
+  2. All 10 agent definition files contain a PATH SETUP block for GSD_HOME resolution
+  3. codebase-mapper agent has a `<structured_returns>` section matching the format patterns used by other agents
+**Plans**: TBD
+
+### Phase 69: Skills Architecture
+**Goal**: Shared agent content (references, common patterns, protocols) extracted into OpenCode skills — reducing duplication across agent definitions and enabling lazy-loading of domain knowledge
+**Depends on**: Phase 68 (audit identifies exactly what content is duplicated and what should migrate to skills vs. stay in agents)
+**Requirements**: SKIL-01, SKIL-02, SKIL-03, SKIL-04
+**Success Criteria** (what must be TRUE):
+  1. OpenCode skills directories exist with SKILL.md files for shared reference content (checkpoints, goal-backward, research patterns, commit protocol, deviation rules, state updates)
+  2. Agent definition files are measurably smaller (reduced line counts) because duplicated inline content has been replaced with skill load instructions
+  3. Running `deploy.sh` copies skills/ directories alongside agents, commands, and workflows to the host editor config
+  4. Skill descriptions are specific enough that agents load the right skills for their tasks — no false positives (loading unneeded skills) or false negatives (missing needed skills) observed during manual testing
+**Plans**: TBD
+
+### Phase 70: Test Debt Cleanup
+**Goal**: All 762+ tests pass with zero pre-existing failures — test suite is fully green and trustworthy as a regression safety net
+**Depends on**: Nothing (independent of other phases, can execute in parallel)
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04
+**Success Criteria** (what must be TRUE):
+  1. `npm test -- --grep config-migrate` passes all tests with zero failures
+  2. `npm test -- --grep compact` passes all tests with zero failures
+  3. `npm test -- --grep codebase-impact` passes all tests with zero failures
+  4. `npm test -- --grep "codebase ast"` CLI handler tests pass with zero failures
+  5. `npm test` full suite runs green with zero pre-existing failures
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 67 → 68 → 69 → 70
+(Phase 70 can execute in parallel with any phase if desired)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -195,3 +256,7 @@ Full details: `.planning/milestones/v8.2-ROADMAP.md`
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
 | 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
+| 67. GitHub CI Agent Overhaul | v8.3 | 0/TBD | Not started | - |
+| 68. Agent Consistency Audit | v8.3 | 0/TBD | Not started | - |
+| 69. Skills Architecture | v8.3 | 0/TBD | Not started | - |
+| 70. Test Debt Cleanup | v8.3 | 0/TBD | Not started | - |
