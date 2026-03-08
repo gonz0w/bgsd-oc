@@ -9,12 +9,13 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 
 ## Current Position
 
-Phase: 67 of 70 (GitHub CI Agent Overhaul)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-08 — Roadmap created for v8.3
+**Phase:** 67 of 70 (GitHub CI Agent Overhaul)
+**Current Plan:** 2
+**Total Plans in Phase:** 2
+**Status:** Ready to execute
+**Last Activity:** 2026-03-08
 
-Progress: [░░░░░░░░░░] 0%
+**Progress:** [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -39,6 +40,7 @@ Progress: [░░░░░░░░░░] 0%
 | v8.0 | 5 | 14 | 3 days |
 | v8.1 | 5 | 10 | 1 day |
 | v8.2 | 6 | 14 | 5 days |
+| Phase 67 P01 | 3 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -48,6 +50,9 @@ All v1.0-v8.2 decisions recorded in PROJECT.md Key Decisions table with outcomes
 
 - [v8.3 Roadmap]: 4 phases (67-70) — GitHub CI first (builds patterns), Audit second (informs skills), Skills third (depends on audit), Test Debt independent
 - [v8.3 Roadmap]: Phase 70 (Test Debt) can run in parallel with any other phase — independent codebase area
+- [Phase 67]: CI-specific deviation rules: 4 rules (auto-fix true positives, auto-fix build/lint/test, dismiss false positives, escalate to user)
+- [Phase 67]: State ownership via <spawned_by> tag: CI agent writes state directly when invoked manually, returns data for parent when spawned
+- [Phase 67]: 6 high-level TodoWrite items for CI progress tracking — no per-alert items
 
 ### Pending Todos
 
@@ -60,6 +65,6 @@ None — milestone starting fresh.
 
 ## Session Continuity
 
-Last session: 2026-03-08
-Stopped at: Roadmap created for v8.3 milestone (4 phases, 17 requirements mapped)
-Next step: `/bgsd-plan-phase 67` to create execution plans for GitHub CI Agent Overhaul
+**Last session:** 2026-03-08
+**Stopped at:** Completed 67-01-PLAN.md
+**Next step:** Execute 67-02-PLAN.md (structured returns and workflow updates)
