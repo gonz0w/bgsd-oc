@@ -1,6 +1,6 @@
 import { readFileSync } from "fs"
-import { join, dirname } from "path"
-import { fileURLToPath } from "url"
+import { join } from "path"
+import { homedir } from "os"
 
 /**
  * bGSD (Get Stuff Done) — OpenCode Plugin
@@ -15,8 +15,7 @@ import { fileURLToPath } from "url"
  * to prevent TypeError crashes that block all shell execution.
  */
 export const BgsdPlugin = async ({ directory }) => {
-  const __dirname = dirname(fileURLToPath(import.meta.url))
-  const gsdHome = join(__dirname, "..", "get-shit-done")
+  const gsdHome = join(homedir(), ".config", "opencode", "get-shit-done")
 
   return {
     "session.created": async (input, output) => {

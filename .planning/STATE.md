@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 Phase: N/A — milestone complete
 Plan: N/A
 Status: v8.2 shipped — ready for `/bgsd-new-milestone`
-Last activity: 2026-03-07 - Completed quick task 9: Streamline README and update getting-started.md
+Last activity: 2026-03-08 - Completed quick task 10: Fix plugin.js GSD_HOME resolution
 
 Progress: v8.2 complete — 12 milestones shipped
 
@@ -146,9 +146,10 @@ None — milestone starting fresh.
 | 7 | Address critical and warning findings from OpenCode best practices audit | 2026-03-07 | 015b9c5 | .planning/quick/7-address-critical-and-warning-findings-fr |
 | 8 | Make bGSD a full OpenCode plugin for npm distribution | 2026-03-07 | 9bd9bd1 | .planning/quick/8-make-bgsd-a-full-opencode-plugin-using-o |
 | 9 | Streamline README and update getting-started.md install method | 2026-03-07 | f07f5a9 | .planning/quick/9-streamline-readme-and-create-docs-folder |
+| 10 | Fix plugin.js GSD_HOME to always resolve via homedir() | 2026-03-08 | dcbdfe5 | .planning/quick/10-fix-plugin-to-always-resolve-get-shit-do |
 
 ## Session Continuity
 
-Last session: 2026-03-07
-Stopped at: Completed quick task 9: Streamline README from 661 to 196 lines and update getting-started.md
+Last session: 2026-03-08
+Stopped at: Completed quick task 10: Fix plugin.js GSD_HOME resolution using homedir() instead of __dirname
 Next step: Run `npm publish` when ready, or continue with `/bgsd-new-milestone`
