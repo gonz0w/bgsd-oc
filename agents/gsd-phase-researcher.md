@@ -136,7 +136,7 @@ When researching "best library for X": find what the ecosystem actually uses, do
 Check `brave_search` from init context. If `true`, use Brave Search for higher quality results:
 
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs websearch "your query" --limit 10
+node $GSD_HOME/bin/gsd-tools.cjs util:websearch "your query" --limit 10
 ```
 
 **Options:**
@@ -346,7 +346,7 @@ Orchestrator provides: phase number/name, description/goal, requirements, constr
 
 Load phase context using init command:
 ```bash
-INIT=$(node $GSD_HOME/bin/gsd-tools.cjs init phase-op "${PHASE}")
+INIT=$(node $GSD_HOME/bin/gsd-tools.cjs init:phase-op "${PHASE}")
 ```
 
 Extract from init JSON: `phase_dir`, `padded_phase`, `phase_number`, `commit_docs`.
@@ -433,7 +433,7 @@ Write to: `$PHASE_DIR/$PADDED_PHASE-RESEARCH.md`
 ## Step 6: Commit Research (optional)
 
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs commit "docs($PHASE): research phase domain" --files "$PHASE_DIR/$PADDED_PHASE-RESEARCH.md"
+node $GSD_HOME/bin/gsd-tools.cjs execute:commit "docs($PHASE): research phase domain" --files "$PHASE_DIR/$PADDED_PHASE-RESEARCH.md"
 ```
 
 ## Step 7: Return Structured Result

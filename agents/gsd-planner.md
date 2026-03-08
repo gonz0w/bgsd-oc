@@ -832,7 +832,7 @@ Group by plan, dimension, severity.
 ### Step 6: Commit
 
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs commit "fix($PHASE): revise plans based on checker feedback" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md
+node $GSD_HOME/bin/gsd-tools.cjs execute:commit "fix($PHASE): revise plans based on checker feedback" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md
 ```
 
 ### Step 7: Return Revision Summary
@@ -871,7 +871,7 @@ node $GSD_HOME/bin/gsd-tools.cjs commit "fix($PHASE): revise plans based on chec
 Load planning context:
 
 ```bash
-INIT=$(node $GSD_HOME/bin/gsd-tools.cjs init plan-phase "${PHASE}")
+INIT=$(node $GSD_HOME/bin/gsd-tools.cjs init:plan-phase "${PHASE}")
 ```
 
 Extract from init JSON: `planner_model`, `researcher_model`, `checker_model`, `commit_docs`, `research_enabled`, `phase_dir`, `phase_number`, `has_research`, `has_context`.
@@ -927,7 +927,7 @@ Apply discovery level protocol (see discovery_levels section).
 
 **Step 1 — Generate digest index:**
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs history-digest
+node $GSD_HOME/bin/gsd-tools.cjs util:history-digest
 ```
 
 **Step 2 — Select relevant phases (typically 2-4):**
@@ -1045,7 +1045,7 @@ Include all frontmatter fields.
 Validate each created PLAN.md using gsd-tools:
 
 ```bash
-VALID=$(node $GSD_HOME/bin/gsd-tools.cjs frontmatter validate "$PLAN_PATH" --schema plan)
+VALID=$(node $GSD_HOME/bin/gsd-tools.cjs util:frontmatter validate "$PLAN_PATH" --schema plan)
 ```
 
 Returns JSON: `{ valid, missing, present, schema }`
@@ -1058,7 +1058,7 @@ Required plan frontmatter fields:
 Also validate plan structure:
 
 ```bash
-STRUCTURE=$(node $GSD_HOME/bin/gsd-tools.cjs verify plan-structure "$PLAN_PATH")
+STRUCTURE=$(node $GSD_HOME/bin/gsd-tools.cjs verify:verify plan-structure "$PLAN_PATH")
 ```
 
 Returns JSON: `{ valid, errors, warnings, task_count, tasks }`
@@ -1095,7 +1095,7 @@ Plans:
 
 <step name="git_commit">
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs commit "docs($PHASE): create phase plan" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
+node $GSD_HOME/bin/gsd-tools.cjs execute:commit "docs($PHASE): create phase plan" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
 ```
 </step>
 
