@@ -68,7 +68,25 @@ MERGE_METHOD="${MERGE_METHOD:-squash}"
 
 </step>
 
+<step name="setup_progress">
+Use TodoWrite to create high-level progress items at execution start:
+
+TodoWrite([
+  { id: "ci-push", title: "Push branch to remote", status: "in_progress" },
+  { id: "ci-pr", title: "Create pull request", status: "pending" },
+  { id: "ci-checks", title: "Wait for CI checks", status: "pending" },
+  { id: "ci-analyze", title: "Analyze check results", status: "pending" },
+  { id: "ci-fix", title: "Fix failures & repush", status: "pending" },
+  { id: "ci-merge", title: "Merge pull request", status: "pending" }
+])
+
+Update each item to "in_progress" when starting, "completed" when done.
+Skip items not needed (e.g., mark "ci-fix" as "completed" immediately if all checks pass).
+</step>
+
 <step name="push_branch">
+"Pushing branch to remote..."
+
 Create and push the branch:
 
 ```bash
@@ -102,6 +120,8 @@ Git push failed with authentication error.
 ### Awaiting
 User to complete authentication, then re-run.
 ```
+
+Mark `ci-push` as completed, `ci-pr` as in_progress.
 </step>
 
 <step name="create_pr">
@@ -142,9 +162,13 @@ If PR creation fails (e.g., no commits between branches), report and stop:
 ```
 Error: No commits between {BASE_BRANCH} and {BRANCH_NAME}. Nothing to review.
 ```
+
+Mark `ci-pr` as completed, `ci-checks` as in_progress.
 </step>
 
 <step name="wait_for_checks">
+"Waiting for checks ({passed}/{total} passed)..."
+
 Poll for check completion:
 
 ```bash
@@ -191,6 +215,8 @@ fi
 **If any checks fail:** Continue to `analyze_failures` step.
 
 **If timeout reached:** Return checkpoint:human-verify with current status.
+
+Mark `ci-checks` as completed, `ci-analyze` as in_progress.
 </step>
 
 <step name="analyze_failures">
@@ -231,6 +257,8 @@ gh api -X PATCH "repos/${REPO}/code-scanning/alerts/${ALERT_NUMBER}" \
 ```
 
 Valid dismiss reasons: `false positive`, `won't fix`, `used in tests`.
+
+Mark `ci-analyze` as completed, `ci-fix` as in_progress.
 </step>
 
 <step name="fix_and_repush">
@@ -307,9 +335,15 @@ Human review of remaining alerts. Options:
 2. Apply manual fixes and re-run
 3. Close PR without merging
 ```
+
+Mark `ci-fix` as completed.
 </step>
 
 <step name="auto_merge">
+"Merging PR..."
+
+Mark `ci-merge` as in_progress.
+
 When all checks pass (or all alerts fixed/dismissed):
 
 ```bash
@@ -364,6 +398,35 @@ git pull origin "$BASE_BRANCH"
 # Clean up local branch (remote already deleted by --delete-branch)
 git branch -d "$BRANCH_NAME" 2>/dev/null || true
 ```
+
+Mark `ci-merge` as completed.
+</step>
+
+<step name="update_state">
+**State ownership check:** Only update STATE.md when invoked directly (not spawned by parent workflow).
+
+If prompt contains `<spawned_by>` tag, skip state updates — return all decisions and session data in the CI COMPLETE structured output for the parent to record.
+
+If invoked directly (no `<spawned_by>` tag):
+
+```bash
+# Record decisions made during CI (auto-fixes, dismissals, escalations)
+for decision in "${DECISIONS[@]}"; do
+  node $GSD_HOME/bin/gsd-tools.cjs verify:state add-decision \
+    --phase "ci" --summary "${decision}"
+done
+
+# Update session info
+node $GSD_HOME/bin/gsd-tools.cjs verify:state record-session \
+  --stopped-at "CI: ${STATUS} — PR ${PR_URL}"
+```
+
+**What to record as decisions:**
+- Each auto-fix applied (Rule 1/2): "Auto-fixed {rule_id} in {file}: {brief description}"
+- Each false positive dismissed (Rule 3): "Dismissed {rule_id} in {file} as false positive: {reasoning}"
+- Each escalation (Rule 4): "Escalated {rule_id} in {file}: {why}"
+
+**Session info only** — no cumulative CI metrics (no run counters or success rates).
 </step>
 
 </execution_flow>
