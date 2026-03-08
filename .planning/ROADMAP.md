@@ -186,7 +186,7 @@ Full details: `.planning/milestones/v8.2-ROADMAP.md`
 
 - [x] **Phase 67: GitHub CI Agent Overhaul** - Bring GitHub CI agent to quality standard with structured returns, discovery, deviation rules, state tracking, and proper workflow gates (completed 2026-03-08)
 - [x] **Phase 68: Agent Consistency Audit** - Standardize project_context, PATH SETUP, and structured_returns blocks across all 10 agents (completed 2026-03-08)
-- [ ] **Phase 69: Skills Architecture** - Extract shared agent content into OpenCode skills, slim agent definitions, update deploy pipeline
+- [x] **Phase 69: Skills Architecture** - Extract shared agent content into OpenCode skills, slim agent definitions, update deploy pipeline (completed 2026-03-08)
 - [ ] **Phase 70: Test Debt Cleanup** - Fix all 31 pre-existing test failures across config-migrate, compact, codebase-impact, and codebase ast
 
 ## Phase Details
@@ -227,7 +227,7 @@ Plans:
   2. Agent definition files are measurably smaller (reduced line counts) because duplicated inline content has been replaced with skill load instructions
   3. Running `deploy.sh` copies skills/ directories alongside agents, commands, and workflows to the host editor config
   4. Skill descriptions are specific enough that agents load the right skills for their tasks — no false positives (loading unneeded skills) or false negatives (missing needed skills) observed during manual testing
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans complete
 Plans:
 - [ ] 69-01-PLAN.md — Pipeline infrastructure (build.cjs validation/index, deploy.sh routing, install.js routing)
 - [ ] 69-02-PLAN.md — Create 9 shared protocol skills (project-context, commit-protocol, checkpoint-protocol, etc.)
@@ -269,5 +269,5 @@ Phases execute in numeric order: 67 → 68 → 69 → 70
 | 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
 | 67. GitHub CI Agent Overhaul | 2/2 | Complete    | 2026-03-08 | - |
 | 68. Agent Consistency Audit | 2/2 | Complete    | 2026-03-08 | - |
-| 69. Skills Architecture | 4/5 | In Progress|  | - |
+| 69. Skills Architecture | 5/5 | Complete   | 2026-03-08 | - |
 | 70. Test Debt Cleanup | v8.3 | 0/TBD | Not started | - |
