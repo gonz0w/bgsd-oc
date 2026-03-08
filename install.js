@@ -16,6 +16,7 @@ const DEST = join(homedir(), ".config", "opencode", "get-shit-done")
 const CMD_DIR = join(homedir(), ".config", "opencode", "commands")
 const AGENT_DIR = join(homedir(), ".config", "opencode", "agents")
 const PLUGIN_DIR = join(homedir(), ".config", "opencode", "plugins")
+const SKILL_DIR = join(homedir(), ".config", "opencode", "skills")
 const SRC = __dirname
 const OC_SYMLINK = join(homedir(), ".config", "oc")
 const OPENCODE_DIR = join(homedir(), ".config", "opencode")
@@ -38,6 +39,7 @@ What gets installed:
   ~/.config/opencode/get-shit-done/    Core CLI, workflows, templates, references
   ~/.config/opencode/commands/bgsd-*   40 slash commands
   ~/.config/opencode/agents/gsd-*      9 specialized agents
+  ~/.config/opencode/skills/           Reusable skill modules for agents
   ~/.config/opencode/plugins/bgsd.js   Plugin hooks (session, env, compaction)
 
 Learn more: https://github.com/gonz0w/bgsd-oc
@@ -68,6 +70,16 @@ if (hasFlag("--uninstall")) {
     }
   }
 
+  // Remove skill directories
+  if (existsSync(SKILL_DIR)) {
+    for (const d of readdirSync(SKILL_DIR)) {
+      const skillPath = join(SKILL_DIR, d)
+      if (statSync(skillPath).isDirectory()) {
+        rmSync(skillPath, { recursive: true, force: true })
+      }
+    }
+  }
+
   // Remove plugin
   const pluginPath = join(PLUGIN_DIR, "bgsd.js")
   if (existsSync(pluginPath)) {
@@ -91,7 +103,7 @@ console.log(`  Dest:   ${DEST}`)
 console.log("")
 
 // Create directories
-for (const dir of [DEST, CMD_DIR, AGENT_DIR, PLUGIN_DIR]) {
+for (const dir of [DEST, CMD_DIR, AGENT_DIR, PLUGIN_DIR, SKILL_DIR]) {
   mkdirSync(dir, { recursive: true })
 }
 
@@ -132,6 +144,9 @@ function destForFile(file) {
   }
   if (/^agents\/gsd-.*\.md$/.test(file)) {
     return join(AGENT_DIR, basename(file))
+  }
+  if (/^skills\//.test(file)) {
+    return join(SKILL_DIR, file.replace(/^skills\//, ''))
   }
   return join(DEST, file)
 }
@@ -200,6 +215,7 @@ console.log("Substituting path placeholders...")
 substituteInDir(DEST)
 substituteInDir(CMD_DIR)
 substituteInDir(AGENT_DIR)
+substituteInDir(SKILL_DIR)
 console.log(`  Path placeholders resolved to: ${OPENCODE_CFG}`)
 
 // Smoke test
@@ -228,10 +244,20 @@ try {
   agentCount = readdirSync(AGENT_DIR).filter(f => f.startsWith("gsd-") && f.endsWith(".md")).length
 } catch { /* empty */ }
 
+let skillCount = 0
+try {
+  if (existsSync(SKILL_DIR)) {
+    for (const d of readdirSync(SKILL_DIR)) {
+      if (existsSync(join(SKILL_DIR, d, 'SKILL.md'))) skillCount++
+    }
+  }
+} catch { /* empty */ }
+
 console.log("")
 console.log(`  Sync: ${added} added, ${updated} updated`)
 console.log(`  Commands deployed: ${cmdCount}`)
 console.log(`  Agents deployed:   ${agentCount}`)
+console.log(`  Skills deployed:   ${skillCount}`)
 console.log("")
 console.log("Installed successfully.")
 console.log("Restart OpenCode to pick up the changes, then use /bgsd-help to get started.")

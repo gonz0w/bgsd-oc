@@ -44,6 +44,7 @@ fi
 
 # Step 3: Manifest-based file sync
 AGENT_DIR="$HOME/.config/opencode/agents"
+SKILL_DIR="$HOME/.config/opencode/skills"
 MANIFEST="$SRC/bin/manifest.json"
 OLD_MANIFEST="$DEST/bin/manifest.json"
 
@@ -58,11 +59,12 @@ dest_for_file() {
 	case "$file" in
 	commands/bgsd-*.md) echo "$CMD_DIR/$(basename "$file")" ;;
 	agents/gsd-*.md) echo "$AGENT_DIR/$(basename "$file")" ;;
+	skills/*) echo "$SKILL_DIR/${file#skills/}" ;;
 	*) echo "$DEST/$file" ;;
 	esac
 }
 
-mkdir -p "$CMD_DIR" "$AGENT_DIR"
+mkdir -p "$CMD_DIR" "$AGENT_DIR" "$SKILL_DIR"
 
 # Snapshot old manifest BEFORE copying (copy loop overwrites it)
 HAS_OLD_MANIFEST=false
@@ -130,6 +132,7 @@ echo "Substituting path placeholders..."
 find "$DEST" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$CMD_DIR" -name 'bgsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$AGENT_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$SKILL_DIR" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} + 2>/dev/null || true
 echo "  Path placeholders resolved to: $OPENCODE_CFG (symlink to ~/.config/opencode)"
 
 # Step 4: Smoke test deployed artifact
@@ -146,10 +149,31 @@ if [ -z "$SMOKE" ]; then
 fi
 echo "  ✅ Smoke test passed: $SMOKE"
 
+# Validate agent skill references
+echo "Validating skill references..."
+SKILL_ERRORS=0
+for agent in "$AGENT_DIR"/gsd-*.md; do
+	[ -f "$agent" ] || continue
+	REFS=$(grep -oP '<skill:([a-z0-9-]+)' "$agent" 2>/dev/null | sed 's/<skill://' | sort -u || true)
+	for ref in $REFS; do
+		if [ ! -f "$SKILL_DIR/$ref/SKILL.md" ]; then
+			echo "  ⚠ $(basename "$agent"): references missing skill '$ref'"
+			SKILL_ERRORS=$((SKILL_ERRORS + 1))
+		fi
+	done
+done
+if [ $SKILL_ERRORS -gt 0 ]; then
+	echo "  ⚠ $SKILL_ERRORS broken skill references (non-fatal warning)"
+else
+	echo "  ✅ All skill references valid"
+fi
+
 CMD_COUNT=$(find "$CMD_DIR" -maxdepth 1 -name 'bgsd-*.md' 2>/dev/null | wc -l)
 AGENT_COUNT=$(find "$AGENT_DIR" -maxdepth 1 -name 'gsd-*.md' 2>/dev/null | wc -l)
+SKILL_COUNT=$(find "$SKILL_DIR" -maxdepth 2 -name 'SKILL.md' 2>/dev/null | wc -l)
 echo "  Commands deployed: $CMD_COUNT"
 echo "  Agents deployed: $AGENT_COUNT"
+echo "  Skills deployed: $SKILL_COUNT"
 
 echo ""
 echo "Deployed successfully."
