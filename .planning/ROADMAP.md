@@ -213,7 +213,7 @@ Full details: `.planning/milestones/v8.2-ROADMAP.md`
   1. All 10 agent definition files contain a `<project_context>` discovery block (verifiable via grep across agents/gsd-*.md)
   2. All 10 agent definition files contain a PATH SETUP block for GSD_HOME resolution
   3. codebase-mapper agent has a `<structured_returns>` section matching the format patterns used by other agents
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 Plans:
 - [ ] 68-01-PLAN.md — Add PATH SETUP, project_context, structured_returns to codebase-mapper/verifier/executor
 - [ ] 68-02-PLAN.md — Add project_context to debugger, project-researcher, roadmapper + validate all 10
@@ -262,6 +262,6 @@ Phases execute in numeric order: 67 → 68 → 69 → 70
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
 | 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
 | 67. GitHub CI Agent Overhaul | 2/2 | Complete    | 2026-03-08 | - |
-| 68. Agent Consistency Audit | v8.3 | 0/TBD | Not started | - |
+| 68. Agent Consistency Audit | 1/2 | In Progress|  | - |
 | 69. Skills Architecture | v8.3 | 0/TBD | Not started | - |
 | 70. Test Debt Cleanup | v8.3 | 0/TBD | Not started | - |
