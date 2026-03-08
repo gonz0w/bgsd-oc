@@ -35,14 +35,6 @@ Every step produces structured documents in `.planning/` that agents read for co
 
 ## Quick Start
 
-### Install via npm
-
-```bash
-npx get-shit-done-oc
-```
-
-This installs all bGSD commands, agents, workflows, and the plugin into your OpenCode config directory (`~/.config/opencode/`).
-
 Then in OpenCode:
 
 ```
