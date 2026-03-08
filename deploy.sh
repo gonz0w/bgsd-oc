@@ -128,7 +128,7 @@ echo "  Sync: $ADDED added, $UPDATED updated, $REMOVED removed"
 OPENCODE_CFG="$HOME/.config/oc"
 echo "Substituting path placeholders..."
 find "$DEST" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
-find "$CMD_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$CMD_DIR" -name 'bgsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$AGENT_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 echo "  Path placeholders resolved to: $OPENCODE_CFG (symlink to ~/.config/opencode)"
 

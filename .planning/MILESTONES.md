@@ -22,6 +22,7 @@
 **Archives:**
 - `.planning/milestones/v8.2-ROADMAP.md`
 - `.planning/milestones/v8.2-REQUIREMENTS.md`
+- `.planning/milestones/v8.2-DOCS.md`
 
 ---
 
