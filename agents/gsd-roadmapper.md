@@ -325,6 +325,8 @@ Apply phase identification methodology: group by delivery boundaries, identify d
 
 For each phase, apply goal-backward: state goal → derive 2-5 observable truths → cross-check requirements → flag gaps.
 
+<skill:goal-backward />
+
 ## Step 6: Validate Coverage
 
 Verify 100% requirement mapping — every v1 requirement → exactly one phase. No orphans, no duplicates.
