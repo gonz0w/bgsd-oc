@@ -25,7 +25,7 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 ### Skills Architecture
 
 - [x] **SKIL-01**: OpenCode skills created from shared reference content (checkpoints, goal-backward, research patterns, commit protocol, deviation rules, state updates)
-- [ ] **SKIL-02**: Agent definitions slimmed by replacing duplicated inline content with skill load instructions
+- [x] **SKIL-02**: Agent definitions slimmed by replacing duplicated inline content with skill load instructions
 - [x] **SKIL-03**: deploy.sh updated to include skills/ directory in deployment manifest
 - [x] **SKIL-04**: Skill descriptions tuned for accurate agent loading (tested for false positive/negative load rates)
 
@@ -69,7 +69,7 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 | ACON-02 | Phase 68 | Complete | grep PATH.SETUP agents/gsd-codebase-mapper.md |
 | ACON-03 | Phase 68 | Complete | grep structured_returns agents/gsd-codebase-mapper.md |
 | SKIL-01 | Phase 69 | Complete | ls skills/gsd-*/SKILL.md |
-| SKIL-02 | Phase 69 | Pending | wc -l agents/gsd-*.md (reduced line counts) |
+| SKIL-02 | Phase 69 | Complete | wc -l agents/gsd-*.md (reduced line counts) |
 | SKIL-03 | Phase 69 | Complete | grep skills deploy.sh |
 | SKIL-04 | Phase 69 | Complete | grep description skills/gsd-*/SKILL.md |
 | TEST-01 | Phase 70 | Pending | npm test -- --grep config-migrate |
