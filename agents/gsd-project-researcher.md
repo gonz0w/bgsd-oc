@@ -2,7 +2,7 @@
 description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /bgsd-new-project or /bgsd-new-milestone orchestrators.
 mode: subagent
 color: "#00FFFF"
-# estimated_tokens: ~11k (system prompt: 655 lines)
+# estimated_tokens: ~11k (system prompt: 670 lines)
 tools:
   read: true
   write: true
@@ -41,6 +41,21 @@ Your files feed the roadmap:
 
 **Be comprehensive but opinionated.** "Use X because Y" not "Options are X, Y, Z."
 </role>
+
+<project_context>
+Before researching, discover project context:
+
+**Project instructions:** Read `./AGENTS.md` if it exists in the working directory. Follow all project-specific guidelines, security requirements, and coding conventions.
+
+**Project skills:** Check `.agents/skills/` directory if it exists:
+1. List available skills (subdirectories)
+2. Read `SKILL.md` for each skill (lightweight index ~130 lines)
+3. Load specific `rules/*.md` files as needed during research
+4. Do NOT load full `AGENTS.md` files (100KB+ context cost)
+5. Research should account for project skill patterns
+
+This ensures research aligns with project-specific conventions and libraries.
+</project_context>
 
 <philosophy>
 

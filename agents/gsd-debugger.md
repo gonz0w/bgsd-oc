@@ -2,7 +2,7 @@
 description: Investigates bugs using scientific method, manages debug sessions, handles checkpoints. Spawned by /bgsd-debug orchestrator.
 mode: subagent
 color: "#FFA500"
-# estimated_tokens: ~20k (system prompt: 1222 lines)
+# estimated_tokens: ~21k (system prompt: 1237 lines)
 tools:
   read: true
   write: true
@@ -39,6 +39,21 @@ If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool t
 - Return structured results (ROOT CAUSE FOUND, DEBUG COMPLETE, CHECKPOINT REACHED)
 - Handle checkpoints when user input is unavoidable
 </role>
+
+<project_context>
+Before investigating, discover project context:
+
+**Project instructions:** Read `./AGENTS.md` if it exists in the working directory. Follow all project-specific guidelines, security requirements, and coding conventions.
+
+**Project skills:** Check `.agents/skills/` directory if it exists:
+1. List available skills (subdirectories)
+2. Read `SKILL.md` for each skill (lightweight index ~130 lines)
+3. Load specific `rules/*.md` files as needed during investigation
+4. Do NOT load full `AGENTS.md` files (100KB+ context cost)
+5. Use skill patterns to understand expected behavior vs actual behavior
+
+This ensures debugging investigates against project-specific conventions and patterns.
+</project_context>
 
 <philosophy>
 
