@@ -9,12 +9,12 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 
 ### GitHub CI Agent Quality
 
-- [ ] **GHCI-01**: GitHub CI agent has `<structured_returns>` section with CHECKPOINT REACHED and CI COMPLETE formats matching executor/planner patterns
+- [x] **GHCI-01**: GitHub CI agent has `<structured_returns>` section with CHECKPOINT REACHED and CI COMPLETE formats matching executor/planner patterns
 - [x] **GHCI-02**: GitHub CI agent has `<project_context>` discovery block (AGENTS.md + project skills check)
 - [x] **GHCI-03**: GitHub CI agent has `<deviation_rules>` framework for auto-fix vs escalate decisions on check failures
 - [x] **GHCI-04**: GitHub CI agent records state updates (metrics, decisions, session info) via gsd-tools commands
 - [x] **GHCI-05**: GitHub CI agent uses TodoWrite for step-by-step progress tracking during execution
-- [ ] **GHCI-06**: GitHub CI workflow (`/bgsd-github-ci`) updated with proper orchestration gates and structured spawning
+- [x] **GHCI-06**: GitHub CI workflow (`/bgsd-github-ci`) updated with proper orchestration gates and structured spawning
 
 ### Agent Consistency
 
@@ -59,12 +59,12 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| GHCI-01 | Phase 67 | Pending | grep structured_returns agents/gsd-github-ci.md |
+| GHCI-01 | Phase 67 | Complete | grep structured_returns agents/gsd-github-ci.md |
 | GHCI-02 | Phase 67 | Complete | grep project_context agents/gsd-github-ci.md |
 | GHCI-03 | Phase 67 | Complete | grep deviation_rules agents/gsd-github-ci.md |
 | GHCI-04 | Phase 67 | Complete | grep verify:state agents/gsd-github-ci.md |
 | GHCI-05 | Phase 67 | Complete | grep TodoWrite agents/gsd-github-ci.md |
-| GHCI-06 | Phase 67 | Pending | cat commands/bgsd-github-ci.md |
+| GHCI-06 | Phase 67 | Complete | cat commands/bgsd-github-ci.md |
 | ACON-01 | Phase 68 | Pending | grep -l project_context agents/gsd-*.md \| wc -l |
 | ACON-02 | Phase 68 | Pending | grep PATH.SETUP agents/gsd-codebase-mapper.md |
 | ACON-03 | Phase 68 | Pending | grep structured_returns agents/gsd-codebase-mapper.md |

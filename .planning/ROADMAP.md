@@ -184,7 +184,7 @@ Full details: `.planning/milestones/v8.2-ROADMAP.md`
 
 **Milestone Goal:** Raise all agents to consistent quality standards, migrate shared agent metadata into OpenCode skills, and eliminate accumulated test debt.
 
-- [ ] **Phase 67: GitHub CI Agent Overhaul** - Bring GitHub CI agent to quality standard with structured returns, discovery, deviation rules, state tracking, and proper workflow gates
+- [x] **Phase 67: GitHub CI Agent Overhaul** - Bring GitHub CI agent to quality standard with structured returns, discovery, deviation rules, state tracking, and proper workflow gates (completed 2026-03-08)
 - [ ] **Phase 68: Agent Consistency Audit** - Standardize project_context, PATH SETUP, and structured_returns blocks across all 10 agents
 - [ ] **Phase 69: Skills Architecture** - Extract shared agent content into OpenCode skills, slim agent definitions, update deploy pipeline
 - [ ] **Phase 70: Test Debt Cleanup** - Fix all 31 pre-existing test failures across config-migrate, compact, codebase-impact, and codebase ast
@@ -201,7 +201,7 @@ Full details: `.planning/milestones/v8.2-ROADMAP.md`
   3. When a CI check fails, the agent applies deviation rules to auto-fix safe failures and escalate ambiguous ones to the user
   4. After each CI operation, STATE.md reflects updated metrics and decisions via gsd-tools commands
   5. The agent uses TodoWrite to track step-by-step progress visible in the host editor during execution
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
   - [ ] 67-01-PLAN.md — Add project_context, deviation_rules, state tracking, and TodoWrite to CI agent
   - [ ] 67-02-PLAN.md — Replace completion_format with structured_returns, update workflow with result parsing
 
@@ -258,7 +258,7 @@ Phases execute in numeric order: 67 → 68 → 69 → 70
 | 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
 | 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
-| 67. GitHub CI Agent Overhaul | 1/2 | In Progress|  | - |
+| 67. GitHub CI Agent Overhaul | 2/2 | Complete   | 2026-03-08 | - |
 | 68. Agent Consistency Audit | v8.3 | 0/TBD | Not started | - |
 | 69. Skills Architecture | v8.3 | 0/TBD | Not started | - |
 | 70. Test Debt Cleanup | v8.3 | 0/TBD | Not started | - |
