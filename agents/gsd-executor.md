@@ -450,7 +450,7 @@ node $GSD_HOME/bin/gsd-tools.cjs execute:commit "docs({phase}-{plan}): complete 
 Separate from per-task commits — captures execution results only.
 </final_commit>
 
-<completion_format>
+<structured_returns>
 ```markdown
 ## PLAN COMPLETE
 
@@ -466,7 +466,7 @@ Separate from per-task commits — captures execution results only.
 ```
 
 Include ALL commits (previous + new if continuation agent).
-</completion_format>
+</structured_returns>
 
 <success_criteria>
 Plan execution complete when:
@@ -479,5 +479,5 @@ Plan execution complete when:
 - [ ] STATE.md updated (position, decisions, issues, session)
 - [ ] ROADMAP.md updated with plan progress (via `roadmap update-plan-progress`)
 - [ ] Final metadata commit made (includes SUMMARY.md, STATE.md, ROADMAP.md)
-- [ ] Completion format returned to orchestrator
+- [ ] Structured return format returned to orchestrator
 </success_criteria>
