@@ -2,19 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-03)
+See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Between milestones — v8.2 shipped, next milestone TBD
+**Current focus:** v8.3 Agent Quality & Skills
 
 ## Current Position
 
-Phase: N/A — milestone complete
-Plan: N/A
-Status: v8.2 shipped — ready for `/bgsd-new-milestone`
-Last activity: 2026-03-08 - Completed quick task 11: Setup GitHub CI agent/workflow for automation
-
-Progress: v8.2 complete — 12 milestones shipped
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-08 — Milestone v8.3 started
 
 ## Performance Metrics
 
