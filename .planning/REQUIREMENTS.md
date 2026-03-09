@@ -44,8 +44,8 @@ Requirements for v9.0 Embedded Plugin Experience milestone. Each maps to roadmap
 ### Event-Driven State Sync
 
 - [ ] **EVNT-01**: Session idle handler auto-validates STATE.md consistency (debounced, 5s minimum cooldown)
-- [ ] **EVNT-02**: File watcher invalidates in-memory state cache when `.planning/` files change
-- [ ] **EVNT-03**: Toast notifications fire on phase completion events
+- [x] **EVNT-02**: File watcher invalidates in-memory state cache when `.planning/` files change
+- [x] **EVNT-03**: Toast notifications fire on phase completion events
 - [ ] **EVNT-04**: Toast notifications fire on stuck/loop detection (3+ repeated failures)
 
 ### Advisory Guardrails
@@ -101,8 +101,8 @@ Requirements for v9.0 Embedded Plugin Experience milestone. Each maps to roadmap
 | TOOL-05 | Phase 74 | Complete | bgsd_validate tool callable by LLM |
 | TOOL-06 | Phase 74 | Complete | all tools have Zod schemas |
 | EVNT-01 | Phase 75 | Pending | session idle triggers validation |
-| EVNT-02 | Phase 75 | Pending | file change invalidates cache |
-| EVNT-03 | Phase 75 | Pending | toast on phase complete |
+| EVNT-02 | Phase 75 | Complete | file change invalidates cache |
+| EVNT-03 | Phase 75 | Complete | toast on phase complete |
 | EVNT-04 | Phase 75 | Pending | toast on stuck detection |
 | GARD-01 | Phase 76 | Pending | convention warning after file write |
 | GARD-02 | Phase 76 | Pending | plan file protection warning |

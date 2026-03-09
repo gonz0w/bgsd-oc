@@ -274,7 +274,7 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
   3. When a phase is completed, a toast notification appears in the editor
   4. When stuck/loop detection fires (3+ repeated failures), a toast notification alerts the user
 **Plans:**
-  0/2 plans
+  1/2 plans executed
   - Plan 01 (Wave 1): Notification system + file watcher + config defaults [EVNT-02, EVNT-03]
   - Plan 02 (Wave 2): Idle validator + stuck detector + plugin wiring + build validation [EVNT-01, EVNT-02, EVNT-03, EVNT-04]
 

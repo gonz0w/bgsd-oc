@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 ## Current Position
 
-**Phase:** 74 — Custom LLM Tools
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 75 — Event-Driven State Sync
+**Current Plan:** Plan 01 complete (1 of 2)
+**Status:** In progress
 **Last Activity:** 2026-03-09
 
-**Progress:** [██████████] 100%
+**Progress:** [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 | Phase 73 P03 | 11 min | 2 tasks | 21 files |
 | Phase 74 P01 | 10 min | 2 tasks | 6 files |
 | Phase 74 P02 | 16 min | 3 tasks | 7 files |
+| Phase 75 P01 | 11 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ All v1.0-v8.3 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 73]: All 19 workflows migrated from init:* subprocess calls to plugin-injected <bgsd-context> — plugin is mandatory for v9.0, no fallback — Completing the transition from subprocess-based to plugin-based context injection makes init:* calls obsolete
 - [Phase 74]: Three read-only LLM tools (bgsd_status, bgsd_plan, bgsd_context) with Zod schemas, tool barrel registration, JSON.stringify returns — Zod v4 bundled into plugin.js (39KB→548KB), CONTEXT.md anticipated size growth
 - [Phase 74]: bgsd_validate (read-only validation) and bgsd_progress (state mutation with file locking) complete 5-tool surface area — safeHook fixed to pass through return values for tool execute()
+- [Phase 75]: Notification system uses dual-channel routing (OS for critical/warning, context injection for all) with sliding-window rate limiting, deduplication, DND mode, and ring buffer history
+- [Phase 75]: File watcher uses native fs.watch with recursive option and AbortController — self-write tracking prevents feedback loops between auto-fix and cache invalidation
+- [Phase 75]: Config parser extended with NESTED_OBJECT_KEYS shallow merge — user overrides individual sub-keys while preserving other defaults
 
 ### Pending Todos
 
@@ -83,6 +87,6 @@ None — milestone starting fresh.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T14:40:27.032Z
-**Stopped at:** Phase 75 context gathered
-**Next step:** Phase 74 complete — run `/bgsd-verify-work 74` or `/bgsd-plan-phase` for next phase
+**Last session:** 2026-03-09T15:07:23Z
+**Stopped at:** Completed 75-01-PLAN.md
+**Next step:** Execute 75-02-PLAN.md (idle validator, stuck detector, plugin wiring, build validation)
