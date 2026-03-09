@@ -1,227 +1,79 @@
-# Roadmap: GSD Plugin Performance & Quality Improvement
+# Roadmap: bGSD Plugin v9.1 Performance Acceleration & Plugin Benchmarking
+
+## Overview
+
+This milestone delivers dependency-driven performance acceleration for the plugin and CLI by modernizing validation, speeding file discovery, improving startup/cache runtime paths, and shipping rollback-safe controls that preserve existing behavior.
 
 ## Milestones
 
-- ✅ **v1.0 Performance & Quality** — Phases 1-5 (shipped 2026-02-22)
-- ✅ **v1.1 Context Reduction & Tech Debt** — Phases 6-9 (shipped 2026-02-22)
-- ✅ **v2.0 Quality & Intelligence** — Phases 10-13 (shipped 2026-02-24)
-- ✅ **v3.0 Intent Engineering** — Phases 14-17 (shipped 2026-02-25)
-- ✅ **v4.0 Environment & Execution Intelligence** — Phases 18-22 (shipped 2026-02-25)
-- ✅ **v5.0 Codebase Intelligence** — Phases 23-29 (shipped 2026-02-26)
-- ✅ **v6.0 UX & Developer Experience** — Phases 30-36 (shipped 2026-02-27)
-- ✅ **v7.0 Agent Orchestration & Efficiency** — Phases 37-44 (shipped 2026-02-27)
-- ✅ **v7.1 Trajectory Engineering** — Phases 45-50 (shipped 2026-03-02)
-- ✅ **v8.0 Performance & Agent Architecture** — Phases 51-55 (shipped 2026-03-03)
-- ✅ **v8.1 RAG-Powered Research Pipeline** — Phases 56-60 (shipped 2026-03-03)
-- ✅ **v8.2 Cleanup, Performance & Validation** — Phases 61-66 (shipped 2026-03-07)
-- ✅ **v8.3 Agent Quality & Skills** — Phases 67-70 (shipped 2026-03-09)
-- ✅ **v9.0 Embedded Plugin Experience** — Phases 71-76 (shipped 2026-03-09)
+- 🚧 **v9.1 Performance Acceleration & Plugin Benchmarking** - Phases 77-81 (in progress)
+- ✅ Previous milestones shipped - see `.planning/MILESTONES.md`
 
 ## Phases
 
-<details>
-<summary>✅ v1.0 Performance & Quality (Phases 1-5) — SHIPPED 2026-02-22</summary>
+- [ ] **Phase 77: Validation Engine Modernization** - Replace hot-path validator internals with lower-overhead execution while preserving contracts.
+- [ ] **Phase 78: File Discovery and Ignore Optimization** - Speed high-fanout scans and remove ignore subprocess overhead with parity guarantees.
+- [ ] **Phase 79: Startup Compile-Cache Acceleration** - Improve repeated CLI startup through guarded compile-cache enablement and fallback behavior.
+- [ ] **Phase 80: SQLite Statement Cache Acceleration** - Reduce cache-layer tail latency through statement reuse with runtime-safe fallback.
+- [ ] **Phase 81: Safe Adoption Controls and Regression Parity** - Provide independent optimization toggles and enforce backward-compatible core flows.
 
-- [x] Phase 1: Foundation & Safety Nets (4/4 plans) — completed 2026-02-22
-- [x] Phase 2: Error Handling & Hardening (2/2 plans) — completed 2026-02-22
-- [x] Phase 3: Developer Experience & Discoverability (3/3 plans) — completed 2026-02-22
-- [x] Phase 4: Build System & Module Split (3/3 plans) — completed 2026-02-22
-- [x] Phase 5: Performance & Polish (2/2 plans) — completed 2026-02-22
+## Phase Details
 
-Full details: `.planning/milestones/v1.0-ROADMAP.md`
+### Phase 77: Validation Engine Modernization
+**Goal**: Users run plugin tools with lower validation overhead while seeing the same outputs and fallback safety.
+**Depends on**: Phase 76 (completed)
+**Requirements**: VALD-01, VALD-02, VALD-03
+**Success Criteria** (what must be TRUE):
+  1. User can run plugin tools and observe lower validation-related latency on hot paths.
+  2. User sees unchanged command behavior and output contracts after the validator engine migration.
+  3. Maintainer can switch to a legacy validation path when compatibility issues are detected.
+**Plans**: TBD
 
-</details>
+### Phase 78: File Discovery and Ignore Optimization
+**Goal**: File-heavy workflows complete faster while preserving exact legacy file-selection behavior.
+**Depends on**: Phase 77
+**Requirements**: SCAN-01, SCAN-02, SCAN-03
+**Success Criteria** (what must be TRUE):
+  1. User can run file-heavy commands and observe faster end-to-end discovery in large repositories.
+  2. User can execute scan flows without repeated `git check-ignore` subprocess overhead.
+  3. Maintainer can confirm optimized scan outputs match legacy file-selection parity.
+**Plans**: TBD
 
-<details>
-<summary>✅ v1.1 Context Reduction & Tech Debt (Phases 6-9) — SHIPPED 2026-02-22</summary>
+### Phase 79: Startup Compile-Cache Acceleration
+**Goal**: Repeated CLI invocations start faster through guarded compile-cache usage without runtime breakage.
+**Depends on**: Phase 78
+**Requirements**: RUNT-01, RUNT-03
+**Success Criteria** (what must be TRUE):
+  1. User can run repeated CLI commands and observe faster warm-start startup behavior.
+  2. Maintainer can enable or disable compile-cache acceleration via explicit config or environment guard.
+  3. User on unsupported runtimes sees current behavior preserved through automatic fallback.
+**Plans**: TBD
 
-- [x] Phase 6: Token Measurement & Output Infrastructure (3/3 plans) — completed 2026-02-22
-- [x] Phase 7: Init Command Compaction (3/3 plans) — completed 2026-02-22
-- [x] Phase 8: Workflow & Reference Compression (3/3 plans) — completed 2026-02-22
-- [x] Phase 9: Tech Debt Cleanup (1/1 plans) — completed 2026-02-22
+### Phase 80: SQLite Statement Cache Acceleration
+**Goal**: Cache-heavy command paths show lower tail latency through SQLite statement caching with compatibility fallback.
+**Depends on**: Phase 79
+**Requirements**: RUNT-02
+**Success Criteria** (what must be TRUE):
+  1. User can run cache-heavy flows and observe reduced high-percentile latency.
+  2. Maintainer can verify statement caching can be bypassed safely when runtime support is unavailable.
+**Plans**: TBD
 
-Full details: `.planning/milestones/v1.1-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v2.0 Quality & Intelligence (Phases 10-13) — SHIPPED 2026-02-24</summary>
-
-- [x] Phase 10: State Intelligence (2/2 plans) — completed 2026-02-22
-- [x] Phase 11: Session Continuity (3/3 plans) — completed 2026-02-24
-- [x] Phase 12: Quality Gates (4/4 plans) — completed 2026-02-24
-- [x] Phase 13: Test Infrastructure & Polish (4/4 plans) — completed 2026-02-24
-
-Full details: `.planning/milestones/v2.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v3.0 Intent Engineering (Phases 14-17) — SHIPPED 2026-02-25</summary>
-
-- [x] Phase 14: Intent Capture Foundation (3/3 plans) — completed 2026-02-25
-- [x] Phase 15: Intent Tracing & Validation (2/2 plans) — completed 2026-02-25
-- [x] Phase 16: Workflow Integration & Self-Application (3/3 plans) — completed 2026-02-25
-- [x] Phase 17: Intent Enhancement (2/2 plans) — completed 2026-02-25
-
-Full details: `.planning/milestones/v3.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v4.0 Environment & Execution Intelligence (Phases 18-22) — SHIPPED 2026-02-25</summary>
-
-- [x] Phase 18: Environment Awareness (3/3 plans) — completed 2026-02-25
-- [x] Phase 19: MCP Server Profiling (3/3 plans) — completed 2026-02-25
-- [x] Phase 20: Structured Requirements (3/3 plans) — completed 2026-02-25
-- [x] Phase 21: Worktree Parallelism (3/3 plans) — completed 2026-02-25
-- [x] Phase 22: Workflow Polish (1/1 plans) — completed 2026-02-25
-
-Full details: `.planning/milestones/v4.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v5.0 Codebase Intelligence (Phases 23-29) — SHIPPED 2026-02-26</summary>
-
-- [x] Phase 23: Infrastructure & Storage (2/2 plans) — completed 2026-02-26
-- [x] Phase 24: Convention Extraction (2/2 plans) — completed 2026-02-26
-- [x] Phase 25: Dependency Graph (2/2 plans) — completed 2026-02-26
-- [x] Phase 26: Init Integration & Context Summary (2/2 plans) — completed 2026-02-26
-- [x] Phase 27: Task-Scoped Context (2/2 plans) — completed 2026-02-26
-- [x] Phase 28: Lifecycle Analysis (2/2 plans) — completed 2026-02-26
-- [x] Phase 29: Workflow Integration (2/2 plans) — completed 2026-02-26
-
-Full details: `.planning/milestones/v5.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v6.0 UX & Developer Experience (Phases 30-36) — SHIPPED 2026-02-27</summary>
-
-- [x] Phase 30: Formatting Foundation & Smart Output (2/2 plans) — completed 2026-02-26
-- [x] Phase 31: Quality Gates & Format Testing (2/2 plans) — completed 2026-02-27
-- [x] Phase 32: Init & State Command Renderers (1/1 plans) — completed 2026-02-27
-- [x] Phase 33: Verify & Codebase Command Renderers (1/1 plans) — completed 2026-02-27
-- [x] Phase 34: Feature & Intent Command Renderers (1/1 plans) — completed 2026-02-27
-- [x] Phase 35: Workflow Output Tightening (2/2 plans) — completed 2026-02-27
-- [x] Phase 36: Integration & Polish (2/2 plans) — completed 2026-02-27
-
-Full details: `.planning/milestones/v6.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v7.0 Agent Orchestration & Efficiency (Phases 37-44) — SHIPPED 2026-02-27</summary>
-
-- [x] Phase 37: Foundation & Safety Net (2/2 plans) — completed 2026-02-27
-- [x] Phase 38: AST Intelligence & Repo Map (2/2 plans) — completed 2026-02-27
-- [x] Phase 39: Orchestration Intelligence (1/1 plans) — completed 2026-02-27
-- [x] Phase 40: Context Efficiency (2/2 plans) — completed 2026-02-27
-- [x] Phase 41: Agent Quality Gates (2/2 plans) — completed 2026-02-27
-- [x] Phase 42: Integration & Validation (3/3 plans) — completed 2026-02-27
-- [x] Phase 43: TDD Execution Engine (2/2 plans) — completed 2026-02-27
-- [x] Phase 44: Review Gate Hardening (1/1 plans) — completed 2026-02-27
-
-Full details: `.planning/milestones/v7.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v7.1 Trajectory Engineering (Phases 45-50) — SHIPPED 2026-03-02</summary>
-
-- [x] Phase 45: Foundation — Decision Journal & State Coherence (2/2 plans) — completed 2026-02-28
-- [x] Phase 46: Checkpoint — Snapshot & Metrics Collection (2/2 plans) — completed 2026-02-28
-- [x] Phase 47: Pivot — Selective Rewind & Attempt Archival (2/2 plans) — completed 2026-03-01
-- [x] Phase 48: Compare — Multi-Attempt Metrics Aggregation (2/2 plans) — completed 2026-03-01
-- [x] Phase 49: Choose — Merge Winner & Cleanup (2/2 plans) — completed 2026-03-01
-- [x] Phase 50: Integration — Agent Context & Dead-End Detection (2/2 plans) — completed 2026-03-02
-
-Full details: `.planning/milestones/v7.1-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v8.0 Performance & Agent Architecture (Phases 51-55) — SHIPPED 2026-03-03</summary>
-
-- [x] Phase 51: Cache Foundation (3/3 plans) — completed 2026-03-02
-- [x] Phase 52: Cache Integration & Warm-up (2/2 plans) — completed 2026-03-02
-- [x] Phase 53: Agent Consolidation (3/3 plans) — completed 2026-03-02
-- [x] Phase 54: Command Consolidation (4/4 plans) — completed 2026-03-02
-- [x] Phase 55: Profiler & Performance Validation (2/2 plans) — completed 2026-03-02
-
-Full details: `.planning/milestones/v8.0-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v8.1 RAG-Powered Research Pipeline (Phases 56-60) — SHIPPED 2026-03-03</summary>
-
-- [x] Phase 56: foundation-and-config (2/2 plans) — completed 2026-03-03
-- [x] Phase 57: youtube-integration (2/2 plans) — completed 2026-03-03
-- [x] Phase 58: research-orchestration (2/2 plans) — completed 2026-03-03
-- [x] Phase 59: notebooklm-integration (2/2 plans) — completed 2026-03-03
-- [x] Phase 60: testing-caching-polish (2/2 plans) — completed 2026-03-03
-
-Full details: `.planning/milestones/v8.1-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v8.2 Cleanup, Performance & Validation (Phases 61-66) — SHIPPED 2026-03-07</summary>
-
-- [x] Phase 61: Tooling & Safety Net (2/2 plans) — completed 2026-03-07
-- [x] Phase 62: Audit & Discovery (2/2 plans) — completed 2026-03-07
-- [x] Phase 63: Dead Code Removal (3/3 plans) — completed 2026-03-07
-- [x] Phase 64: Command & Workflow Cleanup (2/2 plans) — completed 2026-03-07
-- [x] Phase 65: Performance Tuning (2/2 plans) — completed 2026-03-07
-- [x] Phase 66: Agent Architecture Refinement (3/3 plans) — completed 2026-03-07
-
-Full details: `.planning/milestones/v8.2-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v8.3 Agent Quality & Skills (Phases 67-70) — SHIPPED 2026-03-09</summary>
-
-- [x] Phase 67: GitHub CI Agent Overhaul (2/2 plans) — completed 2026-03-08
-- [x] Phase 68: Agent Consistency Audit (2/2 plans) — completed 2026-03-08
-- [x] Phase 69: Skills Architecture (5/5 plans) — completed 2026-03-08
-- [x] Phase 70: Test Debt Cleanup (2/2 plans) — completed 2026-03-09
-
-Full details: `.planning/milestones/v8.3-ROADMAP.md`
-
-</details>
-
-<details>
-<summary>✅ v9.0 Embedded Plugin Experience (Phases 71-76) — SHIPPED 2026-03-09</summary>
-
-- [x] Phase 71: Plugin Architecture & Safety (2/2 plans) — completed 2026-03-09
-- [x] Phase 72: Rebrand (4/4 plans) — completed 2026-03-09
-- [x] Phase 73: Context Injection (3/3 plans) — completed 2026-03-09
-- [x] Phase 74: Custom LLM Tools (2/2 plans) — completed 2026-03-09
-- [x] Phase 75: Event-Driven State Sync (2/2 plans) — completed 2026-03-09
-- [x] Phase 76: Advisory Guardrails (2/2 plans) — completed 2026-03-09
-
-Full details: `.planning/milestones/v9.0-ROADMAP.md`
-
-</details>
+### Phase 81: Safe Adoption Controls and Regression Parity
+**Goal**: Dependency-backed optimizations are independently controllable and remain backward compatible in core planning workflows.
+**Depends on**: Phase 80
+**Requirements**: SAFE-01, SAFE-02, SAFE-03
+**Success Criteria** (what must be TRUE):
+  1. Maintainer can toggle each dependency-backed optimization independently using explicit flags.
+  2. User can continue using existing `.planning/` artifacts with no compatibility break after migrations.
+  3. Maintainer can run parity checks and validate no functional regressions in core flows.
+**Plans**: TBD
 
 ## Progress
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1-5 | v1.0 | 14/14 | Complete | 2026-02-22 |
-| 6-9 | v1.1 | 10/10 | Complete | 2026-02-22 |
-| 10-13 | v2.0 | 13/13 | Complete | 2026-02-24 |
-| 14-17 | v3.0 | 10/10 | Complete | 2026-02-25 |
-| 18-22 | v4.0 | 13/13 | Complete | 2026-02-25 |
-| 23-29 | v5.0 | 14/14 | Complete | 2026-02-26 |
-| 30-36 | v6.0 | 11/11 | Complete | 2026-02-27 |
-| 37-44 | v7.0 | 15/15 | Complete | 2026-02-27 |
-| 45-50 | v7.1 | 12/12 | Complete | 2026-03-02 |
-| 51-55 | v8.0 | 14/14 | Complete | 2026-03-03 |
-| 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
-| 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
-| 67-70 | v8.3 | 11/11 | Complete | 2026-03-09 |
-| 71-76 | v9.0 | 15/15 | Complete | 2026-03-09 |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 77. Validation Engine Modernization | 0/TBD | Not started | - |
+| 78. File Discovery and Ignore Optimization | 0/TBD | Not started | - |
+| 79. Startup Compile-Cache Acceleration | 0/TBD | Not started | - |
+| 80. SQLite Statement Cache Acceleration | 0/TBD | Not started | - |
+| 81. Safe Adoption Controls and Regression Parity | 0/TBD | Not started | - |

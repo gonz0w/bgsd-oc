@@ -50,24 +50,24 @@ Requirements for v9.1 Performance Acceleration & Plugin Benchmarking milestone (
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| VALD-01 | Phase TBD | Pending | npm test |
-| VALD-02 | Phase TBD | Pending | npm test |
-| VALD-03 | Phase TBD | Pending | npm test |
-| SCAN-01 | Phase TBD | Pending | npm test |
-| SCAN-02 | Phase TBD | Pending | npm test |
-| SCAN-03 | Phase TBD | Pending | npm test |
-| RUNT-01 | Phase TBD | Pending | npm test |
-| RUNT-02 | Phase TBD | Pending | npm test |
-| RUNT-03 | Phase TBD | Pending | npm test |
-| SAFE-01 | Phase TBD | Pending | npm test |
-| SAFE-02 | Phase TBD | Pending | npm test |
-| SAFE-03 | Phase TBD | Pending | npm test |
+| VALD-01 | Phase 77 | Pending | npm test |
+| VALD-02 | Phase 77 | Pending | npm test |
+| VALD-03 | Phase 77 | Pending | npm test |
+| SCAN-01 | Phase 78 | Pending | npm test |
+| SCAN-02 | Phase 78 | Pending | npm test |
+| SCAN-03 | Phase 78 | Pending | npm test |
+| RUNT-01 | Phase 79 | Pending | npm test |
+| RUNT-02 | Phase 80 | Pending | npm test |
+| RUNT-03 | Phase 79 | Pending | npm test |
+| SAFE-01 | Phase 81 | Pending | npm test |
+| SAFE-02 | Phase 81 | Pending | npm test |
+| SAFE-03 | Phase 81 | Pending | npm test |
 
 **Coverage:**
 - v9.1 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap phase mapping*
