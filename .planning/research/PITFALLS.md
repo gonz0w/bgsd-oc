@@ -1,300 +1,96 @@
-# Domain Pitfalls: v9.1 Performance Acceleration (Plugin + CLI Integration)
-
-**Domain:** Aggressive performance optimization for an already-optimized OpenCode plugin and `bgsd-tools` CLI integration
-**Researched:** 2026-03-09
-**Confidence:** HIGH overall (Node.js API docs, OpenCode plugin/custom-tools docs, VS Code extension performance guidance, Hyperfine benchmarking docs)
-
-## What Fails Most Often (and Hurts the Most)
-
-These are the highest-risk mistakes teams make when "going fast" on plugin performance work.
-
-| # | Pitfall | Why it is high-risk | Severity | Confidence |
-|---|---|---|---|---|
-| 1 | Optimizing without stable baseline/SLOs | Teams ship "faster" changes that regress real workflows | CRITICAL | HIGH |
-| 2 | Measuring only warm-path or only microbenchmarks | Improvements do not translate to real user latency | CRITICAL | HIGH |
-| 3 | Blocking the plugin event loop with sync I/O / sync subprocesses | UI/session responsiveness degrades under load | CRITICAL | HIGH |
-| 4 | Over-instrumentation in hot paths | Profiling overhead becomes the bottleneck itself | HIGH | HIGH |
-| 5 | Cache invalidation bugs in multi-layer caches (Map + SQLite + file cache) | Fast-but-wrong state creates silent correctness regressions | CRITICAL | MEDIUM-HIGH |
-| 6 | Aggressive lazy loading on hot paths | Reduced startup cost but worse p95/p99 first-use latency | HIGH | HIGH |
-| 7 | Hook fan-out and event storms (`session.idle`, file watchers) | Repeated work multiplies CPU/I/O cost unexpectedly | HIGH | HIGH |
-| 8 | Tool name collisions or expensive tool wrappers | Core tools are shadowed or slowed in every call | HIGH | HIGH |
-| 9 | Plugin interaction assumptions (hook ordering, shared mutable output) | Cross-plugin behavior becomes nondeterministic | HIGH | HIGH |
-| 10 | No performance regression gates in CI | Drift accumulates and gains disappear within 1-2 phases | CRITICAL | HIGH |
-
----
-
-## Critical Pitfalls (Must Plan Explicitly)
-
-### 1) No Baseline Contract Before Optimization
-
-**What goes wrong**
-- Work starts with "let's make it faster" but no fixed scenario set, no p50/p95/p99 targets, and no acceptance thresholds.
-
-**Why it happens**
-- Existing performance work in prior milestones creates overconfidence; teams skip measurement discipline.
-
-**Consequences**
-- Local wins, user-perceived regressions, and constant re-tuning loops.
-
-**Prevention (concrete)**
-- Define 5-10 canonical workloads (cold start, warm start, common commands, long session idle/resume, compaction).
-- Track **wall time + event-loop delay + command counts + cache hit ratio** per workload.
-- Set explicit budgets (example): `startup <= X ms`, `hot command p95 <= Y ms`, `event loop p99 delay <= Z ms`.
-
-**Detection signals**
-- PR says "faster" but has no before/after table.
-- Bench numbers are single-run, no variance (`stddev` missing).
-- Different engineers report contradictory results on same change.
-
-**Address in phase planning**
-- **Phase 1 (Benchmark Harness + SLOs):** mandatory gate before any optimization phase.
-
----
-
-### 2) Benchmarking Artifacts: Warm-only, Micro-only, or Non-reproducible Runs
-
-**What goes wrong**
-- Benchmarks measure idealized loops, not real plugin/CLI end-to-end paths.
-
-**Why it happens**
-- Microbench tools are easy to run; end-to-end harnesses are harder to keep deterministic.
-
-**Consequences**
-- "Win" in isolated function tests, loss in actual command latency.
-
-**Prevention (concrete)**
-- Use two lanes:
-  - **Macro/E2E:** representative workflow timing.
-  - **Micro:** only for hotspot diagnosis.
-- For CLI timing, use warmup + prepare controls (Hyperfine):
-  - warmup runs for steady-state
-  - prepare/reset steps for cold-state comparability
-- Report distribution (mean + sigma + min/max), not only fastest run.
-
-**Detection signals**
-- Huge improvement in microbench, no measurable E2E change.
-- Re-running same benchmark flips winner.
-- Only one cache state (always warm or always cold) appears in reports.
-
-**Address in phase planning**
-- **Phase 1:** benchmark methodology + fixtures.
-- **Phase 2:** hotspot exploration only after macro regressions are proven.
-
----
-
-### 3) Sync APIs in Plugin Hooks (Event Loop Blocking)
-
-**What goes wrong**
-- `readFileSync`, `execSync`, `execFileSync`, or heavy sync crypto/parsing in hooks causes pauses during assistant/tool flow.
-
-**Why it happens**
-- CLI patterns are copied into long-lived plugin runtime where blocking hurts interactivity.
-
-**Consequences**
-- Stutters, delayed responses, "frozen" feel after tool calls.
-
-**Prevention (concrete)**
-- Enforce async-only rule in plugin hot paths.
-- Put expensive work behind debounce, queue, or worker boundaries.
-- Add event-loop delay monitoring (`monitorEventLoopDelay`) in benchmark mode.
-
-**Detection signals**
-- Spikes in event-loop delay histogram during plugin events.
-- `session.idle` or tool hooks correlate with latency cliffs.
-- User reports "response done, then pause" behavior.
-
-**Address in phase planning**
-- **Phase 2 (Latency Attribution):** identify blocking call sites.
-- **Phase 3 (Optimization Implementation):** mandatory async migration for critical paths.
-
----
-
-### 4) Cache Correctness Regressions from Multi-Layer Caching
-
-**What goes wrong**
-- L1/L2 caches return stale data due to invalidation misses, key collisions, or scope mistakes.
-
-**Why it happens**
-- Performance work focuses on hit rate, not semantic correctness and invalidation guarantees.
-
-**Consequences**
-- Fast responses with wrong state; hardest class of bug to detect early.
-
-**Prevention (concrete)**
-- Define cache key contract: include scope (`cwd/worktree/phase/plan/version`) explicitly.
-- Add bounded TTL + explicit invalidation on known writes.
-- Build invariants tests: "same input+state => same output", "state mutation invalidates affected keys only".
-- Track stale-read counters in profiling runs.
-
-**Detection signals**
-- Inconsistent outputs between raw mode and cached mode.
-- "Fix only appears after restart" or "second run differs from first" reports.
-- Sudden hit-rate jump with unexplained correctness bugs.
-
-**Address in phase planning**
-- **Phase 3:** cache changes implemented with invariant tests.
-- **Phase 4 (Regression Safeguards):** correctness checks before speed checks pass.
-
----
-
-### 5) Missing Performance Gates in CI/Verification
-
-**What goes wrong**
-- Gains are real once, then slowly erased by unrelated work.
-
-**Why it happens**
-- Functional tests exist, but no performance budgets as merge gates.
-
-**Consequences**
-- Repeated "re-optimization" milestones and unstable user experience.
-
-**Prevention (concrete)**
-- Add benchmark smoke suite in CI on stable hardware profile (or controlled runner class).
-- Gate on regression thresholds (example): `>10% p95 regression blocks`, `5-10% warns`.
-- Store rolling baseline artifacts (JSON/CSV) per branch and compare in PR.
-
-**Detection signals**
-- Performance regressions found weeks later by users.
-- No trend line available for milestone comparisons.
-
-**Address in phase planning**
-- **Phase 4:** CI perf gates, reporting dashboards, and rollback criteria.
-
----
-
-## High-Risk Pitfalls (Usually Missed Until Late)
-
-### 6) Over-Instrumentation in Hot Paths
-
-**What goes wrong:** too many timers/logs per call inflate runtime and I/O.
-
-**Prevention**
-- Sample (1:N) in production-like runs.
-- Keep fine-grained tracing behind feature flags.
-- Prefer aggregate counters for default path.
-
-**Detection signals**
-- Turning on profiler changes behavior more than code changes.
-- CPU profile dominated by metrics/logging code.
-
-**Phase placement**
-- **Phase 2:** design instrumentation budget and sampling policy.
-
----
-
-### 7) Startup-Only Wins, First-Use Regressions (Lazy Loading Misapplied)
-
-**What goes wrong:** startup improves, but first command after startup is much slower.
-
-**Prevention**
-- Benchmark both `startup` and `first-hot-command` latency.
-- Preload only critical small modules; lazy-load heavy optional paths.
-- Use trigger-aware prefetch after `onStartupFinished`-style windows.
-
-**Detection signals**
-- "App opens faster, first action feels worse" feedback.
-- p95 first-use latency climbs while startup metric improves.
-
-**Phase placement**
-- **Phase 3:** apply with dual-metric acceptance (`startup` + `first-use`).
-
----
-
-### 8) Event Storms from Hooks/Watchers
-
-**What goes wrong:** one user action causes multiple hook executions and repeated expensive operations.
-
-**Prevention**
-- Coalesce events by key + time window.
-- Add idempotency tokens and cooldowns per handler.
-- For file watchers, handle platform caveats and inode/rename behavior explicitly.
-
-**Detection signals**
-- Operation count per user action >1 unexpectedly.
-- CPU usage spikes with minimal user interaction.
-
-**Phase placement**
-- **Phase 2:** observe event fan-out.
-- **Phase 3:** implement debounce/coalescing/idempotency.
-
----
-
-### 9) Tool Shadowing / Wrapper Overhead in Custom Tools
-
-**What goes wrong:** custom tool names override built-ins or wrappers add expensive serialization/process overhead to every call.
-
-**Prevention**
-- Enforce `bgsd_` prefix for all custom tools.
-- Use denylist checks for built-in names.
-- Benchmark wrapper overhead separately (serialization + subprocess cost).
-
-**Detection signals**
-- Sudden latency increase across unrelated tool calls.
-- Unexpected tool behavior after plugin load.
-
-**Phase placement**
-- **Phase 1:** naming and tool-boundary policy.
-- **Phase 3:** overhead reduction for high-frequency tools.
-
----
-
-### 10) Cross-Plugin Interaction Nondeterminism
-
-**What goes wrong:** assumptions about hook order and untouched output objects break when other plugins are present.
-
-**Prevention**
-- Treat hook inputs/outputs as already-mutated state.
-- Run compatibility matrix with common plugin combinations.
-- Keep transformations minimal and explicit.
-
-**Detection signals**
-- Repro only in user setups with additional plugins.
-- Inconsistent behavior between clean and real-world environments.
-
-**Phase placement**
-- **Phase 4:** compatibility soak tests before milestone sign-off.
-
----
-
-## Phase Planning Matrix (Where Each Pitfall Must Be Handled)
-
-| Planning Phase | Pitfalls to handle here | Required output |
-|---|---|---|
-| Phase 1: Baseline + Methodology | #1, #2, #9 | Benchmark spec, SLO budgets, tool naming/boundary contract |
-| Phase 2: Profiling + Attribution | #3, #6, #8 | Hot-path attribution report, instrumentation budget, event fan-out map |
-| Phase 3: Optimization Implementation | #3, #4, #7, #8, #9 | Code changes with dual metrics (startup + first-use) and cache invariants tests |
-| Phase 4: Regression Safeguards + Rollout | #5, #10 (+verify #1-#9) | CI perf gates, compatibility matrix, rollback thresholds, trend dashboard |
-
----
-
-## Practical Prevention Checklist (Use as Plan Exit Criteria)
-
-- Every optimization PR includes before/after metrics for at least one canonical workload.
-- Every benchmark report includes run count, warm/cold context, and variance.
-- No sync blocking APIs in plugin hot paths unless explicitly justified and measured.
-- Cache changes ship with invalidation contract tests.
-- Event handlers have debounce/coalescing/idempotency where repeat firing is possible.
-- CI blocks regressions beyond agreed thresholds.
-
----
-
-## Sources
-
-Primary/authoritative:
-- Node.js `fs` docs (sync APIs block event loop; watch caveats): https://nodejs.org/api/fs.html
-- Node.js `child_process` docs (sync process APIs block): https://nodejs.org/api/child_process.html
-- Node.js `perf_hooks` docs (`performance.now`, `monitorEventLoopDelay`, observers): https://nodejs.org/api/perf_hooks.html
-- OpenCode plugins docs (load order, hooks, events, compaction behavior): https://opencode.ai/docs/plugins/
-- OpenCode custom tools docs (name collisions, context, tool surface): https://opencode.ai/docs/custom-tools/
-- VS Code extension activation/performance guidance (`*` vs `onStartupFinished`, activation events): https://code.visualstudio.com/api/references/activation-events
-
-Benchmark methodology:
-- Hyperfine README/docs (warmup, prepare, variance-aware CLI benchmarking): https://github.com/sharkdp/hyperfine
-
-Project context used:
-- `.planning/PROJECT.md`
-- `.planning/STATE.md`
-
----
-
-*Roadmap implication:* do not treat performance as a single implementation phase. Split into **baseline -> attribution -> optimization -> regression-gating** or regressions are highly likely.
+# PITFALLS: Dependency-Driven Plugin Acceleration (bGSD v9.1)
+
+**Question answered:** What pitfalls should be avoided when introducing performance-oriented dependencies into a mature CLI/plugin codebase like bGSD?
+
+**Scope note:** This register is intentionally focused on dependency adoption risk controls (not benchmarking methodology).
+
+**Repository context used:**
+- Single-file CLI artifact: `bin/bgsd-tools.cjs` (esbuild-bundled from 34 source modules)
+- Plugin runtime split: `plugin.js` (ESM hooks) + CLI runtime (CJS artifact)
+- Node engine floor: `>=18` with selective use of newer Node capabilities
+- Strong compatibility constraints: existing `.planning/*` formats must not break
+
+## Risk Register (Concrete to bGSD)
+
+| ID | Pitfall | Why this is acute in bGSD | Impact | Prevention controls | Early detection | Confidence |
+|---|---|---|---|---|---|---|
+| DEP-01 | Choosing a dependency that weakens single-file deploy | bGSD depends on `deploy.sh` and a single bundled CLI artifact | Broken install/deploy path; rollout friction | Require "bundleability" review before adoption (no runtime asset folders, no postinstall binary downloads in critical path) | Build output starts requiring extra files or runtime `node_modules` presence | HIGH |
+| DEP-02 | Cold-start regressions from "fast" deps with heavy init | CLI workload is short-lived; parse/init cost dominates command latency | Slower command start despite faster internals | Require lazy-init plan + import boundary review per new dependency | Startup/first-command latency increases after dependency merge | HIGH |
+| DEP-03 | ESM/CJS boundary regressions | Repo intentionally ships ESM plugin + CJS CLI; interop mistakes are easy | Runtime crashes, subtle import shape bugs | Add explicit compatibility contract test for both entrypoints when new dep is introduced | Errors like `ERR_REQUIRE_ASYNC_MODULE`, default export mismatch, loader edge cases | HIGH |
+| DEP-04 | Node-version drift from dependency requirements | Project supports Node >=18 while some modern deps assume >=20/22 features | Users on supported floor break unexpectedly | Enforce `engines` compatibility gate and test matrix at floor + current LTS | New syntax/API errors on Node 18 CI run | HIGH |
+| DEP-05 | Adopting unstable platform APIs via wrappers | Existing cache stack already uses `node:sqlite` (release-candidate stability) | Future Node changes can break perf path | Keep hard fallback path (Map/L1) and guard all unstable feature usage | Behavior divergence between Node minors; fallback path not exercised | HIGH |
+| DEP-06 | Bundle bloat via transitive dependency fan-out | Current bundle is already near/over size budget historically | Worse startup, memory, and parse time | Make "size budget delta" a merge gate for new dependencies; prefer narrow packages | Bundle size delta spikes from one dependency addition | HIGH |
+| DEP-07 | Tree-shaking assumptions that do not hold in Node/CJS mode | esbuild docs note tree-shaking limits around CommonJS/main field selection | Dead code remains bundled; no real gain | Verify package has ESM-friendly entrypoints; inspect esbuild metafile before merge | Dependency appears large in metafile despite selective import usage | HIGH |
+| DEP-08 | Supply-chain risk traded for speed | Performance libs are often low-level and widely depended-on | Security incident, urgent patch churn | Require dependency hygiene checklist: maintainer activity, advisories, lockfile discipline, npm audit posture | Audit findings increase or unmaintained package signals | MEDIUM-HIGH |
+| DEP-09 | Behavioral regressions in parser/state semantics | bGSD has strict backward-compat promises for ROADMAP/STATE/PLAN parsing | "Faster" parser breaks legacy documents | For parser-like deps, require fixture corpus parity test before merge | Legacy fixtures pass previously, fail after dependency swap | HIGH |
+| DEP-10 | Replacing deterministic internal logic with opaque abstractions | Mature codebase encodes domain rules in readable modules and tests | Debuggability loss; slower incident resolution | Keep adapter seams thin; avoid hard-coupling domain logic to dependency API surface | Increased "cannot reproduce" / "inside dependency" bug reports | MEDIUM-HIGH |
+| DEP-11 | Runtime behavior changes from dependency side effects | Some packages execute setup at import time or patch globals | Nondeterministic plugin/CLI behavior | Ban global side-effect dependencies in hot paths; isolate side-effectful imports | Different output depending on import order or plugin load context | MEDIUM |
+| DEP-12 | Upgrade cadence mismatch (maintenance tax) | bGSD ships frequently; stale deps create periodic painful catch-up | Security + compatibility debt and emergency upgrades | Define owner and review cadence per critical dependency | Long periods without upgrades followed by large, risky jumps | MEDIUM-HIGH |
+
+## Critical Pitfalls (Avoid First)
+
+### 1) "Performance" dependency that breaks deploy model (DEP-01)
+- **What goes wrong:** dependency assumes multi-file runtime, native binaries, or install-time downloads.
+- **Why here:** bGSD deployment expects deterministic, single-file-friendly behavior.
+- **Controls:** pre-adoption checklist: "works under esbuild single-file output", "no runtime asset lookup outside bundle".
+- **Phase warning:** do not approve dependency until install + deploy smoke test passes.
+
+### 2) Net slower user experience from initialization overhead (DEP-02, DEP-06)
+- **What goes wrong:** dependency is algorithmically faster but has heavier parse/init/module graph cost.
+- **Why here:** many bGSD commands are short-lived CLI invocations where startup dominates.
+- **Controls:** require lazy-init and "hot-path import map" in PR description for each added dependency.
+- **Phase warning:** adoption PR must include explicit startup impact note, even without full benchmark harness.
+
+### 3) Module-system mismatch between plugin and CLI (DEP-03, DEP-07)
+- **What goes wrong:** mixed ESM/CJS semantics lead to default import shape bugs or async module load failures.
+- **Why here:** bGSD deliberately runs ESM plugin code and CJS CLI code with separate build targets.
+- **Controls:** entrypoint parity tests: plugin load, CLI command smoke, and dependency import contract tests.
+- **Phase warning:** reject dependency if it requires top-level await on CJS-required paths.
+
+### 4) Faster code, wrong behavior (DEP-09)
+- **What goes wrong:** replacing internal parser/state logic with dependency changes edge-case handling.
+- **Why here:** project has explicit backward-compat guarantees for existing planning files and regex-driven parsing.
+- **Controls:** regression harness over legacy `.planning/` fixtures before merge.
+- **Phase warning:** correctness parity is a hard gate; performance is secondary.
+
+## Practical Controls for Downstream Risk Register
+
+- **Dependency choice controls**
+  - Require a short ADR per critical dependency: reason, alternatives rejected, rollback plan.
+  - Prefer focused packages over meta-frameworks for hot-path acceleration.
+  - Reject packages without recent maintenance or with unresolved high-severity advisories.
+
+- **Bundle growth controls**
+  - Enforce per-PR bundle delta budget (absolute KB and % threshold).
+  - Inspect esbuild metafile for transitive heavy hitters before approving.
+  - Prefer ESM entrypoints where safe to improve tree-shaking outcomes.
+
+- **Cold-start controls**
+  - Require deferred import/initialization for non-essential paths.
+  - Keep first-command path free of optional dependency initialization.
+  - Add lightweight startup smoke timing in CI to detect obvious regressions.
+
+- **Maintenance risk controls**
+  - Assign explicit owner for each critical dependency.
+  - Define update cadence (e.g., monthly patch window).
+  - Keep lockfile deterministic and use clean installs (`npm ci`) in CI.
+
+- **Behavior regression controls**
+  - Run full existing test suites plus legacy fixture parity tests for parser/state changes.
+  - Add contract tests around command output shape for any dependency-backed rewrite.
+  - Keep fast rollback path (feature flag or adapter switch) for newly introduced dependency behavior.
+
+## Source Notes
+
+Primary references used:
+- Node.js module behavior and CJS/ESM interoperability: https://nodejs.org/api/modules.html
+- Node.js `node:sqlite` stability and lifecycle notes: https://nodejs.org/api/sqlite.html
+- Node.js performance instrumentation primitives (`perf_hooks`): https://nodejs.org/api/perf_hooks.html
+- esbuild docs on platform/main-fields/tree-shaking/bundling behavior: https://esbuild.github.io/api/
+- npm deterministic install guidance (`npm ci`): https://docs.npmjs.com/cli/v10/commands/npm-ci
+- npm audit report semantics: https://docs.npmjs.com/about-audit-reports
+- Project constraints/context: `.planning/PROJECT.md`, `.planning/STATE.md`, `AGENTS.md`
+
+Confidence rubric:
+- **HIGH:** direct Node/esbuild/npm docs + repository constraints
+- **MEDIUM-HIGH:** ecosystem/maintenance risk controls inferred from official tooling behavior

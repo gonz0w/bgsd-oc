@@ -1,273 +1,122 @@
-# Stack Research: Performance Acceleration for bGSD Plugin (v9.1)
+# STACK Research: Runtime Acceleration Dependencies for bGSD v9.1
 
 > Research date: 2026-03-09  
-> Scope: stack additions/changes for profiling, tracing, benchmark harnesses, and safe dependency adoption  
-> Milestone context: subsequent milestone after v9.0 embedded plugin architecture  
-> Focus: only NEW performance capabilities (not re-documenting existing stack)
+> Scope: production runtime speed (plugin hooks + CLI command latency), not benchmark tooling
+
+## Recommendation (Opinionated Shortlist)
+
+Adopt **two dependencies** and **two runtime techniques** that directly target known hot paths in this codebase.
+
+1. **Replace plugin-side Zod schemas with Valibot** (`valibot@1.2.0`) to reduce plugin bundle weight and schema parse overhead.
+2. **Replace custom recursive directory walking + repeated git-ignore subprocess checks** with `fast-glob@3.3.3` + `ignore@7.0.5` in codebase/file-scan commands.
+3. **Enable Node module compile cache** (`module.enableCompileCache()` / `NODE_COMPILE_CACHE`) for repeated CLI invocations.
+4. **Use `node:sqlite` statement caching (`createTagStore`)** in `src/lib/cache.js` to remove repeated `prepare()` overhead.
+
+This is the highest-impact/lowest-complexity set for real-world responsiveness given current architecture and constraints.
 
 ---
 
-## Executive Recommendation
+## Integration-Ready Shortlist
 
-Use a **three-layer performance stack**:
-
-1. **Always-on, zero-dependency instrumentation** in existing code paths (`perf_hooks`, trace events, hook timing histograms).
-2. **Repeatable benchmark harness** for regressions and before/after proof (`tinybench` for microbench + command-level E2E harness).
-3. **On-demand deep diagnostics** (`0x` flamegraphs and optional OpenTelemetry spans when cross-plugin comparisons require distributed traces).
-
-This matches current architecture constraints:
-- Keep `bin/bgsd-tools.cjs` single-file deploy intact.
-- Keep runtime overhead minimal for normal users.
-- Add most tooling as **devDependencies only**.
+| Priority | Dependency / Technique | Version | Replace / Target in This Repo | Expected Runtime Impact | Migration Risk |
+|---|---|---:|---|---|---|
+| P1 | Valibot | `1.2.0` | Replace `import { z } from 'zod'` in `src/plugin/tools/bgsd-status.js`, `src/plugin/tools/bgsd-plan.js`, `src/plugin/tools/bgsd-context.js`, `src/plugin/tools/bgsd-validate.js`, `src/plugin/tools/bgsd-progress.js` | **Cold-start + first-tool latency** improvement from smaller plugin bundle and lighter validators (likely noticeable in interactive sessions) | **Medium** (schema syntax migration) |
+| P2 | fast-glob | `3.3.3` | Replace manual walkers in `src/lib/codebase-intel.js` (`walkSourceFiles`, parts of `getSourceDirs`) and high-fanout file scans in `src/commands/features.js` | **Large-repo scans**: fewer syscalls/JS loops, lower wall-time for codebase analysis/search-oriented commands | **Medium** (glob semantics parity work) |
+| P2 | ignore | `7.0.5` | Replace per-dir `git check-ignore` subprocess use in `src/lib/codebase-intel.js:getSourceDirs` and similar ignore filtering paths | **Spawn reduction**: removes repeated git process overhead during scans; better scaling with many top-level dirs | **Medium** (nested ignore semantics validation needed) |
+| P3 | Node module compile cache | Node `>=22.8` API (`module.enableCompileCache`) | Entry path in CLI bootstrap (`src/index.js` / built `bin/bgsd-tools.cjs`) and plugin host launch path where safe | **Repeat invocations**: faster startup/module compilation after warm cache (best for command-heavy sessions) | **Low** (opt-in, easy fallback) |
+| P3 | SQLite statement cache | Built-in `node:sqlite` (`DatabaseSync#createTagStore`) | `src/lib/cache.js` (`SQLiteBackend`): replace per-call `db.prepare(...)` with cached tagged statements | **Cache-heavy commands**: lower DB overhead and tighter tail latency on repeated cache get/set/invalidate | **Low** (no external dependency) |
 
 ---
 
-## Current Architecture Constraints That Matter
+## Why These, Specifically (Codebase Fit)
 
-- CLI is bundled to one file via esbuild (`build.cjs`) and already includes baseline capture (`baseline.cjs`).
-- Plugin hot paths are in `src/plugin/index.js` and wrapped via `safeHook` (`src/plugin/safe-hook.js`).
-- Existing plugin is event-driven (`event`, `tool.execute.after`, `command.execute.before`, `experimental.*` hooks).
-- Project docs and code indicate practical Node baseline is already Node 22.5+ because of `node:sqlite` usage (even though `package.json` still says `>=18`).
+### 1) Valibot over current Zod usage
 
-Implication: performance dependencies that require Node >=20 are acceptable **if** engines policy is aligned as part of this milestone.
+- Current plugin bundle clearly inlines large Zod payload (seen in built `plugin.js`), while tool schemas are relatively simple object/string/number validators.
+- Valibot’s modular API is designed for tree-shaking and smaller shipped code in browser/Node bundles.
+- This directly targets plugin cold-path performance where every extra KB and parse path matters.
 
----
+**Migration pattern (example):**
+- `z.object({...})` -> `v.object({...})`
+- `z.string().min(1)` -> `v.pipe(v.string(), v.minLength(1))`
+- Keep output contracts unchanged.
 
-## Recommended Stack Additions / Changes
+### 2) fast-glob + ignore for scan-heavy commands
 
-## 1) Benchmark Harness
+- `src/lib/codebase-intel.js` performs custom recursive sync walks and invokes git ignore checks in traversal-related logic.
+- `fast-glob` provides mature, optimized traversal with `cwd`, `ignore`, `absolute`, `onlyFiles`, and sync/async APIs.
+- Pairing with `ignore` removes avoidable subprocess churn from `git check-ignore` calls in hot scan flows.
 
-### Add: `tinybench@6.0.0` (devDependency)
+**Adoption boundary:**
+- Start with codebase intel + feature-analysis scans (largest traversal surfaces).
+- Preserve existing skip behavior (`SKIP_DIRS`, binary-extension filters) as acceptance criteria.
 
-- Why: purpose-built microbenchmark library with simple API and table output, good fit for parser/hot-function benchmarks.
-- Use for: `parseState`, `parseRoadmap`, `parsePlan`, `buildSystemPrompt`, `enrichCommand`, and cache hit/miss scenarios.
-- Integration points:
-  - New folder: `benchmarks/micro/`
-  - New scripts:
-    - `benchmark:micro`: run tinybench suites
-    - `benchmark:compare`: compare current results vs `.planning/baselines/`
-- Engine note: tinybench requires Node >=20.
+### 3) Node compile cache (no new dependency)
 
-Confidence: HIGH (Context7 docs + npm metadata).
+- This CLI is invoked repeatedly in short-lived processes; parse/compile cost is paid often.
+- Node’s compile cache persists V8 code cache to disk and can significantly improve subsequent loads when module contents are stable.
+- Fits perfectly with bGSD’s frequent command calls and single-file bundled CLI behavior.
 
-### Keep and upgrade: command-level E2E benchmark harness (custom)
+**Implementation guidance:**
+- Enable early in bootstrap, behind config/env guard.
+- Use `.planning/.cache/node-compile-cache` or tmp-based path with cleanup policy.
+- Disable during coverage-sensitive test jobs.
 
-- Continue using custom harness style from `baseline.cjs`, but split into stable benchmark modules:
-  - `benchmarks/e2e/cli-latency.cjs`
-  - `benchmarks/e2e/plugin-hook-latency.cjs`
-  - `benchmarks/e2e/io-footprint.cjs`
-- Add percentile reporting (`p50/p95/p99`) and cold vs warm runs.
-- Store outputs under `.planning/baselines/perf/` as JSON snapshots.
+### 4) SQLite statement caching in existing cache backend
 
-Confidence: HIGH (repo-tailored recommendation).
+- `src/lib/cache.js` currently prepares SQL statements repeatedly inside hot methods (`get`, `set`, `invalidate`, research cache operations).
+- Node SQLite now provides statement cache utilities (`createTagStore`) for efficient statement reuse.
+- Keeps current no-extra-dependency direction while improving DB path efficiency.
 
----
-
-## 2) Profiling
-
-### Add: `0x@6.0.0` (devDependency, optional in CI)
-
-- Why: single-command Node flamegraph workflow, modern release, practical for pinpointing CPU hot paths in CLI commands.
-- Use for: slow commands discovered by benchmark harness (for example `init:*`, `plan:*`, `verify:*`, plugin event handling helpers).
-- Integration points:
-  - Script: `profile:flame` -> `0x --output-dir .planning/baselines/flame node bin/bgsd-tools.cjs <command>`
-  - Keep outputs out of repo history by default (`.gitignore` if needed).
-- Important: run only on representative scenarios, not every PR.
-
-Confidence: HIGH (official project README + npm version check).
-
-### Add: Node built-in CPU/heap profiling scripts (no dependency)
-
-- Use Node CLI flags:
-  - `--cpu-prof`, `--cpu-prof-dir`, `--cpu-prof-name`
-  - `--heap-prof`, `--heap-prof-dir`, `--heap-prof-name`
-  - `--trace-event-categories`, `--trace-event-file-pattern`
-- Integration points:
-  - `scripts/profile-cpu.cjs`
-  - `scripts/profile-heap.cjs`
-  - `scripts/profile-trace-events.cjs`
-- These should target same scenarios used in benchmarks for comparability.
-
-Confidence: HIGH (Node CLI docs + Node tracing docs).
+**Implementation guidance:**
+- Create one tag store in `SQLiteBackend` constructor.
+- Replace repeated `db.prepare(...).get/run(...)` calls with cached tagged calls.
+- Maintain current fallback to `MapBackend` unchanged.
 
 ---
 
-## 3) Tracing
+## Suggested Rollout Order
 
-### Default: built-in tracing first (`perf_hooks` + trace events)
-
-- Add lightweight timing spans around existing hook wrappers and parser boundaries:
-  - `src/plugin/safe-hook.js` (already central timing point)
-  - parser modules under `src/plugin/parsers/`
-  - command enrich path (`src/plugin/command-enricher.js`)
-- Use `perf_hooks.timerify` and `monitorEventLoopDelay` for low-overhead observability in benchmark mode.
-- Emit structured timing JSON only when `BGSD_PROFILE=1` (or similar) to avoid normal-runtime overhead.
-
-Confidence: HIGH (Node perf_hooks docs).
-
-### Optional advanced: OpenTelemetry packages (deferred default)
-
-If cross-plugin benchmark infrastructure needs vendor-neutral traces:
-
-- `@opentelemetry/api@1.9.0`
-- `@opentelemetry/sdk-trace-node@2.6.0`
-- `@opentelemetry/exporter-trace-otlp-http@0.213.0`
-
-Use only behind explicit opt-in env flag (for example `BGSD_OTEL=1`) and in benchmark runs, not default user flows.
-
-Confidence: MEDIUM-HIGH (Context7 docs + npm versions; version families are intentionally mixed in OTEL ecosystem).
+1. **P1: Valibot migration in plugin tool schemas** (highest likely impact on perceived plugin responsiveness).
+2. **P2: fast-glob + ignore in `codebase-intel` and file-scan commands** (large repo wins).
+3. **P3: Compile cache enablement** (quick win for repeated CLI runs).
+4. **P3: SQLite statement cache upgrade** (incremental tail-latency reduction).
 
 ---
 
-## 4) Debugging Stuck Processes During Perf Runs
+## What Not To Adopt in This Milestone
 
-### Add: `why-is-node-running@3.2.2` (devDependency)
-
-- Why: quickly identify dangling handles/timers keeping benchmark runs alive.
-- Use for: flaky benchmark/profiler jobs, plugin watcher lifecycle validation.
-- Integration:
-  - optional preloaded debug mode: `node --import why-is-node-running/include ...`
-  - only for local diagnostics and CI failure triage.
-- Engine note: requires Node >=20.11.
-
-Confidence: HIGH (official README + npm metadata).
+- **`better-sqlite3`**: high native-install friction, conflicts with low-overhead deployment ethos; current `node:sqlite` path can be optimized first.
+- **Heavy APM/always-on tracing deps**: adds overhead to interactive runtime and misses milestone goal of direct user-visible speed.
+- **Worker-thread frameworks for traversal**: complexity/risk too high before exhausting synchronous hot-path fixes above.
 
 ---
 
-## Proposed `package.json` Changes (Milestone-Scoped)
-
-### Dependencies to add now
-
-```json
-{
-  "devDependencies": {
-    "tinybench": "^6.0.0",
-    "0x": "^6.0.0",
-    "why-is-node-running": "^3.2.2"
-  }
-}
-```
-
-### Dependencies to keep optional/deferred
-
-```json
-{
-  "devDependencies": {
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/sdk-trace-node": "^2.6.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.213.0"
-  }
-}
-```
-
-### Engine policy change recommended
-
-```json
-{
-  "engines": {
-    "node": ">=22.5"
-  }
-}
-```
-
-Rationale: aligns declared engine with already-shipped `node:sqlite` behavior and avoids accidental use on unsupported runtimes.
-
----
-
-## Integration Plan by Existing File
-
-- `package.json`
-  - Add benchmark/profile scripts and devDependencies above.
-  - Align `engines.node` to `>=22.5`.
-
-- `baseline.cjs`
-  - Keep as quick baseline entrypoint.
-  - Refactor shared measurement primitives into `benchmarks/lib/metrics.cjs` to avoid drift.
-
-- `src/plugin/safe-hook.js`
-  - Extend slow-hook logging to include histogram buckets and optional trace IDs when profiling mode is enabled.
-
-- `src/plugin/index.js`
-  - Add profiling mode toggles to event + tool hook paths for latency attribution without changing behavior.
-
-- `.planning/baselines/`
-  - Add stable schema for benchmark/profiler artifacts (`perf-summary.json`, `cpu/*.cpuprofile`, `trace/*.json`).
-
----
-
-## What NOT to Add (Important)
-
-1. `clinic` (Clinic.js) as primary profiler.
-   - Reason: project states it is not actively maintained and may be inaccurate on newer Node internals.
-
-2. Heavy always-on APM agents in runtime plugin path.
-   - Reason: would distort the exact latency you're trying to measure and risk regressions in interactive workflows.
-
-3. Runtime dependencies for benchmarking.
-   - Reason: all benchmarking/profiling libs should remain dev-only and never enter bundled CLI output.
-
-4. New database/cache layers for benchmarking data.
-   - Reason: JSON artifacts in `.planning/baselines/` are sufficient and preserve current architecture simplicity.
-
----
-
-## Safe Dependency Adoption Guidance
-
-Use this gate for each new perf dependency:
-
-1. **Scope gate**: must be devDependency unless it directly improves production path.
-2. **Engine gate**: must support declared Node engine (or trigger explicit engine policy update).
-3. **Bundle gate**: verify `bin/bgsd-tools.cjs` and `plugin.js` size deltas remain within budgets.
-4. **Fallback gate**: profiling features must degrade cleanly when tool is absent.
-5. **Proof gate**: keep dependency only if benchmark deltas are material and repeatable.
-
-Suggested acceptance thresholds for this milestone:
-- >=15% p95 latency improvement on top 3 user-critical commands, or
-- >=25% reduction in plugin hook tail latency (`p99`) for high-frequency hooks, or
-- clear developer-time savings for regression triage (documented in phase summary).
-
----
-
-## Install Commands (Implementation Ready)
+## Install / Adoption Commands
 
 ```bash
-npm install -D tinybench@^6.0.0 0x@^6.0.0 why-is-node-running@^3.2.2
+npm install valibot@1.2.0 fast-glob@3.3.3 ignore@7.0.5
 ```
 
-Optional tracing stack:
-
-```bash
-npm install -D @opentelemetry/api@^1.9.0 @opentelemetry/sdk-trace-node@^2.6.0 @opentelemetry/exporter-trace-otlp-http@^0.213.0
-```
+(Compile cache + SQLite statement cache require code changes only; no package install.)
 
 ---
 
-## Confidence Assessment
+## Confidence
 
-- Benchmark/profiler package versions: HIGH (npm registry via `npm view` on 2026-03-09).
-- Node profiling/tracing capabilities: HIGH (official Node docs + Context7 Node docs).
-- OpenTelemetry package recommendation: MEDIUM-HIGH (official docs + Context7; OTEL package versioning remains multi-track by design).
-- "Do not add Clinic.js" guidance: HIGH (official repo README explicitly states not actively maintained).
+- **HIGH**: Node compile cache and SQLite statement-cache recommendations (official Node docs).
+- **HIGH**: fast-glob/ignore capability fit for traversal + ignore filtering.
+- **MEDIUM-HIGH**: Valibot replacing Zod for smaller runtime footprint (strong docs support; exact latency gain depends on final schema migration and bundle config).
 
 ---
 
 ## Sources
 
-- Node CLI docs (profiling and trace flags): https://nodejs.org/api/cli.html
-- Node tracing docs: https://nodejs.org/api/tracing.html
-- Node perf hooks docs: https://nodejs.org/api/perf_hooks.html
-- Tinybench docs: https://github.com/tinylibs/tinybench
-- 0x docs: https://github.com/davidmarkclements/0x
-- why-is-node-running docs: https://github.com/mafintosh/why-is-node-running
-- OpenTelemetry JS docs: https://github.com/open-telemetry/opentelemetry-js
-- OpenTelemetry SDK Node docs (Context7/official): https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-sdk-node
-- Clinic.js status note: https://github.com/clinicjs/node-clinic
-
-Version checks executed in this repo environment (2026-03-09):
-- `tinybench` 6.0.0
-- `0x` 6.0.0
-- `why-is-node-running` 3.2.2
-- `@opentelemetry/api` 1.9.0
-- `@opentelemetry/sdk-trace-node` 2.6.0
-- `@opentelemetry/exporter-trace-otlp-http` 0.213.0
-- `@opencode-ai/plugin` 1.2.24
+- Node `node:module` compile cache docs: https://nodejs.org/api/module.html#module-compile-cache
+- Node `node:sqlite` docs (`DatabaseSync`, `prepare`, `createTagStore`): https://nodejs.org/api/sqlite.html
+- Valibot docs/comparison and modular design notes: https://valibot.dev/
+- fast-glob README/API/options: https://github.com/mrmlnc/fast-glob
+- npm metadata checks (executed 2026-03-09):
+  - `valibot` -> `1.2.0`
+  - `fast-glob` -> `3.3.3`
+  - `ignore` -> `7.0.5`

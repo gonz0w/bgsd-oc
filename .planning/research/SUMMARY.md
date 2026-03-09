@@ -1,136 +1,131 @@
-# Research Summary: v9.1 Performance Acceleration & Plugin Benchmarking
+# Research Summary: v9.1 Dependency-Driven Runtime Acceleration
 
-**Domain:** Performance acceleration for bGSD CLI + plugin workflows
+**Domain:** Faster plugin + CLI behavior through targeted dependency/module adoption
 **Researched:** 2026-03-09
-**Overall confidence:** HIGH (stack/integration), MEDIUM-HIGH (optional OTEL path)
+**Scope guard:** Benchmark-heavy scope rejected; prioritize direct runtime wins on existing hot paths
+**Overall confidence:** HIGH (adoption map + rollout/fallback), MEDIUM-HIGH (exact gain magnitude)
 
-## Executive Summary
+## Executive Direction
 
-v9.1 should be run as a measurement-first milestone: establish reproducible benchmarks and budgets, attribute where latency is spent, optimize only proven hot paths, then enforce regression gates.
+v9.1 should accelerate runtime by swapping internal engines behind stable facades, not by adding broad benchmarking infrastructure.
 
-The strongest strategy is a three-layer performance model:
-1. Always-on lightweight instrumentation (`perf_hooks`, low-overhead timers, structured tags).
-2. Local-first collection and benchmark artifacts (`.planning/perf/` and `.planning/baselines/perf/`).
-3. On-demand analysis and gating (`benchmark` + `perf-gate` workflows with p50/p95/p99 comparisons).
+The recommended path is:
+1. Reduce plugin validation/bundle overhead (`zod` -> `valibot`).
+2. Replace scan/ignore hot paths with optimized traversal (`fast-glob` + `ignore`).
+3. Enable repeat-invocation startup gains (Node module compile cache).
+4. Remove repeated SQL prepare overhead (`node:sqlite` statement caching).
 
-This keeps runtime overhead low for normal users while making optimization claims auditable and repeatable.
+This preserves command and plugin contracts while improving perceived responsiveness in everyday flows.
 
-## Stack Additions (Recommended)
+## Recommended Dependencies and Runtime Techniques
 
-### Add now (devDependency)
+| Priority | Dependency / Technique | Version | Why now |
+|---|---|---:|---|
+| P1 | `valibot` | `1.2.0` | Lower plugin schema cost and shipped validator weight on cold path |
+| P2 | `fast-glob` | `3.3.3` | Faster high-fanout file discovery and lower JS/syscall traversal overhead |
+| P2 | `ignore` | `7.0.5` | Replace repeated `git check-ignore` subprocess churn in scans |
+| P3 | Node module compile cache (`module.enableCompileCache`) | Node `>=22.8` API | Faster repeated CLI command startup after warm cache |
+| P3 | `node:sqlite` statement cache (`DatabaseSync#createTagStore`) | built-in | Lower tail latency in cache-heavy command flows |
 
-| Package | Role in v9.1 | Why now |
-|---|---|---|
-| `tinybench@^6.0.0` | Deterministic microbench suite for parser/hotspot checks | Needed to catch local regressions before E2E impact |
-| `0x@^6.0.0` | Flamegraph profiling for slow command diagnosis | Fast path-to-root-cause after regressions are found |
-| `why-is-node-running@^3.2.2` | Diagnoses stuck benchmark/profiler runs | Reduces CI/local perf-debug time |
+Install command for external packages:
 
-### Built-in capabilities to standardize
+```bash
+npm install valibot@1.2.0 fast-glob@3.3.3 ignore@7.0.5
+```
 
-- Node profiling flags: `--cpu-prof`, `--heap-prof`, trace events.
-- `perf_hooks` APIs: `performance.now`, `timerify`, `monitorEventLoopDelay`.
-- Existing baseline tooling (`baseline.cjs`) refactored into reusable benchmark primitives.
+## Concrete Replacement Targets in This Repo
 
-### Optional/deferred stack
+### Plugin boundary validation (P1)
 
-- OpenTelemetry export path (`@opentelemetry/*`) behind explicit opt-in (`BGSD_OTEL=1`), not on default runtime path.
+- Replace `import { z } from 'zod'` schema definitions with `valibot` in:
+  - `src/plugin/tools/bgsd-status.js`
+  - `src/plugin/tools/bgsd-plan.js`
+  - `src/plugin/tools/bgsd-context.js`
+  - `src/plugin/tools/bgsd-validate.js`
+  - `src/plugin/tools/bgsd-progress.js`
+- Keep I/O contracts unchanged; only internal validator engine changes.
 
-### Engine alignment
+### File scan + ignore hot paths (P2)
 
-- Raise declared engine to `node >=22.5` to match existing `node:sqlite` usage and avoid unsupported environments.
+- Replace manual recursive traversal and repeated ignore subprocess checks in:
+  - `src/lib/codebase-intel.js` (`walkSourceFiles`, `getSourceDirs` path filtering)
+  - `src/commands/features.js` high-fanout file scan flows
+- Implement adapter seam (`src/lib/adapters/glob.js`) to preserve caller contracts and ease fallback.
 
-## Feature Table Stakes (Must Ship)
+### Frontmatter/cache acceleration supporting modules (P2/P3)
 
-1. Canonical benchmark suite for top user journeys (`init`, `plan`, `execute`, plugin tool paths).
-2. Cold vs warm run separation in all reports.
-3. Latency budgets per flow (p50/p95 plus fail/warn thresholds).
-4. Phase-level latency attribution (CLI parse, I/O, cache, hooks, tool wrappers/subprocesses).
-5. Regression gate integrated into normal verification workflow (advisory first, enforce later).
-6. Fixture standardization for small/medium/large `.planning/` project shapes.
-7. Hot-path modernization focused only on the top measured bottlenecks.
+- Introduce dual-engine frontmatter adapter pattern where adopted (`gray-matter` primary, existing parser fallback) behind existing `src/lib/frontmatter.js` API.
+- Keep `CacheEngine` topology, but optimize internals in `src/lib/cache.js`:
+  - enable SQLite statement reuse via tag store
+  - keep Map backend fallback untouched
 
-## Architecture Approach
+### Startup/runtime technique adoption (P3)
 
-Use an integration-first architecture that unifies existing profiler/hook timing work rather than introducing a separate telemetry system.
+- Enable compile cache early in CLI bootstrap (`src/index.js` and bundled entry behavior in `bin/bgsd-tools.cjs` path) behind env/config guard.
 
-### Target design
+## Rollout and Fallback Strategy
 
-- **Instrumentation layer (always-on, ultra-light):** emit normalized timing events from CLI and plugin hot paths.
-- **Collection layer (local-first):** append-only NDJSON event sink with bounded size + rotation.
-- **Analysis layer (on-demand):** rollups (`p50/p95/p99`, cache efficiency, error rates), benchmark suites, perf-gate comparisons.
+Use dependency flags + shadow-first rollout to avoid behavior regressions.
 
-### Core components to add
+### Wave 1: Facades and flags (no behavior switch)
 
-- `references/perf-event-schema-v1.json`
-- `src/lib/telemetry.js`
-- `src/plugin/telemetry.js`
-- `src/lib/perf-sink.js`
-- `src/lib/perf-rollup.js`
-- `src/commands/benchmark.js`
-- `src/commands/perf-gate.js`
+1. Add adapters and migration flags (`BGSD_DEP_FAST_GLOB`, `BGSD_DEP_GRAY_MATTER`, `BGSD_DEP_LRU`, `BGSD_DEP_SHADOW_COMPARE`).
+2. Keep current implementations as default.
+3. Add parity tests for scan outputs and frontmatter parse/stringify behavior.
 
-### Rollout model
+### Wave 2: Shadow validation
 
-1. Shadow emit (`BGSD_PERF_TELEMETRY=1`) with non-blocking writes.
-2. Benchmark + compare mode for maintainers.
-3. Advisory CI gates.
-4. Selective enforced gates on critical suites with emergency escape hatch.
+4. Run new engines in compare mode and log mismatches/debug-only telemetry.
+5. Resolve parity gaps before enabling defaults.
 
-## Top Pitfalls to Avoid
+### Wave 3: Default-on low-risk paths
 
-1. Optimizing before baseline/SLO contract exists.
-2. Micro-only or warm-only benchmarking that misses real user latency.
-3. Sync APIs in plugin hot paths blocking the event loop.
-4. Over-instrumentation turning telemetry overhead into the bottleneck.
-5. Multi-layer cache invalidation correctness regressions.
-6. Missing CI performance gates causing gains to decay within 1-2 phases.
-7. Event storms from hooks/watchers without debounce/coalescing.
-8. Tool shadowing/wrapper overhead from poorly bounded custom tools.
+6. Enable `fast-glob` for read-only discovery flows.
+7. Enable bounded cache improvements and SQLite statement caching.
+8. Keep in-process fallback active for all adapter failures.
 
-## Recommended Phase Strategy for Milestone v9.1
+### Wave 4: Parser/default migration completion
 
-### Phase 1: Baseline + Methodology Contract
+9. Enable modern parser engine default only after compatibility parity is stable.
+10. Keep legacy parser fallback for one milestone, then remove shadow compare.
 
-- Define canonical workloads, fixture matrix, and flow budgets.
-- Implement benchmark lane split (macro/E2E + micro).
-- Establish tool naming/boundary policy and report format.
-- **Exit criteria:** repeatable before/after reports with cold+warm context and variance.
+### Fallback policy (must keep)
 
-### Phase 2: Profiling + Attribution
+- Any adapter/runtime error falls back to legacy implementation in-process.
+- Fallback is silent to normal users; debug detail only under `BGSD_DEBUG=1`.
+- Rollback is flag-only; no data migration required.
 
-- Ship unified event schema and emitters (CLI + plugin).
-- Capture command/hook/cache/tool attribution and event-loop delay.
-- Set instrumentation sampling policy to cap measurement overhead.
-- **Exit criteria:** top regressions ranked by p95 and absolute ms with owning module tags.
+## Top Adoption Risks (and Controls)
 
-### Phase 3: Targeted Optimizations
+1. **Deploy model breakage (DEP-01):** dependency assumes multi-file/native runtime; gate on single-file bundleability and deploy smoke tests.
+2. **Cold-start regression (DEP-02/DEP-06):** "faster" libs add init cost; require lazy-init plan and startup impact note in each adoption PR.
+3. **ESM/CJS boundary failures (DEP-03/DEP-07):** plugin/CLI interop drift; require plugin load + CLI smoke + import contract tests.
+4. **Node floor incompatibility (DEP-04):** dependency drifts beyond Node 18 support; enforce engine compatibility tests at floor and current LTS.
+5. **Behavioral compatibility regressions (DEP-09):** parser/state edge cases change; require legacy fixture parity as hard gate.
+6. **Transitive bundle bloat (DEP-06):** performance wins erased by size growth; enforce bundle delta budget and esbuild metafile review.
 
-- Implement 2-3 highest-impact fixes only (proven by attribution).
-- Remove sync blocking from critical plugin paths.
-- Apply cache safety/invalidation contract tests with each cache change.
-- **Exit criteria:** measurable p95/p99 improvements and no correctness regressions.
+## Recommended Adoption Sequence (Dependency-First)
 
-### Phase 4: Regression Safeguards + Rollout
+1. `valibot` migration in plugin tool schemas (highest user-visible plugin responsiveness potential).
+2. `fast-glob` + `ignore` in `codebase-intel` and feature scan flows (largest repo-scale wins).
+3. Compile cache enablement for repeated CLI invocations (fast operational win).
+4. SQLite statement caching in cache backend (incremental tail latency improvement).
 
-- Add advisory then enforced perf-gate thresholds in CI.
-- Add compatibility soak checks for multi-plugin environments.
-- Publish milestone trend snapshot and rollback thresholds.
-- **Exit criteria:** gate active for critical suites and stable trend over multiple runs.
+## Out of Scope for v9.1
 
-## Milestone Acceptance Targets (Suggested)
+- Benchmark-harness expansion projects and competitive perf shootouts.
+- Full async architecture rewrite of CLI/router/command topology.
+- Heavy telemetry/APM dependency additions in plugin hot path.
+- Replacing stable modules without hotspot evidence.
 
-- >=15% p95 latency improvement on top 3 critical command/tool flows, or
-- >=25% p99 tail reduction on high-frequency plugin hooks, or
-- clear triage-time reduction via benchmark + profiling workflow evidence.
-
-## Confidence Assessment
+## Confidence
 
 | Area | Confidence | Notes |
 |---|---|---|
-| Stack additions (`tinybench`, `0x`, Node profiling APIs) | HIGH | Versions and compatibility verified in research |
-| Unified architecture and rollout sequencing | HIGH | Matches existing plugin/CLI integration points |
-| Pitfall model and prevention controls | HIGH | Strong agreement across Node/plugin benchmarking guidance |
-| Optional OTEL export path | MEDIUM-HIGH | Useful but environment-dependent and not needed by default |
+| Dependency shortlist fit (`valibot`, `fast-glob`, `ignore`) | HIGH | Strong alignment with identified hot paths and low-churn integration model |
+| Rollout/fallback architecture | HIGH | Shadow mode + flag kill switches minimize regression blast radius |
+| Risk controls for deployment/compatibility | HIGH | Directly grounded in repo constraints (single-file CLI, ESM plugin + CJS CLI, backward parsing compatibility) |
+| Exact speedup magnitude | MEDIUM-HIGH | Direction is clear; final gains depend on workload mix and migration quality |
 
 ---
 *Last updated: 2026-03-09*

@@ -1,264 +1,208 @@
-# Architecture Research: v9.1 Performance Acceleration Integration
+# Architecture Research: Dependency-Driven Acceleration Integration (v9.1)
 
-**Research mode:** Ecosystem + integration architecture  
-**Scope:** Benchmarking, telemetry, and optimization integration into existing bGSD plugin + CLI  
+**Research mode:** Ecosystem -> Architecture integration  
+**Scope:** Safe dependency upgrades for CLI, plugin hooks, parsers, cache, and commands  
+**Question:** How to reduce latency with minimal architecture churn  
 **Date:** 2026-03-09  
-**Overall confidence:** HIGH (repo + OpenCode/Node official docs), MEDIUM (optional OpenTelemetry export)
+**Overall confidence:** HIGH (repo architecture + official docs + Context7)
 
 ## Executive Recommendation
 
-Use a **three-layer performance architecture** that keeps hot-path overhead near-zero:
+Adopt a **facade-first upgrade architecture**: keep existing module boundaries and command contracts, replace only internal engines behind adapters, and ship each dependency in shadow mode before enabling by default.
 
-1. **Instrumentation layer (always-on, ultra-light):** in-process timing around CLI commands, plugin hooks, cache ops, parser calls.
-2. **Collection layer (local-first):** append-only NDJSON events + rollup snapshots under `.planning/perf/`.
-3. **Analysis layer (on-demand):** benchmark runner and regression gate commands that read collected artifacts and enforce budgets.
+Use this dependency set (opinionated):
 
-Do **not** make OTLP/OpenTelemetry the default runtime path for this project. Keep it as an optional export adapter behind a flag, because the core workload is short-lived CLI invocations plus latency-sensitive plugin hooks.
+1. **fast-glob** for directory and pattern scans in high-fanout paths.
+2. **gray-matter** for frontmatter parse/stringify compatibility with markdown body preservation.
+3. **lru-cache** for short-lived hot object caches (parser and metadata cache), while retaining SQLite L2 persistence for file/research cache.
 
----
-
-## Current Integration Points (What Already Exists)
-
-From current codebase:
-
-- CLI profiling exists in `src/lib/profiler.js` and `src/router.js` via `BGSD_PROFILE=1` and baseline JSON write.
-- CLI cache instrumentation surfaces hit/miss stats in `src/lib/cache.js`.
-- Plugin hook timing exists implicitly via `safeHook` slow-warning logic in `src/plugin/safe-hook.js`.
-- Build already produces artifacts in `.planning/baselines/` via `build.cjs` and `baseline.cjs`.
-- Plugin event surface is rich (`session.*`, `tool.execute.*`, `file.watcher.updated`, `command.execute.before`) in `src/plugin/index.js`.
-
-Implication: this milestone should be an **architectural unification**, not a greenfield telemetry system.
+Do **not** rewrite router/commands architecture in v9.1. Keep `src/router.js` and namespace contracts intact; accelerate internals behind stable function signatures.
 
 ---
 
-## Target Integration Map
+## Integration Map (Replace vs Wrap)
 
-```text
-                           +-------------------------------+
-                           |   bgsd tools / plugin hooks   |
-                           +---------------+---------------+
-                                           |
-                           (light timers + tags + counters)
-                                           |
-                +--------------------------+--------------------------+
-                |                                                     |
-     +----------v----------+                              +-----------v-----------+
-     | CLI Perf Emitter    |                              | Plugin Perf Emitter   |
-     | src/lib/telemetry.js|                              | src/plugin/telemetry.js|
-     +----------+----------+                              +-----------+-----------+
-                |                                                     |
-                +--------------------------+--------------------------+
-                                           |
-                            canonical event schema (v1)
-                                           |
-                             +-------------v-------------+
-                             | local perf sink            |
-                             | .planning/perf/events.ndjson|
-                             +-------------+-------------+
-                                           |
-                          +----------------+----------------+
-                          |                                 |
-             +------------v-----------+          +----------v-----------+
-             | rollup/aggregation     |          | benchmark harness    |
-             | perf snapshots + p95   |          | reproducible suites   |
-             +------------+-----------+          +----------+-----------+
-                          |                                 |
-                          +----------------+----------------+
-                                           |
-                               +-----------v------------+
-                               | regression gate command |
-                               | fail/warn on budgets    |
-                               +------------------------+
-```
-
----
-
-## New Components (Explicit)
-
-| Component | Path | Purpose | Notes |
+| Surface | Current | Action | Why this is safe |
 |---|---|---|---|
-| Perf event contract | `references/perf-event-schema-v1.json` | Single schema for CLI+plugin telemetry records | Stabilizes downstream analysis |
-| CLI telemetry emitter | `src/lib/telemetry.js` | Zero-dependency event emit + buffered flush | Reuses `node:perf_hooks` timings |
-| Plugin telemetry emitter | `src/plugin/telemetry.js` | Hook/tool latency events + correlation IDs | Integrates with `safeHook` |
-| Local perf sink | `src/lib/perf-sink.js` | NDJSON append + rotation + bounded file size | Writes `.planning/perf/events.ndjson` |
-| Rollup engine | `src/lib/perf-rollup.js` | Compute p50/p95/p99, error rates, cache efficiency by key | Generates `.planning/perf/snapshots/*.json` |
-| Benchmark harness | `src/commands/benchmark.js` | Scenario suites: cold CLI, warm CLI, plugin hook latency | Use tinybench for micro + existing macro scripts |
-| Performance gate command | `src/commands/perf-gate.js` | Compare current snapshot vs baseline budgets | CI-friendly JSON output |
-| Plugin perf tool | `src/plugin/tools/bgsd-perf.js` | Read-only perf summary for agent consumption | No mutation |
-| Perf config block | `.planning/config.json` (`performance` section) | Feature flags, sampling rates, budgets | Backward-compatible defaults |
+| CLI file tree scans | Repeated `fs.readdirSync` walks in helpers/commands | **Wrap + partial replace** with `src/lib/adapters/glob.js` backed by `fast-glob` | Keeps existing callers; adapter can fall back to current sync walk |
+| Plugin hooks | `safeHook` wrapper with timeout/retry/circuit breaker | **Keep core, wrap internals** with lightweight timing + deferred I/O policy | Preserves hook contract and existing guardrails |
+| Frontmatter parser | Custom parser in `src/lib/frontmatter.js` | **Dual-engine** (`gray-matter` primary, existing parser fallback) | No format breakage during migration; quick rollback path |
+| Parser caches | ad-hoc `Map` caches across parser modules | **Replace internal cache impl** with bounded `lru-cache` wrapper | Same cache API, better TTL/size control |
+| Persistent cache | `CacheEngine` Map/SQLite split | **Keep architecture; optimize SQLite path** (prepared statements + busy timeout) | No caller changes; preserves Node version fallback logic |
+| Commands | Direct helper calls in large command modules | **No command API changes**; route hot read/scan/frontmatter calls through adapters | Avoids churn in 100+ command paths |
 
 ---
 
-## Modified Components (Explicit)
+## New vs Modified Module Plan
 
-| Component | Change | Integration point |
+### New modules
+
+| Module | Responsibility | Dependency |
 |---|---|---|
-| `src/lib/profiler.js` | Convert from raw timing array to emitter-backed spans; keep old API surface | Existing `startTimer/endTimer/writeBaseline` callers remain valid |
-| `src/router.js` | Emit command lifecycle events (`command.start`, `command.end`, `command.error`) | Namespace, subcommand, raw/prettified mode tags |
-| `src/lib/cache.js` | Emit cache events (`cache.hit/miss/invalidate`) and duration for DB operations | Adds latency attribution to cache backend selection |
-| `src/plugin/safe-hook.js` | Emit hook timing + failure counters via plugin telemetry module | Replace WARN-only slow detection with structured events |
-| `src/plugin/index.js` | Wire telemetry emitter into hooks and tools; add `bgsd_perf` tool registration | Keeps existing hook behavior unchanged |
-| `src/plugin/logger.js` | Add structured perf log channel (optional) and correlation-id linking | Avoid duplicate writes when telemetry enabled |
-| `build.cjs` | Add perf artifact validation + optional benchmark stage (`BGSD_BENCH_ON_BUILD=1`) | Prevent accidental perf schema drift |
-| `tests/plugin.test.cjs` | Assert telemetry wiring does not break existing exports and tool map | Regression safety |
-| `tests/*.test.cjs` | Add perf schema, rollup, and gate tests | Budget logic correctness |
+| `src/lib/adapters/glob.js` | Unified scan API: `scanPlanningTree`, `scanPhaseDirs`, `matchPatterns` | `fast-glob` |
+| `src/lib/adapters/frontmatter-engine.js` | Engine selector + normalized parse/stringify contract | `gray-matter` + existing parser |
+| `src/lib/adapters/lru.js` | Shared bounded cache factory (`max`, `ttl`) | `lru-cache` |
+| `src/lib/migration-flags.js` | Reads upgrade flags and default policy | none |
+| `src/lib/compat/frontmatter-equivalence.js` | Optional runtime parity checks in shadow mode | none |
+
+### Modified modules
+
+| Module | Change |
+|---|---|
+| `src/lib/frontmatter.js` | Convert to facade calling adapter engine; keep exported API identical |
+| `src/lib/helpers.js` | Route tree scans and selected directory reads through glob adapter |
+| `src/lib/cache.js` | Add SQLite statement reuse strategy + keep Map fallback; use shared LRU helper for in-memory metadata |
+| `src/plugin/parsers/*.js` | Replace unbounded Maps with shared LRU factory where safe |
+| `src/plugin/safe-hook.js` | Add optional profiling tags only; avoid blocking writes in hook path |
+| `src/commands/features.js` / `src/commands/misc.js` / `src/commands/verify.js` | Swap direct scan/frontmatter internals to adapter calls, no output contract changes |
+| `tests/*.test.cjs` + `tests/plugin.test.cjs` | Add dual-engine parity tests and fallback tests |
 
 ---
 
-## Data Flow Changes
+## Dependency Design by Subsystem
 
-### 1) Runtime Telemetry Flow
+### 1) CLI and Command Layer
 
-1. CLI or plugin operation starts.
-2. Timing source captures start (`performance.now()` from `node:perf_hooks`, stable API).
-3. Emitter builds normalized event:
-   - `ts`, `runtime` (`cli|plugin`), `name`, `duration_ms`, `status`, `tags`, `corr_id`.
-4. Sink batches and appends NDJSON (size-capped, rotated).
-5. Rollup job compacts raw events into snapshots keyed by:
-   - command/hook/tool name, namespace, cache backend, phase.
+**Use `fast-glob` for high-fanout scans, not for every file access.**
 
-### 2) Benchmark Flow
+- Replace recursive scan hotspots (`.planning/phases`, milestone archive scans, markdown file discovery) with adapter calls.
+- Keep synchronous command semantics by exposing both async and sync adapter methods; prefer sync only where command flow already expects it.
+- Preserve existing command outputs and flags; no namespace/routing redesign in this milestone.
 
-1. `benchmark run --suite <name>` executes reproducible scenarios.
-2. Microbench (tinybench) validates hot utility regressions.
-3. Macrobench executes real commands/hooks over fixture project(s).
-4. Baseline and candidate snapshots saved under `.planning/perf/snapshots/`.
-5. `perf-gate` compares deltas and exits pass/warn/fail.
+**Why:** current latency is dominated by repeated scan patterns in helper/command paths, and this can be improved without changing command contracts.
 
-### 3) Optimization Loop
+### 2) Plugin Hooks
 
-1. Identify top regressions by p95 and absolute milliseconds.
-2. Link to owning module via tags (e.g., `src/lib/cache.js`).
-3. Implement targeted fix.
-4. Re-run suite + gate.
-5. Persist decision note to planning docs.
+**Do not add heavy deps in hook critical path.**
 
----
+- Keep `safeHook` as the safety boundary.
+- Only add dependency-backed logic in precomputed/idle paths (for example cache warmers or analysis jobs), not inside per-event hot paths.
+- Continue honoring plugin hook/tool naming and precedence constraints (`bgsd_` tool namespace, no built-in shadowing).
 
-## Build Order (Dependency-Aware)
+**Why:** plugin docs show hooks run sequentially and plugin tool naming can shadow built-ins; hot-path inflation is risky.
 
-### Wave 1: Contract + Non-invasive Instrumentation Foundation
+### 3) Parsers and Frontmatter
 
-1. Add telemetry schema and sink (`perf-event-schema-v1.json`, `perf-sink.js`).
-2. Add CLI emitter (`src/lib/telemetry.js`) with **no-op default**.
-3. Adapt `src/lib/profiler.js` to dual-write old baseline format + new event format.
+**Migrate frontmatter via dual-engine adapter with correctness gate.**
 
-Dependency reason: everything else depends on a stable event contract and low-risk emitter.
+- `gray-matter` becomes primary engine for parse/stringify.
+- Existing parser remains fallback engine behind flag.
+- Shadow mode compares parsed outputs for target files and logs mismatches without failing commands.
 
-### Wave 2: CLI Integration and Aggregation
+**Why:** parser bugs/edge cases are a compatibility risk; dual-engine migration prevents abrupt behavior drift.
 
-4. Wire router + cache events (`src/router.js`, `src/lib/cache.js`).
-5. Add rollup engine and snapshot format.
-6. Add command `util:benchmark` and `util:perf-gate` read paths.
+### 4) Cache
 
-Dependency reason: benchmark/gate require telemetry data and rollups.
+**Keep two-layer cache architecture; harden internals.**
 
-### Wave 3: Plugin Integration
+- Keep Map/SQLite backend selection behavior as-is.
+- Add prepared-statement reuse for SQLite operations and configure conservative lock timeout.
+- Use `lru-cache` for ephemeral parser metadata caches to avoid unbounded growth.
 
-7. Add `src/plugin/telemetry.js`.
-8. Wire `safeHook` + plugin hooks/tools in `src/plugin/index.js`.
-9. Add plugin read-only perf tool `bgsd_perf`.
-
-Dependency reason: plugin should emit to already-stable contract from Wave 1.
-
-### Wave 4: Regression Enforcement + Developer UX
-
-10. Add perf budgets in config and defaults parser merge.
-11. Add CI-safe perf gate output (`json`, `tty`) and threshold policies.
-12. Add docs + migration notes + troubleshooting.
-
-Dependency reason: enforce only after signal quality is validated.
+**Why:** current architecture is already correct for CLI lifecycle; replacing it would create unnecessary churn.
 
 ---
 
-## Migration-Safe Rollout Strategy
+## Compatibility and Migration Strategy
 
-Use controlled flags and shadow mode to avoid breaking current workflows.
+### Compatibility contracts (must not change)
 
-### Phase A: Shadow Emit (Default)
+- CLI namespace commands and JSON output shape.
+- Existing markdown format acceptance (old + new plan/state/roadmap formats).
+- Node fallback behavior (`node:sqlite` unavailable -> Map backend).
+- Plugin tool and hook registration surface.
 
-- `BGSD_PERF_TELEMETRY=1` enables emitters.
-- No command behavior changes; telemetry write failures are non-blocking.
-- Existing `BGSD_PROFILE=1` behavior remains unchanged.
+### Feature flags
 
-### Phase B: Read + Compare
+- `BGSD_DEP_FAST_GLOB=0|1` (default: 0 in shadow phase)
+- `BGSD_DEP_GRAY_MATTER=0|1` (default: 0 in shadow phase)
+- `BGSD_DEP_LRU=0|1` (default: 1 for non-critical caches once parity proven)
+- `BGSD_DEP_SHADOW_COMPARE=0|1` (default: 1 during migration)
 
-- Enable benchmark and rollup commands for maintainers.
-- Publish baseline snapshots from current main branch.
-- Validate schema stability and event volume.
+### Fallback policy
 
-### Phase C: Advisory Gates
-
-- `util:perf-gate` returns WARN status on regressions above thresholds.
-- CI reports regressions but does not fail builds yet.
-
-### Phase D: Enforced Gates (Selective)
-
-- Block only for critical suites (`init`, `state`, plugin hook p95) and only if regression exceeds configured budget and min absolute ms.
-- Keep escape hatch: `BGSD_PERF_GATE=off` for emergency releases.
-
-### Rollback Plan
-
-- One-flag disable (`BGSD_PERF_TELEMETRY=0`) returns system to pre-v9.1 behavior.
-- Event files can be ignored; no data migration required.
-- No schema dependency in core runtime path.
+- Any adapter error auto-falls back to existing implementation in-process.
+- Fallback emits debug telemetry only (`BGSD_DEBUG=1`), never user-visible failure for normal flows.
+- Rollback is flag-only; no data migration required.
 
 ---
 
-## Dependency and Library Decisions
+## Rollout Order (Dependency-Aware)
 
-### Recommended
+### Wave 1: Facades + No-op adoption (safe scaffolding)
 
-- **Use Node `perf_hooks` as primary instrumentation API** (stable in Node docs).
-- **Use tinybench for deterministic microbench tasks** (dev-only).
-- **Keep current local file telemetry as primary storage** (fits single-file deploy and offline workflows).
+1. Add adapter modules and flags.
+2. Keep old implementations as default.
+3. Add parity test harness for frontmatter and scan output.
 
-### Optional (Not default)
+### Wave 2: Shadow mode validation
 
-- **OpenTelemetry export adapter** for external dashboards, disabled by default.
-  - Reason: useful for advanced org observability, but adds startup/config complexity for CLI-first workloads.
-  - If enabled, only export rollups or sampled events, not every hook call.
+4. Enable `fast-glob` + `gray-matter` in shadow compare mode.
+5. Record mismatch/latency metrics in baseline artifacts.
+6. Fix parity gaps before any default switch.
 
-### Not Recommended for default path
+### Wave 3: Default-on for low-risk paths
 
-- Full always-on OTLP SDK boot in CLI hot path.
-- Replacing local perf storage with remote-only telemetry.
-- Plugin-time network exporters in synchronous hooks.
+7. Turn on `lru-cache` for parser metadata caches.
+8. Turn on `fast-glob` for read-only scan operations.
+9. Keep fallback enabled and observable.
 
----
+### Wave 4: Default-on for parser engine
 
-## Critical Integration Rules
-
-- Keep plugin and CLI perf APIs **append-only and backward-compatible**.
-- Never let telemetry writes fail user commands/hooks.
-- Enforce bounded storage (`max file size`, rotation, snapshot pruning).
-- Tag every event with runtime origin (`cli` vs `plugin`) to avoid attribution confusion.
-- Keep old baseline outputs during transition (`.planning/baselines/*`) until perf-gate is fully adopted.
+10. Enable `gray-matter` as default frontmatter engine.
+11. Keep legacy parser as fallback for one milestone.
+12. Remove shadow compare once mismatch rate is negligible and tests are green.
 
 ---
 
-## Confidence and Gaps
+## Risk Controls
 
-### Confidence by section
+| Risk | Detection | Mitigation |
+|---|---|---|
+| Frontmatter semantic drift | Parity tests + shadow mismatch logs | Keep legacy parser fallback; block default switch until parity passes |
+| Hook latency regression | Hook p95/p99 before/after profile snapshots | Restrict dependency work out of hot hooks; defer to idle/background |
+| Bundle-size growth | Build artifact size gate + startup timing checks | Add only 3 deps; reject large transitive additions |
+| Cross-platform path/glob differences | Windows + Linux snapshot tests | Use adapter normalization and absolute-path test matrix |
+| SQLite lock behavior changes | Cache stress test with lock contention cases | Configure timeout and conservative retries, keep Map fallback |
 
-- Integration points in current code: **HIGH**
-- Hook/tool architecture and event surface: **HIGH**
-- Build/deploy compatibility assumptions: **HIGH**
-- Optional OTEL export recommendation: **MEDIUM** (depends on operational needs and collector presence)
+---
 
-### What might be missing
+## Architecture Decision Summary
 
-- Exact benchmark scenarios for competitor parity are not yet codified (needs milestone-specific suite definition).
-- CI runtime budget impact of full benchmark suite needs a measured cap (likely split fast vs full).
+- **Replace:** internal scan engine (`fast-glob`), bounded in-memory cache primitive (`lru-cache`).
+- **Wrap:** frontmatter parsing via adapter (`gray-matter` primary + legacy fallback), command hot paths via helper adapters.
+- **Keep:** command router, plugin hook topology, two-layer cache architecture, markdown/CLI compatibility contracts.
+- **Rollout:** shadow -> compare -> partial default -> full default, with per-dependency kill switches.
+
+This gives measurable latency improvement potential with low architectural risk because external behavior remains stable and every change has a same-process fallback.
+
+---
+
+## Confidence Assessment
+
+| Area | Level | Reason |
+|---|---|---|
+| bGSD integration map and module plan | HIGH | Based on current repo structure (`src/router.js`, `src/lib/helpers.js`, `src/lib/frontmatter.js`, `src/lib/cache.js`, plugin modules) |
+| fast-glob fit for scan replacement | HIGH | API supports pattern arrays, ignore rules, sync/async modes |
+| gray-matter fit for frontmatter migration | HIGH | Explicit parse + stringify APIs aligned with current frontmatter use |
+| lru-cache fit for parser caches | HIGH | Bounded cache + ttl options map directly to current ad-hoc cache needs |
+| net latency gain size | MEDIUM | Architecture is low-risk, but exact gains depend on benchmark distribution and workload mix |
 
 ---
 
 ## Sources
 
-1. Project codebase (`src/router.js`, `src/lib/profiler.js`, `src/lib/cache.js`, `src/plugin/index.js`, `src/plugin/safe-hook.js`, `build.cjs`, `baseline.cjs`) — local authoritative architecture.
-2. OpenCode plugin docs: https://opencode.ai/docs/plugins/ (hooks, load order, custom tools, event model).
-3. Context7 OpenCode Plugins: `/websites/opencode_ai_plugins` (hook list, custom tool patterns).
-4. Node perf hooks docs: https://nodejs.org/api/perf_hooks.html (stable performance APIs).
-5. Node sqlite docs: https://nodejs.org/api/sqlite.html (`node:sqlite` status and behavior).
-6. Context7 Tinybench: `/tinylibs/tinybench` (benchmark harness patterns).
-7. Context7 OpenTelemetry JS: `/open-telemetry/opentelemetry-js` (optional exporter architecture).
+1. Repository architecture and hot paths:  
+   - `src/router.js`  
+   - `src/lib/helpers.js`  
+   - `src/lib/frontmatter.js`  
+   - `src/lib/cache.js`  
+   - `src/plugin/index.js`  
+   - `src/plugin/safe-hook.js`  
+   - `src/plugin/parsers/state.js`  
+   - `src/plugin/parsers/roadmap.js`
+2. Context7 `fast-glob` docs: `/mrmlnc/fast-glob` (glob/globSync, ignore, absolute path behavior).
+3. Context7 `gray-matter` docs: `/jonschlinkert/gray-matter` (parse/stringify, delimiters).
+4. Context7 `lru-cache` docs: `/isaacs/node-lru-cache` (bounded cache options: max/ttl/maxSize).
+5. Official OpenCode plugin docs: https://opencode.ai/docs/plugins/ (hook model, load order, custom tool naming/precedence implications).
+6. Official Node SQLite docs: https://nodejs.org/api/sqlite.html (`node:sqlite` stability and `DatabaseSync` behavior).

@@ -1,112 +1,92 @@
-# Feature Landscape: Performance Acceleration & Benchmarking (v9.1)
+# Feature Landscape: Dependency-Driven Plugin Acceleration (v9.1)
 
-**Domain:** plugin benchmarking, latency attribution, responsiveness optimization, and regression prevention for bGSD plugin workflows.
+**Domain:** Faster plugin behavior achieved through selective dependency modernization only.
 **Researched:** 2026-03-09
-**Milestone context:** Subsequent milestone after v9.0; existing cache/profiling foundations are already present.
+**Milestone context:** User wants responsiveness wins from module adoption, not a benchmark-heavy milestone.
 
 ## Scope Positioning
 
-This milestone should prioritize measurable speed work over broad new capability work.
+This milestone should ship speed gains users can feel by upgrading execution primitives, not by building broad benchmarking infrastructure.
 
-- **Primary outcome:** lower end-to-end latency for high-frequency flows.
-- **Secondary outcome:** durable benchmark and regression guardrails so gains do not erode.
-- **Explicit non-goal:** feature-surface expansion that adds overhead without measurable latency impact.
+- **Primary outcome:** lower perceived latency in common plugin interactions (command start, search, plan parsing, tool responses).
+- **Secondary outcome:** lower CPU churn and memory pressure during command-heavy sessions.
+- **Hard boundary:** dependency adoption must map to clear runtime outcomes; avoid large architecture rewrites.
 
-## Sources and Confidence
+## Dependency-Centric Capability Categories
 
-| Source | URL | Use in This Doc | Confidence |
-|--------|-----|------------------|------------|
-| OpenCode plugin docs (events, hooks, custom tools) | https://opencode.ai/docs/plugins/ | What can be instrumented and intercepted | HIGH |
-| VS Code activation events reference | https://code.visualstudio.com/api/references/activation-events | Modern plugin startup/lazy activation patterns | HIGH |
-| JetBrains Plugin SDK: PSI Performance | https://plugins.jetbrains.com/docs/intellij/psi-performance.html | Caching, repeated expensive call avoidance, load boundaries | HIGH |
-| OpenTelemetry metrics supplementary guidelines | https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/ | Cardinality/memory tradeoffs for telemetry design | HIGH |
-| Existing project docs (`PROJECT.md`, `MILESTONES.md`) | local planning files | Dependency mapping to current bGSD capabilities | HIGH |
+### 1) User-visible responsiveness improvements
 
-## Table Stakes (Must Ship in v9.1)
+| Capability | User-visible effect | Dependency class to adopt | Confidence |
+|------------|---------------------|---------------------------|------------|
+| **Faster command bootstrap path** | Commands begin executing sooner after invocation | startup/lightweight loader helpers, lazy import support modules | HIGH |
+| **Lower-latency file discovery** | Faster command responses when scanning project files | modern glob engine and path matcher | HIGH |
+| **Quicker content search feedback** | Search-backed commands return candidate files sooner | optimized search process wrapper and streaming output parser | HIGH |
+| **Smoother long-running tool calls** | Fewer "frozen" moments while external commands run | async subprocess dependency with timeout/cancel support | HIGH |
+| **Faster state round-trips** | Less delay reading/writing planning docs and cache metadata | optimized serialization/deserialization package | MEDIUM |
 
-These are baseline expectations for a performance milestone and should be treated as required scope.
+### 2) System-level acceleration capabilities
 
-| Feature | Complexity | Depends On Existing Capability | Why It Is Table Stakes |
-|---------|------------|-------------------------------|------------------------|
-| **Canonical benchmark suite for top user journeys** (`init`, `plan`, `execute`, plugin tool paths) | M | v8.0 profiler instrumentation + baseline comparison tool | No performance claim is trustworthy without repeatable baselines and fixed scenarios. |
-| **Latency budget definitions per flow** (p50/p95 targets and fail thresholds) | S | Existing command timing output + token estimation data | Prevents "faster in anecdotes, slower in aggregate" outcomes. |
-| **Phase-level latency attribution breakdown** (CLI parse, file I/O, cache hit/miss, plugin hook overhead, subprocess/tool calls) | M | Existing cached reads + plugin hook system + debug logging | Enables targeted fixes instead of blind tuning. |
-| **Cold vs warm run separation** in all benchmarks | S | SQLite L1/L2 cache behavior introduced in v8.0 | Current architecture is cache-sensitive; mixed metrics hide regressions. |
-| **Performance regression gate in test workflow** (advisory first, block on mature thresholds) | M | Existing test gate and verification patterns | Locks in gains after milestone completion. |
-| **Hot-path modernization pass** (replace avoidable subprocess/sync overhead in highest-frequency paths only) | L | v9.0 native tool architecture + namespace command routing | Most practical source of real responsiveness gains now that broad architecture exists. |
-| **Benchmark fixture standardization** (small/medium/large `.planning/` projects) | M | Existing planning templates and parser suite | Prevents overfitting to a single repo shape. |
+| Capability | Internal outcome | Dependency class to adopt | Confidence |
+|------------|------------------|---------------------------|------------|
+| **Parser modernization for markdown/frontmatter hot paths** | Lower parse time and fewer regex backtracking spikes | parser libraries with deterministic tokenization | HIGH |
+| **Glob/search result normalization library** | Reduced custom string churn and path handling bugs | path normalization + matcher ecosystem package | HIGH |
+| **Async process orchestration layer** | Controlled concurrency, cancellation, and safer process lifecycle | subprocess management library | HIGH |
+| **Binary-safe structured serialization** | Smaller payload and faster encode/decode for cached structures | compact serialization format library | MEDIUM |
+| **Stable schema validation at boundaries** | Less defensive re-parsing and cleaner fast-fail behavior | lightweight validation dependency for I/O contracts | MEDIUM |
 
-## Differentiators (High-Leverage, Not Strictly Required)
+## Table Stakes (Must Ship)
 
-These are strong "modern plugin" signals that improve long-term advantage once table stakes are stable.
+These are the minimum dependency-adoption features needed for this milestone to count as "faster plugin behavior."
 
-| Feature | Complexity | Depends On Existing Capability | Why It Differentiates |
-|---------|------------|-------------------------------|-----------------------|
-| **Competitive benchmark adapter** (run same workload profile against selected modern plugins/workflows) | L | New benchmark harness + existing workflow corpus | Converts "we are faster" from assumption into market-relative evidence. |
-| **Auto-generated performance trend report per milestone** (delta vs last shipped baseline) | M | Existing milestone lifecycle docs + profiler output | Makes perf progress visible to roadmap and verification phases. |
-| **Adaptive hook cost control** (defer expensive work to `session.idle`/post-response windows) | M | Event-driven sync added in v9.0 | Improves perceived responsiveness without dropping functionality. |
-| **Profile-guided feature flags** for expensive optional behaviors | M | Existing config and guardrail infrastructure | Allows safe rollout and quick rollback of risky optimizations. |
-| **Microbenchmark harness for parser/regex hotspots** | M | 309+ regex parsing footprint + node:test infrastructure | Catches local slowdowns before they impact end-to-end timings. |
-| **Token-cost vs latency joined dashboard** | M | tokenx integration + command profiling data | Supports balanced optimization (speed without token blowup). |
+| Feature | Why it is required | Outcome metric category (not benchmark project) |
+|---------|--------------------|-----------------------------------------------|
+| **Adopt a modern glob/match stack for file discovery paths** | File enumeration is a universal hot path across planning commands | command start-to-first-result latency |
+| **Adopt async subprocess handling for external tool invocations** | Blocking process calls create visible stalls in plugin UX | interaction smoothness and cancellation behavior |
+| **Adopt parser dependency for markdown/frontmatter hot paths** | Regex-only parsing scales poorly on large planning docs | parse latency and error resilience |
+| **Adopt optimized serialization for cache/state payloads** | JSON-heavy payload churn increases CPU and GC overhead | read/write round-trip latency |
+| **Adopt boundary validation dependency for parsed artifacts** | Faster failure on invalid input avoids wasted downstream work | wasted-work reduction and stability |
+
+## Differentiators (High-Leverage, Optional)
+
+| Feature | Why it differentiates | Confidence |
+|---------|-----------------------|------------|
+| **Streaming search adapter with incremental results** | Users see early partial output instead of waiting for full completion | HIGH |
+| **Dependency-backed cancellation propagation from plugin to CLI** | Enables responsive stop/retry loops in command-heavy workflows | HIGH |
+| **Adaptive serializer strategy by payload size** | Improves both tiny-command overhead and large-state throughput | MEDIUM |
+| **Parser fallback chain (fast path + compatibility path)** | Keeps backward compatibility while still delivering speed on common cases | HIGH |
 
 ## Anti-Features (Explicitly Out of Scope)
 
-These are common performance-project traps that should be rejected in milestone planning.
+| Anti-Feature | Why excluded from this milestone |
+|--------------|----------------------------------|
+| **Large benchmark harness and competitor shootouts** | User explicitly requested dependency-driven acceleration over benchmark-heavy scope. |
+| **Full async I/O rewrite of the CLI architecture** | Too broad and risky relative to targeted dependency modernization. |
+| **New feature surface unrelated to speed** | Adds maintenance burden without improving responsiveness. |
+| **Replacing stable components without hotspot relevance** | Dependency churn without user-facing gain is not acceptable. |
+| **Massive telemetry expansion projects** | Measurement-heavy work can consume milestone capacity without direct speed wins. |
 
-| Anti-Feature | Why Not in v9.1 |
-|--------------|-----------------|
-| **"Async rewrite everything" initiative** | Project explicitly treats sync I/O as acceptable for CLI ergonomics; broad rewrites carry high risk and weak ROI for this milestone. |
-| **Massive telemetry cardinality expansion** (per-file/per-line high-cardinality tags) | OTel guidance warns about memory/cardinality blowups; this can degrade performance while measuring it. |
-| **Benchmarking every command equally** | Most commands are low-frequency; focus on top user journeys for meaningful wins. |
-| **Cross-host synthetic benchmarks with no fixture control** | Produces noisy, non-actionable data; fixture and environment control is mandatory first. |
-| **Large dependency adoption before proving hotspot impact** | Increases bundle size and startup risk; violates "selective modernization" goal. |
-| **Premature background worker architecture** | Adds complexity and coordination cost before current bottlenecks are isolated. |
-| **Perf work without regression gate integration** | Gains will drift back within 1-2 milestones. |
+## Feature Dependencies and Rollout Order
 
-## Dependency Mapping to Current System
+1. **Process layer first:** adopt subprocess orchestration dependency so command executions can be cancellable and non-blocking where appropriate.
+2. **Discovery/search second:** adopt glob/matcher and search wrappers to reduce visible wait time in everyday flows.
+3. **Parsing third:** adopt parser modules in hot paths while preserving compatibility guarantees.
+4. **Serialization fourth:** optimize state/cache payload handling after parser outputs are stable.
+5. **Validation hardening last:** enforce boundary schemas to lock in performance and correctness gains.
 
-### Existing capabilities to leverage directly
+## Recommended MVP Feature Set (Dependency Adoption Only)
 
-| Existing Capability | Enables |
-|---------------------|---------|
-| v8.0 profiler instrumentation + baseline comparison | Benchmark suite, attribution, trend reporting |
-| SQLite L1/L2 cache + Map fallback | Cold/warm profiling and cache ROI analysis |
-| v9.0 native plugin hooks/tools | Hook overhead attribution and tool-path optimization |
-| 766+ tests and pre-commit gates | Regression-gate integration |
-| Namespace command routing + modular src split | Isolated hotspot optimization by domain |
-| tokenx estimation | Token/latency tradeoff scoring |
+Ship these five capabilities for milestone acceptance:
 
-### Net-new capabilities needed this milestone
+1. Dependency-based glob/search acceleration in core command flows.
+2. Async subprocess dependency with timeout and cancellation support.
+3. Parser dependency adoption for markdown/frontmatter-heavy operations.
+4. Optimized serialization dependency for cache/state transport.
+5. Lightweight schema validation dependency on parse and serialization boundaries.
 
-| New Capability | Complexity | Consumed By |
-|----------------|------------|-------------|
-| Reproducible benchmark runner (`bench:*` commands or equivalent) | M | Table-stakes benchmark suite |
-| Latency budget config format (per flow thresholds) | S | Regression gating and CI reporting |
-| Scenario fixtures for `.planning/` project sizes | M | Cold/warm and scale testing |
-| Attribution schema (segment names + timers) | M | Root-cause analysis and trend reports |
-
-## Recommended MVP Feature Set (v9.1)
-
-Ship this set first before any differentiators:
-
-1. Canonical benchmark suite for top 6-8 flows.
-2. Cold/warm separated metrics with p50/p95 reporting.
-3. Latency attribution across CLI, hooks, cache, and tool calls.
-4. 2-3 highest-impact hot-path optimizations proven by before/after benchmarks.
-5. Advisory regression gate integrated into normal test workflow.
-
-This MVP is sufficient to claim a real "performance acceleration" milestone without scope drift.
-
-## Complexity Summary
-
-| Bucket | Count | Notes |
-|--------|-------|-------|
-| Small (S) | 3 | Mostly definitions/configuration and reporting structure |
-| Medium (M) | 10 | Core benchmark, attribution, and guardrail work |
-| Large (L) | 2 | Competitive adapter and major hot-path modernization |
+This MVP is dependency-centric, outcome-oriented, and aligned with "faster behavior" without expanding into broad benchmarking programs.
 
 ## Confidence Notes
 
-- **HIGH confidence:** benchmark-first, lazy/deferred activation patterns, cache-aware profiling, and cardinality control principles.
-- **MEDIUM confidence:** exact shape of competitive benchmark adapter due to variation across external plugin ecosystems.
-- **LOW confidence:** none in this scoped recommendation.
+- **HIGH confidence:** glob/search modernization, subprocess orchestration, and parser-library adoption produce immediate responsiveness improvements when applied to hot paths.
+- **MEDIUM confidence:** serialization format choice and boundary-validation overhead depend on payload shape and migration strategy.
+- **LOW confidence:** none.
