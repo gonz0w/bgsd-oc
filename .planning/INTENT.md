@@ -1,9 +1,9 @@
-**Revision:** 10
+**Revision:** 11
 **Created:** 2026-02-25
-**Updated:** 2026-03-08
+**Updated:** 2026-03-09
 
 <objective>
-An intelligent agent orchestration engine for building large-scale software. Provides structured planning, execution, verification, specialized agent coordination, and structured exploration — turning unstructured project ideas into executable plans with traceability from intent through requirements to delivered code. Optimized for minimal context loading, fast execution, clean agent boundaries, and reusable skills architecture — each agent does one thing well with exactly the context it needs, sharing common patterns through composable skills.
+An intelligent agent orchestration engine for building large-scale software. Provides structured planning, execution, verification, specialized agent coordination, and structured exploration — turning unstructured project ideas into executable plans with traceability from intent through requirements to delivered code. Optimized for minimal context loading, fast execution, clean agent boundaries, and reusable skills architecture — each agent does one thing well with exactly the context it needs, sharing common patterns through composable skills, and providing a deeply embedded editor experience through plugin hooks that make planning feel native to the development environment.
 </objective>
 
 <users>
@@ -24,6 +24,13 @@ An intelligent agent orchestration engine for building large-scale software. Pro
 - DO-36 [P2]: Bundle size reduced — dead code removal and dependency pruning measurably shrink the output
 - DO-37 [P1]: Shared agent metadata (references, manifests, common workflows) extracted into reusable OpenCode skills — reducing duplication and context loading across agents
 - DO-38 [P1]: Test suite is fully green — zero pre-existing failures, all 762+ tests pass
+- DO-39 [P1]: The AI always knows current project state (phase, plan, blockers) without agents needing to run init commands — context injected via system prompt hook
+- DO-40 [P1]: Hot-path CLI operations available as native LLM-callable tools — faster, typed, no shell overhead
+- DO-41 [P1]: Project state stays synchronized automatically — STATE.md updates on session idle, file changes trigger validation
+- DO-42 [P2]: Slash commands auto-enrich with project context before executing — reducing manual @-file references
+- DO-43 [P2]: Advisory guardrails catch convention violations and suggest test runs via tool interception — graduating to blocks for critical safety
+- DO-44 [P2]: Phase transitions, milestone completion, and stuck detection trigger visible notifications
+- DO-45 [P1]: Compaction preserves full project context (decisions, blockers, current task, intent) — not just STATE.md
 </outcomes>
 
 <criteria>
@@ -42,6 +49,12 @@ An intelligent agent orchestration engine for building large-scale software. Pro
 - SC-28: Agent metadata shared via OpenCode skills is loadable and reduces per-agent context size
 - SC-29: All 762+ tests pass with zero pre-existing failures (config-migrate, compact, codebase-impact, codebase ast fixed)
 - SC-30: GitHub CI agent uses structured todo tracking and proper workflow gates matching other agents
+- SC-31: System prompt hook injects current phase, plan, and blockers into every LLM interaction without manual init calls
+- SC-32: At least 5 hot-path CLI operations are registered as native LLM-callable tools with typed Zod schemas
+- SC-33: STATE.md auto-updates when session goes idle with no manual intervention
+- SC-34: Compaction preserves PROJECT.md context, INTENT.md summary, decisions, and blockers alongside STATE.md
+- SC-35: Toast notifications fire on phase completion, milestone completion, and stuck detection events
+- SC-36: Tool interception provides advisory warnings when convention-violating file writes are detected
 </criteria>
 
 <constraints>
@@ -66,6 +79,14 @@ Orchestration should feel invisible — the right agent gets the right task with
 </health>
 
 <history>
+### v9.0 — 2026-03-09
+- **Modified** objective: Added deeply embedded editor experience through plugin hooks as a first-class architectural concern.
+  - Reason: Milestone v9.0: Plugin is the primary integration surface for UX
+- **Added** outcomes: DO-39 (always-on context injection), DO-40 (native LLM-callable tools), DO-41 (event-driven state sync), DO-42 (command enrichment), DO-43 (advisory guardrails), DO-44 (notifications), DO-45 (enhanced compaction).
+  - Reason: Milestone v9.0: Embedded Plugin Experience — full hook surface utilization
+- **Added** criteria: SC-31 through SC-36 for plugin integration verification.
+  - Reason: Milestone v9.0: Measurable success criteria for each plugin capability
+
 ### v8.3 — 2026-03-08
 - **Modified** objective: Added reusable skills architecture as a first-class architectural concern alongside minimal context loading, fast execution, and clean agent boundaries.
   - Reason: Milestone v8.3: Skills architecture for shared agent metadata
