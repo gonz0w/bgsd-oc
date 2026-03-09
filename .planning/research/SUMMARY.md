@@ -1,77 +1,136 @@
-# Research Summary: v8.3 Agent Quality & Skills
+# Research Summary: v9.1 Performance Acceleration & Plugin Benchmarking
 
-**Domain:** Agent quality standardization + OpenCode skills architecture migration
-**Researched:** 2026-03-08
-**Overall confidence:** HIGH
+**Domain:** Performance acceleration for bGSD CLI + plugin workflows
+**Researched:** 2026-03-09
+**Overall confidence:** HIGH (stack/integration), MEDIUM-HIGH (optional OTEL path)
 
 ## Executive Summary
 
-v8.3 addresses two interconnected goals: raising all 9 bGSD agents to consistent quality standards, and migrating shared agent metadata into OpenCode's native skills architecture to reduce token waste and maintenance burden.
+v9.1 should be run as a measurement-first milestone: establish reproducible benchmarks and budgets, attribute where latency is spent, optimize only proven hot paths, then enforce regression gates.
 
-OpenCode's skills system (native since v1.0.190) is a proven, stable mechanism for lazy-loading reusable instruction packages. Skills use a simple `SKILL.md` file with YAML frontmatter (name + description required) in a directory-per-skill layout. The system provides **progressive disclosure** — only skill metadata (50 tokens per skill) is loaded at startup; full content loads on-demand when an agent calls `skill({ name: "..." })`. This directly addresses bGSD's current problem of duplicated reference content across 9 agent definitions.
+The strongest strategy is a three-layer performance model:
+1. Always-on lightweight instrumentation (`perf_hooks`, low-overhead timers, structured tags).
+2. Local-first collection and benchmark artifacts (`.planning/perf/` and `.planning/baselines/perf/`).
+3. On-demand analysis and gating (`benchmark` + `perf-gate` workflows with p50/p95/p99 comparisons).
 
-The GitHub CI agent overhaul is the most concrete quality improvement needed — it lacks structured progress tracking, proper gates, and consistent patterns found in other agents like gsd-executor and gsd-planner. The consistency audit across all 9 agents should standardize common blocks (`<project_context>`, PATH SETUP, structured returns) and identify candidates for skill extraction.
+This keeps runtime overhead low for normal users while making optimization claims auditable and repeatable.
 
-The 31 pre-existing test failures (config-migrate, compact, codebase-impact, codebase ast) represent accumulated tech debt that should be resolved to maintain test suite credibility.
+## Stack Additions (Recommended)
 
-## Key Findings
+### Add now (devDependency)
 
-**Stack:** No new runtime dependencies. Skills are pure markdown — no build tooling, parsing libraries, or npm packages needed. Only deploy.sh needs updates to copy skills/ directories.
+| Package | Role in v9.1 | Why now |
+|---|---|---|
+| `tinybench@^6.0.0` | Deterministic microbench suite for parser/hotspot checks | Needed to catch local regressions before E2E impact |
+| `0x@^6.0.0` | Flamegraph profiling for slow command diagnosis | Fast path-to-root-cause after regressions are found |
+| `why-is-node-running@^3.2.2` | Diagnoses stuck benchmark/profiler runs | Reduces CI/local perf-debug time |
 
-**Architecture:** Skills complement the existing agent manifest system. Agent frontmatter controls tool access and token budgets; skills provide lazy-loaded domain knowledge. The deploy pipeline extends naturally (add skills/ to manifest).
+### Built-in capabilities to standardize
 
-**Critical pitfall:** Skill descriptions are the sole mechanism agents use to decide whether to load a skill. Vague or over-generic descriptions cause missed loads or unnecessary loads. This is effectively a prompt engineering problem, not a code problem.
+- Node profiling flags: `--cpu-prof`, `--heap-prof`, trace events.
+- `perf_hooks` APIs: `performance.now`, `timerify`, `monitorEventLoopDelay`.
+- Existing baseline tooling (`baseline.cjs`) refactored into reusable benchmark primitives.
 
-## Implications for Roadmap
+### Optional/deferred stack
 
-Based on research, suggested phase structure:
+- OpenTelemetry export path (`@opentelemetry/*`) behind explicit opt-in (`BGSD_OTEL=1`), not on default runtime path.
 
-1. **GitHub CI Agent Overhaul** — Highest concrete impact, most well-defined scope
-   - Addresses: Agent brought to standard with structured progress, gates, proper error handling
-   - Avoids: Scope creep into other agents (separate consistency audit)
+### Engine alignment
 
-2. **Agent Consistency Audit** — Must happen before skills migration (identifies what's duplicated)
-   - Addresses: Cataloguing common blocks, inconsistencies, duplication across 9 agents
-   - Avoids: Migrating content that should actually be eliminated
+- Raise declared engine to `node >=22.5` to match existing `node:sqlite` usage and avoid unsupported environments.
 
-3. **Skills Architecture Migration** — Convert identified shared content into OpenCode skills
-   - Addresses: 12 reference docs, duplicated `<project_context>` blocks, shared patterns
-   - Avoids: Over-migration (agent core logic must stay in agent definitions)
+## Feature Table Stakes (Must Ship)
 
-4. **Test Debt Cleanup** — Independent work, can be done in parallel or last
-   - Addresses: 31 pre-existing test failures (config-migrate, compact, codebase-impact, codebase ast)
-   - Avoids: Masking new breakage behind old failures
+1. Canonical benchmark suite for top user journeys (`init`, `plan`, `execute`, plugin tool paths).
+2. Cold vs warm run separation in all reports.
+3. Latency budgets per flow (p50/p95 plus fail/warn thresholds).
+4. Phase-level latency attribution (CLI parse, I/O, cache, hooks, tool wrappers/subprocesses).
+5. Regression gate integrated into normal verification workflow (advisory first, enforce later).
+6. Fixture standardization for small/medium/large `.planning/` project shapes.
+7. Hot-path modernization focused only on the top measured bottlenecks.
 
-**Phase ordering rationale:**
-- CI agent first — self-contained, builds confidence in the quality patterns
-- Audit second — informs what content moves to skills vs. stays in agents
-- Skills third — depends on audit findings for migration candidates
-- Tests can run parallel to any phase (independent codebase area)
+## Architecture Approach
 
-**Research flags for phases:**
-- Phase 1 (CI Agent): Standard patterns, unlikely to need research — copy patterns from gsd-executor
-- Phase 2 (Audit): Discovery work, findings drive later phases
-- Phase 3 (Skills): Skill descriptions need careful prompt engineering — may need iteration
-- Phase 4 (Tests): Standard debugging, no research needed
+Use an integration-first architecture that unifies existing profiler/hook timing work rather than introducing a separate telemetry system.
+
+### Target design
+
+- **Instrumentation layer (always-on, ultra-light):** emit normalized timing events from CLI and plugin hot paths.
+- **Collection layer (local-first):** append-only NDJSON event sink with bounded size + rotation.
+- **Analysis layer (on-demand):** rollups (`p50/p95/p99`, cache efficiency, error rates), benchmark suites, perf-gate comparisons.
+
+### Core components to add
+
+- `references/perf-event-schema-v1.json`
+- `src/lib/telemetry.js`
+- `src/plugin/telemetry.js`
+- `src/lib/perf-sink.js`
+- `src/lib/perf-rollup.js`
+- `src/commands/benchmark.js`
+- `src/commands/perf-gate.js`
+
+### Rollout model
+
+1. Shadow emit (`BGSD_PERF_TELEMETRY=1`) with non-blocking writes.
+2. Benchmark + compare mode for maintainers.
+3. Advisory CI gates.
+4. Selective enforced gates on critical suites with emergency escape hatch.
+
+## Top Pitfalls to Avoid
+
+1. Optimizing before baseline/SLO contract exists.
+2. Micro-only or warm-only benchmarking that misses real user latency.
+3. Sync APIs in plugin hot paths blocking the event loop.
+4. Over-instrumentation turning telemetry overhead into the bottleneck.
+5. Multi-layer cache invalidation correctness regressions.
+6. Missing CI performance gates causing gains to decay within 1-2 phases.
+7. Event storms from hooks/watchers without debounce/coalescing.
+8. Tool shadowing/wrapper overhead from poorly bounded custom tools.
+
+## Recommended Phase Strategy for Milestone v9.1
+
+### Phase 1: Baseline + Methodology Contract
+
+- Define canonical workloads, fixture matrix, and flow budgets.
+- Implement benchmark lane split (macro/E2E + micro).
+- Establish tool naming/boundary policy and report format.
+- **Exit criteria:** repeatable before/after reports with cold+warm context and variance.
+
+### Phase 2: Profiling + Attribution
+
+- Ship unified event schema and emitters (CLI + plugin).
+- Capture command/hook/cache/tool attribution and event-loop delay.
+- Set instrumentation sampling policy to cap measurement overhead.
+- **Exit criteria:** top regressions ranked by p95 and absolute ms with owning module tags.
+
+### Phase 3: Targeted Optimizations
+
+- Implement 2-3 highest-impact fixes only (proven by attribution).
+- Remove sync blocking from critical plugin paths.
+- Apply cache safety/invalidation contract tests with each cache change.
+- **Exit criteria:** measurable p95/p99 improvements and no correctness regressions.
+
+### Phase 4: Regression Safeguards + Rollout
+
+- Add advisory then enforced perf-gate thresholds in CI.
+- Add compatibility soak checks for multi-plugin environments.
+- Publish milestone trend snapshot and rollback thresholds.
+- **Exit criteria:** gate active for critical suites and stable trend over multiple runs.
+
+## Milestone Acceptance Targets (Suggested)
+
+- >=15% p95 latency improvement on top 3 critical command/tool flows, or
+- >=25% p99 tail reduction on high-frequency plugin hooks, or
+- clear triage-time reduction via benchmark + profiling workflow evidence.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
-|------|------------|-------|
-| Stack | HIGH | No new deps, verified via official OpenCode docs and live system |
-| Skills mechanics | HIGH | Verified via Context7, official docs, plugin source, multiple concordant sources |
-| Migration viability | HIGH | Skills format is simple markdown, direct mapping from existing references/ |
-| Agent quality patterns | HIGH | Patterns already established in existing high-quality agents (gsd-executor, gsd-planner) |
-| Token savings estimate | MEDIUM | 20-40% reduction estimated but depends on agent usage patterns |
-| Description effectiveness | MEDIUM | Prompt engineering — needs empirical validation |
-
-## Gaps to Address
-
-- Exact token savings from skill migration (measurable only after implementation)
-- Optimal skill description length and phrasing for bGSD use cases
-- Whether PATH SETUP can be extracted to a skill (currently needs to run before any tool calls — timing concern)
-- Integration testing for skill loading in the deploy pipeline (does deploy.sh correctly preserve skill directory structure?)
-- Whether any of the 12 reference docs are actually unused and should be removed rather than migrated
+|---|---|---|
+| Stack additions (`tinybench`, `0x`, Node profiling APIs) | HIGH | Versions and compatibility verified in research |
+| Unified architecture and rollout sequencing | HIGH | Matches existing plugin/CLI integration points |
+| Pitfall model and prevention controls | HIGH | Strong agreement across Node/plugin benchmarking guidance |
+| Optional OTEL export path | MEDIUM-HIGH | Useful but environment-dependent and not needed by default |
 
 ---
-*Last updated: 2026-03-08*
+*Last updated: 2026-03-09*
