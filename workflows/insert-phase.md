@@ -31,13 +31,11 @@ Validate first argument is an integer.
 </step>
 
 <step name="init_context">
-Load phase operation context:
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${after_phase}")
-```
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
 
-Check `roadmap_exists` from init JSON. If false:
+Check `roadmap_exists` from `<bgsd-context>` JSON. If false:
 ```
 ERROR: No roadmap found (.planning/ROADMAP.md)
 ```

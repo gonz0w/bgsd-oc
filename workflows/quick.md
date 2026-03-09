@@ -34,11 +34,11 @@ If `$FULL_MODE`:
 
 **Step 2: Initialize**
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:quick "$DESCRIPTION" --compact)
-```
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-Parse JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Parse `<bgsd-context>` JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
 
 **If `roadmap_exists` false:** Error — run `/bgsd-new-project` first.
 

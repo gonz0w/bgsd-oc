@@ -35,12 +35,13 @@ If doesn't exist: Continue.
 
 ## Step 3: Gather Phase Context
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${PHASE}")
-# Extract: phase_dir, padded_phase, phase_number, commit_docs, state_path, requirements_path, context_path, research_path
-```
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-Use paths from INIT (do not inline file contents in orchestrator context):
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Extract from `<bgsd-context>` JSON: `phase_dir`, `padded_phase`, `phase_number`, `commit_docs`, `state_path`, `requirements_path`, `context_path`, `research_path`.
+
+Use paths from `<bgsd-context>` (do not inline file contents in orchestrator context):
 - `requirements_path`
 - `context_path`
 - `state_path`

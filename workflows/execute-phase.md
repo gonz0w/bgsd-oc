@@ -13,6 +13,10 @@ Read STATE.md before starting.
 <process>
 
 <step name="initialize" priority="first">
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
 Parse PHASE_ARG to extract phase number and flags:
 
 - Extract first numeric argument as PHASE_NUMBER
@@ -45,9 +49,7 @@ elif [[ "$PHASE_ARG" == *"--no-ci"* ]]; then
 fi
 ```
 
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:execute-phase "${PHASE_NUMBER}" --compact)
-
-Parse JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
+Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
 
 If `phase_found` false or `plan_count` 0 → error. No STATE.md but `.planning/` exists → offer reconstruct. `parallelization` false → sequential execution.
 </step>

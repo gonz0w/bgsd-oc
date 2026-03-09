@@ -82,13 +82,13 @@ Phase: "API documentation"
 <process>
 
 <step name="initialize" priority="first">
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
 Phase number from argument (required).
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${PHASE}")
-```
-
-Parse JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`.
+Parse `<bgsd-context>` JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`.
 
 **If `phase_found` is false:**
 ```
@@ -271,7 +271,7 @@ Create CONTEXT.md capturing decisions made.
 
 **Find or create phase directory:**
 
-Use values from init: `phase_dir`, `phase_slug`, `padded_phase`.
+Use values from `<bgsd-context>`: `phase_dir`, `phase_slug`, `padded_phase`.
 
 If `phase_dir` is null (phase exists in roadmap but no directory):
 ```bash

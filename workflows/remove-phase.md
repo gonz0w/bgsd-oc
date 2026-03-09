@@ -26,13 +26,11 @@ Exit.
 </step>
 
 <step name="init_context">
-Load phase operation context:
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${target}")
-```
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
 
-Extract: `phase_found`, `phase_dir`, `phase_number`, `commit_docs`, `roadmap_exists`.
+Extract from `<bgsd-context>` JSON: `phase_found`, `phase_dir`, `phase_number`, `commit_docs`, `roadmap_exists`.
 
 Also read STATE.md and ROADMAP.md content for parsing current position.
 </step>

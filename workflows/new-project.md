@@ -19,11 +19,9 @@ If `--auto` flag present:
 
 ## 1. Setup
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:new-project --compact)
-```
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. New projects may not have `.planning/` yet, so `<bgsd-context>` may be absent or contain an error — this is expected. Proceed normally.
 
-Parse: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `project_exists`, `needs_codebase_map`, `has_git`, `project_path`.
+Parse `<bgsd-context>` JSON (if present) for: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `project_exists`, `needs_codebase_map`, `has_git`, `project_path`.
 
 If `project_exists` true → error, use `/bgsd-progress`.
 If `has_git` false → `git init`.
@@ -136,7 +134,7 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "chore: add p
 
 ## 5.5. Resolve Model Profile
 
-Use models from init: `researcher_model`, `synthesizer_model`, `roadmapper_model`.
+Use models from `<bgsd-context>`: `researcher_model`, `synthesizer_model`, `roadmapper_model`.
 
 ## 6. Research Decision
 

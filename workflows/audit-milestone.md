@@ -10,11 +10,11 @@ Read all execution_context files before starting.
 
 ## 0. Initialize Milestone Context
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:milestone-op)
-```
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-Extract from init JSON: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `commit_docs`.
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Extract from `<bgsd-context>` JSON: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `commit_docs`.
 
 Resolve verifier model:
 ```bash

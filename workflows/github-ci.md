@@ -102,11 +102,11 @@ Report:
 
 **Step 4: Spawn CI agent**
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:execute-phase 2>/dev/null || echo '{"executor_model":"default"}')
-```
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-Parse `executor_model` from init JSON.
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Parse `executor_model` from `<bgsd-context>` JSON.
 
 ```
 Task(

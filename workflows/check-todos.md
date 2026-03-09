@@ -9,13 +9,11 @@ Read all files referenced by the invoking prompt's execution_context before star
 <process>
 
 <step name="init_context">
-Load todo context:
+**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
 
-```bash
-INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos)
-```
+**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
 
-Extract from init JSON: `todo_count`, `todos`, `pending_dir`.
+Extract from `<bgsd-context>` JSON: `todo_count`, `todos`, `pending_dir`.
 
 If `todo_count` is 0:
 ```
