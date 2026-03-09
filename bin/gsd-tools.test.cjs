@@ -7888,6 +7888,38 @@ describe('build pipeline', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ESM Plugin Build (Phase 71, Plan 01)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('ESM plugin build', () => {
+  test('build produces ESM plugin.js', () => {
+    const pluginPath = path.join(__dirname, '..', 'plugin.js');
+    assert.ok(fs.existsSync(pluginPath), 'plugin.js should exist at project root');
+    const stat = fs.statSync(pluginPath);
+    assert.ok(stat.size > 100, `plugin.js suspiciously small: ${stat.size} bytes`);
+  });
+
+  test('ESM plugin.js has no require() calls', () => {
+    const pluginPath = path.join(__dirname, '..', 'plugin.js');
+    const content = fs.readFileSync(pluginPath, 'utf-8');
+    const requireMatches = content.match(/\brequire\s*\(/g);
+    assert.strictEqual(requireMatches, null, `Found require() calls in ESM plugin.js: ${requireMatches ? requireMatches.length : 0}`);
+  });
+
+  test('ESM plugin.js exports BgsdPlugin', async () => {
+    const pluginPath = path.join(__dirname, '..', 'plugin.js');
+    const mod = await import(pluginPath);
+    assert.strictEqual(typeof mod.BgsdPlugin, 'function', 'BgsdPlugin should be exported as a function');
+  });
+
+  test('ESM plugin.js includes safeHook', () => {
+    const pluginPath = path.join(__dirname, '..', 'plugin.js');
+    const content = fs.readFileSync(pluginPath, 'utf-8');
+    assert.ok(content.includes('safeHook'), 'plugin.js should contain safeHook');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Token Budget (Phase 13, Plan 03)
 // ─────────────────────────────────────────────────────────────────────────────
 
