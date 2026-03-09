@@ -717,16 +717,6 @@ function invalidateIntent(cwd) {
   }
 }
 
-// src/plugin/parsers/index.js
-function invalidateAll(cwd) {
-  invalidateState(cwd);
-  invalidateRoadmap(cwd);
-  invalidatePlans(cwd);
-  invalidateConfig(cwd);
-  invalidateProject(cwd);
-  invalidateIntent(cwd);
-}
-
 // src/plugin/project-state.js
 function getProjectState(cwd) {
   const resolvedCwd = cwd || process.cwd();
@@ -766,6 +756,99 @@ function getProjectState(cwd) {
   });
 }
 
+// src/plugin/token-budget.js
+var TOKEN_BUDGET = 500;
+function countTokens(text) {
+  if (!text || typeof text !== "string") return 0;
+  return Math.ceil(text.length / 4);
+}
+
+// src/plugin/context-builder.js
+function buildSystemPrompt(cwd) {
+  let projectState;
+  try {
+    projectState = getProjectState(cwd);
+  } catch {
+    return "<bgsd>Failed to load project state. Run /bgsd-health to diagnose.</bgsd>";
+  }
+  if (!projectState) {
+    return "<bgsd>No active project. Run /bgsd-new-project to start.</bgsd>";
+  }
+  const { state, roadmap, currentPhase, currentMilestone, plans } = projectState;
+  if (!state || !state.phase) {
+    return "<bgsd>Failed to load project state. Run /bgsd-health to diagnose.</bgsd>";
+  }
+  const phaseMatch = state.phase.match(/^(\d+)\s*(?:—|-|–)\s*(.+)/);
+  const phaseNum = phaseMatch ? phaseMatch[1] : state.phase;
+  const phaseName = phaseMatch ? phaseMatch[2].trim() : "";
+  let planInfo = "";
+  if (state.currentPlan && state.currentPlan !== "Not started") {
+    const currentPlanMatch = state.currentPlan.match(/(\d+)/);
+    const planNum = currentPlanMatch ? currentPlanMatch[1].padStart(2, "0") : null;
+    if (planNum && plans.length > 0) {
+      const plan = plans.find(
+        (p) => p.frontmatter && p.frontmatter.plan === planNum
+      );
+      if (plan) {
+        const totalTasks = plan.tasks ? plan.tasks.length : 0;
+        planInfo = ` | Plan: P${planNum} (${totalTasks} tasks)`;
+      } else {
+        planInfo = ` | Plan: P${planNum}`;
+      }
+    } else {
+      planInfo = ` | Plan: ${state.currentPlan}`;
+    }
+  } else {
+    planInfo = " | Ready to plan";
+  }
+  let milestoneInfo = "";
+  if (currentMilestone && roadmap) {
+    const milestonePhases = currentMilestone.phases;
+    if (milestonePhases) {
+      const totalPhases = milestonePhases.end - milestonePhases.start + 1;
+      const currentPhaseNum = parseInt(phaseNum, 10);
+      const phasePosition = currentPhaseNum - milestonePhases.start + 1;
+      milestoneInfo = ` | ${currentMilestone.version} ${phasePosition}/${totalPhases} phases`;
+    } else {
+      milestoneInfo = ` | ${currentMilestone.version}`;
+    }
+  }
+  let goalLine = "";
+  if (currentPhase && currentPhase.goal) {
+    goalLine = `
+Goal: ${currentPhase.goal}`;
+  }
+  let blockerLine = "";
+  if (state.raw) {
+    const blockersSection = state.getSection("Blockers/Concerns");
+    if (blockersSection) {
+      const blockerLines = blockersSection.split("\n").map((l) => l.replace(/^-\s*/, "").trim()).filter((l) => l && l !== "None" && l !== "None." && !l.startsWith("None \u2014"));
+      if (blockerLines.length > 0) {
+        blockerLine = `
+Blocker: ${blockerLines[0]}`;
+      }
+    }
+  }
+  const prompt = `<bgsd>
+Phase ${phaseNum}: ${phaseName}${planInfo}${milestoneInfo}${goalLine}${blockerLine}
+</bgsd>`;
+  const tokenCount = countTokens(prompt);
+  if (tokenCount > TOKEN_BUDGET) {
+    console.warn(`[bGSD] System prompt injection exceeds budget: ${tokenCount} tokens (budget: ${TOKEN_BUDGET})`);
+  }
+  return prompt;
+}
+
+// src/plugin/parsers/index.js
+function invalidateAll(cwd) {
+  invalidateState(cwd);
+  invalidateRoadmap(cwd);
+  invalidatePlans(cwd);
+  invalidateConfig(cwd);
+  invalidateProject(cwd);
+  invalidateIntent(cwd);
+}
+
 // src/plugin/index.js
 var BgsdPlugin = async ({ directory }) => {
   const bgsdHome = join9(homedir2(), ".config", "opencode", "bgsd-oc");
@@ -788,15 +871,24 @@ ${stateContent}`
       );
     }
   });
+  const systemTransform = safeHook("system.transform", async (input, output) => {
+    const projectDir = directory || process.cwd();
+    const prompt = buildSystemPrompt(projectDir);
+    if (prompt && output && output.system) {
+      output.system.push(prompt);
+    }
+  });
   return {
     "session.created": sessionCreated,
     "shell.env": shellEnv,
-    "experimental.session.compacting": compacting
+    "experimental.session.compacting": compacting,
+    "experimental.chat.system.transform": systemTransform
     // tool: registry.getTools(),  // Uncomment in Phase 74 when tools exist
   };
 };
 export {
   BgsdPlugin,
+  buildSystemPrompt,
   createToolRegistry,
   getProjectState,
   invalidateAll,

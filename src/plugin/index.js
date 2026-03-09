@@ -3,6 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { safeHook } from './safe-hook.js';
 import { createToolRegistry } from './tool-registry.js';
+import { buildSystemPrompt } from './context-builder.js';
 
 // Re-export parsers, tool registry, and safeHook for external consumption
 export { parseState, invalidateState } from './parsers/state.js';
@@ -13,6 +14,7 @@ export { parseProject, invalidateProject } from './parsers/project.js';
 export { parseIntent, invalidateIntent } from './parsers/intent.js';
 export { invalidateAll } from './parsers/index.js';
 export { getProjectState } from './project-state.js';
+export { buildSystemPrompt } from './context-builder.js';
 export { createToolRegistry } from './tool-registry.js';
 export { safeHook } from './safe-hook.js';
 
@@ -22,8 +24,10 @@ export { safeHook } from './safe-hook.js';
  * Provides session lifecycle integration for the bGSD planning system:
  * - Session greeting with plugin availability notice
  * - BGSD_HOME environment variable injection for workflow resolution
+ * - System prompt injection with current project state (Phase 73)
  * - State preservation across session compaction
- * - In-process parsers for STATE.md, ROADMAP.md, PLAN.md, config.json
+ * - In-process parsers for STATE.md, ROADMAP.md, PLAN.md, config.json, PROJECT.md, INTENT.md
+ * - Unified ProjectState facade for cached data access
  * - Tool registry with bgsd_ prefix enforcement
  *
  * All hooks are wrapped in safeHook for universal error boundary protection:
@@ -58,10 +62,19 @@ export const BgsdPlugin = async ({ directory }) => {
     }
   });
 
+  const systemTransform = safeHook('system.transform', async (input, output) => {
+    const projectDir = directory || process.cwd();
+    const prompt = buildSystemPrompt(projectDir);
+    if (prompt && output && output.system) {
+      output.system.push(prompt);
+    }
+  });
+
   return {
     'session.created': sessionCreated,
     'shell.env': shellEnv,
     'experimental.session.compacting': compacting,
+    'experimental.chat.system.transform': systemTransform,
     // tool: registry.getTools(),  // Uncomment in Phase 74 when tools exist
   };
 };
