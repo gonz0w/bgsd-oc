@@ -7,7 +7,7 @@ agents: [all]
 
 # Skill Index
 
-**Generated:** 2026-03-08T23:42:52.847Z
+**Generated:** 2026-03-09T04:29:49.995Z
 **Total skills:** 27
 
 | Skill | Type | Agents | Description |
@@ -25,7 +25,7 @@ agents: [all]
 | git-integration | shared | executor, github-ci | Git workflow patterns for bGSD — commit points (what to commit and when), commit message formats for initialization/task/plan/handoff, per-task commit rationale, example git log, and anti-patterns to avoid. |
 | goal-backward | shared | planner, verifier, plan-checker, roadmapper | Goal-backward verification methodology — deriving observable truths, required artifacts, wiring connections, and key links from a stated goal. Used to create must-haves for plans and verify phase achievement. |
 | model-profiles | shared | planner, executor, verifier, debugger, roadmapper, project-researcher, phase-researcher, codebase-mapper, plan-checker, github-ci | AI model selection profiles for bGSD agents — quality/balanced/budget profile definitions, per-agent model assignments, resolution logic, per-agent overrides, and design rationale for why each agent uses its assigned model tier. |
-| phase-argument-parsing | shared | planner, executor, verifier, roadmapper | Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via gsd-tools find-phase, and directory lookup patterns. |
+| phase-argument-parsing | shared | planner, executor, verifier, roadmapper | Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via bgsd-tools find-phase, and directory lookup patterns. |
 | planner-checkpoints | agent-specific | planner | Checkpoint planning guidelines for planners — when to use each checkpoint type (human-verify 90%, decision 9%, human-action 1%), XML templates, authentication gates, writing rules, and anti-patterns to avoid. |
 | planner-dependency-graph | agent-specific | planner | Dependency graph construction for planners — recording needs/creates per task, wave analysis, vertical slices vs horizontal layers, and file ownership rules for parallel execution. |
 | planner-gap-closure | agent-specific | planner | Gap closure planning methodology — creating plans from verification or UAT failures. Covers finding gap sources, parsing gap data, loading existing SUMMARYs, grouping gaps into plans, and writing gap closure PLAN.md files. |

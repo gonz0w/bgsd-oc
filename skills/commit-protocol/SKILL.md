@@ -79,7 +79,7 @@ Track all task commit hashes throughout execution. These are included in the SUM
 
 Save execution progress after each task commit:
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs util:memory write --store bookmarks \
+node $BGSD_HOME/bin/bgsd-tools.cjs util:memory write --store bookmarks \
   --entry '{"phase":"${PHASE}","plan":"${PLAN}","task":${TASK_NUM},"total_tasks":${TOTAL_TASKS},"git_head":"'$(git rev-parse --short HEAD)'"}'
 ```
 

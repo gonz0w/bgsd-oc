@@ -36,7 +36,7 @@ If spawned as continuation agent (`<completed_tasks>` in prompt):
 The executor should monitor context usage and proactively save state when approaching limits, using the bookmark system:
 
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs util:memory write \
+node $BGSD_HOME/bin/bgsd-tools.cjs util:memory write \
   --store bookmarks \
   --entry '{"phase":"{{phase}}","plan":"{{plan}}","task":N,"total_tasks":M,"git_head":"'$(git rev-parse --short HEAD)'"}'
 ```

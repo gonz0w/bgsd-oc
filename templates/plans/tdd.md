@@ -32,9 +32,9 @@ Output: [Working, tested feature with 2-3 commits.]
 </objective>
 
 <execution_context>
-@__OPENCODE_CONFIG__/get-shit-done/workflows/execute-plan.md
-@__OPENCODE_CONFIG__/get-shit-done/templates/summary.md
-@__OPENCODE_CONFIG__/get-shit-done/references/tdd.md
+@__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md
+@__OPENCODE_CONFIG__/bgsd-oc/templates/summary.md
+@__OPENCODE_CONFIG__/bgsd-oc/references/tdd.md
 </execution_context>
 
 <context>

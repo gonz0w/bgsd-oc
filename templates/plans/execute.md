@@ -31,8 +31,8 @@ Output: [Concrete deliverables when complete.]
 </objective>
 
 <execution_context>
-@__OPENCODE_CONFIG__/get-shit-done/workflows/execute-plan.md
-@__OPENCODE_CONFIG__/get-shit-done/templates/summary.md
+@__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md
+@__OPENCODE_CONFIG__/bgsd-oc/templates/summary.md
 </execution_context>
 
 <context>

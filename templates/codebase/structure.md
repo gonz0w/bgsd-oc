@@ -123,11 +123,11 @@ Template for `.planning/codebase/STRUCTURE.md` - captures physical file organiza
 ## Directory Layout
 
 ```
-get-shit-done/
+bgsd-oc/
 ├── bin/                # Executable entry points
 ├── commands/           # Slash command definitions
 │   └── gsd/           # GSD-specific commands
-├── get-shit-done/     # Skill resources
+├── bgsd-oc/     # Skill resources
 │   ├── references/    # Principle documents
 │   ├── templates/     # File templates
 │   └── workflows/     # Multi-step procedures
@@ -151,19 +151,19 @@ get-shit-done/
 - Key files: new-project.md, plan-phase.md, execute-plan.md
 - Subdirectories: None (flat structure)
 
-**get-shit-done/references/**
+**bgsd-oc/references/**
 - Purpose: Core philosophy and guidance documents
 - Contains: principles.md, questioning.md, plan-format.md
 - Key files: principles.md - system philosophy
 - Subdirectories: None
 
-**get-shit-done/templates/**
+**bgsd-oc/templates/**
 - Purpose: Document templates for .planning/ files
 - Contains: Template definitions with frontmatter
 - Key files: project.md, roadmap.md, plan.md, summary.md
 - Subdirectories: codebase/ (new - for stack/architecture/structure templates)
 
-**get-shit-done/workflows/**
+**bgsd-oc/workflows/**
 - Purpose: Reusable multi-step procedures
 - Contains: Workflow definitions called by commands
 - Key files: execute-plan.md, research-phase.md
@@ -211,15 +211,15 @@ get-shit-done/
 - Documentation: Update `README.md` with new command
 
 **New Template:**
-- Implementation: `get-shit-done/templates/{name}.md`
+- Implementation: `bgsd-oc/templates/{name}.md`
 - Documentation: Template is self-documenting (includes guidelines)
 
 **New Workflow:**
-- Implementation: `get-shit-done/workflows/{name}.md`
-- Usage: Reference from command with `@__OPENCODE_CONFIG__/get-shit-done/workflows/{name}.md`
+- Implementation: `bgsd-oc/workflows/{name}.md`
+- Usage: Reference from command with `@__OPENCODE_CONFIG__/bgsd-oc/workflows/{name}.md`
 
 **New Reference Document:**
-- Implementation: `get-shit-done/references/{name}.md`
+- Implementation: `bgsd-oc/references/{name}.md`
 - Usage: Reference from commands/workflows as needed
 
 **Utilities:**
@@ -228,7 +228,7 @@ get-shit-done/
 
 ## Special Directories
 
-**get-shit-done/**
+**bgsd-oc/**
 - Purpose: Resources installed to __OPENCODE_CONFIG__/
 - Source: Copied by bin/install.js during installation
 - Committed: Yes (source of truth)

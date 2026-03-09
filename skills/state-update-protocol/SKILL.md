@@ -7,7 +7,7 @@ agents: [executor, github-ci]
 
 ## Purpose
 
-Standardizes how agents update project state after completing a plan. STATE.md is the project's memory — recording position, decisions, metrics, and session continuity. ROADMAP.md tracks plan progress. REQUIREMENTS.md tracks requirement completion. All updates use gsd-tools CLI commands to ensure consistent format.
+Standardizes how agents update project state after completing a plan. STATE.md is the project's memory — recording position, decisions, metrics, and session continuity. ROADMAP.md tracks plan progress. REQUIREMENTS.md tracks requirement completion. All updates use bgsd-tools CLI commands to ensure consistent format.
 
 ## Placeholders
 
@@ -15,7 +15,7 @@ Standardizes how agents update project state after completing a plan. STATE.md i
 |---|---|---|
 | `{{phase}}` | Current phase identifier | `01-foundation` |
 | `{{plan}}` | Current plan number | `02` |
-| `{{gsd_home}}` | Path to gsd-tools installation | `/home/user/.config/oc/get-shit-done` |
+| `{{bgsd_home}}` | Path to bgsd-tools installation | `/home/user/.config/oc/bgsd-oc` |
 
 ## Content
 
@@ -25,19 +25,19 @@ After SUMMARY.md is created (post self-check), execute these commands in order:
 
 **1. Advance plan counter:**
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs verify:state advance-plan
+node {{bgsd_home}}/bin/bgsd-tools.cjs verify:state advance-plan
 ```
 Increments Current Plan, detects last-plan edge case, sets status.
 
 **2. Recalculate progress:**
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs verify:state update-progress
+node {{bgsd_home}}/bin/bgsd-tools.cjs verify:state update-progress
 ```
 Recalculates progress bar from SUMMARY.md counts on disk.
 
 **3. Record execution metrics:**
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs verify:state record-metric \
+node {{bgsd_home}}/bin/bgsd-tools.cjs verify:state record-metric \
   --phase "{{phase}}" --plan "{{plan}}" --duration "${DURATION}" \
   --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
 ```
@@ -47,14 +47,14 @@ Appends to Performance Metrics table in STATE.md.
 
 Extract key decisions from SUMMARY.md frontmatter or "Decisions Made" section, then record each:
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs verify:state add-decision \
+node {{bgsd_home}}/bin/bgsd-tools.cjs verify:state add-decision \
   --phase "{{phase}}" --summary "${DECISION_TEXT}"
 ```
 Adds to Decisions section, removes placeholders.
 
 **5. Update session continuity:**
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs verify:state record-session \
+node {{bgsd_home}}/bin/bgsd-tools.cjs verify:state record-session \
   --stopped-at "Completed {{phase}}-{{plan}}-PLAN.md"
 ```
 Updates Last session timestamp and Stopped At fields.
@@ -62,7 +62,7 @@ Updates Last session timestamp and Stopped At fields.
 ### ROADMAP.md Progress Update
 
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs plan:roadmap update-plan-progress "${PHASE_NUMBER}"
+node {{bgsd_home}}/bin/bgsd-tools.cjs plan:roadmap update-plan-progress "${PHASE_NUMBER}"
 ```
 Updates ROADMAP.md progress table row with PLAN vs SUMMARY counts.
 
@@ -70,7 +70,7 @@ Updates ROADMAP.md progress table row with PLAN vs SUMMARY counts.
 
 Extract requirement IDs from the PLAN.md frontmatter `requirements:` field, then mark each complete:
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs plan:requirements mark-complete ${REQ_IDS}
+node {{bgsd_home}}/bin/bgsd-tools.cjs plan:requirements mark-complete ${REQ_IDS}
 ```
 Checks off requirement checkboxes and updates traceability table in REQUIREMENTS.md. Skip this step if the plan has no `requirements` field.
 
@@ -78,14 +78,14 @@ Checks off requirement checkboxes and updates traceability table in REQUIREMENTS
 
 If blockers were encountered during execution:
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs verify:state add-blocker "Blocker description"
+node {{bgsd_home}}/bin/bgsd-tools.cjs verify:state add-blocker "Blocker description"
 ```
 
 ### Final Metadata Commit
 
 Commit all state/documentation changes separately from task commits:
 ```bash
-node {{gsd_home}}/bin/gsd-tools.cjs execute:commit "docs({{phase}}-{{plan}}): complete [plan-name] plan" \
+node {{bgsd_home}}/bin/bgsd-tools.cjs execute:commit "docs({{phase}}-{{plan}}): complete [plan-name] plan" \
   --files .planning/phases/XX-name/{{phase}}-{{plan}}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
 
@@ -105,15 +105,15 @@ The CI agent's state update behavior depends on invocation:
 **Full state update sequence after plan completion:**
 ```bash
 # After SUMMARY.md written and self-checked
-node $GSD_HOME/bin/gsd-tools.cjs verify:state advance-plan
-node $GSD_HOME/bin/gsd-tools.cjs verify:state update-progress
-node $GSD_HOME/bin/gsd-tools.cjs verify:state record-metric \
+node $BGSD_HOME/bin/bgsd-tools.cjs verify:state advance-plan
+node $BGSD_HOME/bin/bgsd-tools.cjs verify:state update-progress
+node $BGSD_HOME/bin/bgsd-tools.cjs verify:state record-metric \
   --phase "03-auth" --plan "02" --duration "18 min" \
   --tasks "3" --files "5"
-node $GSD_HOME/bin/gsd-tools.cjs verify:state add-decision \
+node $BGSD_HOME/bin/bgsd-tools.cjs verify:state add-decision \
   --phase "03-auth" --summary "Used jose instead of jsonwebtoken for Edge compatibility"
-node $GSD_HOME/bin/gsd-tools.cjs verify:state record-session \
+node $BGSD_HOME/bin/bgsd-tools.cjs verify:state record-session \
   --stopped-at "Completed 03-02-PLAN.md"
-node $GSD_HOME/bin/gsd-tools.cjs plan:roadmap update-plan-progress "03"
-node $GSD_HOME/bin/gsd-tools.cjs plan:requirements mark-complete AUTH-01 AUTH-02
+node $BGSD_HOME/bin/bgsd-tools.cjs plan:roadmap update-plan-progress "03"
+node $BGSD_HOME/bin/bgsd-tools.cjs plan:requirements mark-complete AUTH-01 AUTH-02
 ```

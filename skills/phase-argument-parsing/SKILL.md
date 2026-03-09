@@ -1,6 +1,6 @@
 ---
 name: phase-argument-parsing
-description: Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via gsd-tools find-phase, and directory lookup patterns.
+description: Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via bgsd-tools find-phase, and directory lookup patterns.
 type: shared
 agents: [planner, executor, verifier, roadmapper]
 sections: [extraction, normalization, validation, directory-lookup]
@@ -14,7 +14,7 @@ Multiple agents need to parse phase arguments from user input. This skill standa
 
 | Placeholder | Description | Example |
 |-------------|-------------|---------|
-| `{{gsd_home}}` | Path to gsd-tools installation | `$GSD_HOME` |
+| `{{bgsd_home}}` | Path to bgsd-tools installation | `$BGSD_HOME` |
 
 ## Content
 
@@ -28,12 +28,12 @@ From `$ARGUMENTS`:
 <!-- /section -->
 
 <!-- section: normalization -->
-### Using gsd-tools (Recommended)
+### Using bgsd-tools (Recommended)
 
 The `find-phase` command handles normalization and validation in one step:
 
 ```bash
-PHASE_INFO=$(node {{gsd_home}}/bin/gsd-tools.cjs plan:find-phase "${PHASE}")
+PHASE_INFO=$(node {{bgsd_home}}/bin/bgsd-tools.cjs plan:find-phase "${PHASE}")
 ```
 
 Returns JSON:
@@ -63,7 +63,7 @@ fi
 Use `roadmap get-phase` to validate the phase exists:
 
 ```bash
-PHASE_CHECK=$(node {{gsd_home}}/bin/gsd-tools.cjs plan:roadmap get-phase "${PHASE}")
+PHASE_CHECK=$(node {{bgsd_home}}/bin/bgsd-tools.cjs plan:roadmap get-phase "${PHASE}")
 if [ "$(echo "$PHASE_CHECK" | jq -r '.found')" = "false" ]; then
   echo "ERROR: Phase ${PHASE} not found in roadmap"
   exit 1
@@ -75,7 +75,7 @@ fi
 ### Directory Lookup
 
 ```bash
-PHASE_DIR=$(node {{gsd_home}}/bin/gsd-tools.cjs plan:find-phase "${PHASE}" | jq -r '.directory')
+PHASE_DIR=$(node {{bgsd_home}}/bin/bgsd-tools.cjs plan:find-phase "${PHASE}" | jq -r '.directory')
 ```
 <!-- /section -->
 

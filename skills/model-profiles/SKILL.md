@@ -66,8 +66,8 @@ Override specific agents without changing the entire profile:
 {
   "model_profile": "balanced",
   "model_overrides": {
-    "gsd-executor": "opus",
-    "gsd-planner": "haiku"
+    "bgsd-executor": "opus",
+    "bgsd-planner": "haiku"
   }
 }
 ```

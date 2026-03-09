@@ -14,7 +14,7 @@ Each TDD phase transition is enforced by a CLI gate command. These must pass bef
 
 Confirms test fails (expected in RED phase):
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:tdd validate-red --test-cmd "<test_command>"
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "<test_command>"
 ```
 Returns: `{ phase: "red", valid: true/false, snippet: "..." }`
 - `valid: true` — test fails as expected, proceed to GREEN
@@ -24,7 +24,7 @@ Returns: `{ phase: "red", valid: true/false, snippet: "..." }`
 
 Confirms test passes (expected in GREEN phase):
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:tdd validate-green --test-cmd "<test_command>"
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "<test_command>"
 ```
 Returns: `{ phase: "green", valid: true/false, snippet: "..." }`
 - `valid: true` — test passes, proceed to REFACTOR
@@ -34,7 +34,7 @@ Returns: `{ phase: "green", valid: true/false, snippet: "..." }`
 
 Confirms tests still pass after cleanup:
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:tdd validate-refactor --test-cmd "<test_command>"
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "<test_command>"
 ```
 Returns: `{ phase: "refactor", valid: true/false, snippet: "..." }`
 - `valid: true` — refactor preserved behavior, commit
@@ -44,7 +44,7 @@ Returns: `{ phase: "refactor", valid: true/false, snippet: "..." }`
 
 Non-blocking test execution for general use:
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:tdd auto-test --test-cmd "<test_command>"
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd auto-test --test-cmd "<test_command>"
 ```
 Returns: `{ passed: true/false, snippet: "..." }`
 Does NOT set process.exitCode — the workflow decides whether to stop.
@@ -53,7 +53,7 @@ Does NOT set process.exitCode — the workflow decides whether to stop.
 
 Checks for TDD violations:
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:tdd detect-antipattern --phase <red|green|refactor> --files <file_list>
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd detect-antipattern --phase <red|green|refactor> --files <file_list>
 ```
 Returns: `{ warnings: [...] }` — array of detected anti-pattern violations.
 
@@ -63,9 +63,9 @@ TDD commits include two trailers for attribution and phase tracking:
 
 **Agent-Type trailer:**
 ```bash
---agent gsd-executor
+--agent bgsd-executor
 ```
-Produces: `Agent-Type: gsd-executor`
+Produces: `Agent-Type: bgsd-executor`
 
 **GSD-Phase trailer:**
 ```bash
@@ -75,9 +75,9 @@ Produces: `GSD-Phase: red`
 
 **Combined usage:**
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:commit "test(08-02): add failing test for email validation" \
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "test(08-02): add failing test for email validation" \
   --files src/utils/__tests__/email.test.ts \
-  --agent gsd-executor \
+  --agent bgsd-executor \
   --tdd-phase red
 ```
 
@@ -88,7 +88,7 @@ test(08-02): add failing test for email validation
 - Tests valid email formats accepted
 - Tests invalid formats rejected
 
-Agent-Type: gsd-executor
+Agent-Type: bgsd-executor
 GSD-Phase: red
 ```
 

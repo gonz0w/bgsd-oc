@@ -42,7 +42,7 @@ If this is the first TDD task, detect project type and install test framework if
 2. Create test file following project conventions
 3. Write tests describing expected behavior
 4. Run tests — they MUST fail
-5. Validate: `node $GSD_HOME/bin/gsd-tools.cjs execute:tdd validate-red --test-cmd "<cmd>"`
+5. Validate: `node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "<cmd>"`
 6. Commit: `test({{phase}}-{{plan}}): add failing test for [feature]`
 
 If the test passes instead of failing, investigate — the feature may already exist or the test may be wrong.
@@ -52,7 +52,7 @@ If the test passes instead of failing, investigate — the feature may already e
 1. Read `<implementation>` from the plan
 2. Write minimal code to make tests pass
 3. Run tests — they MUST pass
-4. Validate: `node $GSD_HOME/bin/gsd-tools.cjs execute:tdd validate-green --test-cmd "<cmd>"`
+4. Validate: `node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "<cmd>"`
 5. Commit: `feat({{phase}}-{{plan}}): implement [feature]`
 
 If tests don't pass, debug and iterate. Don't skip to refactor.
@@ -61,7 +61,7 @@ If tests don't pass, debug and iterate. Don't skip to refactor.
 
 1. Clean up code — extract constants, rename variables, simplify logic
 2. Run tests — they MUST still pass
-3. Validate: `node $GSD_HOME/bin/gsd-tools.cjs execute:tdd validate-refactor --test-cmd "<cmd>"`
+3. Validate: `node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "<cmd>"`
 4. Commit only if changes made: `refactor({{phase}}-{{plan}}): clean up [feature]`
 
 If refactoring breaks tests, undo. Refactor in smaller steps.
@@ -151,16 +151,16 @@ For detailed TDD reference material including framework setup, commit trailers, 
 
 **RED phase commit:**
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:commit "test(08-02): add failing test for email validation" \
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "test(08-02): add failing test for email validation" \
   --files src/utils/__tests__/email.test.ts \
-  --agent gsd-executor \
+  --agent bgsd-executor \
   --tdd-phase red
 ```
 
 **GREEN phase commit:**
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs execute:commit "feat(08-02): implement email validation" \
+node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "feat(08-02): implement email validation" \
   --files src/utils/email.ts \
-  --agent gsd-executor \
+  --agent bgsd-executor \
   --tdd-phase green
 ```

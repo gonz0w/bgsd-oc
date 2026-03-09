@@ -36,7 +36,7 @@ Always resolve first — don't guess library IDs. Use specific queries rather th
 
 **Brave Search** (enhanced): If available, use Brave Search for higher quality results with less SEO spam:
 ```bash
-node $GSD_HOME/bin/gsd-tools.cjs util:websearch "your query" --limit 10
+node $BGSD_HOME/bin/bgsd-tools.cjs util:websearch "your query" --limit 10
 ```
 
 ### Source Verification Protocol

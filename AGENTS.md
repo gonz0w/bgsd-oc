@@ -2,12 +2,12 @@
 
 ## What This Is
 Development workspace for the Better Getting Stuff Done (bGSD) planning plugin (v8.0).
-The production install lives at `~/.config/OC/get-shit-done/` (where OC = the host editor's config dir).
+The production install lives at `~/.config/OC/bgsd-oc/` (where OC = the host editor's config dir).
 
 ## Project Structure
 ```
-bin/gsd-tools.cjs          # Main CLI tool (single file, zero dependencies)
-src/                       # Source modules (built into bin/gsd-tools.cjs)
+bin/bgsd-tools.cjs          # Main CLI tool (single file, zero dependencies)
+src/                       # Source modules (built into bin/bgsd-tools.cjs)
 commands/*.md              # Slash command wrappers (deployed to host editor)
 workflows/*.md             # Workflow definitions (invoked by commands)
 templates/*.md             # Document templates (PLAN.md, STATE.md, etc.)
@@ -15,12 +15,12 @@ references/*.md            # Reference docs loaded by agents
 plugin.js                  # OpenCode plugin (session, env, compaction hooks)
 install.js                 # npx installer (mirrors deploy.sh for end users)
 deploy.sh                  # Deploy changes to host editor config (dev workflow)
-build.cjs                  # Build script — bundles src/ into bin/gsd-tools.cjs
+build.cjs                  # Build script — bundles src/ into bin/bgsd-tools.cjs
 ```
 
 ## Key Commands
 ```bash
-node bin/gsd-tools.cjs <command> [args]   # Test locally
+node bin/bgsd-tools.cjs <command> [args]   # Test locally
 npm run build                              # Build from source
 npm test                                   # Full test suite (762+ tests)
 ./deploy.sh                                # Deploy to live config
@@ -30,12 +30,12 @@ npm test                                   # Full test suite (762+ tests)
 1. **Test against current project**: Always test against the current working directory's `.planning/`
 2. **Backward compatible**: All regex/parser changes must accept both old and new formats
 3. **No breaking changes**: Existing ROADMAP.md, STATE.md, PLAN.md files must keep working
-4. **Single-file CLI**: `gsd-tools.cjs` stays as one file (Node.js, zero dependencies)
+4. **Single-file CLI**: `bgsd-tools.cjs` stays as one file (Node.js, zero dependencies)
 5. **Path-agnostic**: Use config paths from environment, not hardcoded paths
 
 ## Architecture
-- `gsd-tools.cjs` is the brain — all parsing, analysis, git operations, validation
-- Workflows (`.md` files) are prompts that agents follow, calling gsd-tools.cjs for data
+- `bgsd-tools.cjs` is the brain — all parsing, analysis, git operations, validation
+- Workflows (`.md` files) are prompts that agents follow, calling bgsd-tools.cjs for data
 - Commands (`commands/`) are thin wrappers deployed to the host editor's `command/` dir
 - Agents are subagent definitions with system prompts in the editor's `agents/` dir
 - Hooks are JS scripts for statusline and update checks in the editor's `hooks/` dir
