@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Thirteen versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), and v8.3 (agent quality & skills — GitHub CI agent overhaul, OpenCode skills architecture, agent consistency audit, test debt cleanup).
+A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Fourteen versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), and v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green).
 
 ## Core Value
 
@@ -10,56 +10,33 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v8.2 Cleanup, Performance & Validation (2026-03-07)
-
-## Current Milestone: v8.3 Agent Quality & Skills
-
-**Goal:** Raise all agents to consistent quality standards, explore and migrate to OpenCode skills architecture for shared agent metadata, and eliminate accumulated test debt.
-
-**Target features:**
-- GitHub CI agent overhaul (agent definition + workflow, structured progress, proper gates)
-- Light consistency audit across all 9 agents
-- OpenCode skills deep-dive (shared references, manifests, common workflows)
-- Skills migration if viable (move agent metadata into reusable skills)
-- Fix 31 pre-existing test failures (config-migrate, compact, codebase-impact, codebase ast)
+**Last shipped:** v8.3 Agent Quality & Skills (2026-03-09)
 
 <details>
-<summary>Previous: v8.1 RAG-Powered Research Pipeline (shipped 2026-03-03)</summary>
+<summary>Previous: v8.3 Agent Quality & Skills (shipped 2026-03-09)</summary>
 
-- YouTube integration via yt-dlp with search, transcript extraction, quality scoring
-- NotebookLM RAG synthesis via notebooklm-py with auth health checking
-- Multi-source research pipeline with 4-tier graceful degradation
-- SQLite caching for research results with session persistence and resume
+- OpenCode skills architecture — 27 skills extracted, 52.4% agent line reduction (7,361 to 3,504 lines)
+- Agent consistency across all 10 agents (project_context, PATH SETUP, structured_returns)
+- GitHub CI agent overhaul (deviation_rules, state tracking, structured returns, unified checkpoint format)
+- Test suite fully green — 766 tests, 0 failures (fixed 49 pre-existing failures)
+- Pre-commit test gate in executor workflow
 
 </details>
 
 <details>
-<summary>Previous: v8.0 Performance & Agent Architecture (shipped 2026-03-03)</summary>
+<summary>Previous: v8.2 Cleanup, Performance & Validation (shipped 2026-03-07)</summary>
 
-- Two-layer SQLite caching (L1 in-memory Map + L2 SQLite via `node:sqlite`) with graceful degradation to Map-only on Node <22.5
-- Agent consolidation (11→9): merged gsd-integration-checker into gsd-verifier, gsd-research-synthesizer into gsd-roadmapper
-- RACI matrix mapping every lifecycle step to exactly one responsible agent, with automated audit command
-- Token budgets (60-80K) declared in all 9 agent manifests, context builder enforces limits
-- Namespace routing for CLI commands (`init:`, `plan:`, `execute:`, `verify:`, `util:` prefixes)
-- Profiler instrumentation on hot paths (`GSD_PROFILE=1`), compare command with regression highlighting
+- Dead code removal (~80 dead exports, 12 dead files, router.js 1642 to 928 lines)
+- Namespace-only routing (removed ~890-line backward-compat block)
+- 24-40% init speedup with lazy acorn loading and cached git info
+- RACI matrix (23 lifecycle steps, 12 handoff contracts) validating clean agent separation
 
 </details>
 
 <details>
-<summary>Previous: v7.1 Trajectory Engineering (shipped 2026-03-02)</summary>
+<summary>Previous: v1.0-v8.1 (shipped 2026-02-22 through 2026-03-03)</summary>
 
-- Decision journal foundation with trajectories sacred memory store, crypto-generated IDs, cross-session persistence
-- Checkpoint system with named snapshots, auto-collected metrics, branch-based tracking
-- Pivot engine with structured reason capture, auto-checkpoint, selective rewind
-- Multi-attempt comparison with side-by-side metrics matrix
-- Choose & cleanup lifecycle — merge winner via `--no-ff`, archive alternatives as tags
-
-</details>
-
-<details>
-<summary>Previous: v1.0-v7.0 (shipped 2026-02-22 through 2026-02-27)</summary>
-
-See `.planning/MILESTONES.md` for full history of v1.0 through v7.0.
+See `.planning/MILESTONES.md` for full history of v1.0 through v8.1.
 
 </details>
 
@@ -135,11 +112,7 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v7.0.
 
 ### Active
 
-- [ ] GitHub CI agent brought to standard (todos, structured output, gates)
-- [ ] Agent consistency audit across all 9 agents
-- [ ] OpenCode skills architecture exploration and viability assessment
-- [ ] Skills migration for agent metadata (if viable)
-- [ ] 31 pre-existing test failures fixed
+(No active requirements — next milestone not yet started)
 
 ### Out of Scope
 
@@ -157,14 +130,14 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v7.0.
 
 ## Context
 
-Shipped v1.0 through v8.2. 762 tests passing, 34 src/ modules, ~1163KB bundle, esbuild bundler.
+Shipped v1.0 through v8.3. 766 tests passing, 34 src/ modules, ~1163KB bundle, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 34 modules — `src/lib/` (18 modules) and `src/commands/` (14 modules) + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
-9 specialized AI agents, 41 slash commands, 45 workflows.
+9 specialized AI agents, 41 slash commands, 45 workflows, 27 skills.
 
-Known tech debt: Bundle at ~1163KB (over 1050KB budget). `node:sqlite` is Stability 1.2 (Release Candidate). 31 pre-existing test failures (config-migrate, compact, codebase-impact, codebase ast CLI handler).
+Known tech debt: Bundle at ~1163KB (over 1050KB budget). `node:sqlite` is Stability 1.2 (Release Candidate).
 
 ## Constraints
 
@@ -215,4 +188,4 @@ Known tech debt: Bundle at ~1163KB (over 1050KB budget). `node:sqlite` is Stabil
 | Namespace routing (colon syntax) | Semantic grouping for 100+ CLI commands | Good — discoverable, backward-compatible |
 
 ---
-*Last updated: 2026-03-08 after v8.3 milestone start*
+*Last updated: 2026-03-09 after v8.3 milestone completion*
