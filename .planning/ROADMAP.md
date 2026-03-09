@@ -286,7 +286,10 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
   1. After a file write that violates project conventions, the agent sees an advisory warning (not a hard block)
   2. When PLAN.md, ROADMAP.md, or STATE.md are edited outside bGSD workflow patterns, an advisory warning is injected
   3. After source file modifications, the plugin suggests running tests — the suggestion is visible to the agent but does not force execution
-**Plans:** TBD
+**Plans:**
+  2/2 plans created
+  - Plan 01 (Wave 1): Advisory guardrails module + config defaults [GARD-01, GARD-02, GARD-03]
+  - Plan 02 (Wave 2): Plugin wiring + build + tests [GARD-01, GARD-02, GARD-03]
 
 ## Progress
 
