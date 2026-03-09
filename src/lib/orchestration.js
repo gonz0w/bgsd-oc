@@ -151,7 +151,7 @@ function classifyTaskComplexity(task, context) {
       label: COMPLEXITY_LABELS[score],
       factors,
       recommended_model: MODEL_MAP[score],
-      recommended_agent: 'gsd-executor',
+      recommended_agent: 'bgsd-executor',
     };
   } catch (e) {
     debugLog('orchestration.classifyTask', 'classification failed', e);
@@ -160,7 +160,7 @@ function classifyTaskComplexity(task, context) {
       label: 'moderate',
       factors: ['classification error — defaulting'],
       recommended_model: 'sonnet',
-      recommended_agent: 'gsd-executor',
+      recommended_agent: 'bgsd-executor',
     };
   }
 }
@@ -361,7 +361,7 @@ function routeTask(complexity, config) {
     // If config has a model profile, resolve from MODEL_PROFILES
     if (config && config.model_profile) {
       const { MODEL_PROFILES } = require('./constants');
-      const agentModels = MODEL_PROFILES['gsd-executor'];
+      const agentModels = MODEL_PROFILES['bgsd-executor'];
       if (agentModels && agentModels[config.model_profile]) {
         const profileModel = agentModels[config.model_profile];
         // Use the higher of profile model and complexity recommendation
@@ -371,7 +371,7 @@ function routeTask(complexity, config) {
         const resolvedModel = profilePriority >= basePriority ? profileModel : baseModel;
         return {
           model: resolvedModel === 'opus' ? 'inherit' : resolvedModel,
-          agent: 'gsd-executor',
+          agent: 'bgsd-executor',
           reason: `score ${score} (${complexity.label}) via ${config.model_profile} profile`,
         };
       }
@@ -379,14 +379,14 @@ function routeTask(complexity, config) {
 
     return {
       model: baseModel === 'opus' ? 'inherit' : baseModel,
-      agent: 'gsd-executor',
+      agent: 'bgsd-executor',
       reason: `score ${score} (${complexity.label})`,
     };
   } catch (e) {
     debugLog('orchestration.routeTask', 'routing failed', e);
     return {
       model: 'sonnet',
-      agent: 'gsd-executor',
+      agent: 'bgsd-executor',
       reason: 'routing error — defaulting to sonnet',
     };
   }

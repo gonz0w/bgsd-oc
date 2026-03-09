@@ -26,7 +26,7 @@ function resolveBgsdPaths() {
  *   inputs:
  *     - file: "PLAN.md"
  *       required_sections: ["## Section1", "## Section2"]
- *       source: "gsd-planner"
+ *       source: "bgsd-planner"
  */
 function parseContractArrays(rawYaml) {
   const result = { inputs: [], outputs: [] };
@@ -217,7 +217,7 @@ function parseRaciMatrix(raciPath) {
     // Skip separator lines
     if (line.match(/^\|[\s\-]+\|/)) continue;
     
-    // Parse table rows: | project-init | gsd-roadmapper | /bgsd-new-project | ... |
+    // Parse table rows: | project-init | bgsd-roadmapper | /bgsd-new-project | ... |
     // Updated regex to support hyphenated step names ([\w-]+ instead of \w+)
     const match = line.match(/^\|\s*([\w-]+)\s*\|\s*([^|]+?)\s*\|/);
     if (match) {

@@ -1,7 +1,17 @@
 {
-  "generated": "2026-03-09T04:04:56.868Z",
+  "generated": "2026-03-09T04:43:10.076Z",
   "files": [
     "VERSION",
+    "agents/bgsd-codebase-mapper.md",
+    "agents/bgsd-debugger.md",
+    "agents/bgsd-executor.md",
+    "agents/bgsd-github-ci.md",
+    "agents/bgsd-phase-researcher.md",
+    "agents/bgsd-plan-checker.md",
+    "agents/bgsd-planner.md",
+    "agents/bgsd-project-researcher.md",
+    "agents/bgsd-roadmapper.md",
+    "agents/bgsd-verifier.md",
     "bin/bgsd-tools.cjs",
     "bin/bgsd-tools.test.cjs",
     "bin/format.test.cjs",

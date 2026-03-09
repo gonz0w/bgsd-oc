@@ -17360,7 +17360,7 @@ var require_context = __commonJS({
       return { tokens, percent, warning, recommendation };
     }
     var AGENT_MANIFESTS = {
-      "gsd-executor": {
+      "bgsd-executor": {
         fields: [
           "phase_dir",
           "phase_number",
@@ -17386,7 +17386,7 @@ var require_context = __commonJS({
           "codebase_stats"
         ]
       },
-      "gsd-verifier": {
+      "bgsd-verifier": {
         fields: [
           "phase_dir",
           "phase_number",
@@ -17409,7 +17409,7 @@ var require_context = __commonJS({
           "codebase_dependencies"
         ]
       },
-      "gsd-planner": {
+      "bgsd-planner": {
         fields: [
           "phase_dir",
           "phase_number",
@@ -17434,7 +17434,7 @@ var require_context = __commonJS({
           "branch_name"
         ]
       },
-      "gsd-phase-researcher": {
+      "bgsd-phase-researcher": {
         fields: ["phase_dir", "phase_number", "phase_name", "intent_summary"],
         optional: ["codebase_stats", "env_summary"],
         exclude: [
@@ -17448,7 +17448,7 @@ var require_context = __commonJS({
           "incomplete_plans"
         ]
       },
-      "gsd-plan-checker": {
+      "bgsd-plan-checker": {
         fields: ["phase_dir", "phase_number", "phase_name", "plans", "plan_count"],
         optional: ["codebase_stats", "codebase_dependencies"],
         exclude: [
@@ -17462,7 +17462,7 @@ var require_context = __commonJS({
           "branch_name"
         ]
       },
-      "gsd-reviewer": {
+      "bgsd-reviewer": {
         fields: ["phase_dir", "phase_number", "phase_name", "codebase_conventions", "codebase_dependencies"],
         optional: ["codebase_stats"],
         exclude: ["intent_summary", "plan_count", "summaries", "incomplete_plans"]
@@ -21458,7 +21458,7 @@ var require_orchestration = __commonJS({
           label: COMPLEXITY_LABELS[score],
           factors,
           recommended_model: MODEL_MAP[score],
-          recommended_agent: "gsd-executor"
+          recommended_agent: "bgsd-executor"
         };
       } catch (e) {
         debugLog("orchestration.classifyTask", "classification failed", e);
@@ -21467,7 +21467,7 @@ var require_orchestration = __commonJS({
           label: "moderate",
           factors: ["classification error \u2014 defaulting"],
           recommended_model: "sonnet",
-          recommended_agent: "gsd-executor"
+          recommended_agent: "bgsd-executor"
         };
       }
     }
@@ -21824,8 +21824,8 @@ var require_init = __commonJS({
       }
       const result = {
         // Models
-        executor_model: resolveModelInternal(cwd, "gsd-executor"),
-        verifier_model: resolveModelInternal(cwd, "gsd-verifier"),
+        executor_model: resolveModelInternal(cwd, "bgsd-executor"),
+        verifier_model: resolveModelInternal(cwd, "bgsd-verifier"),
         // Config flags
         commit_docs: config.commit_docs,
         parallelization: config.parallelization,
@@ -22122,9 +22122,9 @@ var require_init = __commonJS({
       const phaseInfo = findPhaseInternal(cwd, phase);
       const result = {
         // Models
-        researcher_model: resolveModelInternal(cwd, "gsd-phase-researcher"),
-        planner_model: resolveModelInternal(cwd, "gsd-planner"),
-        checker_model: resolveModelInternal(cwd, "gsd-plan-checker"),
+        researcher_model: resolveModelInternal(cwd, "bgsd-phase-researcher"),
+        planner_model: resolveModelInternal(cwd, "bgsd-planner"),
+        checker_model: resolveModelInternal(cwd, "bgsd-plan-checker"),
         // Workflow flags
         research_enabled: config.research,
         plan_checker_enabled: config.plan_checker,
@@ -22312,10 +22312,10 @@ var require_init = __commonJS({
       hasPackageFile = pathExistsInternal(cwd, "package.json") || pathExistsInternal(cwd, "requirements.txt") || pathExistsInternal(cwd, "Cargo.toml") || pathExistsInternal(cwd, "go.mod") || pathExistsInternal(cwd, "Package.swift");
       const result = {
         // Models
-        researcher_model: resolveModelInternal(cwd, "gsd-project-researcher"),
-        synthesizer_model: resolveModelInternal(cwd, "gsd-roadmapper"),
-        // merged from gsd-research-synthesizer
-        roadmapper_model: resolveModelInternal(cwd, "gsd-roadmapper"),
+        researcher_model: resolveModelInternal(cwd, "bgsd-project-researcher"),
+        synthesizer_model: resolveModelInternal(cwd, "bgsd-roadmapper"),
+        // merged from bgsd-research-synthesizer
+        roadmapper_model: resolveModelInternal(cwd, "bgsd-roadmapper"),
         // Config
         commit_docs: config.commit_docs,
         // Existing state
@@ -22361,10 +22361,10 @@ var require_init = __commonJS({
       const milestone = getMilestoneInfo(cwd);
       const result = {
         // Models
-        researcher_model: resolveModelInternal(cwd, "gsd-project-researcher"),
-        synthesizer_model: resolveModelInternal(cwd, "gsd-roadmapper"),
-        // merged from gsd-research-synthesizer
-        roadmapper_model: resolveModelInternal(cwd, "gsd-roadmapper"),
+        researcher_model: resolveModelInternal(cwd, "bgsd-project-researcher"),
+        synthesizer_model: resolveModelInternal(cwd, "bgsd-roadmapper"),
+        // merged from bgsd-research-synthesizer
+        roadmapper_model: resolveModelInternal(cwd, "bgsd-roadmapper"),
         // Config
         commit_docs: config.commit_docs,
         research_enabled: config.research,
@@ -22416,10 +22416,10 @@ var require_init = __commonJS({
       }
       const result = {
         // Models
-        planner_model: resolveModelInternal(cwd, "gsd-planner"),
-        executor_model: resolveModelInternal(cwd, "gsd-executor"),
-        checker_model: resolveModelInternal(cwd, "gsd-plan-checker"),
-        verifier_model: resolveModelInternal(cwd, "gsd-verifier"),
+        planner_model: resolveModelInternal(cwd, "bgsd-planner"),
+        executor_model: resolveModelInternal(cwd, "bgsd-executor"),
+        checker_model: resolveModelInternal(cwd, "bgsd-plan-checker"),
+        verifier_model: resolveModelInternal(cwd, "bgsd-verifier"),
         // Config
         commit_docs: config.commit_docs,
         // Quick task info
@@ -22519,8 +22519,8 @@ var require_init = __commonJS({
       const phaseInfo = findPhaseInternal(cwd, phase);
       const result = {
         // Models
-        planner_model: resolveModelInternal(cwd, "gsd-planner"),
-        checker_model: resolveModelInternal(cwd, "gsd-plan-checker"),
+        planner_model: resolveModelInternal(cwd, "bgsd-planner"),
+        checker_model: resolveModelInternal(cwd, "bgsd-plan-checker"),
         // Config
         commit_docs: config.commit_docs,
         // Phase info
@@ -22828,7 +22828,7 @@ var require_init = __commonJS({
       }
       const result = {
         // Models
-        mapper_model: resolveModelInternal(cwd, "gsd-codebase-mapper"),
+        mapper_model: resolveModelInternal(cwd, "bgsd-codebase-mapper"),
         // Config
         commit_docs: config.commit_docs,
         search_gitignored: config.search_gitignored,
@@ -22951,8 +22951,8 @@ var require_init = __commonJS({
       }
       const result = {
         // Models
-        executor_model: resolveModelInternal(cwd, "gsd-executor"),
-        planner_model: resolveModelInternal(cwd, "gsd-planner"),
+        executor_model: resolveModelInternal(cwd, "bgsd-executor"),
+        planner_model: resolveModelInternal(cwd, "bgsd-planner"),
         // Config
         commit_docs: config.commit_docs,
         // Milestone

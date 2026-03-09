@@ -155,8 +155,8 @@ function cmdInitExecutePhase(cwd, phase, raw) {
 
   const result = {
     // Models
-    executor_model: resolveModelInternal(cwd, 'gsd-executor'),
-    verifier_model: resolveModelInternal(cwd, 'gsd-verifier'),
+    executor_model: resolveModelInternal(cwd, 'bgsd-executor'),
+    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
 
     // Config flags
     commit_docs: config.commit_docs,
@@ -504,9 +504,9 @@ function cmdInitPlanPhase(cwd, phase, raw) {
 
   const result = {
     // Models
-    researcher_model: resolveModelInternal(cwd, 'gsd-phase-researcher'),
-    planner_model: resolveModelInternal(cwd, 'gsd-planner'),
-    checker_model: resolveModelInternal(cwd, 'gsd-plan-checker'),
+    researcher_model: resolveModelInternal(cwd, 'bgsd-phase-researcher'),
+    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
+    checker_model: resolveModelInternal(cwd, 'bgsd-plan-checker'),
 
     // Workflow flags
     research_enabled: config.research,
@@ -726,9 +726,9 @@ function cmdInitNewProject(cwd, raw) {
 
   const result = {
     // Models
-    researcher_model: resolveModelInternal(cwd, 'gsd-project-researcher'),
-    synthesizer_model: resolveModelInternal(cwd, 'gsd-roadmapper'),  // merged from gsd-research-synthesizer
-    roadmapper_model: resolveModelInternal(cwd, 'gsd-roadmapper'),
+    researcher_model: resolveModelInternal(cwd, 'bgsd-project-researcher'),
+    synthesizer_model: resolveModelInternal(cwd, 'bgsd-roadmapper'),  // merged from bgsd-research-synthesizer
+    roadmapper_model: resolveModelInternal(cwd, 'bgsd-roadmapper'),
 
     // Config
     commit_docs: config.commit_docs,
@@ -785,9 +785,9 @@ function cmdInitNewMilestone(cwd, raw) {
 
   const result = {
     // Models
-    researcher_model: resolveModelInternal(cwd, 'gsd-project-researcher'),
-    synthesizer_model: resolveModelInternal(cwd, 'gsd-roadmapper'),  // merged from gsd-research-synthesizer
-    roadmapper_model: resolveModelInternal(cwd, 'gsd-roadmapper'),
+    researcher_model: resolveModelInternal(cwd, 'bgsd-project-researcher'),
+    synthesizer_model: resolveModelInternal(cwd, 'bgsd-roadmapper'),  // merged from bgsd-research-synthesizer
+    roadmapper_model: resolveModelInternal(cwd, 'bgsd-roadmapper'),
 
     // Config
     commit_docs: config.commit_docs,
@@ -851,10 +851,10 @@ function cmdInitQuick(cwd, description, raw) {
 
   const result = {
     // Models
-    planner_model: resolveModelInternal(cwd, 'gsd-planner'),
-    executor_model: resolveModelInternal(cwd, 'gsd-executor'),
-    checker_model: resolveModelInternal(cwd, 'gsd-plan-checker'),
-    verifier_model: resolveModelInternal(cwd, 'gsd-verifier'),
+    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
+    executor_model: resolveModelInternal(cwd, 'bgsd-executor'),
+    checker_model: resolveModelInternal(cwd, 'bgsd-plan-checker'),
+    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
 
     // Config
     commit_docs: config.commit_docs,
@@ -978,8 +978,8 @@ function cmdInitVerifyWork(cwd, phase, raw) {
 
   const result = {
     // Models
-    planner_model: resolveModelInternal(cwd, 'gsd-planner'),
-    checker_model: resolveModelInternal(cwd, 'gsd-plan-checker'),
+    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
+    checker_model: resolveModelInternal(cwd, 'bgsd-plan-checker'),
 
     // Config
     commit_docs: config.commit_docs,
@@ -1328,7 +1328,7 @@ function cmdInitMapCodebase(cwd, raw) {
 
   const result = {
     // Models
-    mapper_model: resolveModelInternal(cwd, 'gsd-codebase-mapper'),
+    mapper_model: resolveModelInternal(cwd, 'bgsd-codebase-mapper'),
 
     // Config
     commit_docs: config.commit_docs,
@@ -1495,8 +1495,8 @@ function cmdInitProgress(cwd, raw) {
 
   const result = {
     // Models
-    executor_model: resolveModelInternal(cwd, 'gsd-executor'),
-    planner_model: resolveModelInternal(cwd, 'gsd-planner'),
+    executor_model: resolveModelInternal(cwd, 'bgsd-executor'),
+    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
 
     // Config
     commit_docs: config.commit_docs,

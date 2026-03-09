@@ -7140,7 +7140,7 @@ src/commands/verify.js
 src/router.js
 </files>
 <action>Add plan-wave subcommand</action>
-<verify>gsd-tools verify plan-wave works</verify>
+<verify>bgsd-tools verify plan-wave works</verify>
 <done>Command accessible via CLI</done>
 </task>
 `;
@@ -12026,7 +12026,7 @@ plan: 02
 wave: 1
 files_modified:
   - src/commands/worktree.js
-  - bin/gsd-tools.test.cjs
+  - bin/bgsd-tools.test.cjs
 ---
 
 # Plan 02
@@ -12157,7 +12157,7 @@ plan: 02
 wave: 1
 files_modified:
   - src/commands/worktree.js
-  - bin/gsd-tools.test.cjs
+  - bin/bgsd-tools.test.cjs
 ---
 
 # Plan 02
@@ -14501,15 +14501,15 @@ describe('commit --agent attribution', () => {
 
   afterEach(() => { cleanup(tmpDir); });
 
-  test('commit --agent gsd-executor produces commit with Agent-Type trailer', () => {
+  test('commit --agent bgsd-executor produces commit with Agent-Type trailer', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'agent-test.md'), 'test\n');
-    const result = runGsdTools('execute:commit "test: agent attribution" --agent gsd-executor', tmpDir);
+    const result = runGsdTools('execute:commit "test: agent attribution" --agent bgsd-executor', tmpDir);
     const data = JSON.parse(result.output);
     assert.ok(data.committed, 'Should commit successfully');
-    assert.strictEqual(data.agent_type, 'gsd-executor', 'Should return agent_type');
+    assert.strictEqual(data.agent_type, 'bgsd-executor', 'Should return agent_type');
     // Verify git trailer exists in commit body
     const body = execSync('git log --format=%b -1', { cwd: tmpDir, encoding: 'utf-8' }).trim();
-    assert.ok(body.includes('Agent-Type: gsd-executor'), `Commit body should contain Agent-Type: gsd-executor, got: ${body}`);
+    assert.ok(body.includes('Agent-Type: bgsd-executor'), `Commit body should contain Agent-Type: bgsd-executor, got: ${body}`);
   });
 
   test('commit without --agent has no Agent-Type trailer', () => {
@@ -15940,7 +15940,7 @@ describe('orchestration: init execute-phase integration', () => {
 describe('agent manifests: AGENT_MANIFESTS structure', () => {
   test('has entries for all 6 agent types', () => {
     const ctx = require('../src/lib/context');
-    const types = ['gsd-executor', 'gsd-verifier', 'gsd-planner', 'gsd-phase-researcher', 'gsd-plan-checker', 'gsd-reviewer'];
+    const types = ['bgsd-executor', 'bgsd-verifier', 'bgsd-planner', 'bgsd-phase-researcher', 'bgsd-plan-checker', 'bgsd-reviewer'];
     for (const t of types) {
       assert.ok(ctx.AGENT_MANIFESTS[t], `Missing manifest for ${t}`);
       assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].fields), `${t} should have fields array`);
@@ -15949,10 +15949,10 @@ describe('agent manifests: AGENT_MANIFESTS structure', () => {
     }
   });
 
-  test('gsd-reviewer manifest has review-scoped fields', () => {
+  test('bgsd-reviewer manifest has review-scoped fields', () => {
     const ctx = require('../src/lib/context');
-    const manifest = ctx.AGENT_MANIFESTS['gsd-reviewer'];
-    assert.ok(manifest, 'gsd-reviewer manifest should exist');
+    const manifest = ctx.AGENT_MANIFESTS['bgsd-reviewer'];
+    assert.ok(manifest, 'bgsd-reviewer manifest should exist');
     assert.ok(manifest.fields.includes('codebase_conventions'), 'Should include codebase_conventions');
     assert.ok(manifest.fields.includes('codebase_dependencies'), 'Should include codebase_dependencies');
     assert.ok(manifest.exclude.includes('incomplete_plans'), 'Should exclude incomplete_plans');
@@ -15962,7 +15962,7 @@ describe('agent manifests: AGENT_MANIFESTS structure', () => {
 describe('agent manifests: scopeContextForAgent', () => {
   const ctx = require('../src/lib/context');
 
-  test('gsd-executor gets task_routing but not intent_drift', () => {
+  test('bgsd-executor gets task_routing but not intent_drift', () => {
     const result = {
       phase_dir: '/test', phase_number: '38', phase_name: 'test',
       plans: [], incomplete_plans: [], plan_count: 0, incomplete_count: 0,
@@ -15972,22 +15972,22 @@ describe('agent manifests: scopeContextForAgent', () => {
       worktree_config: {}, worktree_active: [], file_overlaps: [],
       codebase_stats: { total: 100 }, codebase_freshness: null,
     };
-    const scoped = ctx.scopeContextForAgent(result, 'gsd-executor');
-    assert.strictEqual(scoped._agent, 'gsd-executor');
+    const scoped = ctx.scopeContextForAgent(result, 'bgsd-executor');
+    assert.strictEqual(scoped._agent, 'bgsd-executor');
     assert.ok('task_routing' in scoped, 'Should include task_routing');
     assert.ok(!('intent_drift' in scoped), 'Should exclude intent_drift');
     assert.ok(!('worktree_config' in scoped), 'Should exclude worktree_config');
   });
 
-  test('gsd-verifier gets phase_dir but not task_routing', () => {
+  test('bgsd-verifier gets phase_dir but not task_routing', () => {
     const result = {
       phase_dir: '/test', phase_number: '38', phase_name: 'test',
       plans: [], summaries: [], verifier_enabled: true,
       task_routing: { plans: [] }, env_summary: 'node',
       intent_drift: { score: 20 }, codebase_stats: { total: 100 },
     };
-    const scoped = ctx.scopeContextForAgent(result, 'gsd-verifier');
-    assert.strictEqual(scoped._agent, 'gsd-verifier');
+    const scoped = ctx.scopeContextForAgent(result, 'bgsd-verifier');
+    assert.strictEqual(scoped._agent, 'bgsd-verifier');
     assert.ok('phase_dir' in scoped, 'Should include phase_dir');
     assert.ok(!('task_routing' in scoped), 'Should exclude task_routing');
     assert.ok(!('env_summary' in scoped), 'Should exclude env_summary');
@@ -16012,7 +16012,7 @@ describe('agent manifests: scopeContextForAgent', () => {
       codebase_stats: null, codebase_freshness: null,
       codebase_conventions: null, codebase_dependencies: null,
     };
-    const scoped = ctx.scopeContextForAgent(result, 'gsd-executor');
+    const scoped = ctx.scopeContextForAgent(result, 'bgsd-executor');
     assert.ok(scoped._savings, 'Should have _savings');
     assert.ok(typeof scoped._savings.original_keys === 'number');
     assert.ok(typeof scoped._savings.scoped_keys === 'number');
@@ -16020,15 +16020,15 @@ describe('agent manifests: scopeContextForAgent', () => {
     assert.ok(scoped._savings.reduction_pct > 0, 'Should show positive reduction');
   });
 
-  test('gsd-reviewer gets codebase_conventions but not incomplete_plans', () => {
+  test('bgsd-reviewer gets codebase_conventions but not incomplete_plans', () => {
     const result = {
       phase_dir: '/test', phase_number: '41', phase_name: 'test',
       plans: [], incomplete_plans: ['41-01-PLAN.md'], plan_count: 1,
       summaries: [], codebase_conventions: { naming: 'camelCase' },
       codebase_dependencies: { total_modules: 5 }, codebase_stats: { total: 50 },
     };
-    const scoped = ctx.scopeContextForAgent(result, 'gsd-reviewer');
-    assert.strictEqual(scoped._agent, 'gsd-reviewer');
+    const scoped = ctx.scopeContextForAgent(result, 'bgsd-reviewer');
+    assert.strictEqual(scoped._agent, 'bgsd-reviewer');
     assert.ok('codebase_conventions' in scoped, 'Should include codebase_conventions');
     assert.ok('codebase_dependencies' in scoped, 'Should include codebase_dependencies');
     assert.ok(!('incomplete_plans' in scoped), 'Should exclude incomplete_plans');
@@ -16127,12 +16127,12 @@ describe('agent manifests: compactDepGraph', () => {
 });
 
 describe('agent manifests: init --agent integration', () => {
-  test('init execute-phase --agent=gsd-executor returns scoped output', () => {
-    const result = runGsdTools('init:execute-phase 38 --agent=gsd-executor --raw');
+  test('init execute-phase --agent=bgsd-executor returns scoped output', () => {
+    const result = runGsdTools('init:execute-phase 38 --agent=bgsd-executor --raw');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const parsed = JSON.parse(result.output);
-    assert.strictEqual(parsed._agent, 'gsd-executor');
+    assert.strictEqual(parsed._agent, 'bgsd-executor');
     assert.ok(parsed._savings, 'Should include _savings');
     assert.ok('phase_dir' in parsed, 'Should include phase_dir');
     assert.ok('task_routing' in parsed, 'Should include task_routing');
@@ -16140,14 +16140,14 @@ describe('agent manifests: init --agent integration', () => {
     assert.ok(!('worktree_config' in parsed), 'Should not include worktree_config');
   });
 
-  test('init execute-phase --agent=gsd-verifier returns fewer fields than executor', () => {
-    const execResult = runGsdTools('init:execute-phase 38 --agent=gsd-executor --raw');
-    const verResult = runGsdTools('init:execute-phase 38 --agent=gsd-verifier --raw');
+  test('init execute-phase --agent=bgsd-verifier returns fewer fields than executor', () => {
+    const execResult = runGsdTools('init:execute-phase 38 --agent=bgsd-executor --raw');
+    const verResult = runGsdTools('init:execute-phase 38 --agent=bgsd-verifier --raw');
     assert.ok(execResult.success && verResult.success);
 
     const exec = JSON.parse(execResult.output);
     const ver = JSON.parse(verResult.output);
-    assert.strictEqual(ver._agent, 'gsd-verifier');
+    assert.strictEqual(ver._agent, 'bgsd-verifier');
     assert.ok(ver._savings.scoped_keys < exec._savings.scoped_keys,
       `Verifier (${ver._savings.scoped_keys}) should have fewer fields than executor (${exec._savings.scoped_keys})`);
   });

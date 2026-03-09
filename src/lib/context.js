@@ -102,7 +102,7 @@ function isWithinBudget(text, config = {}) {
 // ─── Agent Context Manifests ─────────────────────────────────────────────────
 
 const AGENT_MANIFESTS = {
-  'gsd-executor': {
+  'bgsd-executor': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'incomplete_plans',
              'plan_count', 'incomplete_count', 'branch_name', 'commit_docs',
              'verifier_enabled', 'task_routing', 'env_summary'],
@@ -110,7 +110,7 @@ const AGENT_MANIFESTS = {
     exclude: ['intent_drift', 'intent_summary', 'worktree_config', 'worktree_active',
               'file_overlaps', 'codebase_freshness', 'codebase_stats'],
   },
-  'gsd-verifier': {
+  'bgsd-verifier': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'summaries',
              'verifier_enabled'],
     optional: ['codebase_stats'],
@@ -118,7 +118,7 @@ const AGENT_MANIFESTS = {
               'worktree_active', 'file_overlaps', 'env_summary', 'branch_name',
               'codebase_conventions', 'codebase_dependencies'],
   },
-  'gsd-planner': {
+  'bgsd-planner': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count',
              'research_enabled', 'plan_checker_enabled', 'intent_summary'],
     optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
@@ -126,19 +126,19 @@ const AGENT_MANIFESTS = {
     exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
               'branch_name'],
   },
-  'gsd-phase-researcher': {
+  'bgsd-phase-researcher': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary'],
     optional: ['codebase_stats', 'env_summary'],
     exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
               'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans'],
   },
-  'gsd-plan-checker': {
+  'bgsd-plan-checker': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'plan_count'],
     optional: ['codebase_stats', 'codebase_dependencies'],
     exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
               'worktree_active', 'file_overlaps', 'env_summary', 'branch_name'],
   },
-  'gsd-reviewer': {
+  'bgsd-reviewer': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'codebase_conventions', 'codebase_dependencies'],
     optional: ['codebase_stats'],
     exclude: ['intent_summary', 'plan_count', 'summaries', 'incomplete_plans'],
@@ -148,7 +148,7 @@ const AGENT_MANIFESTS = {
 /**
  * Filter init output to agent-declared fields.
  * @param {object} result - Full init output object
- * @param {string} agentType - Agent type key (e.g. 'gsd-executor')
+ * @param {string} agentType - Agent type key (e.g. 'bgsd-executor')
  * @returns {object} Scoped result with _agent and _savings metadata
  */
 function scopeContextForAgent(result, agentType) {
