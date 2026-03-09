@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/gsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Fourteen versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), and v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green).
+A single-file Node.js CLI built from 34 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Fifteen versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), and v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails).
 
 ## Core Value
 
@@ -10,9 +10,20 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v8.3 Agent Quality & Skills (2026-03-09)
+**Last shipped:** v9.0 Embedded Plugin Experience (2026-03-09)
 
-## Current Milestone: v9.0 Embedded Plugin Experience
+## Next Milestone Goals
+
+- Define the post-v9.0 milestone scope with updated requirements and success criteria
+- Prioritize plugin enhancements (permission auto-approve, background delegation, multi-session coordination, tool analytics)
+- Establish validation strategy and phase sequencing for the next delivery cycle
+
+## Current Milestone: Between milestones
+
+v9.0 is complete and archived. Run `/bgsd-new-milestone` to start questioning, research, requirements, and roadmap definition for the next cycle.
+
+<details>
+<summary>Previous: v9.0 Embedded Plugin Experience (shipped 2026-03-09)</summary>
 
 **Goal:** Transform the bGSD plugin from a minimal 3-hook integration into a deeply embedded OpenCode experience — always-on context injection, custom LLM-callable tools replacing CLI calls, event-driven state sync, smart command enrichment, advisory guardrails, toast notifications, and enhanced compaction.
 
@@ -24,6 +35,8 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - Tool interception and advisory guardrails (convention enforcement, test-after-edit suggestions)
 - Toast/notification UX (desktop notifications for phase transitions, milestone completion, stuck detection)
 - Enhanced compaction (preserve decisions, blockers, current task context — not just STATE.md)
+
+</details>
 
 <details>
 <summary>Previous: v8.3 Agent Quality & Skills (shipped 2026-03-09)</summary>
@@ -115,13 +128,9 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ### Active
 
-- [ ] Always-on context injection via system prompt hook
-- [ ] Custom LLM-callable tools replacing CLI hot paths
-- [ ] Event-driven state sync (session idle, file changes)
-- [ ] Smart command enrichment with auto-injected context
-- [ ] Advisory guardrails via tool interception
-- [ ] Toast/notification UX for phase transitions and alerts
-- [ ] Enhanced compaction preserving full project context
+- [ ] Define and scope next milestone requirements
+- [ ] Create fresh `.planning/REQUIREMENTS.md` for next milestone
+- [ ] Generate roadmap phases for next milestone
 
 ### Out of Scope
 
@@ -197,4 +206,4 @@ Known tech debt: Bundle at ~1163KB (over 1050KB budget). `node:sqlite` is Stabil
 | Namespace routing (colon syntax) | Semantic grouping for 100+ CLI commands | Good — discoverable, backward-compatible |
 
 ---
-*Last updated: 2026-03-09 after v9.0 milestone start*
+*Last updated: 2026-03-09 after v9.0 milestone completion*
