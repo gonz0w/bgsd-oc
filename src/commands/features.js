@@ -1821,19 +1821,37 @@ function cmdTestCoverage(cwd, raw) {
   const testContent = fs.readFileSync(testPath, 'utf-8');
   const routerContent = fs.readFileSync(routerPath, 'utf-8');
 
-  // Extract all command names from router switch cases
+  // Extract all command names from router namespace routing
   const routerCommands = new Set();
-  const casePattern = /^\s{4}case\s+'([^']+)'/gm;
-  let caseMatch;
-  while ((caseMatch = casePattern.exec(routerContent)) !== null) {
-    routerCommands.add(caseMatch[1]);
+
+  // Extract namespace names from switch cases: case 'init':, case 'plan':, etc.
+  const namespacePattern = /case\s+'(init|plan|execute|verify|util|research|cache)'\s*:/g;
+  const namespaces = new Set();
+  let nsMatch;
+  while ((nsMatch = namespacePattern.exec(routerContent)) !== null) {
+    namespaces.add(nsMatch[1]);
   }
 
-  // Also extract init subcommands as 'init <sub>'
-  const initPattern = /^\s{8}case\s+'([^']+)'/gm;
-  let initMatch;
-  while ((initMatch = initPattern.exec(routerContent)) !== null) {
-    routerCommands.add('init ' + initMatch[1]);
+  // Extract subcommands from if/else if chains: if (subcommand === 'xxx') or } else if (subcommand === 'xxx')
+  const ifSubPattern = /(?:if|else if)\s*\(\s*(?:subcommand|workflow|cbSub|cacheSub|agentSub|envSub|stateSub|verifySub|validateSub|trajSub|tddSub|wtSub|intentCmd|roadCmd|phaseSub|msSub|reqCmd|assertSub)\s*===\s*'([^']+)'/g;
+  let ifMatch;
+  while ((ifMatch = ifSubPattern.exec(routerContent)) !== null) {
+    routerCommands.add(ifMatch[1]);
+  }
+
+  // Extract switch/case subcommands inside namespaces (e.g., case 'execute-phase':)
+  const innerCasePattern = /case\s+'([^']+)'\s*:/g;
+  let innerMatch;
+  while ((innerMatch = innerCasePattern.exec(routerContent)) !== null) {
+    // Skip namespace-level cases already captured
+    if (!namespaces.has(innerMatch[1])) {
+      routerCommands.add(innerMatch[1]);
+    }
+  }
+
+  // Build namespace:subcommand entries for proper matching
+  for (const ns of namespaces) {
+    routerCommands.add(ns);
   }
 
   // Extract tested commands from test file
@@ -1848,7 +1866,16 @@ function cmdTestCoverage(cwd, raw) {
     const cmd = words[0];
     testedCommands.add(cmd);
 
-    if (words.length > 1 && ['init', 'state', 'verify', 'memory', 'roadmap', 'phase', 'phases', 'frontmatter', 'template', 'validate', 'milestone', 'requirements', 'context-budget', 'todo'].includes(cmd)) {
+    // Handle namespace:subcommand syntax (e.g., 'init:progress', 'verify:state')
+    if (cmd.includes(':')) {
+      const [ns, sub] = cmd.split(':');
+      testedCommands.add(ns);
+      testedCommands.add(sub);
+      // Also add further subcommands (e.g., 'verify:state advance-plan' → 'advance-plan')
+      if (words.length > 1) {
+        testedCommands.add(words[1]);
+      }
+    } else if (words.length > 1 && ['init', 'state', 'verify', 'memory', 'roadmap', 'phase', 'phases', 'frontmatter', 'template', 'validate', 'milestone', 'requirements', 'context-budget', 'todo'].includes(cmd)) {
       testedCommands.add(cmd + ' ' + words[1]);
     }
   }
@@ -1862,7 +1889,15 @@ function cmdTestCoverage(cwd, raw) {
     const cmd = words[0];
     testedCommands.add(cmd);
 
-    if (words.length > 1 && ['init', 'state', 'verify', 'memory', 'roadmap', 'phase', 'phases', 'frontmatter', 'template', 'validate', 'milestone', 'requirements', 'context-budget', 'todo'].includes(cmd)) {
+    // Handle namespace:subcommand syntax
+    if (cmd.includes(':')) {
+      const [ns, sub] = cmd.split(':');
+      testedCommands.add(ns);
+      testedCommands.add(sub);
+      if (words.length > 1) {
+        testedCommands.add(words[1]);
+      }
+    } else if (words.length > 1 && ['init', 'state', 'verify', 'memory', 'roadmap', 'phase', 'phases', 'frontmatter', 'template', 'validate', 'milestone', 'requirements', 'context-budget', 'todo'].includes(cmd)) {
       testedCommands.add(cmd + ' ' + words[1]);
     }
   }
@@ -1888,9 +1923,12 @@ function cmdTestCoverage(cwd, raw) {
   const allCommands = [...routerCommands].sort();
   const covered = allCommands.filter(cmd => {
     if (testedCommands.has(cmd)) return true;
-    const base = cmd.split(' ')[0];
-    if (testedCommands.has(base) && cmd.startsWith('init ')) {
-      return testedCommands.has(cmd);
+    // Check if the command is tested via namespace:subcommand syntax
+    for (const tested of testedCommands) {
+      if (tested.includes(':')) {
+        const parts = tested.split(':');
+        if (parts[1] === cmd || parts[1].split(/\s+/)[0] === cmd) return true;
+      }
     }
     return false;
   });

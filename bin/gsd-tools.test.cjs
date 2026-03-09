@@ -1240,18 +1240,18 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(phaseDir, '03-01-PLAN.md'), '# Plan');
 
     const commands = [
-      'init progress',
-      'init execute-phase 03',
-      'init plan-phase 03',
-      'init new-project',
-      'init new-milestone',
-      'init resume',
-      'init verify-work 03',
-      'init phase-op 03',
-      'init milestone-op',
-      'init map-codebase',
-      'init quick "test task"',
-      'init todos',
+      'init:progress',
+      'init:execute-phase 03',
+      'init:plan-phase 03',
+      'init:new-project',
+      'init:new-milestone',
+      'init:resume',
+      'init:verify-work 03',
+      'init:phase-op 03',
+      'init:milestone-op',
+      'init:map-codebase',
+      'init:quick "test task"',
+      'init:todos',
     ];
 
     const reductions = [];
@@ -1292,18 +1292,18 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(phaseDir, '03-01-PLAN.md'), '# Plan');
 
     const commands = [
-      'init progress',
-      'init execute-phase 03',
-      'init plan-phase 03',
-      'init new-project',
-      'init new-milestone',
-      'init resume',
-      'init verify-work 03',
-      'init phase-op 03',
-      'init milestone-op',
-      'init map-codebase',
-      'init quick "test task"',
-      'init todos',
+      'init:progress',
+      'init:execute-phase 03',
+      'init:plan-phase 03',
+      'init:new-project',
+      'init:new-milestone',
+      'init:resume',
+      'init:verify-work 03',
+      'init:phase-op 03',
+      'init:milestone-op',
+      'init:map-codebase',
+      'init:quick "test task"',
+      'init:todos',
     ];
 
     for (const cmd of commands) {
@@ -1426,18 +1426,18 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(phaseDir, '03-RESEARCH.md'), '# Research');
 
     const allCommands = [
-      'init progress',
-      'init execute-phase 03',
-      'init plan-phase 03',
-      'init new-project',
-      'init new-milestone',
-      'init resume',
-      'init verify-work 03',
-      'init phase-op 03',
-      'init milestone-op',
-      'init map-codebase',
-      'init quick "test task"',
-      'init todos',
+      'init:progress',
+      'init:execute-phase 03',
+      'init:plan-phase 03',
+      'init:new-project',
+      'init:new-milestone',
+      'init:resume',
+      'init:verify-work 03',
+      'init:phase-op 03',
+      'init:milestone-op',
+      'init:map-codebase',
+      'init:quick "test task"',
+      'init:todos',
     ];
 
     for (const cmd of allCommands) {
@@ -3411,7 +3411,7 @@ describe('debug logging', () => {
     // Use a command that triggers catch blocks (e.g., state read with no .planning)
     const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-debug-'));
     try {
-      const result = runWithStderr('init progress', {
+      const result = runWithStderr('init:progress', {
         cwd: tmpDir,
         env: { ...process.env, GSD_DEBUG: '1' },
       });
@@ -3429,7 +3429,7 @@ describe('debug logging', () => {
       // Explicitly remove GSD_DEBUG from env
       const cleanEnv = { ...process.env };
       delete cleanEnv.GSD_DEBUG;
-      const result = runWithStderr('init progress', {
+      const result = runWithStderr('init:progress', {
         cwd: tmpDir,
         env: cleanEnv,
       });
@@ -3457,7 +3457,7 @@ describe('debug logging', () => {
   test('debug output includes context strings with [GSD_DEBUG] prefix', () => {
     const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-debug-'));
     try {
-      const result = runWithStderr('init progress', {
+      const result = runWithStderr('init:progress', {
         cwd: tmpDir,
         env: { ...process.env, GSD_DEBUG: '1' },
       });
@@ -3559,16 +3559,9 @@ describe('shell sanitization', () => {
     assert.ok(output.error, '$() injection should be rejected');
   });
 
-  test('codebase-impact uses --fixed-strings for grep patterns', () => {
-    // This tests that the grep pattern uses literal matching by checking
-    // that a regex-special pattern doesn't cause grep errors
-    const result = runGsdTools('util:codebase impact "src/lib/[test].ts"', tmpDir);
-    assert.ok(result.success, `Command should succeed: ${result.error}`);
-
-    const output = JSON.parse(result.output);
-    // The file won't exist, but the command shouldn't crash from bad regex
-    assert.ok(Array.isArray(output.files), 'Should return files array');
-  });
+  // Removed: codebase-impact --fixed-strings test
+  // The router now routes codebase impact to codebase.js which uses dependency graph (not grep).
+  // The grep-based --fixed-strings path in features.js is no longer reachable via this route.
 });
 
 // ─── Temp File Cleanup (02-02) ────────────────────────────────────────────────
@@ -3786,7 +3779,10 @@ describe('config-migrate command', () => {
       context_target_percent: 50,
       planning: { commit_docs: true, search_gitignored: false },
       git: { branching_strategy: 'none', phase_branch_template: 'gsd/phase-{phase}-{slug}', milestone_branch_template: 'gsd/{milestone}-{slug}' },
-      workflow: { research: true, plan_check: true, verifier: true },
+      workflow: { research: true, plan_check: true, verifier: true, rag: true, rag_timeout: 30 },
+      ytdlp_path: '',
+      nlm_path: '',
+      mcp_config_path: '',
     };
     fs.writeFileSync(configPath, JSON.stringify(fullConfig, null, 2));
 
@@ -13599,15 +13595,15 @@ describe('codebase context', () => {
   });
 
   test('risk level: file with few dependents returns "normal"', () => {
-    // src/lib/frontmatter.js is a utility with limited dependents
-    const result = runGsdTools('util:codebase context --files src/lib/frontmatter.js');
+    // src/lib/profiler.js is a utility with limited dependents
+    const result = runGsdTools('util:codebase context --files src/lib/profiler.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
-    const fileCtx = data.files['src/lib/frontmatter.js'];
-    // frontmatter.js should have few dependents
+    const fileCtx = data.files['src/lib/profiler.js'];
+    // profiler.js should have few dependents
     assert.ok(['normal', 'caution'].includes(fileCtx.risk_level),
-      `risk_level for frontmatter.js should be normal or caution, got ${fileCtx.risk_level}`);
+      `risk_level for profiler.js should be normal or caution, got ${fileCtx.risk_level}`);
   });
 
   test('relevance score: target file gets score 1.0', () => {
