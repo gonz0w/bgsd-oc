@@ -12,6 +12,19 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 **Last shipped:** v8.3 Agent Quality & Skills (2026-03-09)
 
+## Current Milestone: v9.0 Embedded Plugin Experience
+
+**Goal:** Transform the bGSD plugin from a minimal 3-hook integration into a deeply embedded OpenCode experience — always-on context injection, custom LLM-callable tools replacing CLI calls, event-driven state sync, smart command enrichment, advisory guardrails, toast notifications, and enhanced compaction.
+
+**Target features:**
+- Always-on context injection (system prompt always knows current phase, plan, blockers)
+- Custom LLM-callable tools registered via plugin `tool` property (replacing hot-path CLI calls over time)
+- Event-driven state sync (auto-update STATE.md on session idle, react to file changes and commits)
+- Smart command enrichment (slash commands auto-inject project context before executing)
+- Tool interception and advisory guardrails (convention enforcement, test-after-edit suggestions)
+- Toast/notification UX (desktop notifications for phase transitions, milestone completion, stuck detection)
+- Enhanced compaction (preserve decisions, blockers, current task context — not just STATE.md)
+
 <details>
 <summary>Previous: v8.3 Agent Quality & Skills (shipped 2026-03-09)</summary>
 
@@ -24,19 +37,9 @@ Manage and deliver high-quality software with high-quality documentation, while 
 </details>
 
 <details>
-<summary>Previous: v8.2 Cleanup, Performance & Validation (shipped 2026-03-07)</summary>
+<summary>Previous: v1.0-v8.2 (shipped 2026-02-22 through 2026-03-07)</summary>
 
-- Dead code removal (~80 dead exports, 12 dead files, router.js 1642 to 928 lines)
-- Namespace-only routing (removed ~890-line backward-compat block)
-- 24-40% init speedup with lazy acorn loading and cached git info
-- RACI matrix (23 lifecycle steps, 12 handoff contracts) validating clean agent separation
-
-</details>
-
-<details>
-<summary>Previous: v1.0-v8.1 (shipped 2026-02-22 through 2026-03-03)</summary>
-
-See `.planning/MILESTONES.md` for full history of v1.0 through v8.1.
+See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 </details>
 
@@ -112,7 +115,13 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.1.
 
 ### Active
 
-(No active requirements — next milestone not yet started)
+- [ ] Always-on context injection via system prompt hook
+- [ ] Custom LLM-callable tools replacing CLI hot paths
+- [ ] Event-driven state sync (session idle, file changes)
+- [ ] Smart command enrichment with auto-injected context
+- [ ] Advisory guardrails via tool interception
+- [ ] Toast/notification UX for phase transitions and alerts
+- [ ] Enhanced compaction preserving full project context
 
 ### Out of Scope
 
@@ -188,4 +197,4 @@ Known tech debt: Bundle at ~1163KB (over 1050KB budget). `node:sqlite` is Stabil
 | Namespace routing (colon syntax) | Semantic grouping for 100+ CLI commands | Good — discoverable, backward-compatible |
 
 ---
-*Last updated: 2026-03-09 after v8.3 milestone completion*
+*Last updated: 2026-03-09 after v9.0 milestone start*

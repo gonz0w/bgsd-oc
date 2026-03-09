@@ -5,17 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Between milestones — v8.3 shipped, next milestone not started
+**Current focus:** Defining requirements for v9.0 Embedded Plugin Experience
 
 ## Current Position
 
-**Phase:** 70 of 70 (Test Debt Cleanup)
-**Current Plan:** Complete
-**Total Plans in Phase:** 2
-**Status:** Milestone v8.3 shipped
-**Last Activity:** 2026-03-09
+**Phase:** Not started (defining requirements)
+**Current Plan:** —
+**Status:** Defining requirements
+**Last Activity:** 2026-03-09 — Milestone v9.0 started
 
-**Progress:** [██████████] 100%
+**Progress:** [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -50,14 +49,15 @@ All v1.0-v8.3 decisions recorded in PROJECT.md Key Decisions table with outcomes
 
 ### Pending Todos
 
-None — between milestones.
+None — milestone starting fresh.
 
 ### Blockers/Concerns
 
 - Bundle at 1153KB (acorn 230KB now lazy-loaded, effective cold-start 923KB)
+- Plugin hooks prefixed with `experimental.` may change without notice (system.transform, compacting, messages.transform, text.complete)
 
 ## Session Continuity
 
 **Last session:** 2026-03-09
-**Stopped at:** Completed v8.3 milestone archival
-**Next step:** `/bgsd-new-milestone` to start next milestone
+**Stopped at:** Starting v9.0 milestone — defining requirements
+**Next step:** Define REQUIREMENTS.md, then create roadmap
