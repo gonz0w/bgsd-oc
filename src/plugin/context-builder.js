@@ -2,17 +2,12 @@ import { getProjectState } from './project-state.js';
 import { countTokens, TOKEN_BUDGET } from './token-budget.js';
 
 /**
- * Context builder for system prompt injection.
- * Composes a compact project state string from cached ProjectState data.
+ * Context builder for system prompt injection and compaction.
+ * 
+ * buildSystemPrompt: Compact <bgsd> tag for every LLM turn (~70 tokens).
+ * buildCompactionContext: Structured XML blocks preserved across compaction (~500-1000 tokens).
  *
- * Format (per CONTEXT.md decision):
- * <bgsd>
- * Phase N: Name | Plan: PNN (X/Y tasks) | vX.X N/M phases
- * Goal: phase goal sentence
- * Blocker: text (only if present)
- * </bgsd>
- *
- * Target: under 500 tokens. Warns if exceeded but doesn't block.
+ * Both use cached ProjectState data — no file I/O in hot paths.
  */
 
 /**
@@ -120,4 +115,142 @@ export function buildSystemPrompt(cwd) {
   }
 
   return prompt;
+}
+
+/**
+ * Build enhanced compaction context with structured XML blocks.
+ * Preserves full project awareness across context window resets.
+ *
+ * Blocks (per CONTEXT.md):
+ * - <project>: Core value + tech stack (1 line each from PROJECT.md)
+ * - <task-state>: Phase, plan, current task name + files
+ * - <decisions>: Last 3 decisions from STATE.md
+ * - <intent>: Objective from INTENT.md
+ * - <session>: Session continuity hint (stopped_at, next_step)
+ *
+ * Uses `task-state` (not `task`) as tag name to avoid XML parser conflicts
+ * with PLAN.md task tags.
+ *
+ * Target: under 1000 tokens. Individual section failures are skipped,
+ * not fatal — partial context is better than none.
+ *
+ * @param {string} [cwd] - Working directory (defaults to process.cwd())
+ * @returns {string|null} Compaction context string, or null if no .planning/
+ */
+export function buildCompactionContext(cwd) {
+  let projectState;
+  try {
+    projectState = getProjectState(cwd);
+  } catch {
+    return '<project-error>Failed to load project state for compaction. Run /bgsd-health to diagnose.</project-error>';
+  }
+
+  // No .planning/ → inject nothing (per CONTEXT.md decision)
+  if (!projectState) {
+    return null;
+  }
+
+  const { state, project, intent, plans, currentPhase } = projectState;
+  const blocks = [];
+
+  // <project> block: Core value + Tech stack
+  try {
+    if (project) {
+      const parts = [];
+      if (project.coreValue) parts.push(`Core value: ${project.coreValue}`);
+      if (project.techStack) parts.push(`Tech: ${project.techStack}`);
+      if (parts.length > 0) {
+        blocks.push(`<project>\n${parts.join('\n')}\n</project>`);
+      }
+    }
+  } catch { /* skip block on failure */ }
+
+  // <task-state> block: Phase, plan, current task
+  try {
+    if (state && state.phase) {
+      const phaseMatch = state.phase.match(/^(\d+)\s*(?:—|-|–)\s*(.+)/);
+      const phaseNum = phaseMatch ? phaseMatch[1] : state.phase;
+      const phaseName = phaseMatch ? phaseMatch[2].trim() : '';
+
+      let taskLine = `Phase ${phaseNum}: ${phaseName}`;
+
+      // Find current plan and task
+      if (state.currentPlan && plans && plans.length > 0) {
+        const planNumMatch = state.currentPlan.match(/(\d+)/);
+        const planNum = planNumMatch ? planNumMatch[1].padStart(2, '0') : null;
+
+        if (planNum) {
+          const plan = plans.find(p => p.frontmatter && p.frontmatter.plan === planNum);
+          if (plan && plan.tasks && plan.tasks.length > 0) {
+            const totalTasks = plan.tasks.length;
+            // Find first task without completion marker (heuristic: tasks are sequential)
+            // Since we don't track completion in the parser, show task count
+            taskLine += ` — Plan P${planNum}, ${totalTasks} tasks`;
+
+            // Show first task name and files as "current" context
+            const firstTask = plan.tasks[0];
+            if (firstTask.name) {
+              taskLine += `\nCurrent: ${firstTask.name}`;
+            }
+            if (firstTask.files && firstTask.files.length > 0) {
+              taskLine += `\nFiles: ${firstTask.files.join(', ')}`;
+            }
+          } else {
+            taskLine += ` — Plan P${planNum}`;
+          }
+        }
+      }
+
+      blocks.push(`<task-state>\n${taskLine}\n</task-state>`);
+    }
+  } catch { /* skip block on failure */ }
+
+  // <decisions> block: Last 3 decisions from STATE.md
+  try {
+    if (state && state.raw) {
+      const decisionsSection = state.getSection('Decisions');
+      if (decisionsSection) {
+        // Parse bullet points, take last 3
+        const decisionLines = decisionsSection
+          .split('\n')
+          .map(l => l.trim())
+          .filter(l => l.startsWith('- '));
+
+        if (decisionLines.length > 0) {
+          const last3 = decisionLines.slice(-3);
+          blocks.push(`<decisions>\n${last3.join('\n')}\n</decisions>`);
+        }
+      }
+    }
+  } catch { /* skip block on failure */ }
+
+  // <intent> block: Objective from INTENT.md
+  try {
+    if (intent && intent.objective) {
+      blocks.push(`<intent>\nObjective: ${intent.objective}\n</intent>`);
+    }
+  } catch { /* skip block on failure */ }
+
+  // <session> block: Session continuity hint from STATE.md
+  try {
+    if (state && state.raw) {
+      const sessionSection = state.getSection('Session Continuity');
+      if (sessionSection) {
+        const stoppedAt = sessionSection.match(/\*\*Stopped at:\*\*\s*(.+)/i);
+        const nextStep = sessionSection.match(/\*\*Next step:\*\*\s*(.+)/i);
+        const parts = [];
+        if (stoppedAt) parts.push(`Stopped at: ${stoppedAt[1].trim()}`);
+        if (nextStep) parts.push(`Next step: ${nextStep[1].trim()}`);
+        if (parts.length > 0) {
+          blocks.push(`<session>\n${parts.join('\n')}\n</session>`);
+        }
+      }
+    }
+  } catch { /* skip block on failure */ }
+
+  if (blocks.length === 0) {
+    return null;
+  }
+
+  return blocks.join('\n\n');
 }
