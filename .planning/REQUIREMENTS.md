@@ -29,8 +29,8 @@ Requirements for v9.0 Embedded Plugin Experience milestone. Each maps to roadmap
 
 - [x] **CINJ-01**: System prompt hook (`experimental.chat.system.transform`) injects current phase, plan, progress, and blockers into every LLM interaction
 - [x] **CINJ-02**: System prompt injection stays within 500-token budget, measured and enforced
-- [ ] **CINJ-03**: Enhanced compaction preserves PROJECT.md context, INTENT.md summary, active decisions, blockers, and current task alongside STATE.md
-- [ ] **CINJ-04**: Slash commands auto-enriched with project context via `command.execute.before` hook
+- [x] **CINJ-03**: Enhanced compaction preserves PROJECT.md context, INTENT.md summary, active decisions, blockers, and current task alongside STATE.md
+- [x] **CINJ-04**: Slash commands auto-enriched with project context via `command.execute.before` hook
 
 ### Custom LLM Tools
 
@@ -92,8 +92,8 @@ Requirements for v9.0 Embedded Plugin Experience milestone. Each maps to roadmap
 | RBND-08 | Phase 72 | Complete | grep -r gsd-tools (zero matches outside milestones) |
 | CINJ-01 | Phase 73 | Complete | system.transform hook registered |
 | CINJ-02 | Phase 73 | Complete | token count < 500 |
-| CINJ-03 | Phase 73 | Pending | compaction includes decisions + blockers |
-| CINJ-04 | Phase 73 | Pending | command.execute.before hook registered |
+| CINJ-03 | Phase 73 | Complete | compaction includes decisions + blockers |
+| CINJ-04 | Phase 73 | Complete | command.execute.before hook registered |
 | TOOL-01 | Phase 74 | Pending | bgsd_status tool callable by LLM |
 | TOOL-02 | Phase 74 | Pending | bgsd_progress tool callable by LLM |
 | TOOL-03 | Phase 74 | Pending | bgsd_context tool callable by LLM |
