@@ -303,12 +303,12 @@ function spawnBackgroundAnalysis(cwd) {
     // Spawn detached analysis
     try {
       const { spawn } = require('child_process');
-      const gsdBin = path.resolve(__dirname, '../../bin/gsd-tools.cjs');
+      const gsdBin = path.resolve(__dirname, '../../bin/bgsd-tools.cjs');
       const child = spawn(process.execPath, [gsdBin, 'codebase', 'analyze', '--raw'], {
         cwd,
         detached: true,
         stdio: 'ignore',
-        env: { ...process.env, GSD_BG_ANALYSIS: '1' },
+        env: { ...process.env, BGSD_BG_ANALYSIS: '1' },
       });
       child.unref();
       debugLog('codebase.bgAnalysis', `spawned background analysis (pid: ${child.pid})`);

@@ -1312,9 +1312,9 @@ const { extractAtReferences } = require('../lib/helpers');
  * Returns: { timestamp, workflow_count, total_tokens, workflows: [...] }
  */
 function measureAllWorkflows(cwd) {
-  // Detect plugin path: bundled binary at bin/gsd-tools.cjs → ../workflows/
-  // Or use GSD_PLUGIN_DIR env var for testing
-  let pluginDir = process.env.GSD_PLUGIN_DIR;
+  // Detect plugin path: bundled binary at bin/bgsd-tools.cjs → ../workflows/
+  // Or use BGSD_PLUGIN_DIR env var for testing
+  let pluginDir = process.env.BGSD_PLUGIN_DIR;
   if (!pluginDir) {
     // __dirname is the dir of the bundled output (bin/), so go up one level
     pluginDir = path.resolve(__dirname, '..');
@@ -1756,7 +1756,7 @@ const WORKFLOW_BUDGETS = {
 };
 
 function cmdTokenBudget(cwd, raw) {
-  let pluginDir = process.env.GSD_PLUGIN_DIR;
+  let pluginDir = process.env.BGSD_PLUGIN_DIR;
   if (!pluginDir) {
     pluginDir = path.resolve(__dirname, '..');
   }
@@ -1765,7 +1765,7 @@ function cmdTokenBudget(cwd, raw) {
     path.join(pluginDir, 'workflows'),
   ];
   const homeConfig = process.env.HOME
-    ? path.join(process.env.HOME, '.config', 'opencode', 'get-shit-done', 'workflows')
+    ? path.join(process.env.HOME, '.config', 'opencode', 'bgsd-oc', 'workflows')
     : null;
   if (homeConfig) searchDirs.push(homeConfig);
   let workflowsDir = null;
@@ -1803,7 +1803,7 @@ function cmdTestCoverage(cwd, raw) {
   const config = loadConfig(cwd);
 
   // Determine test file path
-  const testFile = config.test_file || 'bin/gsd-tools.test.cjs';
+  const testFile = config.test_file || 'bin/bgsd-tools.test.cjs';
   const testPath = path.join(cwd, testFile);
 
   if (!fs.existsSync(testPath)) {

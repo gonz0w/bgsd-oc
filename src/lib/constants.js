@@ -5,15 +5,15 @@ const VALID_TRAJECTORY_SCOPES = ['task', 'plan', 'phase'];
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
 const MODEL_PROFILES = {
-  'gsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet' },
-  'gsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-phase-researcher':     { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-project-researcher':    { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-codebase-mapper':      { quality: 'sonnet', balanced: 'haiku', budget: 'haiku' },
-  'gsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
+  'bgsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet' },
+  'bgsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
+  'bgsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
+  'bgsd-phase-researcher':     { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
+  'bgsd-project-researcher':    { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
+  'bgsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
+  'bgsd-codebase-mapper':      { quality: 'sonnet', balanced: 'haiku', budget: 'haiku' },
+  'bgsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
+  'bgsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
 };
 
 // ─── Config Schema ───────────────────────────────────────────────────────────
@@ -23,8 +23,8 @@ const CONFIG_SCHEMA = {
   commit_docs:               { type: 'boolean', default: true,                            description: 'Auto-commit planning docs',                      aliases: [], nested: { section: 'planning', field: 'commit_docs' } },
   search_gitignored:         { type: 'boolean', default: false,                           description: 'Include gitignored files in searches',            aliases: [], nested: { section: 'planning', field: 'search_gitignored' } },
   branching_strategy:        { type: 'string',  default: 'none',                          description: 'Git branching strategy',                          aliases: [], nested: { section: 'git', field: 'branching_strategy' } },
-  phase_branch_template:     { type: 'string',  default: 'gsd/phase-{phase}-{slug}',      description: 'Phase branch name template',                      aliases: [], nested: { section: 'git', field: 'phase_branch_template' } },
-  milestone_branch_template: { type: 'string',  default: 'gsd/{milestone}-{slug}',        description: 'Milestone branch name template',                  aliases: [], nested: { section: 'git', field: 'milestone_branch_template' } },
+  phase_branch_template:     { type: 'string',  default: 'bgsd/phase-{phase}-{slug}',      description: 'Phase branch name template',                      aliases: [], nested: { section: 'git', field: 'phase_branch_template' } },
+  milestone_branch_template: { type: 'string',  default: 'bgsd/{milestone}-{slug}',        description: 'Milestone branch name template',                  aliases: [], nested: { section: 'git', field: 'milestone_branch_template' } },
   research:                  { type: 'boolean', default: true,                            description: 'Enable research phase',                           aliases: ['research_enabled'], nested: { section: 'workflow', field: 'research' } },
   plan_checker:              { type: 'boolean', default: true,                            description: 'Enable plan checking',                            aliases: [], nested: { section: 'workflow', field: 'plan_check' } },
   verifier:                  { type: 'boolean', default: true,                            description: 'Enable verification phase',                       aliases: [], nested: { section: 'workflow', field: 'verifier' } },
@@ -49,8 +49,8 @@ const CONFIG_SCHEMA = {
 
 const COMMAND_HELP = {
 
-  'util:codebase context': `Usage: gsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
-       gsd-tools codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
+  'util:codebase context': `Usage: bgsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
+       bgsd-tools codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
 
 Assemble per-file architectural context from cached intel.
 
@@ -67,10 +67,10 @@ Options:
 Output (--task): { task_files, context_files: [{path, score, reason, signatures?}], stats }
 
 Examples:
-  gsd-tools codebase context --files src/lib/ast.js
-  gsd-tools codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
+  bgsd-tools codebase context --files src/lib/ast.js
+  bgsd-tools codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
 
-  'util:codebase ast': `Usage: gsd-tools codebase ast <file>
+  'util:codebase ast': `Usage: bgsd-tools codebase ast <file>
 
 Extract function, class, and method signatures from a source file.
 
@@ -83,10 +83,10 @@ Arguments:
 Output: { file, language, signatures: [{name, type, params, line, async, generator}], count }
 
 Examples:
-  gsd-tools codebase ast src/lib/ast.js
-  gsd-tools codebase ast app.py`,
+  bgsd-tools codebase ast src/lib/ast.js
+  bgsd-tools codebase ast app.py`,
 
-  'util:codebase exports': `Usage: gsd-tools codebase exports <file>
+  'util:codebase exports': `Usage: bgsd-tools codebase exports <file>
 
 Extract the export surface from a JS/TS module.
 
@@ -99,10 +99,10 @@ Arguments:
 Output: { file, type, named, default, re_exports, cjs_exports }
 
 Examples:
-  gsd-tools codebase exports src/lib/ast.js
-  gsd-tools codebase exports src/router.js`,
+  bgsd-tools codebase exports src/lib/ast.js
+  bgsd-tools codebase exports src/router.js`,
 
-  'util:codebase complexity': `Usage: gsd-tools codebase complexity <file>
+  'util:codebase complexity': `Usage: bgsd-tools codebase complexity <file>
 
 Compute per-function cyclomatic complexity for a source file.
 
@@ -120,10 +120,10 @@ Output: { file, module_complexity, functions: [{name, line, complexity, nesting_
 Color coding (formatted mode): green(1-5), yellow(6-10), red(11+)
 
 Examples:
-  gsd-tools codebase complexity src/router.js
-  gsd-tools codebase complexity src/lib/ast.js`,
+  bgsd-tools codebase complexity src/router.js
+  bgsd-tools codebase complexity src/lib/ast.js`,
 
-  'util:codebase repo-map': `Usage: gsd-tools codebase repo-map [--budget <tokens>]
+  'util:codebase repo-map': `Usage: bgsd-tools codebase repo-map [--budget <tokens>]
 
 Generate a compact repository map from AST signatures.
 
@@ -138,10 +138,10 @@ Output (raw): { summary, files_included, total_signatures, token_estimate }
 Output (formatted): The summary text directly
 
 Examples:
-  gsd-tools codebase repo-map
-  gsd-tools codebase repo-map --budget 500`,
+  bgsd-tools codebase repo-map
+  bgsd-tools codebase repo-map --budget 500`,
 
-  'execute:trajectory': `Usage: gsd-tools trajectory <subcommand> [options]
+  'execute:trajectory': `Usage: bgsd-tools trajectory <subcommand> [options]
 
 Trajectory engineering commands.
 
@@ -174,17 +174,17 @@ journal entry to the trajectories memory store with test count, LOC delta,
 and cyclomatic complexity metrics.
 
 Examples:
-  gsd-tools trajectory checkpoint explore-auth
-  gsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"
-  gsd-tools trajectory list
-  gsd-tools trajectory list --scope phase --limit 5
-  gsd-tools trajectory compare my-feat
-  gsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
-  gsd-tools trajectory choose my-feat --attempt 2 --reason "Better test coverage"
-  gsd-tools trajectory dead-ends
-  gsd-tools trajectory dead-ends --scope task --limit 5`,
+  bgsd-tools trajectory checkpoint explore-auth
+  bgsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"
+  bgsd-tools trajectory list
+  bgsd-tools trajectory list --scope phase --limit 5
+  bgsd-tools trajectory compare my-feat
+  bgsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
+  bgsd-tools trajectory choose my-feat --attempt 2 --reason "Better test coverage"
+  bgsd-tools trajectory dead-ends
+  bgsd-tools trajectory dead-ends --scope task --limit 5`,
 
-  'execute:trajectory compare': `Usage: gsd-tools trajectory compare <name> [--scope <scope>]
+  'execute:trajectory compare': `Usage: bgsd-tools trajectory compare <name> [--scope <scope>]
 
 Compare metrics across all attempts for a named checkpoint.
 Shows test results, LOC delta, and cyclomatic complexity side-by-side.
@@ -199,10 +199,10 @@ Options:
 Output: { checkpoint, scope, attempt_count, attempts, best_per_metric, worst_per_metric }
 
 Examples:
-  gsd-tools trajectory compare my-feat
-  gsd-tools trajectory compare try-redis --scope task`,
+  bgsd-tools trajectory compare my-feat
+  bgsd-tools trajectory compare try-redis --scope task`,
 
-  'execute:trajectory choose': `Usage: gsd-tools trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
+  'execute:trajectory choose': `Usage: bgsd-tools trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
 
 Select the winning attempt, merge its code, archive non-chosen attempts as tags,
 and delete all trajectory working branches.
@@ -222,10 +222,10 @@ What happens:
   4. Journal records the choice with rationale
 
 Examples:
-  gsd-tools trajectory choose my-feat --attempt 2
-  gsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
+  bgsd-tools trajectory choose my-feat --attempt 2
+  bgsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
 
-  'execute:trajectory pivot': `Usage: gsd-tools trajectory pivot <checkpoint> --reason "what failed and why"
+  'execute:trajectory pivot': `Usage: bgsd-tools trajectory pivot <checkpoint> --reason "what failed and why"
 
 Abandon current approach with recorded reasoning and rewind to checkpoint.
 Auto-checkpoints current work as abandoned attempt before rewinding.
@@ -242,11 +242,11 @@ Options:
 Output: { pivoted, checkpoint, target_ref, abandoned_branch, files_rewound, stash_used }
 
 Examples:
-  gsd-tools trajectory pivot explore-auth --reason "JWT approach too complex, session-based simpler"
-  gsd-tools trajectory pivot try-redis --scope task --reason "Redis overkill for this cache size"
-  gsd-tools trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"`,
+  bgsd-tools trajectory pivot explore-auth --reason "JWT approach too complex, session-based simpler"
+  bgsd-tools trajectory pivot try-redis --scope task --reason "Redis overkill for this cache size"
+  bgsd-tools trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"`,
 
-  'execute:trajectory dead-ends': `Usage: gsd-tools trajectory dead-ends [--scope <scope>] [--name <name>] [--limit <N>] [--token-cap <N>]
+  'execute:trajectory dead-ends': `Usage: bgsd-tools trajectory dead-ends [--scope <scope>] [--name <name>] [--limit <N>] [--token-cap <N>]
 
 Query journal for failed approaches (pivot/abandon entries).
 Shows "what NOT to do" context with reasons from pivot entries.
@@ -260,10 +260,10 @@ Options:
 Output: { dead_ends, count, scope_filter, name_filter, context }
 
 Examples:
-  gsd-tools trajectory dead-ends
-  gsd-tools trajectory dead-ends --scope task --limit 5`,
+  bgsd-tools trajectory dead-ends
+  bgsd-tools trajectory dead-ends --scope task --limit 5`,
 
-  'util:classify plan': `Usage: gsd-tools classify plan <plan-path>
+  'util:classify plan': `Usage: bgsd-tools classify plan <plan-path>
 
 Classify all tasks in a plan file with 1-5 complexity scores.
 
@@ -275,9 +275,9 @@ Model mapping: score 1-2 → sonnet, score 3 → sonnet, score 4-5 → opus
 Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
 
 Examples:
-  gsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
+  bgsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
 
-  'util:classify phase': `Usage: gsd-tools classify phase <phase-number>
+  'util:classify phase': `Usage: bgsd-tools classify phase <phase-number>
 
 Classify all incomplete plans in a phase and determine execution mode.
 
@@ -290,10 +290,10 @@ Execution modes:
 Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason, waves } }
 
 Examples:
-  gsd-tools classify phase 39
-  gsd-tools classify phase 38`,
+  bgsd-tools classify phase 39
+  bgsd-tools classify phase 38`,
 
-  'util:git': `Usage: gsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
+  'util:git': `Usage: bgsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
 
 Structured git intelligence — JSON output for agents and workflows.
 
@@ -315,18 +315,18 @@ Subcommands:
     Local-only by default. --push to push to origin.
 
 Examples:
-  gsd-tools git log --count 5
-  gsd-tools git diff-summary --from main --to HEAD
-  gsd-tools git blame src/router.js
-  gsd-tools git branch-info
-  gsd-tools git rewind --ref HEAD~3 --dry-run
-  gsd-tools git rewind --ref abc123 --confirm
-  gsd-tools git trajectory-branch --phase 45 --slug decision-journal`,
+  bgsd-tools git log --count 5
+  bgsd-tools git diff-summary --from main --to HEAD
+  bgsd-tools git blame src/router.js
+  bgsd-tools git branch-info
+  bgsd-tools git rewind --ref HEAD~3 --dry-run
+  bgsd-tools git rewind --ref abc123 --confirm
+  bgsd-tools git trajectory-branch --phase 45 --slug decision-journal`,
 
   // ─── Namespaced Command Help (user-facing only) ──────────────────────────────
 
   // plan namespace
-  'plan:intent': `Usage: gsd-tools plan:intent <subcommand> [options]
+  'plan:intent': `Usage: bgsd-tools plan:intent <subcommand> [options]
 
 Manage project intent in INTENT.md.
 
@@ -338,13 +338,13 @@ Subcommands:
   validate    Validate INTENT.md structure
   trace       Traceability matrix
   drift       Drift analysis`,
-  'plan:intent show': `Usage: gsd-tools plan:intent show [section] [--full]
+  'plan:intent show': `Usage: bgsd-tools plan:intent show [section] [--full]
 
 Display intent summary from INTENT.md.`,
-  'plan:requirements': `Usage: gsd-tools plan:requirements mark-complete <ids>
+  'plan:requirements': `Usage: bgsd-tools plan:requirements mark-complete <ids>
 
 Mark requirement IDs as complete.`,
-  'plan:roadmap': `Usage: gsd-tools plan:roadmap <subcommand> [args]
+  'plan:roadmap': `Usage: bgsd-tools plan:roadmap <subcommand> [args]
 
 Roadmap operations.
 
@@ -352,16 +352,16 @@ Subcommands:
   get-phase <phase>   Extract phase section from ROADMAP.md
   analyze             Full roadmap parse with disk status
   update-plan-progress <N>  Update progress table row from disk`,
-  'plan:phases': `Usage: gsd-tools plan:phases list [options]
+  'plan:phases': `Usage: bgsd-tools plan:phases list [options]
 
 List phase directories with metadata.`,
-  'plan:find-phase': `Usage: gsd-tools plan:find-phase <phase>
+  'plan:find-phase': `Usage: bgsd-tools plan:find-phase <phase>
 
 Find a phase directory by number.`,
-  'plan:milestone': `Usage: gsd-tools plan:milestone complete <version> [options]
+  'plan:milestone': `Usage: bgsd-tools plan:milestone complete <version> [options]
 
 Complete a milestone.`,
-  'plan:phase': `Usage: gsd-tools plan:phase <subcommand> [args]
+  'plan:phase': `Usage: bgsd-tools plan:phase <subcommand> [args]
 
 Phase lifecycle operations.
 
@@ -373,22 +373,22 @@ Subcommands:
   complete <phase>       Mark phase done`,
 
   // execute namespace
-  'execute:commit': `Usage: gsd-tools execute:commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
+  'execute:commit': `Usage: bgsd-tools execute:commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
 
 Commit planning documents to git.`,
-  'execute:rollback-info': `Usage: gsd-tools execute:rollback-info <plan-id>
+  'execute:rollback-info': `Usage: bgsd-tools execute:rollback-info <plan-id>
 
 Show commits and revert command for a plan.`,
-  'execute:session-diff': `Usage: gsd-tools execute:session-diff
+  'execute:session-diff': `Usage: bgsd-tools execute:session-diff
 
 Show git commits since last session activity.`,
-  'execute:session-summary': `Usage: gsd-tools execute:session-summary
+  'execute:session-summary': `Usage: bgsd-tools execute:session-summary
 
 Session handoff summary.`,
-  'execute:velocity': `Usage: gsd-tools execute:velocity
+  'execute:velocity': `Usage: bgsd-tools execute:velocity
 
 Calculate planning velocity and completion forecast.`,
-  'execute:worktree': `Usage: gsd-tools execute:worktree <subcommand> [options]
+  'execute:worktree': `Usage: bgsd-tools execute:worktree <subcommand> [options]
 
 Manage git worktrees for parallel execution.
 
@@ -399,7 +399,7 @@ Subcommands:
   cleanup             Remove all worktrees
   merge <plan-id>     Merge worktree back
   check-overlap       Check for file overlaps`,
-  'execute:tdd': `Usage: gsd-tools execute:tdd <subcommand> [options]
+  'execute:tdd': `Usage: bgsd-tools execute:tdd <subcommand> [options]
 
 TDD validation gates.
 
@@ -408,12 +408,12 @@ Subcommands:
   validate-green --test-cmd "cmd"     Verify test passes
   validate-refactor --test-cmd "cmd" Same as validate-green
   auto-test --test-cmd "cmd"         Run test, report result`,
-  'execute:test-run': `Usage: gsd-tools execute:test-run
+  'execute:test-run': `Usage: bgsd-tools execute:test-run
 
 Run project tests and parse output.`,
 
   // verify namespace
-  'verify:state': `Usage: gsd-tools verify:state <subcommand> [options]
+  'verify:state': `Usage: bgsd-tools verify:state <subcommand> [options]
 
 Manage project state in STATE.md.
 
@@ -425,7 +425,7 @@ Subcommands:
   add-blocker --text "..." | resolve-blocker --text "..."
   record-session --stopped-at "..." [--resume-file path]
   validate [--fix]`,
-  'verify:verify': `Usage: gsd-tools verify:verify <subcommand> [args]
+  'verify:verify': `Usage: bgsd-tools verify:verify <subcommand> [args]
 
 Verification suite for planning documents.
 
@@ -443,23 +443,23 @@ Subcommands:
   plan-wave <phase-dir>        Check file conflicts
   plan-deps <phase-dir>        Check dependency cycles
   quality [--plan f] [--phase N]  Composite quality score`,
-  'verify:assertions': `Usage: gsd-tools verify:assertions <subcommand> [options]
+  'verify:assertions': `Usage: bgsd-tools verify:assertions <subcommand> [options]
 
 Manage structured acceptance criteria.
 
 Subcommands:
   list [--req SREQ-01]    List assertions by requirement
   validate                Check assertion format and coverage`,
-  'verify:search-decisions': `Usage: gsd-tools verify:search-decisions <query>
+  'verify:search-decisions': `Usage: bgsd-tools verify:search-decisions <query>
 
 Search decisions in STATE.md and archives.`,
-  'verify:search-lessons': `Usage: gsd-tools verify:search-lessons <query>
+  'verify:search-lessons': `Usage: bgsd-tools verify:search-lessons <query>
 
 Search tasks/lessons.md for patterns.`,
-  'verify:review': `Usage: gsd-tools verify:review <phase> <plan>
+  'verify:review': `Usage: bgsd-tools verify:review <phase> <plan>
 
 Review context for reviewer agent.`,
-  'verify:context-budget': `Usage: gsd-tools verify:context-budget <subcommand|path> [options]
+  'verify:context-budget': `Usage: bgsd-tools verify:context-budget <subcommand|path> [options]
 
 Measure token consumption across workflows.
 
@@ -467,39 +467,39 @@ Subcommands:
   <path>                    Estimate tokens for a file
   baseline                  Measure all workflows, save baseline
   compare [baseline-path]   Compare current vs baseline`,
-  'verify:token-budget': `Usage: gsd-tools verify:token-budget
+  'verify:token-budget': `Usage: bgsd-tools verify:token-budget
 
 Show token counts for workflow files vs budgets.`,
 
   // util namespace
-  'util:config-get': `Usage: gsd-tools util:config-get <key.path>
+  'util:config-get': `Usage: bgsd-tools util:config-get <key.path>
 
 Get configuration value from .planning/config.json.`,
-  'util:config-set': `Usage: gsd-tools util:config-set <key.path> <value>
+  'util:config-set': `Usage: bgsd-tools util:config-set <key.path> <value>
 
 Set configuration value in .planning/config.json.`,
-  'util:config-migrate': `Usage: gsd-tools util:config-migrate
+  'util:config-migrate': `Usage: bgsd-tools util:config-migrate
 
 Migrate .planning/config.json to match CONFIG_SCHEMA.
 Adds missing keys with default values. Never overwrites existing values.
 Creates backup before writing changes.`,
-  'util:env': `Usage: gsd-tools util:env <subcommand> [options]
+  'util:env': `Usage: bgsd-tools util:env <subcommand> [options]
 
 Detect project languages, tools, and runtimes.
 
 Subcommands:
   scan [--force] [--verbose]  Detect and write manifest
   status                      Check manifest freshness`,
-  'util:current-timestamp': `Usage: gsd-tools util:current-timestamp [format]
+  'util:current-timestamp': `Usage: bgsd-tools util:current-timestamp [format]
 
 Return current UTC timestamp.`,
-  'util:list-todos': `Usage: gsd-tools util:list-todos [area]
+  'util:list-todos': `Usage: bgsd-tools util:list-todos [area]
 
 Count and enumerate pending todos.`,
-  'util:todo': `Usage: gsd-tools util:todo complete <filename>
+  'util:todo': `Usage: bgsd-tools util:todo complete <filename>
 
 Mark todo as complete.`,
-  'util:memory': `Usage: gsd-tools util:memory <subcommand> [options]
+  'util:memory': `Usage: bgsd-tools util:memory <subcommand> [options]
 
 Persistent memory store.
 
@@ -509,16 +509,16 @@ Subcommands:
   list                                    List stores
   ensure-dir                              Create directory
   compact [--store <name>] [--threshold N]  Compact old entries`,
-  'util:mcp': `Usage: gsd-tools util:mcp <subcommand> [options]
+  'util:mcp': `Usage: bgsd-tools util:mcp <subcommand> [options]
 
 MCP server management.
 
 Subcommands:
   profile [--window N] [--apply] [--restore]  Manage profiles`,
-  'util:classify': `Usage: gsd-tools util:classify <plan|phase> <path-or-number>
+  'util:classify': `Usage: bgsd-tools util:classify <plan|phase> <path-or-number>
 
 Classify complexity and recommend execution strategy.`,
-  'util:frontmatter': `Usage: gsd-tools util:frontmatter <subcommand> <file> [options]
+  'util:frontmatter': `Usage: bgsd-tools util:frontmatter <subcommand> <file> [options]
 
 CRUD operations on YAML frontmatter.
 
@@ -527,19 +527,19 @@ Subcommands:
   set <file> --field k --value v  Update single field
   merge <file> --data '{json}'    Merge JSON into frontmatter
   validate <file> --schema type   Validate format`,
-  'util:progress': `Usage: gsd-tools util:progress [format]
+  'util:progress': `Usage: bgsd-tools util:progress [format]
 
 Render progress in various formats.`,
-  'util:websearch': `Usage: gsd-tools util:websearch <query> [--limit N] [--freshness day|week|month]
+  'util:websearch': `Usage: bgsd-tools util:websearch <query> [--limit N] [--freshness day|week|month]
 
 Search web via Brave Search API.`,
-  'util:history-digest': `Usage: gsd-tools util:history-digest [--limit N] [--phases N1,N2] [--slim]
+  'util:history-digest': `Usage: bgsd-tools util:history-digest [--limit N] [--phases N1,N2] [--slim]
 
 Aggregate all SUMMARY.md data into digest.`,
-  'util:trace-requirement': `Usage: gsd-tools util:trace-requirement <req-id>
+  'util:trace-requirement': `Usage: bgsd-tools util:trace-requirement <req-id>
 
 Trace requirement from spec to files on disk.`,
-  'util:codebase': `Usage: gsd-tools util:codebase <subcommand> [options]
+  'util:codebase': `Usage: bgsd-tools util:codebase <subcommand> [options]
 
 Codebase intelligence.
 
@@ -556,7 +556,7 @@ Subcommands:
   exports                  Export surface
   complexity               Cyclomatic complexity
   repo-map                 Repository map`,
-  'util:cache': `Usage: gsd-tools util:cache <subcommand> [options]
+  'util:cache': `Usage: bgsd-tools util:cache <subcommand> [options]
 
 Cache management.
 
@@ -564,7 +564,7 @@ Subcommands:
   status                   Show cache backend and entry count
   clear                    Clear cache
   warm [files...]          Pre-populate cache`,
-  'util:agent': `Usage: gsd-tools util:agent <subcommand> [options]
+  'util:agent': `Usage: bgsd-tools util:agent <subcommand> [options]
 
 Agent management.
 
@@ -574,7 +574,7 @@ Subcommands:
   validate-contracts [--phase N]       Check agent outputs match declared contracts`,
 
   // research namespace
-  'research': `Usage: gsd-tools research <subcommand> [options]
+  'research': `Usage: bgsd-tools research <subcommand> [options]
 
 Research infrastructure commands.
 
@@ -585,7 +585,7 @@ Subcommands:
   collect         Orchestrate multi-source collection pipeline with tier degradation
   nlm-create      Create a NotebookLM notebook
   nlm-add-source  Add a source (URL, file, YouTube) to a NotebookLM notebook`,
-  'research capabilities': `Usage: gsd-tools research capabilities
+  'research capabilities': `Usage: bgsd-tools research capabilities
 
 Report available research tools, current degradation tier, and recommendations.
 
@@ -593,7 +593,7 @@ Detects: yt-dlp (YouTube), notebooklm-py (RAG synthesis), Brave Search MCP, Cont
 Shows: 4-tier degradation level, per-tool status, install hints for missing tools.
 
 Output: { rag_enabled, current_tier, tiers, cli_tools, mcp_servers, recommendations }`,
-  'research:capabilities': `Usage: gsd-tools research:capabilities
+  'research:capabilities': `Usage: bgsd-tools research:capabilities
 
 Report available research tools, current degradation tier, and recommendations.
 
@@ -601,7 +601,7 @@ Detects: yt-dlp (YouTube), notebooklm-py (RAG synthesis), Brave Search MCP, Cont
 Shows: 4-tier degradation level, per-tool status, install hints for missing tools.
 
 Output: { rag_enabled, current_tier, tiers, cli_tools, mcp_servers, recommendations }`,
-  'research yt-search': `Usage: gsd-tools research yt-search "topic" [options]
+  'research yt-search': `Usage: bgsd-tools research yt-search "topic" [options]
 
 Search YouTube via yt-dlp and return structured, filtered, quality-scored results.
 
@@ -620,9 +620,9 @@ Output: { query, pre_filter_count, post_filter_count, results: [{ id, title, cha
 Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30pts bell curve at 15-20min).
 
 Examples:
-  gsd-tools research yt-search "nodejs streams tutorial"
-  gsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
-  'research:yt-search': `Usage: gsd-tools research:yt-search "topic" [options]
+  bgsd-tools research yt-search "nodejs streams tutorial"
+  bgsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
+  'research:yt-search': `Usage: bgsd-tools research:yt-search "topic" [options]
 
 Search YouTube via yt-dlp and return structured, filtered, quality-scored results.
 
@@ -641,9 +641,9 @@ Output: { query, pre_filter_count, post_filter_count, results: [{ id, title, cha
 Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30pts bell curve at 15-20min).
 
 Examples:
-  gsd-tools research:yt-search "nodejs streams tutorial"
-  gsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
-  'research yt-transcript': `Usage: gsd-tools research yt-transcript <video-id|url> [options]
+  bgsd-tools research:yt-search "nodejs streams tutorial"
+  bgsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
+  'research yt-transcript': `Usage: bgsd-tools research yt-transcript <video-id|url> [options]
 
 Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
 
@@ -662,11 +662,11 @@ When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip inst
 Full transcript is always returned — no truncation in JSON output.
 
 Examples:
-  gsd-tools research yt-transcript dQw4w9WgXcQ
-  gsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-  gsd-tools research yt-transcript dQw4w9WgXcQ --timestamps
-  gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
-  'research:yt-transcript': `Usage: gsd-tools research:yt-transcript <video-id|url> [options]
+  bgsd-tools research yt-transcript dQw4w9WgXcQ
+  bgsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  bgsd-tools research yt-transcript dQw4w9WgXcQ --timestamps
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+  'research:yt-transcript': `Usage: bgsd-tools research:yt-transcript <video-id|url> [options]
 
 Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
 
@@ -685,11 +685,11 @@ When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip inst
 Full transcript is always returned — no truncation in JSON output.
 
 Examples:
-  gsd-tools research:yt-transcript dQw4w9WgXcQ
-  gsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-  gsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
-  gsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
-  'research collect': `Usage: gsd-tools research collect "topic" [options]
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ
+  bgsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+  'research collect': `Usage: bgsd-tools research collect "topic" [options]
 
 Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
 
@@ -716,10 +716,10 @@ agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
 At Tier 4 (--quick or no tools), agent_context is empty string.
 
 Examples:
-  gsd-tools research collect "nodejs subprocess patterns"
-  gsd-tools research:collect --quick "test query"
-  gsd-tools research:collect "react hooks" --pretty`,
-  'research:collect': `Usage: gsd-tools research:collect "topic" [options]
+  bgsd-tools research collect "nodejs subprocess patterns"
+  bgsd-tools research:collect --quick "test query"
+  bgsd-tools research:collect "react hooks" --pretty`,
+  'research:collect': `Usage: bgsd-tools research:collect "topic" [options]
 
 Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
 
@@ -746,10 +746,10 @@ agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
 At Tier 4 (--quick or no tools), agent_context is empty string.
 
 Examples:
-  gsd-tools research:collect "nodejs subprocess patterns"
-  gsd-tools research:collect --quick "test query"
-  gsd-tools research:collect "react hooks" --pretty`,
-  'research nlm-create': `Usage: gsd-tools research nlm-create "title"
+  bgsd-tools research:collect "nodejs subprocess patterns"
+  bgsd-tools research:collect --quick "test query"
+  bgsd-tools research:collect "react hooks" --pretty`,
+  'research nlm-create': `Usage: bgsd-tools research nlm-create "title"
 
 Create a NotebookLM notebook and return its ID.
 
@@ -763,9 +763,9 @@ Output: { notebook_id, title, raw_output }
 Error: { error, install_hint | reauth_command }
 
 Examples:
-  gsd-tools research nlm-create "GSD Research Notes"
-  gsd-tools research:nlm-create "Phase 59 Sources"`,
-  'research:nlm-create': `Usage: gsd-tools research:nlm-create "title"
+  bgsd-tools research nlm-create "GSD Research Notes"
+  bgsd-tools research:nlm-create "Phase 59 Sources"`,
+  'research:nlm-create': `Usage: bgsd-tools research:nlm-create "title"
 
 Create a NotebookLM notebook and return its ID.
 
@@ -779,9 +779,9 @@ Output: { notebook_id, title, raw_output }
 Error: { error, install_hint | reauth_command }
 
 Examples:
-  gsd-tools research:nlm-create "GSD Research Notes"
-  gsd-tools research:nlm-create "Phase 59 Sources"`,
-  'research nlm-add-source': `Usage: gsd-tools research nlm-add-source <notebook-id> "source-url-or-path"
+  bgsd-tools research:nlm-create "GSD Research Notes"
+  bgsd-tools research:nlm-create "Phase 59 Sources"`,
+  'research nlm-add-source': `Usage: bgsd-tools research nlm-add-source <notebook-id> "source-url-or-path"
 
 Add a source (URL, YouTube URL, local file) to a NotebookLM notebook.
 
@@ -796,10 +796,10 @@ Output: { notebook_id, source_url, raw_output }
 Error: { error, install_hint | reauth_command | details }
 
 Examples:
-  gsd-tools research nlm-add-source abc123 "https://example.com/docs"
-  gsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
-  gsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
-  'research:nlm-add-source': `Usage: gsd-tools research:nlm-add-source <notebook-id> "source-url-or-path"
+  bgsd-tools research nlm-add-source abc123 "https://example.com/docs"
+  bgsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
+  bgsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
+  'research:nlm-add-source': `Usage: bgsd-tools research:nlm-add-source <notebook-id> "source-url-or-path"
 
 Add a source (URL, YouTube URL, local file) to a NotebookLM notebook.
 
@@ -814,10 +814,10 @@ Output: { notebook_id, source_url, raw_output }
 Error: { error, install_hint | reauth_command | details }
 
 Examples:
-  gsd-tools research:nlm-add-source abc123 "https://example.com/docs"
-  gsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
-  gsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
-  'research nlm-ask': `Usage: gsd-tools research nlm-ask <notebook-id> "question" [--new]
+  bgsd-tools research:nlm-add-source abc123 "https://example.com/docs"
+  bgsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
+  bgsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
+  'research nlm-ask': `Usage: bgsd-tools research nlm-ask <notebook-id> "question" [--new]
 
 Ask a question against a NotebookLM notebook and receive a grounded answer with citations.
 
@@ -835,9 +835,9 @@ Output: { notebook_id, question, answer, references, raw_output }
 Error: { error, install_hint | reauth_command | details }
 
 Examples:
-  gsd-tools research nlm-ask abc123 "What are the key themes?"
-  gsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
-  'research:nlm-ask': `Usage: gsd-tools research:nlm-ask <notebook-id> "question" [--new]
+  bgsd-tools research nlm-ask abc123 "What are the key themes?"
+  bgsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
+  'research:nlm-ask': `Usage: bgsd-tools research:nlm-ask <notebook-id> "question" [--new]
 
 Ask a question against a NotebookLM notebook and receive a grounded answer with citations.
 
@@ -855,9 +855,9 @@ Output: { notebook_id, question, answer, references, raw_output }
 Error: { error, install_hint | reauth_command | details }
 
 Examples:
-  gsd-tools research:nlm-ask abc123 "What are the key themes?"
-  gsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
-  'research nlm-report': `Usage: gsd-tools research nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
+  bgsd-tools research:nlm-ask abc123 "What are the key themes?"
+  bgsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
+  'research nlm-report': `Usage: bgsd-tools research nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
 
 Generate a structured report from a NotebookLM notebook.
 
@@ -875,10 +875,10 @@ Output: { notebook_id, report_type, content, raw_output }
 Error: { error, install_hint | reauth_command | details }
 
 Examples:
-  gsd-tools research nlm-report abc123 --type briefing-doc
-  gsd-tools research:nlm-report abc123 --type study-guide
-  gsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
-  'research:nlm-report': `Usage: gsd-tools research:nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
+  bgsd-tools research nlm-report abc123 --type briefing-doc
+  bgsd-tools research:nlm-report abc123 --type study-guide
+  bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
+  'research:nlm-report': `Usage: bgsd-tools research:nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
 
 Generate a structured report from a NotebookLM notebook.
 
@@ -896,9 +896,9 @@ Output: { notebook_id, report_type, content, raw_output }
 Error: { error, install_hint | reauth_command | details }
 
 Examples:
-  gsd-tools research:nlm-report abc123 --type briefing-doc
-  gsd-tools research:nlm-report abc123 --type study-guide
-  gsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
+  bgsd-tools research:nlm-report abc123 --type briefing-doc
+  bgsd-tools research:nlm-report abc123 --type study-guide
+  bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
   'research:collect --resume': 'Resume interrupted research session from last completed stage',
   'research collect --resume': 'Resume interrupted research session from last completed stage',
 };

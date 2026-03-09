@@ -107,8 +107,8 @@ function outputJSON(result, rawValue) {
   const json = JSON.stringify(filtered, null, 2);
   // Large payloads exceed OpenCode's Bash tool buffer (~50KB).
   // Write to tmpfile and output the path prefixed with @file: so callers can detect it.
-  // GSD_NO_TMPFILE: skip file redirect (used by context-budget measure to capture full output)
-  if (json.length > 50000 && !process.env.GSD_NO_TMPFILE) {
+  // BGSD_NO_TMPFILE: skip file redirect (used by context-budget measure to capture full output)
+  if (json.length > 50000 && !process.env.BGSD_NO_TMPFILE) {
     const tmpPath = path.join(require('os').tmpdir(), `gsd-${Date.now()}.json`);
     fs.writeFileSync(tmpPath, json, 'utf-8');
     _tmpFiles.push(tmpPath);
@@ -187,8 +187,8 @@ function error(message) {
 }
 
 function debugLog(context, message, err) {
-  if (!process.env.GSD_DEBUG) return;
-  let line = `[GSD_DEBUG] ${context}: ${message}`;
+  if (!process.env.BGSD_DEBUG) return;
+  let line = `[BGSD_DEBUG] ${context}: ${message}`;
   if (err) line += ` | ${err.message || err}`;
   process.stderr.write(line + '\n');
 }

@@ -20,12 +20,12 @@ class SQLiteBackend {
 
     // Determine database path following XDG_CONFIG_HOME convention
     const configHome = process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || '/root', '.config');
-    const gsdConfigDir = path.join(configHome, 'oc', 'get-shit-done');
-    this.dbPath = path.join(gsdConfigDir, 'cache.db');
+    const bgsdConfigDir = path.join(configHome, 'oc', 'bgsd-oc');
+    this.dbPath = path.join(bgsdConfigDir, 'cache.db');
 
     // Ensure directory exists
-    if (!fs.existsSync(gsdConfigDir)) {
-      fs.mkdirSync(gsdConfigDir, { recursive: true });
+    if (!fs.existsSync(bgsdConfigDir)) {
+      fs.mkdirSync(bgsdConfigDir, { recursive: true });
     }
 
     // Initialize database
@@ -517,7 +517,7 @@ class CacheEngine {
    */
   _selectBackend() {
     // Check environment variable first - force Map fallback
-    if (process.env.GSD_CACHE_FORCE_MAP === '1') {
+    if (process.env.BGSD_CACHE_FORCE_MAP === '1') {
       return new MapBackend({ maxSize: this.maxSize, ttl: this.ttl });
     }
 

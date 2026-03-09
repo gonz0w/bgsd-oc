@@ -8,13 +8,13 @@ const { safeReadFile } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 
 /**
- * Resolve GSD_HOME and agents directory paths
+ * Resolve BGSD_HOME and agents directory paths
  */
-function resolveGsdPaths() {
-  const GSD_HOME = process.env.GSD_HOME || 
-    path.join(process.env.HOME || '/tmp', '.config', 'oc', 'get-shit-done');
-  const agentsDir = path.join(path.dirname(GSD_HOME), 'agents');
-  return { GSD_HOME, agentsDir };
+function resolveBgsdPaths() {
+  const BGSD_HOME = process.env.BGSD_HOME || 
+    path.join(process.env.HOME || '/tmp', '.config', 'oc', 'bgsd-oc');
+  const agentsDir = path.join(path.dirname(BGSD_HOME), 'agents');
+  return { BGSD_HOME, agentsDir };
 }
 
 /**
@@ -165,13 +165,13 @@ function scanAgents(agentsDir) {
 /**
  * Resolve the path to RACI.md
  * Checks in priority order:
- * 1. GSD_HOME/references/ (deployed canonical location)
+ * 1. BGSD_HOME/references/ (deployed canonical location)
  * 2. cwd/references/ (dev workspace — before deploy)
  * 3. agents/RACI.md (legacy fallback)
  */
-function resolveRaciPath(GSD_HOME, agentsDir) {
-  // Primary: GSD_HOME/references/RACI.md (deployed canonical location per 66-01)
-  const refPath = path.join(GSD_HOME, 'references', 'RACI.md');
+function resolveRaciPath(BGSD_HOME, agentsDir) {
+  // Primary: BGSD_HOME/references/RACI.md (deployed canonical location per 66-01)
+  const refPath = path.join(BGSD_HOME, 'references', 'RACI.md');
   if (fs.existsSync(refPath)) return refPath;
   
   // Dev workspace: cwd/references/RACI.md (pre-deploy)
@@ -245,8 +245,8 @@ function parseRaciMatrix(raciPath) {
  * Reads lifecycle steps dynamically from RACI.md, falls back to hardcoded list
  */
 function cmdAgentAudit(cwd, raw) {
-  const { GSD_HOME, agentsDir } = resolveGsdPaths();
-  const raciPath = resolveRaciPath(GSD_HOME, agentsDir);
+  const { BGSD_HOME, agentsDir } = resolveBgsdPaths();
+  const raciPath = resolveRaciPath(BGSD_HOME, agentsDir);
   
   // Check prerequisites
   if (!raciPath) {
@@ -331,7 +331,7 @@ function cmdAgentAudit(cwd, raw) {
  * With --phase N: also checks actual output files for required sections
  */
 function cmdAgentValidateContracts(cwd, raw, args) {
-  const { GSD_HOME, agentsDir } = resolveGsdPaths();
+  const { BGSD_HOME, agentsDir } = resolveBgsdPaths();
   
   // Parse --phase argument
   const phaseIdx = (args || []).indexOf('--phase');
@@ -562,7 +562,7 @@ function escapeRegex(str) {
  * List all agents
  */
 function cmdAgentList(cwd, raw) {
-  const { agentsDir } = resolveGsdPaths();
+  const { agentsDir } = resolveBgsdPaths();
   const agents = scanAgents(agentsDir);
   
   output({ agents }, raw);

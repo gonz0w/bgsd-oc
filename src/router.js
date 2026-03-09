@@ -91,7 +91,7 @@ async function main() {
   // Parse --no-cache flag: force Map fallback for test parity verification
   const noCacheIdx = args.indexOf('--no-cache');
   if (noCacheIdx !== -1) {
-    process.env.GSD_CACHE_FORCE_MAP = '1';
+    process.env.BGSD_CACHE_FORCE_MAP = '1';
     args.splice(noCacheIdx, 1);
   }
 
@@ -114,7 +114,7 @@ async function main() {
     }
   }
 
-  // ─── Profiler: opt-in performance timing via GSD_PROFILE=1 ────────────
+  // ─── Profiler: opt-in performance timing via BGSD_PROFILE=1 ────────────
   const { startTimer: profStart, endTimer: profEnd, writeBaseline, isProfilingEnabled } = require('./lib/profiler');
   const cmdTimer = profStart('command:' + (command || 'unknown'));
 
@@ -127,7 +127,7 @@ async function main() {
   }
 
   if (!command) {
-    error('Usage: gsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript|collect|nlm-create|nlm-add-source|nlm-ask|nlm-report>');
+    error('Usage: bgsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript|collect|nlm-create|nlm-add-source|nlm-ask|nlm-report>');
   }
 
   // --help / -h: print command help to stderr (never contaminates JSON stdout)
@@ -366,7 +366,7 @@ async function main() {
           }
         } else if (subcommand === 'profile') {
           // Handle profile via environment variable, not a command
-          error('Set GSD_PROFILE=1 to enable performance profiling');
+          error('Set BGSD_PROFILE=1 to enable performance profiling');
         } else {
           error(`Unknown execute subcommand: ${subcommand}. Available: commit, rollback-info, session-diff, session-summary, velocity, worktree, tdd, test-run, trajectory`);
         }
@@ -712,7 +712,7 @@ async function main() {
           } else {
             output({
               commands: ['status', 'clear', 'warm'],
-              help: 'gsd-tools cache <status|clear|warm> [files...]'
+              help: 'bgsd-tools cache <status|clear|warm> [files...]'
             }, raw, 'cache');
           }
         } else if (subcommand === 'agent') {
@@ -853,7 +853,7 @@ async function main() {
           } else if (profSub === 'cache-speedup') {
             await lazyProfiler().cmdProfilerCacheSpeedup(restArgs.slice(1));
           } else if (!profSub || profSub === '--help' || profSub === '-h') {
-            process.stderr.write(`Usage: gsd-tools util:profiler <subcommand> [options]
+            process.stderr.write(`Usage: bgsd-tools util:profiler <subcommand> [options]
 
 Performance profiler commands.
 
@@ -862,8 +862,8 @@ Subcommands:
   cache-speedup      Measure cache speedup by running commands with/without cache
 
 Examples:
-  gsd-tools util:profiler compare --before baseline.json --after current.json
-  gsd-tools util:profiler cache-speedup --runs 3 --command "state validate"
+  bgsd-tools util:profiler compare --before baseline.json --after current.json
+  bgsd-tools util:profiler cache-speedup --runs 3 --command "state validate"
 `);
           } else {
             error(`Unknown profiler subcommand: ${profSub}. Available: compare, cache-speedup`);

@@ -18,7 +18,7 @@ export { safeHook } from './safe-hook.js';
  *
  * Provides session lifecycle integration for the bGSD planning system:
  * - Session greeting with plugin availability notice
- * - GSD_HOME environment variable injection for workflow resolution
+ * - BGSD_HOME environment variable injection for workflow resolution
  * - State preservation across session compaction
  * - In-process parsers for STATE.md, ROADMAP.md, PLAN.md, config.json
  * - Tool registry with bgsd_ prefix enforcement
@@ -30,7 +30,7 @@ export { safeHook } from './safe-hook.js';
  * Source uses ESM imports — esbuild produces clean ESM output.
  */
 export const BgsdPlugin = async ({ directory }) => {
-  const gsdHome = join(homedir(), '.config', 'opencode', 'get-shit-done');
+  const bgsdHome = join(homedir(), '.config', 'opencode', 'bgsd-oc');
 
   // Initialize tool registry — Phase 74 will add custom tools
   const registry = createToolRegistry(safeHook);
@@ -41,7 +41,7 @@ export const BgsdPlugin = async ({ directory }) => {
 
   const shellEnv = safeHook('shell.env', async (input, output) => {
     if (!output || !output.env) return;
-    output.env.GSD_HOME = gsdHome;
+    output.env.BGSD_HOME = bgsdHome;
   });
 
   const compacting = safeHook('compacting', async (input, output) => {

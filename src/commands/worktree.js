@@ -13,7 +13,7 @@ const { extractFrontmatter } = require('../lib/frontmatter');
 
 const WORKTREE_DEFAULTS = {
   enabled: false,
-  base_path: '/tmp/gsd-worktrees',
+  base_path: '/tmp/bgsd-worktrees',
   sync_files: ['.env', '.env.local', '.planning/config.json'],
   setup_hooks: [],
   max_concurrent: 3,
@@ -193,7 +193,7 @@ function getProjectSizeMB(cwd) {
  */
 function cmdWorktreeCreate(cwd, planId, raw) {
   if (!planId) {
-    error('Usage: gsd-tools worktree create <plan-id>\n\nplan-id format: NN-MM (e.g., 21-02)');
+    error('Usage: bgsd-tools worktree create <plan-id>\n\nplan-id format: NN-MM (e.g., 21-02)');
   }
 
   const parsed = parsePlanId(planId);
@@ -373,7 +373,7 @@ function cmdWorktreeList(cwd, raw) {
  */
 function cmdWorktreeRemove(cwd, planId, raw) {
   if (!planId) {
-    error('Usage: gsd-tools worktree remove <plan-id>');
+    error('Usage: bgsd-tools worktree remove <plan-id>');
   }
 
   const config = getWorktreeConfig(cwd);
@@ -567,7 +567,7 @@ function getPhaseFilesModified(cwd, phaseNumber) {
  */
 function cmdWorktreeMerge(cwd, planId, raw) {
   if (!planId) {
-    error('Usage: gsd-tools worktree merge <plan-id>');
+    error('Usage: bgsd-tools worktree merge <plan-id>');
   }
 
   const parsed = parsePlanId(planId);
@@ -734,7 +734,7 @@ function cmdWorktreeMerge(cwd, planId, raw) {
  */
 function cmdWorktreeCheckOverlap(cwd, phaseNumber, raw) {
   if (!phaseNumber) {
-    error('Usage: gsd-tools worktree check-overlap <phase-number>');
+    error('Usage: bgsd-tools worktree check-overlap <phase-number>');
   }
 
   const phasePlans = getPhaseFilesModified(cwd, phaseNumber);

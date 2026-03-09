@@ -1162,7 +1162,7 @@ function cmdVerifyRequirements(cwd, options, raw) {
             evidence = 'No file path detected in assertion text';
           }
         } else if (a.type === 'cli') {
-          // Check if the CLI command described in 'when' field is a valid gsd-tools command
+          // Check if the CLI command described in 'when' field is a valid bgsd-tools command
           const whenText = (a.when || a.assert || '').toLowerCase();
           const gsdCommands = ['assertions', 'verify', 'trace-requirement', 'env', 'mcp-profile',
             'init', 'state', 'roadmap', 'phase', 'memory', 'intent', 'context-budget',
@@ -1172,7 +1172,7 @@ function cmdVerifyRequirements(cwd, options, raw) {
           const matchedCmd = gsdCommands.find(cmd => whenText.includes(cmd));
           if (matchedCmd) {
             status = 'pass';
-            evidence = `CLI command "${matchedCmd}" exists in gsd-tools`;
+            evidence = `CLI command "${matchedCmd}" exists in bgsd-tools`;
           } else {
             status = 'needs_human';
             evidence = 'Could not map assertion to a known CLI command';

@@ -117,7 +117,7 @@ function cmdProfilerCompare(args) {
   const options = parseCompareArgs(args);
 
   if (options.help) {
-    process.stderr.write(`Usage: gsd-tools profiler compare --before <file> --after <file> [--threshold N]
+    process.stderr.write(`Usage: bgsd-tools profiler compare --before <file> --after <file> [--threshold N]
 
 Compare two baseline profiles and show timing deltas.
 
@@ -127,8 +127,8 @@ Options:
   --threshold N     Regression threshold percentage (default: 10)
 
 Examples:
-  gsd-tools profiler compare --before baseline.json --after current.json
-  gsd-tools profiler compare --before b.json --after a.json --threshold 15
+  bgsd-tools profiler compare --before baseline.json --after current.json
+  bgsd-tools profiler compare --before b.json --after a.json --threshold 15
 `);
     return;
   }
@@ -244,7 +244,7 @@ function parseCacheSpeedupArgs(args) {
 function runCommandMeasure(cmd) {
   return new Promise((resolve, reject) => {
     const start = process.hrtime.bigint();
-    const child = spawn('node', ['bin/gsd-tools.cjs'].concat(cmd.split(' ')), {
+    const child = spawn('node', ['bin/bgsd-tools.cjs'].concat(cmd.split(' ')), {
       cwd: process.cwd(),
       env: { ...process.env },
       stdio: 'pipe',
@@ -272,7 +272,7 @@ async function cmdProfilerCacheSpeedup(args) {
   const options = parseCacheSpeedupArgs(args);
 
   if (options.help) {
-    process.stderr.write(`Usage: gsd-tools profiler cache-speedup --runs N --command "args"
+    process.stderr.write(`Usage: bgsd-tools profiler cache-speedup --runs N --command "args"
 
 Run commands with and without cache to measure speedup.
 
@@ -281,8 +281,8 @@ Options:
   --command "cmd"  Command to test (required)
 
 Examples:
-  gsd-tools profiler cache-speedup --runs 3 --command "state validate"
-  gsd-tools profiler cache-speedup --runs 5 --command "roadmap analyze"
+  bgsd-tools profiler cache-speedup --runs 3 --command "state validate"
+  bgsd-tools profiler cache-speedup --runs 5 --command "roadmap analyze"
 `);
     return;
   }

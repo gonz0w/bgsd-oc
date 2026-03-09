@@ -4,11 +4,11 @@ const fs = require('fs');
 const path = require('path');
 
 // ─── Opt-in Performance Profiler ─────────────────────────────────────────────
-// Uses node:perf_hooks for timing. Zero-cost when GSD_PROFILE is not set.
-// Enable via: GSD_PROFILE=1 gsd-tools <command>
+// Uses node:perf_hooks for timing. Zero-cost when BGSD_PROFILE is not set.
+// Enable via: BGSD_PROFILE=1 bgsd-tools <command>
 // Baselines written to .planning/baselines/{commandName}-{timestamp}.json
 
-const enabled = process.env.GSD_PROFILE === '1';
+const enabled = process.env.BGSD_PROFILE === '1';
 const timings = [];
 
 /**
@@ -107,8 +107,8 @@ function writeBaseline(cwd, commandName) {
     fs.writeFileSync(path.join(baselinesDir, filename), JSON.stringify(baseline, null, 2) + '\n', 'utf-8');
   } catch (e) {
     // Non-blocking — profiling shouldn't crash the tool
-    if (process.env.GSD_DEBUG) {
-      process.stderr.write(`[GSD_DEBUG] profiler.writeBaseline: ${e.message}\n`);
+    if (process.env.BGSD_DEBUG) {
+      process.stderr.write(`[BGSD_DEBUG] profiler.writeBaseline: ${e.message}\n`);
     }
   }
 }
