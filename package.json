@@ -10,7 +10,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test bin/bgsd-tools.test.cjs",
+    "test": "node --test bin/bgsd-tools.test.cjs tests/plugin-advisory-guardrails.test.cjs",
     "build": "node build.cjs",
     "audit:dead-code": "npx knip --include exports,files --workspace .",
     "audit:exports": "node audit-exports.cjs",

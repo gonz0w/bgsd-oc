@@ -314,8 +314,6 @@ export function createAdvisoryGuardrails(cwd, notifier, config) {
       // Skip non-project paths
       if (
         absPath.includes('node_modules') ||
-        absPath.includes('/tmp/') ||
-        absPath.includes('\\tmp\\') ||
         !absPath.startsWith(cwd)
       ) {
         return;
@@ -325,7 +323,7 @@ export function createAdvisoryGuardrails(cwd, notifier, config) {
       const relPath = absPath.slice(cwd.length + 1);
 
       // ── GARD-02: Planning file protection (highest priority) ──────────
-      if (planningProtectionEnabled && relPath.startsWith('.planning/') || relPath.startsWith('.planning\\')) {
+      if (planningProtectionEnabled && (relPath.startsWith('.planning/') || relPath.startsWith('.planning\\'))) {
         if (bgsdCommandActive) return; // Workflow-driven — suppress
 
         const fileBasename = basename(absPath);

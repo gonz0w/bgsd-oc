@@ -662,8 +662,8 @@ var init_parsers = __esm({
 });
 
 // src/plugin/index.js
-import { join as join15 } from "path";
-import { homedir as homedir6 } from "os";
+import { join as join16 } from "path";
+import { homedir as homedir7 } from "os";
 
 // src/plugin/safe-hook.js
 import { homedir } from "os";
@@ -751,13 +751,13 @@ function safeHook(name, fn, options = {}) {
     return randomBytes2(4).toString("hex");
   }
   function withTimeout(promise2, ms) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const timer = setTimeout(() => {
         reject(new Error(`Hook "${name}" timed out after ${ms}ms`));
       }, ms);
       promise2.then((result) => {
         clearTimeout(timer);
-        resolve(result);
+        resolve2(result);
       }).catch((err) => {
         clearTimeout(timer);
         reject(err);
@@ -16132,6 +16132,249 @@ function createStuckDetector(notifier, config2) {
   };
 }
 
+// src/plugin/advisory-guardrails.js
+import { readFileSync as readFileSync9 } from "fs";
+import { join as join15, basename, extname, isAbsolute, resolve } from "path";
+import { homedir as homedir6 } from "os";
+var NAMING_PATTERNS = {
+  camelCase: /^[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*$/,
+  PascalCase: /^[A-Z][a-zA-Z0-9]*[a-z][a-zA-Z0-9]*$/,
+  snake_case: /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/,
+  "kebab-case": /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/,
+  UPPER_SNAKE_CASE: /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/
+};
+function classifyName(name) {
+  if (/^[a-z][a-z0-9]*$/.test(name)) return "single-word";
+  if (/^[A-Z][A-Z0-9]*$/.test(name)) return "single-word";
+  for (const [pattern, regex] of Object.entries(NAMING_PATTERNS)) {
+    if (regex.test(name)) return pattern;
+  }
+  return "mixed";
+}
+function splitWords(name) {
+  return name.replace(/[-_]/g, " ").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").toLowerCase().split(/\s+/).filter(Boolean);
+}
+function toConvention(name, convention) {
+  const words = splitWords(name);
+  if (words.length === 0) return name;
+  switch (convention) {
+    case "kebab-case":
+      return words.join("-");
+    case "snake_case":
+      return words.join("_");
+    case "camelCase":
+      return words[0] + words.slice(1).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+    case "PascalCase":
+      return words.map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+    case "UPPER_SNAKE_CASE":
+      return words.map((w) => w.toUpperCase()).join("_");
+    default:
+      return name;
+  }
+}
+var PLANNING_COMMANDS = {
+  "ROADMAP.md": ["/bgsd-add-phase", "/bgsd-remove-phase", "/bgsd-insert-phase"],
+  "STATE.md": ["/bgsd-progress", "/bgsd-execute-phase"],
+  "PLAN.md": ["/bgsd-plan-phase"],
+  "CONTEXT.md": ["/bgsd-discuss-phase"],
+  "RESEARCH.md": ["/bgsd-research-phase"],
+  "REQUIREMENTS.md": ["/bgsd-new-milestone"],
+  "config.json": ["/bgsd-settings"],
+  "SUMMARY.md": ["/bgsd-execute-phase"],
+  "INTENT.md": ["/bgsd-new-project", "/bgsd-new-milestone"]
+};
+function isTestFile(filePath) {
+  const lower = filePath.toLowerCase();
+  return lower.includes(".test.") || lower.includes(".spec.") || lower.includes("__tests__/") || lower.includes("__tests__\\") || /[\\/]tests?[\\/]/.test(lower);
+}
+function loadConventionRules(cwd, confidenceThreshold) {
+  try {
+    const agentsPath = join15(cwd, "AGENTS.md");
+    const content = readFileSync9(agentsPath, "utf-8");
+    const conventionNames = ["kebab-case", "camelCase", "PascalCase", "snake_case", "UPPER_SNAKE_CASE"];
+    for (const conv of conventionNames) {
+      if (content.includes(conv)) {
+        return { dominant: conv, confidence: 100 };
+      }
+    }
+  } catch {
+  }
+  try {
+    const intelPath = join15(cwd, ".planning", "codebase", "codebase-intel.json");
+    const intel = JSON.parse(readFileSync9(intelPath, "utf-8"));
+    if (intel.conventions?.naming?.dominant && (intel.conventions.naming.confidence || 0) >= confidenceThreshold) {
+      return {
+        dominant: intel.conventions.naming.dominant,
+        confidence: intel.conventions.naming.confidence
+      };
+    }
+  } catch {
+  }
+  return null;
+}
+function detectTestConfig(cwd) {
+  const result = { command: null, sourceExts: /* @__PURE__ */ new Set() };
+  try {
+    const pkgPath = join15(cwd, "package.json");
+    const pkg = JSON.parse(readFileSync9(pkgPath, "utf-8"));
+    if (pkg.scripts?.test) {
+      result.command = `npm test`;
+    } else if (pkg.scripts?.check) {
+      result.command = `npm run check`;
+    }
+    result.sourceExts = /* @__PURE__ */ new Set([".js", ".ts", ".cjs", ".mjs", ".jsx", ".tsx"]);
+  } catch {
+  }
+  if (!result.command) {
+    try {
+      const pyProject = join15(cwd, "pyproject.toml");
+      readFileSync9(pyProject, "utf-8");
+      result.command = "pytest";
+      result.sourceExts = /* @__PURE__ */ new Set([".py"]);
+    } catch {
+    }
+  }
+  return result;
+}
+var WRITE_TOOLS = /* @__PURE__ */ new Set(["write", "edit", "patch"]);
+function createAdvisoryGuardrails(cwd, notifier, config2) {
+  const guardConfig = config2.advisory_guardrails || {};
+  const conventionsEnabled = guardConfig.conventions !== false;
+  const planningProtectionEnabled = guardConfig.planning_protection !== false;
+  const testSuggestionsEnabled = guardConfig.test_suggestions !== false;
+  const dedupThreshold = guardConfig.dedup_threshold || 3;
+  const testDebounceMs = guardConfig.test_debounce_ms || 500;
+  const confidenceThreshold = guardConfig.convention_confidence_threshold || 70;
+  let logger = null;
+  function getLogger() {
+    if (!logger) {
+      const logDir = join15(homedir6(), ".config", "opencode");
+      logger = createLogger(logDir);
+    }
+    return logger;
+  }
+  const conventionRules = conventionsEnabled ? loadConventionRules(cwd, confidenceThreshold) : null;
+  const testConfig = testSuggestionsEnabled ? detectTestConfig(cwd) : { command: null, sourceExts: /* @__PURE__ */ new Set() };
+  let bgsdCommandActive = false;
+  const warnCounts = /* @__PURE__ */ new Map();
+  let testBatchTimer = null;
+  const testBatchFiles = [];
+  async function flushTestBatch() {
+    testBatchTimer = null;
+    if (testBatchFiles.length === 0) return;
+    const files = [...testBatchFiles];
+    testBatchFiles.length = 0;
+    const cmdStr = testConfig.command || "your test suite";
+    let message;
+    if (files.length === 1) {
+      message = `Modified ${basename(files[0])}. Consider running: ${cmdStr}`;
+    } else {
+      message = `Modified ${files.length} source files. Consider running: ${cmdStr}`;
+    }
+    try {
+      await notifier.notify({
+        type: "advisory-test",
+        severity: "info",
+        message
+      });
+    } catch (err) {
+      getLogger().write("ERROR", `Advisory test suggestion failed: ${err.message}`);
+    }
+  }
+  async function onToolAfter(input) {
+    if (guardConfig.enabled === false) return;
+    try {
+      const toolName = input?.tool;
+      if (!toolName || !WRITE_TOOLS.has(toolName)) return;
+      const filePath = input?.args?.filePath;
+      if (!filePath) return;
+      const absPath = isAbsolute(filePath) ? filePath : resolve(cwd, filePath);
+      if (absPath.includes("node_modules") || !absPath.startsWith(cwd)) {
+        return;
+      }
+      const relPath = absPath.slice(cwd.length + 1);
+      if (planningProtectionEnabled && (relPath.startsWith(".planning/") || relPath.startsWith(".planning\\"))) {
+        if (bgsdCommandActive) return;
+        const fileBasename = basename(absPath);
+        let commands = PLANNING_COMMANDS[fileBasename];
+        if (!commands) {
+          for (const [pattern, cmds] of Object.entries(PLANNING_COMMANDS)) {
+            if (fileBasename.endsWith(pattern)) {
+              commands = cmds;
+              break;
+            }
+          }
+        }
+        if (commands) {
+          const cmdStr = commands.join(" or ");
+          await notifier.notify({
+            type: "advisory-planning",
+            severity: "warning",
+            message: `${fileBasename} was edited directly. Use ${cmdStr} to modify this file safely.`
+          });
+        } else {
+          await notifier.notify({
+            type: "advisory-planning",
+            severity: "warning",
+            message: `File in .planning/ was edited directly. bGSD workflows manage these files automatically.`
+          });
+        }
+        return;
+      }
+      if (conventionsEnabled && conventionRules) {
+        const fileBasename = basename(absPath);
+        const ext = extname(fileBasename);
+        const nameWithoutExt = ext ? fileBasename.slice(0, -ext.length) : fileBasename;
+        const classification = classifyName(nameWithoutExt);
+        if (classification !== "single-word" && classification !== "mixed") {
+          if (classification !== conventionRules.dominant) {
+            const count = (warnCounts.get("convention") || 0) + 1;
+            warnCounts.set("convention", count);
+            if (count <= dedupThreshold) {
+              const suggested = toConvention(nameWithoutExt, conventionRules.dominant) + ext;
+              await notifier.notify({
+                type: "advisory-convention",
+                severity: "warning",
+                message: `File uses ${classification} naming (${fileBasename}). Project convention is ${conventionRules.dominant}. Consider renaming to ${suggested}.`
+              });
+            } else if (count % 5 === 0) {
+              await notifier.notify({
+                type: "advisory-convention",
+                severity: "warning",
+                message: `${count} convention violations detected. Project convention is ${conventionRules.dominant}.`
+              });
+            }
+          }
+        }
+      }
+      if (testSuggestionsEnabled && testConfig.command) {
+        if (isTestFile(absPath)) return;
+        const ext = extname(absPath);
+        if (testConfig.sourceExts.has(ext)) {
+          testBatchFiles.push(relPath);
+          if (testBatchTimer) {
+            clearTimeout(testBatchTimer);
+          }
+          testBatchTimer = setTimeout(flushTestBatch, testDebounceMs);
+        }
+      }
+    } catch (err) {
+      getLogger().write("ERROR", `Advisory guardrails error: ${err.message}`);
+    }
+  }
+  function setBgsdCommandActive() {
+    bgsdCommandActive = true;
+  }
+  function clearBgsdCommandActive() {
+    bgsdCommandActive = false;
+  }
+  return {
+    onToolAfter,
+    setBgsdCommandActive,
+    clearBgsdCommandActive
+  };
+}
+
 // src/plugin/index.js
 init_config();
 init_state();
@@ -16142,7 +16385,7 @@ init_project();
 init_intent();
 init_parsers();
 var BgsdPlugin = async ({ directory, $ }) => {
-  const bgsdHome = join15(homedir6(), ".config", "opencode", "bgsd-oc");
+  const bgsdHome = join16(homedir7(), ".config", "opencode", "bgsd-oc");
   const registry2 = createToolRegistry(safeHook);
   const projectDir = directory || process.cwd();
   const config2 = parseConfig(projectDir);
@@ -16153,6 +16396,7 @@ var BgsdPlugin = async ({ directory, $ }) => {
   });
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config2);
   const stuckDetector = createStuckDetector(notifier, config2);
+  const guardrails = createAdvisoryGuardrails(projectDir, notifier, config2);
   fileWatcher.start();
   const sessionCreated = safeHook("session.created", async (input, output) => {
     console.log("[bGSD] Planning plugin available. Use /bgsd-help to get started.");
@@ -16184,11 +16428,15 @@ var BgsdPlugin = async ({ directory, $ }) => {
   });
   const commandEnrich = safeHook("command.enrich", async (input, output) => {
     const cmdDir = directory || process.cwd();
+    if (input?.command && input.command.startsWith("bgsd-")) {
+      guardrails.setBgsdCommandActive();
+    }
     enrichCommand(input, output, cmdDir);
   });
   const eventHandler = safeHook("event", async ({ event }) => {
     if (event.type === "session.idle") {
       await idleValidator.onIdle();
+      guardrails.clearBgsdCommandActive();
     }
     if (event.type === "file.watcher.updated") {
       const { invalidateAll: invalidateAll2 } = await Promise.resolve().then(() => (init_parsers(), parsers_exports));
@@ -16197,6 +16445,7 @@ var BgsdPlugin = async ({ directory, $ }) => {
   });
   const toolAfter = safeHook("tool.execute.after", async (input) => {
     stuckDetector.trackToolCall(input);
+    await guardrails.onToolAfter(input);
   });
   return {
     "session.created": sessionCreated,
@@ -16213,6 +16462,7 @@ export {
   BgsdPlugin,
   buildCompactionContext,
   buildSystemPrompt,
+  createAdvisoryGuardrails,
   createFileWatcher,
   createIdleValidator,
   createNotifier,
