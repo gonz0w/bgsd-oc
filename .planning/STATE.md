@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 **Phase:** 76 — Advisory Guardrails
-**Current Plan:** Plan 01 complete, Plan 02 pending
-**Status:** In progress
+**Current Plan:** Plan 02 complete (all plans done)
+**Status:** Phase complete
 **Last Activity:** 2026-03-09
 
 **Progress:** [██████████] 100%
@@ -54,6 +54,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 | Phase 75 P01 | 11 min | 3 tasks | 3 files |
 | Phase 75 P02 | 42 min | 3 tasks | 7 files |
 | Phase 76 P01 | 14 min | 2 tasks | 2 files |
+| Phase 76 P02 | 33 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ All v1.0-v8.3 decisions recorded in PROJECT.md Key Decisions table with outcomes
 - [Phase 75]: Plugin factory signature extended from ({directory}) to ({directory, $}) for shell API access — enables OS notifications via osascript/notify-send
 - [Phase 76]: Advisory guardrails module uses inline naming classifiers (CJS→ESM boundary) — NAMING_PATTERNS and classifyName copied from conventions.js rather than importing across module boundaries
 - [Phase 76]: Convention detection priority: AGENTS.md keyword scan first, codebase-intel.json fallback with configurable confidence threshold (default 70%)
+- [Phase 76]: Removed overly aggressive /tmp/ path filter from guardrails; fixed GARD-02 operator precedence bug — Path filter blocked temp-dir projects; missing parens caused Windows check to bypass enabled flag
 
 ### Pending Todos
 
@@ -93,6 +95,6 @@ None — milestone starting fresh.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T17:30:45Z
-**Stopped at:** Completed 76-01-PLAN.md
+**Last session:** 2026-03-09T18:08:24.794Z
+**Stopped at:** Completed 76-02-PLAN.md
 **Next step:** Execute Phase 76 Plan 02 (wire guardrails into plugin index.js)

@@ -200,7 +200,7 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
 - [x] **Phase 73: Context Injection** — Always-on system prompt hook, 500-token budget enforcement, enhanced compaction, slash command enrichment (completed 2026-03-09)
 - [x] **Phase 74: Custom LLM Tools** — Five native LLM-callable tools (status, progress, context, plan, validate) with Zod schemas (completed 2026-03-09)
 - [x] **Phase 75: Event-Driven State Sync** — Session idle validation, file watcher cache invalidation, toast notifications for phase completion and stuck detection (completed 2026-03-09)
-- [ ] **Phase 76: Advisory Guardrails** — Convention violation warnings, planning file protection, test-after-edit suggestions via tool interception
+- [x] **Phase 76: Advisory Guardrails** — Convention violation warnings, planning file protection, test-after-edit suggestions via tool interception (completed 2026-03-09)
 
 ## Phase Details
 
@@ -287,7 +287,7 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
   2. When PLAN.md, ROADMAP.md, or STATE.md are edited outside bGSD workflow patterns, an advisory warning is injected
   3. After source file modifications, the plugin suggests running tests — the suggestion is visible to the agent but does not force execution
 **Plans:**
-  1/2 plans executed
+  2/2 plans complete
   - Plan 01 (Wave 1): Advisory guardrails module + config defaults [GARD-01, GARD-02, GARD-03]
   - Plan 02 (Wave 2): Plugin wiring + build + tests [GARD-01, GARD-02, GARD-03]
 
