@@ -73,7 +73,7 @@ async function build() {
   console.log('ESM validation passed: 0 require() calls');
 
   // Verify critical exports exist in ESM output
-  const requiredExports = ['BgsdPlugin', 'parseState', 'parseRoadmap', 'parsePlan', 'parseProject', 'parseIntent', 'getProjectState', 'buildSystemPrompt', 'buildCompactionContext', 'enrichCommand', 'createToolRegistry', 'safeHook'];
+  const requiredExports = ['BgsdPlugin', 'parseState', 'parseRoadmap', 'parsePlan', 'parseProject', 'parseIntent', 'getProjectState', 'buildSystemPrompt', 'buildCompactionContext', 'enrichCommand', 'createToolRegistry', 'safeHook', 'createNotifier', 'createFileWatcher', 'createIdleValidator', 'createStuckDetector'];
   for (const exp of requiredExports) {
     if (!pluginContent.includes(exp)) {
       console.error(`ERROR: ESM plugin missing export: ${exp}`);
@@ -90,6 +90,15 @@ async function build() {
     process.exit(1);
   }
   console.log(`Tool registration validation passed: ${expectedTools.length}/${expectedTools.length} tools found in plugin.js`);
+
+  // Validate Phase 75 event modules are present in plugin.js
+  const expectedEventModules = ['createNotifier', 'createFileWatcher', 'createIdleValidator', 'createStuckDetector'];
+  const missingModules = expectedEventModules.filter(name => !pluginContent.includes(name));
+  if (missingModules.length > 0) {
+    console.error(`ERROR: Missing event modules in plugin.js: ${missingModules.join(', ')}`);
+    process.exit(1);
+  }
+  console.log(`Event module validation passed: ${expectedEventModules.length}/${expectedEventModules.length} modules found`);
 
   // Zod bundling validation — no CJS leak, patterns present
   if (pluginContent.includes('require("zod")') || pluginContent.includes("require('zod')")) {
