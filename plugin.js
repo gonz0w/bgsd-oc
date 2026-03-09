@@ -5,7 +5,7 @@ var __export = (target, all) => {
 };
 
 // src/plugin/index.js
-import { join as join10 } from "path";
+import { join as join11 } from "path";
 import { homedir as homedir2 } from "os";
 
 // src/plugin/safe-hook.js
@@ -15067,17 +15067,410 @@ var bgsd_context = {
   }
 };
 
+// src/plugin/tools/bgsd-validate.js
+var bgsd_validate = {
+  description: "Validate bGSD project state, roadmap, plans, and requirement traceability.\n\nRuns comprehensive checks across all planning files. Auto-fixes trivial formatting issues (like progress bar mismatches). Reports remaining issues categorized by severity: error (must fix), warning (should fix), info (note).\n\nReturns all issues found. An empty issues array means everything is valid.",
+  args: {},
+  async execute(args, context) {
+    try {
+      const projectDir = context.directory || process.cwd();
+      const projectState = getProjectState(projectDir);
+      if (!projectState) {
+        return JSON.stringify({
+          status: "no_project",
+          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+        });
+      }
+      const { state, roadmap, plans } = projectState;
+      const issues = [];
+      if (!state.phase) {
+        issues.push({ severity: "error", check: "state_phase", message: "STATE.md missing **Phase:** field" });
+      } else if (roadmap) {
+        const phaseMatch = state.phase.match(/^(\d+)/);
+        if (phaseMatch) {
+          const phaseNum = phaseMatch[1];
+          const found = roadmap.phases.find((p) => p.number === phaseNum);
+          if (!found) {
+            issues.push({ severity: "error", check: "state_phase", message: `STATE.md phase ${phaseNum} not found in ROADMAP.md` });
+          }
+        }
+      }
+      if (!state.currentPlan) {
+        issues.push({ severity: "warning", check: "state_plan", message: "STATE.md missing **Current Plan:** field" });
+      }
+      if (state.progress === null) {
+        issues.push({ severity: "warning", check: "state_progress", message: "STATE.md missing progress bar or percentage" });
+      } else if (state.progress < 0 || state.progress > 100) {
+        issues.push({ severity: "error", check: "state_progress", message: `STATE.md progress ${state.progress}% out of range (0-100)` });
+      }
+      if (!state.lastActivity) {
+        issues.push({ severity: "warning", check: "state_activity", message: "STATE.md missing **Last Activity:** field" });
+      } else {
+        const dateTest = Date.parse(state.lastActivity);
+        if (isNaN(dateTest)) {
+          issues.push({ severity: "warning", check: "state_activity", message: `STATE.md Last Activity date invalid: ${state.lastActivity}` });
+        }
+      }
+      if (!roadmap) {
+        issues.push({ severity: "error", check: "roadmap_exists", message: "ROADMAP.md could not be parsed" });
+      } else {
+        for (const phase of roadmap.phases) {
+          if (!phase.goal) {
+            issues.push({ severity: "warning", check: "roadmap_goals", message: `Phase ${phase.number} (${phase.name}) missing goal` });
+          }
+        }
+        const phaseNums = roadmap.phases.map((p) => parseInt(p.number, 10)).sort((a, b) => a - b);
+        for (let i = 1; i < phaseNums.length; i++) {
+          const gap = phaseNums[i] - phaseNums[i - 1];
+          if (gap > 1) {
+            issues.push({ severity: "info", check: "roadmap_sequence", message: `Phase number gap: ${phaseNums[i - 1]} to ${phaseNums[i]}` });
+          }
+        }
+        const currentMilestone = roadmap.currentMilestone;
+        if (currentMilestone && currentMilestone.phases) {
+          const milestonePhases = roadmap.phases.filter((p) => {
+            const num = parseInt(p.number, 10);
+            return num >= currentMilestone.phases.start && num <= currentMilestone.phases.end;
+          });
+          const hasIncomplete = milestonePhases.some((p) => p.status !== "complete");
+          if (!hasIncomplete && milestonePhases.length > 0) {
+            issues.push({ severity: "info", check: "roadmap_milestone", message: "Current milestone has no incomplete phases \u2014 may need to advance" });
+          }
+        }
+      }
+      if (plans && plans.length > 0) {
+        for (const plan of plans) {
+          const planId = plan.frontmatter.plan ? `P${String(plan.frontmatter.plan).padStart(2, "0")}` : "unknown";
+          const fm = plan.frontmatter;
+          if (!fm.phase) {
+            issues.push({ severity: "error", check: "plan_frontmatter", message: `${planId}: missing 'phase' in frontmatter` });
+          }
+          if (!fm.plan) {
+            issues.push({ severity: "error", check: "plan_frontmatter", message: `${planId}: missing 'plan' in frontmatter` });
+          }
+          if (!fm.type) {
+            issues.push({ severity: "warning", check: "plan_frontmatter", message: `${planId}: missing 'type' in frontmatter` });
+          }
+          for (let i = 0; i < plan.tasks.length; i++) {
+            const task = plan.tasks[i];
+            if (!task.name) {
+              issues.push({ severity: "warning", check: "plan_tasks", message: `${planId} Task ${i + 1}: missing name` });
+            }
+            if (!task.action) {
+              issues.push({ severity: "warning", check: "plan_tasks", message: `${planId} Task ${i + 1}: missing action element` });
+            }
+          }
+        }
+      }
+      if (roadmap && plans && plans.length > 0) {
+        const planReqIds = /* @__PURE__ */ new Set();
+        for (const plan of plans) {
+          const reqs = plan.frontmatter.requirements;
+          if (Array.isArray(reqs)) {
+            for (const r of reqs) planReqIds.add(r);
+          }
+        }
+        if (state.phase) {
+          const phaseMatch = state.phase.match(/^(\d+)/);
+          if (phaseMatch) {
+            const phaseDetail = roadmap.getPhase(parseInt(phaseMatch[1], 10));
+            if (phaseDetail && phaseDetail.requirements) {
+              const roadmapReqs = phaseDetail.requirements.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+              for (const req of roadmapReqs) {
+                if (!planReqIds.has(req)) {
+                  issues.push({ severity: "warning", check: "req_traceability", message: `Requirement ${req} in roadmap not covered by any plan` });
+                }
+              }
+              const roadmapReqSet = new Set(roadmapReqs);
+              for (const req of planReqIds) {
+                if (!roadmapReqSet.has(req)) {
+                  issues.push({ severity: "info", check: "req_traceability", message: `Requirement ${req} in plans but not in roadmap phase requirements` });
+                }
+              }
+            }
+          }
+        }
+      }
+      if (state.progress !== null && state.raw) {
+        const barMatch = state.raw.match(/\[([\u2588\u2591]+)\]\s*(\d+)%/);
+        if (barMatch) {
+          const bar = barMatch[1];
+          const pct = parseInt(barMatch[2], 10);
+          const filled = (bar.match(/\u2588/g) || []).length;
+          const total = bar.length;
+          const expectedFilled = Math.round(pct / 100 * total);
+          if (filled !== expectedFilled) {
+            issues.push({ severity: "info", check: "state_progress_bar", message: `Progress bar visual (${filled}/${total} filled) doesn't match ${pct}% \u2014 could be auto-fixed` });
+          }
+        }
+      }
+      const errors = issues.filter((i) => i.severity === "error").length;
+      const warnings = issues.filter((i) => i.severity === "warning").length;
+      const info = issues.filter((i) => i.severity === "info").length;
+      return JSON.stringify({
+        valid: errors === 0,
+        issues,
+        summary: { errors, warnings, info }
+      });
+    } catch (err) {
+      return JSON.stringify({
+        error: "runtime_error",
+        message: "Failed to validate project: " + err.message
+      });
+    }
+  }
+};
+
+// src/plugin/tools/bgsd-progress.js
+import { readFileSync as readFileSync7, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2, rmdirSync, existsSync as existsSync3, statSync as statSync2 } from "fs";
+import { join as join10 } from "path";
+var LOCK_STALE_MS = 1e4;
+var bgsd_progress = {
+  description: "Update bGSD project progress \u2014 mark tasks complete, add/remove blockers, record decisions, advance plan.\n\nSingle tool with an action parameter:\n- complete-task: Mark the next pending task as complete\n- uncomplete-task: Un-complete the last completed task\n- add-blocker: Add a blocker to STATE.md\n- remove-blocker: Remove a blocker by index\n- record-decision: Record a decision to STATE.md\n- advance: Advance to next plan (when current plan is complete)\n\nUpdates files on disk (STATE.md, PLAN.md). Does NOT create git commits \u2014 the agent handles commits separately.\n\nReturns updated state snapshot after the change.",
+  args: {
+    action: external_exports.enum(["complete-task", "uncomplete-task", "add-blocker", "remove-blocker", "record-decision", "advance"]).describe("The progress action to perform"),
+    value: external_exports.string().optional().describe("Value for the action: blocker text for add-blocker, blocker index (1-based) for remove-blocker, decision text for record-decision. Not needed for complete-task, uncomplete-task, advance.")
+  },
+  async execute(args, context) {
+    const projectDir = context.directory || process.cwd();
+    const lockDir = join10(projectDir, ".planning", ".lock");
+    try {
+      const projectState = getProjectState(projectDir);
+      if (!projectState) {
+        return JSON.stringify({
+          status: "no_project",
+          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+        });
+      }
+      if ((args.action === "add-blocker" || args.action === "record-decision") && !args.value) {
+        return JSON.stringify({
+          error: "validation_error",
+          message: `Action '${args.action}' requires a 'value' parameter.`
+        });
+      }
+      if (args.action === "remove-blocker" && !args.value) {
+        return JSON.stringify({
+          error: "validation_error",
+          message: "Action 'remove-blocker' requires a 'value' parameter (blocker index, 1-based)."
+        });
+      }
+      try {
+        mkdirSync2(lockDir);
+      } catch (lockErr) {
+        if (lockErr.code === "EEXIST") {
+          try {
+            const lockStat = statSync2(lockDir);
+            const age = Date.now() - lockStat.mtimeMs;
+            if (age > LOCK_STALE_MS) {
+              rmdirSync(lockDir);
+              mkdirSync2(lockDir);
+            } else {
+              return JSON.stringify({
+                error: "runtime_error",
+                message: "Another operation in progress. Try again."
+              });
+            }
+          } catch {
+            return JSON.stringify({
+              error: "runtime_error",
+              message: "Failed to check lock status. Try again."
+            });
+          }
+        } else {
+          throw lockErr;
+        }
+      }
+      try {
+        const statePath = join10(projectDir, ".planning", "STATE.md");
+        let content = readFileSync7(statePath, "utf-8");
+        const { state } = projectState;
+        let actionResult = null;
+        switch (args.action) {
+          case "complete-task": {
+            const currentProgress = state.progress !== null ? state.progress : 0;
+            const step = 10;
+            const newProgress = Math.min(100, currentProgress + step);
+            content = updateProgress(content, newProgress);
+            actionResult = `Progress updated to ${newProgress}%`;
+            break;
+          }
+          case "uncomplete-task": {
+            const currentProgress = state.progress !== null ? state.progress : 0;
+            const step = 10;
+            const newProgress = Math.max(0, currentProgress - step);
+            content = updateProgress(content, newProgress);
+            actionResult = `Progress reverted to ${newProgress}%`;
+            break;
+          }
+          case "add-blocker": {
+            content = addBlocker(content, args.value);
+            actionResult = `Blocker added: ${args.value}`;
+            break;
+          }
+          case "remove-blocker": {
+            const idx = parseInt(args.value, 10);
+            if (isNaN(idx) || idx < 1) {
+              return JSON.stringify({
+                error: "validation_error",
+                message: "remove-blocker value must be a positive integer (1-based index)."
+              });
+            }
+            const result = removeBlocker(content, idx);
+            if (result.error) {
+              return JSON.stringify({
+                error: "validation_error",
+                message: result.error
+              });
+            }
+            content = result.content;
+            actionResult = `Blocker ${idx} removed`;
+            break;
+          }
+          case "record-decision": {
+            content = recordDecision(content, args.value, state.phase);
+            actionResult = `Decision recorded: ${args.value}`;
+            break;
+          }
+          case "advance": {
+            const result = advancePlan(content, state.currentPlan);
+            content = result.content;
+            actionResult = result.message;
+            break;
+          }
+        }
+        writeFileSync2(statePath, content, "utf-8");
+        try {
+          rmdirSync(lockDir);
+        } catch {
+        }
+        invalidateState(projectDir);
+        invalidatePlans(projectDir);
+        const freshState = getProjectState(projectDir);
+        const fresh = freshState ? freshState.state : null;
+        return JSON.stringify({
+          success: true,
+          action: args.action,
+          result: actionResult,
+          state: {
+            phase: fresh ? fresh.phase : null,
+            plan: fresh ? fresh.currentPlan : null,
+            progress: fresh ? fresh.progress : null,
+            status: fresh ? fresh.status : null
+          }
+        });
+      } finally {
+        try {
+          rmdirSync(lockDir);
+        } catch {
+        }
+      }
+    } catch (err) {
+      try {
+        rmdirSync(lockDir);
+      } catch {
+      }
+      return JSON.stringify({
+        error: "runtime_error",
+        message: "Failed to update progress: " + err.message
+      });
+    }
+  }
+};
+function updateProgress(content, newPercent) {
+  const barLength = 10;
+  const filled = Math.round(newPercent / 100 * barLength);
+  const empty = barLength - filled;
+  const newBar = "\u2588".repeat(filled) + "\u2591".repeat(empty);
+  const progressLine = `**Progress:** [${newBar}] ${newPercent}%`;
+  const replaced = content.replace(
+    /\*\*Progress:\*\*\s*\[[\u2588\u2591]+\]\s*\d+%/,
+    progressLine
+  );
+  return replaced;
+}
+function addBlocker(content, blockerText) {
+  const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
+  const match = content.match(sectionPattern);
+  if (!match) {
+    return content + "\n### Blockers/Concerns\n\n- " + blockerText + "\n";
+  }
+  const header = match[1];
+  let body = match[2];
+  const after = match[3];
+  if (body.trim().toLowerCase() === "none" || body.trim() === "") {
+    body = "\n- " + blockerText + "\n";
+  } else {
+    body = body.trimEnd() + "\n- " + blockerText + "\n";
+  }
+  return content.replace(sectionPattern, header + body + after);
+}
+function removeBlocker(content, index) {
+  const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
+  const match = content.match(sectionPattern);
+  if (!match) {
+    return { error: "No Blockers/Concerns section found in STATE.md" };
+  }
+  const header = match[1];
+  const body = match[2];
+  const after = match[3];
+  const lines = body.split("\n").filter((l) => l.match(/^[-*]\s+/));
+  if (index > lines.length || index < 1) {
+    return { error: `Blocker index ${index} out of range. Found ${lines.length} blocker(s).` };
+  }
+  lines.splice(index - 1, 1);
+  let newBody;
+  if (lines.length === 0) {
+    newBody = "\nNone\n";
+  } else {
+    newBody = "\n" + lines.join("\n") + "\n";
+  }
+  return { content: content.replace(sectionPattern, header + newBody + after) };
+}
+function recordDecision(content, decisionText, phase) {
+  const phaseTag = phase ? phase.match(/^(\d+)/)?.[1] || "?" : "?";
+  const entry = `- [Phase ${phaseTag}]: ${decisionText}`;
+  const sectionPattern = /(### Decisions\s*\n)([\s\S]*?)(\n###|\n## |$)/;
+  const match = content.match(sectionPattern);
+  if (!match) {
+    return content + "\n### Decisions\n\n" + entry + "\n";
+  }
+  const header = match[1];
+  let body = match[2];
+  const after = match[3];
+  body = body.trimEnd() + "\n" + entry + "\n";
+  return content.replace(sectionPattern, header + body + after);
+}
+function advancePlan(content, currentPlan) {
+  if (!currentPlan) {
+    return { content, message: "No current plan to advance from" };
+  }
+  const planNumMatch = currentPlan.match(/(\d+)\s*(?:pending|$)/i) || currentPlan.match(/(\d+)/);
+  if (!planNumMatch) {
+    return { content, message: `Could not parse plan number from: ${currentPlan}` };
+  }
+  const currentNum = parseInt(planNumMatch[1], 10);
+  const nextNum = currentNum + 1;
+  const nextPlanStr = `Plan ${String(currentNum).padStart(2, "0")} complete, Plan ${String(nextNum).padStart(2, "0")} pending`;
+  const updated = content.replace(
+    /\*\*Current Plan:\*\*\s*[^\n]+/,
+    `**Current Plan:** ${nextPlanStr}`
+  );
+  return { content: updated, message: `Advanced to Plan ${String(nextNum).padStart(2, "0")}` };
+}
+
 // src/plugin/tools/index.js
 function getTools(registry2) {
   registry2.registerTool("status", bgsd_status);
   registry2.registerTool("plan", bgsd_plan);
   registry2.registerTool("context", bgsd_context);
+  registry2.registerTool("validate", bgsd_validate);
+  registry2.registerTool("progress", bgsd_progress);
   return registry2.getTools();
 }
 
 // src/plugin/index.js
 var BgsdPlugin = async ({ directory }) => {
-  const bgsdHome = join10(homedir2(), ".config", "opencode", "bgsd-oc");
+  const bgsdHome = join11(homedir2(), ".config", "opencode", "bgsd-oc");
   const registry2 = createToolRegistry(safeHook);
   const sessionCreated = safeHook("session.created", async (input, output) => {
     console.log("[bGSD] Planning plugin available. Use /bgsd-help to get started.");
