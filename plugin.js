@@ -1,12 +1,658 @@
 var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// src/plugin/parsers/state.js
+import { readFileSync } from "fs";
+import { join as join3 } from "path";
+function extractField(content, fieldName) {
+  const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, "i");
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+function extractSection(content, sectionName) {
+  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i");
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+function extractProgress(content) {
+  const match = content.match(/\[[\u2588\u2591]+\]\s*(\d+)%/);
+  return match ? parseInt(match[1], 10) : null;
+}
+function parseState(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache.has(resolvedCwd)) {
+    return _cache.get(resolvedCwd);
+  }
+  const statePath = join3(resolvedCwd, ".planning", "STATE.md");
+  let raw;
+  try {
+    raw = readFileSync(statePath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const result = Object.freeze({
+    raw,
+    phase: extractField(raw, "Phase"),
+    currentPlan: extractField(raw, "Current Plan"),
+    status: extractField(raw, "Status"),
+    lastActivity: extractField(raw, "Last Activity"),
+    progress: extractProgress(raw),
+    getField(name) {
+      return extractField(raw, name);
+    },
+    getSection(name) {
+      return extractSection(raw, name);
+    }
+  });
+  _cache.set(resolvedCwd, result);
+  return result;
+}
+function invalidateState(cwd) {
+  if (cwd) {
+    _cache.delete(cwd);
+  } else {
+    _cache.clear();
+  }
+}
+var _cache;
+var init_state = __esm({
+  "src/plugin/parsers/state.js"() {
+    _cache = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/plugin/parsers/roadmap.js
+import { readFileSync as readFileSync2 } from "fs";
+import { join as join4 } from "path";
+function parseMilestones(content) {
+  const milestones = [];
+  const pattern = /[-*]\s*(?:✅|🔵|🔲)\s*\*\*v(\d+(?:\.\d+)*)\s+([^*]+)\*\*([^\n]*)/g;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    const status = match[0].includes("\u2705") ? "complete" : match[0].includes("\u{1F535}") ? "active" : "pending";
+    const rangeMatch = match[0].match(/Phases?\s+(\d+)\s*[-–]\s*(\d+)/i);
+    const phases = rangeMatch ? { start: parseInt(rangeMatch[1], 10), end: parseInt(rangeMatch[2], 10) } : null;
+    milestones.push(Object.freeze({
+      name: match[2].trim(),
+      version: "v" + match[1],
+      status,
+      phases
+    }));
+  }
+  return milestones;
+}
+function parsePhases(content) {
+  const phases = [];
+  const pattern = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    const number4 = match[1];
+    const name = match[2].trim();
+    const sectionStart = match.index;
+    const restOfContent = content.slice(sectionStart);
+    const nextHeader = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const sectionEnd = nextHeader ? sectionStart + nextHeader.index : content.length;
+    const section = content.slice(sectionStart, sectionEnd).trim();
+    const goalMatch = section.match(/\*\*Goal:?\*\*:?\s*([^\n]+)/i);
+    const goal = goalMatch ? goalMatch[1].trim() : null;
+    const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
+    const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
+    const escaped = number4.replace(/\./g, "\\.");
+    const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, "i");
+    const status = checkboxPattern.test(content) ? "complete" : "incomplete";
+    phases.push(Object.freeze({
+      number: number4,
+      name,
+      status,
+      planCount,
+      goal,
+      section
+    }));
+  }
+  return phases;
+}
+function parseProgressTable(content) {
+  const progress = [];
+  const tableMatch = content.match(/\|[^\n]*Phase[^\n]*\|[^\n]*Plans?[^\n]*\|[^\n]*Status[^\n]*\|[^\n]*\n\|[-|\s]+\n((?:\|[^\n]+\n?)*)/i);
+  if (!tableMatch) return progress;
+  const rows = tableMatch[1].trim().split("\n");
+  for (const row of rows) {
+    const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
+    if (cells.length >= 3) {
+      const plansParts = cells[1].match(/(\d+)\/(\d+)/);
+      progress.push(Object.freeze({
+        phase: cells[0],
+        milestone: null,
+        // Can be derived from position if needed
+        plansComplete: plansParts ? parseInt(plansParts[1], 10) : 0,
+        plansTotal: plansParts ? parseInt(plansParts[2], 10) : 0,
+        status: cells[2],
+        completed: cells.length >= 4 ? cells[3] || null : null
+      }));
+    }
+  }
+  return progress;
+}
+function parseRoadmap(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache2.has(resolvedCwd)) {
+    return _cache2.get(resolvedCwd);
+  }
+  const roadmapPath = join4(resolvedCwd, ".planning", "ROADMAP.md");
+  let raw;
+  try {
+    raw = readFileSync2(roadmapPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const milestones = parseMilestones(raw);
+  const phases = parsePhases(raw);
+  const progress = parseProgressTable(raw);
+  const result = Object.freeze({
+    raw,
+    milestones,
+    phases,
+    progress,
+    getPhase(num) {
+      const numStr = String(num);
+      const found = phases.find((p) => p.number === numStr);
+      if (!found) return null;
+      const section = found.section;
+      const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
+      const dependsOn = dependsMatch ? dependsMatch[1].trim() : null;
+      const reqMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
+      const requirements = reqMatch ? reqMatch[1].trim() : null;
+      const criteriaMatch = section.match(/\*\*Success Criteria\*\*[^\n]*:\s*\n((?:\s*\d+\.\s*[^\n]+\n?)+)/i);
+      const successCriteria = criteriaMatch ? criteriaMatch[1].trim().split("\n").map((l) => l.replace(/^\s*\d+\.\s*/, "").trim()).filter(Boolean) : [];
+      const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
+      const plans = plansMatch ? {
+        completed: plansMatch[1] ? parseInt(plansMatch[1], 10) : 0,
+        total: parseInt(plansMatch[2], 10)
+      } : null;
+      return Object.freeze({
+        number: found.number,
+        name: found.name,
+        goal: found.goal,
+        dependsOn,
+        requirements,
+        successCriteria,
+        plans
+      });
+    },
+    getMilestone(name) {
+      return milestones.find(
+        (m) => m.name.toLowerCase().includes(name.toLowerCase()) || m.version.toLowerCase() === name.toLowerCase()
+      ) || null;
+    },
+    get currentMilestone() {
+      return milestones.find((m) => m.status === "active") || null;
+    }
+  });
+  _cache2.set(resolvedCwd, result);
+  return result;
+}
+function invalidateRoadmap(cwd) {
+  if (cwd) {
+    _cache2.delete(cwd);
+  } else {
+    _cache2.clear();
+  }
+}
+var _cache2;
+var init_roadmap = __esm({
+  "src/plugin/parsers/roadmap.js"() {
+    _cache2 = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/plugin/parsers/plan.js
+import { readFileSync as readFileSync3, readdirSync } from "fs";
+import { join as join5 } from "path";
+function extractFrontmatter(content) {
+  if (!content || typeof content !== "string") return {};
+  if (!content.startsWith("---\n")) return {};
+  const frontmatter = {};
+  const match = content.match(FM_DELIMITERS);
+  if (!match) return frontmatter;
+  const yaml = match[1];
+  const lines = yaml.split("\n");
+  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1].length : 0;
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
+    const current = stack[stack.length - 1];
+    const keyMatch = line.match(FM_KEY_VALUE);
+    if (keyMatch) {
+      const key = keyMatch[2];
+      const value = keyMatch[3].trim();
+      if (value === "" || value === "[") {
+        current.obj[key] = value === "[" ? [] : {};
+        current.key = null;
+        stack.push({ obj: current.obj[key], key: null, indent });
+      } else if (value.startsWith("[") && value.endsWith("]")) {
+        current.obj[key] = value.slice(1, -1).split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+        current.key = null;
+      } else {
+        current.obj[key] = value.replace(/^["']|["']$/g, "");
+        current.key = null;
+      }
+    } else if (line.trim().startsWith("- ")) {
+      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, "");
+      if (typeof current.obj === "object" && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
+        const parent = stack.length > 1 ? stack[stack.length - 2] : null;
+        if (parent) {
+          for (const k of Object.keys(parent.obj)) {
+            if (parent.obj[k] === current.obj) {
+              parent.obj[k] = [itemValue];
+              current.obj = parent.obj[k];
+              break;
+            }
+          }
+        }
+      } else if (Array.isArray(current.obj)) {
+        current.obj.push(itemValue);
+      }
+    }
+  }
+  return frontmatter;
+}
+function extractXmlSection(content, tagName) {
+  const pattern = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+function extractTasks(content) {
+  const tasksSection = extractXmlSection(content, "tasks");
+  if (!tasksSection) return [];
+  const tasks = [];
+  const taskPattern = /<task\s+([^>]*)>([\s\S]*?)<\/task>/g;
+  let match;
+  while ((match = taskPattern.exec(tasksSection)) !== null) {
+    const attrs = match[1];
+    const body = match[2];
+    const typeMatch = attrs.match(/type="([^"]+)"/);
+    const type = typeMatch ? typeMatch[1] : "auto";
+    const nameMatch = body.match(/<name>([\s\S]*?)<\/name>/);
+    const filesMatch = body.match(/<files>([\s\S]*?)<\/files>/);
+    const actionMatch = body.match(/<action>([\s\S]*?)<\/action>/);
+    const verifyMatch = body.match(/<verify>([\s\S]*?)<\/verify>/);
+    const doneMatch = body.match(/<done>([\s\S]*?)<\/done>/);
+    tasks.push(Object.freeze({
+      type,
+      name: nameMatch ? nameMatch[1].trim() : null,
+      files: filesMatch ? filesMatch[1].trim().split(",").map((f) => f.trim()).filter(Boolean) : [],
+      action: actionMatch ? actionMatch[1].trim() : null,
+      verify: verifyMatch ? verifyMatch[1].trim() : null,
+      done: doneMatch ? doneMatch[1].trim() : null
+    }));
+  }
+  return tasks;
+}
+function parsePlan(planPath) {
+  if (_planCache.has(planPath)) {
+    return _planCache.get(planPath);
+  }
+  let raw;
+  try {
+    raw = readFileSync3(planPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const frontmatter = extractFrontmatter(raw);
+  const tasks = extractTasks(raw);
+  const result = Object.freeze({
+    raw,
+    path: planPath,
+    frontmatter: Object.freeze(frontmatter),
+    objective: extractXmlSection(raw, "objective"),
+    context: extractXmlSection(raw, "context"),
+    tasks,
+    verification: extractXmlSection(raw, "verification"),
+    successCriteria: extractXmlSection(raw, "success_criteria"),
+    output: extractXmlSection(raw, "output")
+  });
+  _planCache.set(planPath, result);
+  return result;
+}
+function parsePlans(phaseNum, cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  const cacheKey = `${resolvedCwd}:${phaseNum}`;
+  if (_plansCache.has(cacheKey)) {
+    return _plansCache.get(cacheKey);
+  }
+  const numStr = String(phaseNum).padStart(2, "0");
+  const phasesDir = join5(resolvedCwd, ".planning", "phases");
+  let phaseDir = null;
+  try {
+    const entries = readdirSync(phasesDir);
+    const dirName = entries.find((d) => d.startsWith(numStr + "-") || d === numStr);
+    if (dirName) {
+      phaseDir = join5(phasesDir, dirName);
+    }
+  } catch {
+    return Object.freeze([]);
+  }
+  if (!phaseDir) {
+    return Object.freeze([]);
+  }
+  let planFiles;
+  try {
+    const files = readdirSync(phaseDir);
+    planFiles = files.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md").sort();
+  } catch {
+    return Object.freeze([]);
+  }
+  const plans = planFiles.map((f) => parsePlan(join5(phaseDir, f))).filter(Boolean);
+  const frozen = Object.freeze(plans);
+  _plansCache.set(cacheKey, frozen);
+  return frozen;
+}
+function invalidatePlans(cwd) {
+  if (cwd) {
+    for (const key of _plansCache.keys()) {
+      if (key.startsWith(cwd + ":")) {
+        _plansCache.delete(key);
+      }
+    }
+    for (const key of _planCache.keys()) {
+      if (key.startsWith(cwd)) {
+        _planCache.delete(key);
+      }
+    }
+  } else {
+    _planCache.clear();
+    _plansCache.clear();
+  }
+}
+var _planCache, _plansCache, FM_DELIMITERS, FM_KEY_VALUE;
+var init_plan = __esm({
+  "src/plugin/parsers/plan.js"() {
+    _planCache = /* @__PURE__ */ new Map();
+    _plansCache = /* @__PURE__ */ new Map();
+    FM_DELIMITERS = /^---\n([\s\S]+?)\n---/;
+    FM_KEY_VALUE = /^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/;
+  }
+});
+
+// src/plugin/parsers/config.js
+import { readFileSync as readFileSync4 } from "fs";
+import { join as join6 } from "path";
+function parseConfig(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache3.has(resolvedCwd)) {
+    return _cache3.get(resolvedCwd);
+  }
+  const configPath = join6(resolvedCwd, ".planning", "config.json");
+  let parsed = {};
+  try {
+    const raw = readFileSync4(configPath, "utf-8");
+    parsed = JSON.parse(raw);
+  } catch {
+    const defaults = Object.freeze({ ...CONFIG_DEFAULTS });
+    _cache3.set(resolvedCwd, defaults);
+    return defaults;
+  }
+  const result = {};
+  for (const [key, defaultValue] of Object.entries(CONFIG_DEFAULTS)) {
+    if (parsed[key] !== void 0) {
+      if (key === "parallelization") {
+        if (typeof parsed[key] === "boolean") {
+          result[key] = parsed[key];
+        } else if (typeof parsed[key] === "object" && parsed[key] !== null && "enabled" in parsed[key]) {
+          result[key] = parsed[key].enabled;
+        } else {
+          result[key] = defaultValue;
+        }
+      } else if (NESTED_OBJECT_KEYS.has(key)) {
+        if (typeof parsed[key] === "object" && parsed[key] !== null) {
+          result[key] = Object.freeze({ ...defaultValue, ...parsed[key] });
+        } else {
+          result[key] = defaultValue;
+        }
+      } else {
+        result[key] = parsed[key];
+      }
+    } else if (parsed.workflow && ["research", "plan_checker", "verifier"].includes(key)) {
+      const nestedKey = key === "plan_checker" ? "plan_check" : key;
+      if (parsed.workflow[nestedKey] !== void 0) {
+        result[key] = parsed.workflow[nestedKey];
+      } else if (parsed.workflow[key] !== void 0) {
+        result[key] = parsed.workflow[key];
+      } else {
+        result[key] = defaultValue;
+      }
+    } else {
+      result[key] = defaultValue;
+    }
+  }
+  const frozen = Object.freeze(result);
+  _cache3.set(resolvedCwd, frozen);
+  return frozen;
+}
+function invalidateConfig(cwd) {
+  if (cwd) {
+    _cache3.delete(cwd);
+  } else {
+    _cache3.clear();
+  }
+}
+var _cache3, CONFIG_DEFAULTS, NESTED_OBJECT_KEYS;
+var init_config = __esm({
+  "src/plugin/parsers/config.js"() {
+    _cache3 = /* @__PURE__ */ new Map();
+    CONFIG_DEFAULTS = Object.freeze({
+      mode: "interactive",
+      depth: "standard",
+      model_profile: "balanced",
+      commit_docs: true,
+      branching_strategy: "none",
+      phase_branch_template: "phase-{number}-{name}",
+      milestone_branch_template: "{version}",
+      parallelization: false,
+      research: true,
+      plan_checker: true,
+      verifier: true,
+      staleness_threshold: 2,
+      // Phase 75: Event-driven state sync settings
+      idle_validation: Object.freeze({
+        enabled: true,
+        cooldown_seconds: 5,
+        staleness_threshold_hours: 2
+      }),
+      notifications: Object.freeze({
+        enabled: true,
+        os_notifications: true,
+        dnd_mode: false,
+        rate_limit_per_minute: 5,
+        sound: false
+      }),
+      stuck_detection: Object.freeze({
+        error_threshold: 3,
+        spinning_threshold: 5
+      }),
+      file_watcher: Object.freeze({
+        debounce_ms: 200,
+        max_watched_paths: 500
+      })
+    });
+    NESTED_OBJECT_KEYS = /* @__PURE__ */ new Set([
+      "idle_validation",
+      "notifications",
+      "stuck_detection",
+      "file_watcher"
+    ]);
+  }
+});
+
+// src/plugin/parsers/project.js
+import { readFileSync as readFileSync5 } from "fs";
+import { join as join7 } from "path";
+function parseProject(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache4.has(resolvedCwd)) {
+    return _cache4.get(resolvedCwd);
+  }
+  const projectPath = join7(resolvedCwd, ".planning", "PROJECT.md");
+  let raw;
+  try {
+    raw = readFileSync5(projectPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const coreValueMatch = raw.match(/##\s*Core\s+Value\s*\n+([^\n]+)/i) || raw.match(/\*\*Core\s+[Vv]alue:?\*\*:?\s*([^\n]+)/i);
+  const coreValue = coreValueMatch ? coreValueMatch[1].trim() : null;
+  const techStackMatch = raw.match(/Tech\s+stack:\s*([^\n]+)/i) || raw.match(/\*\*Tech:?\*\*:?\s*([^\n]+)/i);
+  const techStack = techStackMatch ? techStackMatch[1].trim() : null;
+  const milestoneMatch = raw.match(/##\s*Current\s+Milestone:\s*([^\n]+)/i);
+  const currentMilestone = milestoneMatch ? milestoneMatch[1].trim() : null;
+  const result = Object.freeze({
+    raw,
+    coreValue,
+    techStack,
+    currentMilestone
+  });
+  _cache4.set(resolvedCwd, result);
+  return result;
+}
+function invalidateProject(cwd) {
+  if (cwd) {
+    _cache4.delete(cwd);
+  } else {
+    _cache4.clear();
+  }
+}
+var _cache4;
+var init_project = __esm({
+  "src/plugin/parsers/project.js"() {
+    _cache4 = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/plugin/parsers/intent.js
+import { readFileSync as readFileSync6 } from "fs";
+import { join as join8 } from "path";
+function parseIntent(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache5.has(resolvedCwd)) {
+    return _cache5.get(resolvedCwd);
+  }
+  const intentPath = join8(resolvedCwd, ".planning", "INTENT.md");
+  let raw;
+  try {
+    raw = readFileSync6(intentPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const objectiveMatch = raw.match(/<objective>([\s\S]*?)<\/objective>/);
+  const objective = objectiveMatch ? objectiveMatch[1].trim() : null;
+  const outcomesMatch = raw.match(/<outcomes>([\s\S]*?)<\/outcomes>/);
+  const outcomes = [];
+  if (outcomesMatch) {
+    const outcomesContent = outcomesMatch[1];
+    const entryPattern = /-\s*(DO-\d+)\s*(?:\[P\d+\])?\s*:\s*([^\n]+)/g;
+    let match;
+    while ((match = entryPattern.exec(outcomesContent)) !== null) {
+      outcomes.push(Object.freeze({
+        id: match[1],
+        text: match[2].trim()
+      }));
+    }
+  }
+  const result = Object.freeze({
+    raw,
+    objective,
+    outcomes: Object.freeze(outcomes)
+  });
+  _cache5.set(resolvedCwd, result);
+  return result;
+}
+function invalidateIntent(cwd) {
+  if (cwd) {
+    _cache5.delete(cwd);
+  } else {
+    _cache5.clear();
+  }
+}
+var _cache5;
+var init_intent = __esm({
+  "src/plugin/parsers/intent.js"() {
+    _cache5 = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/plugin/parsers/index.js
+var parsers_exports = {};
+__export(parsers_exports, {
+  invalidateAll: () => invalidateAll,
+  invalidateConfig: () => invalidateConfig,
+  invalidateIntent: () => invalidateIntent,
+  invalidatePlans: () => invalidatePlans,
+  invalidateProject: () => invalidateProject,
+  invalidateRoadmap: () => invalidateRoadmap,
+  invalidateState: () => invalidateState,
+  parseConfig: () => parseConfig,
+  parseIntent: () => parseIntent,
+  parsePlan: () => parsePlan,
+  parsePlans: () => parsePlans,
+  parseProject: () => parseProject,
+  parseRoadmap: () => parseRoadmap,
+  parseState: () => parseState
+});
+function invalidateAll(cwd) {
+  invalidateState(cwd);
+  invalidateRoadmap(cwd);
+  invalidatePlans(cwd);
+  invalidateConfig(cwd);
+  invalidateProject(cwd);
+  invalidateIntent(cwd);
+}
+var init_parsers = __esm({
+  "src/plugin/parsers/index.js"() {
+    init_state();
+    init_roadmap();
+    init_plan();
+    init_config();
+    init_project();
+    init_intent();
+    init_state();
+    init_roadmap();
+    init_plan();
+    init_config();
+    init_project();
+    init_intent();
+  }
+});
+
 // src/plugin/index.js
-import { join as join11 } from "path";
-import { homedir as homedir2 } from "os";
+import { join as join15 } from "path";
+import { homedir as homedir6 } from "os";
 
 // src/plugin/safe-hook.js
 import { homedir } from "os";
@@ -186,543 +832,13 @@ function createToolRegistry(safeHookFn) {
   return { registerTool, getTools: getTools2 };
 }
 
-// src/plugin/parsers/state.js
-import { readFileSync } from "fs";
-import { join as join3 } from "path";
-var _cache = /* @__PURE__ */ new Map();
-function extractField(content, fieldName) {
-  const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, "i");
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-function extractSection(content, sectionName) {
-  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i");
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-function extractProgress(content) {
-  const match = content.match(/\[[\u2588\u2591]+\]\s*(\d+)%/);
-  return match ? parseInt(match[1], 10) : null;
-}
-function parseState(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache.has(resolvedCwd)) {
-    return _cache.get(resolvedCwd);
-  }
-  const statePath = join3(resolvedCwd, ".planning", "STATE.md");
-  let raw;
-  try {
-    raw = readFileSync(statePath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const result = Object.freeze({
-    raw,
-    phase: extractField(raw, "Phase"),
-    currentPlan: extractField(raw, "Current Plan"),
-    status: extractField(raw, "Status"),
-    lastActivity: extractField(raw, "Last Activity"),
-    progress: extractProgress(raw),
-    getField(name) {
-      return extractField(raw, name);
-    },
-    getSection(name) {
-      return extractSection(raw, name);
-    }
-  });
-  _cache.set(resolvedCwd, result);
-  return result;
-}
-function invalidateState(cwd) {
-  if (cwd) {
-    _cache.delete(cwd);
-  } else {
-    _cache.clear();
-  }
-}
-
-// src/plugin/parsers/roadmap.js
-import { readFileSync as readFileSync2 } from "fs";
-import { join as join4 } from "path";
-var _cache2 = /* @__PURE__ */ new Map();
-function parseMilestones(content) {
-  const milestones = [];
-  const pattern = /[-*]\s*(?:✅|🔵|🔲)\s*\*\*v(\d+(?:\.\d+)*)\s+([^*]+)\*\*([^\n]*)/g;
-  let match;
-  while ((match = pattern.exec(content)) !== null) {
-    const status = match[0].includes("\u2705") ? "complete" : match[0].includes("\u{1F535}") ? "active" : "pending";
-    const rangeMatch = match[0].match(/Phases?\s+(\d+)\s*[-–]\s*(\d+)/i);
-    const phases = rangeMatch ? { start: parseInt(rangeMatch[1], 10), end: parseInt(rangeMatch[2], 10) } : null;
-    milestones.push(Object.freeze({
-      name: match[2].trim(),
-      version: "v" + match[1],
-      status,
-      phases
-    }));
-  }
-  return milestones;
-}
-function parsePhases(content) {
-  const phases = [];
-  const pattern = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
-  let match;
-  while ((match = pattern.exec(content)) !== null) {
-    const number4 = match[1];
-    const name = match[2].trim();
-    const sectionStart = match.index;
-    const restOfContent = content.slice(sectionStart);
-    const nextHeader = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
-    const sectionEnd = nextHeader ? sectionStart + nextHeader.index : content.length;
-    const section = content.slice(sectionStart, sectionEnd).trim();
-    const goalMatch = section.match(/\*\*Goal:?\*\*:?\s*([^\n]+)/i);
-    const goal = goalMatch ? goalMatch[1].trim() : null;
-    const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
-    const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
-    const escaped = number4.replace(/\./g, "\\.");
-    const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, "i");
-    const status = checkboxPattern.test(content) ? "complete" : "incomplete";
-    phases.push(Object.freeze({
-      number: number4,
-      name,
-      status,
-      planCount,
-      goal,
-      section
-    }));
-  }
-  return phases;
-}
-function parseProgressTable(content) {
-  const progress = [];
-  const tableMatch = content.match(/\|[^\n]*Phase[^\n]*\|[^\n]*Plans?[^\n]*\|[^\n]*Status[^\n]*\|[^\n]*\n\|[-|\s]+\n((?:\|[^\n]+\n?)*)/i);
-  if (!tableMatch) return progress;
-  const rows = tableMatch[1].trim().split("\n");
-  for (const row of rows) {
-    const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
-    if (cells.length >= 3) {
-      const plansParts = cells[1].match(/(\d+)\/(\d+)/);
-      progress.push(Object.freeze({
-        phase: cells[0],
-        milestone: null,
-        // Can be derived from position if needed
-        plansComplete: plansParts ? parseInt(plansParts[1], 10) : 0,
-        plansTotal: plansParts ? parseInt(plansParts[2], 10) : 0,
-        status: cells[2],
-        completed: cells.length >= 4 ? cells[3] || null : null
-      }));
-    }
-  }
-  return progress;
-}
-function parseRoadmap(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache2.has(resolvedCwd)) {
-    return _cache2.get(resolvedCwd);
-  }
-  const roadmapPath = join4(resolvedCwd, ".planning", "ROADMAP.md");
-  let raw;
-  try {
-    raw = readFileSync2(roadmapPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const milestones = parseMilestones(raw);
-  const phases = parsePhases(raw);
-  const progress = parseProgressTable(raw);
-  const result = Object.freeze({
-    raw,
-    milestones,
-    phases,
-    progress,
-    getPhase(num) {
-      const numStr = String(num);
-      const found = phases.find((p) => p.number === numStr);
-      if (!found) return null;
-      const section = found.section;
-      const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
-      const dependsOn = dependsMatch ? dependsMatch[1].trim() : null;
-      const reqMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
-      const requirements = reqMatch ? reqMatch[1].trim() : null;
-      const criteriaMatch = section.match(/\*\*Success Criteria\*\*[^\n]*:\s*\n((?:\s*\d+\.\s*[^\n]+\n?)+)/i);
-      const successCriteria = criteriaMatch ? criteriaMatch[1].trim().split("\n").map((l) => l.replace(/^\s*\d+\.\s*/, "").trim()).filter(Boolean) : [];
-      const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
-      const plans = plansMatch ? {
-        completed: plansMatch[1] ? parseInt(plansMatch[1], 10) : 0,
-        total: parseInt(plansMatch[2], 10)
-      } : null;
-      return Object.freeze({
-        number: found.number,
-        name: found.name,
-        goal: found.goal,
-        dependsOn,
-        requirements,
-        successCriteria,
-        plans
-      });
-    },
-    getMilestone(name) {
-      return milestones.find(
-        (m) => m.name.toLowerCase().includes(name.toLowerCase()) || m.version.toLowerCase() === name.toLowerCase()
-      ) || null;
-    },
-    get currentMilestone() {
-      return milestones.find((m) => m.status === "active") || null;
-    }
-  });
-  _cache2.set(resolvedCwd, result);
-  return result;
-}
-function invalidateRoadmap(cwd) {
-  if (cwd) {
-    _cache2.delete(cwd);
-  } else {
-    _cache2.clear();
-  }
-}
-
-// src/plugin/parsers/plan.js
-import { readFileSync as readFileSync3, readdirSync } from "fs";
-import { join as join5 } from "path";
-var _planCache = /* @__PURE__ */ new Map();
-var _plansCache = /* @__PURE__ */ new Map();
-var FM_DELIMITERS = /^---\n([\s\S]+?)\n---/;
-var FM_KEY_VALUE = /^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/;
-function extractFrontmatter(content) {
-  if (!content || typeof content !== "string") return {};
-  if (!content.startsWith("---\n")) return {};
-  const frontmatter = {};
-  const match = content.match(FM_DELIMITERS);
-  if (!match) return frontmatter;
-  const yaml = match[1];
-  const lines = yaml.split("\n");
-  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
-  for (const line of lines) {
-    if (line.trim() === "") continue;
-    const indentMatch = line.match(/^(\s*)/);
-    const indent = indentMatch ? indentMatch[1].length : 0;
-    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
-      stack.pop();
-    }
-    const current = stack[stack.length - 1];
-    const keyMatch = line.match(FM_KEY_VALUE);
-    if (keyMatch) {
-      const key = keyMatch[2];
-      const value = keyMatch[3].trim();
-      if (value === "" || value === "[") {
-        current.obj[key] = value === "[" ? [] : {};
-        current.key = null;
-        stack.push({ obj: current.obj[key], key: null, indent });
-      } else if (value.startsWith("[") && value.endsWith("]")) {
-        current.obj[key] = value.slice(1, -1).split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-        current.key = null;
-      } else {
-        current.obj[key] = value.replace(/^["']|["']$/g, "");
-        current.key = null;
-      }
-    } else if (line.trim().startsWith("- ")) {
-      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, "");
-      if (typeof current.obj === "object" && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
-        const parent = stack.length > 1 ? stack[stack.length - 2] : null;
-        if (parent) {
-          for (const k of Object.keys(parent.obj)) {
-            if (parent.obj[k] === current.obj) {
-              parent.obj[k] = [itemValue];
-              current.obj = parent.obj[k];
-              break;
-            }
-          }
-        }
-      } else if (Array.isArray(current.obj)) {
-        current.obj.push(itemValue);
-      }
-    }
-  }
-  return frontmatter;
-}
-function extractXmlSection(content, tagName) {
-  const pattern = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-function extractTasks(content) {
-  const tasksSection = extractXmlSection(content, "tasks");
-  if (!tasksSection) return [];
-  const tasks = [];
-  const taskPattern = /<task\s+([^>]*)>([\s\S]*?)<\/task>/g;
-  let match;
-  while ((match = taskPattern.exec(tasksSection)) !== null) {
-    const attrs = match[1];
-    const body = match[2];
-    const typeMatch = attrs.match(/type="([^"]+)"/);
-    const type = typeMatch ? typeMatch[1] : "auto";
-    const nameMatch = body.match(/<name>([\s\S]*?)<\/name>/);
-    const filesMatch = body.match(/<files>([\s\S]*?)<\/files>/);
-    const actionMatch = body.match(/<action>([\s\S]*?)<\/action>/);
-    const verifyMatch = body.match(/<verify>([\s\S]*?)<\/verify>/);
-    const doneMatch = body.match(/<done>([\s\S]*?)<\/done>/);
-    tasks.push(Object.freeze({
-      type,
-      name: nameMatch ? nameMatch[1].trim() : null,
-      files: filesMatch ? filesMatch[1].trim().split(",").map((f) => f.trim()).filter(Boolean) : [],
-      action: actionMatch ? actionMatch[1].trim() : null,
-      verify: verifyMatch ? verifyMatch[1].trim() : null,
-      done: doneMatch ? doneMatch[1].trim() : null
-    }));
-  }
-  return tasks;
-}
-function parsePlan(planPath) {
-  if (_planCache.has(planPath)) {
-    return _planCache.get(planPath);
-  }
-  let raw;
-  try {
-    raw = readFileSync3(planPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const frontmatter = extractFrontmatter(raw);
-  const tasks = extractTasks(raw);
-  const result = Object.freeze({
-    raw,
-    path: planPath,
-    frontmatter: Object.freeze(frontmatter),
-    objective: extractXmlSection(raw, "objective"),
-    context: extractXmlSection(raw, "context"),
-    tasks,
-    verification: extractXmlSection(raw, "verification"),
-    successCriteria: extractXmlSection(raw, "success_criteria"),
-    output: extractXmlSection(raw, "output")
-  });
-  _planCache.set(planPath, result);
-  return result;
-}
-function parsePlans(phaseNum, cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  const cacheKey = `${resolvedCwd}:${phaseNum}`;
-  if (_plansCache.has(cacheKey)) {
-    return _plansCache.get(cacheKey);
-  }
-  const numStr = String(phaseNum).padStart(2, "0");
-  const phasesDir = join5(resolvedCwd, ".planning", "phases");
-  let phaseDir = null;
-  try {
-    const entries = readdirSync(phasesDir);
-    const dirName = entries.find((d) => d.startsWith(numStr + "-") || d === numStr);
-    if (dirName) {
-      phaseDir = join5(phasesDir, dirName);
-    }
-  } catch {
-    return Object.freeze([]);
-  }
-  if (!phaseDir) {
-    return Object.freeze([]);
-  }
-  let planFiles;
-  try {
-    const files = readdirSync(phaseDir);
-    planFiles = files.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md").sort();
-  } catch {
-    return Object.freeze([]);
-  }
-  const plans = planFiles.map((f) => parsePlan(join5(phaseDir, f))).filter(Boolean);
-  const frozen = Object.freeze(plans);
-  _plansCache.set(cacheKey, frozen);
-  return frozen;
-}
-function invalidatePlans(cwd) {
-  if (cwd) {
-    for (const key of _plansCache.keys()) {
-      if (key.startsWith(cwd + ":")) {
-        _plansCache.delete(key);
-      }
-    }
-    for (const key of _planCache.keys()) {
-      if (key.startsWith(cwd)) {
-        _planCache.delete(key);
-      }
-    }
-  } else {
-    _planCache.clear();
-    _plansCache.clear();
-  }
-}
-
-// src/plugin/parsers/config.js
-import { readFileSync as readFileSync4 } from "fs";
-import { join as join6 } from "path";
-var _cache3 = /* @__PURE__ */ new Map();
-var CONFIG_DEFAULTS = Object.freeze({
-  mode: "interactive",
-  depth: "standard",
-  model_profile: "balanced",
-  commit_docs: true,
-  branching_strategy: "none",
-  phase_branch_template: "phase-{number}-{name}",
-  milestone_branch_template: "{version}",
-  parallelization: false,
-  research: true,
-  plan_checker: true,
-  verifier: true,
-  staleness_threshold: 2
-});
-function parseConfig(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache3.has(resolvedCwd)) {
-    return _cache3.get(resolvedCwd);
-  }
-  const configPath = join6(resolvedCwd, ".planning", "config.json");
-  let parsed = {};
-  try {
-    const raw = readFileSync4(configPath, "utf-8");
-    parsed = JSON.parse(raw);
-  } catch {
-    const defaults = Object.freeze({ ...CONFIG_DEFAULTS });
-    _cache3.set(resolvedCwd, defaults);
-    return defaults;
-  }
-  const result = {};
-  for (const [key, defaultValue] of Object.entries(CONFIG_DEFAULTS)) {
-    if (parsed[key] !== void 0) {
-      if (key === "parallelization") {
-        if (typeof parsed[key] === "boolean") {
-          result[key] = parsed[key];
-        } else if (typeof parsed[key] === "object" && parsed[key] !== null && "enabled" in parsed[key]) {
-          result[key] = parsed[key].enabled;
-        } else {
-          result[key] = defaultValue;
-        }
-      } else {
-        result[key] = parsed[key];
-      }
-    } else if (parsed.workflow && ["research", "plan_checker", "verifier"].includes(key)) {
-      const nestedKey = key === "plan_checker" ? "plan_check" : key;
-      if (parsed.workflow[nestedKey] !== void 0) {
-        result[key] = parsed.workflow[nestedKey];
-      } else if (parsed.workflow[key] !== void 0) {
-        result[key] = parsed.workflow[key];
-      } else {
-        result[key] = defaultValue;
-      }
-    } else {
-      result[key] = defaultValue;
-    }
-  }
-  const frozen = Object.freeze(result);
-  _cache3.set(resolvedCwd, frozen);
-  return frozen;
-}
-function invalidateConfig(cwd) {
-  if (cwd) {
-    _cache3.delete(cwd);
-  } else {
-    _cache3.clear();
-  }
-}
-
-// src/plugin/parsers/project.js
-import { readFileSync as readFileSync5 } from "fs";
-import { join as join7 } from "path";
-var _cache4 = /* @__PURE__ */ new Map();
-function parseProject(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache4.has(resolvedCwd)) {
-    return _cache4.get(resolvedCwd);
-  }
-  const projectPath = join7(resolvedCwd, ".planning", "PROJECT.md");
-  let raw;
-  try {
-    raw = readFileSync5(projectPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const coreValueMatch = raw.match(/##\s*Core\s+Value\s*\n+([^\n]+)/i) || raw.match(/\*\*Core\s+[Vv]alue:?\*\*:?\s*([^\n]+)/i);
-  const coreValue = coreValueMatch ? coreValueMatch[1].trim() : null;
-  const techStackMatch = raw.match(/Tech\s+stack:\s*([^\n]+)/i) || raw.match(/\*\*Tech:?\*\*:?\s*([^\n]+)/i);
-  const techStack = techStackMatch ? techStackMatch[1].trim() : null;
-  const milestoneMatch = raw.match(/##\s*Current\s+Milestone:\s*([^\n]+)/i);
-  const currentMilestone = milestoneMatch ? milestoneMatch[1].trim() : null;
-  const result = Object.freeze({
-    raw,
-    coreValue,
-    techStack,
-    currentMilestone
-  });
-  _cache4.set(resolvedCwd, result);
-  return result;
-}
-function invalidateProject(cwd) {
-  if (cwd) {
-    _cache4.delete(cwd);
-  } else {
-    _cache4.clear();
-  }
-}
-
-// src/plugin/parsers/intent.js
-import { readFileSync as readFileSync6 } from "fs";
-import { join as join8 } from "path";
-var _cache5 = /* @__PURE__ */ new Map();
-function parseIntent(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache5.has(resolvedCwd)) {
-    return _cache5.get(resolvedCwd);
-  }
-  const intentPath = join8(resolvedCwd, ".planning", "INTENT.md");
-  let raw;
-  try {
-    raw = readFileSync6(intentPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const objectiveMatch = raw.match(/<objective>([\s\S]*?)<\/objective>/);
-  const objective = objectiveMatch ? objectiveMatch[1].trim() : null;
-  const outcomesMatch = raw.match(/<outcomes>([\s\S]*?)<\/outcomes>/);
-  const outcomes = [];
-  if (outcomesMatch) {
-    const outcomesContent = outcomesMatch[1];
-    const entryPattern = /-\s*(DO-\d+)\s*(?:\[P\d+\])?\s*:\s*([^\n]+)/g;
-    let match;
-    while ((match = entryPattern.exec(outcomesContent)) !== null) {
-      outcomes.push(Object.freeze({
-        id: match[1],
-        text: match[2].trim()
-      }));
-    }
-  }
-  const result = Object.freeze({
-    raw,
-    objective,
-    outcomes: Object.freeze(outcomes)
-  });
-  _cache5.set(resolvedCwd, result);
-  return result;
-}
-function invalidateIntent(cwd) {
-  if (cwd) {
-    _cache5.delete(cwd);
-  } else {
-    _cache5.clear();
-  }
-}
-
 // src/plugin/project-state.js
+init_state();
+init_roadmap();
+init_plan();
+init_config();
+init_project();
+init_intent();
 function getProjectState(cwd) {
   const resolvedCwd = cwd || process.cwd();
   const state = parseState(resolvedCwd);
@@ -949,17 +1065,8 @@ ${parts.join("\n")}
   return blocks.join("\n\n");
 }
 
-// src/plugin/parsers/index.js
-function invalidateAll(cwd) {
-  invalidateState(cwd);
-  invalidateRoadmap(cwd);
-  invalidatePlans(cwd);
-  invalidateConfig(cwd);
-  invalidateProject(cwd);
-  invalidateIntent(cwd);
-}
-
 // src/plugin/command-enricher.js
+init_parsers();
 import { readdirSync as readdirSync2, existsSync as existsSync2 } from "fs";
 import { join as join9 } from "path";
 function enrichCommand(input, output, cwd) {
@@ -14928,6 +15035,8 @@ var bgsd_status = {
 };
 
 // src/plugin/tools/bgsd-plan.js
+init_roadmap();
+init_plan();
 var bgsd_plan = {
   description: "Get roadmap overview or detailed phase information.\n\nTwo modes:\n- No args: returns all phases with status, goal, and plan count (roadmap summary)\n- With phase number: returns detailed phase info (goal, requirements, success criteria, dependencies) plus plan contents (tasks, objectives) if plans exist\n\nUse no-args mode to understand project structure. Use phase mode to dive into specific phase details.",
   args: {
@@ -15068,6 +15177,7 @@ var bgsd_context = {
 };
 
 // src/plugin/tools/bgsd-validate.js
+init_plan();
 var bgsd_validate = {
   description: "Validate bGSD project state, roadmap, plans, and requirement traceability.\n\nRuns comprehensive checks across all planning files. Auto-fixes trivial formatting issues (like progress bar mismatches). Reports remaining issues categorized by severity: error (must fix), warning (should fix), info (note).\n\nReturns all issues found. An empty issues array means everything is valid.",
   args: {},
@@ -15222,6 +15332,8 @@ var bgsd_validate = {
 };
 
 // src/plugin/tools/bgsd-progress.js
+init_state();
+init_plan();
 import { readFileSync as readFileSync7, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2, rmdirSync, existsSync as existsSync3, statSync as statSync2 } from "fs";
 import { join as join10 } from "path";
 var LOCK_STALE_MS = 1e4;
@@ -15468,10 +15580,569 @@ function getTools(registry2) {
   return registry2.getTools();
 }
 
+// src/plugin/notification.js
+import { homedir as homedir2 } from "os";
+import { join as join11 } from "path";
+function createNotifier($, directory) {
+  const MAX_HISTORY = 20;
+  const DEFAULT_RATE_LIMIT = 5;
+  const DEDUP_WINDOW_MS = 5e3;
+  const history = [];
+  let pendingContext = [];
+  let dndMode = false;
+  let dndSuppressedCount = 0;
+  let rateLimitTimestamps = [];
+  let rateLimitPerMinute = DEFAULT_RATE_LIMIT;
+  const recentKeys = /* @__PURE__ */ new Map();
+  let logger = null;
+  function getLogger() {
+    if (!logger) {
+      const logDir = join11(homedir2(), ".config", "opencode");
+      logger = createLogger(logDir);
+    }
+    return logger;
+  }
+  async function sendOsNotification(message) {
+    if (!$) return;
+    try {
+      const safeMsg = String(message).replace(/"/g, '\\"').replace(/'/g, "'");
+      if (process.platform === "darwin") {
+        await $`osascript -e ${'display notification "' + safeMsg + '" with title "bGSD"'}`.quiet();
+      } else {
+        await $`notify-send "bGSD" ${safeMsg}`.quiet();
+      }
+    } catch (err) {
+      getLogger().write("WARN", `OS notification failed: ${err.message}`);
+    }
+  }
+  function isDuplicate(notification) {
+    const key = `${notification.type}:${notification.message}`;
+    const now = Date.now();
+    const lastSeen = recentKeys.get(key);
+    if (lastSeen && now - lastSeen < DEDUP_WINDOW_MS) {
+      return true;
+    }
+    recentKeys.set(key, now);
+    for (const [k, ts] of recentKeys) {
+      if (now - ts > DEDUP_WINDOW_MS) {
+        recentKeys.delete(k);
+      }
+    }
+    return false;
+  }
+  function checkRateLimit() {
+    const now = Date.now();
+    const windowStart = now - 6e4;
+    rateLimitTimestamps = rateLimitTimestamps.filter((ts) => ts > windowStart);
+    if (rateLimitTimestamps.length >= rateLimitPerMinute) {
+      return false;
+    }
+    rateLimitTimestamps.push(now);
+    return true;
+  }
+  async function notify(notification) {
+    const { type, severity, message, action } = notification;
+    const timestamp = Date.now();
+    const entry = { type, severity, message, action, timestamp };
+    history.push(entry);
+    if (history.length > MAX_HISTORY) {
+      history.shift();
+    }
+    if (isDuplicate(notification)) {
+      return;
+    }
+    if (!checkRateLimit()) {
+      getLogger().write("WARN", `Rate limit exceeded, dropping notification: ${type}`);
+      return;
+    }
+    if (dndMode && severity !== "critical") {
+      dndSuppressedCount++;
+      return;
+    }
+    if (severity === "critical" || severity === "warning") {
+      await sendOsNotification(message);
+    }
+    pendingContext.push({ type, severity, message, timestamp });
+  }
+  function drainPendingContext() {
+    const items = [...pendingContext];
+    pendingContext = [];
+    return items;
+  }
+  function getHistory() {
+    return [...history];
+  }
+  function setDnd(enabled) {
+    dndMode = !!enabled;
+    if (!enabled) {
+      const count = dndSuppressedCount;
+      dndSuppressedCount = 0;
+      if (count > 0) {
+        pendingContext.push({
+          type: "dnd-summary",
+          severity: "info",
+          message: `${count} notification${count === 1 ? "" : "s"} suppressed during DND. Use /bgsd-notifications to review.`,
+          timestamp: Date.now()
+        });
+      }
+      return count;
+    }
+  }
+  function resetCounters() {
+    rateLimitTimestamps = [];
+  }
+  function setRateLimit(limit) {
+    if (typeof limit === "number" && limit > 0) {
+      rateLimitPerMinute = limit;
+    }
+  }
+  return {
+    notify,
+    drainPendingContext,
+    getHistory,
+    setDnd,
+    resetCounters,
+    setRateLimit
+  };
+}
+
+// src/plugin/file-watcher.js
+init_parsers();
+import { watch } from "fs";
+import { existsSync as existsSync4 } from "fs";
+import { join as join12 } from "path";
+import { homedir as homedir3 } from "os";
+function createFileWatcher(cwd, options = {}) {
+  const { debounceMs = 200, maxWatchedPaths = 500 } = options;
+  const planningDir = join12(cwd, ".planning");
+  let controller = null;
+  let watching = false;
+  let debounceTimer = null;
+  let pendingPaths = /* @__PURE__ */ new Set();
+  let eventCount = 0;
+  let capWarned = false;
+  const selfWrites = /* @__PURE__ */ new Set();
+  const selfWriteTimers = /* @__PURE__ */ new Map();
+  let logger = null;
+  function getLogger() {
+    if (!logger) {
+      const logDir = join12(homedir3(), ".config", "opencode");
+      logger = createLogger(logDir);
+    }
+    return logger;
+  }
+  function processPendingEvents() {
+    if (pendingPaths.size === 0) return;
+    const paths = [...pendingPaths];
+    pendingPaths.clear();
+    const externalPaths = paths.filter((p) => !selfWrites.has(p));
+    if (externalPaths.length > 0) {
+      invalidateAll(cwd);
+    }
+  }
+  function onWatchEvent(eventType, filename) {
+    if (!filename) return;
+    const fullPath = join12(planningDir, filename);
+    eventCount++;
+    if (!capWarned && eventCount > maxWatchedPaths) {
+      capWarned = true;
+      getLogger().write("WARN", `File watcher: event count (${eventCount}) exceeds cap (${maxWatchedPaths}). Possible excessive file activity.`);
+    }
+    if (selfWrites.has(fullPath)) {
+      return;
+    }
+    pendingPaths.add(fullPath);
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(processPendingEvents, debounceMs);
+  }
+  function start() {
+    if (watching) return;
+    if (!existsSync4(planningDir)) {
+      getLogger().write("INFO", `File watcher: .planning/ not found at ${cwd}, skipping watch`);
+      return;
+    }
+    try {
+      controller = new AbortController();
+      watch(planningDir, { recursive: true, signal: controller.signal }, onWatchEvent);
+      watching = true;
+      eventCount = 0;
+      capWarned = false;
+    } catch (err) {
+      getLogger().write("ERROR", `File watcher: failed to start: ${err.message}`);
+      watching = false;
+      controller = null;
+    }
+  }
+  function stop() {
+    if (controller) {
+      try {
+        controller.abort();
+      } catch {
+      }
+      controller = null;
+    }
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    for (const timer of selfWriteTimers.values()) {
+      clearTimeout(timer);
+    }
+    selfWriteTimers.clear();
+    selfWrites.clear();
+    pendingPaths.clear();
+    watching = false;
+  }
+  function trackSelfWrite(filePath) {
+    selfWrites.add(filePath);
+    const existing = selfWriteTimers.get(filePath);
+    if (existing) {
+      clearTimeout(existing);
+    }
+    const timer = setTimeout(() => {
+      selfWrites.delete(filePath);
+      selfWriteTimers.delete(filePath);
+    }, 200);
+    selfWriteTimers.set(filePath, timer);
+  }
+  function isWatching() {
+    return watching;
+  }
+  return {
+    start,
+    stop,
+    trackSelfWrite,
+    isWatching
+  };
+}
+
+// src/plugin/idle-validator.js
+import { existsSync as existsSync5, readFileSync as readFileSync8, writeFileSync as writeFileSync3 } from "fs";
+import { join as join13 } from "path";
+import { execSync } from "child_process";
+import { homedir as homedir4 } from "os";
+init_state();
+init_roadmap();
+init_config();
+function createIdleValidator(cwd, notifier, fileWatcher, config2) {
+  const planningDir = join13(cwd, ".planning");
+  let lastValidation = 0;
+  let lastAutoFix = 0;
+  let validating = false;
+  const cooldownMs = (config2.idle_validation?.cooldown_seconds || 5) * 1e3;
+  const stalenessHours = config2.idle_validation?.staleness_threshold_hours || 2;
+  const enabled = config2.idle_validation?.enabled !== false;
+  let logger = null;
+  function getLogger() {
+    if (!logger) {
+      const logDir = join13(homedir4(), ".config", "opencode");
+      logger = createLogger(logDir);
+    }
+    return logger;
+  }
+  function readStateMd() {
+    try {
+      return readFileSync8(join13(planningDir, "STATE.md"), "utf-8");
+    } catch {
+      return null;
+    }
+  }
+  function readRoadmapMd() {
+    try {
+      return readFileSync8(join13(planningDir, "ROADMAP.md"), "utf-8");
+    } catch {
+      return null;
+    }
+  }
+  function writeTracked(filePath, content) {
+    fileWatcher.trackSelfWrite(filePath);
+    writeFileSync3(filePath, content);
+  }
+  function getLastGitTimestamp() {
+    try {
+      const output = execSync("git log -1 --format=%ct", {
+        cwd,
+        encoding: "utf-8",
+        timeout: 3e3,
+        stdio: ["pipe", "pipe", "pipe"]
+      });
+      return parseInt(output.trim(), 10) || null;
+    } catch {
+      return null;
+    }
+  }
+  function fixProgressBar(raw, pct) {
+    const barMatch = raw.match(/\[([\u2588\u2591]+)\]\s*(\d+)%/);
+    if (!barMatch) return null;
+    const bar = barMatch[1];
+    const total = bar.length;
+    const filled = (bar.match(/\u2588/g) || []).length;
+    const expectedFilled = Math.round(pct / 100 * total);
+    if (filled === expectedFilled) return null;
+    const newBar = "\u2588".repeat(expectedFilled) + "\u2591".repeat(total - expectedFilled);
+    return raw.replace(barMatch[0], `[${newBar}] ${pct}%`);
+  }
+  async function onIdle() {
+    try {
+      if (!enabled) return;
+      if (!existsSync5(planningDir)) return;
+      if (Date.now() - lastValidation < cooldownMs) return;
+      if (lastAutoFix > lastValidation) return;
+      if (validating) return;
+      invalidateState(cwd);
+      const state = parseState(cwd);
+      if (state) {
+        const status = (state.status || "").toLowerCase();
+        if (status.includes("executing") || status.includes("in progress")) {
+          const lastGit = getLastGitTimestamp();
+          if (lastGit) {
+            const hoursAgo = (Date.now() / 1e3 - lastGit) / 3600;
+            if (hoursAgo < stalenessHours) {
+              return;
+            }
+          } else {
+            return;
+          }
+        }
+      }
+      validating = true;
+      let anyFix = false;
+      invalidateRoadmap(cwd);
+      const roadmap = parseRoadmap(cwd);
+      const stateRaw = readStateMd();
+      if (state && roadmap && stateRaw) {
+        const phaseMatch = state.phase ? state.phase.match(/^(\d+)/) : null;
+        if (phaseMatch) {
+          const phaseNum = parseInt(phaseMatch[1], 10);
+          const rPhase = roadmap.getPhase(phaseNum);
+          if (!rPhase) {
+            getLogger().write("WARN", `Idle validation: STATE.md phase ${phaseNum} not found in ROADMAP.md`);
+          }
+          if (rPhase && rPhase.status === "complete") {
+            const nextPhase = roadmap.phases.find((p) => {
+              const pNum = parseInt(p.number, 10);
+              return pNum > phaseNum && p.status !== "complete";
+            });
+            if (nextPhase) {
+              await notifier.notify({
+                type: "phase-complete",
+                severity: "warning",
+                message: `Phase ${phaseNum} complete! Next: Phase ${nextPhase.number} (${nextPhase.name})`,
+                action: `Next: /bgsd-plan-phase ${nextPhase.number}`
+              });
+            }
+          }
+        }
+        if (state.progress !== null) {
+          const fixed = fixProgressBar(stateRaw, state.progress);
+          if (fixed) {
+            const statePath = join13(planningDir, "STATE.md");
+            writeTracked(statePath, fixed);
+            invalidateState(cwd);
+            anyFix = true;
+            getLogger().write("INFO", `Idle validation: fixed progress bar visual`);
+          }
+        }
+      }
+      invalidateConfig(cwd);
+      const freshConfig = parseConfig(cwd);
+      if (freshConfig) {
+        const configPath = join13(planningDir, "config.json");
+        if (existsSync5(configPath)) {
+          try {
+            const raw = readFileSync8(configPath, "utf-8");
+            JSON.parse(raw);
+          } catch {
+            const defaults = {
+              mode: "interactive",
+              depth: "standard",
+              model_profile: "balanced",
+              commit_docs: true
+            };
+            writeTracked(configPath, JSON.stringify(defaults, null, 2) + "\n");
+            invalidateConfig(cwd);
+            anyFix = true;
+            getLogger().write("WARN", `Idle validation: auto-fixed corrupt config.json with defaults`);
+          }
+        }
+      }
+      if (state && stateRaw) {
+        const status = (state.status || "").toLowerCase();
+        if (status.includes("executing") || status.includes("in progress")) {
+          const lastGit = getLastGitTimestamp();
+          if (lastGit) {
+            const hoursAgo = (Date.now() / 1e3 - lastGit) / 3600;
+            if (hoursAgo >= stalenessHours) {
+              const statePath = join13(planningDir, "STATE.md");
+              const updatedRaw = stateRaw.replace(
+                /\*\*Status:\*\*\s*.+/i,
+                "**Status:** Paused (auto-detected stale)"
+              );
+              if (updatedRaw !== stateRaw) {
+                writeTracked(statePath, updatedRaw);
+                invalidateState(cwd);
+                anyFix = true;
+                getLogger().write("INFO", `Idle validation: auto-fixed stale status (${hoursAgo.toFixed(1)}h idle)`);
+              }
+            }
+          }
+        }
+      }
+      if (anyFix) {
+        lastAutoFix = Date.now();
+        await notifier.notify({
+          type: "state-sync",
+          severity: "info",
+          message: "State synced"
+        });
+      }
+      validating = false;
+      lastValidation = Date.now();
+    } catch (err) {
+      validating = false;
+      lastValidation = Date.now();
+      getLogger().write("ERROR", `Idle validation error: ${err.message}`);
+    }
+  }
+  function onUserInput() {
+    lastAutoFix = 0;
+  }
+  return {
+    onIdle,
+    onUserInput
+  };
+}
+
+// src/plugin/stuck-detector.js
+import { homedir as homedir5 } from "os";
+import { join as join14 } from "path";
+function createStuckDetector(notifier, config2) {
+  const errorThreshold = config2.stuck_detection?.error_threshold || 3;
+  const spinningThreshold = config2.stuck_detection?.spinning_threshold || 5;
+  const errorStreaks = /* @__PURE__ */ new Map();
+  let escalationLevel = 0;
+  const recentCalls = [];
+  const MAX_RECENT_CALLS = 50;
+  let logger = null;
+  function getLogger() {
+    if (!logger) {
+      const logDir = join14(homedir5(), ".config", "opencode");
+      logger = createLogger(logDir);
+    }
+    return logger;
+  }
+  function simpleHash(str) {
+    let hash2 = 0;
+    for (let i = 0; i < str.length; i++) {
+      const chr = str.charCodeAt(i);
+      hash2 = (hash2 << 5) - hash2 + chr;
+      hash2 |= 0;
+    }
+    return hash2.toString(36);
+  }
+  function detectSpinning() {
+    if (recentCalls.length < spinningThreshold * 2) return null;
+    for (let seqLen = spinningThreshold; seqLen >= 2; seqLen--) {
+      if (recentCalls.length < seqLen * 2) continue;
+      const lastCalls = recentCalls.slice(-seqLen * 2);
+      const seq1 = lastCalls.slice(0, seqLen).map((c) => c.key).join("|");
+      const seq2 = lastCalls.slice(seqLen).map((c) => c.key).join("|");
+      if (seq1 === seq2) {
+        let repeatCount = 2;
+        for (let i = 3; i <= Math.floor(recentCalls.length / seqLen); i++) {
+          const start = recentCalls.length - seqLen * i;
+          if (start < 0) break;
+          const seqN = recentCalls.slice(start, start + seqLen).map((c) => c.key).join("|");
+          if (seqN === seq2) {
+            repeatCount = i;
+          } else {
+            break;
+          }
+        }
+        return { length: seqLen, repeatCount };
+      }
+    }
+    return null;
+  }
+  async function trackToolCall(input) {
+    try {
+      const toolName = input.tool || "unknown";
+      const error48 = input.error || null;
+      const argsStr = JSON.stringify(input.args || {});
+      const argsHash = simpleHash(argsStr);
+      const callKey = `${toolName}:${argsHash}`;
+      recentCalls.push({ key: callKey, tool: toolName });
+      if (recentCalls.length > MAX_RECENT_CALLS) {
+        recentCalls.shift();
+      }
+      if (error48) {
+        const errorKey = `${toolName}:${error48}`;
+        const count = (errorStreaks.get(errorKey) || 0) + 1;
+        errorStreaks.set(errorKey, count);
+        if (count >= errorThreshold) {
+          escalationLevel++;
+          const escalated = escalationLevel >= 2;
+          const prefix = escalated ? "ESCALATED \u2014 " : "";
+          await notifier.notify({
+            type: "stuck-error",
+            severity: "critical",
+            message: `${prefix}Stuck: ${toolName} failed ${count}x \u2014 "${error48}"`,
+            action: "Consider pausing for user input"
+          });
+          getLogger().write("WARN", `Stuck detection: ${toolName} error loop (${count}x): ${error48}`);
+        }
+      } else {
+        errorStreaks.clear();
+      }
+      const spinning = detectSpinning();
+      if (spinning && spinning.length >= spinningThreshold) {
+        await notifier.notify({
+          type: "stuck-spinning",
+          severity: "warning",
+          message: `Spinning: same ${spinning.length}-call sequence repeated ${spinning.repeatCount}x`,
+          action: "Consider a different approach"
+        });
+        getLogger().write("WARN", `Stuck detection: spinning pattern (${spinning.length}-call sequence, ${spinning.repeatCount}x)`);
+      }
+    } catch (err) {
+      getLogger().write("ERROR", `Stuck detector error: ${err.message}`);
+    }
+  }
+  function onUserInput() {
+    errorStreaks.clear();
+    escalationLevel = 0;
+    recentCalls.length = 0;
+  }
+  return {
+    trackToolCall,
+    onUserInput
+  };
+}
+
 // src/plugin/index.js
-var BgsdPlugin = async ({ directory }) => {
-  const bgsdHome = join11(homedir2(), ".config", "opencode", "bgsd-oc");
+init_config();
+init_state();
+init_roadmap();
+init_plan();
+init_config();
+init_project();
+init_intent();
+init_parsers();
+var BgsdPlugin = async ({ directory, $ }) => {
+  const bgsdHome = join15(homedir6(), ".config", "opencode", "bgsd-oc");
   const registry2 = createToolRegistry(safeHook);
+  const projectDir = directory || process.cwd();
+  const config2 = parseConfig(projectDir);
+  const notifier = createNotifier($, projectDir);
+  const fileWatcher = createFileWatcher(projectDir, {
+    debounceMs: config2.file_watcher?.debounce_ms || 200,
+    maxPaths: config2.file_watcher?.max_watched_paths || 500
+  });
+  const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config2);
+  const stuckDetector = createStuckDetector(notifier, config2);
+  fileWatcher.start();
   const sessionCreated = safeHook("session.created", async (input, output) => {
     console.log("[bGSD] Planning plugin available. Use /bgsd-help to get started.");
   });
@@ -15480,22 +16151,41 @@ var BgsdPlugin = async ({ directory }) => {
     output.env.BGSD_HOME = bgsdHome;
   });
   const compacting = safeHook("compacting", async (input, output) => {
-    const projectDir = directory || process.cwd();
-    const ctx = buildCompactionContext(projectDir);
+    const projectDir2 = directory || process.cwd();
+    const ctx = buildCompactionContext(projectDir2);
     if (ctx && output && output.context) {
       output.context.push(ctx);
     }
   });
   const systemTransform = safeHook("system.transform", async (input, output) => {
-    const projectDir = directory || process.cwd();
-    const prompt = buildSystemPrompt(projectDir);
+    const sysDir = directory || process.cwd();
+    const prompt = buildSystemPrompt(sysDir);
     if (prompt && output && output.system) {
       output.system.push(prompt);
     }
+    const pending = notifier.drainPendingContext();
+    if (pending.length > 0 && output && output.system) {
+      const xml = pending.map(
+        (n) => `<bgsd-notification type="${n.type}" severity="${n.severity}">${n.message}${n.action ? ` Action: ${n.action}` : ""}</bgsd-notification>`
+      ).join("\n");
+      output.system.push(xml);
+    }
   });
   const commandEnrich = safeHook("command.enrich", async (input, output) => {
-    const projectDir = directory || process.cwd();
-    enrichCommand(input, output, projectDir);
+    const cmdDir = directory || process.cwd();
+    enrichCommand(input, output, cmdDir);
+  });
+  const eventHandler = safeHook("event", async ({ event }) => {
+    if (event.type === "session.idle") {
+      await idleValidator.onIdle();
+    }
+    if (event.type === "file.watcher.updated") {
+      const { invalidateAll: invalidateAll2 } = await Promise.resolve().then(() => (init_parsers(), parsers_exports));
+      invalidateAll2(projectDir);
+    }
+  });
+  const toolAfter = safeHook("tool.execute.after", async (input) => {
+    stuckDetector.trackToolCall(input);
   });
   return {
     "session.created": sessionCreated,
@@ -15503,6 +16193,8 @@ var BgsdPlugin = async ({ directory }) => {
     "experimental.session.compacting": compacting,
     "experimental.chat.system.transform": systemTransform,
     "command.execute.before": commandEnrich,
+    "event": eventHandler,
+    "tool.execute.after": toolAfter,
     tool: getTools(registry2)
   };
 };
@@ -15510,6 +16202,10 @@ export {
   BgsdPlugin,
   buildCompactionContext,
   buildSystemPrompt,
+  createFileWatcher,
+  createIdleValidator,
+  createNotifier,
+  createStuckDetector,
   createToolRegistry,
   enrichCommand,
   getProjectState,
