@@ -196,7 +196,7 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
 ### v9.0 Embedded Plugin Experience (Phases 71-76)
 
 - [x] **Phase 71: Plugin Architecture & Safety** (0/2 plans) — ESM plugin build pipeline, safeHook error boundary, shared parsers, bgsd_ prefix convention (completed 2026-03-09)
-- [ ] **Phase 72: Rebrand** (0/4 plans) — Config folder, env vars, CLI binary, agent files, migration logic, and all internal references renamed from gsd to bgsd
+- [ ] **Phase 72: Rebrand** (1/4 plans) — Config folder, env vars, CLI binary, agent files, migration logic, and all internal references renamed from gsd to bgsd
 - [ ] **Phase 73: Context Injection** — Always-on system prompt hook, 500-token budget enforcement, enhanced compaction, slash command enrichment
 - [ ] **Phase 74: Custom LLM Tools** — Five native LLM-callable tools (status, progress, context, plan, validate) with Zod schemas
 - [ ] **Phase 75: Event-Driven State Sync** — Session idle validation, file watcher cache invalidation, toast notifications for phase completion and stuck detection
@@ -295,4 +295,4 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
 | 56-60 | v8.1 | 10/10 | Complete | 2026-03-03 |
 | 61-66 | v8.2 | 14/14 | Complete | 2026-03-07 |
 | 67-70 | v8.3 | 11/11 | Complete | 2026-03-09 |
-| 71-76 | v9.0 | 0/? | Not started | - |
+| 71-76 | v9.0 | 3/? | In Progress | - |
