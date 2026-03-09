@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Deploy GSD plugin changes to live OpenCode config
+# Deploy bGSD plugin changes to live OpenCode config
 set -euo pipefail
 
-DEST="$HOME/.config/opencode/get-shit-done"
+DEST="$HOME/.config/opencode/bgsd-oc"
 SRC="$(cd "$(dirname "$0")" && pwd)"
 
-echo "Deploying GSD plugin from dev workspace..."
+echo "Deploying bGSD plugin from dev workspace..."
 echo "  Source: $SRC"
 echo "  Dest:   $DEST"
 echo ""
@@ -58,7 +58,7 @@ dest_for_file() {
 	local file="$1"
 	case "$file" in
 	commands/bgsd-*.md) echo "$CMD_DIR/$(basename "$file")" ;;
-	agents/gsd-*.md) echo "$AGENT_DIR/$(basename "$file")" ;;
+	agents/bgsd-*.md) echo "$AGENT_DIR/$(basename "$file")" ;;
 	skills/*) echo "$SKILL_DIR/${file#skills/}" ;;
 	*) echo "$DEST/$file" ;;
 	esac
@@ -123,6 +123,20 @@ fi
 
 echo "  Sync: $ADDED added, $UPDATED updated, $REMOVED removed"
 
+# Clean up old gsd-*.md agent files that now have bgsd-*.md replacements
+OLD_AGENTS=0
+for old_agent in "$AGENT_DIR"/gsd-*.md; do
+	[ -f "$old_agent" ] || continue
+	new_name=$(basename "$old_agent" | sed 's/^gsd-/bgsd-/')
+	if [ -f "$AGENT_DIR/$new_name" ]; then
+		rm "$old_agent"
+		OLD_AGENTS=$((OLD_AGENTS + 1))
+	fi
+done
+if [ $OLD_AGENTS -gt 0 ]; then
+	echo "  Cleaned up $OLD_AGENTS old gsd-*.md agent files"
+fi
+
 # Step 3e: Substitute path placeholders with actual install paths
 # CRITICAL: Use the ~/.config/oc symlink (-> ~/.config/opencode) to avoid
 # the Anthropic auth plugin mangling "opencode" -> "Claude" in system prompts.
@@ -131,14 +145,14 @@ OPENCODE_CFG="$HOME/.config/oc"
 echo "Substituting path placeholders..."
 find "$DEST" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$CMD_DIR" -name 'bgsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
-find "$AGENT_DIR" -name 'gsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$AGENT_DIR" -name 'bgsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$SKILL_DIR" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} + 2>/dev/null || true
 echo "  Path placeholders resolved to: $OPENCODE_CFG (symlink to ~/.config/opencode)"
 
 # Step 4: Smoke test deployed artifact
 echo ""
 echo "Running smoke test..."
-SMOKE=$(node "$DEST/bin/gsd-tools.cjs" util:current-timestamp --raw 2>/dev/null) || true
+SMOKE=$(node "$DEST/bin/bgsd-tools.cjs" util:current-timestamp --raw 2>/dev/null) || true
 if [ -z "$SMOKE" ]; then
 	echo "  ❌ Smoke test FAILED — deployed artifact does not execute correctly."
 	echo "  Rolling back to backup..."
@@ -152,7 +166,7 @@ echo "  ✅ Smoke test passed: $SMOKE"
 # Validate agent skill references
 echo "Validating skill references..."
 SKILL_ERRORS=0
-for agent in "$AGENT_DIR"/gsd-*.md; do
+for agent in "$AGENT_DIR"/bgsd-*.md; do
 	[ -f "$agent" ] || continue
 	REFS=$(grep -oP '<skill:([a-z0-9-]+)' "$agent" 2>/dev/null | sed 's/<skill://' | sort -u || true)
 	for ref in $REFS; do
@@ -169,7 +183,7 @@ else
 fi
 
 CMD_COUNT=$(find "$CMD_DIR" -maxdepth 1 -name 'bgsd-*.md' 2>/dev/null | wc -l)
-AGENT_COUNT=$(find "$AGENT_DIR" -maxdepth 1 -name 'gsd-*.md' 2>/dev/null | wc -l)
+AGENT_COUNT=$(find "$AGENT_DIR" -maxdepth 1 -name 'bgsd-*.md' 2>/dev/null | wc -l)
 SKILL_COUNT=$(find "$SKILL_DIR" -maxdepth 2 -name 'SKILL.md' 2>/dev/null | wc -l)
 echo "  Commands deployed: $CMD_COUNT"
 echo "  Agents deployed: $AGENT_COUNT"
