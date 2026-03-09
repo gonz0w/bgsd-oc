@@ -82,6 +82,26 @@ async function build() {
   }
   console.log(`ESM export validation passed: ${requiredExports.length} critical exports verified`);
 
+  // Validate all 5 tool names are present in plugin.js
+  const expectedTools = ['bgsd_status', 'bgsd_progress', 'bgsd_context', 'bgsd_plan', 'bgsd_validate'];
+  const missingTools = expectedTools.filter(name => !pluginContent.includes(name));
+  if (missingTools.length > 0) {
+    console.error(`ERROR: Missing tools in plugin.js: ${missingTools.join(', ')}`);
+    process.exit(1);
+  }
+  console.log(`Tool registration validation passed: ${expectedTools.length}/${expectedTools.length} tools found in plugin.js`);
+
+  // Zod bundling validation — no CJS leak, patterns present
+  if (pluginContent.includes('require("zod")') || pluginContent.includes("require('zod')")) {
+    console.error('ERROR: plugin.js contains require("zod") — CJS leak for Zod');
+    process.exit(1);
+  }
+  if (!pluginContent.includes('z.')) {
+    console.error('ERROR: plugin.js does not contain Zod patterns (z.) — Zod may have been tree-shaken');
+    process.exit(1);
+  }
+  console.log('Zod bundling validation passed');
+
   // Plugin bundle size
   const pluginStat = fs.statSync('plugin.js');
   const pluginSizeKB = Math.round(pluginStat.size / 1024);
