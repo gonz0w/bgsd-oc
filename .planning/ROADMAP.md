@@ -198,7 +198,7 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
 - [x] **Phase 71: Plugin Architecture & Safety** (0/2 plans) — ESM plugin build pipeline, safeHook error boundary, shared parsers, bgsd_ prefix convention (completed 2026-03-09)
 - [x] **Phase 72: Rebrand** (1/4 plans) — Config folder, env vars, CLI binary, agent files, migration logic, and all internal references renamed from gsd to bgsd (completed 2026-03-09)
 - [x] **Phase 73: Context Injection** — Always-on system prompt hook, 500-token budget enforcement, enhanced compaction, slash command enrichment (completed 2026-03-09)
-- [ ] **Phase 74: Custom LLM Tools** — Five native LLM-callable tools (status, progress, context, plan, validate) with Zod schemas
+- [x] **Phase 74: Custom LLM Tools** — Five native LLM-callable tools (status, progress, context, plan, validate) with Zod schemas (completed 2026-03-09)
 - [ ] **Phase 75: Event-Driven State Sync** — Session idle validation, file watcher cache invalidation, toast notifications for phase completion and stuck detection
 - [ ] **Phase 76: Advisory Guardrails** — Convention violation warnings, planning file protection, test-after-edit suggestions via tool interception
 
@@ -260,7 +260,7 @@ Full details: `.planning/milestones/v8.3-ROADMAP.md`
   4. Every custom tool has a typed Zod argument schema and returns a JSON string (never `[object Object]`)
   5. All 5 tools appear in the LLM's tool list and are callable during a conversation
 **Plans:**
-  1/2 plans executed
+  2/2 plans complete
   - Plan 01 (Wave 1): Tool infrastructure + 3 read-only tools (status, plan, context) [TOOL-01, TOOL-03, TOOL-04, TOOL-06]
   - Plan 02 (Wave 2): Validate + progress tools, build pipeline, tests [TOOL-02, TOOL-05, TOOL-06]
 
