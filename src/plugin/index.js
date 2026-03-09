@@ -4,6 +4,7 @@ import { safeHook } from './safe-hook.js';
 import { createToolRegistry } from './tool-registry.js';
 import { buildSystemPrompt, buildCompactionContext } from './context-builder.js';
 import { enrichCommand } from './command-enricher.js';
+import { getTools } from './tools/index.js';
 
 // Re-export parsers, tool registry, and safeHook for external consumption
 export { parseState, invalidateState } from './parsers/state.js';
@@ -91,6 +92,6 @@ export const BgsdPlugin = async ({ directory }) => {
     'experimental.session.compacting': compacting,
     'experimental.chat.system.transform': systemTransform,
     'command.execute.before': commandEnrich,
-    // tool: registry.getTools(),  // Uncomment in Phase 74 when tools exist
+    tool: getTools(registry),
   };
 };
