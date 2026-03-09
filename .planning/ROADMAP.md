@@ -245,7 +245,10 @@ Plans:
   3. `npm test -- --grep codebase-impact` passes all tests with zero failures
   4. `npm test -- --grep "codebase ast"` CLI handler tests pass with zero failures
   5. `npm test` full suite runs green with zero pre-existing failures
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
+Plans:
+- [ ] 70-01-PLAN.md — Fix router bugs, codebase-impact output format, config-migrate/compact/init/test-coverage test assertions
+- [ ] 70-02-PLAN.md — Fix extract-sections, context-budget baseline, remaining failures, full suite validation
 
 ## Progress
 
