@@ -45,6 +45,38 @@ async function build() {
   const elapsed = Date.now() - start;
   console.log(`Built bin/gsd-tools.cjs in ${elapsed}ms`);
 
+  // --- ESM Plugin Build ---
+  const pluginStart = Date.now();
+  const pluginResult = await esbuild.build({
+    entryPoints: ['src/plugin/index.js'],
+    outfile: 'plugin.js',
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node18',
+    external: ['node:*', 'child_process', 'fs', 'path', 'os', 'crypto', 'util', 'stream', 'events', 'buffer', 'url', 'querystring', 'http', 'https', 'net', 'tls', 'zlib'],
+    minify: false,
+    sourcemap: false,
+    metafile: true,
+  });
+
+  const pluginElapsed = Date.now() - pluginStart;
+  console.log(`Built plugin.js (ESM) in ${pluginElapsed}ms`);
+
+  // Validate ESM output — no CJS require() leaks allowed
+  const pluginContent = fs.readFileSync('plugin.js', 'utf-8');
+  const requireMatches = pluginContent.match(/\brequire\s*\(/g);
+  if (requireMatches && requireMatches.length > 0) {
+    console.error(`ERROR: ESM plugin.js contains ${requireMatches.length} require() calls — CJS leak detected`);
+    process.exit(1);
+  }
+  console.log('ESM validation passed: 0 require() calls');
+
+  // Plugin bundle size
+  const pluginStat = fs.statSync('plugin.js');
+  const pluginSizeKB = Math.round(pluginStat.size / 1024);
+  console.log(`Plugin size: ${pluginSizeKB}KB`);
+
   // Smoke test
   try {
     const result = execSync('node bin/gsd-tools.cjs util:current-timestamp --raw', {
@@ -171,6 +203,7 @@ async function build() {
     const analysisData = {
       timestamp: new Date().toISOString(),
       bundle_size_kb: sizeKB,
+      plugin_size_kb: pluginSizeKB,
       modules,
       groups: Object.fromEntries(sortedGroups.map(([name, info]) => [name, { bytes: info.bytes, kb: info.kb, file_count: info.file_count }])),
     };
@@ -225,6 +258,10 @@ async function build() {
   // VERSION file
   if (fs.existsSync('VERSION')) {
     manifestFiles.push('VERSION');
+  }
+  // plugin.js — ESM plugin (build output)
+  if (fs.existsSync('plugin.js')) {
+    manifestFiles.push('plugin.js');
   }
 
   // --- Skills validation and index generation ---
