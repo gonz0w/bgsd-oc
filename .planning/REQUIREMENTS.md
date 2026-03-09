@@ -31,10 +31,10 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 
 ### Test Health
 
-- [ ] **TEST-01**: config-migrate test failures resolved
-- [ ] **TEST-02**: compact test failures resolved
-- [ ] **TEST-03**: codebase-impact test failures resolved
-- [ ] **TEST-04**: codebase ast CLI handler test failures resolved
+- [x] **TEST-01**: config-migrate test failures resolved
+- [x] **TEST-02**: compact test failures resolved
+- [x] **TEST-03**: codebase-impact test failures resolved
+- [x] **TEST-04**: codebase ast CLI handler test failures resolved
 
 ## Future Requirements
 
@@ -72,10 +72,10 @@ Requirements for v8.3 Agent Quality & Skills milestone. Each maps to roadmap pha
 | SKIL-02 | Phase 69 | Complete | wc -l agents/gsd-*.md (reduced line counts) |
 | SKIL-03 | Phase 69 | Complete | grep skills deploy.sh |
 | SKIL-04 | Phase 69 | Complete | grep description skills/gsd-*/SKILL.md |
-| TEST-01 | Phase 70 | Pending | npm test -- --grep config-migrate |
-| TEST-02 | Phase 70 | Pending | npm test -- --grep compact |
-| TEST-03 | Phase 70 | Pending | npm test -- --grep codebase-impact |
-| TEST-04 | Phase 70 | Pending | npm test -- --grep "codebase ast" |
+| TEST-01 | Phase 70 | Complete | npm test -- --grep config-migrate |
+| TEST-02 | Phase 70 | Complete | npm test -- --grep compact |
+| TEST-03 | Phase 70 | Complete | npm test -- --grep codebase-impact |
+| TEST-04 | Phase 70 | Complete | npm test -- --grep "codebase ast" |
 
 **Coverage:**
 - v8.3 requirements: 17 total

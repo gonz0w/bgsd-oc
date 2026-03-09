@@ -245,7 +245,7 @@ Plans:
   3. `npm test -- --grep codebase-impact` passes all tests with zero failures
   4. `npm test -- --grep "codebase ast"` CLI handler tests pass with zero failures
   5. `npm test` full suite runs green with zero pre-existing failures
-**Plans**: 2 plans in 2 waves
+**Plans**: 1/2 plans executed
 Plans:
 - [ ] 70-01-PLAN.md — Fix router bugs, codebase-impact output format, config-migrate/compact/init/test-coverage test assertions
 - [ ] 70-02-PLAN.md — Fix extract-sections, context-budget baseline, remaining failures, full suite validation
@@ -273,4 +273,4 @@ Phases execute in numeric order: 67 → 68 → 69 → 70
 | 67. GitHub CI Agent Overhaul | 2/2 | Complete    | 2026-03-08 | - |
 | 68. Agent Consistency Audit | 2/2 | Complete    | 2026-03-08 | - |
 | 69. Skills Architecture | 5/5 | Complete    | 2026-03-08 | - |
-| 70. Test Debt Cleanup | v8.3 | 0/TBD | Not started | - |
+| 70. Test Debt Cleanup | 1/2 | In Progress|  | - |
