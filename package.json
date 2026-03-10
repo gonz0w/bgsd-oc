@@ -52,6 +52,8 @@
   "homepage": "https://github.com/gonz0w/bgsd-oc#readme",
   "license": "MIT",
   "dependencies": {
+    "fast-glob": "^3.3.3",
+    "ignore": "^7.0.5",
     "valibot": "^1.2.0",
     "zod": "^4.1.11"
   },
