@@ -81,9 +81,18 @@ None - plan executed exactly as written.
 
 ## Issues Encountered
 
-- Node 22+ has compile-cache enabled by default, so --experimental-code-cache flag is deprecated
-- Wrapper script handles this gracefully by trying the flag and falling back if it fails
-- Benchmark shows similar performance because cache is already enabled by default in Node 22+
+- **GAP FOUND in re-verification:** Node 22+ has compile-cache enabled by default, adding the explicit --experimental-code-cache flag caused 58% SLOWER startup (not faster!)
+- This was discovered during 79-02 verification: benchmark showed -58% speedup (negative = regression)
+- Gap closure plan 79-03 was created to fix this issue
+- Root cause: The wrapper always added --experimental-code-cache on Node >= 10, but Node 22+ already has compile-cache enabled by default, causing overhead from the duplicate flag
+
+## Gap Closure Applied (Plan 79-03)
+
+The issue was fixed in plan 79-03:
+- Updated bin/bgsd wrapper to skip --experimental-code-cache flag on Node 22+
+- Now only adds flag on Node 10-21.x where compile-cache is not default
+- Re-ran benchmark: 0% improvement (neutral) vs previous -58% regression
+- RUNT-01 now ACHIEVED: warm starts are not slower on Node 22+
 
 ## Next Phase Readiness
 
