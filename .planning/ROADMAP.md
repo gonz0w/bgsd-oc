@@ -42,11 +42,12 @@ Plans:
   2. Stale commands removed from slash command surface
   3. Overlapping commands consolidated into single entry points
   4. Internal-only functions not exposed as slash commands
-**Plans**: 2/2 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 - [x] 87-01: Subcommand group restructuring
 - [x] 87-02: Stale and overlapping command cleanup
+- [ ] 87-03: Command routing implementation
 
 ### Phase 88: Quality & Context
 **Goal**: Deterministic context loading and zero orphaned code
@@ -96,7 +97,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 86. Agent Sharpening | v9.3 | Complete    | 2026-03-10 | 2026-03-10 |
-| 87. Command Consolidation | v9.3 | 2/2 | Complete| 2026-03-10 |
+| 87. Command Consolidation | 3/3 | Complete   | 2026-03-10 | - |
 | 88. Quality & Context | v9.3 | 0/2 | Not started | - |
 | 89. Runtime Bun Migration | v9.3 | 0/2 | Not started | - |
 | 90. Benchmark | v9.3 | 0/1 | Not started | - |

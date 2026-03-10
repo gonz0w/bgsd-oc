@@ -14,7 +14,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 **Status:** Ready for next phase
 **Last Activity:** 2026-03-10
 
-**Progress:** [██████████] 95%
+**Progress:** [██████████] 100%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 - [Phase 87-01]: Created 8 subcommand wrapper commands to group 41 original commands into logical categories
 - [87-02]: Consolidated 50 slash commands into 11 (8 wrappers + 3 standalone) - 78% reduction
 - [87-02]: Removed bgsd-notifications from slash command surface (internal-only)
+- [Phase 87-03]: Routing handled by host editor natively (Option A) — Wrapper commands are definition files for host editor. Plugin's command-enricher.js adds context but doesn't route subcommands. Host editor parses /bgsd plan phase 1 as command bgsd-plan with args phase 1.
 
 ### Pending Todos
 
@@ -68,7 +69,7 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T16:10:00.000Z
-**Stopped at:** Completed 87-02 command consolidation plan
+**Last session:** 2026-03-10T17:19:04.100Z
+**Stopped at:** Completed 87-03 gap closure plan
 **Next step:** Move to phase 88 (Quality & Context)
 
