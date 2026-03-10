@@ -4488,7 +4488,7 @@ Plans:
       const slug = generateSlugInternal(description);
       const normalizedAfter = normalizePhaseName(afterPhase);
       const unpadded = normalizedAfter.replace(/^0+/, "");
-      const afterPhaseEscaped = unpadded.replace(/\./g, "\\.");
+      const afterPhaseEscaped = unpadded.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const targetPattern = new RegExp(`#{2,4}\\s*Phase\\s+0*${afterPhaseEscaped}:`, "i");
       if (!targetPattern.test(content)) {
         error(`Phase ${afterPhase} not found in ROADMAP.md`);
@@ -4672,7 +4672,7 @@ Plans:
         }
       }
       let roadmapContent = cachedReadFile(roadmapPath);
-      const targetEscaped = targetPhase.replace(/\./g, "\\.");
+      const targetEscaped = targetPhase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const sectionPattern = new RegExp(
         `\\n?#{2,4}\\s*Phase\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+Phase\\s+\\d|$)`,
         "i"

@@ -243,7 +243,8 @@ function cmdPhaseInsert(cwd, afterPhase, description, raw) {
   // Normalize input then strip leading zeros for flexible matching
   const normalizedAfter = normalizePhaseName(afterPhase);
   const unpadded = normalizedAfter.replace(/^0+/, '');
-  const afterPhaseEscaped = unpadded.replace(/\./g, '\\.');
+  // Escape all regex special characters, not just dots
+  const afterPhaseEscaped = unpadded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const targetPattern = new RegExp(`#{2,4}\\s*Phase\\s+0*${afterPhaseEscaped}:`, 'i');
   if (!targetPattern.test(content)) {
     error(`Phase ${afterPhase} not found in ROADMAP.md`);
@@ -457,8 +458,8 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
   // Update ROADMAP.md
   let roadmapContent = cachedReadFile(roadmapPath);
 
-  // Remove the target phase section
-  const targetEscaped = targetPhase.replace(/\./g, '\\.');
+  // Remove the target phase section - escape all regex special chars
+  const targetEscaped = targetPhase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const sectionPattern = new RegExp(
     `\\n?#{2,4}\\s*Phase\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+Phase\\s+\\d|$)`,
     'i'
