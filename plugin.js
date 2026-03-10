@@ -97,7 +97,7 @@ function parsePhases(content) {
   const pattern = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
   let match;
   while ((match = pattern.exec(content)) !== null) {
-    const number4 = match[1];
+    const number5 = match[1];
     const name = match[2].trim();
     const sectionStart = match.index;
     const restOfContent = content.slice(sectionStart);
@@ -108,11 +108,11 @@ function parsePhases(content) {
     const goal = goalMatch ? goalMatch[1].trim() : null;
     const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
     const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
-    const escaped = number4.replace(/\./g, "\\.");
+    const escaped = number5.replace(/\./g, "\\.");
     const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, "i");
     const status = checkboxPattern.test(content) ? "complete" : "incomplete";
     phases.push(Object.freeze({
-      number: number4,
+      number: number5,
       name,
       status,
       planCount,
@@ -1211,6 +1211,329 @@ function toSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+// node_modules/valibot/dist/index.mjs
+var store$4;
+// @__NO_SIDE_EFFECTS__
+function getGlobalConfig(config$1) {
+  return {
+    lang: config$1?.lang ?? store$4?.lang,
+    message: config$1?.message,
+    abortEarly: config$1?.abortEarly ?? store$4?.abortEarly,
+    abortPipeEarly: config$1?.abortPipeEarly ?? store$4?.abortPipeEarly
+  };
+}
+var store$3;
+// @__NO_SIDE_EFFECTS__
+function getGlobalMessage(lang) {
+  return store$3?.get(lang);
+}
+var store$2;
+// @__NO_SIDE_EFFECTS__
+function getSchemaMessage(lang) {
+  return store$2?.get(lang);
+}
+var store$1;
+// @__NO_SIDE_EFFECTS__
+function getSpecificMessage(reference, lang) {
+  return store$1?.get(reference)?.get(lang);
+}
+// @__NO_SIDE_EFFECTS__
+function _stringify(input) {
+  const type = typeof input;
+  if (type === "string") return `"${input}"`;
+  if (type === "number" || type === "bigint" || type === "boolean") return `${input}`;
+  if (type === "object" || type === "function") return (input && Object.getPrototypeOf(input)?.constructor?.name) ?? "null";
+  return type;
+}
+function _addIssue(context, label, dataset, config$1, other) {
+  const input = other && "input" in other ? other.input : dataset.value;
+  const expected = other?.expected ?? context.expects ?? null;
+  const received = other?.received ?? /* @__PURE__ */ _stringify(input);
+  const issue2 = {
+    kind: context.kind,
+    type: context.type,
+    input,
+    expected,
+    received,
+    message: `Invalid ${label}: ${expected ? `Expected ${expected} but r` : "R"}eceived ${received}`,
+    requirement: context.requirement,
+    path: other?.path,
+    issues: other?.issues,
+    lang: config$1.lang,
+    abortEarly: config$1.abortEarly,
+    abortPipeEarly: config$1.abortPipeEarly
+  };
+  const isSchema = context.kind === "schema";
+  const message$1 = other?.message ?? context.message ?? /* @__PURE__ */ getSpecificMessage(context.reference, issue2.lang) ?? (isSchema ? /* @__PURE__ */ getSchemaMessage(issue2.lang) : null) ?? config$1.message ?? /* @__PURE__ */ getGlobalMessage(issue2.lang);
+  if (message$1 !== void 0) issue2.message = typeof message$1 === "function" ? message$1(issue2) : message$1;
+  if (isSchema) dataset.typed = false;
+  if (dataset.issues) dataset.issues.push(issue2);
+  else dataset.issues = [issue2];
+}
+// @__NO_SIDE_EFFECTS__
+function _getStandardProps(context) {
+  return {
+    version: 1,
+    vendor: "valibot",
+    validate(value$1) {
+      return context["~run"]({ value: value$1 }, /* @__PURE__ */ getGlobalConfig());
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function _joinExpects(values$1, separator) {
+  const list = [...new Set(values$1)];
+  if (list.length > 1) return `(${list.join(` ${separator} `)})`;
+  return list[0] ?? "never";
+}
+var EMOJI_REGEX = new RegExp("^(?:[\\u{1F1E6}-\\u{1F1FF}]{2}|\\u{1F3F4}[\\u{E0061}-\\u{E007A}]{2}[\\u{E0030}-\\u{E0039}\\u{E0061}-\\u{E007A}]{1,3}\\u{E007F}|(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|(?![\\p{Emoji_Modifier_Base}\\u{1F1E6}-\\u{1F1FF}])\\p{Emoji_Presentation})(?:\\u200D(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|(?![\\p{Emoji_Modifier_Base}\\u{1F1E6}-\\u{1F1FF}])\\p{Emoji_Presentation}))*)+$", "u");
+// @__NO_SIDE_EFFECTS__
+function transform(operation) {
+  return {
+    kind: "transformation",
+    type: "transform",
+    reference: transform,
+    async: false,
+    operation,
+    "~run"(dataset) {
+      dataset.value = this.operation(dataset.value);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function getFallback(schema, dataset, config$1) {
+  return typeof schema.fallback === "function" ? schema.fallback(dataset, config$1) : schema.fallback;
+}
+// @__NO_SIDE_EFFECTS__
+function getDefault(schema, dataset, config$1) {
+  return typeof schema.default === "function" ? schema.default(dataset, config$1) : schema.default;
+}
+// @__NO_SIDE_EFFECTS__
+function number(message$1) {
+  return {
+    kind: "schema",
+    type: "number",
+    reference: number,
+    expects: "number",
+    async: false,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (typeof dataset.value === "number" && !isNaN(dataset.value)) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function object(entries$1, message$1) {
+  return {
+    kind: "schema",
+    type: "object",
+    reference: object,
+    expects: "Object",
+    async: false,
+    entries: entries$1,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (input && typeof input === "object") {
+        dataset.typed = true;
+        dataset.value = {};
+        for (const key in this.entries) {
+          const valueSchema = this.entries[key];
+          if (key in input || (valueSchema.type === "exact_optional" || valueSchema.type === "optional" || valueSchema.type === "nullish") && valueSchema.default !== void 0) {
+            const value$1 = key in input ? input[key] : /* @__PURE__ */ getDefault(valueSchema);
+            const valueDataset = valueSchema["~run"]({ value: value$1 }, config$1);
+            if (valueDataset.issues) {
+              const pathItem = {
+                type: "object",
+                origin: "value",
+                input,
+                key,
+                value: value$1
+              };
+              for (const issue2 of valueDataset.issues) {
+                if (issue2.path) issue2.path.unshift(pathItem);
+                else issue2.path = [pathItem];
+                dataset.issues?.push(issue2);
+              }
+              if (!dataset.issues) dataset.issues = valueDataset.issues;
+              if (config$1.abortEarly) {
+                dataset.typed = false;
+                break;
+              }
+            }
+            if (!valueDataset.typed) dataset.typed = false;
+            dataset.value[key] = valueDataset.value;
+          } else if (valueSchema.fallback !== void 0) dataset.value[key] = /* @__PURE__ */ getFallback(valueSchema);
+          else if (valueSchema.type !== "exact_optional" && valueSchema.type !== "optional" && valueSchema.type !== "nullish") {
+            _addIssue(this, "key", dataset, config$1, {
+              input: void 0,
+              expected: `"${key}"`,
+              path: [{
+                type: "object",
+                origin: "key",
+                input,
+                key,
+                value: input[key]
+              }]
+            });
+            if (config$1.abortEarly) break;
+          }
+        }
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function optional(wrapped, default_) {
+  return {
+    kind: "schema",
+    type: "optional",
+    reference: optional,
+    expects: `(${wrapped.expects} | undefined)`,
+    async: false,
+    wrapped,
+    default: default_,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (dataset.value === void 0) {
+        if (this.default !== void 0) dataset.value = /* @__PURE__ */ getDefault(this, dataset, config$1);
+        if (dataset.value === void 0) {
+          dataset.typed = true;
+          return dataset;
+        }
+      }
+      return this.wrapped["~run"](dataset, config$1);
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function picklist(options, message$1) {
+  return {
+    kind: "schema",
+    type: "picklist",
+    reference: picklist,
+    expects: /* @__PURE__ */ _joinExpects(options.map(_stringify), "|"),
+    async: false,
+    options,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (this.options.includes(dataset.value)) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function string(message$1) {
+  return {
+    kind: "schema",
+    type: "string",
+    reference: string,
+    expects: "string",
+    async: false,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (typeof dataset.value === "string") dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function _subIssues(datasets) {
+  let issues;
+  if (datasets) for (const dataset of datasets) if (issues) issues.push(...dataset.issues);
+  else issues = dataset.issues;
+  return issues;
+}
+// @__NO_SIDE_EFFECTS__
+function union(options, message$1) {
+  return {
+    kind: "schema",
+    type: "union",
+    reference: union,
+    expects: /* @__PURE__ */ _joinExpects(options.map((option) => option.expects), "|"),
+    async: false,
+    options,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      let validDataset;
+      let typedDatasets;
+      let untypedDatasets;
+      for (const schema of this.options) {
+        const optionDataset = schema["~run"]({ value: dataset.value }, config$1);
+        if (optionDataset.typed) if (optionDataset.issues) if (typedDatasets) typedDatasets.push(optionDataset);
+        else typedDatasets = [optionDataset];
+        else {
+          validDataset = optionDataset;
+          break;
+        }
+        else if (untypedDatasets) untypedDatasets.push(optionDataset);
+        else untypedDatasets = [optionDataset];
+      }
+      if (validDataset) return validDataset;
+      if (typedDatasets) {
+        if (typedDatasets.length === 1) return typedDatasets[0];
+        _addIssue(this, "type", dataset, config$1, { issues: /* @__PURE__ */ _subIssues(typedDatasets) });
+        dataset.typed = true;
+      } else if (untypedDatasets?.length === 1) return untypedDatasets[0];
+      else _addIssue(this, "type", dataset, config$1, { issues: /* @__PURE__ */ _subIssues(untypedDatasets) });
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function pipe(...pipe$1) {
+  return {
+    ...pipe$1[0],
+    pipe: pipe$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      for (const item of pipe$1) if (item.kind !== "metadata") {
+        if (dataset.issues && (item.kind === "schema" || item.kind === "transformation")) {
+          dataset.typed = false;
+          break;
+        }
+        if (!dataset.issues || !config$1.abortEarly && !config$1.abortPipeEarly) dataset = item["~run"](dataset, config$1);
+      }
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function safeParse(schema, input, config$1) {
+  const dataset = schema["~run"]({ value: input }, /* @__PURE__ */ getGlobalConfig(config$1));
+  return {
+    typed: dataset.typed,
+    success: !dataset.issues,
+    output: dataset.value,
+    issues: dataset.issues
+  };
+}
+
 // node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -1388,14 +1711,14 @@ __export(external_exports, {
   null: () => _null3,
   nullable: () => nullable,
   nullish: () => nullish2,
-  number: () => number2,
-  object: () => object,
-  optional: () => optional,
+  number: () => number3,
+  object: () => object2,
+  optional: () => optional2,
   overwrite: () => _overwrite,
   parse: () => parse2,
   parseAsync: () => parseAsync2,
   partialRecord: () => partialRecord,
-  pipe: () => pipe,
+  pipe: () => pipe2,
   positive: () => _positive,
   prefault: () => prefault,
   preprocess: () => preprocess,
@@ -1412,7 +1735,7 @@ __export(external_exports, {
   safeDecodeAsync: () => safeDecodeAsync2,
   safeEncode: () => safeEncode2,
   safeEncodeAsync: () => safeEncodeAsync2,
-  safeParse: () => safeParse2,
+  safeParse: () => safeParse3,
   safeParseAsync: () => safeParseAsync2,
   set: () => set,
   setErrorMap: () => setErrorMap,
@@ -1420,7 +1743,7 @@ __export(external_exports, {
   slugify: () => _slugify,
   startsWith: () => _startsWith,
   strictObject: () => strictObject,
-  string: () => string2,
+  string: () => string3,
   stringFormat: () => stringFormat,
   stringbool: () => stringbool,
   success: () => success,
@@ -1430,7 +1753,7 @@ __export(external_exports, {
   toJSONSchema: () => toJSONSchema,
   toLowerCase: () => _toLowerCase,
   toUpperCase: () => _toUpperCase,
-  transform: () => transform,
+  transform: () => transform2,
   treeifyError: () => treeifyError,
   trim: () => _trim,
   tuple: () => tuple,
@@ -1438,7 +1761,7 @@ __export(external_exports, {
   uint64: () => uint64,
   ulid: () => ulid2,
   undefined: () => _undefined3,
-  union: () => union,
+  union: () => union2,
   unknown: () => unknown,
   uppercase: () => _uppercase,
   url: () => url,
@@ -1721,7 +2044,7 @@ __export(core_exports2, {
   safeDecodeAsync: () => safeDecodeAsync,
   safeEncode: () => safeEncode,
   safeEncodeAsync: () => safeEncodeAsync,
-  safeParse: () => safeParse,
+  safeParse: () => safeParse2,
   safeParseAsync: () => safeParseAsync,
   toDotPath: () => toDotPath,
   toJSONSchema: () => toJSONSchema,
@@ -1934,9 +2257,9 @@ function floatSafeRemainder(val, step) {
   return valInt % stepInt / 10 ** decCount;
 }
 var EVALUATING = /* @__PURE__ */ Symbol("evaluating");
-function defineLazy(object2, key, getter) {
+function defineLazy(object3, key, getter) {
   let value = void 0;
-  Object.defineProperty(object2, key, {
+  Object.defineProperty(object3, key, {
     get() {
       if (value === EVALUATING) {
         return void 0;
@@ -1948,7 +2271,7 @@ function defineLazy(object2, key, getter) {
       return value;
     },
     set(v) {
-      Object.defineProperty(object2, key, {
+      Object.defineProperty(object3, key, {
         value: v
         // configurable: true,
       });
@@ -2659,7 +2982,7 @@ var _safeParse = (_Err) => (schema, value, _ctx) => {
     error: new (_Err ?? $ZodError)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())))
   } : { success: true, data: result.value };
 };
-var safeParse = /* @__PURE__ */ _safeParse($ZodRealError);
+var safeParse2 = /* @__PURE__ */ _safeParse($ZodRealError);
 var _safeParseAsync = (_Err) => async (schema, value, _ctx) => {
   const ctx = _ctx ? Object.assign(_ctx, { async: true }) : { async: true };
   let result = schema._zod.run({ value, issues: [] }, ctx);
@@ -2744,7 +3067,7 @@ __export(regexes_exports, {
   md5_hex: () => md5_hex,
   nanoid: () => nanoid,
   null: () => _null,
-  number: () => number,
+  number: () => number2,
   rfc5322Email: () => rfc5322Email,
   sha1_base64: () => sha1_base64,
   sha1_base64url: () => sha1_base64url,
@@ -2758,7 +3081,7 @@ __export(regexes_exports, {
   sha512_base64: () => sha512_base64,
   sha512_base64url: () => sha512_base64url,
   sha512_hex: () => sha512_hex,
-  string: () => string,
+  string: () => string2,
   time: () => time,
   ulid: () => ulid,
   undefined: () => _undefined,
@@ -2830,13 +3153,13 @@ function datetime(args) {
   const timeRegex = `${time3}(?:${opts.join("|")})`;
   return new RegExp(`^${dateSource}T(?:${timeRegex})$`);
 }
-var string = (params) => {
+var string2 = (params) => {
   const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
   return new RegExp(`^${regex}$`);
 };
 var bigint = /^-?\d+n?$/;
 var integer = /^-?\d+$/;
-var number = /^-?\d+(?:\.\d+)?$/;
+var number2 = /^-?\d+(?:\.\d+)?$/;
 var boolean = /^(?:true|false)$/i;
 var _null = /^null$/i;
 var _undefined = /^undefined$/i;
@@ -3556,7 +3879,7 @@ var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
   defineLazy(inst, "~standard", () => ({
     validate: (value) => {
       try {
-        const r = safeParse(inst, value);
+        const r = safeParse2(inst, value);
         return r.success ? { value: r.data } : { issues: r.error?.issues };
       } catch (_) {
         return safeParseAsync(inst, value).then((r) => r.success ? { value: r.data } : { issues: r.error?.issues });
@@ -3568,7 +3891,7 @@ var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
 });
 var $ZodString = /* @__PURE__ */ $constructor("$ZodString", (inst, def) => {
   $ZodType.init(inst, def);
-  inst._zod.pattern = [...inst?._zod.bag?.patterns ?? []].pop() ?? string(inst._zod.bag);
+  inst._zod.pattern = [...inst?._zod.bag?.patterns ?? []].pop() ?? string2(inst._zod.bag);
   inst._zod.parse = (payload, _) => {
     if (def.coerce)
       try {
@@ -3878,7 +4201,7 @@ var $ZodCustomStringFormat = /* @__PURE__ */ $constructor("$ZodCustomStringForma
 });
 var $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
   $ZodType.init(inst, def);
-  inst._zod.pattern = inst._zod.bag.pattern ?? number;
+  inst._zod.pattern = inst._zod.bag.pattern ?? number2;
   inst._zod.parse = (payload, _ctx) => {
     if (def.coerce)
       try {
@@ -4744,7 +5067,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         if (keyResult instanceof Promise) {
           throw new Error("Async schemas not supported in object keys currently");
         }
-        const checkNumericKey = typeof key === "string" && number.test(key) && keyResult.issues.length;
+        const checkNumericKey = typeof key === "string" && number2.test(key) && keyResult.issues.length;
         if (checkNumericKey) {
           const retryResult = def.keyType._zod.run({ value: Number(key), issues: [] }, ctx);
           if (retryResult instanceof Promise) {
@@ -8446,8 +8769,8 @@ function ko_default() {
 var capitalizeFirstCharacter = (text) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
-function getUnitTypeFromNumber(number4) {
-  const abs = Math.abs(number4);
+function getUnitTypeFromNumber(number5) {
+  const abs = Math.abs(number5);
   const last = abs % 10;
   const last2 = abs % 100;
   if (last2 >= 11 && last2 <= 19 || last === 0)
@@ -13205,11 +13528,11 @@ __export(schemas_exports2, {
   null: () => _null3,
   nullable: () => nullable,
   nullish: () => nullish2,
-  number: () => number2,
-  object: () => object,
-  optional: () => optional,
+  number: () => number3,
+  object: () => object2,
+  optional: () => optional2,
   partialRecord: () => partialRecord,
-  pipe: () => pipe,
+  pipe: () => pipe2,
   prefault: () => prefault,
   preprocess: () => preprocess,
   promise: () => promise,
@@ -13218,20 +13541,20 @@ __export(schemas_exports2, {
   refine: () => refine,
   set: () => set,
   strictObject: () => strictObject,
-  string: () => string2,
+  string: () => string3,
   stringFormat: () => stringFormat,
   stringbool: () => stringbool,
   success: () => success,
   superRefine: () => superRefine,
   symbol: () => symbol,
   templateLiteral: () => templateLiteral,
-  transform: () => transform,
+  transform: () => transform2,
   tuple: () => tuple,
   uint32: () => uint32,
   uint64: () => uint64,
   ulid: () => ulid2,
   undefined: () => _undefined3,
-  union: () => union,
+  union: () => union2,
   unknown: () => unknown,
   url: () => url,
   uuid: () => uuid2,
@@ -13361,7 +13684,7 @@ var ZodRealError = $constructor("ZodError", initializer2, {
 // node_modules/zod/v4/classic/parse.js
 var parse2 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
-var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
+var safeParse3 = /* @__PURE__ */ _safeParse(ZodRealError);
 var safeParseAsync2 = /* @__PURE__ */ _safeParseAsync(ZodRealError);
 var encode2 = /* @__PURE__ */ _encode(ZodRealError);
 var decode2 = /* @__PURE__ */ _decode(ZodRealError);
@@ -13403,7 +13726,7 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
     return inst;
   });
   inst.parse = (data, params) => parse2(inst, data, params, { callee: inst.parse });
-  inst.safeParse = (data, params) => safeParse2(inst, data, params);
+  inst.safeParse = (data, params) => safeParse3(inst, data, params);
   inst.parseAsync = async (data, params) => parseAsync2(inst, data, params, { callee: inst.parseAsync });
   inst.safeParseAsync = async (data, params) => safeParseAsync2(inst, data, params);
   inst.spa = inst.safeParseAsync;
@@ -13418,19 +13741,19 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
   inst.refine = (check2, params) => inst.check(refine(check2, params));
   inst.superRefine = (refinement) => inst.check(superRefine(refinement));
   inst.overwrite = (fn) => inst.check(_overwrite(fn));
-  inst.optional = () => optional(inst);
+  inst.optional = () => optional2(inst);
   inst.exactOptional = () => exactOptional(inst);
   inst.nullable = () => nullable(inst);
-  inst.nullish = () => optional(nullable(inst));
+  inst.nullish = () => optional2(nullable(inst));
   inst.nonoptional = (params) => nonoptional(inst, params);
   inst.array = () => array(inst);
-  inst.or = (arg) => union([inst, arg]);
+  inst.or = (arg) => union2([inst, arg]);
   inst.and = (arg) => intersection(inst, arg);
-  inst.transform = (tx) => pipe(inst, transform(tx));
+  inst.transform = (tx) => pipe2(inst, transform2(tx));
   inst.default = (def2) => _default2(inst, def2);
   inst.prefault = (def2) => prefault(inst, def2);
   inst.catch = (params) => _catch2(inst, params);
-  inst.pipe = (target) => pipe(inst, target);
+  inst.pipe = (target) => pipe2(inst, target);
   inst.readonly = () => readonly(inst);
   inst.describe = (description) => {
     const cl = inst.clone();
@@ -13511,7 +13834,7 @@ var ZodString = /* @__PURE__ */ $constructor("ZodString", (inst, def) => {
   inst.time = (params) => inst.check(time2(params));
   inst.duration = (params) => inst.check(duration2(params));
 });
-function string2(params) {
+function string3(params) {
   return _string(ZodString, params);
 }
 var ZodStringFormat = /* @__PURE__ */ $constructor("ZodStringFormat", (inst, def) => {
@@ -13721,7 +14044,7 @@ var ZodNumber = /* @__PURE__ */ $constructor("ZodNumber", (inst, def) => {
   inst.isFinite = true;
   inst.format = bag.format ?? null;
 });
-function number2(params) {
+function number3(params) {
   return _number(ZodNumber, params);
 }
 var ZodNumberFormat = /* @__PURE__ */ $constructor("ZodNumberFormat", (inst, def) => {
@@ -13898,7 +14221,7 @@ var ZodObject = /* @__PURE__ */ $constructor("ZodObject", (inst, def) => {
   inst.partial = (...args) => util_exports.partial(ZodOptional, inst, args[0]);
   inst.required = (...args) => util_exports.required(ZodNonOptional, inst, args[0]);
 });
-function object(shape, params) {
+function object2(shape, params) {
   const def = {
     type: "object",
     shape: shape ?? {},
@@ -13928,7 +14251,7 @@ var ZodUnion = /* @__PURE__ */ $constructor("ZodUnion", (inst, def) => {
   inst._zod.processJSONSchema = (ctx, json2, params) => unionProcessor(inst, ctx, json2, params);
   inst.options = def.options;
 });
-function union(options, params) {
+function union2(options, params) {
   return new ZodUnion({
     type: "union",
     options,
@@ -14179,7 +14502,7 @@ var ZodTransform = /* @__PURE__ */ $constructor("ZodTransform", (inst, def) => {
     return payload;
   };
 });
-function transform(fn) {
+function transform2(fn) {
   return new ZodTransform({
     type: "transform",
     transform: fn
@@ -14191,7 +14514,7 @@ var ZodOptional = /* @__PURE__ */ $constructor("ZodOptional", (inst, def) => {
   inst._zod.processJSONSchema = (ctx, json2, params) => optionalProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
-function optional(innerType) {
+function optional2(innerType) {
   return new ZodOptional({
     type: "optional",
     innerType
@@ -14222,7 +14545,7 @@ function nullable(innerType) {
   });
 }
 function nullish2(innerType) {
-  return optional(nullable(innerType));
+  return optional2(nullable(innerType));
 }
 var ZodDefault = /* @__PURE__ */ $constructor("ZodDefault", (inst, def) => {
   $ZodDefault.init(inst, def);
@@ -14309,7 +14632,7 @@ var ZodPipe = /* @__PURE__ */ $constructor("ZodPipe", (inst, def) => {
   inst.in = def.in;
   inst.out = def.out;
 });
-function pipe(in_, out) {
+function pipe2(in_, out) {
   return new ZodPipe({
     type: "pipe",
     in: in_,
@@ -14443,12 +14766,12 @@ var stringbool = (...args) => _stringbool({
 }, ...args);
 function json(params) {
   const jsonSchema = lazy(() => {
-    return union([string2(params), number2(), boolean2(), _null3(), array(jsonSchema), record(string2(), jsonSchema)]);
+    return union2([string3(params), number3(), boolean2(), _null3(), array(jsonSchema), record(string3(), jsonSchema)]);
   });
   return jsonSchema;
 }
 function preprocess(fn, schema) {
-  return pipe(transform(fn), schema);
+  return pipe2(transform2(fn), schema);
 }
 
 // node_modules/zod/v4/classic/compat.js
@@ -14957,13 +15280,13 @@ __export(coerce_exports, {
   bigint: () => bigint3,
   boolean: () => boolean3,
   date: () => date4,
-  number: () => number3,
-  string: () => string3
+  number: () => number4,
+  string: () => string4
 });
-function string3(params) {
+function string4(params) {
   return _coercedString(ZodString, params);
 }
-function number3(params) {
+function number4(params) {
   return _coercedNumber(ZodNumber, params);
 }
 function boolean3(params) {
@@ -14979,12 +15302,216 @@ function date4(params) {
 // node_modules/zod/v4/classic/external.js
 config(en_default());
 
+// src/plugin/validation/flags.js
+var ENABLED_VALUES = /* @__PURE__ */ new Set(["1", "true", "yes", "on"]);
+var DISABLED_VALUES = /* @__PURE__ */ new Set(["0", "false", "no", "off"]);
+function normalizeFlag(value) {
+  if (value === void 0 || value === null) {
+    return null;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (ENABLED_VALUES.has(normalized)) {
+    return true;
+  }
+  if (DISABLED_VALUES.has(normalized)) {
+    return false;
+  }
+  return null;
+}
+function resolveValidationFlags(env = process.env) {
+  const valibotFlag = normalizeFlag(env.BGSD_DEP_VALIBOT);
+  const fallbackFlag = normalizeFlag(env.BGSD_DEP_VALIBOT_FALLBACK);
+  const valibotEnabled = valibotFlag !== false;
+  const forceFallback = fallbackFlag === true;
+  const engine = forceFallback || !valibotEnabled ? "zod" : "valibot";
+  return {
+    valibotEnabled,
+    forceFallback,
+    engine
+  };
+}
+
+// src/plugin/validation/adapter.js
+function mapFieldToValibot(fieldSpec) {
+  let schema;
+  switch (fieldSpec.type) {
+    case "coerceNumber": {
+      schema = pipe(
+        union([number(), string()]),
+        transform((value) => Number(value)),
+        number()
+      );
+      break;
+    }
+    case "enum": {
+      schema = picklist(fieldSpec.values);
+      break;
+    }
+    case "string": {
+      schema = string();
+      break;
+    }
+    default:
+      throw new Error(`Unsupported schema type: ${fieldSpec.type}`);
+  }
+  return fieldSpec.optional ? optional(schema) : schema;
+}
+function mapFieldToZod(fieldSpec) {
+  let schema;
+  switch (fieldSpec.type) {
+    case "coerceNumber": {
+      schema = external_exports.coerce.number();
+      break;
+    }
+    case "enum": {
+      schema = external_exports.enum(fieldSpec.values);
+      break;
+    }
+    case "string": {
+      schema = external_exports.string();
+      break;
+    }
+    default:
+      throw new Error(`Unsupported schema type: ${fieldSpec.type}`);
+  }
+  return fieldSpec.optional ? schema.optional() : schema;
+}
+function buildValibotSchema(schemaSpec) {
+  const shape = {};
+  for (const [fieldName, fieldSpec] of Object.entries(schemaSpec.shape || {})) {
+    shape[fieldName] = mapFieldToValibot(fieldSpec);
+  }
+  return object(shape);
+}
+function buildZodSchema(schemaSpec) {
+  const shape = {};
+  for (const [fieldName, fieldSpec] of Object.entries(schemaSpec.shape || {})) {
+    shape[fieldName] = mapFieldToZod(fieldSpec);
+  }
+  return external_exports.object(shape);
+}
+function formatEnumOptions(values) {
+  return values.map((value) => `"${value}"`).join("|");
+}
+function getPathKey(issue2) {
+  if (!issue2 || !Array.isArray(issue2.path) || issue2.path.length === 0) {
+    return null;
+  }
+  const segment = issue2.path[0];
+  return segment && typeof segment.key === "string" ? segment.key : null;
+}
+function firstErrorMessage(result, schemaSpec) {
+  if (result.engine === "valibot") {
+    const firstIssue = result.issues && result.issues[0];
+    const message = firstIssue && firstIssue.message ? firstIssue.message : "Invalid arguments";
+    const fieldKey = getPathKey(firstIssue);
+    const fieldSpec = fieldKey && schemaSpec && schemaSpec.shape ? schemaSpec.shape[fieldKey] : null;
+    if (message.includes("Expected number but received NaN")) {
+      return "Invalid input: expected number, received NaN";
+    }
+    if (fieldSpec && fieldSpec.type === "enum" && Array.isArray(fieldSpec.values)) {
+      if (firstIssue.type === "picklist" || firstIssue.type === "object" && firstIssue.received === "undefined") {
+        return `Invalid option: expected one of ${formatEnumOptions(fieldSpec.values)}`;
+      }
+    }
+    return message;
+  }
+  const issue2 = result.error && result.error.issues && result.error.issues[0];
+  return issue2 && issue2.message ? issue2.message : "Invalid arguments";
+}
+function emitDebugMarker(toolName, engine) {
+  if (process.env.GSD_DEBUG !== "1") {
+    return;
+  }
+  process.stderr.write(`[bGSD:validation-engine] ${toolName}:${engine}
+`);
+}
+function runValidation(engine, schemaSpec, source) {
+  if (engine === "valibot") {
+    return safeParse(buildValibotSchema(schemaSpec), source);
+  }
+  return buildZodSchema(schemaSpec).safeParse(source);
+}
+function normalizeDebugResult(result, engine) {
+  if (result.success) {
+    const payload = engine === "valibot" ? result.output : result.data;
+    return { success: true, data: payload };
+  }
+  return {
+    success: false,
+    message: firstErrorMessage({ ...result, engine })
+  };
+}
+function emitShadowCompareDiagnostics(toolName, schemaSpec, source, primaryEngine, primaryResult) {
+  if (process.env.GSD_DEBUG !== "1") {
+    return;
+  }
+  const shadowEngine = primaryEngine === "valibot" ? "zod" : "valibot";
+  const shadowResult = runValidation(shadowEngine, schemaSpec, source);
+  const primaryNormalized = normalizeDebugResult(primaryResult, primaryEngine);
+  const shadowNormalized = normalizeDebugResult(shadowResult, shadowEngine);
+  const parity = JSON.stringify(primaryNormalized) === JSON.stringify(shadowNormalized) ? "match" : "mismatch";
+  process.stderr.write(`[bGSD:validation-shadow] ${toolName}:${primaryEngine}->${shadowEngine}:${parity}
+`);
+}
+function createObjectSchema(shape) {
+  return { type: "object", shape };
+}
+function validateArgs(toolName, schemaSpec, input) {
+  const flags = resolveValidationFlags();
+  const source = input && typeof input === "object" ? input : {};
+  const engine = flags.engine;
+  emitDebugMarker(toolName, engine);
+  const result = runValidation(engine, schemaSpec, source);
+  emitShadowCompareDiagnostics(toolName, schemaSpec, source, engine, result);
+  if (engine === "valibot") {
+    if (result.success) {
+      return {
+        ok: true,
+        data: result.output,
+        error: null
+      };
+    }
+    return {
+      ok: false,
+      data: null,
+      error: {
+        code: "validation_error",
+        message: firstErrorMessage({ ...result, engine }, schemaSpec)
+      }
+    };
+  }
+  if (result.success) {
+    return {
+      ok: true,
+      data: result.data,
+      error: null
+    };
+  }
+  return {
+    ok: false,
+    data: null,
+    error: {
+      code: "validation_error",
+      message: firstErrorMessage({ ...result, engine }, schemaSpec)
+    }
+  };
+}
+
 // src/plugin/tools/bgsd-status.js
+var STATUS_ARGS_SCHEMA = createObjectSchema({});
 var bgsd_status = {
   description: "Get current bGSD execution state \u2014 phase, plan, tasks, progress, blockers.\n\nCall this to understand where the project is right now. Returns structured JSON with the current phase number and name, active plan, full task list with completion statuses, progress percentage, and any blockers.\n\nRequires an active bGSD project (.planning/ directory).",
   args: {},
   async execute(args, context) {
     try {
+      const parsedArgs = validateArgs("bgsd_status", STATUS_ARGS_SCHEMA, args);
+      if (!parsedArgs.ok) {
+        return JSON.stringify({
+          error: parsedArgs.error.code,
+          message: parsedArgs.error.message
+        });
+      }
       const projectDir = context.directory || process.cwd();
       const projectState = getProjectState(projectDir);
       if (!projectState) {
@@ -15048,13 +15575,27 @@ var bgsd_status = {
 // src/plugin/tools/bgsd-plan.js
 init_roadmap();
 init_plan();
+var PLAN_ARGS_SCHEMA = createObjectSchema({
+  phase: { type: "coerceNumber", optional: true }
+});
 var bgsd_plan = {
   description: "Get roadmap overview or detailed phase information.\n\nTwo modes:\n- No args: returns all phases with status, goal, and plan count (roadmap summary)\n- With phase number: returns detailed phase info (goal, requirements, success criteria, dependencies) plus plan contents (tasks, objectives) if plans exist\n\nUse no-args mode to understand project structure. Use phase mode to dive into specific phase details.",
   args: {
-    phase: external_exports.coerce.number().optional().describe("Phase number to get details for. Omit for roadmap overview.")
+    phase: {
+      type: "number",
+      optional: true,
+      description: "Phase number to get details for. Omit for roadmap overview."
+    }
   },
   async execute(args, context) {
     try {
+      const parsedArgs = validateArgs("bgsd_plan", PLAN_ARGS_SCHEMA, args);
+      if (!parsedArgs.ok) {
+        return JSON.stringify({
+          error: parsedArgs.error.code,
+          message: parsedArgs.error.message
+        });
+      }
       const projectDir = context.directory || process.cwd();
       const projectState = getProjectState(projectDir);
       if (!projectState) {
@@ -15070,7 +15611,7 @@ var bgsd_plan = {
           message: "ROADMAP.md could not be parsed. Run /bgsd-health to diagnose."
         });
       }
-      if (args.phase === void 0 || args.phase === null) {
+      if (parsedArgs.data.phase === void 0 || parsedArgs.data.phase === null) {
         const phases = roadmap.phases.map((p) => ({
           number: p.number,
           name: p.name,
@@ -15081,14 +15622,14 @@ var bgsd_plan = {
         const currentMilestone = roadmap.currentMilestone ? { name: roadmap.currentMilestone.name, version: roadmap.currentMilestone.version, status: roadmap.currentMilestone.status } : null;
         return JSON.stringify({ phases, currentMilestone });
       }
-      const phaseDetail = roadmap.getPhase(args.phase);
+      const phaseDetail = roadmap.getPhase(parsedArgs.data.phase);
       if (!phaseDetail) {
         return JSON.stringify({
           error: "validation_error",
-          message: `Phase ${args.phase} not found in roadmap. Call bgsd_plan with no args to see available phases.`
+          message: `Phase ${parsedArgs.data.phase} not found in roadmap. Call bgsd_plan with no args to see available phases.`
         });
       }
-      const plans = parsePlans(args.phase, projectDir);
+      const plans = parsePlans(parsedArgs.data.phase, projectDir);
       const planData = plans.map((p) => ({
         plan: p.frontmatter.plan || null,
         wave: p.frontmatter.wave || null,
@@ -15121,13 +15662,27 @@ var bgsd_plan = {
 };
 
 // src/plugin/tools/bgsd-context.js
+var CONTEXT_ARGS_SCHEMA = createObjectSchema({
+  task: { type: "coerceNumber", optional: true }
+});
 var bgsd_context = {
   description: "Get task-scoped context for the current or specified task.\n\nReturns file paths, line ranges, and summaries relevant to a specific task \u2014 not actual file contents (use the Read tool for that).\n\nDefaults to the current task from STATE.md. Pass a task number to get context for a different task in the current plan.",
   args: {
-    task: external_exports.coerce.number().optional().describe("Task number within current plan. Defaults to current task.")
+    task: {
+      type: "number",
+      optional: true,
+      description: "Task number within current plan. Defaults to current task."
+    }
   },
   async execute(args, context) {
     try {
+      const parsedArgs = validateArgs("bgsd_context", CONTEXT_ARGS_SCHEMA, args);
+      if (!parsedArgs.ok) {
+        return JSON.stringify({
+          error: parsedArgs.error.code,
+          message: parsedArgs.error.message
+        });
+      }
       const projectDir = context.directory || process.cwd();
       const projectState = getProjectState(projectDir);
       if (!projectState) {
@@ -15154,12 +15709,13 @@ var bgsd_context = {
         }
       }
       const planId = currentPlan.frontmatter.plan ? "P" + String(currentPlan.frontmatter.plan).padStart(2, "0") : null;
-      const taskIndex = args.task ? args.task - 1 : 0;
+      const taskNumber = parsedArgs.data.task;
+      const taskIndex = taskNumber ? taskNumber - 1 : 0;
       const totalTasks = currentPlan.tasks.length;
       if (taskIndex < 0 || taskIndex >= totalTasks) {
         return JSON.stringify({
           error: "validation_error",
-          message: `Task ${args.task} not found. Current plan has ${totalTasks} task${totalTasks !== 1 ? "s" : ""}.`
+          message: `Task ${taskNumber} not found. Current plan has ${totalTasks} task${totalTasks !== 1 ? "s" : ""}.`
         });
       }
       const task = currentPlan.tasks[taskIndex];
@@ -15188,12 +15744,19 @@ var bgsd_context = {
 };
 
 // src/plugin/tools/bgsd-validate.js
-init_plan();
+var VALIDATE_ARGS_SCHEMA = createObjectSchema({});
 var bgsd_validate = {
   description: "Validate bGSD project state, roadmap, plans, and requirement traceability.\n\nRuns comprehensive checks across all planning files. Auto-fixes trivial formatting issues (like progress bar mismatches). Reports remaining issues categorized by severity: error (must fix), warning (should fix), info (note).\n\nReturns all issues found. An empty issues array means everything is valid.",
   args: {},
   async execute(args, context) {
     try {
+      const parsedArgs = validateArgs("bgsd_validate", VALIDATE_ARGS_SCHEMA, args);
+      if (!parsedArgs.ok) {
+        return JSON.stringify({
+          error: parsedArgs.error.code,
+          message: parsedArgs.error.message
+        });
+      }
       const projectDir = context.directory || process.cwd();
       const projectState = getProjectState(projectDir);
       if (!projectState) {
@@ -15348,16 +15911,40 @@ init_plan();
 import { readFileSync as readFileSync7, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2, rmdirSync, existsSync as existsSync3, statSync as statSync2 } from "fs";
 import { join as join10 } from "path";
 var LOCK_STALE_MS = 1e4;
+var PROGRESS_ARGS_SCHEMA = createObjectSchema({
+  action: {
+    type: "enum",
+    values: ["complete-task", "uncomplete-task", "add-blocker", "remove-blocker", "record-decision", "advance"],
+    optional: false
+  },
+  value: { type: "string", optional: true }
+});
 var bgsd_progress = {
   description: "Update bGSD project progress \u2014 mark tasks complete, add/remove blockers, record decisions, advance plan.\n\nSingle tool with an action parameter:\n- complete-task: Mark the next pending task as complete\n- uncomplete-task: Un-complete the last completed task\n- add-blocker: Add a blocker to STATE.md\n- remove-blocker: Remove a blocker by index\n- record-decision: Record a decision to STATE.md\n- advance: Advance to next plan (when current plan is complete)\n\nUpdates files on disk (STATE.md, PLAN.md). Does NOT create git commits \u2014 the agent handles commits separately.\n\nReturns updated state snapshot after the change.",
   args: {
-    action: external_exports.enum(["complete-task", "uncomplete-task", "add-blocker", "remove-blocker", "record-decision", "advance"]).describe("The progress action to perform"),
-    value: external_exports.string().optional().describe("Value for the action: blocker text for add-blocker, blocker index (1-based) for remove-blocker, decision text for record-decision. Not needed for complete-task, uncomplete-task, advance.")
+    action: {
+      type: "enum",
+      values: ["complete-task", "uncomplete-task", "add-blocker", "remove-blocker", "record-decision", "advance"],
+      description: "The progress action to perform"
+    },
+    value: {
+      type: "string",
+      optional: true,
+      description: "Value for the action: blocker text for add-blocker, blocker index (1-based) for remove-blocker, decision text for record-decision. Not needed for complete-task, uncomplete-task, advance."
+    }
   },
   async execute(args, context) {
     const projectDir = context.directory || process.cwd();
     const lockDir = join10(projectDir, ".planning", ".lock");
     try {
+      const parsedArgs = validateArgs("bgsd_progress", PROGRESS_ARGS_SCHEMA, args);
+      if (!parsedArgs.ok) {
+        return JSON.stringify({
+          error: parsedArgs.error.code,
+          message: parsedArgs.error.message
+        });
+      }
+      const validatedArgs = parsedArgs.data;
       const projectState = getProjectState(projectDir);
       if (!projectState) {
         return JSON.stringify({
@@ -15365,13 +15952,13 @@ var bgsd_progress = {
           message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
         });
       }
-      if ((args.action === "add-blocker" || args.action === "record-decision") && !args.value) {
+      if ((validatedArgs.action === "add-blocker" || validatedArgs.action === "record-decision") && !validatedArgs.value) {
         return JSON.stringify({
           error: "validation_error",
-          message: `Action '${args.action}' requires a 'value' parameter.`
+          message: `Action '${validatedArgs.action}' requires a 'value' parameter.`
         });
       }
-      if (args.action === "remove-blocker" && !args.value) {
+      if (validatedArgs.action === "remove-blocker" && !validatedArgs.value) {
         return JSON.stringify({
           error: "validation_error",
           message: "Action 'remove-blocker' requires a 'value' parameter (blocker index, 1-based)."
@@ -15408,7 +15995,7 @@ var bgsd_progress = {
         let content = readFileSync7(statePath, "utf-8");
         const { state } = projectState;
         let actionResult = null;
-        switch (args.action) {
+        switch (validatedArgs.action) {
           case "complete-task": {
             const currentProgress = state.progress !== null ? state.progress : 0;
             const step = 10;
@@ -15426,12 +16013,12 @@ var bgsd_progress = {
             break;
           }
           case "add-blocker": {
-            content = addBlocker(content, args.value);
-            actionResult = `Blocker added: ${args.value}`;
+            content = addBlocker(content, validatedArgs.value);
+            actionResult = `Blocker added: ${validatedArgs.value}`;
             break;
           }
           case "remove-blocker": {
-            const idx = parseInt(args.value, 10);
+            const idx = parseInt(validatedArgs.value, 10);
             if (isNaN(idx) || idx < 1) {
               return JSON.stringify({
                 error: "validation_error",
@@ -15450,8 +16037,8 @@ var bgsd_progress = {
             break;
           }
           case "record-decision": {
-            content = recordDecision(content, args.value, state.phase);
-            actionResult = `Decision recorded: ${args.value}`;
+            content = recordDecision(content, validatedArgs.value, state.phase);
+            actionResult = `Decision recorded: ${validatedArgs.value}`;
             break;
           }
           case "advance": {
@@ -15472,7 +16059,7 @@ var bgsd_progress = {
         const fresh = freshState ? freshState.state : null;
         return JSON.stringify({
           success: true,
-          action: args.action,
+          action: validatedArgs.action,
           result: actionResult,
           state: {
             phase: fresh ? fresh.phase : null,

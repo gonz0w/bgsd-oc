@@ -11,7 +11,6 @@ Create executable phase prompts (PLAN.md files) for a roadmap phase with integra
 
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/plan-phase.md
-@__OPENCODE_CONFIG__/bgsd-oc/references/ui-brand.md
 </execution_context>
 
 <context>

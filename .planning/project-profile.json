@@ -1,12 +1,12 @@
 {
   "$schema_version": "1.0",
-  "generated_at": "2026-03-07T22:22:33.486Z",
+  "generated_at": "2026-03-10T02:25:53.963Z",
   "languages": [
     "node"
   ],
   "primary_language": "node",
   "package_manager": "npm",
   "monorepo": null,
-  "ci_platform": null,
+  "ci_platform": "github-actions",
   "infrastructure_services": []
 }

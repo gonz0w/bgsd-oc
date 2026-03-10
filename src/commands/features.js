@@ -1802,12 +1802,14 @@ function cmdTokenBudget(cwd, raw) {
 function cmdTestCoverage(cwd, raw) {
   const config = loadConfig(cwd);
 
-  // Determine test file path
-  const testFile = config.test_file || 'bin/bgsd-tools.test.cjs';
-  const testPath = path.join(cwd, testFile);
-
-  if (!fs.existsSync(testPath)) {
-    error(`Test file not found: ${testFile}`);
+  // Determine test file(s) — supports split test directory
+  const testDir = path.join(cwd, 'tests');
+  let testFile;
+  if (fs.existsSync(testDir)) {
+    // Read all .test.cjs files from tests/ directory
+    testFile = 'tests/*.test.cjs';
+  } else {
+    testFile = config.test_file || 'bin/bgsd-tools.test.cjs';
   }
 
   // Determine router file path
@@ -1818,7 +1820,18 @@ function cmdTestCoverage(cwd, raw) {
     error(`Router file not found: ${routerFile}`);
   }
 
-  const testContent = fs.readFileSync(testPath, 'utf-8');
+  // Read test content — concatenate all test files if using tests/ directory
+  let testContent;
+  if (fs.existsSync(testDir)) {
+    const testFiles = fs.readdirSync(testDir).filter(f => f.endsWith('.test.cjs'));
+    testContent = testFiles.map(f => fs.readFileSync(path.join(testDir, f), 'utf-8')).join('\n');
+  } else {
+    const testPath = path.join(cwd, testFile);
+    if (!fs.existsSync(testPath)) {
+      error(`Test file not found: ${testFile}`);
+    }
+    testContent = fs.readFileSync(testPath, 'utf-8');
+  }
   const routerContent = fs.readFileSync(routerPath, 'utf-8');
 
   // Extract all command names from router namespace routing

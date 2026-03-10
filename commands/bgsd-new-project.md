@@ -23,7 +23,6 @@ Initialize a new project through unified flow: questioning → research (optiona
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/new-project.md
 @__OPENCODE_CONFIG__/bgsd-oc/references/questioning.md
-@__OPENCODE_CONFIG__/bgsd-oc/references/ui-brand.md
 @__OPENCODE_CONFIG__/bgsd-oc/templates/project.md
 @__OPENCODE_CONFIG__/bgsd-oc/templates/requirements.md
 </execution_context>

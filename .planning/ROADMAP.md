@@ -56,7 +56,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 **Success Criteria** (what must be TRUE):
   1. User can run cache-heavy flows and observe reduced high-percentile latency.
   2. Maintainer can verify statement caching can be bypassed safely when runtime support is unavailable.
-**Plans**: 1/1 plan complete
+**Plans**: 1/1 planned
 
 ### Phase 81: Safe Adoption Controls and Regression Parity
 **Goal**: Dependency-backed optimizations are independently controllable and remain backward compatible in core planning workflows.
@@ -75,5 +75,5 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 | 77. Validation Engine Modernization | 3/3 | Complete   | 2026-03-10 |
 | 78. File Discovery and Ignore Optimization | 3/3 | Complete    | 2026-03-10 |
 | 79. Startup Compile-Cache Acceleration | 3/3 | Complete    | 2026-03-10 |
-| 80. SQLite Statement Cache Acceleration | 1/1 | Complete   | 2026-03-10 |
+| 80. SQLite Statement Cache Acceleration | 1/1 | Planned   | - |
 | 81. Safe Adoption Controls and Regression Parity | 0/TBD | Not started | - |

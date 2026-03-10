@@ -39,6 +39,7 @@ patterns-established:
   - "Pattern 2: description"
 
 requirements-completed: []  # REQUIRED — Copy ALL requirement IDs from this plan's `requirements` frontmatter field.
+one-liner: "[Substantive one-liner — same as the bold line below the heading]"
 
 # Metrics
 duration: Xmin

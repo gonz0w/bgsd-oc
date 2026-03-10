@@ -281,8 +281,8 @@ Options:
   --command "cmd"  Command to test (required)
 
 Examples:
-  bgsd-tools profiler cache-speedup --runs 3 --command "state validate"
-  bgsd-tools profiler cache-speedup --runs 5 --command "roadmap analyze"
+  bgsd-tools profiler cache-speedup --runs 3 --command "verify:state validate"
+  bgsd-tools profiler cache-speedup --runs 5 --command "plan:roadmap analyze"
 `);
     return;
   }

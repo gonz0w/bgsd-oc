@@ -137,17 +137,22 @@ if [ $OLD_AGENTS -gt 0 ]; then
 	echo "  Cleaned up $OLD_AGENTS old gsd-*.md agent files"
 fi
 
+# Step 3d: Copy plugin.js to OpenCode auto-load directory
+# OpenCode discovers plugins from ~/.config/opencode/plugin/ (singular, NOT plural)
+PLUGIN_DIR="$HOME/.config/opencode/plugin"
+mkdir -p "$PLUGIN_DIR"
+cp "$SRC/plugin.js" "$PLUGIN_DIR/bgsd.js"
+echo "  Installed plugin: plugin/bgsd.js"
+
 # Step 3e: Substitute path placeholders with actual install paths
-# CRITICAL: Use the ~/.config/oc symlink (-> ~/.config/opencode) to avoid
-# the Anthropic auth plugin mangling "opencode" -> "Claude" in system prompts.
-# See lessons.md for the full story on this mangling issue.
-OPENCODE_CFG="$HOME/.config/oc"
+# Resolve command/workflow placeholders to OpenCode config path.
+OPENCODE_CFG="$HOME/.config/opencode"
 echo "Substituting path placeholders..."
 find "$DEST" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$CMD_DIR" -name 'bgsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$AGENT_DIR" -name 'bgsd-*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
 find "$SKILL_DIR" -name '*.md' -exec sed -i "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} + 2>/dev/null || true
-echo "  Path placeholders resolved to: $OPENCODE_CFG (symlink to ~/.config/opencode)"
+echo "  Path placeholders resolved to: $OPENCODE_CFG"
 
 # Step 4: Smoke test deployed artifact
 echo ""

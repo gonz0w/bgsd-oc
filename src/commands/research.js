@@ -188,7 +188,7 @@ function detectMcpServers(cwd) {
 
   if (!mcpConfigPath) {
     debugLog('research.mcp', 'no MCP config file found');
-    results.warning = 'MCP config not found — set mcp_config_path in config or place opencode.json in ~/.config/oc/';
+    results.warning = 'MCP config not found — set mcp_config_path in config or place opencode.json in ~/.config/opencode/';
     return results;
   }
 

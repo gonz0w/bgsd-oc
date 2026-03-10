@@ -11,8 +11,4 @@ Notifications include phase completions, state sync events, stuck/loop detection
 
 If no notifications exist yet in this session, report "No notifications yet."
 
-To access notification history programmatically, use:
-```
-node bin/bgsd-tools.cjs util:notifications
-```
-(Note: The CLI command reads from the plugin's in-memory history — only available during active sessions.)
+Note: Notification history is stored in the plugin's in-memory state and is only available during active sessions. There is no CLI command for this — the plugin exposes notifications via its hook system.

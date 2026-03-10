@@ -4,7 +4,6 @@ Create executable phase prompts (PLAN.md files) for a roadmap phase. Flow: Resea
 
 <required_reading>
 Read all files referenced by execution_context.
-Load ui-brand.md sections as needed via extract-sections.
 </required_reading>
 
 <process>

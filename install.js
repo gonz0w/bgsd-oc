@@ -3,7 +3,7 @@
 import {
   readFileSync, writeFileSync, mkdirSync, cpSync,
   readdirSync, existsSync, statSync, unlinkSync,
-  rmSync, symlinkSync, lstatSync
+  rmSync
 } from "fs"
 import { execSync } from "child_process"
 import { join, dirname, basename } from "path"
@@ -15,10 +15,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const DEST = join(homedir(), ".config", "opencode", "bgsd-oc")
 const CMD_DIR = join(homedir(), ".config", "opencode", "commands")
 const AGENT_DIR = join(homedir(), ".config", "opencode", "agents")
-const PLUGIN_DIR = join(homedir(), ".config", "opencode", "plugins")
+const PLUGIN_DIR = join(homedir(), ".config", "opencode", "plugin")
 const SKILL_DIR = join(homedir(), ".config", "opencode", "skills")
 const SRC = __dirname
-const OC_SYMLINK = join(homedir(), ".config", "oc")
 const OPENCODE_DIR = join(homedir(), ".config", "opencode")
 
 // --- Argument parsing ---
@@ -40,7 +39,7 @@ What gets installed:
   ~/.config/opencode/commands/bgsd-*   40 slash commands
   ~/.config/opencode/agents/bgsd-*     10 specialized agents
   ~/.config/opencode/skills/           Reusable skill modules for agents
-  ~/.config/opencode/plugins/bgsd.js   Plugin hooks (session, env, compaction)
+  ~/.config/opencode/plugin/bgsd.js    Plugin hooks (session, env, compaction)
 
 Learn more: https://github.com/gonz0w/bgsd-oc
 `)
@@ -80,10 +79,15 @@ if (hasFlag("--uninstall")) {
     }
   }
 
-  // Remove plugin
+  // Remove plugin (current and legacy paths)
   const pluginPath = join(PLUGIN_DIR, "bgsd.js")
   if (existsSync(pluginPath)) {
     unlinkSync(pluginPath)
+  }
+  // Also clean up old plugins/ (plural) path from prior installs
+  const oldPluginPath = join(homedir(), ".config", "opencode", "plugins", "bgsd.js")
+  if (existsSync(oldPluginPath)) {
+    unlinkSync(oldPluginPath)
   }
 
   // Remove bgsd-oc directory (and legacy get-shit-done if it exists)
@@ -136,24 +140,6 @@ console.log("")
 // Create directories
 for (const dir of [DEST, CMD_DIR, AGENT_DIR, PLUGIN_DIR, SKILL_DIR]) {
   mkdirSync(dir, { recursive: true })
-}
-
-// Create ~/.config/oc symlink if it doesn't exist
-// This works around the Anthropic auth plugin mangling "opencode" → "Claude" in prompts
-try {
-  if (existsSync(OPENCODE_DIR)) {
-    if (existsSync(OC_SYMLINK) || lstatSync(OC_SYMLINK).isSymbolicLink()) {
-      // Already exists — skip
-    }
-  }
-} catch {
-  // Symlink doesn't exist — create it
-  try {
-    symlinkSync(OPENCODE_DIR, OC_SYMLINK)
-    console.log(`  Created symlink: ${OC_SYMLINK} → ${OPENCODE_DIR}`)
-  } catch (e) {
-    console.warn(`  Warning: Could not create ${OC_SYMLINK} symlink: ${e.message}`)
-  }
 }
 
 // Read manifest
@@ -218,17 +204,23 @@ if (existsSync(AGENT_DIR)) {
   }
 }
 
-// Copy plugin.js to plugins/bgsd.js
+// Copy plugin.js to plugin/bgsd.js (OpenCode auto-loads from plugin/ singular)
 const pluginSrc = join(SRC, "plugin.js")
 const pluginDst = join(PLUGIN_DIR, "bgsd.js")
 if (existsSync(pluginSrc)) {
   cpSync(pluginSrc, pluginDst)
-  console.log("  Installed plugin: plugins/bgsd.js")
+  console.log("  Installed plugin: plugin/bgsd.js")
+}
+
+// Clean up stale plugin from old plugins/ (plural) path
+const oldPluginDst = join(homedir(), ".config", "opencode", "plugins", "bgsd.js")
+if (existsSync(oldPluginDst)) {
+  unlinkSync(oldPluginDst)
+  console.log("  Cleaned up stale: plugins/bgsd.js (old path)")
 }
 
 // Substitute __OPENCODE_CONFIG__ placeholders
-// Use ~/.config/oc symlink path (avoids Anthropic auth plugin mangling)
-const OPENCODE_CFG = OC_SYMLINK
+const OPENCODE_CFG = OPENCODE_DIR
 
 /**
  * Recursively substitute placeholders in all .md files in a directory.

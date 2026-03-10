@@ -19,7 +19,6 @@ Brownfield equivalent of new-project. Project exists, PROJECT.md has history. Ga
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/new-milestone.md
 @__OPENCODE_CONFIG__/bgsd-oc/references/questioning.md
-@__OPENCODE_CONFIG__/bgsd-oc/references/ui-brand.md
 @__OPENCODE_CONFIG__/bgsd-oc/templates/project.md
 @__OPENCODE_CONFIG__/bgsd-oc/templates/requirements.md
 </execution_context>

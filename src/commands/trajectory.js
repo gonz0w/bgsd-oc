@@ -92,7 +92,7 @@ function cmdTrajectoryCheckpoint(cwd, args, raw) {
 
   // Test count
   try {
-    const testOutput = execFileSync('node', ['--test', path.join(cwd, 'bin', 'bgsd-tools.test.cjs')], {
+    const testOutput = execFileSync('npm', ['test'], {
       cwd, encoding: 'utf-8', stdio: 'pipe', timeout: 120000,
     });
     metrics.tests = parseTestOutput(testOutput);
@@ -127,7 +127,7 @@ function cmdTrajectoryCheckpoint(cwd, args, raw) {
       const fullPath = path.join(cwd, file);
       if (!fs.existsSync(fullPath)) continue;
       try {
-        const astOut = execFileSync('node', [path.join(cwd, 'bin', 'bgsd-tools.cjs'), 'codebase', 'complexity', file], {
+        const astOut = execFileSync('node', [path.join(cwd, 'bin', 'bgsd-tools.cjs'), 'util:codebase', 'complexity', file], {
           cwd, encoding: 'utf-8', stdio: 'pipe', timeout: 15000,
         });
         const parsed = JSON.parse(astOut);

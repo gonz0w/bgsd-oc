@@ -1197,10 +1197,20 @@ function cmdSummaryExtract(cwd, summaryPath, fields, raw) {
     });
   };
 
+  // Extract one-liner: prefer frontmatter, fall back to first bold line in body
+  let oneLiner = fm['one-liner'] || null;
+  if (!oneLiner) {
+    // Look for **bold text** as the first non-heading, non-empty line after frontmatter
+    const bodyMatch = content.match(/^---[\s\S]*?---\s*\n(?:#[^\n]*\n\s*)*\*\*([^*]+)\*\*/m);
+    if (bodyMatch) {
+      oneLiner = bodyMatch[1].trim();
+    }
+  }
+
   // Build full result
   const fullResult = {
     path: summaryPath,
-    one_liner: fm['one-liner'] || null,
+    one_liner: oneLiner,
     key_files: fm['key-files'] || [],
     tech_added: (fm['tech-stack'] && fm['tech-stack'].added) || [],
     patterns: fm['patterns-established'] || [],

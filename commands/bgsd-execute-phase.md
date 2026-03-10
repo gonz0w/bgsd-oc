@@ -11,7 +11,6 @@ Context budget: ~15% orchestrator, 100% fresh per subagent.
 
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-phase.md
-@__OPENCODE_CONFIG__/bgsd-oc/references/ui-brand.md
 </execution_context>
 
 <context>
