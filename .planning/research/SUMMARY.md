@@ -1,131 +1,190 @@
-# Research Summary: v9.1 Dependency-Driven Runtime Acceleration
+# Project Research Summary
 
-**Domain:** Faster plugin + CLI behavior through targeted dependency/module adoption
-**Researched:** 2026-03-09
-**Scope guard:** Benchmark-heavy scope rejected; prioritize direct runtime wins on existing hot paths
-**Overall confidence:** HIGH (adoption map + rollout/fallback), MEDIUM-HIGH (exact gain magnitude)
+**Project:** bGSD CLI Tool Integrations & Runtime Modernization (v9.2)
+**Domain:** CLI Plugin / Developer Tool
+**Researched:** 2026-03-10
+**Confidence:** HIGH
 
-## Executive Direction
+<!-- section: compact -->
+<compact_summary>
 
-v9.1 should accelerate runtime by swapping internal engines behind stable facades, not by adding broad benchmarking infrastructure.
+**Summary:** Researched CLI tool integrations (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq) and Bun runtime for v9.2. Recommended approach uses built-in `child_process` with a subprocess wrapper layer and tool availability detection via `which` package. Bun runtime migration deferred due to single-file deploy conflicts. Top risk is shell injection when adding new execSync calls.
 
-The recommended path is:
-1. Reduce plugin validation/bundle overhead (`zod` -> `valibot`).
-2. Replace scan/ignore hot paths with optimized traversal (`fast-glob` + `ignore`).
-3. Enable repeat-invocation startup gains (Node module compile cache).
-4. Remove repeated SQL prepare overhead (`node:sqlite` statement caching).
+**Recommended stack:** `which` (tool detection), Node.js `child_process` (execution), Bun (future consideration)
 
-This preserves command and plugin contracts while improving perceived responsiveness in everyday flows.
+**Architecture:** Subprocess wrapper layer pattern — detector.js checks tool availability with caching, individual wrappers (ripgrep.js, fd.js, etc.) provide unified API with graceful fallback to existing Node.js implementations.
 
-## Recommended Dependencies and Runtime Techniques
+**Top pitfalls:**
+1. Shell injection via user input — use spawn with array args, never string interpolation
+2. Missing tool detection — check availability before use, show clear install instructions
+3. Interactive TUI tools (lazygit, fzf) hang — use stdio:'inherit' or avoid for automation
 
-| Priority | Dependency / Technique | Version | Why now |
-|---|---|---:|---|
-| P1 | `valibot` | `1.2.0` | Lower plugin schema cost and shipped validator weight on cold path |
-| P2 | `fast-glob` | `3.3.3` | Faster high-fanout file discovery and lower JS/syscall traversal overhead |
-| P2 | `ignore` | `7.0.5` | Replace repeated `git check-ignore` subprocess churn in scans |
-| P3 | Node module compile cache (`module.enableCompileCache`) | Node `>=22.8` API | Faster repeated CLI command startup after warm cache |
-| P3 | `node:sqlite` statement cache (`DatabaseSync#createTagStore`) | built-in | Lower tail latency in cache-heavy command flows |
+**Suggested phases:**
+1. Tool Detection Infrastructure — detector.js + ripgrep/fd/jq wrappers with fallback
+2. Extended Tool Integrations — yq, bat, gh CLI with auth handling
+3. Interactive Tools — fzf, lazygit with TTY passthrough (optional)
+4. Bun Runtime Exploration — adapter layer with Node.js fallback (deferred)
 
-Install command for external packages:
+**Confidence:** HIGH | **Gaps:** Bun migration breaks single-file deploy, deferred to v2+
+</compact_summary>
+<!-- /section -->
 
-```bash
-npm install valibot@1.2.0 fast-glob@3.3.3 ignore@7.0.5
-```
+<!-- section: executive_summary -->
+## Executive Summary
 
-## Concrete Replacement Targets in This Repo
+This research addresses CLI tool integrations and Bun runtime exploration for bGSD v9.2. The goal is to accelerate common development workflows by leveraging best-in-class CLI tools (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq) while maintaining bGSD's single-file deploy model and graceful degradation when tools are unavailable.
 
-### Plugin boundary validation (P1)
+**Recommended approach:** Adopt a subprocess wrapper layer pattern using built-in `child_process.execFileSync` (not execSync) with array arguments to prevent shell injection. Use the `which` package for cross-platform tool availability detection with caching. This integrates seamlessly with existing patterns in `src/lib/git.js` while adding new capabilities.
 
-- Replace `import { z } from 'zod'` schema definitions with `valibot` in:
-  - `src/plugin/tools/bgsd-status.js`
-  - `src/plugin/tools/bgsd-plan.js`
-  - `src/plugin/tools/bgsd-context.js`
-  - `src/plugin/tools/bgsd-validate.js`
-  - `src/plugin/tools/bgsd-progress.js`
-- Keep I/O contracts unchanged; only internal validator engine changes.
+**Key risks mitigated:** Shell injection (CLI-01), missing tools (CLI-02), TUI hangs (CLI-03), and credential prompts (CLI-04) are the critical pitfalls addressed. The Bun runtime provides 3-5x faster startup but breaks the single-file deploy model and is recommended for v2+.
 
-### File scan + ignore hot paths (P2)
+**Architecture recommendation:** Create `src/lib/cli-tools/` directory with detector.js (availability checking), index.js (unified exports), and individual tool wrappers. Use graceful fallback — if ripgrep isn't installed, fall back to existing Node.js-based search.
+<!-- /section -->
 
-- Replace manual recursive traversal and repeated ignore subprocess checks in:
-  - `src/lib/codebase-intel.js` (`walkSourceFiles`, `getSourceDirs` path filtering)
-  - `src/commands/features.js` high-fanout file scan flows
-- Implement adapter seam (`src/lib/adapters/glob.js`) to preserve caller contracts and ease fallback.
+<!-- section: key_findings -->
+## Key Findings
 
-### Frontmatter/cache acceleration supporting modules (P2/P3)
+### Recommended Stack
 
-- Introduce dual-engine frontmatter adapter pattern where adopted (`gray-matter` primary, existing parser fallback) behind existing `src/lib/frontmatter.js` API.
-- Keep `CacheEngine` topology, but optimize internals in `src/lib/cache.js`:
-  - enable SQLite statement reuse via tag store
-  - keep Map backend fallback untouched
+**Core technologies:**
+- **`which` (^5.0.0):** Zero-dependency cross-platform tool detection — only 5KB, works on Linux/macOS/Windows
+- **Built-in `child_process`:** Already in use via `src/lib/git.js` — use `execFileSync` over `execSync` to avoid shell injection
+- **Bun runtime:** 3-5x faster cold start (5-15ms vs 120-150ms) but defers due to single-file deploy conflicts
+- **No new npm packages for execution:** Direct subprocess calls avoid dependency bloat
 
-### Startup/runtime technique adoption (P3)
+### Expected Features
 
-- Enable compile cache early in CLI bootstrap (`src/index.js` and bundled entry behavior in `bin/bgsd-tools.cjs` path) behind env/config guard.
+**Must have (table stakes):**
+- **ripgrep integration** — 10-100x faster than Node.js regex; use `--json` for machine parsing
+- **fd integration** — faster file discovery than fast-glob; respects .gitignore
+- **jq integration** — standard CLI JSON processing for pipeline composition
+- **Tool availability detection** — check `which` before invoking; fallback to existing implementation
 
-## Rollout and Fallback Strategy
+**Should have (competitive):**
+- **yq integration** — faster YAML frontmatter processing
+- **bat integration** — syntax-highlighted file previews
+- **gh CLI integration** — GitHub API access for PRs, issues, workflows
 
-Use dependency flags + shadow-first rollout to avoid behavior regressions.
+**Defer (v2+):**
+- **Bun runtime** — breaks single-file esbuild deploy, ecosystem still maturing
+- **lazygit integration** — interactive TUI, no stable CLI interface
+- **Full fzf workflows** — requires TTY, limited automation value
 
-### Wave 1: Facades and flags (no behavior switch)
+### Architecture Approach
 
-1. Add adapters and migration flags (`BGSD_DEP_FAST_GLOB`, `BGSD_DEP_GRAY_MATTER`, `BGSD_DEP_LRU`, `BGSD_DEP_SHADOW_COMPARE`).
-2. Keep current implementations as default.
-3. Add parity tests for scan outputs and frontmatter parse/stringify behavior.
+The integration uses a **subprocess wrapper layer** with three core patterns:
 
-### Wave 2: Shadow validation
+1. **Subprocess Wrapper with Sanitization** — Standardized wrapper around execFileSync with tool detection, argument sanitization, error handling, and output parsing (for ripgrep, fd, bat, jq, yq, gh)
 
-4. Run new engines in compare mode and log mismatches/debug-only telemetry.
-5. Resolve parity gaps before enabling defaults.
+2. **TTY Passthrough for Interactive Tools** — Spawn fzf/lazygit with `stdio: 'inherit'` to pass terminal control (blocks execution but enables full interactivity)
 
-### Wave 3: Default-on low-risk paths
+3. **Tool Availability Detection with Graceful Fallback** — Check tool availability at startup, cache result, provide fallback behavior when tool unavailable
 
-6. Enable `fast-glob` for read-only discovery flows.
-7. Enable bounded cache improvements and SQLite statement caching.
-8. Keep in-process fallback active for all adapter failures.
+**Major components:**
+1. `src/lib/cli-tools/detector.js` — Availability checking with caching
+2. `src/lib/cli-tools/*.js` — Individual tool wrappers (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq)
+3. `src/lib/runtime/bun-runtime.js` — Bun detection adapter (optional, deferred)
 
-### Wave 4: Parser/default migration completion
+### Critical Pitfalls
 
-9. Enable modern parser engine default only after compatibility parity is stable.
-10. Keep legacy parser fallback for one milestone, then remove shadow compare.
+1. **Shell injection (CLI-01):** Using execSync with string interpolation allows command injection. Prevention: Use spawn with array arguments, never string interpolation.
 
-### Fallback policy (must keep)
+2. **Missing tool detection (CLI-02):** Commands fail with ENOENT on systems without tools installed. Prevention: checkToolAvailability() before first use, show clear install instructions.
 
-- Any adapter/runtime error falls back to legacy implementation in-process.
-- Fallback is silent to normal users; debug detail only under `BGSD_DEBUG=1`.
-- Rollback is flag-only; no data migration required.
+3. **TUI tools hang (CLI-03):** lazygit/fzf hang when spawned as background subprocess. Prevention: Use stdio:'inherit' or launch in new terminal.
 
-## Top Adoption Risks (and Controls)
+4. **Credential prompts block (CLI-04):** gh/git without cached credentials hang. Prevention: Set GIT_TERMINAL_PROMPT=0, ensure credentials available.
 
-1. **Deploy model breakage (DEP-01):** dependency assumes multi-file/native runtime; gate on single-file bundleability and deploy smoke tests.
-2. **Cold-start regression (DEP-02/DEP-06):** "faster" libs add init cost; require lazy-init plan and startup impact note in each adoption PR.
-3. **ESM/CJS boundary failures (DEP-03/DEP-07):** plugin/CLI interop drift; require plugin load + CLI smoke + import contract tests.
-4. **Node floor incompatibility (DEP-04):** dependency drifts beyond Node 18 support; enforce engine compatibility tests at floor and current LTS.
-5. **Behavioral compatibility regressions (DEP-09):** parser/state edge cases change; require legacy fixture parity as hard gate.
-6. **Transitive bundle bloat (DEP-06):** performance wins erased by size growth; enforce bundle delta budget and esbuild metafile review.
+5. **Bun argument handling (BUN-01):** Bun swaps argv0/argv[1] vs Node. Prevention: Use import.meta.url, test explicitly with Bun.
+<!-- /section -->
 
-## Recommended Adoption Sequence (Dependency-First)
+<!-- section: roadmap_implications -->
+## Implications for Roadmap
 
-1. `valibot` migration in plugin tool schemas (highest user-visible plugin responsiveness potential).
-2. `fast-glob` + `ignore` in `codebase-intel` and feature scan flows (largest repo-scale wins).
-3. Compile cache enablement for repeated CLI invocations (fast operational win).
-4. SQLite statement caching in cache backend (incremental tail latency improvement).
+Based on research, suggested phase structure:
 
-## Out of Scope for v9.1
+### Phase 1: Tool Detection Infrastructure
+**Rationale:** Foundation for all other CLI integrations — must establish availability checking before adding tool wrappers
+**Delivers:** `cli-tools/detector.js` + basic wrapper structure, ripgrep/fd/jq integrations with fallback
+**Addresses:** FEATURES.md table stakes — ripgrep, fd, jq, tool availability detection
+**Avoids:** PITFALLS CLI-01 (shell injection), CLI-02 (missing tools)
 
-- Benchmark-harness expansion projects and competitive perf shootouts.
-- Full async architecture rewrite of CLI/router/command topology.
-- Heavy telemetry/APM dependency additions in plugin hot path.
-- Replacing stable modules without hotspot evidence.
+### Phase 2: Extended Tool Integrations
+**Rationale:** Non-interactive tools that enhance automation — lower risk than TUI tools
+**Delivers:** yq, bat, gh CLI wrappers with authentication handling
+**Uses:** Stack elements: which, child_process execFileSync
+**Implements:** CLI tools layer with output parsing
+**Avoids:** PITFALLS CLI-04 (credential prompts), CLI-06 (buffer overflow)
 
-## Confidence
+### Phase 3: Interactive Tools (Optional)
+**Rationale:** TTY handling complexity requires careful implementation
+**Delivers:** fzf integration for fuzzy search, lazygit launcher
+**Uses:** spawn with stdio:'inherit' for terminal passthrough
+**Implements:** TTY passthrough pattern
+**Avoids:** PITFALLS CLI-03 (TUI hang)
+
+### Phase 4: Bun Runtime Exploration (Deferred)
+**Rationale:** Breaks single-file deploy — needs separate build pipeline
+**Delivers:** Runtime abstraction adapter with Node.js fallback
+**Uses:** Bun-specific spawn APIs
+**Implements:** Runtime abstraction layer
+**Avoids:** PITFALLS BUN-01 through BUN-05
+
+### Phase Ordering Rationale
+
+- **Phase 1 first:** Tool detection is prerequisite — all other phases depend on knowing which tools are available
+- **Non-interactive before interactive:** ripgrep/fd/jq/yq/bat/gh are simpler to integrate than fzf/lazygit
+- **Bun deferred:** Single-file deploy is core to bGSD's value proposition; Bun compatibility requires esbuild changes
+- **Graceful degradation throughout:** Each phase maintains fallback to existing Node.js implementations
+
+### Research Flags
+
+Phases likely needing deeper research during planning:
+- **Phase 2 (gh CLI):** Auth flow complexity — needs research on gh auth status checking and token handling
+- **Phase 3 (fzf/lazygit):** TTY detection edge cases — needs research on terminal capability detection
+
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (detector + ripgrep/fd/jq):** Well-documented subprocess patterns, existing git.js precedent
+<!-- /section -->
+
+<!-- section: confidence -->
+## Confidence Assessment
 
 | Area | Confidence | Notes |
-|---|---|---|
-| Dependency shortlist fit (`valibot`, `fast-glob`, `ignore`) | HIGH | Strong alignment with identified hot paths and low-churn integration model |
-| Rollout/fallback architecture | HIGH | Shadow mode + flag kill switches minimize regression blast radius |
-| Risk controls for deployment/compatibility | HIGH | Directly grounded in repo constraints (single-file CLI, ESM plugin + CJS CLI, backward parsing compatibility) |
-| Exact speedup magnitude | MEDIUM-HIGH | Direction is clear; final gains depend on workload mix and migration quality |
+|------|------------|-------|
+| Stack | HIGH | which package verified on npm; child_process patterns in existing codebase |
+| Features | HIGH | CLI tools are mature with well-documented APIs; fallback patterns established |
+| Architecture | HIGH | Subprocess wrapper pattern follows existing git.js precedent |
+| Pitfalls | HIGH | Based on Node.js docs, Bun issues, CLI tool behavior patterns |
+
+**Overall confidence:** HIGH
+
+### Gaps to Address
+
+- **Bun single-file deploy conflict:** Bun requires separate build pipeline, incompatible with esbuild single-file output. Recommendation: Defer to v2+ when build infrastructure can support dual targets.
+  
+- **gh CLI auth complexity:** Research didn't deeply explore gh auth status checking edge cases. Recommendation: Plan phase should include auth flow testing on clean system.
+
+- **fzf automation value:** Limited value for automated agents since fzf is primarily interactive. Recommendation: Keep as optional phase, only implement if user-facing workflows benefit.
+<!-- /section -->
+
+<!-- section: sources -->
+## Sources
+
+### Primary (HIGH confidence)
+- Node.js child_process documentation — execFileSync usage patterns, security considerations
+- ripgrep documentation — JSON output, glob patterns
+- fd-find documentation — JSON output, .gitignore integration
+- Bun Node.js compatibility — 95%+ API coverage confirmed
+
+### Secondary (MEDIUM confidence)
+- Bun argument handling issues (GitHub issue #19694) — argv differences with Node.js
+- Community migration stories — single-file deploy challenges with Bun
+
+### Tertiary (LOW confidence)
+- fzf subprocess behavior — needs validation during Phase 3 planning
 
 ---
-*Last updated: 2026-03-09*
+
+*Research completed: 2026-03-10*
+*Ready for roadmap: yes*
