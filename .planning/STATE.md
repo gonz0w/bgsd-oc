@@ -10,8 +10,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 ## Current Position
 
 **Phase:** 84-extended-tools
-**Current Plan:** 01 - Complete
-**Status:** Plan complete
+**Current Plan:** Not started
+**Status:** Ready to plan
 **Last Activity:** 2026-03-10
 
 **Progress:** v9.2 CLI Tool Integrations - Phase 84 complete

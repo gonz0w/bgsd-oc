@@ -95,7 +95,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
 |-------|----------------|--------|-----------|
 | 82. Tool Detection Infrastructure | 1/1 | Complete    | 2026-03-10 |
 | 83. Search & Discovery | 1/1 | Complete    | 2026-03-10 |
-| 84. Extended Tools | 1/1 | Complete   | 2026-03-10 |
+| 84. Extended Tools | 1/1 | Complete    | 2026-03-10 |
 | 85. Runtime Exploration | 0/1 | Not started | - |
 
 ---
@@ -110,9 +110,9 @@ This milestone expands CLI tool integrations for faster operations and explores 
 | CLI-04: ripgrep with --json output | Phase 83 | Pending |
 | CLI-05: fd with .gitignore respect | Phase 83 | Pending |
 | CLI-06: jq for JSON processing | Phase 83 | Pending |
-| CLI-07: yq for YAML processing | Phase 84 | Pending |
-| CLI-08: bat for syntax-highlighted output | Phase 84 | Pending |
-| CLI-09: gh CLI for GitHub operations | Phase 84 | Pending |
+| CLI-07: yq for YAML processing | Phase 84 | ✅ Complete |
+| CLI-08: bat for syntax-highlighted output | Phase 84 | ✅ Complete |
+| CLI-09: gh CLI for GitHub operations | Phase 84 | ✅ Complete |
 | RUNT-01: Bun runtime detection | Phase 85 | Pending |
 | RUNT-02: Bun compatibility documentation | Phase 85 | Pending |
 | RUNT-03: Node vs Bun benchmark | Phase 85 | Pending |

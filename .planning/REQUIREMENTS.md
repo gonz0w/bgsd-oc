@@ -23,9 +23,9 @@
 
 #### Extended Tools
 
-- [ ] **CLI-07**: User can use yq for YAML processing
-- [ ] **CLI-08**: User can use bat for syntax-highlighted file output
-- [ ] **CLI-09**: User can use gh CLI for GitHub operations (PRs, issues)
+- [x] **CLI-07**: User can use yq for YAML processing
+- [x] **CLI-08**: User can use bat for syntax-highlighted file output
+- [x] **CLI-09**: User can use gh CLI for GitHub operations (PRs, issues)
 
 #### Runtime Exploration
 
@@ -60,9 +60,9 @@
 | CLI-04 - ripgrep with --json output | Phase 83 | Pending |
 | CLI-05 - fd with .gitignore respect | Phase 83 | Pending |
 | CLI-06 - jq for JSON processing | Phase 83 | Pending |
-| CLI-07 - yq for YAML processing | Phase 84 | Pending |
-| CLI-08 - bat for syntax-highlighted output | Phase 84 | Pending |
-| CLI-09 - gh CLI for GitHub operations | Phase 84 | Pending |
+| CLI-07 - yq for YAML processing | Phase 84 | Complete |
+| CLI-08 - bat for syntax-highlighted output | Phase 84 | Complete |
+| CLI-09 - gh CLI for GitHub operations | Phase 84 | Complete |
 | RUNT-01 - Bun runtime detection | Phase 85 | Pending |
 | RUNT-02 - Bun compatibility documentation | Phase 85 | Pending |
 | RUNT-03 - Node vs Bun benchmark | Phase 85 | Pending |
