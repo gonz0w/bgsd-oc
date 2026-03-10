@@ -3,6 +3,60 @@
 const { COMMAND_HELP } = require('./lib/constants');
 const { error } = require('./lib/output');
 const { diagnoseCompileCache } = require('./lib/runtime-capabilities');
+const { detectBun, getCachedBunVersion, configGet, configSet } = require('./lib/cli-tools/bun-runtime');
+const { loadConfig } = require('./lib/config');
+
+// ─── Runtime Detection (Phase 89: Bun runtime detection with config persistence) ────────
+// Detect Bun at startup and show runtime banner.
+// Uses config.get('runtime') for forced preference (auto/bun/node).
+// Caches detection result in config for faster subsequent runs.
+let _runtimeDetected = null;
+if (!process.env.BGSD_RUNTIME_DETECTED) {
+  try {
+    const runtimePref = configGet('runtime');
+    const bunStatus = detectBun();
+    _runtimeDetected = {
+      preference: runtimePref || 'auto',
+      available: bunStatus.available,
+      version: bunStatus.version || getCachedBunVersion(),
+      path: bunStatus.path,
+      fromConfig: bunStatus.fromConfig || false
+    };
+    // Mark as detected to prevent re-execution loops
+    process.env.BGSD_RUNTIME_DETECTED = 'true';
+  } catch (e) {
+    // Silent failure - fall back to Node.js
+    _runtimeDetected = { preference: 'auto', available: false };
+    process.env.BGSD_RUNTIME_DETECTED = 'true';
+  }
+}
+
+/**
+ * Show runtime banner at startup
+ * @param {object} runtime - Runtime info from detection
+ * @param {boolean} verbose - Whether to show extra details
+ */
+function showRuntimeBanner(runtime, verbose = false) {
+  if (!runtime) return;
+  
+  const isBun = runtime.available && runtime.preference !== 'node';
+  const isFallback = runtime.preference === 'node' || (runtime.preference === 'auto' && !runtime.available);
+  
+  if (isBun && !runtime.fromConfig) {
+    // Bun detected and available (not from config forced)
+    console.log('[bGSD] Running with Bun v' + runtime.version);
+  } else if (isFallback && runtime.preference === 'node') {
+    // User forced Node.js
+    console.log('[bGSD] Falling back to Node.js');
+  } else if (verbose && isBun && runtime.fromConfig) {
+    // Verbose mode: show config-cached info
+    console.log('[bGSD] Using Bun (cached v' + runtime.version + ')');
+  }
+  
+  if (verbose && runtime.preference === 'auto' && !runtime.available && !isFallback) {
+    console.log('[bGSD] Bun not available, using Node.js');
+  }
+}
 
 // ─── Compile-cache guard (Phase 79: startup compile-cache acceleration) ────────
 // This runs at CLI startup to check if compile-cache should be enabled.
@@ -89,6 +143,14 @@ async function main() {
   if (compactIdx !== -1) {
     global._gsdCompactMode = true;
     args.splice(compactIdx, 1);
+  }
+
+  // ─── Runtime Banner ─────────────────────────────────────────────────────────
+  // Show runtime info at startup (only in verbose mode or when running with Bun)
+  const isVerbose = global._gsdCompactMode === false;
+  const showBanner = isVerbose || (_runtimeDetected && _runtimeDetected.available);
+  if (showBanner) {
+    showRuntimeBanner(_runtimeDetected, isVerbose);
   }
 
   // Parse --manifest global flag for context manifest in compact output
