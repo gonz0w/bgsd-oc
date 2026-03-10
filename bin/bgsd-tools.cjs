@@ -36050,7 +36050,7 @@ for (const dir of dirs) {
 }
 console.log('Processed', count, 'files');
 `;
-      const scriptPath = path.join(cwd, ".bgsd-benchmark-temp.js");
+      const scriptPath = path.join(cwd, ".bgsd-benchmark-temp.cjs");
       fs.writeFileSync(scriptPath, testScript);
       const lines = [];
       lines.push("=== Runtime Benchmark ===");
@@ -36080,17 +36080,18 @@ console.log('Processed', count, 'files');
           lines.push("Bun runs failed - cannot compare");
         }
       }
+      const benchmarkResults = bunStatus.available ? benchmarkStartup(scriptPath, runs) : { node: null, bun: null, speedup: null };
+      const result = {
+        runs,
+        bunAvailable: bunStatus.available,
+        node: benchmarkResults.node,
+        bun: benchmarkResults.bun,
+        speedup: benchmarkResults.speedup
+      };
       try {
         fs.unlinkSync(scriptPath);
       } catch {
       }
-      const result = {
-        runs,
-        bunAvailable: bunStatus.available,
-        node: bunStatus.available ? benchmarkStartup(scriptPath, runs).node : null,
-        bun: bunStatus.available ? benchmarkStartup(scriptPath, runs).bun : null,
-        speedup: bunStatus.available ? benchmarkStartup(scriptPath, runs).speedup : null
-      };
       if (raw) {
         output2(result, raw);
       } else {
@@ -36116,18 +36117,24 @@ var require_router = __commonJS({
     var _runtimeDetected = null;
     if (!process.env.BGSD_RUNTIME_DETECTED) {
       try {
-        const runtimePref = configGet("runtime");
         const bunStatus = detectBun();
+        let effectivePref = "auto";
+        if (bunStatus.forced) {
+          effectivePref = bunStatus.available ? "bun" : "node";
+        } else if (bunStatus.available) {
+          effectivePref = "bun";
+        }
         _runtimeDetected = {
-          preference: runtimePref || "auto",
+          preference: effectivePref,
           available: bunStatus.available,
           version: bunStatus.version || getCachedBunVersion(),
           path: bunStatus.path,
-          fromConfig: bunStatus.fromConfig || false
+          fromConfig: bunStatus.fromConfig || false,
+          forced: bunStatus.forced || false
         };
         process.env.BGSD_RUNTIME_DETECTED = "true";
       } catch (e) {
-        _runtimeDetected = { preference: "auto", available: false };
+        _runtimeDetected = { preference: "auto", available: false, forced: false };
         process.env.BGSD_RUNTIME_DETECTED = "true";
       }
     }
