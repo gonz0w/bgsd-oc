@@ -94,3 +94,141 @@ Primary references used:
 Confidence rubric:
 - **HIGH:** direct Node/esbuild/npm docs + repository constraints
 - **MEDIUM-HIGH:** ecosystem/maintenance risk controls inferred from official tooling behavior
+
+---
+
+# PITFALLS: CLI Tool Integrations & Bun Runtime (bGSD v9.2)
+
+**Question answered:** What pitfalls should be avoided when adding CLI tool integrations (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq) to an existing Node.js CLI and exploring Bun runtime?
+
+**Scope note:** This register covers CLI tool integration risks and Bun runtime migration challenges for the v9.2 milestone.
+
+---
+
+## Risk Register (Concrete to bGSD v9.2)
+
+| ID | Pitfall | Why this is acute in bGSD | Impact | Prevention controls | Early detection | Confidence |
+|---|---|---|---|---|---|---|
+| CLI-01 | Shell injection via user input | bGSD already uses execSync for git; new tools expand attack surface | Arbitrary command execution | Use spawn with array args, never exec with string interpolation | Audit all exec calls for injection points | HIGH |
+| CLI-02 | Missing tool installation | New tools (ripgrep, fd, fzf) not in standard toolchains | Runtime crashes on clean systems | checkToolAvailability() before use, clear error messages | Test on system without tools installed | HIGH |
+| CLI-03 | Interactive TUI tools (lazygit, fzf) hang | These require TTY; subprocess spawn blocks | Commands hang indefinitely | Use stdio:'inherit', or avoid for automation | Test spawn in non-TTY context | HIGH |
+| CLI-04 | Credential prompts block automation | gh/git without cached credentials hang | CI/CD failures, blocked workflows | Set GIT_TERMINAL_PROMPT=0, ensure credentials available | Test without cached credentials | HIGH |
+| CLI-05 | Glob patterns fail without shell expansion | grep/ripgrep `**/*.js` not expanded in spawn | Commands work in terminal, fail in script | Use shell:true or pre-expand with globby | Test glob patterns programmatically | HIGH |
+| CLI-06 | Buffer overflow on large outputs | Full-repo searches produce >1MB | Commands crash with maxBuffer exceeded | Set maxBuffer option, use filtering flags | Test with large codebases | MEDIUM |
+| CLI-07 | Version incompatibilities between tools | yq v3 vs v4 syntax differs, bat changed flags | Same command fails on different versions | Detect version, use compatible syntax | Test with minimum versions | MEDIUM |
+| BUN-01 | Argument handling differences | Bun swaps argv0/argv[1] vs Node | Path resolution breaks | Use import.meta.url, test with Bun explicitly | Run tests with Bun | HIGH |
+| BUN-02 | Native module compatibility | ~5% of packages don't work (node:crypto, node:stream edge cases) | Runtime crashes on specific APIs | Test full suite with Bun, have fallback path | Test suite fails on Bun | MEDIUM-HIGH |
+| BUN-03 | stdin/stdout issues in child processes | Bun handles subprocess stdio differently | Interactive commands misbehave | Use Bun's native spawn, test in subprocess context | Interactive commands fail as child process | MEDIUM |
+| BUN-04 | Module resolution differences | Bun prefers ESM over CJS | Some requires fail silently | Use ESM or explicit .cjs extensions | Bundle fails or wrong module loaded | MEDIUM |
+| BUN-05 | __dirname differences | Bun handles __dirname differently | Path resolution breaks | Use fileURLToPath(import.meta.url) | Path tests fail in Bun | MEDIUM |
+
+---
+
+## Critical Pitfalls (Avoid First)
+
+### 1) Shell Injection (CLI-01)
+- **What goes wrong:** Using execSync with string interpolation allows command injection
+- **Why here:** bGSD already uses execSync; new tools expand attack surface
+- **Controls:** Use spawn with array arguments, sanitize all user input
+- **Phase warning:** Phase 1 — Tool wrapper infrastructure
+
+### 2) Missing Tool Detection (CLI-02)
+- **What goes wrong:** Commands fail with ENOENT on systems without tools installed
+- **Why here:** ripgrep, fd, fzf, yq not in standard toolchains
+- **Controls:** checkToolAvailability() before first use, show install instructions
+- **Phase warning:** Phase 1 — Availability checking
+
+### 3) TUI Tools Hang (CLI-03)
+- **What goes wrong:** lazygit/fzf hang when spawned as background subprocess
+- **Why here:** These TUI tools require real terminal for keyboard input
+- **Controls:** Use stdio:'inherit' or launch in new terminal
+- **Phase warning:** Phase 2 — Interactive tool integration
+
+### 4) Bun Argument Handling (BUN-01)
+- **What goes wrong:** process.argv[0]/argv[1] swapped in Bun vs Node
+- **Why here:** Bun implementation differs from Node.js
+- **Controls:** Use import.meta.url, test explicitly with Bun
+- **Phase warning:** Phase 3 — Bun runtime exploration
+
+### 5) Credential Prompts Block (CLI-04)
+- **What goes wrong:** Git/gh commands hang waiting for password input
+- **Why here:** Credentials not cached; prompts block in subprocess
+- **Controls:** Set GIT_TERMINAL_PROMPT=0, verify credentials before use
+- **Phase warning:** Phase 2 — Git integration with gh
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Skip tool version checks | Faster implementation | Incompatibility with tool versions | Never |
+| Assume tools in PATH | Simpler code | Breaks on non-standard installs | Only for well-known tools |
+| Hardcode tool paths | Works on your machine | Breaks on other systems | Never |
+| Ignore exit codes | Easier error handling | Silent failures | Never |
+| Use exec for everything | Familiar API | Shell injection risk | Only when shell features needed |
+
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| ripgrep | Using grep syntax vs ripgrep syntax | Ripgrep has PCRE-like regex |
+| fd | Forgetting fd requires separate install | Check availability |
+| fzf | Expecting fuzzy search without terminal | Use stdio:inherit |
+| bat | Assuming consistent syntax across versions | Test version compatibility |
+| gh | Not checking auth status before use | Verify auth before commands |
+| lazygit | Spawning as background process | Use stdio:inherit |
+| jq | YAML input without format flag | Use -p flag for auto-detect |
+| yq | Confusing v3 vs v4 syntax | Detect and handle version differences |
+
+---
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Shell injection via user input | Arbitrary command execution | Use spawn with array args |
+| Credential leakage in logs | Exposed tokens | Never log gh auth output |
+| PATH manipulation | Malicious tool injection | Validate tool path |
+| Missing input sanitization | Injection through paths | Sanitize file paths |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] Tool availability check passes but tool not functional — verify with --version
+- [ ] CLI command runs but output empty — verify stderr isn't hiding errors
+- [ ] Tests pass in Node but fail in Bun — run full suite with Bun
+- [ ] TUI launches but keyboard doesn't work — verify stdio:inherit
+- [ ] Works for you but not users — verify without cached credentials
+
+---
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Shell injection | Phase 1 | Audit all exec calls |
+| Missing tool detection | Phase 1 | Test on clean system |
+| Interactive TUI tools | Phase 2 | Test spawn with stdio:inherit |
+| Credential prompts | Phase 2 | Test without cached credentials |
+| Bun argument handling | Phase 3 | Run 766 tests with Bun |
+| Glob expansion | Phase 1 | Test glob patterns in spawn |
+| Buffer overflow | Phase 1 | Test with large outputs |
+
+---
+
+## Source Notes
+
+Primary references used:
+- Node.js child_process documentation: https://nodejs.org/api/child_process.html
+- Shell injection prevention: https://www.kazis.dev/blogs/shell-command-nodejs
+- Bun argument handling issue: https://github.com/oven-sh/bun/issues/19694
+- Bun stdin child process issues: https://github.com/oven-sh/bun/issues/15893
+- lazygit subprocess issues: https://github.com/jesseduffield/lazygit/issues/3903
+- Bun vs Node.js 2026 comparison: https://www.pkgpulse.com/blog/bun-vs-nodejs-2026
+- Bun migration challenges: https://github.com/oven-sh/bun/discussions/3955
+
+Confidence rubric:
+- **HIGH:** Direct Node.js/Bun docs + CLI tool documentation
+- **MEDIUM:** Community issues and migration stories (evolving platform)

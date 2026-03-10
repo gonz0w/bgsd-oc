@@ -5,53 +5,43 @@
 
 ## v9.2 Requirements
 
-> Draft requirements — to be refined through research and planning
+### Table Stakes (Must Have)
 
-### CLI Tool Integrations
+#### Tool Detection & Infrastructure
 
-#### Search and Grep Tools
+- [ ] **CLI-01**: Plugin can detect available CLI tools (ripgrep, fd, jq, etc.) with caching
+- [ ] **CLI-02**: Plugin shows clear install instructions when CLI tool is unavailable
+- [ ] **CLI-03**: Plugin gracefully degrades to existing Node.js implementations when CLI tools unavailable
 
-- [ ] **CLI-01**: Plugin can use ripgrep (rg) for 5-10x faster content searching with PCRE2 support
-- [ ] **CLI-02**: Plugin can use ugrep for fastest grep alternative with pattern flexibility
-- [ ] **CLI-03**: Plugin can auto-detect available grep tool and fall back to Node equivalents
+#### Search & Discovery
 
-#### File Discovery Tools
+- [ ] **CLI-04**: User can use ripgrep for content search with --json output for parsing
+- [ ] **CLI-05**: User can use fd for file discovery with .gitignore respect
+- [ ] **CLI-06**: User can use jq for JSON processing in CLI pipelines
 
-- [ ] **CLI-04**: Plugin can use fd for faster file traversal with simpler syntax than find
-- [ ] **CLI-05**: Plugin can use fd's ignore integration for consistent .gitignore handling
+### Differentiators (Should Have)
 
-#### Fuzzy Finding Tools
+#### Extended Tools
 
-- [ ] **CLI-06**: Plugin can integrate with fzf for interactive file/command selection
-- [ ] **CLI-07**: Plugin can use fzf-preview for enhanced interactive workflows
+- [ ] **CLI-07**: User can use yq for YAML processing
+- [ ] **CLI-08**: User can use bat for syntax-highlighted file output
+- [ ] **CLI-09**: User can use gh CLI for GitHub operations (PRs, issues)
 
-#### Utility Tools
+#### Runtime Exploration
 
-- [ ] **CLI-08**: Plugin can use bat for syntax-highlighted file output
-- [ ] **CLI-09**: Plugin can detect CLI tool availability and provide setup hints
-- [ ] **CLI-10**: Plugin can gracefully degrade when CLI tools are unavailable
+- [ ] **RUNT-01**: Plugin can detect Bun runtime availability
+- [ ] **RUNT-02**: Plugin documents Bun compatibility and known limitations
+- [ ] **RUNT-03**: Plugin can benchmark startup time comparison (Node vs Bun)
 
-#### Git TUI Tools
+### Out of Scope
 
-- [ ] **CLI-11**: Plugin can integrate with lazygit for terminal git workflow
-- [ ] **CLI-12**: Plugin can use gh CLI for GitHub operations (PRs, issues, releases)
-- [ ] **CLI-13**: Plugin can use gitui for faster terminal git operations
-
-#### Data Processing Tools
-
-- [ ] **CLI-14**: Plugin can use jq for JSON processing and filtering
-- [ ] **CLI-15**: Plugin can use yq for YAML processing
-
-### Runtime Modernization
-
-- [ ] **RUNT-04**: User can run CLI with Bun runtime for faster startup (~3-5x) and reduced memory usage
-- [ ] **RUNT-05**: User can use Bun as build tool for faster bundling compared to esbuild
-- [ ] **RUNT-06**: User can use pnpm for faster package installation and reduced disk usage
-
-### Benchmarking
-
-- [ ] **PERF-01**: Competitive plugin benchmark adapter for cross-plugin comparison
-- [ ] **PERF-02**: Expanded telemetry/APM export path for performance observability
+| Feature | Reason |
+|---------|--------|
+| lazygit integration | Interactive TUI with no stable CLI interface, blocks automation |
+| fzf full automation | Requires TTY, limited value for automated agents |
+| Bun as primary runtime | Breaks single-file esbuild deploy model, ecosystem maturing |
+| ugrep integration | ripgrep sufficient for v9.2 scope |
+| gitui integration | lazygit preferred if TUI needed, gitui adds overlap |
 
 ## Out of Scope
 
@@ -64,9 +54,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01 - CLI-15 | TBD | Pending |
-| RUNT-04 - RUNT-06 | TBD | Pending |
-| PERF-01 - PERF-02 | TBD | Pending |
+| CLI-01 - CLI-03 (Tool Detection) | TBD | Pending |
+| CLI-04 - CLI-06 (Search & Discovery) | TBD | Pending |
+| CLI-07 - CLI-09 (Extended Tools) | TBD | Pending |
+| RUNT-01 - RUNT-03 (Runtime Exploration) | TBD | Pending |
 
 ---
 *Requirements defined: 2026-03-10*

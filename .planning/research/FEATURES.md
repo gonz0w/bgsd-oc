@@ -1,92 +1,180 @@
-# Feature Landscape: Dependency-Driven Plugin Acceleration (v9.1)
+# Feature Research
 
-**Domain:** Faster plugin behavior achieved through selective dependency modernization only.
-**Researched:** 2026-03-09
-**Milestone context:** User wants responsiveness wins from module adoption, not a benchmark-heavy milestone.
+**Domain:** CLI Tool Integrations & Bun Runtime
+**Researched:** 2026-03-10
+**Confidence:** HIGH
+**Milestone:** v9.2 CLI Tool Integrations & Runtime Modernization
 
-## Scope Positioning
+<!-- section: compact -->
+<features_compact>
+<!-- Compact view for planners. Keep under 30 lines. -->
 
-This milestone should ship speed gains users can feel by upgrading execution primitives, not by building broad benchmarking infrastructure.
+**Table stakes (must have):**
+- ripgrep integration — fast code search with --json for machine parsing (replaces slow Node.js regex)
+- fd integration — faster file discovery than Node.js globs, respects .gitignore
+- jq integration — JSON parsing/transforming for CLI output processing
+- Tool availability detection — graceful fallback when tools not installed
 
-- **Primary outcome:** lower perceived latency in common plugin interactions (command start, search, plan parsing, tool responses).
-- **Secondary outcome:** lower CPU churn and memory pressure during command-heavy sessions.
-- **Hard boundary:** dependency adoption must map to clear runtime outcomes; avoid large architecture rewrites.
+**Differentiators:**
+- yq integration — YAML frontmatter processing (faster than custom parser)
+- bat integration — syntax-highlighted file previews in search results
+- gh CLI integration — GitHub API access for PRs, issues, workflows
+- fzf integration — interactive fuzzy search (limited automation value)
 
-## Dependency-Centric Capability Categories
+**Defer (v2+):** Bun runtime migration, lazygit integration
 
-### 1) User-visible responsiveness improvements
+**Key dependencies:** fd enables faster file discovery; ripgrep enables code search; both require tool availability detection and graceful fallback to existing Node.js implementations.
+</features_compact>
+<!-- /section -->
 
-| Capability | User-visible effect | Dependency class to adopt | Confidence |
-|------------|---------------------|---------------------------|------------|
-| **Faster command bootstrap path** | Commands begin executing sooner after invocation | startup/lightweight loader helpers, lazy import support modules | HIGH |
-| **Lower-latency file discovery** | Faster command responses when scanning project files | modern glob engine and path matcher | HIGH |
-| **Quicker content search feedback** | Search-backed commands return candidate files sooner | optimized search process wrapper and streaming output parser | HIGH |
-| **Smoother long-running tool calls** | Fewer "frozen" moments while external commands run | async subprocess dependency with timeout/cancel support | HIGH |
-| **Faster state round-trips** | Less delay reading/writing planning docs and cache metadata | optimized serialization/deserialization package | MEDIUM |
+<!-- section: feature_landscape -->
+## Feature Landscape
 
-### 2) System-level acceleration capabilities
+### Table Stakes (Users Expect These)
 
-| Capability | Internal outcome | Dependency class to adopt | Confidence |
-|------------|------------------|---------------------------|------------|
-| **Parser modernization for markdown/frontmatter hot paths** | Lower parse time and fewer regex backtracking spikes | parser libraries with deterministic tokenization | HIGH |
-| **Glob/search result normalization library** | Reduced custom string churn and path handling bugs | path normalization + matcher ecosystem package | HIGH |
-| **Async process orchestration layer** | Controlled concurrency, cancellation, and safer process lifecycle | subprocess management library | HIGH |
-| **Binary-safe structured serialization** | Smaller payload and faster encode/decode for cached structures | compact serialization format library | MEDIUM |
-| **Stable schema validation at boundaries** | Less defensive re-parsing and cleaner fast-fail behavior | lightweight validation dependency for I/O contracts | MEDIUM |
+Features users assume exist. Missing these = product feels incomplete.
 
-## Table Stakes (Must Ship)
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| ripgrep integration | 10-100x faster than Node.js regex for code search; --json output enables programmatic parsing | LOW | Use `execSync` with `--json` flag; existing git grep can be replaced |
+| fd integration | Faster than Node.js fast-glob for file discovery; respects .gitignore by default | LOW | Use `execSync` with JSON output; complements existing file discovery |
+| jq integration | Standard tool for CLI JSON processing; enables pipeline composition | LOW | Use `execSync` to pipe JSON through jq filters |
+| Tool availability detection | Users won't have all tools installed; must fail gracefully | LOW | Check `which` or `command -v` before invoking; fallback to existing implementation |
 
-These are the minimum dependency-adoption features needed for this milestone to count as "faster plugin behavior."
+### Differentiators (Competitive Advantage)
 
-| Feature | Why it is required | Outcome metric category (not benchmark project) |
-|---------|--------------------|-----------------------------------------------|
-| **Adopt a modern glob/match stack for file discovery paths** | File enumeration is a universal hot path across planning commands | command start-to-first-result latency |
-| **Adopt async subprocess handling for external tool invocations** | Blocking process calls create visible stalls in plugin UX | interaction smoothness and cancellation behavior |
-| **Adopt parser dependency for markdown/frontmatter hot paths** | Regex-only parsing scales poorly on large planning docs | parse latency and error resilience |
-| **Adopt optimized serialization for cache/state payloads** | JSON-heavy payload churn increases CPU and GC overhead | read/write round-trip latency |
-| **Adopt boundary validation dependency for parsed artifacts** | Faster failure on invalid input avoids wasted downstream work | wasted-work reduction and stability |
+Features that set the product apart. Not required, but valuable.
 
-## Differentiators (High-Leverage, Optional)
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| yq integration | Faster than custom YAML parsers for frontmatter; supports merge/eval | MEDIUM | Existing custom parser works; yq is backup for complex YAML |
+| bat integration | Syntax-highlighted file previews in search results; better than raw cat | MEDIUM | Good for human-facing output; adds dependency |
+| gh CLI integration | Direct GitHub API access for PR status, issue lookup, workflow triggers | MEDIUM | Authenticated gh can replace some GitHub API calls |
+| fzf integration | Interactive fuzzy search in planning workflows; "choose from list" patterns | MEDIUM | Requires TTY detection; limited value for automated agents |
+| Bun runtime | 3-5x faster CLI startup; significant for short-running CLI tools | HIGH | Breaks single-file deploy pattern; ecosystem still maturing |
 
-| Feature | Why it differentiates | Confidence |
-|---------|-----------------------|------------|
-| **Streaming search adapter with incremental results** | Users see early partial output instead of waiting for full completion | HIGH |
-| **Dependency-backed cancellation propagation from plugin to CLI** | Enables responsive stop/retry loops in command-heavy workflows | HIGH |
-| **Adaptive serializer strategy by payload size** | Improves both tiny-command overhead and large-state throughput | MEDIUM |
-| **Parser fallback chain (fast path + compatibility path)** | Keeps backward compatibility while still delivering speed on common cases | HIGH |
+### Anti-Features (Commonly Requested, Often Problematic)
 
-## Anti-Features (Explicitly Out of Scope)
+Features that seem good but create problems.
 
-| Anti-Feature | Why excluded from this milestone |
-|--------------|----------------------------------|
-| **Large benchmark harness and competitor shootouts** | User explicitly requested dependency-driven acceleration over benchmark-heavy scope. |
-| **Full async I/O rewrite of the CLI architecture** | Too broad and risky relative to targeted dependency modernization. |
-| **New feature surface unrelated to speed** | Adds maintenance burden without improving responsiveness. |
-| **Replacing stable components without hotspot relevance** | Dependency churn without user-facing gain is not acceptable. |
-| **Massive telemetry expansion projects** | Measurement-heavy work can consume milestone capacity without direct speed wins. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Bun runtime | 3-5x faster startup cited as major improvement | Breaks single-file deploy (esbuild doesn't bundle for Bun); adds runtime complexity; ecosystem still maturing | Keep Node.js, optimize existing code paths |
+| lazygit integration | Git UI is popular, seems natural to automate | Interactive TUI, no stable CLI interface, designed for human use | Use existing git.js module; gh CLI for GitHub operations |
+| Full tool dependency | "Install all the things" mentality | Users may not have tools; adds install burden; platform-specific binaries | Graceful fallback; optional features |
+| Shell=True in execSync | Simpler command construction | Security risk (shell injection); harder to debug | Use array args with shell=False; sanitize inputs |
+<!-- /section -->
 
-## Feature Dependencies and Rollout Order
+<!-- section: dependencies -->
+## Feature Dependencies
 
-1. **Process layer first:** adopt subprocess orchestration dependency so command executions can be cancellable and non-blocking where appropriate.
-2. **Discovery/search second:** adopt glob/matcher and search wrappers to reduce visible wait time in everyday flows.
-3. **Parsing third:** adopt parser modules in hot paths while preserving compatibility guarantees.
-4. **Serialization fourth:** optimize state/cache payload handling after parser outputs are stable.
-5. **Validation hardening last:** enforce boundary schemas to lock in performance and correctness gains.
+```
+ripgrep integration (replaces existing git grep)
+    └──requires──> Tool availability detection
 
-## Recommended MVP Feature Set (Dependency Adoption Only)
+fd integration (complements fast-glob)
+    └──requires──> Tool availability detection
 
-Ship these five capabilities for milestone acceptance:
+jq integration (used by ripgrep/gh JSON output)
+    └──requires──> Tool availability detection
 
-1. Dependency-based glob/search acceleration in core command flows.
-2. Async subprocess dependency with timeout and cancellation support.
-3. Parser dependency adoption for markdown/frontmatter-heavy operations.
-4. Optimized serialization dependency for cache/state transport.
-5. Lightweight schema validation dependency on parse and serialization boundaries.
+yq integration (optional backup for YAML)
+    └──requires──> Tool availability detection
 
-This MVP is dependency-centric, outcome-oriented, and aligned with "faster behavior" without expanding into broad benchmarking programs.
+fzf integration (optional, human-facing)
+    └──requires──> TTY detection
+    └──requires──> Tool availability detection
 
-## Confidence Notes
+gh CLI integration (optional GitHub ops)
+    └──requires──> gh auth status check
+```
 
-- **HIGH confidence:** glob/search modernization, subprocess orchestration, and parser-library adoption produce immediate responsiveness improvements when applied to hot paths.
-- **MEDIUM confidence:** serialization format choice and boundary-validation overhead depend on payload shape and migration strategy.
-- **LOW confidence:** none.
+### Dependency Notes
+
+- **ripgrep requires tool availability detection:** Must check if `rg` exists before invoking; fallback to existing Node.js-based search
+- **fd requires tool availability detection:** Must check if `fd` exists; fallback to fast-glob (existing)
+- **fzf enhances interactive workflows:** Only useful when TTY is available; not valuable for automated agents
+- **Bun conflicts with single-file deploy:** Cannot use esbuild for Bun bundling; would require separate build pipeline
+
+<!-- /section -->
+
+<!-- section: mvp -->
+## MVP Definition
+
+### Launch With (v1)
+
+Minimum viable product — what's needed to validate the concept.
+
+- [ ] ripgrep integration — Add `--json` output parsing; replace slow Node.js regex in search commands
+- [ ] fd integration — Add faster file discovery; complement fast-glob for specific use cases
+- [ ] jq integration — Add JSON processing pipeline for CLI output
+- [ ] Tool availability detection — Check for tool presence; fallback gracefully
+
+### Add After Validation (v1.x)
+
+Features to add once core is working.
+
+- [ ] yq integration — For complex YAML operations (frontmatter merge, evaluation)
+- [ ] bat integration — For syntax-highlighted previews in human-facing output
+- [ ] gh CLI integration — For GitHub API operations (PR status, issues)
+
+### Future Consideration (v2+)
+
+Features to defer until product-market fit is established.
+
+- [ ] Bun runtime migration — Requires separate build pipeline; ecosystem stability TBD
+- [ ] lazygit integration — Interactive TUI; not suitable for automation
+- [ ] Full fzf interactive workflows — Requires TTY management; limited agent value
+<!-- /section -->
+
+<!-- section: prioritization -->
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| ripgrep integration | HIGH | LOW | P1 |
+| fd integration | HIGH | LOW | P1 |
+| jq integration | HIGH | LOW | P1 |
+| Tool availability detection | HIGH | LOW | P1 |
+| yq integration | MEDIUM | MEDIUM | P2 |
+| bat integration | MEDIUM | MEDIUM | P2 |
+| gh CLI integration | MEDIUM | MEDIUM | P2 |
+| fzf integration | LOW | MEDIUM | P3 |
+| Bun runtime | HIGH | HIGH | P3 (defer) |
+
+**Priority key:**
+- P1: Must have for launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
+
+<!-- /section -->
+
+<!-- section: competitors -->
+## Competitor Feature Analysis
+
+| Feature | Traditional CLI Tools | Modern AI Agents | Our Approach |
+|---------|---------------------|------------------|--------------|
+| ripgrep integration | Native shell scripts | Via subprocess | Direct integration with fallback |
+| fd integration | Shell pipelines | Via subprocess | Complement fast-glob |
+| jq integration | Shell pipelines | Via subprocess | Pipe JSON output through jq |
+| fzf integration | Common in dotfiles | Rarely used | Optional, TTY-dependent |
+| bat integration | Common in dotfiles | Rarely used | Human output enhancement |
+| gh CLI | Standard for GitHub | Uses API directly | gh CLI for authenticated ops |
+| Bun runtime | Some tools migrating | Emerging | Defer until ecosystem matures |
+
+## Sources
+
+- ripgrep features: https://ripgrep.dev/features/
+- ripgrep JSON output: https://github.com/BurntSushi/ripgrep/issues/930
+- fd-find documentation: https://github.com/sharkdp/fd
+- Bun vs Node.js performance: https://bun.com/docs/runtime/nodejs-compat
+- GitHub CLI JSON output: https://cli.github.com/manual/gh_help_formatting
+- jq documentation: https://jqlang.org/
+- yq processor: https://github.com/mikefarah/yq
+- Node.js subprocess: https://nodejs.org/api/child_process.html
+
+---
+
+*Feature research for: CLI Tool Integrations & Bun Runtime*
+*Researched: 2026-03-10*
+*Milestone: v9.2 CLI Tool Integrations & Runtime Modernization*
