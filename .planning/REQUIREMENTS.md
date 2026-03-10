@@ -46,8 +46,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGNT-01 - Agent zero overlap | Phase 86 | Pending |
-| AGNT-02 - Agent boundaries validated | Phase 86 | Pending |
+| AGNT-01 - Agent zero overlap | Phase 86 | Complete |
+| AGNT-02 - Agent boundaries validated | Phase 86 | Complete |
 | AGNT-03 - Handoff contracts | Phase 86 | Pending |
 | CMND-01 - Subcommand groups | Phase 87 | Pending |
 | CMND-02 - Stale commands removed | Phase 87 | Pending |

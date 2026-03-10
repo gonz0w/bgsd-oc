@@ -30,7 +30,7 @@
 **Plans**: 2 plans
 
 Plans:
-- [ ] 86-01: Agent manifest audit and overlap resolution
+- [x] 86-01: Agent manifest audit and overlap resolution
 - [ ] 86-02: Handoff contract documentation and enforcement
 
 ### Phase 87: Command Consolidation
@@ -95,7 +95,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 86. Agent Sharpening | v9.3 | 0/2 | Not started | - |
+| 86. Agent Sharpening | v9.3 | 1/2 | In progress | - |
 | 87. Command Consolidation | v9.3 | 0/2 | Not started | - |
 | 88. Quality & Context | v9.3 | 0/2 | Not started | - |
 | 89. Runtime Bun Migration | v9.3 | 0/2 | Not started | - |
