@@ -656,9 +656,7 @@ function cmdValidateHealth(cwd, options, raw) {
             } catch (err) {
               // If temp file creation failed, try direct write
               try {
-                if (fs.existsSync(tempPath)) {
-                  fs.unlinkSync(tempPath);
-                }
+                fs.unlinkSync(tempPath);
               } catch {
                 // Ignore cleanup errors
               }
