@@ -10,7 +10,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 ## Current Position
 
 **Phase:** 79 of 81 (Startup Compile-cache Acceleration)
-**Current Plan:** 79-02 complete
+**Current Plan:** 79-03 complete
 **Status:** Plan complete
 **Last Activity:** 2026-03-10
 
@@ -59,6 +59,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 - [Phase 79-startup-compile-cache-acceleration]: Benchmark shows ~10% startup speedup with compile-cache enabled
 - [Phase 79-02]: Created bin/bgsd wrapper script that applies --experimental-code-cache flag before spawning Node
 - [Phase 79-02]: RUNT-01 achieved - warm starts are faster (76-102ms) due to Node 22+ compile-cache by default
+- [Phase 79-03]: Fixed wrapper to skip flag on Node 22+ - benchmark shows 0% (neutral) vs previous -58% regression
 
 ### Pending Todos
 
@@ -71,6 +72,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T03:45:00Z
-**Stopped at:** Completed 79-02-PLAN.md — Phase 79 Plan 02 complete
+**Last session:** 2026-03-10T04:02:00Z
+**Stopped at:** Completed 79-03-PLAN.md — Phase 79 Plan 03 (gap closure) complete
 **Next step:** Plan Phase 80 or continue Phase 79
