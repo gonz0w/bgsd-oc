@@ -58,11 +58,9 @@ Plans:
   2. Zero orphaned code — every function, export, workflow, template, and config entry is reachable
   3. Dead code audit produces zero orphaned items
   4. Codebase has clear import/export relationships
-**Plans**: 2 plans
-
-Plans:
-- [ ] 88-01: Deterministic context implementation
-- [ ] 88-02: Orphaned code audit and cleanup
+**Plans**: 2/2 plans
+- [x] 88-01: Deterministic context implementation
+- [x] 88-02: Orphaned code audit and cleanup
 
 ### Phase 89: Runtime Bun Migration
 **Goal**: Bun runtime fully integrated with backward compatibility maintained
