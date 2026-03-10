@@ -1594,6 +1594,108 @@ function cmdReview(cwd, args, raw) {
   }, raw);
 }
 
+async function cmdParityCheck(cwd, args, raw) {
+  const { checkParity, checkAllParity } = require('../lib/utils/parity-check');
+  
+  // Parse args
+  const optIdx = args.indexOf('--optimization');
+  const helpIdx = args.indexOf('--help');
+  const jsonIdx = args.indexOf('--json');
+  
+  const showHelp = helpIdx !== -1;
+  const outputJson = jsonIdx !== -1;
+  
+  // Check for help
+  if (showHelp) {
+    output({
+      commands: ['parity-check'],
+      help: `Usage: bgsd-tools util:parity-check [--optimization <name>] [--json]
+
+Check parity for dependency-backed optimizations.
+
+Options:
+  --optimization <name>  Check specific optimization: valibot, discovery, compile_cache, sqlite_cache
+  --json                 Output in JSON format
+  --help                 Show this help
+
+Without --optimization, checks all optimizations.
+
+Exit codes:
+  0 - All optimizations in parity
+  1 - One or more optimizations not in parity
+
+Examples:
+  bgsd-tools util:parity-check
+  bgsd-tools util:parity-check --optimization valibot
+  bgsd-tools util:parity-check --json`,
+    }, raw, 'parity-check');
+    return;
+  }
+  
+  let results;
+  
+  if (optIdx !== -1 && args[optIdx + 1]) {
+    const optName = args[optIdx + 1];
+    const result = await checkParity(optName, { cwd });
+    results = [result];
+  } else {
+    results = await checkAllParity({ cwd });
+  }
+  
+  // Determine overall match status
+  const allMatch = results.every(r => r.match === true);
+  const exitCode = allMatch ? 0 : 1;
+  
+  if (outputJson) {
+    output({
+      optimizations: results.map(r => ({
+        name: r.optimization,
+        match: r.match,
+        details: r.details,
+      })),
+      allMatch,
+      exitCode,
+    }, raw);
+  } else {
+    // Human-readable output
+    const lines = [];
+    lines.push('=== Parity Check Results ===');
+    lines.push('');
+    
+    for (const result of results) {
+      const status = result.match === true ? '✓ PARITY' : (result.match === false ? '✗ MISMATCH' : '? UNKNOWN');
+      lines.push(`${result.optimization}: ${status}`);
+      
+      if (result.details) {
+        if (result.details.error) {
+          lines.push(`  Error: ${result.details.error}`);
+        } else if (result.details.summary) {
+          lines.push(`  ${result.details.summary}`);
+        } else if (result.details.sourceDirs) {
+          lines.push(`  Source dirs: ${result.details.sourceDirs.match ? 'MATCH' : 'DIFFER'}`);
+          lines.push(`  Walk files: ${result.details.walkFiles.match ? 'MATCH' : 'DIFFER'}`);
+        } else {
+          // Show key details
+          for (const [key, value] of Object.entries(result.details)) {
+            lines.push(`  ${key}: ${value}`);
+          }
+        }
+      }
+      lines.push('');
+    }
+    
+    lines.push(`Overall: ${allMatch ? 'ALL IN PARITY' : 'SOME MISMATCHES'}`);
+    lines.push(`Exit code: ${exitCode}`);
+    
+    output(lines.join('\n'), raw);
+  }
+  
+  // Exit with appropriate code
+  if (!raw && exitCode !== 0) {
+    process.exit(exitCode);
+  }
+}
+
 function cmdSettingsList(cwd, raw) {
   const { loadConfig } = require('../lib/config');
   const { CONFIG_SCHEMA } = require('../lib/constants');
@@ -1683,4 +1785,5 @@ module.exports = {
   cmdTdd,
   cmdReview,
   cmdSettingsList,
+  cmdParityCheck,
 };

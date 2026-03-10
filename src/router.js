@@ -744,6 +744,8 @@ async function main() {
           }
         } else if (subcommand === 'resolve-model') {
           lazyMisc().cmdResolveModel(cwd, restArgs[0], raw);
+        } else if (subcommand === 'parity-check') {
+          await lazyMisc().cmdParityCheck(cwd, restArgs, raw);
         } else if (subcommand === 'template') {
           const tmplSub = restArgs[0];
           if (tmplSub === 'select') {
