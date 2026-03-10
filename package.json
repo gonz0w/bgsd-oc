@@ -15,6 +15,7 @@
     "test:slow": "node --test --test-force-exit --test-concurrency=8 tests/codebase.test.cjs tests/memory.test.cjs tests/intent.test.cjs tests/worktree.test.cjs tests/env.test.cjs tests/trajectory.test.cjs tests/misc.test.cjs tests/init.test.cjs tests/agent.test.cjs",
     "test:file": "node --test --test-force-exit",
     "build": "node build.cjs",
+    "precheck": "node scripts/codeql-check.cjs",
     "audit:dead-code": "npx knip --include exports,files --workspace .",
     "audit:exports": "node audit-exports.cjs",
     "audit:circular": "npx madge --circular src/",

@@ -28,6 +28,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          queries: security-extended
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
@@ -36,3 +37,11 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+          paths-ignore:
+            - '**/*.test.js'
+            - '**/*.spec.js'
+            - '**/test/**'
+            - '**/tests/**'
+            - '**/__tests__/**'
+            - '**/fixtures/**'
+            - '**/*.fixture.js'
