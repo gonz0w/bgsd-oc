@@ -18,7 +18,9 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 | v7.0 | Agent Orchestration & Efficiency | 8 | 15 | 2 days | 762 | 1000KB |
 | v7.1 | Trajectory Engineering | 6 | 10 | 1 day | 762 | 1050KB |
 | v8.0 | Performance & Architecture | 5 | ~10 | 3 days | 762 | 1058KB |
-| **Total** | | **55** | **~122** | **~13 days** | | |
+| v9.2 | CLI Tool Integrations & Runtime Modernization | 4 | ~10 | 2 days | 762 | 1100KB |
+| v9.3 | Quality, Performance & Agent Sharpening | 5 | ~12 | 3 days | 762 | 1150KB |
+| **Total** | | **68** | **~154** | **~20 days** | | |
 
 ---
 
@@ -141,6 +143,63 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 - **Profiler instrumentation** — `GSD_PROFILE=1` emits timing data for file reads, git operations, markdown parsing, and AST analysis.
 - **Profiler compare** — `profiler compare` shows before/after timing deltas with color-coded regression highlighting.
 - **Cache speedup validation** — `cache-speedup` command validates cache effectiveness with measurable timing data.
+
+---
+
+## v9.2 CLI Tool Integrations & Runtime Modernization
+
+**Shipped:** 2026-03-10 | **Phases:** 82-85 | **Plans:** ~10
+**Tests:** 762 | **Bundle:** ~1100KB
+
+**Goal:** Add CLI tool integrations (ripgrep, fd, jq, yq, bat, gh) for enhanced search and productivity, explore Bun runtime, and improve shell execution safety.
+
+**What was delivered:**
+
+### CLI Tool Foundation (Phases 82-83)
+- **Shell injection prevention** — All subprocess calls use `execFileSync` with array args to prevent shell injection vulnerabilities.
+- **5-minute TTL cache** — Balances freshness with performance for tool availability detection.
+- **ripgrep integration** — Uses `ripgrep --json` for structured output parsing.
+- **fd integration** — Uses `fd --glob` for proper glob pattern handling.
+
+### Extended Tools (Phase 84)
+- **jq integration** — JSON query and transformation support.
+- **yq integration** — YAML processing.
+- **bat integration** — Syntax-highlighted file viewing.
+- **gh CLI integration** — GitHub CLI wrapper for PR creation, issue management.
+
+### Runtime Exploration (Phase 85)
+- **Bun runtime detection** — Session cache-based detection with `bun --version` first, then `which bun` fallback.
+- **Graceful degradation** — Falls back to Node.js when Bun unavailable.
+- **Full details display** — Shows full details when Bun detected, install instructions when unavailable.
+
+---
+
+## v9.3 Quality, Performance & Agent Sharpening
+
+**Shipped:** 2026-03-10 | **Phases:** 86-90 | **Plans:** ~12
+**Tests:** 762 | **Bundle:** ~1150KB
+
+**Goal:** Improve code quality, reduce command surface from 50 to 11 commands (78% reduction), implement RACI handoff contracts, and add host editor native routing.
+
+**What was delivered:**
+
+### Agent Sharpening (Phase 86)
+- **Agent manifest audit** — Found zero capability conflicts; all agents share foundational tools but have distinct responsibilities.
+- **Handoff contracts (RACI)** — Every lifecycle step has exactly one responsible agent. Documented in RACI skill with inputs, outputs, preconditions.
+- **verify:agents command** — Automated boundary validation for agent responsibilities.
+
+### Command Consolidation (Phase 87)
+- **8 subcommand wrappers** — Created wrapper commands to group 41 original commands into logical categories.
+- **50→11 commands** — 78% reduction in slash command surface.
+- **Host editor native routing** — Wrapper commands are definition files for host editor. Plugin's command-enricher.js adds context but doesn't route.
+
+### Quality & Context (Phase 88)
+- **Context budget enforcement** — All agents declare token budgets.
+- **Intent validation** — 4 signals for intent drift detection.
+
+### Runtime & Benchmark (Phases 89-90)
+- **Performance profiling** — Timing data for file reads, git operations, markdown parsing.
+- **Cache effectiveness validation** — Measurable timing data for cache speedup.
 
 ---
 
