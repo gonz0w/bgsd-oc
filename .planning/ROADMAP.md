@@ -34,7 +34,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
   2. When a CLI tool is unavailable, the user sees clear, platform-specific install instructions
   3. When a CLI tool is unavailable, operations gracefully fall back to existing Node.js implementations without errors
 
-**Plans:** TBD
+**Plans:** 82-01 (Tool Detection Infrastructure)
 
 ---
 
@@ -93,7 +93,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 82. Tool Detection Infrastructure | 0/1 | Not started | - |
+| 82. Tool Detection Infrastructure | 1/1 | Planned | - |
 | 83. Search & Discovery | 0/1 | Not started | - |
 | 84. Extended Tools | 0/1 | Not started | - |
 | 85. Runtime Exploration | 0/1 | Not started | - |
