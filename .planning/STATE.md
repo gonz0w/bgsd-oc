@@ -9,9 +9,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 
 ## Current Position
 
-**Phase:** 79 of 81 (Startup Compile-cache Acceleration)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 80 of 81 (SQLite Statement Cache Acceleration)
+**Current Plan:** 01 complete
+**Status:** Plan complete
 **Last Activity:** 2026-03-10
 
 **Progress:** [██████████] 100%
@@ -36,6 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 | Phase 78 P03 | 11 min | 3 tasks | 4 files |
 | Phase 79-startup-compile-cache-acceleration P01 | 5 min | 3 tasks | 4 files |
 | Phase 79-startup-compile-cache-acceleration P02 | 10 min | 3 tasks | 3 files |
+| Phase 80-sqlite-statement-cache-acceleration P01 | 8 min | 3 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 - [Phase 79-02]: Created bin/bgsd wrapper script that applies --experimental-code-cache flag before spawning Node
 - [Phase 79-02]: RUNT-01 achieved - warm starts are faster (76-102ms) due to Node 22+ compile-cache by default
 - [Phase 79-03]: Fixed wrapper to skip flag on Node 22+ - benchmark shows 0% (neutral) vs previous -58% regression
+- [Phase 80-sqlite-statement-cache-acceleration]: Statement caching via createTagStore() reduces p50 latency by ~43%, p99 by ~22%
+- [Phase 80-sqlite-statement-cache-acceleration]: BGSD_SQLITE_STATEMENT_CACHE env var controls feature (default: enabled on Node 22.5+)
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T04:02:00Z
-**Stopped at:** Completed 79-03-PLAN.md — Phase 79 Plan 03 (gap closure) complete
-**Next step:** Plan Phase 80 or continue Phase 79
+**Last session:** 2026-03-10T04:04:00Z
+**Stopped at:** Completed 80-01-PLAN.md — Phase 80 Plan 01 complete
+**Next step:** Plan Phase 80 additional plans or proceed to Phase 81
