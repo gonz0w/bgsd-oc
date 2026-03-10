@@ -56,7 +56,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 **Success Criteria** (what must be TRUE):
   1. User can run cache-heavy flows and observe reduced high-percentile latency.
   2. Maintainer can verify statement caching can be bypassed safely when runtime support is unavailable.
-**Plans**: 1/1 complete
+**Plans**: 1/1 plans complete
 
 ### Phase 81: Safe Adoption Controls and Regression Parity
 **Goal**: Dependency-backed optimizations are independently controllable and remain backward compatible in core planning workflows.
