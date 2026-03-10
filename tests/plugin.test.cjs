@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
+const { TOOLS_PATH, runGsdTools, createTempProject, cleanup, writeStateFixture } = require('./helpers.cjs');
 
 describe('plugin parsers and tool registry', () => {
   const pluginPath = path.join(__dirname, '..', 'plugin.js');
@@ -376,13 +376,41 @@ describe('Plugin Tools', () => {
     const mod = pluginModule || await import(pluginPath);
     const plugin = await mod.BgsdPlugin({ directory: process.cwd() });
 
-    const results = await runWithValidationModes(() =>
-      plugin.tool.bgsd_context.execute({ task: '1' }, { directory: process.cwd() })
-    );
+    const tmpDir = createTempProject();
+    try {
+      writeStateFixture(tmpDir);
 
-    assert.deepStrictEqual(results.primary, results.fallback, 'task coercion output contract should match across engines');
-    assert.ok(results.primary.task, 'response should include task payload');
-    assert.strictEqual(results.primary.task.number, 1, 'string task arg should coerce to numeric task number');
+      const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+      fs.mkdirSync(phaseDir, { recursive: true });
+      fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), `---
+phase: 01-foundation
+plan: 01
+---
+
+<objective>
+Fixture plan for parity validation tests.
+</objective>
+
+<tasks>
+<task type="auto">
+  <name>Fixture task</name>
+  <files>tests/plugin.test.cjs</files>
+  <action>Validate fixture path</action>
+  <done>Task context returns task payload</done>
+</task>
+</tasks>
+`);
+
+      const results = await runWithValidationModes(() =>
+        plugin.tool.bgsd_context.execute({ task: '1' }, { directory: tmpDir })
+      );
+
+      assert.deepStrictEqual(results.primary, results.fallback, 'task coercion output contract should match across engines');
+      assert.ok(results.primary.task, 'response should include task payload');
+      assert.strictEqual(results.primary.task.number, 1, 'string task arg should coerce to numeric task number');
+    } finally {
+      cleanup(tmpDir);
+    }
   });
 
   test('bgsd_progress keeps enum validation envelope parity in forced fallback mode', async () => {
