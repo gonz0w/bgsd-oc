@@ -47,7 +47,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
   1. User can run repeated CLI commands and observe faster warm-start startup behavior.
   2. Maintainer can enable or disable compile-cache acceleration via explicit config or environment guard.
   3. User on unsupported runtimes sees current behavior preserved through automatic fallback.
-**Plans**: TBD
+**Plans**: 1/1 planned
 
 ### Phase 80: SQLite Statement Cache Acceleration
 **Goal**: Cache-heavy command paths show lower tail latency through SQLite statement caching with compatibility fallback.
