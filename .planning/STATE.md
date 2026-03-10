@@ -12,7 +12,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 **Phase:** 87 (complete)
 **Current Plan:** Not started
 **Status:** Ready to plan
-**Last Activity:** 2026-03-10
+**Last Activity:** 2026-03-10 - Completed quick task 12: update docs and readme based on last two milestones
 
 **Progress:** [██████████] 100%
 
@@ -66,6 +66,12 @@ None yet.
 - Keep single-file CLI deploy behavior intact while adding CLI tool integrations.
 - Bun runtime migration breaks single-file esbuild deploy - deferred to v2+ exploration.
 - Shell injection prevention required for all subprocess calls (use execFileSync with array args).
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 12 | Update docs and readme based on last two milestones | 2026-03-10 | 6d3daaf | [.planning/quick/12-update-docs-and-readme-based-on-last-two-milestones](./quick/12-update-docs-and-readme-based-on-last-two-milestones) |
 
 ## Session Continuity
 
