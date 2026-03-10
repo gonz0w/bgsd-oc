@@ -12,6 +12,17 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 **Last shipped:** v9.2 CLI Tool Integrations & Runtime Modernization (2026-03-10)
 
+## Current Milestone: v9.3 Quality, Performance & Agent Sharpening
+
+**Goal:** Complete outstanding P1 outcomes, Bun runtime migration, and plugin benchmark adapter.
+
+**Target features:**
+- Agent sharpening: DO-27 (zero overlap), DO-35 (validated boundaries)
+- Command consolidation: DO-30 (subcommand groups), DO-34 (reduced surface)
+- Quality: DO-28 (deterministic context), DO-33 (zero orphaned code)
+- Runtime: DO-47 (Bun migration)
+- Benchmark: DO-48 (plugin adapter)
+
 ## Next Milestone Goals
 
 - TBD — Run `/bgsd-new-milestone` to define next goals
