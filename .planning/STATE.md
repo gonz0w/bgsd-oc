@@ -9,9 +9,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 
 ## Current Position
 
-**Phase:** 78 of 81 (File Discovery and Ignore Optimization)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 79 of 81 (Startup Compile-cache Acceleration)
+**Current Plan:** 79-01 complete
+**Status:** Plan complete
 **Last Activity:** 2026-03-10
 
 **Progress:** [██████████] 100%
@@ -34,6 +34,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 | Phase 78 P01 | 6 min | 3 tasks | 5 files |
 | Phase 78 P02 | 3 min | 3 tasks | 5 files |
 | Phase 78 P03 | 11 min | 3 tasks | 4 files |
+| Phase 79-startup-compile-cache-acceleration P01 | 5 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -52,6 +53,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 - [Phase 78]: Optimized discovery is now the default runtime path — legacy mode available via BGSD_DISCOVERY_MODE=legacy for diagnosis
 - [Phase 78]: Source-dir detection is fully equivalent between legacy and optimized; file walk filters gitignored files as an intentional improvement
 - [Phase 78]: diagnoseParity() export added for structured mismatch triage with onlyLegacy/onlyOptimized diffs
+- [Phase 79-startup-compile-cache-acceleration]: Compile-cache guard uses BGSD_COMPILE_CACHE env var (default disabled for safety)
+- [Phase 79-startup-compile-cache-acceleration]: Runtime capability detection identifies Node 10.4+ support, graceful fallback on older runtimes
+- [Phase 79-startup-compile-cache-acceleration]: Benchmark shows ~10% startup speedup with compile-cache enabled
 
 ### Pending Todos
 
@@ -64,6 +68,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T03:12:39Z
-**Stopped at:** Completed 78-03-PLAN.md — Phase 78 complete
-**Next step:** Plan Phase 79 or verify Phase 78 completion
+**Last session:** 2026-03-10T03:30:00Z
+**Stopped at:** Completed 79-01-PLAN.md — Phase 79 Plan 01 complete
+**Next step:** Plan Phase 80 or continue Phase 79
