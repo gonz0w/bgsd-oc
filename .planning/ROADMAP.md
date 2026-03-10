@@ -94,7 +94,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 82. Tool Detection Infrastructure | 1/1 | Complete    | 2026-03-10 |
-| 83. Search & Discovery | 1/1 | Complete   | 2026-03-10 |
+| 83. Search & Discovery | 1/1 | Complete    | 2026-03-10 |
 | 84. Extended Tools | 0/1 | Not started | - |
 | 85. Runtime Exploration | 0/1 | Not started | - |
 
