@@ -4993,26 +4993,47 @@ Plans:
       let totalPlans = 0;
       let totalTasks = 0;
       const accomplishments = [];
+      let phaseRange = null;
+      try {
+        const milestone = getMilestoneInfo(cwd);
+        phaseRange = milestone.phaseRange;
+      } catch (e) {
+        debugLog("milestone.complete", "getMilestoneInfo failed", e);
+      }
       try {
         const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
         const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
         for (const dir of dirs) {
-          phaseCount++;
-          const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
-          const plans = phaseFiles.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md");
-          const summaries = phaseFiles.filter((f) => f.endsWith("-SUMMARY.md") || f === "SUMMARY.md");
-          totalPlans += plans.length;
-          for (const s of summaries) {
-            try {
-              const content = cachedReadFile(path.join(phasesDir, dir, s));
-              const fm = extractFrontmatter(content);
-              if (fm["one-liner"]) {
-                accomplishments.push(fm["one-liner"]);
+          let shouldArchive = false;
+          if (phaseRange) {
+            const dirMatch = dir.match(/^(\d+)/);
+            if (dirMatch) {
+              const num = parseInt(dirMatch[1]);
+              if (num >= phaseRange.start && num <= phaseRange.end) {
+                shouldArchive = true;
               }
-              const taskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
-              totalTasks += taskMatches.length;
-            } catch (e) {
-              debugLog("milestone.complete", "frontmatter extraction failed", e);
+            }
+          } else {
+            shouldArchive = true;
+          }
+          if (shouldArchive) {
+            phaseCount++;
+            const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
+            const plans = phaseFiles.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md");
+            const summaries = phaseFiles.filter((f) => f.endsWith("-SUMMARY.md") || f === "SUMMARY.md");
+            totalPlans += plans.length;
+            for (const s of summaries) {
+              try {
+                const content = cachedReadFile(path.join(phasesDir, dir, s));
+                const fm = extractFrontmatter(content);
+                if (fm["one-liner"]) {
+                  accomplishments.push(fm["one-liner"]);
+                }
+                const taskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
+                totalTasks += taskMatches.length;
+              } catch (e) {
+                debugLog("milestone.complete", "frontmatter extraction failed", e);
+              }
             }
           }
         }
@@ -5084,15 +5105,15 @@ ${milestoneEntry}`, "utf-8");
         const phaseArchiveDir = path.join(archiveDir, `${version}-phases`);
         fs.mkdirSync(phaseArchiveDir, { recursive: true });
         const milestone = getMilestoneInfo(cwd);
-        const phaseRange = milestone.phaseRange;
+        const phaseRange2 = milestone.phaseRange;
         const phaseEntries = fs.readdirSync(phasesDir, { withFileTypes: true });
         const phaseDirNames = phaseEntries.filter((e) => e.isDirectory()).map((e) => e.name);
         for (const dir of phaseDirNames) {
-          if (phaseRange) {
+          if (phaseRange2) {
             const dirMatch = dir.match(/^(\d+)/);
             if (dirMatch) {
               const num = parseInt(dirMatch[1]);
-              if (num < phaseRange.start || num > phaseRange.end) continue;
+              if (num < phaseRange2.start || num > phaseRange2.end) continue;
             }
           } else if (!options.archivePhases) {
             continue;
@@ -5103,6 +5124,209 @@ ${milestoneEntry}`, "utf-8");
         phasesArchived = archivedEntries.length > 0;
       } catch (e) {
         debugLog("milestone.complete", "readdir failed", e);
+      }
+      let roadmapReorganized = false;
+      if (fs.existsSync(roadmapPath)) {
+        try {
+          let roadmapContent = cachedReadFile(roadmapPath);
+          const completedPhaseSections = [];
+          const phaseDetailsRegex = /^##\s+Phase\s+(\d+):\s+(.+)$/gm;
+          let match;
+          const completedNums = [];
+          if (phaseRange) {
+            for (let n = phaseRange.start; n <= phaseRange.end; n++) {
+              completedNums.push(n);
+            }
+          }
+          const lines = roadmapContent.split("\n");
+          let inCompletedPhase = false;
+          let completedPhaseLines = [];
+          let currentPhaseNum = null;
+          for (const line of lines) {
+            const phaseMatch = line.match(/^##\s+Phase\s+(\d+):\s+(.+)$/);
+            if (phaseMatch) {
+              currentPhaseNum = parseInt(phaseMatch[1]);
+              if (phaseRange && (currentPhaseNum < phaseRange.start || currentPhaseNum > phaseRange.end)) {
+                inCompletedPhase = false;
+                continue;
+              }
+              inCompletedPhase = true;
+              completedPhaseLines = [line];
+            } else if (inCompletedPhase) {
+              if (line.match(/^##\s+Phase\s+\d+/) || line.match(/^#\s+Roadmap/)) {
+                inCompletedPhase = false;
+                if (completedPhaseLines.length > 0) {
+                  completedPhaseSections.push(completedPhaseLines.join("\n"));
+                  completedPhaseLines = [];
+                }
+                completedPhaseLines = [line];
+                inCompletedPhase = line.match(/^##\s+Phase\s+\d+/) ? true : false;
+              } else {
+                completedPhaseLines.push(line);
+              }
+            }
+          }
+          if (completedPhaseLines.length > 0) {
+            completedPhaseSections.push(completedPhaseLines.join("\n"));
+          }
+          if (completedPhaseSections.length > 0) {
+            const collapsedSections = completedPhaseSections.join("\n\n---\n\n");
+            const detailsBlock = `<details>
+<summary>${version} ${milestoneName} - ${phaseCount} phases completed</summary>
+
+${collapsedSections}
+
+</details>`;
+            let newRoadmapContent = "";
+            let inSection = false;
+            let sectionBuffer = [];
+            for (const line of lines) {
+              const phaseMatch = line.match(/^##\s+Phase\s+(\d+):/);
+              if (phaseMatch) {
+                const num = parseInt(phaseMatch[1]);
+                if (phaseRange && num >= phaseRange.start && num <= phaseRange.end) {
+                  inSection = true;
+                  continue;
+                } else if (!phaseRange && completedPhaseSections.join("").includes(line)) {
+                  inSection = true;
+                  continue;
+                }
+              }
+              if (inSection) {
+                if (!line.match(/^##\s+Phase\s+\d+/) && !line.match(/^#\s+Roadmap/) && line.trim() !== "") {
+                  continue;
+                }
+                inSection = false;
+              }
+              if (!inSection) {
+                newRoadmapContent += line + "\n";
+              }
+            }
+            const matrixMatch = newRoadmapContent.match(/(##\s+Phase\s+Coverage\s+Matrix)/);
+            if (matrixMatch) {
+              newRoadmapContent = newRoadmapContent.replace(
+                matrixMatch[1],
+                `${detailsBlock}
+
+---
+
+## Phase Coverage Matrix`
+              );
+            }
+            fs.writeFileSync(roadmapPath, newRoadmapContent, "utf-8");
+            invalidateFileCache(roadmapPath);
+            roadmapReorganized = true;
+          }
+        } catch (e) {
+          debugLog("milestone.complete", "roadmap reorganization failed", e);
+        }
+      }
+      let docsCreated = false;
+      try {
+        let changelog = "";
+        try {
+          const { execSync } = require("child_process");
+          let prevTag = "";
+          try {
+            prevTag = execSync("git describe --tags --abbrev=0 2>/dev/null", { cwd, encoding: "utf-8" }).trim();
+          } catch (e) {
+          }
+          if (prevTag) {
+            changelog = execSync(`git log ${prevTag}..HEAD --oneline --format="%h %s" 2>/dev/null | head -50`, { cwd, encoding: "utf-8" });
+          } else {
+            changelog = execSync('git log --oneline --format="%h %s" 2>/dev/null | head -50', { cwd, encoding: "utf-8" });
+          }
+        } catch (e) {
+          changelog = "(no git history)";
+        }
+        let currentPhase = "Unknown";
+        let totalPlansCompleted = "Unknown";
+        let velocity = "Unknown";
+        let currentFocus = "General";
+        if (fs.existsSync(statePath)) {
+          const stateContent = cachedReadFile(statePath);
+          const phaseMatch = stateContent.match(/\*\*Phase:\*\*\s*(\d+)/);
+          if (phaseMatch) currentPhase = phaseMatch[1];
+          const plansMatch = stateContent.match(/Total plans completed:\s*(\d+)/);
+          if (plansMatch) totalPlansCompleted = plansMatch[1];
+          const velMatch = stateContent.match(/Average duration:\s*~?(\d+)/);
+          if (velMatch) velocity = velMatch[1];
+          const focusMatch = stateContent.match(/Current focus:\s*([^\n]+)/);
+          if (focusMatch) currentFocus = focusMatch[1].trim();
+        }
+        const docsContent = `# Milestone ${version} Documentation
+
+**Generated:** ${today}
+**Version:** ${version}
+**Milestone Name:** ${milestoneName}
+
+---
+
+## Changelog
+
+Commits in this milestone:
+
+\`\`\`
+${changelog || "(no commits)"}
+\`\`\`
+
+---
+
+## State Summary
+
+- **Current Phase:** ${currentPhase}
+- **Total Plans Completed:** ${totalPlansCompleted}
+- **Velocity:** ~${velocity} min/plan
+- **Current Focus:** ${currentFocus}
+
+---
+
+## Key Accomplishments
+
+${accomplishmentsList || "- (none recorded)"}
+
+---
+
+## Archive Location
+
+See \`.planning/milestones/${version}-ROADMAP.md\` and \`.planning/milestones/${version}-REQUIREMENTS.md\` for the complete archived roadmap and requirements.
+`;
+        fs.writeFileSync(path.join(archiveDir, `${version}-DOCS.md`), docsContent, "utf-8");
+        docsCreated = true;
+      } catch (e) {
+        debugLog("milestone.complete", "docs generation failed", e);
+      }
+      let tagCreated = false;
+      try {
+        const { execSync } = require("child_process");
+        const tagMessage = `${version} ${milestoneName} \u2014 ${accomplishments[0] || "Milestone complete"}`;
+        execSync(`git tag -a ${version} -m "${tagMessage}"`, { cwd, encoding: "utf-8" });
+        tagCreated = true;
+      } catch (e) {
+        debugLog("milestone.complete", "tag creation failed", e);
+      }
+      let commitCreated = false;
+      try {
+        const { execSync } = require("child_process");
+        const commitFiles = [
+          `.planning/milestones/${version}-ROADMAP.md`,
+          `.planning/milestones/${version}-REQUIREMENTS.md`,
+          `.planning/milestones/${version}-DOCS.md`,
+          `.planning/MILESTONES.md`,
+          `.planning/STATE.md`,
+          `.planning/ROADMAP.md`
+        ].filter((f) => fs.existsSync(path.join(cwd, f)));
+        if (commitFiles.length > 0) {
+          execSync(`git add ${commitFiles.join(" ")}`, { cwd, encoding: "utf-8" });
+          try {
+            execSync(`git commit -m "chore: complete ${version} milestone"`, { cwd, encoding: "utf-8" });
+            commitCreated = true;
+          } catch (e) {
+            debugLog("milestone.complete", "commit failed (possibly nothing to commit)", e);
+          }
+        }
+      } catch (e) {
+        debugLog("milestone.complete", "commit failed", e);
       }
       const result = {
         version,
@@ -5116,7 +5340,15 @@ ${milestoneEntry}`, "utf-8");
           roadmap: fs.existsSync(path.join(archiveDir, `${version}-ROADMAP.md`)),
           requirements: fs.existsSync(path.join(archiveDir, `${version}-REQUIREMENTS.md`)),
           audit: fs.existsSync(path.join(archiveDir, `${version}-MILESTONE-AUDIT.md`)),
-          phases: phasesArchived
+          phases: phasesArchived,
+          docs: docsCreated
+        },
+        reorganized: {
+          roadmap: roadmapReorganized
+        },
+        git: {
+          tag_created: tagCreated,
+          commit_created: commitCreated
         },
         milestones_updated: true,
         state_updated: fs.existsSync(statePath)
