@@ -10,16 +10,16 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 ## Current Position
 
 **Phase:** 78 of 81 (File Discovery and Ignore Optimization)
-**Current Plan:** 02
+**Current Plan:** 03
 **Status:** In progress
-**Last Activity:** 2026-03-10 - Completed 78-01 discovery adapter and hotspot wiring
+**Last Activity:** 2026-03-10 - Completed 78-02 optimized discovery default cutover
 
 **Progress:** [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 177 (v1.0-v9.1)
+- Total plans completed: 178 (v1.0-v9.1)
 - Average duration: ~15 min/plan
 - Total execution time: ~33 hours
 
@@ -32,6 +32,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 | Phase 77 P02 | 12 min | 3 tasks | 7 files |
 | Phase 77 P03 | 6 min | 3 tasks | 1 file |
 | Phase 78 P01 | 6 min | 3 tasks | 5 files |
+| Phase 78 P02 | 3 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -47,6 +48,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-09)
 - [Phase 77]: Stabilized `bgsd_context` fallback parity by using a deterministic fixture project for task-context coercion tests
 - [Phase 77]: Added explicit `bgsd_progress` adapter wiring evidence without direct fallback flag reads in tool code
 - [Phase 78]: Discovery hotspots now route through a dual-path adapter — Enable fast-glob and in-process ignore rollout behind a parity-safe legacy default
+- [Phase 78]: Optimized discovery is now the default runtime path — legacy mode available via BGSD_DISCOVERY_MODE=legacy for diagnosis
 
 ### Pending Todos
 
@@ -59,6 +61,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T02:27:34.135Z
-**Stopped at:** Completed 78-01-PLAN.md
-**Next step:** Execute `78-02-PLAN.md` to switch optimized discovery defaults and add migration guardrails
+**Last session:** 2026-03-10T02:58:49Z
+**Stopped at:** Completed 78-02-PLAN.md
+**Next step:** Execute `78-03-PLAN.md` for remaining scan optimization work

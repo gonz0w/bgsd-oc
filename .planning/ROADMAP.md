@@ -37,7 +37,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
   1. User can run file-heavy commands and observe faster end-to-end discovery in large repositories.
   2. User can execute scan flows without repeated `git check-ignore` subprocess overhead.
   3. Maintainer can confirm optimized scan outputs match legacy file-selection parity.
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 ### Phase 79: Startup Compile-Cache Acceleration
 **Goal**: Repeated CLI invocations start faster through guarded compile-cache usage without runtime breakage.
@@ -73,7 +73,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 77. Validation Engine Modernization | 3/3 | Complete   | 2026-03-10 |
-| 78. File Discovery and Ignore Optimization | 1/3 | In Progress|  |
+| 78. File Discovery and Ignore Optimization | 2/3 | In Progress|  |
 | 79. Startup Compile-Cache Acceleration | 0/TBD | Not started | - |
 | 80. SQLite Statement Cache Acceleration | 0/TBD | Not started | - |
 | 81. Safe Adoption Controls and Regression Parity | 0/TBD | Not started | - |
