@@ -1,31 +1,31 @@
 {
-  "timestamp": "2026-03-10T03:36:45.595Z",
+  "timestamp": "2026-03-10T03:46:24.046Z",
   "node_version": "v25.7.0",
   "runs_per_test": 5,
   "baseline": {
     "env": "BGSD_COMPILE_CACHE=0",
     "runs_ms": [
-      102,
-      95,
+      103,
+      117,
       101,
-      91,
-      118
+      117,
+      81
     ],
-    "median_ms": 101
+    "median_ms": 103
   },
   "with_compile_cache": {
     "env": "BGSD_COMPILE_CACHE=1",
     "runs_ms": [
-      162,
-      156,
-      165,
-      160,
-      115
+      108,
+      115,
+      111,
+      91,
+      102
     ],
-    "median_ms": 160
+    "median_ms": 108
   },
-  "speedup_ms": -59,
-  "speedup_percent": -58,
+  "speedup_ms": -5,
+  "speedup_percent": -5,
   "compile_cache_supported": true,
   "compile_cache_reason": "Node.js v25.7.0 supports compile-cache (enabled by default in 22+).",
   "compile_cache_default_args": []
