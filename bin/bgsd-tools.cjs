@@ -57,6 +57,7 @@ var require_constants = __commonJS({
       test_gate: { type: "boolean", default: true, description: "Block plan completion on test failure", aliases: [], nested: null },
       context_window: { type: "number", default: 2e5, description: "Context window size in tokens", aliases: [], nested: null },
       context_target_percent: { type: "number", default: 50, description: "Target context utilization percent (1-100)", aliases: [], nested: null },
+      runtime: { type: "string", default: "auto", description: "Runtime to use (auto/bun/node)", aliases: [], nested: null },
       // ─── RAG Research Pipeline ───
       rag_enabled: { type: "boolean", default: true, description: "Enable RAG-powered research pipeline", aliases: [], nested: { section: "workflow", field: "rag" } },
       rag_timeout: { type: "number", default: 30, description: "Per-tool research timeout in seconds", aliases: [], nested: { section: "workflow", field: "rag_timeout" } },
@@ -1141,6 +1142,235 @@ var require_runtime_capabilities = __commonJS({
       isCompileCacheEnabled,
       getCompileCacheArgs,
       diagnoseCompileCache
+    };
+  }
+});
+
+// src/lib/cli-tools/bun-runtime.js
+var require_bun_runtime = __commonJS({
+  "src/lib/cli-tools/bun-runtime.js"(exports2, module2) {
+    var fs = require("fs");
+    var path = require("path");
+    var { execFileSync } = require("child_process");
+    var sessionCache = /* @__PURE__ */ new Map();
+    function getConfigPath() {
+      let cwd = process.cwd();
+      while (cwd !== path.parse(cwd).root) {
+        const configPath = path.join(cwd, ".planning", "config.json");
+        if (fs.existsSync(configPath)) {
+          return configPath;
+        }
+        cwd = path.dirname(cwd);
+      }
+      return null;
+    }
+    function readConfig() {
+      const configPath = getConfigPath();
+      if (!configPath) {
+        return {};
+      }
+      try {
+        return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      } catch {
+        return {};
+      }
+    }
+    function writeConfig(config) {
+      const configPath = getConfigPath();
+      if (!configPath) {
+        return false;
+      }
+      try {
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    function configGet(keyPath) {
+      const config = readConfig();
+      const keys = keyPath.split(".");
+      let current = config;
+      for (const key of keys) {
+        if (current === void 0 || current === null || typeof current !== "object") {
+          return void 0;
+        }
+        current = current[key];
+      }
+      return current;
+    }
+    function configSet(keyPath, value) {
+      const configPath = getConfigPath();
+      if (!configPath) {
+        return false;
+      }
+      const config = readConfig();
+      const keys = keyPath.split(".");
+      let current = config;
+      for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+        if (current[key] === void 0 || typeof current[key] !== "object") {
+          current[key] = {};
+        }
+        current = current[key];
+      }
+      current[keys[keys.length - 1]] = value;
+      return writeConfig(config);
+    }
+    function detectBun() {
+      const cacheKey = "bun";
+      if (sessionCache.has(cacheKey)) {
+        return sessionCache.get(cacheKey);
+      }
+      const envRuntime = process.env.BGSD_RUNTIME;
+      let runtimePref = null;
+      if (envRuntime && ["node", "bun", "auto"].includes(envRuntime.toLowerCase())) {
+        runtimePref = envRuntime.toLowerCase();
+      } else {
+        runtimePref = configGet("runtime") || "auto";
+      }
+      if (runtimePref === "node") {
+        const result2 = {
+          available: false,
+          name: "bun",
+          fromConfig: true,
+          forced: true
+        };
+        sessionCache.set(cacheKey, result2);
+        return result2;
+      }
+      if (runtimePref === "bun") {
+        const cachedVersion = configGet("bun.detected");
+        const result2 = {
+          available: true,
+          name: "bun",
+          version: cachedVersion || "unknown",
+          fromConfig: true,
+          forced: true
+        };
+        sessionCache.set(cacheKey, result2);
+        return result2;
+      }
+      let result = {
+        available: false,
+        name: "bun"
+      };
+      try {
+        const version = execFileSync("bun", ["--version"], {
+          encoding: "utf8",
+          stdio: ["pipe", "pipe", "pipe"],
+          timeout: 3e3
+        }).trim();
+        if (version) {
+          result.available = true;
+          result.version = version;
+          try {
+            const path2 = execFileSync("which", ["bun"], {
+              encoding: "utf8",
+              stdio: ["pipe", "pipe", "pipe"]
+            }).trim();
+            result.path = path2;
+          } catch {
+          }
+          if (version && version !== "unknown") {
+            configSet("bun.detected", version);
+          }
+          sessionCache.set(cacheKey, result);
+          return result;
+        }
+      } catch {
+      }
+      try {
+        const path2 = execFileSync("which", ["bun"], {
+          encoding: "utf8",
+          stdio: ["pipe", "pipe", "pipe"]
+        }).trim();
+        if (path2) {
+          result.available = true;
+          result.path = path2;
+        }
+      } catch {
+      }
+      sessionCache.set(cacheKey, result);
+      return result;
+    }
+    function isRunningUnderBun() {
+      if (process.versions && process.versions.bun) {
+        return { isBun: true, version: process.versions.bun };
+      }
+      try {
+        if (typeof Bun !== "undefined") {
+          return { isBun: true, version: Bun.version };
+        }
+      } catch {
+      }
+      try {
+        if (globalThis && "Bun" in globalThis) {
+          return { isBun: true, version: globalThis.Bun?.version };
+        }
+      } catch {
+      }
+      return { isBun: false };
+    }
+    function benchmarkStartup(scriptPath, runs = 10) {
+      const results = {
+        node: [],
+        bun: []
+      };
+      for (let i = 0; i < runs; i++) {
+        const start = Date.now();
+        try {
+          execFileSync("node", [scriptPath], {
+            stdio: "pipe",
+            timeout: 5e3
+          });
+          results.node.push(Date.now() - start);
+        } catch {
+        }
+      }
+      const bunStatus = detectBun();
+      if (bunStatus.available) {
+        for (let i = 0; i < runs; i++) {
+          const start = Date.now();
+          try {
+            execFileSync("bun", [scriptPath], {
+              stdio: "pipe",
+              timeout: 5e3
+            });
+            results.bun.push(Date.now() - start);
+          } catch {
+          }
+        }
+      }
+      const avgNode = results.node.length > 0 ? results.node.reduce((a, b) => a + b, 0) / results.node.length : 0;
+      const avgBun = results.bun.length > 0 ? results.bun.reduce((a, b) => a + b, 0) / results.bun.length : 0;
+      const speedup = avgBun > 0 ? avgNode / avgBun : 0;
+      return {
+        node: parseFloat(avgNode.toFixed(2)),
+        bun: parseFloat(avgBun.toFixed(2)),
+        speedup: parseFloat(speedup.toFixed(2)),
+        nodeRuns: results.node.length,
+        bunRuns: results.bun.length
+      };
+    }
+    function clearCache() {
+      sessionCache.clear();
+    }
+    function getCachedResult() {
+      return sessionCache.get("bun") || null;
+    }
+    function getCachedBunVersion() {
+      return configGet("bun.detected") || null;
+    }
+    module2.exports = {
+      detectBun,
+      isRunningUnderBun,
+      benchmarkStartup,
+      clearCache,
+      getCachedResult,
+      getCachedBunVersion,
+      configGet,
+      configSet
     };
   }
 });
@@ -35752,131 +35982,6 @@ var require_tools = __commonJS({
   }
 });
 
-// src/lib/cli-tools/bun-runtime.js
-var require_bun_runtime = __commonJS({
-  "src/lib/cli-tools/bun-runtime.js"(exports2, module2) {
-    var { execFileSync } = require("child_process");
-    var sessionCache = /* @__PURE__ */ new Map();
-    function detectBun() {
-      const cacheKey = "bun";
-      if (sessionCache.has(cacheKey)) {
-        return sessionCache.get(cacheKey);
-      }
-      let result = {
-        available: false,
-        name: "bun"
-      };
-      try {
-        const version = execFileSync("bun", ["--version"], {
-          encoding: "utf8",
-          stdio: ["pipe", "pipe", "pipe"],
-          timeout: 3e3
-        }).trim();
-        if (version) {
-          result.available = true;
-          result.version = version;
-          try {
-            const path = execFileSync("which", ["bun"], {
-              encoding: "utf8",
-              stdio: ["pipe", "pipe", "pipe"]
-            }).trim();
-            result.path = path;
-          } catch {
-          }
-          sessionCache.set(cacheKey, result);
-          return result;
-        }
-      } catch {
-      }
-      try {
-        const path = execFileSync("which", ["bun"], {
-          encoding: "utf8",
-          stdio: ["pipe", "pipe", "pipe"]
-        }).trim();
-        if (path) {
-          result.available = true;
-          result.path = path;
-        }
-      } catch {
-      }
-      sessionCache.set(cacheKey, result);
-      return result;
-    }
-    function isRunningUnderBun() {
-      if (process.versions && process.versions.bun) {
-        return { isBun: true, version: process.versions.bun };
-      }
-      try {
-        if (typeof Bun !== "undefined") {
-          return { isBun: true, version: Bun.version };
-        }
-      } catch {
-      }
-      try {
-        if (globalThis && "Bun" in globalThis) {
-          return { isBun: true, version: globalThis.Bun?.version };
-        }
-      } catch {
-      }
-      return { isBun: false };
-    }
-    function benchmarkStartup(scriptPath, runs = 10) {
-      const results = {
-        node: [],
-        bun: []
-      };
-      for (let i = 0; i < runs; i++) {
-        const start = Date.now();
-        try {
-          execFileSync("node", [scriptPath], {
-            stdio: "pipe",
-            timeout: 5e3
-          });
-          results.node.push(Date.now() - start);
-        } catch {
-        }
-      }
-      const bunStatus = detectBun();
-      if (bunStatus.available) {
-        for (let i = 0; i < runs; i++) {
-          const start = Date.now();
-          try {
-            execFileSync("bun", [scriptPath], {
-              stdio: "pipe",
-              timeout: 5e3
-            });
-            results.bun.push(Date.now() - start);
-          } catch {
-          }
-        }
-      }
-      const avgNode = results.node.length > 0 ? results.node.reduce((a, b) => a + b, 0) / results.node.length : 0;
-      const avgBun = results.bun.length > 0 ? results.bun.reduce((a, b) => a + b, 0) / results.bun.length : 0;
-      const speedup = avgBun > 0 ? avgNode / avgBun : 0;
-      return {
-        node: parseFloat(avgNode.toFixed(2)),
-        bun: parseFloat(avgBun.toFixed(2)),
-        speedup: parseFloat(speedup.toFixed(2)),
-        nodeRuns: results.node.length,
-        bunRuns: results.bun.length
-      };
-    }
-    function clearCache() {
-      sessionCache.clear();
-    }
-    function getCachedResult() {
-      return sessionCache.get("bun") || null;
-    }
-    module2.exports = {
-      detectBun,
-      isRunningUnderBun,
-      benchmarkStartup,
-      clearCache,
-      getCachedResult
-    };
-  }
-});
-
 // src/commands/runtime.js
 var require_runtime = __commonJS({
   "src/commands/runtime.js"(exports2, module2) {
@@ -36006,6 +36111,41 @@ var require_router = __commonJS({
     var { COMMAND_HELP } = require_constants();
     var { error } = require_output();
     var { diagnoseCompileCache } = require_runtime_capabilities();
+    var { detectBun, getCachedBunVersion, configGet, configSet } = require_bun_runtime();
+    var { loadConfig } = require_config();
+    var _runtimeDetected = null;
+    if (!process.env.BGSD_RUNTIME_DETECTED) {
+      try {
+        const runtimePref = configGet("runtime");
+        const bunStatus = detectBun();
+        _runtimeDetected = {
+          preference: runtimePref || "auto",
+          available: bunStatus.available,
+          version: bunStatus.version || getCachedBunVersion(),
+          path: bunStatus.path,
+          fromConfig: bunStatus.fromConfig || false
+        };
+        process.env.BGSD_RUNTIME_DETECTED = "true";
+      } catch (e) {
+        _runtimeDetected = { preference: "auto", available: false };
+        process.env.BGSD_RUNTIME_DETECTED = "true";
+      }
+    }
+    function showRuntimeBanner(runtime, verbose = false) {
+      if (!runtime) return;
+      const isBun = runtime.available && runtime.preference !== "node";
+      const isFallback = runtime.preference === "node" || runtime.preference === "auto" && !runtime.available;
+      if (isBun && !runtime.fromConfig) {
+        console.log("[bGSD] Running with Bun v" + runtime.version);
+      } else if (isFallback && runtime.preference === "node") {
+        console.log("[bGSD] Falling back to Node.js");
+      } else if (verbose && isBun && runtime.fromConfig) {
+        console.log("[bGSD] Using Bun (cached v" + runtime.version + ")");
+      }
+      if (verbose && runtime.preference === "auto" && !runtime.available && !isFallback) {
+        console.log("[bGSD] Bun not available, using Node.js");
+      }
+    }
     var _compileCacheDiag = diagnoseCompileCache({ verbose: false });
     var _modules = {};
     function lazyState() {
@@ -36107,6 +36247,11 @@ var require_router = __commonJS({
       if (compactIdx !== -1) {
         global._gsdCompactMode = true;
         args.splice(compactIdx, 1);
+      }
+      const isVerbose = global._gsdCompactMode === false;
+      const showBanner = isVerbose || _runtimeDetected && _runtimeDetected.available;
+      if (showBanner) {
+        showRuntimeBanner(_runtimeDetected, isVerbose);
       }
       const manifestIdx = args.indexOf("--manifest");
       if (manifestIdx !== -1) {
@@ -36555,10 +36700,8 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
               lazyFeatures().cmdValidateConfig(cwd, raw);
             } else if (subcommand === "test-coverage") {
               lazyFeatures().cmdTestCoverage(cwd, raw);
-            } else if (subcommand === "orphans") {
-              lazyFeatures().cmdAuditOrphans(cwd, raw);
             } else {
-              error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, orphans`);
+              error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage`);
             }
             break;
           }
