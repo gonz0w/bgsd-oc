@@ -13,7 +13,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 
 - [x] **Phase 77: Validation Engine Modernization** - Replace hot-path validator internals with lower-overhead execution while preserving contracts. (completed 2026-03-10)
 - [x] **Phase 78: File Discovery and Ignore Optimization** - Speed high-fanout scans and remove ignore subprocess overhead with parity guarantees. (completed 2026-03-10)
-- [ ] **Phase 79: Startup Compile-Cache Acceleration** - Improve repeated CLI startup through guarded compile-cache enablement and fallback behavior.
+- [x] **Phase 79: Startup Compile-Cache Acceleration** - Improve repeated CLI startup through guarded compile-cache enablement and fallback behavior. (completed 2026-03-10)
 - [ ] **Phase 80: SQLite Statement Cache Acceleration** - Reduce cache-layer tail latency through statement reuse with runtime-safe fallback.
 - [ ] **Phase 81: Safe Adoption Controls and Regression Parity** - Provide independent optimization toggles and enforce backward-compatible core flows.
 
@@ -47,7 +47,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
   1. User can run repeated CLI commands and observe faster warm-start startup behavior.
   2. Maintainer can enable or disable compile-cache acceleration via explicit config or environment guard.
   3. User on unsupported runtimes sees current behavior preserved through automatic fallback.
-**Plans**: 1/1 planned
+**Plans**: 1/1 plans complete
 
 ### Phase 80: SQLite Statement Cache Acceleration
 **Goal**: Cache-heavy command paths show lower tail latency through SQLite statement caching with compatibility fallback.
@@ -74,6 +74,6 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 |-------|----------------|--------|-----------|
 | 77. Validation Engine Modernization | 3/3 | Complete   | 2026-03-10 |
 | 78. File Discovery and Ignore Optimization | 3/3 | Complete    | 2026-03-10 |
-| 79. Startup Compile-Cache Acceleration | 0/TBD | Not started | - |
+| 79. Startup Compile-Cache Acceleration | 1/1 | Complete   | 2026-03-10 |
 | 80. SQLite Statement Cache Acceleration | 0/TBD | Not started | - |
 | 81. Safe Adoption Controls and Regression Parity | 0/TBD | Not started | - |
