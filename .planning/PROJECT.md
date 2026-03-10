@@ -10,23 +10,25 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v9.1 Performance Acceleration & Plugin Benchmarking (2026-03-10)
+**Last shipped:** v9.2 CLI Tool Integrations & Runtime Modernization (2026-03-10)
 
 ## Next Milestone Goals
 
-- Expand CLI tool integrations (ripgrep, fd, fzf, bat, gh, lazygit, jq) for faster operations
-- Explore Bun runtime for 3-5x faster CLI startup and reduced memory
-- Build competitive plugin benchmark adapter for cross-plugin comparison
-- Investigate alternative libraries (valibot alternatives, caching patterns, observability)
+- TBD — Run `/bgsd-new-milestone` to define next goals
 
-## Current Milestone: v9.2 CLI Tool Integrations & Runtime Modernization
+## No Active Milestone
 
-**Goal:** Expand CLI tool integrations for faster operations and explore Bun runtime for significant startup improvements.
+> Roadmap cleared. Run `/bgsd-new-milestone` to start a new planning cycle.
 
-**Target features:**
-- CLI tool integrations: ripgrep, fd, fzf, bat, gh, lazygit, jq, yq
-- Bun runtime exploration for 3-5x faster startup
-- Plugin benchmark adapter for cross-plugin comparison
+<details>
+<summary>Previous: v9.2 CLI Tool Integrations & Runtime Modernization (shipped 2026-03-10)</summary>
+
+- Tool Detection Infrastructure — CLI tool detection with caching, install guidance, graceful fallback
+- Search & Discovery — ripgrep, fd, jq integrations with JSON output
+- Extended Tools — yq, bat, gh CLI tool wrappers
+- Runtime Exploration — Bun runtime detection, compatibility docs, benchmarking
+
+</details>
 
 <details>
 <summary>Previous: v9.1 Performance Acceleration (shipped 2026-03-10)</summary>

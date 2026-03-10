@@ -1,123 +1,18 @@
-# Roadmap: bGSD Plugin v9.2 CLI Tool Integrations & Runtime Modernization
+# Roadmap: bGSD Plugin
 
 ## Overview
 
-This milestone expands CLI tool integrations for faster operations and explores Bun runtime for significant startup improvements.
+> No active milestones. Run `/bgsd-new-milestone` to start a new planning cycle.
 
-## Milestones
+---
 
-- ✅ **v9.2 CLI Tool Integrations & Runtime Modernization** - Phases 82-85 (completed 2026-03-10)
-- ✅ **v9.1 Performance Acceleration** - Phases 77-81 (completed 2026-03-10) — see `.planning/milestones/v9.1-ROADMAP.md`
+## Completed Milestones
+
+- ✅ **v9.2 CLI Tool Integrations & Runtime Modernization** - Phases 82-85 (2026-03-10) — see `.planning/milestones/v9.2-ROADMAP.md`
+- ✅ **v9.1 Performance Acceleration** - Phases 77-81 (2026-03-10) — see `.planning/milestones/v9.1-ROADMAP.md`
 - ✅ Previous milestones shipped - see `.planning/MILESTONES.md`
 
-## Phases
-
-- [x] **Phase 82: Tool Detection Infrastructure** - CLI tool availability detection, caching, install guidance, graceful fallback (completed 2026-03-10)
-- [x] **Phase 83: Search & Discovery** - ripgrep, fd, jq integrations with JSON output (completed 2026-03-10)
-- [x] **Phase 84: Extended Tools** - yq, bat, gh CLI integrations (completed 2026-03-10)
-- [x] **Phase 85: Runtime Exploration** - Bun runtime detection, compatibility docs, benchmarking (completed 2026-03-10)
-
 ---
 
-## Phase Details
-
-### Phase 82: Tool Detection Infrastructure
-
-**Goal:** Users can detect available CLI tools and receive helpful guidance when tools are unavailable
-
-**Depends on:** Nothing (first phase)
-
-**Requirements:** CLI-01, CLI-02, CLI-03
-
-**Success Criteria** (what must be TRUE):
-  1. User can run a command to see which CLI tools (ripgrep, fd, jq, yq, bat, gh) are available vs unavailable
-  2. When a CLI tool is unavailable, the user sees clear, platform-specific install instructions
-  3. When a CLI tool is unavailable, operations gracefully fall back to existing Node.js implementations without errors
-
-**Plans:** 1/1 plans complete
-
----
-
-### Phase 83: Search & Discovery
-
-**Goal:** Users can use ripgrep, fd, and jq for faster content search and file discovery
-
-**Depends on:** Phase 82 (Tool Detection Infrastructure)
-
-**Requirements:** CLI-04, CLI-05, CLI-06
-
-**Success Criteria** (what must be TRUE):
-  1. User can run ripgrep searches and receive JSON-formatted output suitable for parsing
-  2. User can run fd file discovery commands that respect .gitignore patterns
-  3. User can pipe JSON data through jq for transformation and extraction in CLI pipelines
-
-**Plans:** 1/1 plans complete
-
----
-
-### Phase 84: Extended Tools
-
-**Goal:** Users can use yq, bat, and gh for YAML processing, syntax-highlighted output, and GitHub operations
-
-**Depends on:** Phase 83 (Search & Discovery)
-
-**Requirements:** CLI-07, CLI-08, CLI-09
-
-**Success Criteria** (what must be TRUE):
-  1. User can process YAML files with yq for extraction and transformation
-  2. User can view file contents with syntax highlighting via bat
-  3. User can perform GitHub operations (list PRs, view issues) via gh CLI with proper auth handling
-
-**Plans:** 1/1 plans complete
-
----
-
-### Phase 85: Runtime Exploration
-
-**Goal:** Users can detect Bun runtime availability and benchmark startup performance compared to Node.js
-
-**Depends on:** Phase 84 (Extended Tools)
-
-**Requirements:** RUNT-01, RUNT-02, RUNT-03
-
-**Success Criteria** (what must be TRUE):
-  1. User can detect if Bun runtime is available on their system
-  2. User can view documentation of Bun compatibility and known limitations with the plugin
-  3. User can run a benchmark command comparing Node.js vs Bun startup time for the plugin
-
-**Plans:** 1/1 plans complete
-
----
-
-## Progress
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 82. Tool Detection Infrastructure | 1/1 | Complete    | 2026-03-10 |
-| 83. Search & Discovery | 1/1 | Complete    | 2026-03-10 |
-| 84. Extended Tools | 1/1 | Complete    | 2026-03-10 |
-| 85. Runtime Exploration | 1/1 | Complete    | 2026-03-10 |
-
----
-
-## Requirement Coverage
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| CLI-01: Tool detection with caching | Phase 82 | ✅ Complete |
-| CLI-02: Install instructions when unavailable | Phase 82 | ✅ Complete |
-| CLI-03: Graceful fallback to Node.js | Phase 82 | ✅ Complete |
-| CLI-04: ripgrep with --json output | Phase 83 | ✅ Complete |
-| CLI-05: fd with .gitignore respect | Phase 83 | ✅ Complete |
-| CLI-06: jq for JSON processing | Phase 83 | ✅ Complete |
-| CLI-07: yq for YAML processing | Phase 84 | ✅ Complete |
-| CLI-08: bat for syntax-highlighted output | Phase 84 | ✅ Complete |
-| CLI-09: gh CLI for GitHub operations | Phase 84 | ✅ Complete |
-| RUNT-01: Bun runtime detection | Phase 85 | ✅ Complete |
-| RUNT-02: Bun compatibility documentation | Phase 85 | ✅ Complete |
-| RUNT-03: Node vs Bun benchmark | Phase 85 | ✅ Complete |
-
----
-
-*Roadmap created: 2026-03-10*
-*Last updated: 2026-03-10*
+*Roadmap cleared: 2026-03-10*
+*Next: Run /bgsd-new-milestone to start new cycle*
