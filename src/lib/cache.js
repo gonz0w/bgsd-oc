@@ -11,7 +11,7 @@ const researchStats = { hits: 0, misses: 0 };
 
 /**
  * SQLite backend for persistent cache storage.
- * Uses node:sqlite (available in Node.js v22.5+).
+ * Uses node:sqlite (available in Node.js v22.5+) with optional statement caching.
  */
 class SQLiteBackend {
   constructor(options = {}) {
@@ -32,6 +32,79 @@ class SQLiteBackend {
     const { DatabaseSync } = require('node:sqlite');
     this.db = new DatabaseSync(this.dbPath);
     this._initSchema();
+
+    // Initialize statement cache if available and enabled
+    this.statementCache = null;
+    this._initStatementCache();
+  }
+
+  /**
+   * Initialize statement caching using createTagStore().
+   * The tag store uses template literal tags for cached prepared statements.
+   */
+  _initStatementCache() {
+    const envValue = process.env.BGSD_SQLITE_STATEMENT_CACHE;
+    
+    // Default: enabled if not explicitly disabled, and Node >= 22.5
+    let enabled = true;
+    if (envValue === '0') {
+      enabled = false;
+    } else if (envValue === '1') {
+      enabled = true;
+    } else {
+      // Default behavior: check Node version
+      const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
+      const nodeMinor = parseInt(process.version.split('.')[1], 10);
+      enabled = nodeVersion > 22 || (nodeVersion === 22 && nodeMinor >= 5);
+    }
+
+    if (!enabled) {
+      if (process.env.BGSD_DEBUG === '1') {
+        console.log('[Cache] Statement caching disabled via BGSD_SQLITE_STATEMENT_CACHE');
+      }
+      return;
+    }
+
+    try {
+      // Create tag store for statement caching
+      this.statementCache = this.db.createTagStore();
+      
+      // Create helper functions that use the tag store with cached statements
+      // The tag store caches prepared statements based on the SQL string
+      this._cachedStatements = {
+        // File cache operations
+        getFile: (key) => this.statementCache.get`SELECT * FROM file_cache WHERE key = ${key}`,
+        updateAccess: (accessed, key) => this.statementCache.run`UPDATE file_cache SET accessed = ${accessed} WHERE key = ${key}`,
+        countFile: () => this.statementCache.get`SELECT COUNT(*) as cnt FROM file_cache`,
+        getOldest: () => this.statementCache.get`SELECT key FROM file_cache ORDER BY accessed ASC LIMIT 1`,
+        deleteFile: (key) => this.statementCache.run`DELETE FROM file_cache WHERE key = ${key}`,
+        insertFile: (key, value, mtime, created, accessed) => 
+          this.statementCache.run`INSERT OR REPLACE INTO file_cache (key, value, mtime, created, accessed) VALUES (${key}, ${value}, ${mtime}, ${created}, ${accessed})`,
+        
+        // Research cache operations
+        getResearch: (key) => this.statementCache.get`SELECT * FROM research_cache WHERE key = ${key}`,
+        deleteResearch: (key) => this.statementCache.run`DELETE FROM research_cache WHERE key = ${key}`,
+        countResearch: () => this.statementCache.get`SELECT COUNT(*) as cnt FROM research_cache`,
+        getOldestResearch: () => this.statementCache.get`SELECT key FROM research_cache ORDER BY accessed ASC LIMIT 1`,
+        insertResearch: (key, value, created, accessed, expires) =>
+          this.statementCache.run`INSERT OR REPLACE INTO research_cache (key, value, created, accessed, expires) VALUES (${key}, ${value}, ${created}, ${accessed}, ${expires})`,
+        updateResearchAccess: (accessed, key) => this.statementCache.run`UPDATE research_cache SET accessed = ${accessed} WHERE key = ${key}`,
+        
+        // Clear operations
+        clearFile: () => this.statementCache.run`DELETE FROM file_cache`,
+        clearResearch: () => this.statementCache.run`DELETE FROM research_cache`,
+      };
+
+      if (process.env.BGSD_DEBUG === '1') {
+        console.log('[Cache] Statement caching enabled via createTagStore()');
+      }
+    } catch (e) {
+      // Fall back to regular prepare() if tag store creation fails
+      this.statementCache = null;
+      if (process.env.BGSD_DEBUG === '1') {
+        console.log('[Cache] Statement caching unavailable:', e.message);
+      }
+    }
   }
 
   _initSchema() {
@@ -61,7 +134,8 @@ class SQLiteBackend {
    */
   get(key) {
     try {
-      const stmt = this.db.prepare('SELECT * FROM file_cache WHERE key = ?');
+      // Use cached statement if available, otherwise prepare new one
+      const stmt = this._cachedStatements?.getFile || this.db.prepare('SELECT * FROM file_cache WHERE key = ?');
       const row = stmt.get(key);
 
       if (!row) {
@@ -84,9 +158,13 @@ class SQLiteBackend {
         return null;
       }
 
-      // Update access time
-      this.db.prepare('UPDATE file_cache SET accessed = ? WHERE key = ?')
-        .run(Date.now(), key);
+      // Update access time - use cached statement if available
+      if (this._cachedStatements?.updateAccess) {
+        this._cachedStatements.updateAccess(Date.now(), key);
+      } else {
+        this.db.prepare('UPDATE file_cache SET accessed = ? WHERE key = ?')
+          .run(Date.now(), key);
+      }
 
       stats.hits++;
       return row.value;
@@ -111,24 +189,32 @@ class SQLiteBackend {
 
       const now = Date.now();
 
-      // LRU eviction: remove oldest if at capacity
-      const countStmt = this.db.prepare('SELECT COUNT(*) as cnt FROM file_cache');
-      const countResult = countStmt.get();
+      // LRU eviction: remove oldest if at capacity - use cached statements if available
+      const countResult = this._cachedStatements?.countFile 
+        ? this._cachedStatements.countFile()
+        : this.db.prepare('SELECT COUNT(*) as cnt FROM file_cache').get();
       if (countResult.cnt >= this.maxSize) {
-        const oldestStmt = this.db.prepare(
-          'SELECT key FROM file_cache ORDER BY accessed ASC LIMIT 1'
-        );
-        const oldest = oldestStmt.get();
+        const oldest = this._cachedStatements?.getOldest 
+          ? this._cachedStatements.getOldest()
+          : this.db.prepare('SELECT key FROM file_cache ORDER BY accessed ASC LIMIT 1').get();
         if (oldest) {
-          this.db.prepare('DELETE FROM file_cache WHERE key = ?').run(oldest.key);
+          if (this._cachedStatements?.deleteFile) {
+            this._cachedStatements.deleteFile(oldest.key);
+          } else {
+            this.db.prepare('DELETE FROM file_cache WHERE key = ?').run(oldest.key);
+          }
         }
       }
 
-      // Insert or replace
-      this.db.prepare(`
-        INSERT OR REPLACE INTO file_cache (key, value, mtime, created, accessed)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(key, value, mtime, now, now);
+      // Insert or replace - use cached statement if available
+      if (this._cachedStatements?.insertFile) {
+        this._cachedStatements.insertFile(key, value, mtime, now, now);
+      } else {
+        this.db.prepare(`
+          INSERT OR REPLACE INTO file_cache (key, value, mtime, created, accessed)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(key, value, mtime, now, now);
+      }
     } catch (e) {
       // Silently fail on cache write errors
     }
@@ -139,7 +225,11 @@ class SQLiteBackend {
    */
   invalidate(key) {
     try {
-      this.db.prepare('DELETE FROM file_cache WHERE key = ?').run(key);
+      if (this._cachedStatements?.deleteFile) {
+        this._cachedStatements.deleteFile(key);
+      } else {
+        this.db.prepare('DELETE FROM file_cache WHERE key = ?').run(key);
+      }
     } catch (e) {
       // Silently fail
     }
@@ -150,7 +240,11 @@ class SQLiteBackend {
    */
   clear() {
     try {
-      this.db.prepare('DELETE FROM file_cache').run();
+      if (this._cachedStatements?.clearFile) {
+        this._cachedStatements.clearFile();
+      } else {
+        this.db.prepare('DELETE FROM file_cache').run();
+      }
     } catch (e) {
       // Silently fail
     }
@@ -161,14 +255,16 @@ class SQLiteBackend {
    */
   status() {
     try {
-      const countStmt = this.db.prepare('SELECT COUNT(*) as cnt FROM file_cache');
-      const countResult = countStmt.get();
+      const countResult = this._cachedStatements?.countFile 
+        ? this._cachedStatements.countFile()
+        : this.db.prepare('SELECT COUNT(*) as cnt FROM file_cache').get();
       return {
         backend: 'SQLite',
         count: countResult.cnt,
         hits: stats.hits,
         misses: stats.misses,
-        dbPath: this.dbPath
+        dbPath: this.dbPath,
+        statementCache: this.statementCache !== null
       };
     } catch (e) {
       return {
@@ -176,7 +272,8 @@ class SQLiteBackend {
         count: 0,
         hits: stats.hits,
         misses: stats.misses,
-        error: e.message
+        error: e.message,
+        statementCache: false
       };
     }
   }
@@ -206,8 +303,9 @@ class SQLiteBackend {
    */
   getResearch(key) {
     try {
-      const stmt = this.db.prepare('SELECT * FROM research_cache WHERE key = ?');
-      const row = stmt.get(key);
+      const row = this._cachedStatements?.getResearch 
+        ? this._cachedStatements.getResearch(key)
+        : this.db.prepare('SELECT * FROM research_cache WHERE key = ?').get(key);
 
       if (!row) {
         researchStats.misses++;
@@ -216,14 +314,22 @@ class SQLiteBackend {
 
       // Check TTL expiry
       if (Date.now() > row.expires) {
-        this.db.prepare('DELETE FROM research_cache WHERE key = ?').run(key);
+        if (this._cachedStatements?.deleteResearch) {
+          this._cachedStatements.deleteResearch(key);
+        } else {
+          this.db.prepare('DELETE FROM research_cache WHERE key = ?').run(key);
+        }
         researchStats.misses++;
         return null;
       }
 
-      // Update access time
-      this.db.prepare('UPDATE research_cache SET accessed = ? WHERE key = ?')
-        .run(Date.now(), key);
+      // Update access time - use cached statement if available
+      if (this._cachedStatements?.updateResearchAccess) {
+        this._cachedStatements.updateResearchAccess(Date.now(), key);
+      } else {
+        this.db.prepare('UPDATE research_cache SET accessed = ? WHERE key = ?')
+          .run(Date.now(), key);
+      }
 
       researchStats.hits++;
       return JSON.parse(row.value);
@@ -241,21 +347,32 @@ class SQLiteBackend {
       const serialized = JSON.stringify(value);
       const now = Date.now();
 
-      // LRU eviction: remove oldest if at capacity
-      const countResult = this.db.prepare('SELECT COUNT(*) as cnt FROM research_cache').get();
+      // LRU eviction: remove oldest if at capacity - use cached statements if available
+      const countResult = this._cachedStatements?.countResearch
+        ? this._cachedStatements.countResearch()
+        : this.db.prepare('SELECT COUNT(*) as cnt FROM research_cache').get();
       if (countResult.cnt >= this.maxSize) {
-        const oldest = this.db.prepare(
-          'SELECT key FROM research_cache ORDER BY accessed ASC LIMIT 1'
-        ).get();
+        const oldest = this._cachedStatements?.getOldestResearch
+          ? this._cachedStatements.getOldestResearch()
+          : this.db.prepare('SELECT key FROM research_cache ORDER BY accessed ASC LIMIT 1').get();
         if (oldest) {
-          this.db.prepare('DELETE FROM research_cache WHERE key = ?').run(oldest.key);
+          if (this._cachedStatements?.deleteResearch) {
+            this._cachedStatements.deleteResearch(oldest.key);
+          } else {
+            this.db.prepare('DELETE FROM research_cache WHERE key = ?').run(oldest.key);
+          }
         }
       }
 
-      this.db.prepare(`
-        INSERT OR REPLACE INTO research_cache (key, value, created, accessed, expires)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(key, serialized, now, now, now + ttlMs);
+      // Insert or replace - use cached statement if available
+      if (this._cachedStatements?.insertResearch) {
+        this._cachedStatements.insertResearch(key, serialized, now, now, now + ttlMs);
+      } else {
+        this.db.prepare(`
+          INSERT OR REPLACE INTO research_cache (key, value, created, accessed, expires)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(key, serialized, now, now, now + ttlMs);
+      }
     } catch (e) {
       // Silently fail on cache write errors
     }
@@ -266,7 +383,11 @@ class SQLiteBackend {
    */
   clearResearch() {
     try {
-      this.db.prepare('DELETE FROM research_cache').run();
+      if (this._cachedStatements?.clearResearch) {
+        this._cachedStatements.clearResearch();
+      } else {
+        this.db.prepare('DELETE FROM research_cache').run();
+      }
     } catch (e) {
       // Silently fail
     }
@@ -277,7 +398,9 @@ class SQLiteBackend {
    */
   statusResearch() {
     try {
-      const countResult = this.db.prepare('SELECT COUNT(*) as cnt FROM research_cache').get();
+      const countResult = this._cachedStatements?.countResearch
+        ? this._cachedStatements.countResearch()
+        : this.db.prepare('SELECT COUNT(*) as cnt FROM research_cache').get();
       return {
         count: countResult.cnt,
         hits: researchStats.hits,
