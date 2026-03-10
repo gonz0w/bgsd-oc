@@ -43,6 +43,14 @@ const CONFIG_SCHEMA = {
   ytdlp_path:                { type: 'string',  default: '',                              description: 'Path to yt-dlp binary (auto-detects if empty)',      aliases: [], nested: null },
   nlm_path:                  { type: 'string',  default: '',                              description: 'Path to notebooklm-py binary (auto-detects if empty)', aliases: [], nested: null },
   mcp_config_path:           { type: 'string',  default: '',                              description: 'Path to MCP server config file (auto-detects if empty)', aliases: [], nested: null },
+
+  // ─── Dependency-Backed Optimizations ───
+  optimization:               { type: 'object',  default: {},                              description: 'Optimization flags for dependency-backed features', aliases: [], nested: null },
+  optimization_valibot:     { type: 'boolean', default: true,                            description: 'Use valibot for schema validation',                   aliases: [], nested: { section: 'optimization', field: 'valibot' }, env: 'BGSD_DEP_VALIBOT' },
+  optimization_valibot_fallback: { type: 'boolean', default: false,                     description: 'Force zod fallback for validation',                aliases: [], nested: { section: 'optimization', field: 'valibot_fallback' }, env: 'BGSD_DEP_VALIBOT_FALLBACK' },
+  optimization_discovery:   { type: 'string',  default: 'optimized',                    description: 'File discovery mode',                              aliases: [], nested: { section: 'optimization', field: 'discovery' }, env: 'BGSD_DISCOVERY_MODE', values: ['optimized', 'legacy'] },
+  optimization_compile_cache: { type: 'boolean', default: false,                         description: 'Enable Node.js compile-cache',                     aliases: [], nested: { section: 'optimization', field: 'compile_cache' }, env: 'BGSD_COMPILE_CACHE' },
+  optimization_sqlite_cache: { type: 'boolean', default: true,                           description: 'SQLite statement caching',                       aliases: [], nested: { section: 'optimization', field: 'sqlite_cache' }, env: 'BGSD_SQLITE_STATEMENT_CACHE' },
 };
 
 // ─── Command Help ────────────────────────────────────────────────────────────
