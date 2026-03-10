@@ -15,7 +15,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
 - [x] **Phase 82: Tool Detection Infrastructure** - CLI tool availability detection, caching, install guidance, graceful fallback (completed 2026-03-10)
 - [x] **Phase 83: Search & Discovery** - ripgrep, fd, jq integrations with JSON output (completed 2026-03-10)
 - [x] **Phase 84: Extended Tools** - yq, bat, gh CLI integrations (completed 2026-03-10)
-- [ ] **Phase 85: Runtime Exploration** - Bun runtime detection, compatibility docs, benchmarking
+- [x] **Phase 85: Runtime Exploration** - Bun runtime detection, compatibility docs, benchmarking (completed 2026-03-10)
 
 ---
 
@@ -85,7 +85,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
   2. User can view documentation of Bun compatibility and known limitations with the plugin
   3. User can run a benchmark command comparing Node.js vs Bun startup time for the plugin
 
-**Plans:** 1/1 plans complete ✓
+**Plans:** 1/1 plans complete
 
 ---
 
