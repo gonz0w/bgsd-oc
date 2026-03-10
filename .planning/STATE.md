@@ -9,12 +9,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 ## Current Position
 
-**Phase:** 83-search-and-discovery
+**Phase:** 84-extended-tools
 **Current Plan:** Not started
 **Status:** Ready to plan
 **Last Activity:** 2026-03-10
 
-**Progress:** v9.2 CLI Tool Integrations - Phase 83 complete
+**Progress:** v9.2 CLI Tool Integrations - Phase 84 planned
 
 ## Performance Metrics
 
@@ -56,6 +56,6 @@ None yet.
 ## Session Continuity
 
 **Last session:** 2026-03-10T13:07:19.216Z
-**Stopped at:** Phase 84 context gathered
-**Next step:** Plan Phase 84: Extended Tools
+**Stopped at:** Phase 84 planned
+**Next step:** Execute Phase 84: Extended Tools (yq, bat, gh integrations)
 

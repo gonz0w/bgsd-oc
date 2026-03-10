@@ -68,7 +68,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
   2. User can view file contents with syntax highlighting via bat
   3. User can perform GitHub operations (list PRs, view issues) via gh CLI with proper auth handling
 
-**Plans:** TBD
+**Plans:** 1/1 (84-01)
 
 ---
 
@@ -95,7 +95,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
 |-------|----------------|--------|-----------|
 | 82. Tool Detection Infrastructure | 1/1 | Complete    | 2026-03-10 |
 | 83. Search & Discovery | 1/1 | Complete    | 2026-03-10 |
-| 84. Extended Tools | 0/1 | Not started | - |
+| 84. Extended Tools | 1/1 | Ready to execute | - |
 | 85. Runtime Exploration | 0/1 | Not started | - |
 
 ---
