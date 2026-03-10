@@ -51,7 +51,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
   2. User can run fd file discovery commands that respect .gitignore patterns
   3. User can pipe JSON data through jq for transformation and extraction in CLI pipelines
 
-**Plans:** TBD
+**Plans:** 1/1
 
 ---
 
