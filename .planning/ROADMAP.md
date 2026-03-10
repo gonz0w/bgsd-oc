@@ -74,6 +74,6 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 |-------|----------------|--------|-----------|
 | 77. Validation Engine Modernization | 3/3 | Complete   | 2026-03-10 |
 | 78. File Discovery and Ignore Optimization | 3/3 | Complete    | 2026-03-10 |
-| 79. Startup Compile-Cache Acceleration | 3/3 | Complete   | 2026-03-10 |
+| 79. Startup Compile-Cache Acceleration | 3/3 | Complete    | 2026-03-10 |
 | 80. SQLite Statement Cache Acceleration | 0/TBD | Not started | - |
 | 81. Safe Adoption Controls and Regression Parity | 0/TBD | Not started | - |

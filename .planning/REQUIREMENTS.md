@@ -21,9 +21,9 @@ Requirements for v9.1 Performance Acceleration & Plugin Benchmarking milestone (
 
 ### Startup and Cache Runtime Gains
 
-- [ ] **RUNT-01**: User can get faster repeated CLI invocation startup through compile-cache enablement (guarded by config/env).
+- [x] **RUNT-01**: User can get faster repeated CLI invocation startup through compile-cache enablement (guarded by config/env).
 - [ ] **RUNT-02**: User can get reduced cache-layer tail latency through SQLite statement caching.
-- [ ] **RUNT-03**: User can keep current behavior on unsupported runtimes via automatic fallback paths.
+- [x] **RUNT-03**: User can keep current behavior on unsupported runtimes via automatic fallback paths.
 
 ### Safe Dependency Adoption and Rollback
 
@@ -56,9 +56,9 @@ Requirements for v9.1 Performance Acceleration & Plugin Benchmarking milestone (
 | SCAN-01 | Phase 78 | Complete | npm test |
 | SCAN-02 | Phase 78 | Complete | npm test |
 | SCAN-03 | Phase 78 | Complete | npm test |
-| RUNT-01 | Phase 79 | Pending | npm test |
+| RUNT-01 | Phase 79 | Complete | bin/bgsd wrapper with Node version guard |
 | RUNT-02 | Phase 80 | Pending | npm test |
-| RUNT-03 | Phase 79 | Pending | npm test |
+| RUNT-03 | Phase 79 | Complete | bin/bgsd wrapper fallback logic |
 | SAFE-01 | Phase 81 | Pending | npm test |
 | SAFE-02 | Phase 81 | Pending | npm test |
 | SAFE-03 | Phase 81 | Pending | npm test |
@@ -70,4 +70,4 @@ Requirements for v9.1 Performance Acceleration & Plugin Benchmarking milestone (
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after roadmap phase mapping*
+*Last updated: 2026-03-10 after phase 79 verification*
