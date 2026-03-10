@@ -1,5 +1,5 @@
 {
-  "generated": "2026-03-09T17:30:01.306Z",
+  "generated": "2026-03-10T02:56:58.591Z",
   "files": [
     "VERSION",
     "agents/bgsd-codebase-mapper.md",
@@ -13,7 +13,6 @@
     "agents/bgsd-roadmapper.md",
     "agents/bgsd-verifier.md",
     "bin/bgsd-tools.cjs",
-    "bin/bgsd-tools.test.cjs",
     "bin/format.test.cjs",
     "bin/manifest.json",
     "commands/bgsd-add-phase.md",
