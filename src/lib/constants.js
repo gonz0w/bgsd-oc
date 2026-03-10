@@ -920,6 +920,25 @@ Examples:
   bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
   'research:collect --resume': 'Resume interrupted research session from last completed stage',
   'research collect --resume': 'Resume interrupted research session from last completed stage',
+
+  'measure': `Usage: bgsd-tools measure [--verbose] [--bin <path>]
+
+Run plugin benchmark to measure performance metrics.
+
+This is a developer tool - undocumented in production builds.
+
+Options:
+  --verbose    Show full metrics including memory and context load times
+  --bin <path> Path to bgsd-tools binary (default: bin/bgsd-tools.cjs)
+
+Output:
+  Default: Table with startup times (cold/warm) and command execution times
+  --verbose: Full metrics table including memory and context load times
+
+Examples:
+  bgsd-tools measure
+  bgsd-tools measure --verbose
+  bgsd-tools measure --bin ./bin/bgsd-tools.cjs`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };

@@ -102,6 +102,7 @@ function lazyProfiler() { return _modules.profiler || (_modules.profiler = requi
 function lazyResearch() { return _modules.research || (_modules.research = require('./commands/research')); }
 function lazyTools() { return _modules.tools || (_modules.tools = require('./commands/tools')); }
 function lazyRuntime() { return _modules.runtime || (_modules.runtime = require('./commands/runtime')); }
+function lazyMeasure() { return _modules.measure || (_modules.measure = require('./commands/measure')); }
 
 
 async function main() {
@@ -970,8 +971,16 @@ Examples:
           } else {
             lazyRuntime().cmdRuntimeStatus(cwd, raw);
           }
+        } else if (subcommand === 'measure') {
+          const binPathIdx = restArgs.indexOf('--bin');
+          // --verbose is a global flag - check global._gsdCompactMode
+          const isVerbose = global._gsdCompactMode === false;
+          lazyMeasure().cmdMeasure(cwd, {
+            verbose: isVerbose,
+            binPath: binPathIdx !== -1 ? restArgs[binPathIdx + 1] : 'bin/bgsd-tools.cjs'
+          }, raw);
         } else {
-          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, quick-summary, extract-sections, git, profiler, tools, runtime`);
+          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, quick-summary, extract-sections, git, profiler, tools, runtime, measure`);
         }
         break;
       }
@@ -1035,6 +1044,17 @@ Examples:
     } else {
       lazyRuntime().cmdRuntimeStatus(cwd, raw);
     }
+    return;
+  }
+
+  if (command === 'measure') {
+    const binPathIdx = remainingArgs.indexOf('--bin');
+    // --verbose is a global flag - check global._gsdCompactMode
+    const isVerbose = global._gsdCompactMode === false;
+    lazyMeasure().cmdMeasure(cwd, {
+      verbose: isVerbose,
+      binPath: binPathIdx !== -1 ? remainingArgs[binPathIdx + 1] : 'bin/bgsd-tools.cjs'
+    }, raw);
     return;
   }
 
