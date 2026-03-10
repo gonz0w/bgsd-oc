@@ -42,7 +42,7 @@ Plans:
   2. Stale commands removed from slash command surface
   3. Overlapping commands consolidated into single entry points
   4. Internal-only functions not exposed as slash commands
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 - [ ] 87-01: Subcommand group restructuring
@@ -96,7 +96,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 86. Agent Sharpening | v9.3 | Complete    | 2026-03-10 | 2026-03-10 |
-| 87. Command Consolidation | v9.3 | 0/2 | Not started | - |
+| 87. Command Consolidation | 1/2 | In Progress|  | - |
 | 88. Quality & Context | v9.3 | 0/2 | Not started | - |
 | 89. Runtime Bun Migration | v9.3 | 0/2 | Not started | - |
 | 90. Benchmark | v9.3 | 0/1 | Not started | - |

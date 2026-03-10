@@ -13,10 +13,10 @@
 
 ### Command Consolidation
 
-- [ ] **CMND-01**: Commands consolidated into subcommand groups — fewer top-level commands
-- [ ] **CMND-02**: Stale commands removed from slash command surface
-- [ ] **CMND-03**: Overlapping commands consolidated
-- [ ] **CMND-04**: Internal-only calls not exposed as slash commands
+- [x] **CMND-01**: Commands consolidated into subcommand groups — fewer top-level commands
+- [x] **CMND-02**: Stale commands removed from slash command surface
+- [x] **CMND-03**: Overlapping commands consolidated
+- [x] **CMND-04**: Internal-only calls not exposed as slash commands
 
 ### Quality & Context
 

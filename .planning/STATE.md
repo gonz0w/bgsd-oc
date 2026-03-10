@@ -14,7 +14,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 **Status:** Ready to plan
 **Last Activity:** 2026-03-10
 
-**Progress:** [----------] 0%
+**Progress:** [██████████] 95%
 
 ## Performance Metrics
 
@@ -30,6 +30,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 | v9.3 | 5 (86-90) | 15 | Roadmap created |
 | v9.2 | 4 (82-85) | 12 | Complete |
 | v9.1 | 5 (77-81) | 12 | Complete |
+| Phase 87 P01 | 5 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -51,6 +52,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 - [85-01]: Bun runtime detection uses session cache (Map, not persisted).
 - [85-01]: Bun detection order: bun --version first (3s timeout), then which bun fallback.
 - [85-01]: Show full details when Bun detected, install instructions when unavailable.
+- [Phase 87-01]: Created 8 subcommand wrapper commands to group 41 original commands into logical categories
 
 ### Pending Todos
 
@@ -64,7 +66,7 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T15:39:00.000Z
-**Stopped at:** Completed 86-02 Handoff Contracts
+**Last session:** 2026-03-10T16:05:08.093Z
+**Stopped at:** Completed 87-01 command consolidation
 **Next step:** Run /bgsd-execute-phase 86 to continue with next plan
 
