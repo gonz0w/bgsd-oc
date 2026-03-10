@@ -54,10 +54,18 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01 - CLI-03 (Tool Detection) | TBD | Pending |
-| CLI-04 - CLI-06 (Search & Discovery) | TBD | Pending |
-| CLI-07 - CLI-09 (Extended Tools) | TBD | Pending |
-| RUNT-01 - RUNT-03 (Runtime Exploration) | TBD | Pending |
+| CLI-01 - Tool detection with caching | Phase 82 | Pending |
+| CLI-02 - Install instructions when unavailable | Phase 82 | Pending |
+| CLI-03 - Graceful fallback to Node.js | Phase 82 | Pending |
+| CLI-04 - ripgrep with --json output | Phase 83 | Pending |
+| CLI-05 - fd with .gitignore respect | Phase 83 | Pending |
+| CLI-06 - jq for JSON processing | Phase 83 | Pending |
+| CLI-07 - yq for YAML processing | Phase 84 | Pending |
+| CLI-08 - bat for syntax-highlighted output | Phase 84 | Pending |
+| CLI-09 - gh CLI for GitHub operations | Phase 84 | Pending |
+| RUNT-01 - Bun runtime detection | Phase 85 | Pending |
+| RUNT-02 - Bun compatibility documentation | Phase 85 | Pending |
+| RUNT-03 - Node vs Bun benchmark | Phase 85 | Pending |
 
 ---
 *Requirements defined: 2026-03-10*

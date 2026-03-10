@@ -6,54 +6,118 @@ This milestone expands CLI tool integrations for faster operations and explores 
 
 ## Milestones
 
-- ⏳ **v9.2 CLI Tool Integrations & Runtime Modernization** - Phases 82+ (planned)
+- ⏳ **v9.2 CLI Tool Integrations & Runtime Modernization** - Phases 82-85 (in progress)
 - ✅ **v9.1 Performance Acceleration** - Phases 77-81 (completed 2026-03-10) — see `.planning/milestones/v9.1-ROADMAP.md`
 - ✅ Previous milestones shipped - see `.planning/MILESTONES.md`
 
 ## Phases
 
-<details>
-<summary>✅ Phase 77-81: v9.1 Performance Acceleration (archived)</summary>
+- [ ] **Phase 82: Tool Detection Infrastructure** - CLI tool availability detection, caching, install guidance, graceful fallback
+- [ ] **Phase 83: Search & Discovery** - ripgrep, fd, jq integrations with JSON output
+- [ ] **Phase 84: Extended Tools** - yq, bat, gh CLI integrations
+- [ ] **Phase 85: Runtime Exploration** - Bun runtime detection, compatibility docs, benchmarking
 
-- Phase 77: Validation Engine Modernization — valibot with zod fallback, 34.48% improvement
-- Phase 78: File Discovery and Ignore Optimization — fast-glob, no subprocess overhead
-- Phase 79: Startup Compile-Cache Acceleration — warm starts 76-102ms faster
-- Phase 80: SQLite Statement Cache Acceleration — p50 ~43% faster, p99 ~22% faster
-- Phase 81: Safe Adoption Controls — optimization flags, parity-check, backward compatibility
+---
 
-See `.planning/milestones/v9.1-ROADMAP.md` for full details.
+## Phase Details
 
-</details>
+### Phase 82: Tool Detection Infrastructure
 
-## v9.2 Scope (Draft)
+**Goal:** Users can detect available CLI tools and receive helpful guidance when tools are unavailable
 
-### CLI Tool Integrations
+**Depends on:** Nothing (first phase)
 
-- **Search/Grep**: ripgrep (rg), ugrep integration
-- **File Discovery**: fd integration
-- **Fuzzy Finding**: fzf integration
-- **Output**: bat for syntax-highlighted output
-- **Git Tools**: gh CLI, lazygit integration
-- **Data Processing**: jq, yq integration
+**Requirements:** CLI-01, CLI-02, CLI-03
 
-### Runtime Modernization
+**Success Criteria** (what must be TRUE):
+  1. User can run a command to see which CLI tools (ripgrep, fd, jq, yq, bat, gh) are available vs unavailable
+  2. When a CLI tool is unavailable, the user sees clear, platform-specific install instructions
+  3. When a CLI tool is unavailable, operations gracefully fall back to existing Node.js implementations without errors
 
-- Explore Bun runtime for 3-5x faster startup
-- Evaluate pnpm for faster package installation
+**Plans:** TBD
 
-### Benchmarking
+---
 
-- Competitive plugin benchmark adapter
+### Phase 83: Search & Discovery
+
+**Goal:** Users can use ripgrep, fd, and jq for faster content search and file discovery
+
+**Depends on:** Phase 82 (Tool Detection Infrastructure)
+
+**Requirements:** CLI-04, CLI-05, CLI-06
+
+**Success Criteria** (what must be TRUE):
+  1. User can run ripgrep searches and receive JSON-formatted output suitable for parsing
+  2. User can run fd file discovery commands that respect .gitignore patterns
+  3. User can pipe JSON data through jq for transformation and extraction in CLI pipelines
+
+**Plans:** TBD
+
+---
+
+### Phase 84: Extended Tools
+
+**Goal:** Users can use yq, bat, and gh for YAML processing, syntax-highlighted output, and GitHub operations
+
+**Depends on:** Phase 83 (Search & Discovery)
+
+**Requirements:** CLI-07, CLI-08, CLI-09
+
+**Success Criteria** (what must be TRUE):
+  1. User can process YAML files with yq for extraction and transformation
+  2. User can view file contents with syntax highlighting via bat
+  3. User can perform GitHub operations (list PRs, view issues) via gh CLI with proper auth handling
+
+**Plans:** TBD
+
+---
+
+### Phase 85: Runtime Exploration
+
+**Goal:** Users can detect Bun runtime availability and benchmark startup performance compared to Node.js
+
+**Depends on:** Phase 84 (Extended Tools)
+
+**Requirements:** RUNT-01, RUNT-02, RUNT-03
+
+**Success Criteria** (what must be TRUE):
+  1. User can detect if Bun runtime is available on their system
+  2. User can view documentation of Bun compatibility and known limitations with the plugin
+  3. User can run a benchmark command comparing Node.js vs Bun startup time for the plugin
+
+**Plans:** TBD
 
 ---
 
 ## Progress
 
-| Milestone | Status |
-|-----------|--------|
-| v9.1 Performance Acceleration | ✅ Complete |
-| v9.2 CLI Tool Integrations | ⏳ Planned |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 82. Tool Detection Infrastructure | 0/1 | Not started | - |
+| 83. Search & Discovery | 0/1 | Not started | - |
+| 84. Extended Tools | 0/1 | Not started | - |
+| 85. Runtime Exploration | 0/1 | Not started | - |
 
 ---
 
-*See `.planning/milestones/v9.1-ROADMAP.md` for v9.1 archive.*
+## Requirement Coverage
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CLI-01: Tool detection with caching | Phase 82 | Pending |
+| CLI-02: Install instructions when unavailable | Phase 82 | Pending |
+| CLI-03: Graceful fallback to Node.js | Phase 82 | Pending |
+| CLI-04: ripgrep with --json output | Phase 83 | Pending |
+| CLI-05: fd with .gitignore respect | Phase 83 | Pending |
+| CLI-06: jq for JSON processing | Phase 83 | Pending |
+| CLI-07: yq for YAML processing | Phase 84 | Pending |
+| CLI-08: bat for syntax-highlighted output | Phase 84 | Pending |
+| CLI-09: gh CLI for GitHub operations | Phase 84 | Pending |
+| RUNT-01: Bun runtime detection | Phase 85 | Pending |
+| RUNT-02: Bun compatibility documentation | Phase 85 | Pending |
+| RUNT-03: Node vs Bun benchmark | Phase 85 | Pending |
+
+---
+
+*Roadmap created: 2026-03-10*
+*Last updated: 2026-03-10*
