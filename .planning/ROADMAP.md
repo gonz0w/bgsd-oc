@@ -27,7 +27,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
   1. User can run plugin tools and observe lower validation-related latency on hot paths.
   2. User sees unchanged command behavior and output contracts after the validator engine migration.
   3. Maintainer can switch to a legacy validation path when compatibility issues are detected.
-**Plans**: 2/2 plans complete
+**Plans**: 3/3 plans complete
 
 ### Phase 78: File Discovery and Ignore Optimization
 **Goal**: File-heavy workflows complete faster while preserving exact legacy file-selection behavior.
@@ -72,7 +72,7 @@ This milestone delivers dependency-driven performance acceleration for the plugi
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 77. Validation Engine Modernization | 2/2 | Complete   | 2026-03-10 |
+| 77. Validation Engine Modernization | 3/3 | Complete   | 2026-03-10 |
 | 78. File Discovery and Ignore Optimization | 0/TBD | Not started | - |
 | 79. Startup Compile-Cache Acceleration | 0/TBD | Not started | - |
 | 80. SQLite Statement Cache Acceleration | 0/TBD | Not started | - |
