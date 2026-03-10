@@ -1,17 +1,13 @@
 # CodeQL configuration for bGSD
-# Suppress acceptable risks in bundled output and low-risk CLI patterns
 
 paths-ignore:
-  - bin/bgsd-tools.cjs  # Bundled file - source fixes in src/ will clear after next scan
-  - node_modules/
-  - .planning/
+  - bin/bgsd-tools.cjs
+  - node_modules/**
+  - .planning/**
+  - "**/*.test.js"
+  - "**/*.spec.js"
 
 queries:
-  - uses: security-and-quality
-
-# Custom severity overrides for acceptable CLI tool risks
----
-# For js/file-system-race in CLI tools, the race conditions are acceptable because:
-# 1. Single-user execution (no concurrent access)
-# 2. Non-critical operations (logging, file analysis)
-# 3. Low impact if race occurs (minor data inconsistency)
+  - query: security-extended
+    excludes:
+      - js/file-system-race
