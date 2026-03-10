@@ -8,13 +8,17 @@ CLI="$SCRIPT_DIR/bgsd-tools.cjs"
 
 # Check if compile-cache should be enabled
 if [ "${BGSD_COMPILE_CACHE:-0}" = "1" ]; then
-  # Check Node version supports compile-cache (Node 10.4+)
-  NODE_VERSION=$(node --version | sed 's/v//' | cut -d. -f1)
-  if [ "${NODE_VERSION:-0}" -ge 10 ]; then
+  # Parse Node version - get major version number
+  NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
+  
+  # Node 22+ has compile-cache enabled by default, adding the flag adds overhead
+  # Only add --experimental-code-cache on Node 10.4-21.x where compile-cache is not default
+  if [ "${NODE_MAJOR:-0}" -ge 10 ] && [ "${NODE_MAJOR:-0}" -lt 22 ]; then
     # Try with compile-cache flag; if unsupported, fall back gracefully
-    # Node 22+ has compile-cache enabled by default, so flag may not exist
     node --experimental-code-cache "$CLI" "$@" 2>/dev/null && exit $?
   fi
+  # Node >= 22: compile-cache is already enabled by default, skip the flag
+  # Node < 10: compile-cache not supported
 fi
 
 # Fallback: run without compile-cache
