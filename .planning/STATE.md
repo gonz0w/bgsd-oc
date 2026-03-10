@@ -11,7 +11,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 **Phase:** 90 (in progress)
 **Current Plan:** Not started
-**Status:** Milestone complete
+**Status:** v9.3 milestone complete
 **Last Activity:** 2026-03-10
 
 **Progress:** [██████████] 100%

@@ -316,3 +316,24 @@
 ---
 
 
+
+## v9.3 Quality, Performance & Agent Sharpening (Shipped: 2026-03-10)
+
+**Phases completed:** 5 phases, 12 plans, 0 tasks
+
+**Key accomplishments:**
+- Agent manifest audit complete with zero capability conflict - each agent has distinct primary responsibility
+- Handoff contracts documented with inputs, outputs, preconditions - all 10 agent pairs covered
+- Created 8 subcommand wrapper commands organizing 41 slash commands into logical groups with routing
+- Consolidated 50 slash commands into 11 (8 wrappers + 3 standalone), removed internal-only commands, updated help docs
+- Gap closure: documented routing approach (host editor native) and marked CMND requirements complete
+- Deterministic context loading with git-hash cache invalidation for 6 agent types
+- Reachability audit system with verify:orphans CLI command to detect orphaned exports, files, workflows, templates, and config entries
+- Bun runtime detection with config persistence and startup banner for 3-5x startup improvement
+- Runtime fallback config and benchmark command working - 1.6x speedup measured (below 3-5x target)
+- Runtime banner correctly shows '[bGSD] Falling back to Node.js' when BGSD_RUNTIME=node
+- Extended benchmark with file I/O, nested traversal, and HTTP server tests showing realistic 1.2-1.6x improvement range
+- Plugin benchmark adapter with /bgsd-measure command capturing startup, execution, memory, and context load metrics
+
+---
+
