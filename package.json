@@ -10,7 +10,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test bin/bgsd-tools.test.cjs tests/plugin-advisory-guardrails.test.cjs",
+    "test": "node --test --test-force-exit --test-concurrency=8 tests/*.test.cjs",
+    "test:fast": "node --test --test-force-exit --test-concurrency=8 tests/state.test.cjs tests/plan.test.cjs tests/verify.test.cjs tests/infra.test.cjs tests/integration.test.cjs tests/contracts.test.cjs tests/plugin.test.cjs tests/orchestration.test.cjs tests/plugin-advisory-guardrails.test.cjs",
+    "test:slow": "node --test --test-force-exit --test-concurrency=8 tests/codebase.test.cjs tests/memory.test.cjs tests/intent.test.cjs tests/worktree.test.cjs tests/env.test.cjs tests/trajectory.test.cjs tests/misc.test.cjs tests/init.test.cjs tests/agent.test.cjs",
+    "test:file": "node --test --test-force-exit",
     "build": "node build.cjs",
     "audit:dead-code": "npx knip --include exports,files --workspace .",
     "audit:exports": "node audit-exports.cjs",
@@ -48,6 +51,10 @@
   },
   "homepage": "https://github.com/gonz0w/bgsd-oc#readme",
   "license": "MIT",
+  "dependencies": {
+    "valibot": "^1.2.0",
+    "zod": "^4.1.11"
+  },
   "devDependencies": {
     "acorn": "^8.16.0",
     "esbuild": "^0.27.3",
