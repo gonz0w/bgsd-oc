@@ -671,7 +671,7 @@ import { join as join2 } from "path";
 import { randomBytes as randomBytes2 } from "crypto";
 
 // src/plugin/logger.js
-import { existsSync, mkdirSync, statSync, appendFileSync, copyFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, statSync, appendFileSync, copyFileSync, writeFileSync, openSync, ftruncateSync, closeSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
 var MAX_LOG_SIZE = 512 * 1024;
@@ -690,8 +690,13 @@ function createLogger(logDir) {
     try {
       const stat = statSync(logPath);
       if (stat.size >= MAX_LOG_SIZE) {
-        copyFileSync(logPath, rotatedPath);
-        writeFileSync(logPath, "");
+        try {
+          copyFileSync(logPath, rotatedPath);
+          const fd = openSync(logPath, "r+");
+          ftruncateSync(fd, 0);
+          closeSync(fd);
+        } catch {
+        }
       }
     } catch {
     }
@@ -15517,7 +15522,7 @@ var bgsd_status = {
       if (!projectState) {
         return JSON.stringify({
           status: "no_project",
-          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+          message: "No .planning/ directory found. Run /bgsd plan project to initialize a project."
         });
       }
       const { state, plans } = projectState;
@@ -15601,7 +15606,7 @@ var bgsd_plan = {
       if (!projectState) {
         return JSON.stringify({
           status: "no_project",
-          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+          message: "No .planning/ directory found. Run /bgsd plan project to initialize a project."
         });
       }
       const { roadmap } = projectState;
@@ -15688,14 +15693,14 @@ var bgsd_context = {
       if (!projectState) {
         return JSON.stringify({
           status: "no_project",
-          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+          message: "No .planning/ directory found. Run /bgsd plan project to initialize a project."
         });
       }
       const { plans } = projectState;
       if (!plans || plans.length === 0) {
         return JSON.stringify({
           error: "validation_error",
-          message: "No plans found for current phase. Run /bgsd-plan-phase to create plans."
+          message: "No plans found for current phase. Run /bgsd plan phase to create plans."
         });
       }
       let currentPlan = plans[0];
@@ -15762,7 +15767,7 @@ var bgsd_validate = {
       if (!projectState) {
         return JSON.stringify({
           status: "no_project",
-          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+          message: "No .planning/ directory found. Run /bgsd plan project to initialize a project."
         });
       }
       const { state, roadmap, plans } = projectState;
@@ -15949,7 +15954,7 @@ var bgsd_progress = {
       if (!projectState) {
         return JSON.stringify({
           status: "no_project",
-          message: "No .planning/ directory found. Run /bgsd-new-project to initialize a project."
+          message: "No .planning/ directory found. Run /bgsd plan project to initialize a project."
         });
       }
       if ((validatedArgs.action === "add-blocker" || validatedArgs.action === "record-decision") && !validatedArgs.value) {
@@ -16760,15 +16765,15 @@ function toConvention(name, convention) {
   }
 }
 var PLANNING_COMMANDS = {
-  "ROADMAP.md": ["/bgsd-add-phase", "/bgsd-remove-phase", "/bgsd-insert-phase"],
-  "STATE.md": ["/bgsd-progress", "/bgsd-execute-phase"],
-  "PLAN.md": ["/bgsd-plan-phase"],
-  "CONTEXT.md": ["/bgsd-discuss-phase"],
-  "RESEARCH.md": ["/bgsd-research-phase"],
-  "REQUIREMENTS.md": ["/bgsd-new-milestone"],
-  "config.json": ["/bgsd-settings"],
-  "SUMMARY.md": ["/bgsd-execute-phase"],
-  "INTENT.md": ["/bgsd-new-project", "/bgsd-new-milestone"]
+  "ROADMAP.md": ["/bgsd roadmap add", "/bgsd roadmap remove", "/bgsd roadmap insert"],
+  "STATE.md": ["/bgsd session progress", "/bgsd exec phase"],
+  "PLAN.md": ["/bgsd plan phase"],
+  "CONTEXT.md": ["/bgsd plan discuss"],
+  "RESEARCH.md": ["/bgsd plan research"],
+  "REQUIREMENTS.md": ["/bgsd milestone new"],
+  "config.json": ["/bgsd config"],
+  "SUMMARY.md": ["/bgsd exec phase"],
+  "INTENT.md": ["/bgsd plan project", "/bgsd milestone new"]
 };
 function isTestFile(filePath) {
   const lower = filePath.toLowerCase();

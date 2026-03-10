@@ -80,8 +80,10 @@ function analyzeFile(filePath) {
   }
 
   let lines = 0;
+  let size_bytes = stat.size;
   try {
     const content = fs.readFileSync(filePath);
+    size_bytes = content.length;
     // Count newlines in buffer for performance
     for (let i = 0; i < content.length; i++) {
       if (content[i] === 0x0a) lines++;
@@ -96,7 +98,7 @@ function analyzeFile(filePath) {
 
   return {
     language,
-    size_bytes: stat.size,
+    size_bytes,
     lines,
     last_modified: stat.mtime.toISOString(),
   };
