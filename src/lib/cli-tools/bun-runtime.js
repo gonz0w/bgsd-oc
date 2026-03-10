@@ -107,7 +107,8 @@ function configSet(keyPath, value) {
 /**
  * Detect if Bun runtime is available on the system
  * Detection order: bun --version first (3s timeout), fallback to which bun
- * @returns {object} - { available: boolean, name: string, version?: string, path?: string, fromConfig?: boolean }
+ * Supports config override (runtime=node|bun|auto) and env var BGSD_RUNTIME
+ * @returns {object} - { available: boolean, name: string, version?: string, path?: string, fromConfig?: boolean, forced?: boolean }
  */
 function detectBun() {
   const cacheKey = 'bun';
@@ -117,15 +118,24 @@ function detectBun() {
     return sessionCache.get(cacheKey);
   }
   
-  // Check config for forced runtime preference
-  const runtimePref = configGet('runtime');
+  // Check environment variable override first (takes precedence over config)
+  const envRuntime = process.env.BGSD_RUNTIME;
+  let runtimePref = null;
+  
+  if (envRuntime && ['node', 'bun', 'auto'].includes(envRuntime.toLowerCase())) {
+    runtimePref = envRuntime.toLowerCase();
+  } else {
+    // Fallback to config
+    runtimePref = configGet('runtime') || 'auto';
+  }
   
   // If runtime is forced to 'node', skip detection
   if (runtimePref === 'node') {
     const result = {
       available: false,
       name: 'bun',
-      fromConfig: true
+      fromConfig: true,
+      forced: true
     };
     sessionCache.set(cacheKey, result);
     return result;
@@ -139,7 +149,8 @@ function detectBun() {
       available: true,
       name: 'bun',
       version: cachedVersion || 'unknown',
-      fromConfig: true
+      fromConfig: true,
+      forced: true
     };
     sessionCache.set(cacheKey, result);
     return result;
