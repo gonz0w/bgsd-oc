@@ -7,9 +7,9 @@
 
 ### Agent Sharpening
 
-- [ ] **AGNT-01**: Agent roles have zero overlap — each agent has single, clear responsibility
-- [ ] **AGNT-02**: Agent boundaries validated — each agent has precise manifest, minimal context load
-- [ ] **AGNT-03**: Agent handoff contracts documented and enforced
+- [x] **AGNT-01**: Agent roles have zero overlap — each agent has single, clear responsibility
+- [x] **AGNT-02**: Agent boundaries validated — each agent has precise manifest, minimal context load
+- [x] **AGNT-03**: Agent handoff contracts documented and enforced
 
 ### Command Consolidation
 
@@ -48,7 +48,7 @@
 |-------------|-------|--------|
 | AGNT-01 - Agent zero overlap | Phase 86 | Complete |
 | AGNT-02 - Agent boundaries validated | Phase 86 | Complete |
-| AGNT-03 - Handoff contracts | Phase 86 | Pending |
+| AGNT-03 - Handoff contracts | Phase 86 | Complete |
 | CMND-01 - Subcommand groups | Phase 87 | Pending |
 | CMND-02 - Stale commands removed | Phase 87 | Pending |
 | CMND-03 - Overlapping consolidated | Phase 87 | Pending |

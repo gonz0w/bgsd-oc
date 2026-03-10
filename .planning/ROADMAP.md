@@ -10,7 +10,7 @@
 
 ## Phases
 
-- [ ] **Phase 86: Agent Sharpening** - Zero overlap, validated boundaries, handoff contracts
+- [x] **Phase 86: Agent Sharpening** - Zero overlap, validated boundaries, handoff contracts (completed 2026-03-10)
 - [ ] **Phase 87: Command Consolidation** - Subcommand groups, reduced surface, stale removal
 - [ ] **Phase 88: Quality & Context** - Deterministic context, zero orphaned code
 - [ ] **Phase 89: Runtime Bun Migration** - Bun integration with backward compatibility
@@ -27,7 +27,7 @@
   2. Agent role boundaries are validated — no two agents claim the same capability
   3. Agent handoff contracts are documented and enforced
   4. Agent context loading is minimal — each agent loads only what it needs
-**Plans**: 2 plans
+**Plans**: 2/2 plans complete
 
 Plans:
 - [x] 86-01: Agent manifest audit and overlap resolution
@@ -95,7 +95,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 86. Agent Sharpening | v9.3 | 2/2 | Complete | 2026-03-10 |
+| 86. Agent Sharpening | v9.3 | Complete    | 2026-03-10 | 2026-03-10 |
 | 87. Command Consolidation | v9.3 | 0/2 | Not started | - |
 | 88. Quality & Context | v9.3 | 0/2 | Not started | - |
 | 89. Runtime Bun Migration | v9.3 | 0/2 | Not started | - |
