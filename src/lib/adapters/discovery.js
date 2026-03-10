@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const fg = require('fast-glob');
+const ignore = require('ignore');
 const { debugLog } = require('../output');
 const { execGit } = require('../git');
 
@@ -77,6 +79,93 @@ function normalizeOptions(options) {
 function stableStringify(value) {
   if (!Array.isArray(value)) return JSON.stringify(value);
   return JSON.stringify([...new Set(value)].sort());
+}
+
+function toPosix(relPath) {
+  if (!relPath) return '';
+  return relPath.split(path.sep).join('/');
+}
+
+function fromPosix(relPath) {
+  if (!relPath) return relPath;
+  return relPath.split('/').join(path.sep);
+}
+
+function normalizeRelativePath(relPath) {
+  const normalized = toPosix(relPath).replace(/^\.\//, '');
+  if (!normalized || normalized === '.') return '';
+  return normalized;
+}
+
+function escapeGlobSegment(segment) {
+  return segment.replace(/[\\*?\[\]{}()!+@]/g, '\\$&');
+}
+
+function escapeGlobPath(relPath) {
+  return toPosix(relPath).split('/').map(escapeGlobSegment).join('/');
+}
+
+function readGitIgnoreLines(filePath) {
+  try {
+    return fs.readFileSync(filePath, 'utf-8').split(/\r?\n/);
+  } catch {
+    return [];
+  }
+}
+
+function buildIgnoreMatcher(cwd) {
+  const matcher = ignore();
+  const gitIgnoreFiles = ['.gitignore'];
+  const skipPatterns = Array.from(SKIP_DIRS).map((dirName) => `**/${dirName}/**`);
+
+  const nestedGitIgnores = fg.sync('**/.gitignore', {
+    cwd,
+    dot: true,
+    onlyFiles: true,
+    followSymbolicLinks: false,
+    suppressErrors: true,
+    ignore: skipPatterns,
+  });
+
+  for (const relPath of nestedGitIgnores) {
+    if (relPath !== '.gitignore') gitIgnoreFiles.push(relPath);
+  }
+
+  for (const relPath of gitIgnoreFiles) {
+    const absPath = path.join(cwd, relPath);
+    const baseDir = path.dirname(relPath);
+    const prefix = baseDir === '.' ? '' : toPosix(baseDir);
+    const lines = readGitIgnoreLines(absPath);
+
+    for (const rawLine of lines) {
+      if (!rawLine) continue;
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+
+      const negated = line.startsWith('!');
+      let rule = negated ? line.slice(1) : line;
+      if (!rule) continue;
+
+      if (rule.startsWith('/')) {
+        rule = rule.slice(1);
+      }
+      if (prefix) {
+        rule = `${prefix}/${rule}`;
+      }
+      if (!rule) continue;
+
+      matcher.add(negated ? `!${rule}` : rule);
+    }
+  }
+
+  return matcher;
+}
+
+function isIgnoredPath(matcher, relPath, isDir) {
+  const normalized = normalizeRelativePath(relPath);
+  if (!normalized) return false;
+  const candidate = isDir ? `${normalized}/` : normalized;
+  return matcher.ignores(candidate);
 }
 
 function runWithShadowCompare(kind, args, options, legacyFn, optimizedFn) {
@@ -165,7 +254,60 @@ function legacyGetSourceDirs(cwd) {
 }
 
 function optimizedGetSourceDirs(cwd) {
-  return legacyGetSourceDirs(cwd);
+  const sourceDirs = [];
+  const matcher = buildIgnoreMatcher(cwd);
+
+  let entries;
+  try {
+    entries = fs.readdirSync(cwd, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      const ext = path.extname(entry.name);
+      if (LANGUAGE_MAP[ext] && !sourceDirs.includes('.')) {
+        sourceDirs.push('.');
+      }
+      continue;
+    }
+
+    const name = entry.name;
+    if (SKIP_DIRS.has(name)) continue;
+    if (name.startsWith('.')) continue;
+    if (isIgnoredPath(matcher, name, true)) continue;
+
+    if (KNOWN_SOURCE_DIRS.has(name)) {
+      sourceDirs.push(name);
+      continue;
+    }
+
+    const pattern = `${escapeGlobPath(name)}/*`;
+    const candidateFiles = fg.sync(pattern, {
+      cwd,
+      dot: true,
+      onlyFiles: true,
+      followSymbolicLinks: false,
+      suppressErrors: true,
+    });
+
+    const hasSource = candidateFiles.some((relPath) => {
+      if (isIgnoredPath(matcher, relPath, false)) return false;
+      const ext = path.extname(relPath);
+      return LANGUAGE_MAP[ext] !== undefined;
+    });
+
+    if (hasSource) {
+      sourceDirs.push(name);
+    }
+  }
+
+  if (sourceDirs.length === 0) {
+    sourceDirs.push('.');
+  }
+
+  return sourceDirs;
 }
 
 function walkSourceFiles(cwd, sourceDirs, skipDirs, options) {
@@ -212,7 +354,44 @@ function legacyWalkSourceFiles(cwd, sourceDirs, skipDirs) {
 }
 
 function optimizedWalkSourceFiles(cwd, sourceDirs, skipDirs) {
-  return legacyWalkSourceFiles(cwd, sourceDirs, skipDirs);
+  const matcher = buildIgnoreMatcher(cwd);
+  const uniqueDirs = [...new Set(sourceDirs || [])];
+  if (uniqueDirs.length === 0) return [];
+
+  const patterns = uniqueDirs.map((dir) => {
+    if (dir === '.' || dir === './') return '**/*';
+    return `${escapeGlobPath(dir)}/**/*`;
+  });
+
+  const skipSet = skipDirs || SKIP_DIRS;
+  const ignorePatterns = ['**/.*/**'];
+  for (const dirName of skipSet) {
+    ignorePatterns.push(`${escapeGlobPath(dirName)}/**`);
+    ignorePatterns.push(`**/${escapeGlobPath(dirName)}/**`);
+  }
+
+  const walked = fg.sync(patterns, {
+    cwd,
+    dot: true,
+    onlyFiles: true,
+    followSymbolicLinks: false,
+    unique: true,
+    suppressErrors: true,
+    ignore: ignorePatterns,
+  });
+
+  const files = [];
+  for (const relPath of walked) {
+    const normalized = normalizeRelativePath(relPath);
+    if (!normalized) continue;
+    if (isIgnoredPath(matcher, normalized, false)) continue;
+
+    const ext = path.extname(normalized);
+    if (BINARY_EXTENSIONS.has(ext)) continue;
+    files.push(fromPosix(normalized));
+  }
+
+  return files;
 }
 
 module.exports = {
