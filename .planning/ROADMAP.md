@@ -93,7 +93,7 @@ This milestone expands CLI tool integrations for faster operations and explores 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 82. Tool Detection Infrastructure | 1/1 | Planned | - |
+| 82. Tool Detection Infrastructure | 1/1 | ✅ Complete | 2026-03-10 |
 | 83. Search & Discovery | 0/1 | Not started | - |
 | 84. Extended Tools | 0/1 | Not started | - |
 | 85. Runtime Exploration | 0/1 | Not started | - |
@@ -104,9 +104,9 @@ This milestone expands CLI tool integrations for faster operations and explores 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01: Tool detection with caching | Phase 82 | Pending |
-| CLI-02: Install instructions when unavailable | Phase 82 | Pending |
-| CLI-03: Graceful fallback to Node.js | Phase 82 | Pending |
+| CLI-01: Tool detection with caching | Phase 82 | ✅ Complete |
+| CLI-02: Install instructions when unavailable | Phase 82 | ✅ Complete |
+| CLI-03: Graceful fallback to Node.js | Phase 82 | ✅ Complete |
 | CLI-04: ripgrep with --json output | Phase 83 | Pending |
 | CLI-05: fd with .gitignore respect | Phase 83 | Pending |
 | CLI-06: jq for JSON processing | Phase 83 | Pending |
