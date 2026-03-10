@@ -423,6 +423,10 @@ Fixture plan for parity validation tests.
 
     assert.deepStrictEqual(results.primary, results.fallback, 'enum validation envelope should match across engines');
     assert.strictEqual(results.primary.error, 'validation_error', 'invalid enum should return validation_error');
+
+    const progressSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'plugin', 'tools', 'bgsd-progress.js'), 'utf-8');
+    assert.ok(progressSource.includes("validateArgs('bgsd_progress'"), 'bgsd_progress should validate through adapter entrypoint');
+    assert.ok(!progressSource.includes('BGSD_DEP_VALIBOT'), 'bgsd_progress should not read fallback env flags directly');
   });
 
   test('migrated tools keep invalid and missing arg envelopes stable across engines', async () => {
