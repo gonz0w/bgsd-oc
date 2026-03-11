@@ -45,6 +45,9 @@ An intelligent agent orchestration engine for building large-scale software with
 - DO-57 [P2]: Memory usage reduced — Measurable reduction in memory and disk I/O vs v9.3 baselines
 - DO-58 [P2]: Bundle size optimized — Further reduction beyond v9.3 baseline via dead code removal
 - DO-59 [P1]: Enhanced compaction — Full project context preserved during compaction (decisions, blockers, intent, trajectory)
+- DO-60 [P1]: Direct command execution — `/bgsd {cmd} {sub}` executes immediately without clarification loops
+- DO-61 [P1]: Zero friction — Commands understand user intent and execute without hunting/pecking
+- DO-62 [P2]: Polish — Fix command confusion scenarios and streamline workflows
 </outcomes>
 
 <criteria>
@@ -80,6 +83,9 @@ An intelligent agent orchestration engine for building large-scale software with
 - SC-45: Memory usage measurably reduced vs v9.3 baseline (measure via /bgsd-measure)
 - SC-46: Bundle size reduced beyond v9.3 baseline (measure via baseline comparison)
 - SC-47: Compaction preserves full context including decisions, blockers, intent, and trajectory data
+- SC-48: Command routing is direct — `/bgsd milestone new` executes the new-milestone workflow without clarification prompts
+- SC-49: Zero confusion — All 41 slash commands execute their intended workflow without routing errors
+- SC-50: Intent recognition — Commands correctly identify user intent from natural language input
 </criteria>
 
 <constraints>
@@ -104,6 +110,12 @@ Orchestration should feel invisible — the right agent gets the right task with
 </health>
 
 <history>
+### v11.1 — 2026-03-11
+- **Added** outcomes: DO-60 (Direct command execution), DO-61 (Zero friction), DO-62 (Polish).
+  - Reason: Milestone v11.1: Command Execution & Polish — address user pain point about command routing confusion
+- **Added** criteria: SC-48 through SC-50 for command routing verification.
+  - Reason: Milestone v11.1: Measurable success criteria for direct command execution
+
 ### v10.0 — 2026-03-10
 - **Added** outcomes: DO-49 through DO-59 covering agent intelligence (planning, verification, execution, multi-agent), UX (formatting, interactivity, commands, errors), and performance (memory, bundle, compaction).
   - Reason: Milestone v10.0: Agent Intelligence & UX — comprehensive upgrade

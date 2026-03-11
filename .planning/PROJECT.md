@@ -10,42 +10,59 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v10.0 Agent Intelligence & UX (2026-03-11)
+**Last shipped:** v11.0 Natural Interface & Insights (2026-03-11)
 
-## Current Milestone: v11.0 Natural Interface & Insights
+## Current Milestone: v11.1 Command Execution & Polish
 
-**Goal:** Transform the planning experience with natural language input and rich visualization/analytics for better insights into project progress.
+**Goal:** Make all commands execute immediately without confusion - when user types `/bgsd {command} {subcommand}`, it should happen directly without debate or hunting/pecking.
 
 **Target features:**
-- Natural Language UI:
-  - Conversational planning: Describe goals in natural language, AI interprets and creates plans
-  - Voice-ready input: Structured prompts that work with voice interfaces
-  - Smart parsing: Extract requirements from loose descriptions
-- Visualization & Analytics:
-  - Project dashboards: Visual progress tracking, burndown charts
-  - Rich reporting: Milestone summaries, velocity metrics, team insights
-  - Interactive queries: Ask questions about project state, get visual answers
-- Intent outcomes:
-  - DO-32 [P2]: Memory and disk I/O reduced
-  - DO-36 [P2]: Bundle size reduced
-  - DO-45 [P1]: Enhanced compaction
+- Command routing:
+  - Direct execution: `/bgsd {cmd} {sub}` executes immediately without multi-step parsing
+  - Smart intent: Commands understand what user wants and execute without clarification loops
+  - Zero friction: No hunting through options, just execute the stated command
+- Polish & fixes:
+  - Fix command confusion scenarios
+  - Streamline existing workflows
+- Enhanced NL Input:
+  - Better natural language understanding for commands
 
 ## Next Milestone Goals
 
-- v11.0 is now active — Natural Interface & Insights
+- v11.1 is now active — Command Execution & Polish
 
 ## Active Milestone
 
-v11.0 Natural Interface & Insights — See Current Milestone above.
+v11.1 Command Execution & Polish — See Current Milestone above.
 
 <details>
-<summary>Previous: v9.3 Quality, Performance & Agent Sharpening (shipped 2026-03-10)</summary>
+<summary>Previous: v10.0 Agent Intelligence & UX (shipped 2026-03-11)</summary>
 
-- Agent sharpening — DO-27 (zero overlap), DO-35 (validated boundaries)
-- Command consolidation — DO-30 (subcommand groups), DO-34 (78% surface reduction)
-- Quality — DO-28 (deterministic context), DO-33 (zero orphaned code)
-- Runtime — DO-47 (Bun migration validated)
-- Benchmark — DO-48 (plugin adapter)
+- Enhanced format.js with CLI color control flags, Spinner class, and nested ProgressTracker
+- Created error.js module with structured error classes and formatted output with recovery suggestions
+- Created debug.js module with trace, context dump, and state inspection utilities
+- Enhanced planner skills with dependency detection, task sizing feedback loop, and parallelization analysis
+- Added CLI commands for dependency analysis, scope estimation, and parallelization warnings
+- Added execution intelligence modules for autonomous deviation recovery, complexity-based checkpoint decisions, and stuck/loop pattern detection
+- Structured handoff context transfer, shared context registry, and contract verification for multi-agent collaboration
+- Implemented CLI contextual help with command history, autocomplete hints, and examples
+- Reduced bundle size by ~50% through minification and tree-shaking
+
+</details>
+
+<details>
+<summary>Previous: v11.0 Natural Interface & Insights (shipped 2026-03-11)</summary>
+
+- ASCII visualization modules for progress bars, milestone completion, and quality scores
+- Unified visualization API with end-to-end verification of ASCII output
+- ASCII burndown chart visualization with ideal vs actual progress tracking
+- Velocity sparkline visualization for session trend display
+- Terminal dashboard with keyboard navigation for project metrics overview
+- Intent classification and parameter extraction modules with 31 phrase command registry
+- Fuzzy matching resolver with disambiguation and contextual help fallback
+
+</details>
+
 
 </details>
 
