@@ -2,15 +2,15 @@
 
 ## Milestones
 
+- ✅ **v10.0 Agent Intelligence & UX** - Phases 91-97 (2026-03-11) — see `.planning/milestones/v10.0-ROADMAP.md`
 - ✅ **v9.3 Quality, Performance & Agent Sharpening** - Phases 86-90 (2026-03-10) — see `.planning/milestones/v9.3-ROADMAP.md`
 - ✅ **v9.2 CLI Tool Integrations & Runtime Modernization** - Phases 82-85 (2026-03-10) — see `.planning/milestones/v9.2-ROADMAP.md`
-- 🔄 **v10.0 Agent Intelligence & UX** - Phases 91-97 (2026-03-10) — see `.planning/milestones/v10.0-ROADMAP.md`
 
 ---
 
 ## Phases
 
-- [ ] **Phase 91: Rich TTY Output & Error Handling** — Foundation for all improvements
+- [x] **Phase 91: Rich TTY Output & Error Handling** — Complete ✅
 - [ ] **Phase 92: Planning Intelligence** — Better task decomposition
 - [ ] **Phase 93: Verification Intelligence** — Smarter testing
 - [ ] **Phase 94: Execution Intelligence** — Deviation handling
@@ -20,8 +20,8 @@
 
 ---
 
-*Roadmap updated: 2026-03-10*
-*Ready for: /bgsd plan phase 91*
+*Roadmap updated: 2026-03-11*
+*Ready for: /bgsd plan phase 92*
 
 ---
 
@@ -43,7 +43,13 @@
 5. Debug helpers available (trace, context dump)
 6. Errors include relevant context (file, line, recent changes)
 
-**Plans:** TBD
+**Plans:**
+- ✅ 91-01: format.js enhancements (CLI flags, Spinner, ProgressTracker)
+- ✅ 91-02: error.js module (BgsdError, formatting, utilities)
+- ✅ 91-03: debug.js module (trace, context dump, inspection)
+- ✅ 91-04: Integration (main CLI with new modules)
+
+**Completed:** 2026-03-11
 
 ---
 

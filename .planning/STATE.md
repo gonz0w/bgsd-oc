@@ -11,10 +11,10 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 **Phase:** 91 (Rich TTY Output & Error Handling)
 **Current Plan:** None
-**Status:** Context gathered — ready for planning
-**Last Activity:** 2026-03-10 — Phase 91 context captured
+**Status:** Complete
+**Last Activity:** 2026-03-11 — Phase 91 completed
 
-**Progress:** Milestone v10.0 starting
+**Progress:** v10.0 milestone in progress
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 | Milestone | Phases | Requirements | Status |
 |-----------|--------|--------------|--------|
-| v10.0 | TBD | TBD | Starting |
+| v10.0 | 1 (91) | 6 | Complete |
 | v9.3 | 5 (86-90) | 15 | Complete |
 | v9.2 | 4 (82-85) | 12 | Complete |
 | v9.1 | 5 (77-81) | 12 | Complete |
@@ -36,6 +36,14 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 ### Decisions
 
+- [91-01]: Enhanced format.js with CLI color flags: --color, --no-color, --force-color with priority order --no-color > --force-color > NO_COLOR > auto-detect.
+- [91-01]: Created Spinner class for indeterminate progress with ASCII animation (|/-\).
+- [91-01]: Created ProgressTracker with nested task support and Ctrl+C cancellation.
+- [91-02]: Created error.js module with BgsdError base class and subclasses (ValidationError, FileError, CommandError, ConfigError).
+- [91-02]: Error formatting includes "Try:" prefix for recovery suggestions in green.
+- [91-03]: Created debug.js with trace(), dumpContext(), dumpState(), dumpConfig(), and inspection functions.
+- [91-03]: Context dump filters sensitive env vars (password, token, key, secret, auth).
+- [91-04]: CLI flag parsing happens before command extraction to prevent "unknown command" errors.
 - [90-01]: Created plugin-benchmark.js with measureStartup, measureCommandExecution, measureContextLoad, measureMemory functions - uses process.hrtime.bigint() for nanosecond precision.
 - [90-01]: Created /bgsd-measure command - outputs table format by default, --verbose shows full metrics including memory and context load.
 - [90-01]: Added INCLUDE_BENCHMARKS build-time feature flag - set INCLUDE_BENCHMARKS=false to exclude benchmarks from production builds.
@@ -84,7 +92,7 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T20:55:00.000Z
-**Stopped at:** Started v10.0 milestone (Agent Intelligence & UX)
-**Next step:** Defining requirements for v10.0
+**Last session:** 2026-03-11T01:51:00.000Z
+**Stopped at:** Completed v10.0 milestone (Phase 91: Rich TTY Output & Error Handling)
+**Next step:** Move to next phase in v10.0 milestone
 
