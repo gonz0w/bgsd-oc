@@ -1,44 +1,52 @@
-# Project Research Summary
+# Project Research Summary — v10.0 Agent Intelligence & UX
 
-**Project:** bGSD CLI Tool Integrations & Runtime Modernization (v9.2)
-**Domain:** CLI Plugin / Developer Tool
+**Project:** bGSD Agent Intelligence & UX (v10.0)
+**Domain:** CLI Plugin / Developer Tool / AI Agent Orchestration
 **Researched:** 2026-03-10
 **Confidence:** HIGH
 
 <!-- section: compact -->
 <compact_summary>
 
-**Summary:** Researched CLI tool integrations (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq) and Bun runtime for v9.2. Recommended approach uses built-in `child_process` with a subprocess wrapper layer and tool availability detection via `which` package. Bun runtime migration deferred due to single-file deploy conflicts. Top risk is shell injection when adding new execSync calls.
+**Summary:** Researched agent intelligence and UX improvements for v10.0. Recommended approach enhances existing infrastructure (format.js, errors.js, planner, executor) rather than adding major new dependencies. Agent intelligence patterns build on planner-worker architecture. UX improvements use incremental additions to existing formatting with inquirer for interactive workflows.
 
-**Recommended stack:** `which` (tool detection), Node.js `child_process` (execution), Bun (future consideration)
+**Stack:** Existing infrastructure + optional inquirer + cli-table3 (TTY), no major new dependencies.
 
-**Architecture:** Subprocess wrapper layer pattern — detector.js checks tool availability with caching, individual wrappers (ripgrep.js, fd.js, etc.) provide unified API with graceful fallback to existing Node.js implementations.
+**Architecture:** Enhanced module layer — extend format.js, errors.js, add planner/verifier/executor intelligence modules.
 
 **Top pitfalls:**
-1. Shell injection via user input — use spawn with array args, never string interpolation
-2. Missing tool detection — check availability before use, show clear install instructions
-3. Interactive TUI tools (lazygit, fzf) hang — use stdio:'inherit' or avoid for automation
+1. Task decomposition without dependencies — build dependency graph into decomposition
+2. Interactive prompts hang in non-TTY — detect TTY, use non-interactive fallback
+3. Bundle bloat from new deps — use inline utilities, lazy loading
 
 **Suggested phases:**
-1. Tool Detection Infrastructure — detector.js + ripgrep/fd/jq wrappers with fallback
-2. Extended Tool Integrations — yq, bat, gh CLI with auth handling
-3. Interactive Tools — fzf, lazygit with TTY passthrough (optional)
-4. Bun Runtime Exploration — adapter layer with Node.js fallback (deferred)
+1. Enhanced Formatting & Errors (foundation)
+2. Planning Intelligence
+3. Verification Intelligence  
+4. Execution Intelligence
+5. Interactive Workflows
+6. Multi-Agent Collaboration
 
-**Confidence:** HIGH | **Gaps:** Bun migration breaks single-file deploy, deferred to v2+
+**Confidence:** HIGH | **Gaps:** None critical
+
 </compact_summary>
 <!-- /section -->
 
 <!-- section: executive_summary -->
 ## Executive Summary
 
-This research addresses CLI tool integrations and Bun runtime exploration for bGSD v9.2. The goal is to accelerate common development workflows by leveraging best-in-class CLI tools (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq) while maintaining bGSD's single-file deploy model and graceful degradation when tools are unavailable.
+This research addresses agent intelligence and UX improvements for bGSD v10.0. The goal is to enhance the planning, verification, and execution experience through better task decomposition, smarter verification, richer TTY output, and interactive workflows.
 
-**Recommended approach:** Adopt a subprocess wrapper layer pattern using built-in `child_process.execFileSync` (not execSync) with array arguments to prevent shell injection. Use the `which` package for cross-platform tool availability detection with caching. This integrates seamlessly with existing patterns in `src/lib/git.js` while adding new capabilities.
+**Recommended approach:** Build on existing infrastructure rather than adding major new dependencies. Use existing format.js patterns, extend errors.js, and add intelligence modules to planner/verifier/executor.
 
-**Key risks mitigated:** Shell injection (CLI-01), missing tools (CLI-02), TUI hangs (CLI-03), and credential prompts (CLI-04) are the critical pitfalls addressed. The Bun runtime provides 3-5x faster startup but breaks the single-file deploy model and is recommended for v2+.
+**Key patterns identified:**
+- **Planner-Worker architecture** — Separate planning from execution, revise plans as each step completes
+- **Task decomposition** — 3-10 concrete subtasks with owners, dependencies, acceptance checks
+- **Rich TTY output** — Extend existing formatting with colors, tables, progress indicators
+- **Interactive prompts** — inquirer with non-interactive fallback
 
-**Architecture recommendation:** Create `src/lib/cli-tools/` directory with detector.js (availability checking), index.js (unified exports), and individual tool wrappers. Use graceful fallback — if ripgrep isn't installed, fall back to existing Node.js-based search.
+**Architecture:** Enhanced module layer pattern — new modules (format-advanced.js, interactive.js, errors-enhanced.js, planner-intelligence.js, verifier-intelligence.js, executor-intelligence.js) extend existing infrastructure.
+
 <!-- /section -->
 
 <!-- section: key_findings -->
@@ -46,56 +54,49 @@ This research addresses CLI tool integrations and Bun runtime exploration for bG
 
 ### Recommended Stack
 
-**Core technologies:**
-- **`which` (^5.0.0):** Zero-dependency cross-platform tool detection — only 5KB, works on Linux/macOS/Windows
-- **Built-in `child_process`:** Already in use via `src/lib/git.js` — use `execFileSync` over `execSync` to avoid shell injection
-- **Bun runtime:** 3-5x faster cold start (5-15ms vs 120-150ms) but defers due to single-file deploy conflicts
-- **No new npm packages for execution:** Direct subprocess calls avoid dependency bloat
+| Component | Approach | Notes |
+|-----------|----------|-------|
+| Rich TTY | Extend format.js | Add cli-table3 for tables, inline chalk-style for colors |
+| Interactive | inquirer + fallback | Check process.stdin.isTTY before interactive mode |
+| Errors | Build on errors.js | Add context + recovery suggestions |
+| Planning | New module | Task decomposition, dependency detection |
+| Verification | Extend verifier | Regression detection, edge case discovery |
+| Execution | Extend executor | Deviation handling, autonomous recovery |
+| Multi-agent | Extend RACI | Structured handoff protocols |
 
 ### Expected Features
 
 **Must have (table stakes):**
-- **ripgrep integration** — 10-100x faster than Node.js regex; use `--json` for machine parsing
-- **fd integration** — faster file discovery than fast-glob; respects .gitignore
-- **jq integration** — standard CLI JSON processing for pipeline composition
-- **Tool availability detection** — check `which` before invoking; fallback to existing implementation
+- Task decomposition with dependency chains
+- Rich TTY output (colors, tables, progress)
+- Regression detection in verification
+- Basic error recovery
 
-**Should have (competitive):**
-- **yq integration** — faster YAML frontmatter processing
-- **bat integration** — syntax-highlighted file previews
-- **gh CLI integration** — GitHub API access for PRs, issues, workflows
+**Should have (differentiators):**
+- Interactive wizards for complex tasks
+- Multi-agent handoffs with context transfer
+- Context-aware command suggestions
 
-**Defer (v2+):**
-- **Bun runtime** — breaks single-file esbuild deploy, ecosystem still maturing
-- **lazygit integration** — interactive TUI, no stable CLI interface
-- **Full fzf workflows** — requires TTY, limited automation value
+**Defer:**
+- Full AI agent patterns (wrong scope)
+- Vector search (wrong architecture)
 
-### Architecture Approach
+### Architecture
 
-The integration uses a **subprocess wrapper layer** with three core patterns:
-
-1. **Subprocess Wrapper with Sanitization** — Standardized wrapper around execFileSync with tool detection, argument sanitization, error handling, and output parsing (for ripgrep, fd, bat, jq, yq, gh)
-
-2. **TTY Passthrough for Interactive Tools** — Spawn fzf/lazygit with `stdio: 'inherit'` to pass terminal control (blocks execution but enables full interactivity)
-
-3. **Tool Availability Detection with Graceful Fallback** — Check tool availability at startup, cache result, provide fallback behavior when tool unavailable
-
-**Major components:**
-1. `src/lib/cli-tools/detector.js` — Availability checking with caching
-2. `src/lib/cli-tools/*.js` — Individual tool wrappers (ripgrep, fd, fzf, bat, gh, lazygit, jq, yq)
-3. `src/lib/runtime/bun-runtime.js` — Bun detection adapter (optional, deferred)
+Enhanced module layer pattern:
+1. `src/lib/format-advanced.js` — Rich TTY output
+2. `src/lib/interactive.js` — Prompts, wizards
+3. `src/lib/errors-enhanced.js` — Context + recovery
+4. `src/lib/planner-intelligence.js` — Task decomposition
+5. `src/lib/verifier-intelligence.js` — Regression detection
+6. `src/lib/executor-intelligence.js` — Deviation handling
 
 ### Critical Pitfalls
 
-1. **Shell injection (CLI-01):** Using execSync with string interpolation allows command injection. Prevention: Use spawn with array arguments, never string interpolation.
+1. **Task decomposition without dependencies:** Build dependency graph into decomposition phase
+2. **Non-interactive hang:** Check process.stdin.isTTY before interactive mode
+3. **Bundle bloat:** Prefer inline utilities, lazy loading
 
-2. **Missing tool detection (CLI-02):** Commands fail with ENOENT on systems without tools installed. Prevention: checkToolAvailability() before first use, show clear install instructions.
-
-3. **TUI tools hang (CLI-03):** lazygit/fzf hang when spawned as background subprocess. Prevention: Use stdio:'inherit' or launch in new terminal.
-
-4. **Credential prompts block (CLI-04):** gh/git without cached credentials hang. Prevention: Set GIT_TERMINAL_PROMPT=0, ensure credentials available.
-
-5. **Bun argument handling (BUN-01):** Bun swaps argv0/argv[1] vs Node. Prevention: Use import.meta.url, test explicitly with Bun.
 <!-- /section -->
 
 <!-- section: roadmap_implications -->
@@ -103,48 +104,43 @@ The integration uses a **subprocess wrapper layer** with three core patterns:
 
 Based on research, suggested phase structure:
 
-### Phase 1: Tool Detection Infrastructure
-**Rationale:** Foundation for all other CLI integrations — must establish availability checking before adding tool wrappers
-**Delivers:** `cli-tools/detector.js` + basic wrapper structure, ripgrep/fd/jq integrations with fallback
-**Addresses:** FEATURES.md table stakes — ripgrep, fd, jq, tool availability detection
-**Avoids:** PITFALLS CLI-01 (shell injection), CLI-02 (missing tools)
+### Phase 1: Enhanced Formatting & Errors
+**Rationale:** Foundation for all other improvements — better output helps debugging
+**Delivers:** Rich TTY formatting, context-rich errors
+**Addresses:** FEATURES.md table stakes — formatting, error handling
 
-### Phase 2: Extended Tool Integrations
-**Rationale:** Non-interactive tools that enhance automation — lower risk than TUI tools
-**Delivers:** yq, bat, gh CLI wrappers with authentication handling
-**Uses:** Stack elements: which, child_process execFileSync
-**Implements:** CLI tools layer with output parsing
-**Avoids:** PITFALLS CLI-04 (credential prompts), CLI-06 (buffer overflow)
+### Phase 2: Planning Intelligence
+**Rationale:** Core to agent workflow — better plans lead to better execution
+**Delivers:** Task decomposition with dependencies, sizing heuristics
+**Addresses:** AGENT-01, AGENT-02, AGENT-03
 
-### Phase 3: Interactive Tools (Optional)
-**Rationale:** TTY handling complexity requires careful implementation
-**Delivers:** fzf integration for fuzzy search, lazygit launcher
-**Uses:** spawn with stdio:'inherit' for terminal passthrough
-**Implements:** TTY passthrough pattern
-**Avoids:** PITFALLS CLI-03 (TUI hang)
+### Phase 3: Verification Intelligence
+**Rationale:** Prevent regressions before they ship
+**Delivers:** Regression detection, edge case suggestions
+**Addresses:** AGENT-04, AGENT-05, AGENT-06
 
-### Phase 4: Bun Runtime Exploration (Deferred)
-**Rationale:** Breaks single-file deploy — needs separate build pipeline
-**Delivers:** Runtime abstraction adapter with Node.js fallback
-**Uses:** Bun-specific spawn APIs
-**Implements:** Runtime abstraction layer
-**Avoids:** PITFALLS BUN-01 through BUN-05
+### Phase 4: Execution Intelligence
+**Rationalal:** Autonomous operation when things go wrong
+**Delivers:** Deviation handling, checkpoint decisions, stuck detection
+**Addresses:** AGENT-07, AGENT-08, AGENT-09
+
+### Phase 5: Interactive Workflows
+**Rationale:** Guide users through complex multi-step tasks
+**Delivers:** inquirer integration, wizards, non-interactive fallback
+**Addresses:** UX-04, UX-05, UX-06
+
+### Phase 6: Multi-Agent Collaboration
+**Rationale:** Better handoffs between agents
+**Delivers:** Structured context transfer, shared patterns
+**Addresses:** AGENT-10, AGENT-11, AGENT-12
 
 ### Phase Ordering Rationale
+- Formatting first — improves debugging for all subsequent phases
+- Planning second — enables better execution
+- Verification third — catches issues early
+- Execution fourth — autonomous recovery
+- Interactive last — builds on all foundations
 
-- **Phase 1 first:** Tool detection is prerequisite — all other phases depend on knowing which tools are available
-- **Non-interactive before interactive:** ripgrep/fd/jq/yq/bat/gh are simpler to integrate than fzf/lazygit
-- **Bun deferred:** Single-file deploy is core to bGSD's value proposition; Bun compatibility requires esbuild changes
-- **Graceful degradation throughout:** Each phase maintains fallback to existing Node.js implementations
-
-### Research Flags
-
-Phases likely needing deeper research during planning:
-- **Phase 2 (gh CLI):** Auth flow complexity — needs research on gh auth status checking and token handling
-- **Phase 3 (fzf/lazygit):** TTY detection edge cases — needs research on terminal capability detection
-
-Phases with standard patterns (skip research-phase):
-- **Phase 1 (detector + ripgrep/fd/jq):** Well-documented subprocess patterns, existing git.js precedent
 <!-- /section -->
 
 <!-- section: confidence -->
@@ -152,37 +148,27 @@ Phases with standard patterns (skip research-phase):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | which package verified on npm; child_process patterns in existing codebase |
-| Features | HIGH | CLI tools are mature with well-documented APIs; fallback patterns established |
-| Architecture | HIGH | Subprocess wrapper pattern follows existing git.js precedent |
-| Pitfalls | HIGH | Based on Node.js docs, Bun issues, CLI tool behavior patterns |
+| Stack | HIGH | Existing infrastructure + proven npm packages |
+| Features | HIGH | Mature patterns from research |
+| Architecture | HIGH | Build on existing codebase patterns |
+| Pitfalls | HIGH | Based on research + best practices |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Bun single-file deploy conflict:** Bun requires separate build pipeline, incompatible with esbuild single-file output. Recommendation: Defer to v2+ when build infrastructure can support dual targets.
-  
-- **gh CLI auth complexity:** Research didn't deeply explore gh auth status checking edge cases. Recommendation: Plan phase should include auth flow testing on clean system.
+- None critical — research covered core areas
 
-- **fzf automation value:** Limited value for automated agents since fzf is primarily interactive. Recommendation: Keep as optional phase, only implement if user-facing workflows benefit.
 <!-- /section -->
 
 <!-- section: sources -->
 ## Sources
 
 ### Primary (HIGH confidence)
-- Node.js child_process documentation — execFileSync usage patterns, security considerations
-- ripgrep documentation — JSON output, glob patterns
-- fd-find documentation — JSON output, .gitignore integration
-- Bun Node.js compatibility — 95%+ API coverage confirmed
-
-### Secondary (MEDIUM confidence)
-- Bun argument handling issues (GitHub issue #19694) — argv differences with Node.js
-- Community migration stories — single-file deploy challenges with Bun
-
-### Tertiary (LOW confidence)
-- fzf subprocess behavior — needs validation during Phase 3 planning
+- Task decomposition: https://ronniehuss.co.uk/building-ai-multiplied-teams-plan-and-execute-agents/
+- Planner-Worker: https://atoms.dev/insights/the-planner-executor-agent-pattern/
+- inquirer npm: https://www.npmjs.com/package/inquirer
+- cli-table3 npm: https://www.npmjs.com/package/cli-table3
 
 ---
 

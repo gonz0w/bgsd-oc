@@ -4,15 +4,163 @@
 
 - ✅ **v9.3 Quality, Performance & Agent Sharpening** - Phases 86-90 (2026-03-10) — see `.planning/milestones/v9.3-ROADMAP.md`
 - ✅ **v9.2 CLI Tool Integrations & Runtime Modernization** - Phases 82-85 (2026-03-10) — see `.planning/milestones/v9.2-ROADMAP.md`
-- 📋 **v10.0** - Future major release
+- 🔄 **v10.0 Agent Intelligence & UX** - Phases 91-97 (2026-03-10) — see `.planning/milestones/v10.0-ROADMAP.md`
 
 ---
 
 ## Phases
 
-No active phases. Run `/bgsd milestone new` to start a new milestone.
+- [ ] **Phase 91: Rich TTY Output & Error Handling** — Foundation for all improvements
+- [ ] **Phase 92: Planning Intelligence** — Better task decomposition
+- [ ] **Phase 93: Verification Intelligence** — Smarter testing
+- [ ] **Phase 94: Execution Intelligence** — Deviation handling
+- [ ] **Phase 95: Interactive Workflows** — Prompts and wizards
+- [ ] **Phase 96: Multi-Agent Collaboration** — Better handoffs
+- [ ] **Phase 97: UX Polish** — Command improvements and error handling
 
 ---
 
 *Roadmap updated: 2026-03-10*
-*Ready for: /bgsd milestone new*
+*Ready for: /bgsd plan phase 91*
+
+---
+
+# Phase Details
+
+## Phase 91: Rich TTY Output & Error Handling
+
+**Goal:** Foundation layer — enhanced formatting and context-rich error handling
+
+**Depends on:** Nothing (first phase)
+
+**Requirements:** UX-01, UX-02, UX-03, UX-10, UX-11, UX-12, PERF-01, PERF-02
+
+**Success Criteria** (what must be TRUE):
+1. Commands produce color-coded output when TTY detected
+2. Tables render with proper alignment and styling
+3. Progress indicators show for long operations
+4. Error messages include actionable recovery suggestions
+5. Debug helpers available (trace, context dump)
+6. Errors include relevant context (file, line, recent changes)
+
+**Plans:** TBD
+
+---
+
+## Phase 92: Planning Intelligence
+
+**Goal:** Better task decomposition with dependency detection and sizing
+
+**Depends on:** Phase 91 (uses enhanced formatting)
+
+**Requirements:** AGENT-01, AGENT-02, AGENT-03
+
+**Success Criteria** (what must be TRUE):
+1. Planner produces task decomposition with clear dependency chains
+2. Tasks sized using 15-60 minute heuristic automatically
+3. Independent tasks grouped for parallel execution
+
+**Plans:** TBD
+
+---
+
+## Phase 93: Verification Intelligence
+
+**Goal:** Smarter verification with regression detection
+
+**Depends on:** Phase 92 (planning outputs)
+
+**Requirements:** AGENT-04, AGENT-05, AGENT-06
+
+**Success Criteria** (what must be TRUE):
+1. Verifier automatically detects regression patterns in code changes
+2. Edge case suggestions provided based on project patterns
+3. Coverage analysis identifies untested paths
+
+**Plans:** TBD
+
+---
+
+## Phase 94: Execution Intelligence
+
+**Goal:** Autonomous deviation handling and recovery
+
+**Depends on:** Phase 93 (verification context)
+
+**Requirements:** AGENT-07, AGENT-08, AGENT-09
+
+**Success Criteria** (what must be TRUE):
+1. Executor handles common deviations autonomously with recovery
+2. Checkpoint decisions made based on task complexity
+3. Stuck/loop patterns detected and pivots suggested
+
+**Plans:** TBD
+
+---
+
+## Phase 95: Interactive Workflows
+
+**Goal:** Guided prompts and wizards for complex tasks
+
+**Depends on:** Phase 91 (TTY foundation)
+
+**Requirements:** UX-04, UX-05, UX-06, PERF-05, PERF-06
+
+**Success Criteria** (what must be TRUE):
+1. Complex commands support guided prompts
+2. Interactive mode available for multi-step tasks
+3. User can abort workflows gracefully
+4. Compaction preserves full context (decisions, blockers, intent)
+
+**Plans:** TBD
+
+---
+
+## Phase 96: Multi-Agent Collaboration
+
+**Goal:** Better handoffs between agents
+
+**Depends on:** Phases 92, 93, 94 (agent capabilities)
+
+**Requirements:** AGENT-10, AGENT-11, AGENT-12
+
+**Success Criteria** (what must be TRUE):
+1. Agent handoffs include structured context transfer
+2. Shared context enables collaboration on related tasks
+3. Handoff contracts verified before transfer
+
+**Plans:** TBD
+
+---
+
+## Phase 97: UX Polish
+
+**Goal:** Command improvements and final UX enhancements
+
+**Depends on:** Phase 91 (foundation), Phase 95 (interactive)
+
+**Requirements:** UX-07, UX-08, UX-09, PERF-03, PERF-04
+
+**Success Criteria** (what must be TRUE):
+1. Help includes contextual suggestions based on recent commands
+2. Command discoverability improved with autocomplete hints
+3. Examples included in help for common use cases
+4. Bundle size reduced beyond v9.3 baseline
+
+**Plans:** TBD
+
+---
+
+## Coverage Map
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 91 | UX-01, UX-02, UX-03, UX-10, UX-11, UX-12, PERF-01, PERF-02 | 8 |
+| 92 | AGENT-01, AGENT-02, AGENT-03 | 3 |
+| 93 | AGENT-04, AGENT-05, AGENT-06 | 3 |
+| 94 | AGENT-07, AGENT-08, AGENT-09 | 3 |
+| 95 | UX-04, UX-05, UX-06, PERF-05, PERF-06 | 5 |
+| 96 | AGENT-10, AGENT-11, AGENT-12 | 3 |
+| 97 | UX-07, UX-08, UX-09, PERF-03, PERF-04 | 5 |
+
+**Total: 30 requirements across 7 phases**

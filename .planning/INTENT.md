@@ -1,4 +1,4 @@
-**Revision:** 12
+**Revision:** 13
 **Created:** 2026-02-25
 **Updated:** 2026-03-10
 
@@ -34,6 +34,17 @@ An intelligent agent orchestration engine for building large-scale software with
 - DO-46 [P1]: CLI tool integrations operational — ripgrep, fd, fzf, bat, gh, lazygit, jq, yq available and discoverable
 - DO-47 [P1]: Bun runtime validated — 3-5x startup improvement demonstrated with backward compatibility
 - DO-48 [P2]: Plugin benchmark adapter built — cross-plugin comparison framework operational
+- DO-49 [P1]: Planning intelligence improved — Better task decomposition with dependency detection and sizing heuristics
+- DO-50 [P1]: Verification intelligence enhanced — Smarter testing strategies, better regression detection, automated edge case discovery
+- DO-51 [P1]: Execution intelligence advanced — Deviation handling with autonomous recovery, improved checkpoint decisions
+- DO-52 [P1]: Multi-agent collaboration optimized — Better handoffs between agents, shared context patterns, coordinated execution
+- DO-53 [P1]: Rich TTY output — Enhanced formatting, color schemes, structured tables, progress visualization
+- DO-54 [P1]: Interactive workflows — Guided prompts, wizards for complex tasks, interactive command modes
+- DO-55 [P2]: Command discoverability improved — Better help, suggestions, context-aware completions
+- DO-56 [P2]: Error handling improved — Actionable error messages, debug helpers, recovery suggestions
+- DO-57 [P2]: Memory usage reduced — Measurable reduction in memory and disk I/O vs v9.3 baselines
+- DO-58 [P2]: Bundle size optimized — Further reduction beyond v9.3 baseline via dead code removal
+- DO-59 [P1]: Enhanced compaction — Full project context preserved during compaction (decisions, blockers, intent, trajectory)
 </outcomes>
 
 <criteria>
@@ -58,6 +69,17 @@ An intelligent agent orchestration engine for building large-scale software with
 - SC-34: Compaction preserves PROJECT.md context, INTENT.md summary, decisions, and blockers alongside STATE.md
 - SC-35: Toast notifications fire on phase completion, milestone completion, and stuck detection events
 - SC-36: Tool interception provides advisory warnings when convention-violating file writes are detected
+- SC-37: Planning intelligence produces task decomposition with clear dependencies and sizing estimates
+- SC-38: Verification intelligence detects regressions automatically with coverage analysis
+- SC-39: Execution deviation handling recovers autonomously from common failure patterns
+- SC-40: Multi-agent handoffs include structured context transfer with preconditions verified
+- SC-41: TTY output includes rich formatting, colors, and structured tables with progress indicators
+- SC-42: Interactive workflows guide users through complex multi-step tasks with prompts
+- SC-43: Command help includes contextual suggestions and examples
+- SC-44: Error messages include actionable recovery suggestions and relevant context
+- SC-45: Memory usage measurably reduced vs v9.3 baseline (measure via /bgsd-measure)
+- SC-46: Bundle size reduced beyond v9.3 baseline (measure via baseline comparison)
+- SC-47: Compaction preserves full context including decisions, blockers, intent, and trajectory data
 </criteria>
 
 <constraints>
@@ -82,7 +104,11 @@ Orchestration should feel invisible — the right agent gets the right task with
 </health>
 
 <history>
-### v9.2 — 2026-03-10
+### v10.0 — 2026-03-10
+- **Added** outcomes: DO-49 through DO-59 covering agent intelligence (planning, verification, execution, multi-agent), UX (formatting, interactivity, commands, errors), and performance (memory, bundle, compaction).
+  - Reason: Milestone v10.0: Agent Intelligence & UX — comprehensive upgrade
+
+### v9.3 — 2026-03-10
 - **Added** outcomes: DO-46 (CLI tool integrations), DO-47 (Bun runtime), DO-48 (plugin benchmark adapter).
   - Reason: Milestone v9.2: CLI Tool Integrations & Runtime Modernization
 
