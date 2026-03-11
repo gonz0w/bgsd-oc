@@ -9,10 +9,10 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 ## Current Position
 
-**Phase:** 92 (Planning Intelligence) - COMPLETE
+**Phase:** 93 (Verification Intelligence) - COMPLETE
 **Current Plan:** None
 **Status:** Phase complete
-**Last Activity:** 2026-03-11 — Phase 92 completed
+**Last Activity:** 2026-03-11 — Phase 93 completed
 
 **Progress:** v10.0 milestone in progress
 
@@ -36,6 +36,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 ### Decisions
 
+- [93-01]: Added --auto flag to verify:regression for automatic pattern detection in git changes.
+- [93-01]: Added --suggest-edge-cases flag to verify:review for edge case suggestions based on code patterns.
+- [93-01]: Added --gap-detection flag to verify:quality for identifying untested paths in changed files.
 - [91-01]: Enhanced format.js with CLI color flags: --color, --no-color, --force-color with priority order --no-color > --force-color > NO_COLOR > auto-detect.
 - [91-01]: Created Spinner class for indeterminate progress with ASCII animation (|/-\).
 - [91-01]: Created ProgressTracker with nested task support and Ctrl+C cancellation.

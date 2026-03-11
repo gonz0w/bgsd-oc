@@ -14,9 +14,9 @@
 - [ ] **AGENT-03**: Planner detects parallelization opportunities and groups independent tasks
 
 #### Verification Intelligence
-- [ ] **AGENT-04**: Verifier automatically detects regression patterns in code changes
-- [ ] **AGENT-05**: Verifier suggests edge cases based on similar projects/patterns
-- [ ] **AGENT-06**: Verification includes coverage analysis and gap detection
+- [x] **AGENT-04**: Verifier automatically detects regression patterns in code changes
+- [x] **AGENT-05**: Verifier suggests edge cases based on similar projects/patterns
+- [x] **AGENT-06**: Verification includes coverage analysis and gap detection
 
 #### Execution Intelligence
 - [ ] **AGENT-07**: Executor handles deviations autonomously with recovery strategies
@@ -87,9 +87,9 @@ None yet — all v10.0 requirements above are in scope.
 | AGENT-01 | Phase 92 | Pending |
 | AGENT-02 | Phase 92 | Pending |
 | AGENT-03 | Phase 92 | Pending |
-| AGENT-04 | Phase 93 | Pending |
-| AGENT-05 | Phase 93 | Pending |
-| AGENT-06 | Phase 93 | Pending |
+| AGENT-04 | Phase 93 | Complete |
+| AGENT-05 | Phase 93 | Complete |
+| AGENT-06 | Phase 93 | Complete |
 | AGENT-07 | Phase 94 | Pending |
 | AGENT-08 | Phase 94 | Pending |
 | AGENT-09 | Phase 94 | Pending |
