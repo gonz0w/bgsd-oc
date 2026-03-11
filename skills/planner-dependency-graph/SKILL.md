@@ -93,6 +93,89 @@ No overlap → can run parallel. File in multiple plans → later plan depends o
 
 - <skill:planner-scope-estimation /> — Context budget influences plan grouping
 
+<!-- section: dependency_detection -->
+### Dependency Detection Patterns
+
+**Two complementary approaches:**
+
+**1. File-level detection** (authoritative):
+- Track which files each plan reads vs writes
+- If Plan A writes `src/models/user.ts` and Plan B reads it → dependency A→B
+- Confidence: 100% (observable fact)
+
+**2. Pattern-based detection** (heuristic):
+- Tests depend on source files: `tests/*.test.js` depends on `src/*.js`
+- Configs depend on schemas: `config.json` depends on `schema.json`
+- UI depends on models: `src/components/*.tsx` depends on `src/models/*.ts`
+- Confidence: Lower, requires human review
+
+**Confidence weighting rules:**
+- File-level detection takes precedence over pattern-based
+- When both conflict, prefer file-level
+- Document confidence score in dependency suggestions
+<!-- /section -->
+
+<!-- section: automatic_detection -->
+### Automatic Detection CLI
+
+Use the CLI tool for automated dependency analysis:
+
+```bash
+bgsd-tools util:analyze-deps <phase-dir>
+```
+
+**Output includes:**
+- Phase identifier
+- Array of dependency suggestions with:
+  - `from`: Source plan number
+  - `to`: Dependent plan number  
+  - `file`: File causing dependency
+  - `confidence`: 0-100 score
+  - `reason`: Human-readable explanation
+
+**Example output:**
+```json
+{
+  "phase": "92",
+  "suggestions": [
+    {
+      "from": "01",
+      "to": "02",
+      "file": "src/models/user.ts",
+      "confidence": 100,
+      "reason": "Plan 01 writes, Plan 02 reads"
+    }
+  ]
+}
+```
+
+Run during planning to validate dependency assumptions before execution.
+<!-- /section -->
+
+<!-- section: wave_computation -->
+### Wave Computation Rules
+
+Waves group independent tasks for parallel execution:
+
+**Wave assignment algorithm:**
+1. **Wave 1:** Tasks with no dependencies (no `depends_on`, no file overlaps)
+2. **Wave N+1:** Tasks that depend on any task in Wave N
+3. **Special handling:** Checkpoint tasks always get their own wave (wait for all prior)
+
+**Rules:**
+- Task depends on Wave N → assigned to Wave N+1 minimum
+- Multiple dependencies → highest Wave N determines placement
+- Checkpoint tasks → final wave after all dependencies resolve
+- Circular dependency detection → error, must resolve manually
+
+**CLI for wave validation:**
+```bash
+bgsd-tools verify:plan-wave <phase-dir>
+```
+
+Shows wave assignments and any file conflicts within waves.
+<!-- /section -->
+
 ## Examples
 
 See planner agent's `<dependency_graph>` section for the original comprehensive reference.
