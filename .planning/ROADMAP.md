@@ -66,7 +66,9 @@
 2. Tasks sized using 15-60 minute heuristic automatically
 3. Independent tasks grouped for parallel execution
 
-**Plans:** TBD
+**Plans:**
+- ✅ 92-01: Enhance planner skills (dependency detection, task sizing, parallelization)
+- ✅ 92-02: Add CLI commands (analyze-deps, estimate-scope, plan-wave enhancements)
 
 ---
 
