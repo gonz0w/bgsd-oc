@@ -9,10 +9,10 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 ## Current Position
 
-**Phase:** 92 (Planning Intelligence)
+**Phase:** 92 (Planning Intelligence) - COMPLETE
 **Current Plan:** None
-**Status:** Context gathered, planning next
-**Last Activity:** 2026-03-11 — Phase 92 context gathered
+**Status:** Phase complete
+**Last Activity:** 2026-03-11 — Phase 92 completed
 
 **Progress:** v10.0 milestone in progress
 
@@ -48,6 +48,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 - [92-Context]: Task sizing applied during breakdown with execution feedback loop.
 - [92-Context]: Parallelization uses hybrid with resource conflict analysis.
 - [92-Context]: Output format includes wave numbers + depends_on arrays in frontmatter.
+- [92-01]: Enhanced planner-dependency-graph skill with dependency detection patterns - file-level is authoritative, pattern-based is heuristic.
+- [92-01]: Enhanced planner-task-breakdown skill with execution feedback loop for historical task timing.
+- [92-01]: Enhanced planner-scope-estimation skill with parallelization detection and wave analysis.
+- [92-02]: Added util:analyze-deps CLI command for automatic dependency suggestions with confidence scores.
+- [92-02]: Added util:estimate-scope CLI command for task sizing and context budget analysis.
+- [92-02]: Enhanced verify:plan-wave with parallelization_warnings and safe_to_parallelize output.
 - [90-01]: Created plugin-benchmark.js with measureStartup, measureCommandExecution, measureContextLoad, measureMemory functions - uses process.hrtime.bigint() for nanosecond precision.
 - [90-01]: Created /bgsd-measure command - outputs table format by default, --verbose shows full metrics including memory and context load.
 - [90-01]: Added INCLUDE_BENCHMARKS build-time feature flag - set INCLUDE_BENCHMARKS=false to exclude benchmarks from production builds.
@@ -96,7 +102,7 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-11T01:51:00.000Z
-**Stopped at:** Phase 92 context gathered
-**Next step:** Planning phase 92 (Planning Intelligence)
+**Last session:** 2026-03-11T03:35:00.000Z
+**Stopped at:** Phase 92 complete
+**Next step:** Ready for next phase
 
