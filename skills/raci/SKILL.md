@@ -64,6 +64,27 @@ Defines clear ownership boundaries: each lifecycle step has exactly ONE Responsi
 **Verifier → Planner (gap closure):** `VERIFICATION.md` with `status: gaps_found` and `gaps:` array containing truth, status, reason, artifacts, missing items.
 
 **User → Planner (discuss):** `CONTEXT.md` with Implementation Decisions (locked), Agent's Discretion, Deferred Ideas (out of scope).
+
+### Handoff Contract Verification
+
+Each agent-to-agent handoff includes structured context transfer with preconditions verified before transfer completes. Use `verify:agents --verify --from <agent> --to <agent>` to check preconditions.
+
+**Precondition Types:**
+- `context_exists`: Required context blocks present in handoff
+- `artifacts_exist`: Required files exist
+- `state_valid`: Project in correct state for handoff
+- `dependencies_met`: Prerequisite tasks complete
+
+**Available Contracts (via verify:agents --contracts):**
+- planner-executor: plan_valid, tasks_defined, files_modified_specified
+- executor-verifier: summary_exists, commits_recorded
+- verifier-planner: verification_done, gaps_identified
+- phase-researcher-roadmapper: research_complete
+- roadmapper-planner: roadmap_exists, requirements_defined
+- planner-plan-checker: plan_structure_valid
+- executor-debugger: blocker_documented
+- codebase-mapper-planner: analysis_complete
+- project-researcher-roadmapper: research_complete
 <!-- /section -->
 
 <!-- section: coverage-summary -->

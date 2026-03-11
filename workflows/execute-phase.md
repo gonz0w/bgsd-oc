@@ -180,7 +180,19 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
 **For each wave:**
 
-1. **Describe what's being built** — read each plan's `<objective>`, extract what/why in 2-3 sentences.
+1. **Handoff context setup** — Before spawning executor agents, create structured handoff context for agent transitions:
+   ```
+   # Preview handoff context between agents
+   node bgsd-tools.cjs verify:handoff --preview --from planner --to executor
+   ```
+
+2. **Verify handoff contracts** — Check preconditions before agent transitions:
+   ```
+   # Verify planner → executor contract
+   node bgsd-tools.cjs verify:agents --verify --from planner --to executor
+   ```
+
+3. **Describe what's being built** — read each plan's `<objective>`, extract what/why in 2-3 sentences.
 
 2. **Choose execution mode** based on `worktree_enabled` AND wave has >1 plan AND `PARALLELIZATION=true`:
 

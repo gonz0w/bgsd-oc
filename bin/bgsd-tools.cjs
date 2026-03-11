@@ -590,6 +590,29 @@ Subcommands:
   audit                                Audit agent lifecycle coverage against RACI matrix
   list                                 List all agents
   validate-contracts [--phase N]       Check agent outputs match declared contracts`,
+      // handoff context commands
+      "verify:handoff": `Usage: bgsd-tools verify:handoff <subcommand> [options]
+
+Structured context transfer for agent handoffs.
+
+Subcommands:
+  --validate --context <json-or-file>   Validate handoff context completeness
+  --preview --from <agent> --to <agent>  Preview context transfer between agents`,
+      "verify:agents": `Usage: bgsd-tools verify:agents <subcommand> [options]
+
+Handoff contract verification for agent transitions.
+
+Subcommands:
+  --contracts                              List all handoff contracts with preconditions
+  --verify --from <agent> --to <agent>     Verify contract between two agents`,
+      "util:shared-context": `Usage: bgsd-tools util:shared-context <subcommand> [options]
+
+Shared context registry for agent collaboration.
+
+Subcommands:
+  --list                                  List all available shared context
+  --register --key <key> --value <value>  Register shared context
+  --clear                                 Clear all shared context`,
       // research namespace
       "research": `Usage: bgsd-tools research <subcommand> [options]
 
@@ -6180,12 +6203,61 @@ Plans:
       if (!version) {
         error("version required for milestone complete (e.g., v1.0)");
       }
+      const phasesDir = path.join(cwd, ".planning", "phases");
+      let phaseRange = null;
+      try {
+        const milestone = getMilestoneInfo(cwd);
+        phaseRange = milestone.phaseRange;
+        if (phaseRange) {
+          const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+          const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+          const existingPhaseNumbers = /* @__PURE__ */ new Set();
+          const incompletePhases = [];
+          const missingPhases = [];
+          for (const dir of dirs) {
+            const dirMatch = dir.match(/^(\d+)/);
+            if (dirMatch) {
+              const num = parseInt(dirMatch[1]);
+              existingPhaseNumbers.add(num);
+              if (num >= phaseRange.start && num <= phaseRange.end) {
+                const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
+                const plans = phaseFiles.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md");
+                const summaries = phaseFiles.filter((f) => f.endsWith("-SUMMARY.md") || f === "SUMMARY.md");
+                if (summaries.length < plans.length || plans.length === 0) {
+                  incompletePhases.push({ phase: dir, plans: plans.length, summaries: summaries.length });
+                }
+              }
+            }
+          }
+          for (let p = phaseRange.start; p <= phaseRange.end; p++) {
+            if (!existingPhaseNumbers.has(p)) {
+              missingPhases.push(p);
+            }
+          }
+          const issues = [];
+          if (incompletePhases.length > 0) {
+            issues.push(`${incompletePhases.length} incomplete phase(s): ${incompletePhases.map((p) => `${p.phase} (${p.summaries}/${p.plans})`).join(", ")}`);
+          }
+          if (missingPhases.length > 0) {
+            issues.push(`${missingPhases.length} missing phase(s): ${missingPhases.map((p) => `Phase ${p}`).join(", ")}`);
+          }
+          if (issues.length > 0) {
+            const msg = `Cannot complete milestone ${version}: ${issues.join("; ")}
+Complete all phases before marking milestone complete, or use --force to override.`;
+            if (!options.force) {
+              error(msg);
+            }
+            console.error(`[WARNING] ${msg}`);
+          }
+        }
+      } catch (e) {
+        debugLog("milestone.complete", "guardrail validation failed", e);
+      }
       const roadmapPath = path.join(cwd, ".planning", "ROADMAP.md");
       const reqPath = path.join(cwd, ".planning", "REQUIREMENTS.md");
       const statePath = path.join(cwd, ".planning", "STATE.md");
       const milestonesPath = path.join(cwd, ".planning", "MILESTONES.md");
       const archiveDir = path.join(cwd, ".planning", "milestones");
-      const phasesDir = path.join(cwd, ".planning", "phases");
       const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
       const milestoneName = options.name || version;
       fs.mkdirSync(archiveDir, { recursive: true });
@@ -6193,13 +6265,6 @@ Plans:
       let totalPlans = 0;
       let totalTasks = 0;
       const accomplishments = [];
-      let phaseRange = null;
-      try {
-        const milestone = getMilestoneInfo(cwd);
-        phaseRange = milestone.phaseRange;
-      } catch (e) {
-        debugLog("milestone.complete", "getMilestoneInfo failed", e);
-      }
       try {
         const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
         const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
@@ -36623,6 +36688,437 @@ var require_agent = __commonJS({
   }
 });
 
+// src/commands/handoff.js - Structured handoff context transfer system
+var require_handoff = __commonJS({
+  "src/commands/handoff.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    function createHandoffContext(fromAgent, toAgent, taskContext) {
+      const context = {
+        source_agent: fromAgent,
+        target_agent: toAgent,
+        task_summary: taskContext.task_summary || "",
+        context_blocks: taskContext.context_blocks || [],
+        preconditions: taskContext.preconditions || [],
+        artifacts: taskContext.artifacts || [],
+        decisions: taskContext.decisions || [],
+        blockers: taskContext.blockers || [],
+        timestamp: new Date().toISOString()
+      };
+      return context;
+    }
+    function serializeContext(context) {
+      return JSON.stringify(context, null, 2);
+    }
+    function deserializeContext(serialized) {
+      try {
+        return JSON.parse(serialized);
+      } catch (e) {
+        throw new Error(`Failed to deserialize handoff context: ${e.message}`);
+      }
+    }
+    function validateContext(context) {
+      const requiredFields = ["source_agent", "target_agent", "timestamp"];
+      const missing = requiredFields.filter((f) => !context[f]);
+      if (missing.length > 0) {
+        return { valid: false, missing };
+      }
+      return { valid: true };
+    }
+    function cmdHandoffValidate(cwd, raw, args) {
+      const contextIdx = args.indexOf("--context");
+      if (contextIdx === -1) {
+      const { error, output } = require_output();
+        error("Usage: bgsd-tools verify:handoff --validate --context <json-or-file>");
+        process.exit(1);
+      }
+      const contextArg = args[contextIdx + 1];
+      let contextStr;
+      if (fs.existsSync(path.resolve(cwd, contextArg))) {
+        contextStr = fs.readFileSync(path.resolve(cwd, contextArg), "utf8");
+      } else {
+        contextStr = contextArg;
+      }
+      const context = deserializeContext(contextStr);
+      const validation = validateContext(context);
+      const { output } = require_output();
+      if (validation.valid) {
+        output({
+          valid: true,
+          context: {
+            source_agent: context.source_agent,
+            target_agent: context.target_agent,
+            task_summary: context.task_summary,
+            has_context_blocks: context.context_blocks?.length > 0,
+            has_preconditions: context.preconditions?.length > 0,
+            has_artifacts: context.artifacts?.length > 0,
+            has_decisions: context.decisions?.length > 0,
+            blockers: context.blockers?.length || 0,
+            timestamp: context.timestamp
+          }
+        }, raw);
+      } else {
+        output({
+          valid: false,
+          missing_fields: validation.missing
+        }, raw);
+        process.exit(1);
+      }
+    }
+    function cmdHandoffPreview(cwd, raw, args) {
+      const fromIdx = args.indexOf("--from");
+      const toIdx = args.indexOf("--to");
+      const { error, output } = require_output();
+      if (fromIdx === -1 || toIdx === -1) {
+        error("Usage: bgsd-tools verify:handoff --preview --from <agent> --to <agent>");
+        process.exit(1);
+      }
+      const fromAgent = args[fromIdx + 1];
+      const toAgent = args[toIdx + 1];
+      const context = createHandoffContext(fromAgent, toAgent, {
+        task_summary: "[preview] Sample task summary",
+        context_blocks: ["STATE", "DECISIONS", "FILES"],
+        preconditions: ["context_exists", "artifacts_exist", "state_valid"]
+      });
+      output({
+        preview: true,
+        context: context
+      }, raw);
+    }
+    module2.exports = {
+      createHandoffContext,
+      serializeContext,
+      deserializeContext,
+      validateContext,
+      cmdHandoffValidate,
+      cmdHandoffPreview
+    };
+  }
+});
+
+// src/commands/sharedContext.js - Shared context registry for collaboration
+var require_sharedContext = __commonJS({
+  "src/commands/sharedContext.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var SHARED_CONTEXT_DIR = ".planning/.cache";
+    var SHARED_CONTEXT_FILE = ".planning/.cache/shared-context.json";
+    var DEFAULT_TTL_MS = 30 * 60 * 1000;
+    function getSharedContextPath(cwd) {
+      return path.join(cwd, SHARED_CONTEXT_FILE);
+    }
+    function ensureSharedContextDir(cwd) {
+      const dir = path.join(cwd, SHARED_CONTEXT_DIR);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      return dir;
+    }
+    function loadSharedContext(cwd) {
+      const filePath = getSharedContextPath(cwd);
+      if (!fs.existsSync(filePath)) {
+        return {};
+      }
+      try {
+        const content = fs.readFileSync(filePath, "utf8");
+        const data = JSON.parse(content);
+        return data.context || {};
+      } catch (e) {
+        return {};
+      }
+    }
+    function saveSharedContext(cwd, context) {
+      ensureSharedContextDir(cwd);
+      const filePath = getSharedContextPath(cwd);
+      const data = {
+        context: context,
+        updated: new Date().toISOString()
+      };
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    }
+    function registerContext(agentId, contextKey, contextValue) {
+      return function(cwd) {
+        const context = loadSharedContext(cwd);
+        if (!context[contextKey]) {
+          context[contextKey] = {};
+        }
+        context[contextKey][agentId] = {
+          value: contextValue,
+          timestamp: new Date().toISOString(),
+          ttl: DEFAULT_TTL_MS
+        };
+        saveSharedContext(cwd, context);
+        return { registered: true, key: contextKey, agent: agentId };
+      };
+    }
+    function getSharedContextFn(agentId, contextKey) {
+      return function(cwd) {
+        const context = loadSharedContext(cwd);
+        const now = Date.now();
+        if (!context[contextKey]) {
+          return { found: false, key: contextKey };
+        }
+        const entries = context[contextKey];
+        const validEntries = {};
+        for (const [agent, data] of Object.entries(entries)) {
+          const age = now - new Date(data.timestamp).getTime();
+          if (age < data.ttl) {
+            validEntries[agent] = data.value;
+          }
+        }
+        return {
+          found: Object.keys(validEntries).length > 0,
+          key: contextKey,
+          entries: validEntries
+        };
+      };
+    }
+    function listAvailableContextFn(agentId) {
+      return function(cwd) {
+        const context = loadSharedContext(cwd);
+        const now = Date.now();
+        const available = {};
+        for (const [key, entries] of Object.entries(context)) {
+          const validEntries = {};
+          for (const [agent, data] of Object.entries(entries)) {
+            const age = now - new Date(data.timestamp).getTime();
+            if (age < data.ttl) {
+              validEntries[agent] = true;
+            }
+          }
+          if (Object.keys(validEntries).length > 0) {
+            available[key] = validEntries;
+          }
+        }
+        return { available };
+      };
+    }
+    function invalidateContextFn(contextKey) {
+      return function(cwd) {
+        const context = loadSharedContext(cwd);
+        if (contextKey) {
+          delete context[contextKey];
+        } else {
+          for (const key of Object.keys(context)) {
+            delete context[key];
+          }
+        }
+        saveSharedContext(cwd, context);
+        return { invalidated: true, key: contextKey || "all" };
+      };
+    }
+    function cmdSharedContextList(cwd, raw, args) {
+      const { output } = require_output();
+      const listFn = listAvailableContextFn("cli");
+      const result = listFn(cwd);
+      output(result, raw);
+    }
+    function cmdSharedContextRegister(cwd, raw, args) {
+      const keyIdx = args.indexOf("--key");
+      const valueIdx = args.indexOf("--value");
+      const { error, output } = require_output();
+      if (keyIdx === -1 || valueIdx === -1) {
+        error("Usage: bgsd-tools util:shared-context --register --key <key> --value <value>");
+        process.exit(1);
+      }
+      const key = args[keyIdx + 1];
+      const value = args[valueIdx + 1];
+      const registerFn = registerContext("cli", key, value);
+      const result = registerFn(cwd);
+      output(result, raw);
+    }
+    function cmdSharedContextClear(cwd, raw, args) {
+      const { output } = require_output();
+      const invalidateFn = invalidateContextFn(null);
+      const result = invalidateFn(cwd);
+      output(result, raw);
+    }
+    module2.exports = {
+      registerContext,
+      getSharedContextFn,
+      listAvailableContextFn,
+      invalidateContextFn,
+      cmdSharedContextList,
+      cmdSharedContextRegister,
+      cmdSharedContextClear
+    };
+  }
+});
+
+// src/commands/handoffContracts.js - Handoff contract verification
+var require_handoffContracts = __commonJS({
+  "src/commands/handoffContracts.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var HANDOFF_CONTRACTS = {
+      "planner-executor": {
+        required_inputs: ["PLAN.md", "must_haves", "tasks"],
+        required_artifacts: [],
+        required_state: ["phase", "plan"],
+        preconditions: ["plan_valid", "tasks_defined", "files_modified_specified"]
+      },
+      "executor-verifier": {
+        required_inputs: ["SUMMARY.md", "task_commits", "decisions"],
+        required_artifacts: [],
+        required_state: ["phase", "plan", "all_tasks_complete"],
+        preconditions: ["summary_exists", "commits_recorded"]
+      },
+      "verifier-planner": {
+        required_inputs: ["VERIFICATION.md", "gaps"],
+        required_artifacts: [],
+        required_state: ["verification_complete"],
+        preconditions: ["verification_done", "gaps_identified"]
+      },
+      "phase-researcher-roadmapper": {
+        required_inputs: ["research", "findings"],
+        required_artifacts: [],
+        required_state: [],
+        preconditions: ["research_complete"]
+      },
+      "roadmapper-planner": {
+        required_inputs: ["ROADMAP.md", "REQUIREMENTS.md"],
+        required_artifacts: [],
+        required_state: ["requirements_defined"],
+        preconditions: ["roadmap_exists", "requirements_defined"]
+      },
+      "planner-plan-checker": {
+        required_inputs: ["PLAN.md"],
+        required_artifacts: [],
+        required_state: [],
+        preconditions: ["plan_structure_valid"]
+      },
+      "executor-debugger": {
+        required_inputs: ["debug_context", "error_info"],
+        required_artifacts: [],
+        required_state: ["blocker_exists"],
+        preconditions: ["blocker_documented"]
+      },
+      "codebase-mapper-planner": {
+        required_inputs: ["codebase_analysis"],
+        required_artifacts: [],
+        required_state: [],
+        preconditions: ["analysis_complete"]
+      },
+      "project-researcher-roadmapper": {
+        required_inputs: ["research_results"],
+        required_artifacts: [],
+        required_state: [],
+        preconditions: ["research_complete"]
+      },
+      "any-handoff": {
+        required_inputs: ["context_blocks"],
+        required_artifacts: [],
+        required_state: [],
+        preconditions: ["context_exists"]
+      }
+    };
+    function verifyHandoffContract(contractKey, currentState) {
+      const contract = HANDOFF_CONTRACTS[contractKey];
+      if (!contract) {
+        return { valid: false, error: `Unknown contract: ${contractKey}` };
+      }
+      const results = {
+        contract: contractKey,
+        preconditions: {},
+        valid: true,
+        missing: []
+      };
+      for (const precondition of contract.preconditions) {
+        const met = currentState[precondition] === true || currentState[precondition] !== undefined;
+        results.preconditions[precondition] = met;
+        if (!met) {
+          results.valid = false;
+          results.missing.push(precondition);
+        }
+      }
+      for (const input of contract.required_inputs) {
+        const exists = currentState[`has_${input}`] === true || currentState[input] !== undefined;
+        results[input] = exists;
+        if (!exists) {
+          results.valid = false;
+          results.missing.push(`input:${input}`);
+        }
+      }
+      return results;
+    }
+    function listContractPreconditions(agentPair) {
+      const contract = HANDOFF_CONTRACTS[agentPair];
+      if (!contract) {
+        const keys = Object.keys(HANDOFF_CONTRACTS).filter((k) => k !== "any-handoff");
+        return { available_contracts: keys };
+      }
+      return {
+        contract: agentPair,
+        preconditions: contract.preconditions,
+        required_inputs: contract.required_inputs,
+        required_state: contract.required_state
+      };
+    }
+    function generateContractReport(contractKey, results) {
+      return {
+        contract: contractKey,
+        status: results.valid ? "passed" : "failed",
+        preconditions: results.preconditions,
+        missing: results.missing,
+        summary: results.valid
+          ? `All ${results.missing.length === 0 ? "preconditions" : ""} met for ${contractKey}`
+          : `Missing: ${results.missing.join(", ")}`
+      };
+    }
+    function cmdVerifyAgentsContracts(cwd, raw, args) {
+      const { output } = require_output();
+      const contracts = {};
+      for (const [key, contract] of Object.entries(HANDOFF_CONTRACTS)) {
+        if (key !== "any-handoff") {
+          contracts[key] = {
+            preconditions: contract.preconditions,
+            required_inputs: contract.required_inputs
+          };
+        }
+      }
+      output({ contracts }, raw);
+    }
+    function cmdVerifyAgentsVerify(cwd, raw, args) {
+      const fromIdx = args.indexOf("--from");
+      const toIdx = args.indexOf("--to");
+      const { error, output } = require_output();
+      if (fromIdx === -1 || toIdx === -1) {
+        error("Usage: bgsd-tools verify:agents --verify --from <agent> --to <agent>");
+        process.exit(1);
+      }
+      const fromAgent = args[fromIdx + 1];
+      const toAgent = args[toIdx + 1];
+      const contractKey = `${fromAgent}-${toAgent}`;
+      const currentState = {
+        has_CONTEXT: true,
+        context_exists: true,
+        has_roadmap: true,
+        has_requirements: true,
+        has_plan: true,
+        has_summary: true,
+        has_verification: true
+      };
+      const results = verifyHandoffContract(contractKey, currentState);
+      const report = generateContractReport(contractKey, results);
+      output(report, raw);
+      if (!results.valid) {
+        process.exit(1);
+      }
+    }
+    module2.exports = {
+      HANDOFF_CONTRACTS,
+      verifyHandoffContract,
+      listContractPreconditions,
+      generateContractReport,
+      cmdVerifyAgentsContracts,
+      cmdVerifyAgentsVerify
+    };
+  }
+});
+
 // src/commands/profiler.js
 var require_profiler2 = __commonJS({
   "src/commands/profiler.js"(exports2, module2) {
@@ -38531,6 +39027,15 @@ var require_router = __commonJS({
     function lazyRecovery() {
       return _modules.recovery || (_modules.recovery = require_recovery());
     }
+    function lazyHandoff() {
+      return _modules.handoff || (_modules.handoff = require_handoff());
+    }
+    function lazySharedContext() {
+      return _modules.sharedContext || (_modules.sharedContext = require_sharedContext());
+    }
+    function lazyHandoffContracts() {
+      return _modules.handoffContracts || (_modules.handoffContracts = require_handoffContracts());
+    }
     async function main2() {
       const args = process.argv.slice(2);
       const prettyIdx = args.indexOf("--pretty");
@@ -38747,7 +39252,8 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
                   }
                   milestoneName = nameArgs.join(" ") || null;
                 }
-                lazyPhase().cmdMilestoneComplete(cwd, restArgs[1], { name: milestoneName, archivePhases }, raw);
+                const forceFlag = restArgs.includes("--force");
+                lazyPhase().cmdMilestoneComplete(cwd, restArgs[1], { name: milestoneName, archivePhases, force: forceFlag }, raw);
               } else {
                 error("Unknown milestone subcommand. Available: complete");
               }
@@ -39044,8 +39550,26 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
               lazyFeatures().cmdValidateConfig(cwd, raw);
             } else if (subcommand === "test-coverage") {
               lazyFeatures().cmdTestCoverage(cwd, raw);
+            } else if (subcommand === "handoff") {
+              const handoffSub = restArgs[0];
+              if (handoffSub === "--validate") {
+                lazyHandoff().cmdHandoffValidate(cwd, raw, restArgs);
+              } else if (handoffSub === "--preview") {
+                lazyHandoff().cmdHandoffPreview(cwd, raw, restArgs);
+              } else {
+                error("Usage: bgsd-tools verify:handoff --validate --context <json> | --preview --from <agent> --to <agent>");
+              }
+            } else if (subcommand === "agents") {
+              const agentsSub = restArgs[0];
+              if (agentsSub === "--contracts") {
+                lazyHandoffContracts().cmdVerifyAgentsContracts(cwd, raw, restArgs);
+              } else if (agentsSub === "--verify") {
+                lazyHandoffContracts().cmdVerifyAgentsVerify(cwd, raw, restArgs);
+              } else {
+                error("Usage: bgsd-tools verify:agents --contracts | --verify --from <agent> --to <agent>");
+              }
             } else {
-              error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage`);
+              error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, handoff, agents`);
             }
             break;
           }
@@ -39239,6 +39763,17 @@ Available: execute-phase, plan-phase, new-project, new-milestone, quick, resume,
                 lazyAgent().cmdAgentValidateContracts(cwd, raw, restArgs.slice(1));
               } else {
                 error("Unknown agent subcommand. Available: audit, list, validate-contracts");
+              }
+            } else if (subcommand === "shared-context") {
+              const scSub = restArgs[0];
+              if (scSub === "--list") {
+                lazySharedContext().cmdSharedContextList(cwd, raw, restArgs);
+              } else if (scSub === "--register") {
+                lazySharedContext().cmdSharedContextRegister(cwd, raw, restArgs);
+              } else if (scSub === "--clear") {
+                lazySharedContext().cmdSharedContextClear(cwd, raw, restArgs);
+              } else {
+                error("Usage: bgsd-tools util:shared-context --list | --register --key <k> --value <v> | --clear");
               }
             } else if (subcommand === "resolve-model") {
               lazyMisc().cmdResolveModel(cwd, restArgs[0], raw);
