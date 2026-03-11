@@ -105,14 +105,31 @@
 
 ---
 
-## ✅ v8.1 RAG-Powered Research Pipeline (Shipped: 2026-03-03)
+## v10.0 Agent Intelligence & UX (Shipped: 2026-03-11)
 
-**Phases completed:** 5 phases, 10 plans, 0 tasks
+**Phases completed:** 7 phases (91-97), 12 plans
 
 **Key accomplishments:**
-- (none recorded)
+- Enhanced format.js with CLI color control flags, Spinner class, and nested ProgressTracker
+- Created error.js module with structured error classes and formatted output with recovery suggestions
+- Created debug.js module with trace, context dump, and state inspection utilities
+- Enhanced planner skills with dependency detection, task sizing feedback loop, and parallelization analysis
+- Added CLI commands for dependency analysis, scope estimation, and parallelization warnings
+- Added execution intelligence modules for autonomous deviation recovery, complexity-based checkpoint decisions, and stuck/loop pattern detection
+- Structured handoff context transfer, shared context registry, and contract verification for multi-agent collaboration
+- Implemented CLI contextual help with command history, autocomplete hints, and examples
+- Reduced bundle size by ~50% through minification and tree-shaking
+
+**What's next:** Ready for next milestone — `/bgsd milestone new`
+
+**Archives:**
+- `.planning/milestones/v10.0-ROADMAP.md`
+- `.planning/milestones/v10.0-REQUIREMENTS.md`
+- `.planning/milestones/v10.0-DOCS.md`
 
 ---
+
+
 
 ## ✅ v7.1 Trajectory Engineering (Shipped: 2026-03-02)
 
@@ -413,6 +430,19 @@
 - Structured handoff context transfer, shared context registry, and contract verification for multi-agent collaboration
 - Implemented CLI contextual help with command history, autocomplete hints, and examples
 - Reduced bundle size by ~50% through minification and tree-shaking
+
+---
+
+
+## v11.0 v11.0 (Shipped: 2026-03-11)
+
+**Phases completed:** 3 phases, 5 plans, 0 tasks
+
+**Key accomplishments:**
+- ASCII visualization modules for progress bars, milestone completion, and quality scores
+- Unified visualization API with end-to-end verification of ASCII output
+- Intent classification and parameter extraction modules with 31 phrase command registry
+- Fuzzy matching resolver with disambiguation and contextual help fallback
 
 ---
 

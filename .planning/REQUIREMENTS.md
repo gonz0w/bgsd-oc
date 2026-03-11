@@ -1,82 +1,45 @@
-# Milestone v10.0 Requirements
+# Milestone v11.0 Requirements
 
-**Agent Intelligence & UX**
+**Version:** v11.0
+**Name:** Natural Interface & Insights
+**Started:** 2026-03-11
 
----
+## Current Requirements
 
-## v1 Requirements
+### Natural Language UI (NL-01 - NL-07)
 
-### AGENT-INTELLIGENCE
+- [ ] **NL-01**: Intent classification — Parse natural language input into CLI commands (plan, execute, verify, query)
+- [ ] **NL-02**: Parameter extraction — Extract phase numbers, flags, targets from loose descriptions
+- [ ] **NL-03**: Smart alias resolution — Map natural phrases to commands ("show progress" → `session progress`)
+- [ ] **NL-04**: Fallback help — Show contextual suggestions when input is unclear
+- [ ] **NL-05**: Conversational planning — Accept goal descriptions in natural language, convert to structured plans
+- [ ] **NL-06**: Multi-intent detection — Handle compound commands ("plan phase 5 and verify it")
+- [ ] **NL-07**: Contextual suggestions — Suggest next logical commands based on current state
 
-#### Planning Intelligence
-- [ ] **AGENT-01**: Planner produces task decomposition with clear dependency chains between tasks
-- [ ] **AGENT-02**: Planner applies sizing heuristics (15-60 min per task) automatically
-- [ ] **AGENT-03**: Planner detects parallelization opportunities and groups independent tasks
+### Visualization & Analytics (VIS-01 - VIS-08)
 
-#### Verification Intelligence
-- [x] **AGENT-04**: Verifier automatically detects regression patterns in code changes
-- [x] **AGENT-05**: Verifier suggests edge cases based on similar projects/patterns
-- [x] **AGENT-06**: Verification includes coverage analysis and gap detection
-
-#### Execution Intelligence
-- [ ] **AGENT-07**: Executor handles deviations autonomously with recovery strategies
-- [ ] **AGENT-08**: Executor makes intelligent checkpoint decisions based on task complexity
-- [ ] **AGENT-09**: Executor detects stuck/loop patterns and suggests pivots proactively
-
-#### Multi-Agent Collaboration
-- [ ] **AGENT-10**: Agent handoffs include structured context transfer with preconditions
-- [ ] **AGENT-11**: Shared context patterns enable agents to collaborate on related tasks
-- [ ] **AGENT-12**: Handoff contracts verified before transfer completes
-
-### UX-IMPROVEMENTS
-
-#### Rich TTY Output
-- [ ] **UX-01**: Commands produce enhanced formatting with color-coded output
-- [ ] **UX-02**: Tables render with proper alignment and styling
-- [ ] **UX-03**: Progress indicators show real-time status for long operations
-
-#### Interactive Workflows
-- [ ] **UX-04**: Complex commands support guided prompts/wizards
-- [ ] **UX-05**: Interactive mode available for multi-step tasks
-- [ ] **UX-06**: User can abort interactive workflows gracefully
-
-#### Command Improvements
-- [ ] **UX-07**: Help includes contextual suggestions based on recent commands
-- [ ] **UX-08**: Command discoverability improved with better autocomplete hints
-- [ ] **UX-09**: Examples included in help for common use cases
-
-#### Error Handling
-- [ ] **UX-10**: Error messages include actionable recovery suggestions
-- [ ] **UX-11**: Debug helpers available (trace, context dump, state inspection)
-- [ ] **UX-12**: Errors include relevant context (file, line, recent changes)
-
-### PERFORMANCE
-
-#### Memory & I/O
-- [ ] **PERF-01**: Memory usage reduced measurably vs v9.3 baseline
-- [ ] **PERF-02**: Disk I/O reduced through better caching strategies
-
-#### Bundle Size
-- [ ] **PERF-03**: Bundle size reduced beyond v9.3 baseline
-- [ ] **PERF-04**: Dead code removal targets unused code paths
-
-#### Compaction
-- [ ] **PERF-05**: Compaction preserves full context (decisions, blockers, intent, trajectory)
-- [ ] **PERF-06**: Compaction automatically protects sacred project data
-
----
+- [ ] **VIS-01**: Progress bars — Task and phase completion visualization with ASCII bars
+- [ ] **VIS-02**: Milestone progress — Visual tracking of milestone completion percentage
+- [ ] **VIS-03**: Quality score display — Show verification quality metrics visually
+- [ ] **VIS-04**: ASCII burndown charts — Chart progress over time for milestones
+- [ ] **VIS-05**: Velocity sparklines — Inline sparkline charts for velocity trends
+- [ ] **VIS-06**: Terminal dashboard — Overview dashboard showing key project metrics
+- [ ] **VIS-07**: Milestone summaries — Rich formatted reports for completed milestones
+- [ ] **VIS-08**: Velocity metrics — Computation and display of team/project velocity
 
 ## Future Requirements (Deferred)
 
-None yet — all v10.0 requirements above are in scope.
-
----
+- AI-powered natural language to command mapping (requires LLM integration)
+- Conversational memory across sessions
+- Voice input support
+- Interactive query interface
+- Web-based dashboard (external server)
 
 ## Out of Scope
 
-- Async I/O rewrite — Synchronous I/O appropriate for CLI tool
-- npm package publishing — Plugin deployed via file copy
-- ESM output format — CJS avoids __dirname/require rewriting
+- External web dashboard server — Sticking to terminal-based visualization
+- Heavy NLP libraries (langchain, tensorflow) — Wrong architecture for CLI tool
+- Real-time collaboration features — Single-user focus maintained
 
 ---
 
@@ -84,33 +47,18 @@ None yet — all v10.0 requirements above are in scope.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGENT-01 | Phase 92 | Pending |
-| AGENT-02 | Phase 92 | Pending |
-| AGENT-03 | Phase 92 | Pending |
-| AGENT-04 | Phase 93 | Complete |
-| AGENT-05 | Phase 93 | Complete |
-| AGENT-06 | Phase 93 | Complete |
-| AGENT-07 | Phase 94 | Pending |
-| AGENT-08 | Phase 94 | Pending |
-| AGENT-09 | Phase 94 | Pending |
-| AGENT-10 | Phase 96 | Pending |
-| AGENT-11 | Phase 96 | Pending |
-| AGENT-12 | Phase 96 | Pending |
-| UX-01 | Phase 91 | Pending |
-| UX-02 | Phase 91 | Pending |
-| UX-03 | Phase 91 | Pending |
-| UX-04 | Phase 95 | Pending |
-| UX-05 | Phase 95 | Pending |
-| UX-06 | Phase 95 | Pending |
-| UX-07 | Phase 97 | Pending |
-| UX-08 | Phase 97 | Pending |
-| UX-09 | Phase 97 | Pending |
-| UX-10 | Phase 91 | Pending |
-| UX-11 | Phase 91 | Pending |
-| UX-12 | Phase 91 | Pending |
-| PERF-01 | Phase 91 | Pending |
-| PERF-02 | Phase 91 | Pending |
-| PERF-03 | Phase 97 | Pending |
-| PERF-04 | Phase 97 | Pending |
-| PERF-05 | Phase 95 | Pending |
-| PERF-06 | Phase 95 | Pending |
+| NL-01 | 98 | Pending |
+| NL-02 | 98 | Pending |
+| NL-03 | 98 | Pending |
+| NL-04 | 98 | Pending |
+| NL-05 | 99 | Pending |
+| NL-06 | 99 | Pending |
+| NL-07 | 99 | Pending |
+| VIS-01 | 100 | Pending |
+| VIS-02 | 100 | Pending |
+| VIS-03 | 100 | Pending |
+| VIS-04 | 101 | Pending |
+| VIS-05 | 101 | Pending |
+| VIS-06 | 101 | Pending |
+| VIS-07 | 102 | Pending |
+| VIS-08 | 102 | Pending |

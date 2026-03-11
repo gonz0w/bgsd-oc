@@ -2,7 +2,13 @@
 
 ## Milestones
 
-- 🔵 **v10.0 Agent Intelligence & UX** - Phases 91-97 (in progress)
+- 🆕 **v11.0 Natural Interface & Insights** - Phases 98-102 (2026-03-11) — see `.planning/milestones/v11.0-ROADMAP.md`
+  - Phase 98: NL Foundation — Intent classification, parameter extraction, smart aliases, fallback help
+  - Phase 99: Conversational Planning — Multi-intent detection, contextual suggestions
+  - Phase 100: Visualization Core — Progress bars, milestone progress, quality scores
+  - Phase 101: Rich Visualization — Burndown charts, sparklines, terminal dashboard ✅
+  - Phase 102: Reporting & Metrics — Milestone summaries, velocity metrics
+- ✅ **v10.0 Agent Intelligence & UX** - Phases 91-97 (2026-03-11) — see `.planning/milestones/v10.0-ROADMAP.md`
   - Phase 91: Rich TTY Output & Error Handling ✅
   - Phase 92: Planning Intelligence ✅
   - Phase 93: Verification Intelligence ✅
@@ -15,22 +21,121 @@
 
 ## Phases
 
+- [ ] **Phase 98: NL Foundation** — Intent classification, parameter extraction, smart aliases, fallback help
+- [ ] **Phase 99: Conversational Planning** — Multi-intent detection, contextual suggestions
+- [ ] **Phase 100: Visualization Core** — Progress bars, milestone progress, quality scores
+- [x] **Phase 101: Rich Visualization** — Burndown charts, sparklines, terminal dashboard ✅
+- [ ] **Phase 102: Reporting & Metrics** — Milestone summaries, velocity metrics
 - [x] **Phase 91: Rich TTY Output & Error Handling** — Complete ✅
 - [x] **Phase 92: Planning Intelligence** — Complete ✅
 - [x] **Phase 93: Verification Intelligence** — Complete ✅
 - [x] **Phase 94: Execution Intelligence** — Complete ✅
 - [x] **Phase 95: Interactive Workflows** — Complete ✅
 - [x] **Phase 96: Multi-Agent Collaboration** — Better handoffs (completed 2026-03-11)
-- [ ] **Phase 97: UX Polish** — Command improvements and error handling
+- [x] **Phase 97: UX Polish** — Command improvements and error handling (completed 2026-03-11)
 
 ---
 
 *Roadmap updated: 2026-03-11*
-*Ready for: /bgsd plan phase 96*
+*Ready for: /bgsd plan phase 98*
 
 ---
 
 # Phase Details
+
+### Phase 98: NL Foundation
+
+**Goal:** Users can input natural language commands that are parsed into CLI operations with smart fallback handling
+
+**Depends on:** Nothing (first phase of v11.0)
+
+**Requirements:** NL-01, NL-02, NL-03, NL-04
+
+**Success Criteria** (what must be TRUE):
+1. User can type "show my progress" and system parses it to `session progress` command
+2. User can say "plan phase 5" and system extracts phase number 5 and routes to planning workflow
+3. User can use conversational phrases like "what's left" and system maps to appropriate commands
+4. When input is unclear, system shows contextual suggestions instead of errors
+
+**Plans:** TBD
+
+---
+
+### Phase 99: Conversational Planning
+
+**Goal:** Users can describe goals in natural language and system converts them to structured plans with contextual awareness
+
+**Depends on:** Phase 98 (NL Foundation)
+
+**Requirements:** NL-05, NL-06, NL-07
+
+**Success Criteria** (what must be TRUE):
+1. User can describe "I want to add user authentication" and system extracts requirements from description
+2. User can say "plan phase 5 and verify it" and system detects two intents and sequences them
+3. After completing a command, system suggests next logical actions based on current state
+
+**Plans:** TBD
+
+---
+
+### Phase 100: Visualization Core
+
+**Goal:** Users see visual progress indicators for tasks, phases, and quality metrics
+
+**Depends on:** Phase 99 (Conversational Planning builds context for what to visualize)
+
+**Requirements:** VIS-01, VIS-02, VIS-03
+
+**Success Criteria** (what must be TRUE):
+1. User sees ASCII progress bar showing task completion in current phase (e.g., "[███░░░] 3/8 tasks")
+2. User sees milestone completion percentage with visual indicator (e.g., "Milestone: 65% complete")
+3. User sees quality grades displayed with visual indicators (e.g., "Quality: A ████████")
+
+**Plans:**
+- ✅ 100-01: Visualization core modules (progress, milestone, quality)
+- ✅ 100-02: Unified API and integration
+
+---
+
+### Phase 101: Rich Visualization
+
+**Goal:** Users can view ASCII-based charts and terminal dashboard for project insights
+
+**Depends on:** Phase 100 (Visualization Core provides base rendering)
+
+**Requirements:** VIS-04, VIS-05, VIS-06
+
+**Success Criteria** (what must be TRUE):
+1. User can view ASCII burndown chart showing planned vs actual progress over milestone timeline
+2. User sees velocity sparkline inline with session output showing trend (e.g., "Velocity: ▁▃▅▇▅▄▆")
+3. User can run dashboard command to see overview of key metrics in terminal
+
+**Plans:** 
+  - ✅ 101-01: Burndown chart module (VIS-04)
+  - ✅ 101-02: Sparkline module (VIS-05)
+  - ✅ 101-03: Terminal dashboard (VIS-06)
+
+---
+
+### Phase 102: Reporting & Metrics
+
+**Goal:** Users receive rich formatted reports for completed milestones and velocity analytics
+
+**Depends on:** Phase 101 (Rich Visualization provides chart rendering for reports)
+
+**Requirements:** VIS-07, VIS-08
+
+**Success Criteria** (what must be TRUE):
+1. User sees formatted milestone summary when milestone completes with key metrics
+2. User can view computed velocity metrics showing tasks completed per session
+
+**Plans:** 
+  - ✅ 102-01: Milestone summary report module (VIS-07)
+  - ✅ 102-02: Velocity metrics and CLI commands (VIS-08)
+
+---
+
+# Phase Details (v10.0 and prior)
 
 
 **Goal:** Foundation layer — enhanced formatting and context-rich error handling
@@ -169,14 +274,20 @@
 
 ## Coverage Map
 
-| Phase | Requirements | Count |
-|-------|--------------|-------|
-| 91 | UX-01, UX-02, UX-03, UX-10, UX-11, UX-12, PERF-01, PERF-02 | 8 |
-| 92 | AGENT-01, AGENT-02, AGENT-03 | 3 |
-| 93 | AGENT-04, AGENT-05, AGENT-06 | 3 |
-| 94 | AGENT-07, AGENT-08, AGENT-09 | 3 |
-| 95 | UX-04, UX-05, UX-06, PERF-05, PERF-06 | 5 |
-| 96 | 1/1 | Complete   | 2026-03-11 | 97 | UX-07, UX-08, UX-09, PERF-03, PERF-04 | 5 |
+| Phase | Requirements | Count | Status | Completed |
+|-------|--------------|-------|--------|-----------|
+| 98 | NL-01, NL-02, NL-03, NL-04 | 4 | Pending | - |
+| 99 | NL-05, NL-06, NL-07 | 3 | Pending | - |
+| 100 | VIS-01, VIS-02, VIS-03 | 3 | Pending | - |
+| 101 | VIS-04, VIS-05, VIS-06 | 3 | Pending | - |
+| 102 | VIS-07, VIS-08 | 2 | In Progress | - |
+| 91 | UX-01, UX-02, UX-03, UX-10, UX-11, UX-12, PERF-01, PERF-02 | 8 | Complete | 2026-03-11 |
+| 92 | AGENT-01, AGENT-02, AGENT-03 | 3 | Complete | 2026-03-11 |
+| 93 | AGENT-04, AGENT-05, AGENT-06 | 3 | Complete | 2026-03-11 |
+| 94 | AGENT-07, AGENT-08, AGENT-09 | 3 | Complete | 2026-03-11 |
+| 95 | UX-04, UX-05, UX-06, PERF-05, PERF-06 | 5 | Complete | 2026-03-11 |
+| 96 | AGENT-10, AGENT-11, AGENT-12 | 3 | Complete | 2026-03-11 |
+| 97 | UX-07, UX-08, UX-09, PERF-03, PERF-04 | 5 | Complete | 2026-03-11 |
 
-**Total: 30 requirements across 7 phases**
+**Total: 15 requirements across 5 v11.0 phases | 30 requirements across 12 phases total**
 

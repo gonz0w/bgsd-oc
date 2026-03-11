@@ -10,23 +10,21 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v9.3 Quality, Performance & Agent Sharpening (2026-03-10)
+**Last shipped:** v10.0 Agent Intelligence & UX (2026-03-11)
 
-## Current Milestone: v10.0 Agent Intelligence & UX
+## Current Milestone: v11.0 Natural Interface & Insights
 
-**Goal:** Comprehensive upgrade to agent intelligence (planning, verification, execution, multi-agent) and user experience (formatting, interactivity, commands, error handling).
+**Goal:** Transform the planning experience with natural language input and rich visualization/analytics for better insights into project progress.
 
 **Target features:**
-- Agent Intelligence:
-  - Planning intelligence: Better task decomposition, dependency detection
-  - Verification intelligence: Smarter testing, regression detection
-  - Execution intelligence: Deviation handling, autonomous recovery
-  - Multi-agent collaboration: Better handoffs, shared context
-- UX Improvements:
-  - Output formatting: Rich TTY output, color schemes
-  - Interactive workflows: Prompts, wizards
-  - Command improvements: Discoverability, help
-  - Error handling: Better messages, debug helpers
+- Natural Language UI:
+  - Conversational planning: Describe goals in natural language, AI interprets and creates plans
+  - Voice-ready input: Structured prompts that work with voice interfaces
+  - Smart parsing: Extract requirements from loose descriptions
+- Visualization & Analytics:
+  - Project dashboards: Visual progress tracking, burndown charts
+  - Rich reporting: Milestone summaries, velocity metrics, team insights
+  - Interactive queries: Ask questions about project state, get visual answers
 - Intent outcomes:
   - DO-32 [P2]: Memory and disk I/O reduced
   - DO-36 [P2]: Bundle size reduced
@@ -34,11 +32,11 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Next Milestone Goals
 
-- v10.0 is now active — Agent Intelligence & UX
+- v11.0 is now active — Natural Interface & Insights
 
 ## Active Milestone
 
-v10.0 Agent Intelligence & UX — See Current Milestone above.
+v11.0 Natural Interface & Insights — See Current Milestone above.
 
 <details>
 <summary>Previous: v9.3 Quality, Performance & Agent Sharpening (shipped 2026-03-10)</summary>
