@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- ✅ **v11.0 Natural Interface & Insights** - Phases 98-102 (2026-03-11) — see `.planning/milestones/v11.0-ROADMAP.md`
+- 🆕 **v11.0 Natural Interface & Insights** - Phases 98-102 (2026-03-11) — see `.planning/milestones/v11.0-ROADMAP.md`
   - Phase 98: NL Foundation — Intent classification, parameter extraction, smart aliases, fallback help
   - Phase 99: Conversational Planning — Multi-intent detection, contextual suggestions
   - Phase 100: Visualization Core — Progress bars, milestone progress, quality scores
