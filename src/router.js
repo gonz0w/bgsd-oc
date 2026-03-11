@@ -251,6 +251,9 @@ async function main() {
     const subCmd = remainingArgs[0] || '';
     const restArgs = remainingArgs.slice(1);
     
+    // Track command for history (Phase 97: UX Polish)
+    trackCommandHistory(namespace, subCmd, restArgs);
+    
     switch (namespace) {
       // init namespace
       case 'init': {
@@ -372,7 +375,8 @@ async function main() {
               }
               milestoneName = nameArgs.join(' ') || null;
             }
-            lazyPhase().cmdMilestoneComplete(cwd, restArgs[1], { name: milestoneName, archivePhases }, raw);
+            const forceFlag = restArgs.includes('--force');
+            lazyPhase().cmdMilestoneComplete(cwd, restArgs[1], { name: milestoneName, archivePhases, force: forceFlag }, raw);
           } else {
             error('Unknown milestone subcommand. Available: complete');
           }
@@ -1092,8 +1096,81 @@ Examples:
           } else {
             error(`Unknown recovery subcommand: ${recoverySub}. Available: analyze, checkpoint, stuck`);
           }
+        } else if (subcommand === 'history') {
+          // util:history - Command history tracking (Phase 97: UX Polish)
+          const historyMod = require('./lib/helpContext');
+          const clearIdx = restArgs.indexOf('--clear');
+          const limitIdx = restArgs.indexOf('--limit');
+          const contextIdx = restArgs.indexOf('--context');
+          const suggestIdx = restArgs.indexOf('--suggest');
+          
+          if (clearIdx !== -1) {
+            const result = historyMod.clearHistory();
+            output(result, raw);
+          } else if (contextIdx !== -1) {
+            const suggestions = historyMod.getContextualSuggestions();
+            output(suggestions, raw);
+          } else if (suggestIdx !== -1) {
+            const input = restArgs[suggestIdx + 1] || '';
+            const discoveryMod = require('./lib/commandDiscovery');
+            const hints = discoveryMod.getAutocompleteHints(input);
+            const similar = discoveryMod.getSimilarCommands(input);
+            output({ hints, similar }, raw);
+          } else {
+            const limit = limitIdx !== -1 ? parseInt(restArgs[limitIdx + 1], 10) : 10;
+            const format = restArgs.includes('--json') ? 'json' : 'text';
+            
+            if (format === 'json') {
+              const history = historyMod.getRecentCommands(limit);
+              output({ commands: history, count: history.length }, raw);
+            } else {
+              const outputStr = historyMod.showHistory(limit);
+              output(outputStr, raw);
+            }
+          }
+        } else if (subcommand === 'examples') {
+          // util:examples - Show command examples (Phase 97: UX Polish)
+          const examplesMod = require('./lib/helpExamples');
+          const workflowsIdx = restArgs.indexOf('--workflows');
+          const verboseIdx = restArgs.indexOf('--verbose');
+          const verbose = verboseIdx !== -1;
+          
+          if (workflowsIdx !== -1) {
+            const workflows = examplesMod.getCommonWorkflows();
+            const formatted = workflows.map(w => examplesMod.formatWorkflow(w, verbose)).join('\n\n');
+            output({ workflows, formatted }, raw);
+            return;
+          }
+          
+          const command = restArgs[0];
+          if (!command) {
+            output({
+              message: 'Usage: util:examples <command> [--workflows] [--verbose]',
+              examples: 'Try: util:examples plan:phase',
+              workflows: examplesMod.getCommonWorkflows().slice(0, 3).map(w => ({
+                name: w.name,
+                steps: w.steps
+              }))
+            }, raw);
+            return;
+          }
+          
+          const [namespace, cmd] = command.split(':');
+          const examples = examplesMod.getExamples(namespace, cmd);
+          
+          if (examples.length === 0) {
+            output({ 
+              command, 
+              message: `No examples found for ${command}`,
+              available: examplesMod.getCommonWorkflows().map(w => w.name)
+            }, raw);
+            return;
+          }
+          
+          const formatted = examples.map(ex => examplesMod.formatExample(ex, verbose)).join('\n');
+          output({ command, examples, formatted }, raw);
         } else {
-          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, quick-summary, extract-sections, git, profiler, tools, runtime, measure, recovery`);
+          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, quick-summary, extract-sections, git, profiler, tools, runtime, measure, recovery, history, examples`);
         }
         break;
       }
@@ -1177,6 +1254,20 @@ Examples:
 
   // No command matched any namespace — unknown
   error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache`);
+}
+
+// Track command execution in history (Phase 97: UX Polish)
+function trackCommandHistory(namespace, command, args) {
+  try {
+    const { trackCommand } = require('./lib/helpContext');
+    // Don't track the history command itself to avoid noise
+    if (namespace === 'util' && (command === 'history' || command === 'examples')) {
+      return;
+    }
+    trackCommand(namespace, command, args);
+  } catch (e) {
+    // Silent fail - don't break commands if tracking fails
+  }
 }
 
 module.exports = { main };

@@ -1778,7 +1778,7 @@ function cmdSettingsList(cwd, raw) {
     'Workflow': ['research', 'plan_checker', 'verifier', 'parallelization', 'brave_search'],
     'Git': ['branching_strategy', 'phase_branch_template', 'milestone_branch_template'],
     'Research': ['rag_enabled', 'rag_timeout', 'ytdlp_path', 'nlm_path', 'mcp_config_path'],
-    'Optimization': ['optimization_valibot', 'optimization_valibot_fallback', 'optimization_discovery', 'optimization_compile_cache', 'optimization_sqlite_cache'],
+    'Optimization': ['optimization_valibot', 'optimization_discovery', 'optimization_compile_cache', 'optimization_sqlite_cache'],
   };
   
   for (const [category, keys] of Object.entries(categories)) {
@@ -1820,6 +1820,115 @@ function cmdSettingsList(cwd, raw) {
   output(structured, raw, outputText);
 }
 
+// ─── Command History (Phase 97: UX Polish) ───────────────────────────────────
+const { 
+  trackCommand, 
+  getRecentCommands, 
+  getContextualSuggestions, 
+  clearHistory,
+  showHistory: showCommandHistory
+} = require('../lib/helpContext');
+
+const {
+  getAutocompleteHints,
+  getSimilarCommands,
+  getCommandCategories,
+  expandAlias
+} = require('../lib/commandDiscovery');
+
+const {
+  getExamples,
+  getCommonWorkflows,
+  formatExample,
+  formatWorkflow
+} = require('../lib/helpExamples');
+
+/**
+ * util:history - Show command history
+ */
+function cmdHistory(cwd, args, raw) {
+  const clearIdx = args.indexOf('--clear');
+  const limitIdx = args.indexOf('--limit');
+  const contextIdx = args.indexOf('--context');
+  const suggestIdx = args.indexOf('--suggest');
+  
+  if (clearIdx !== -1) {
+    const result = clearHistory();
+    output(result, raw);
+    return;
+  }
+  
+  if (contextIdx !== -1) {
+    const suggestions = getContextualSuggestions();
+    output(suggestions, raw);
+    return;
+  }
+  
+  if (suggestIdx !== -1) {
+    const input = args[suggestIdx + 1] || '';
+    const hints = getAutocompleteHints(input);
+    const similar = getSimilarCommands(input);
+    output({ hints, similar }, raw);
+    return;
+  }
+  
+  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 10;
+  const format = args.includes('--json') ? 'json' : 'text';
+  
+  if (format === 'json') {
+    const history = getRecentCommands(limit);
+    output({ commands: history, count: history.length }, raw);
+  } else {
+    const outputStr = showCommandHistory(limit);
+    output(outputStr, raw);
+  }
+}
+
+/**
+ * util:examples - Show command examples
+ */
+function cmdExamples(cwd, args, raw) {
+  const workflowsIdx = args.indexOf('--workflows');
+  const verboseIdx = args.indexOf('--verbose');
+  const verbose = verboseIdx !== -1;
+  
+  if (workflowsIdx !== -1) {
+    const workflows = getCommonWorkflows();
+    const formatted = workflows.map(w => formatWorkflow(w, verbose)).join('\n\n');
+    output({ workflows, formatted }, raw);
+    return;
+  }
+  
+  const command = args[0];
+  if (!command) {
+    output({
+      message: 'Usage: util:examples <command> [--workflows] [--verbose]',
+      examples: 'Try: util:examples plan:phase',
+      workflows: getCommonWorkflows().slice(0, 3).map(w => ({
+        name: w.name,
+        steps: w.steps
+      }))
+    }, raw);
+    return;
+  }
+  
+  // Parse namespace:command
+  const [namespace, cmd] = command.split(':');
+  const examples = getExamples(namespace, cmd);
+  
+  if (examples.length === 0) {
+    output({ 
+      command, 
+      message: `No examples found for ${command}`,
+      available: getCommonWorkflows().map(w => w.name)
+    }, raw);
+    return;
+  }
+  
+  const formatted = examples.map(ex => formatExample(ex, verbose)).join('\n');
+  output({ command, examples, formatted }, raw);
+}
+
 module.exports = {
   cmdGenerateSlug,
   cmdCurrentTimestamp,
@@ -1851,4 +1960,7 @@ module.exports = {
   cmdReview,
   cmdSettingsList,
   cmdParityCheck,
+  // Phase 97: UX Polish
+  cmdHistory,
+  cmdExamples,
 };
