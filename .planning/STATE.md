@@ -9,10 +9,10 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 ## Current Position
 
-**Phase:** 91 (Rich TTY Output & Error Handling)
+**Phase:** 92 (Planning Intelligence)
 **Current Plan:** None
-**Status:** Complete
-**Last Activity:** 2026-03-11 — Phase 91 completed
+**Status:** Context gathered, planning next
+**Last Activity:** 2026-03-11 — Phase 92 context gathered
 
 **Progress:** v10.0 milestone in progress
 
@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 
 | Milestone | Phases | Requirements | Status |
 |-----------|--------|--------------|--------|
-| v10.0 | 1 (91) | 6 | Complete |
+| v10.0 | 2 (91-92) | 9 | In Progress |
 | v9.3 | 5 (86-90) | 15 | Complete |
 | v9.2 | 4 (82-85) | 12 | Complete |
 | v9.1 | 5 (77-81) | 12 | Complete |
@@ -44,6 +44,10 @@ See: `.planning/PROJECT.md` (updated 2026-03-10)
 - [91-03]: Created debug.js with trace(), dumpContext(), dumpState(), dumpConfig(), and inspection functions.
 - [91-03]: Context dump filters sensitive env vars (password, token, key, secret, auth).
 - [91-04]: CLI flag parsing happens before command extraction to prevent "unknown command" errors.
+- [92-Context]: Dependency detection uses file-level + pattern-based combined approach.
+- [92-Context]: Task sizing applied during breakdown with execution feedback loop.
+- [92-Context]: Parallelization uses hybrid with resource conflict analysis.
+- [92-Context]: Output format includes wave numbers + depends_on arrays in frontmatter.
 - [90-01]: Created plugin-benchmark.js with measureStartup, measureCommandExecution, measureContextLoad, measureMemory functions - uses process.hrtime.bigint() for nanosecond precision.
 - [90-01]: Created /bgsd-measure command - outputs table format by default, --verbose shows full metrics including memory and context load.
 - [90-01]: Added INCLUDE_BENCHMARKS build-time feature flag - set INCLUDE_BENCHMARKS=false to exclude benchmarks from production builds.
@@ -93,6 +97,6 @@ None yet.
 ## Session Continuity
 
 **Last session:** 2026-03-11T01:51:00.000Z
-**Stopped at:** Completed v10.0 milestone (Phase 91: Rich TTY Output & Error Handling)
-**Next step:** Move to next phase in v10.0 milestone
+**Stopped at:** Phase 92 context gathered
+**Next step:** Planning phase 92 (Planning Intelligence)
 
