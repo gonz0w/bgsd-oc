@@ -446,3 +446,19 @@
 
 ---
 
+
+## v11.0 v11.0 (Shipped: 2026-03-11)
+
+**Phases completed:** 5 phases, 10 plans, 7 tasks
+
+**Key accomplishments:**
+- ASCII visualization modules for progress bars, milestone completion, and quality scores
+- Unified visualization API with end-to-end verification of ASCII output
+- ASCII burndown chart visualization with ideal vs actual progress tracking
+- Velocity sparkline visualization for session trend display
+- Terminal dashboard with keyboard navigation for project metrics overview
+- Intent classification and parameter extraction modules with 31 phrase command registry
+- Fuzzy matching resolver with disambiguation and contextual help fallback
+
+---
+
