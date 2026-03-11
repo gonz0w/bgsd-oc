@@ -397,3 +397,22 @@
 
 ---
 
+
+## v10.0 v10.0 (Shipped: 2026-03-11)
+
+**Phases completed:** 7 phases, 12 plans, 6 tasks
+
+**Key accomplishments:**
+- Enhanced format.js with CLI color control flags, Spinner class, and nested ProgressTracker
+- Created error.js module with structured error classes and formatted output with recovery suggestions
+- Created debug.js module with trace, context dump, and state inspection utilities
+- Integrated format.js, error.js, and debug.js into main CLI with working color and debug flags
+- Enhanced planner skills with dependency detection, task sizing feedback loop, and parallelization analysis
+- Added CLI commands for dependency analysis, scope estimation, and parallelization warnings
+- Added execution intelligence modules for autonomous deviation recovery, complexity-based checkpoint decisions, and stuck/loop pattern detection
+- Structured handoff context transfer, shared context registry, and contract verification for multi-agent collaboration
+- Implemented CLI contextual help with command history, autocomplete hints, and examples
+- Reduced bundle size by ~50% through minification and tree-shaking
+
+---
+

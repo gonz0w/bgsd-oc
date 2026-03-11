@@ -32,7 +32,6 @@
 
 # Phase Details
 
-## Phase 91: Rich TTY Output & Error Handling
 
 **Goal:** Foundation layer — enhanced formatting and context-rich error handling
 
@@ -58,7 +57,6 @@
 
 ---
 
-## Phase 92: Planning Intelligence
 
 **Goal:** Better task decomposition with dependency detection and sizing
 
@@ -77,7 +75,6 @@
 
 ---
 
-## Phase 93: Verification Intelligence
 
 **Goal:** Smarter verification with regression detection
 
@@ -95,7 +92,6 @@
 
 ---
 
-## Phase 94: Execution Intelligence
 
 **Goal:** Autonomous deviation handling and recovery
 
@@ -115,7 +111,6 @@
 
 ---
 
-## Phase 95: Interactive Workflows
 
 **Goal:** Guided prompts and wizards for complex tasks
 
@@ -136,7 +131,6 @@
 
 ---
 
-## Phase 96: Multi-Agent Collaboration
 
 **Goal:** Better handoffs between agents
 
@@ -154,7 +148,6 @@
 
 ---
 
-## Phase 97: UX Polish
 
 **Goal:** Command improvements and final UX enhancements
 
@@ -186,3 +179,4 @@
 | 96 | 1/1 | Complete   | 2026-03-11 | 97 | UX-07, UX-08, UX-09, PERF-03, PERF-04 | 5 |
 
 **Total: 30 requirements across 7 phases**
+
