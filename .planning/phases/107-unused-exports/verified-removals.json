@@ -1,0 +1,9 @@
+[
+  {
+    "file": "src/plugin/index.js",
+    "exportName": "BgsdPlugin",
+    "exportType": "named",
+    "verified": false,
+    "reason": "Used in tests/plugin.test.cjs - cannot safely remove"
+  }
+]
