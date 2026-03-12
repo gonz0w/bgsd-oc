@@ -12,8 +12,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-11)
 **Phase:** 103-direct-command-routing (complete)
 **Current Plan:** 3/3 (complete)
 **Total Plans in Phase:** 3
-**Status:** Phase complete
-**Last Activity:** 2026-03-12 — Phase 103 complete
+**Status:** Phase complete — ready for verification
+**Last Activity:** 2026-03-12
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-11)
 | v9.3 | 5 (86-90) | 15 | Complete |
 | v9.2 | 4 (82-85) | 12 | Complete |
 | v9.1 | 5 (77-81) | 12 | Complete |
+| Phase 104-zero-friction P01 | 25 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-11)
 - [Phase 103-01]: Mapped all 14 command groups with 39 subcommands, identified clarification prompt locations in NL modules
 - [Phase 103-02]: Added bypassClarification option to parseGoal() in conversational-planner.js, bypass option to getFallbackSuggestions() in help-fallback.js
 - [Phase 103-03]: Verified all commands route correctly - init commands return JSON without prompts, bypass flags work correctly
+- [Phase 104-01]: Command validation checks COMMAND_HELP against router implementations to detect drift
+- [Phase 104-01]: --exact flag requires exact command match, rejects fuzzy matches with suggestions
 
 ### Pending Todos
 
@@ -122,8 +125,8 @@ None - all v11.0 features implemented
 
 ## Session Continuity
 
-**Last session:** 2026-03-12T01:13:03.457Z
-**Stopped at:** Phase 104 context gathered
+**Last session:** 2026-03-12T01:34:47.906Z
+**Stopped at:** Completed 104-01-PLAN.md
 
 **Next step:** `/bgsd plan phase 104` to work on Zero Friction
 
