@@ -48,6 +48,11 @@ An intelligent agent orchestration engine for building large-scale software with
 - DO-60 [P1]: Direct command execution — `/bgsd {cmd} {sub}` executes immediately without clarification loops
 - DO-61 [P1]: Zero friction — Commands understand user intent and execute without hunting/pecking
 - DO-62 [P2]: Polish — Fix command confusion scenarios and streamline workflows
+- DO-63 [P1]: Code audit complete — All stale, unused, and duplicated code identified and removed
+- DO-64 [P1]: Performance audit complete — N+1 queries, race conditions, and bottlenecks identified and fixed
+- DO-65 [P1]: Static analysis pipeline integrated — Automated code quality checks in CI/build
+- DO-66 [P2]: Bundle size reduced — Measurable reduction via dead code removal and optimization
+- DO-67 [P2]: Execution speed improved — Measurable latency reduction for hot paths
 </outcomes>
 
 <criteria>
@@ -141,6 +146,10 @@ Orchestration should feel invisible — the right agent gets the right task with
   - Reason: Milestone v8.3: Agent quality, skills exploration, and test debt cleanup
 - **Added** criteria: SC-28 (skills reduce context size), SC-29 (all tests green), SC-30 (GitHub CI agent quality).
   - Reason: Milestone v8.3: Success criteria for agent quality and skills work
+
+### v11.2 — 2026-03-12
+- **Added** outcomes: DO-63 (code audit - stale/unused/duplicated code), DO-64 (performance audit - N+1/race conditions/bottlenecks), DO-65 (static analysis pipeline), DO-66 (bundle size reduction), DO-67 (execution speed improvement).
+  - Reason: Milestone v11.2: Full code audit and performance improvements
 
 ### v8.2 — 2026-03-06
 - **Modified** outcomes: Marked DO-29, DO-31 as achieved v8.0. Added DO-33 (zero orphaned code), DO-34 (command surface reduction), DO-35 (agent boundary validation), DO-36 (bundle size reduction).
