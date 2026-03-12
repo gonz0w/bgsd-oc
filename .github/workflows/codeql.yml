@@ -38,12 +38,3 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
-          paths-ignore: |
-            **/*.test.js
-            **/*.spec.js
-            **/test/**
-            **/tests/**
-            **/__tests__/**
-            **/fixtures/**
-            **/*.fixture.js
-            bin/bgsd-tools.cjs
