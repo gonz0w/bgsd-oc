@@ -128,24 +128,70 @@ function expandAlias(input) {
 /**
  * Find similar commands using Levenshtein distance
  * @param {string} input - Input to match against
- * @param {number} threshold - Maximum distance for fuzzy match
+ * @param {Object} options - Options object
+ * @param {number} [options.threshold=0.9] - Minimum confidence percentage (0-1) to suggest
+ * @param {string} [options.thresholdType='high'] - 'high' (90%) or 'low' (60%) threshold
+ * @returns {Array} Array of similar commands with confidence score
  */
-function getSimilarCommands(input, threshold = 2) {
+function getSimilarCommands(input, options = {}) {
+  // Support legacy threshold parameter (number) for backward compatibility
+  let threshold = 0.9;
+  let thresholdType = 'high';
+  
+  if (typeof options === 'number') {
+    // Legacy: threshold as second argument (convert distance threshold to confidence)
+    // Old behavior: threshold was max distance (e.g., 2)
+    // New behavior: threshold is minimum confidence (e.g., 0.9 = 90%)
+    threshold = 1 - (options / 10); // Convert distance 2 to 80% confidence
+    thresholdType = 'low';
+  } else if (typeof options === 'object' && options !== null) {
+    threshold = options.threshold !== undefined ? options.threshold : 0.9;
+    thresholdType = options.thresholdType || 'high';
+  }
+  
+  // Apply threshold type adjustments
+  // High threshold (90%) = only suggest when very confident
+  // Low threshold (60%) = suggest with moderate confidence
+  let minConfidence;
+  if (thresholdType === 'high') {
+    minConfidence = Math.max(90, threshold * 100); // At least 90% for high threshold
+  } else {
+    minConfidence = threshold * 100;
+  }
+  
   const knownCommands = getAllCommands();
   const results = [];
+  const inputLen = input.toLowerCase().length;
   
   knownCommands.forEach(cmd => {
     const distance = levenshteinDistance(input.toLowerCase(), cmd.toLowerCase());
-    if (distance > 0 && distance <= threshold) {
+    const cmdLen = cmd.length;
+    
+    // Calculate confidence based on distance and length relationship
+    // Longer commands have more room for typos, so we give more leeway
+    const maxDistance = Math.max(inputLen, cmdLen);
+    const confidenceRaw = Math.max(0, 1 - (distance / maxDistance));
+    const confidence = Math.round(confidenceRaw * 100);
+    
+    // Filter by distance > 0 (don't suggest exact matches)
+    // and confidence >= minConfidence
+    if (distance > 0 && confidence >= minConfidence) {
       results.push({
         command: cmd,
         distance,
+        confidence,
         suggestion: `Did you mean: ${cmd}?`
       });
     }
   });
   
-  return results.sort((a, b) => a.distance - b.distance);
+  return results.sort((a, b) => {
+    // Sort by confidence (descending), then by distance (ascending)
+    if (b.confidence !== a.confidence) {
+      return b.confidence - a.confidence;
+    }
+    return a.distance - b.distance;
+  });
 }
 
 /**
