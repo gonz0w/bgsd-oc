@@ -63,7 +63,10 @@
 2. All 41 slash commands route correctly on first attempt
 3. Command routing is deterministic — same command always routes to same workflow
 
-**Plans:** TBD
+**Plans:**
+- 103-01: Map current command routing (wave 1)
+- 103-02: Implement direct routing (wave 2)
+- 103-03: Verify all 41 commands route correctly (wave 3)
 
 ---
 
