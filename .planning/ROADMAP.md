@@ -3,7 +3,7 @@
 ## Milestones
 
 - 🆕 **v11.1 Command Execution & Polish** - Phases 103-105 (2026-03-11)
-  - Phase 103: Direct Command Routing — Simplify wrapper → workflow → CLI chain
+  - ✅ Phase 103: Direct Command Routing — Simplify wrapper → workflow → CLI chain
   - Phase 104: Zero Friction — Remove clarification loops, smart defaults
   - Phase 105: Polish & Fixes — Fix edge cases, streamline execution
 - 🆕 **v11.0 Natural Interface & Insights** - Phases 98-102 (2026-03-11) — see `.planning/milestones/v11.0-ROADMAP.md`
@@ -25,7 +25,7 @@
 
 ## Phases
 
-- [ ] **Phase 103: Direct Command Routing** — Simplify wrapper → workflow → CLI chain
+- [x] **Phase 103: Direct Command Routing** — Simplify wrapper → workflow → CLI chain ✅
 - [ ] **Phase 104: Zero Friction** — Remove clarification loops, smart defaults
 - [ ] **Phase 105: Polish & Fixes** — Fix edge cases, streamline execution
 - [ ] **Phase 98: NL Foundation** — Intent classification, parameter extraction, smart aliases, fallback help
