@@ -1,0 +1,47 @@
+[
+  {
+    "file": "src/lib/nl/nl-parser.js",
+    "line": 207,
+    "type": "no-else-return",
+    "reason": "Unnecessary 'else' after 'return'",
+    "code": "else {",
+    "confidence": "low",
+    "severity": "warning"
+  },
+  {
+    "file": "src/lib/recovery/autoRecovery.js",
+    "line": 199,
+    "type": "no-else-return",
+    "reason": "Unnecessary 'else' after 'return'",
+    "code": "else {",
+    "confidence": "low",
+    "severity": "warning"
+  },
+  {
+    "file": "src/lib/recovery/autoRecovery.js",
+    "line": 214,
+    "type": "no-else-return",
+    "reason": "Unnecessary 'else' after 'return'",
+    "code": "else {",
+    "confidence": "low",
+    "severity": "warning"
+  },
+  {
+    "file": "src/lib/viz/sparkline.js",
+    "line": 92,
+    "type": "no-else-return",
+    "reason": "Unnecessary 'else' after 'return'",
+    "code": "else {",
+    "confidence": "low",
+    "severity": "warning"
+  },
+  {
+    "file": "bin/bgsd-tools.cjs",
+    "line": 0,
+    "type": "no-else-return",
+    "reason": "Unnecessary 'else' after 'return' (4 instances)",
+    "code": "else {",
+    "confidence": "low",
+    "severity": "warning"
+  }
+]
