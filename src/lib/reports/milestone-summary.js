@@ -8,6 +8,11 @@ const { safeReadFile, cachedReadFile, getMilestoneInfo, getPhaseTree, normalizeP
 const { extractFrontmatter } = require('../frontmatter');
 const { execGit } = require('../git');
 
+// Escape regex special characters to prevent ReDoS and injection
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Unicode block characters for sparkline
 const SPARKLINE_BLOCKS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
@@ -121,12 +126,14 @@ function parseMilestoneRoadmap(content, targetVersion) {
   // Find milestone section - handles both "## Milestone v11.0" and "## Milestones" with list items
   // targetVersion may have "v" prefix (v11.0) or not (11.0), handle both
   const versionNum = targetVersion.replace(/^v/, '');  // "11.0"
-  let versionRegex = new RegExp(`##?\\s+Milestone\\s+v?${versionNum.replace('.', '\\.')}[\\s\\S]*?(?=##?\\s+Milestone|##?\\s+Phases|$)`, 'i');
+  const escapedVersion = escapeRegex(versionNum);
+  let versionRegex = new RegExp(`##?\\s+Milestone\\s+v?${escapedVersion.replace('.', '\\.')}[\\s\\S]*?(?=##?\\s+Milestone|##?\\s+Phases|$)`, 'i');
   let match = content.match(versionRegex);
   
   // If not found, try to find milestone from list items under ## Milestones
   if (!match) {
-    const listItemRegex = new RegExp(`v?${versionNum}.*?Phases.*?(\\d+)-(\\d+)`, 'i');
+    const escapedListVersion = escapeRegex(versionNum);
+    const listItemRegex = new RegExp(`v?${escapedListVersion}.*?Phases.*?(\\d+)-(\\d+)`, 'i');
     const listMatch = content.match(listItemRegex);
     if (listMatch) {
       const startPhase = parseInt(listMatch[1]);
