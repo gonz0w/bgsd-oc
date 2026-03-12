@@ -5,7 +5,10 @@ const { classifyIntent } = require('./intent-classifier.js');
 const { extractPhaseNumber, extractFlags, extractTarget } = require('./parameter-extractor.js');
 const { PHRASES, ALIASES } = require('./command-registry.js');
 const { FuzzyResolver } = require('./fuzzy-resolver.js');
-const { getFallbackSuggestions, generateHelp } = require('./help-fallback.js');
+const { getFallbackSuggestions, generateHelp, getLearnedPreference } = require('./help-fallback.js');
+
+// Learning boost constant
+const LEARNING_BOOST = 0.15; // Boost confidence when user previously chose this option
 
 // Shared fuzzy resolver instance
 let fuzzyResolver = null;
@@ -159,11 +162,23 @@ function parse(input, options = {}) {
   const resolver = getFuzzyResolver();
   const fuzzyResults = resolver.resolve(trimmedInput);
   
+  // Check for learned preference to boost confidence
+  const learnedChoice = getLearnedPreference(trimmedInput.toLowerCase().trim());
+  
   if (fuzzyResults.length > 0) {
     const best = fuzzyResults[0];
     
+    // Apply learning boost if user's previous choice matches this result
+    let confidence = best.confidence;
+    let hasLearningBoost = false;
+    
+    if (learnedChoice && best.command === learnedChoice) {
+      confidence = Math.min(confidence + LEARNING_BOOST, 1.0);
+      hasLearningBoost = true;
+    }
+    
     // Check if confidence is high enough
-    if (best.confidence >= 0.6) {
+    if (confidence >= 0.6) {
       const phase = extractPhaseNumber(trimmedInput);
       const flags = extractFlags(trimmedInput);
       const target = extractTarget(trimmedInput, { intent: best.intent });
@@ -179,7 +194,8 @@ function parse(input, options = {}) {
           flags,
           target
         },
-        confidence: best.confidence,
+        confidence,
+        hasLearningBoost,
         score: best.score,
         choices: fuzzyResults.slice(0, 3).map(r => ({
           command: r.command,
@@ -189,18 +205,21 @@ function parse(input, options = {}) {
         }))
       };
     } else {
-      // Low confidence - show disambiguation
+      // Low confidence - show disambiguation, but boost if learned choice present
+      const choices = fuzzyResults.slice(0, 5).map(r => ({
+        command: r.command,
+        intent: r.intent,
+        phrase: r.phrase,
+        confidence: r.command === learnedChoice ? Math.min(r.confidence + LEARNING_BOOST, 1.0) : r.confidence
+      }));
+      
       return {
         parsed: false,
         input: trimmedInput,
         type: 'low_confidence',
-        confidence: best.confidence,
-        choices: fuzzyResults.slice(0, 5).map(r => ({
-          command: r.command,
-          intent: r.intent,
-          phrase: r.phrase,
-          confidence: r.confidence
-        })),
+        confidence,
+        hasLearningBoost,
+        choices,
         suggestions: getFallbackSuggestions(trimmedInput, { intent: null })
       };
     }

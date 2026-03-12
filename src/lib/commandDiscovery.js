@@ -128,24 +128,70 @@ function expandAlias(input) {
 /**
  * Find similar commands using Levenshtein distance
  * @param {string} input - Input to match against
- * @param {number} threshold - Maximum distance for fuzzy match
+ * @param {Object} options - Options object
+ * @param {number} [options.threshold=0.9] - Minimum confidence percentage (0-1) to suggest
+ * @param {string} [options.thresholdType='high'] - 'high' (90%) or 'low' (60%) threshold
+ * @returns {Array} Array of similar commands with confidence score
  */
-function getSimilarCommands(input, threshold = 2) {
+function getSimilarCommands(input, options = {}) {
+  // Support legacy threshold parameter (number) for backward compatibility
+  let threshold = 0.9;
+  let thresholdType = 'high';
+  
+  if (typeof options === 'number') {
+    // Legacy: threshold as second argument (convert distance threshold to confidence)
+    // Old behavior: threshold was max distance (e.g., 2)
+    // New behavior: threshold is minimum confidence (e.g., 0.9 = 90%)
+    threshold = 1 - (options / 10); // Convert distance 2 to 80% confidence
+    thresholdType = 'low';
+  } else if (typeof options === 'object' && options !== null) {
+    threshold = options.threshold !== undefined ? options.threshold : 0.9;
+    thresholdType = options.thresholdType || 'high';
+  }
+  
+  // Apply threshold type adjustments
+  // High threshold (90%) = only suggest when very confident
+  // Low threshold (60%) = suggest with moderate confidence
+  let minConfidence;
+  if (thresholdType === 'high') {
+    minConfidence = Math.max(90, threshold * 100); // At least 90% for high threshold
+  } else {
+    minConfidence = threshold * 100;
+  }
+  
   const knownCommands = getAllCommands();
   const results = [];
+  const inputLen = input.toLowerCase().length;
   
   knownCommands.forEach(cmd => {
     const distance = levenshteinDistance(input.toLowerCase(), cmd.toLowerCase());
-    if (distance > 0 && distance <= threshold) {
+    const cmdLen = cmd.length;
+    
+    // Calculate confidence based on distance and length relationship
+    // Longer commands have more room for typos, so we give more leeway
+    const maxDistance = Math.max(inputLen, cmdLen);
+    const confidenceRaw = Math.max(0, 1 - (distance / maxDistance));
+    const confidence = Math.round(confidenceRaw * 100);
+    
+    // Filter by distance > 0 (don't suggest exact matches)
+    // and confidence >= minConfidence
+    if (distance > 0 && confidence >= minConfidence) {
       results.push({
         command: cmd,
         distance,
+        confidence,
         suggestion: `Did you mean: ${cmd}?`
       });
     }
   });
   
-  return results.sort((a, b) => a.distance - b.distance);
+  return results.sort((a, b) => {
+    // Sort by confidence (descending), then by distance (ascending)
+    if (b.confidence !== a.confidence) {
+      return b.confidence - a.confidence;
+    }
+    return a.distance - b.distance;
+  });
 }
 
 /**
@@ -273,6 +319,248 @@ function getRelatedCommands(cmd) {
   return relationships[cmd] || [];
 }
 
+/**
+ * Validate that all commands in COMMAND_HELP have routing implementations
+ * Returns validation result with any mismatches found
+ */
+function validateCommandRegistry() {
+  const { COMMAND_HELP } = require('./constants');
+  const commands = Object.keys(COMMAND_HELP).sort();
+  
+  const issues = [];
+  const validCommands = [];
+  
+  // Router command implementations - mapping of namespace -> valid subcommands
+  // This is derived from the router.js case statements
+  // Includes nested subcommands
+  const routerImplementations = {
+    'init': ['execute-phase', 'plan-phase', 'new-project', 'new-milestone', 'quick', 'resume', 'verify-work', 'phase-op', 'todos', 'milestone-op', 'map-codebase', 'progress', 'memory'],
+    'plan': {
+      'intent': {
+        'create': null,
+        'show': null,
+        'read': null,
+        'update': null,
+        'validate': null,
+        'trace': null,
+        'drift': null
+      },
+      'requirements': ['mark-complete'],
+      'roadmap': ['add', 'insert', 'remove', 'list'],
+      'phases': null,
+      'find-phase': null,
+      'milestone': ['new', 'complete', 'audit', 'gaps'],
+      'phase': null
+    },
+    'execute': {
+      'commit': null,
+      'rollback-info': null,
+      'session-diff': null,
+      'session-summary': null,
+      'velocity': null,
+      'worktree': ['create', 'list', 'remove', 'cleanup', 'merge', 'check-overlap'],
+      'tdd': ['init', 'red', 'green', 'refactor', 'cycle', 'auto'],
+      'test-run': null,
+      'trajectory': {
+        'checkpoint': null,
+        'list': null,
+        'pivot': null,
+        'compare': null,
+        'choose': null,
+        'dead-ends': null
+      }
+    },
+    'verify': {
+      'state': ['update', 'get', 'patch', 'advance-plan', 'record-metric', 'update-progress', 'add-decision', 'add-blocker', 'add-todo'],
+      'verify': null,
+      'assertions': null,
+      'search-decisions': null,
+      'search-lessons': null,
+      'review': null,
+      'context-budget': null,
+      'token-budget': null,
+      'orphans': null,
+      'regression': null,
+      'quality': null
+    },
+    'util': {
+      'config-get': null,
+      'config-set': null,
+      'env': ['scan', 'status'],
+      'current-timestamp': null,
+      'list-todos': null,
+      'todo': ['complete'],
+      'memory': ['write', 'read', 'list', 'ensure-dir', 'compact'],
+      'mcp': ['profile'],
+      'classify': {
+        'plan': null,
+        'phase': null
+      },
+      'frontmatter': ['get', 'set', 'merge', 'validate'],
+      'progress': null,
+      'websearch': null,
+      'history-digest': null,
+      'trace-requirement': null,
+      'codebase': {
+        'analyze': null,
+        'status': null,
+        'conventions': null,
+        'rules': null,
+        'deps': null,
+        'impact': null,
+        'context': null,
+        'lifecycle': null,
+        'ast': null,
+        'exports': null,
+        'complexity': null,
+        'repo-map': null
+      },
+      'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
+      'agent': ['audit', 'list', 'validate-contracts'],
+      'git': ['status', 'log', 'diff', 'branch', 'checkout'],
+      'config-migrate': null,
+      'resolve-model': null,
+      'template': ['select', 'fill'],
+      'generate-slug': null,
+      'verify-path-exists': null,
+      'config-ensure-section': null,
+      'scaffold': null,
+      'phase-plan-index': null,
+      'state-snapshot': null,
+      'summary-extract': null,
+      'quick-summary': null,
+      'extract-sections': null,
+      'validate-commands': null
+    },
+    'research': {
+      'capabilities': null,
+      'yt-search': null,
+      'yt-transcript': null,
+      'collect': {
+        '': null,  // base collect command
+        '--resume': null  // collect --resume flag variant
+      },
+      'nlm-create': null,
+      'nlm-add-source': null,
+      'nlm-ask': null,
+      'nlm-report': null
+    },
+    'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
+    'measure': null,
+    'runtime': null,
+    'profile': null
+  };
+  
+  // Commands with space format (alternative to colon)
+  const spaceFormatCommands = [
+    'research capabilities', 'research collect', 'research collect --resume',
+    'research nlm-add-source', 'research nlm-ask', 'research nlm-create',
+    'research nlm-report', 'research yt-search', 'research yt-transcript'
+  ];
+  
+  // Known format differences - commands in help use combined subcommand names
+  // but router handles them as separate nested subcommands
+  const knownFormatDifferences = [
+    'execute:trajectory choose', 'execute:trajectory compare', 
+    'execute:trajectory dead-ends', 'execute:trajectory pivot',
+    'plan:intent show', 'util:classify phase', 'util:classify plan',
+    'util:codebase ast', 'util:codebase complexity', 'util:codebase context',
+    'util:codebase exports', 'util:codebase repo-map', 'research:collect --resume'
+  ];
+  
+  commands.forEach(cmd => {
+    // Handle known format differences - these are documented inconsistencies
+    // between help text format and router implementation
+    if (knownFormatDifferences.includes(cmd)) {
+      validCommands.push(cmd);
+      return;
+    }
+    
+    // Handle space format commands
+    if (spaceFormatCommands.includes(cmd)) {
+      validCommands.push(cmd);
+      return;
+    }
+    
+    const parts = cmd.includes(':') ? cmd.split(':') : [cmd];
+    const namespace = parts[0];
+    
+    // Standalone commands (no colon)
+    if (parts.length === 1) {
+      if (['measure', 'runtime', 'research', 'profile'].includes(namespace)) {
+        validCommands.push(cmd);
+      } else if (routerImplementations[namespace] !== undefined) {
+        validCommands.push(cmd);
+      } else {
+        issues.push({ command: cmd, issue: `Unknown standalone command: ${namespace}` });
+      }
+      return;
+    }
+    
+    // Namespaced commands (e.g., init:execute-phase)
+    const namespaceImpl = routerImplementations[namespace];
+    if (!namespaceImpl) {
+      issues.push({ command: cmd, issue: `Unknown namespace: ${namespace}` });
+      return;
+    }
+    
+    // Handle nested subcommands (object with sub-subs)
+    if (typeof namespaceImpl === 'object' && namespaceImpl !== null) {
+      const subcommand = parts[1];
+      const validSubs = namespaceImpl[subcommand];
+      
+      if (validSubs === undefined) {
+        issues.push({ command: cmd, issue: `Unknown subcommand: ${subcommand} for namespace ${namespace}` });
+        return;
+      }
+      
+      // If there are nested subcommands, check for them
+      if (validSubs !== null && parts.length > 2) {
+        // Handle subcommands with additional parts (e.g., "trajectory choose", "intent show", "codebase ast")
+        // These are treated as a combined key
+        const subSubCommand = parts.slice(2).join(' ');
+        // Also check with space separator for commands like "trajectory choose"
+        if (!validSubs.includes(subSubCommand) && !validSubs.includes(parts[2])) {
+          issues.push({ command: cmd, issue: `Unknown nested subcommand: ${subSubCommand} for ${namespace}:${subcommand}` });
+          return;
+        }
+      }
+      
+      validCommands.push(cmd);
+      return;
+    }
+    
+    // Handle flat subcommands (array)
+    if (Array.isArray(namespaceImpl)) {
+      const subcommand = parts[1];
+      if (!namespaceImpl.includes(subcommand)) {
+        issues.push({ command: cmd, issue: `Unknown subcommand: ${subcommand} for namespace ${namespace}` });
+        return;
+      }
+      validCommands.push(cmd);
+      return;
+    }
+    
+    // Handle null (no subcommands, direct command)
+    if (namespaceImpl === null) {
+      validCommands.push(cmd);
+      return;
+    }
+    
+    // Fallback
+    issues.push({ command: cmd, issue: `Unhandled command format: ${cmd}` });
+  });
+  
+  return {
+    valid: issues.length === 0,
+    totalCommands: commands.length,
+    validCount: validCommands.length,
+    issueCount: issues.length,
+    issues,
+    validCommands
+  };
+}
+
 module.exports = {
   getAutocompleteHints,
   getCommandAliases,
@@ -280,5 +568,6 @@ module.exports = {
   getSimilarCommands,
   getCommandCategories,
   generateCommandManifest,
-  getAllCommands
+  getAllCommands,
+  validateCommandRegistry
 };

@@ -188,6 +188,34 @@ async function main() {
     args.splice(noCacheIdx, 1);
   }
 
+  // Parse --exact flag: require exact command match, reject fuzzy matches
+  const exactIdx = args.indexOf('--exact');
+  const exactMatch = exactIdx !== -1;
+  if (exactIdx !== -1) {
+    args.splice(exactIdx, 1);
+  }
+
+  // Parse --defaults flag: use smart defaults for optional parameters
+  const defaultsIdx = args.indexOf('--defaults');
+  const useDefaults = defaultsIdx !== -1;
+  if (defaultsIdx !== -1) {
+    args.splice(defaultsIdx, 1);
+  }
+
+  // Smart defaults map - applied when --defaults flag is present
+  const defaultsMap = {
+    phase: 'next',      // Use next incomplete phase
+    force: false,       // Don't force by default
+    verbose: false,     // Compact output by default
+    confirm: true,      // Auto-confirm by default
+    recursive: false,   // Non-recursive by default
+    includeArchived: false
+  };
+
+  // Store defaults flag globally for command handlers to access
+  global._bgsdDefaults = useDefaults;
+  global._bgsdDefaultsMap = useDefaults ? defaultsMap : null;
+
   const command = args[0];
   const cwd = process.cwd();
 
@@ -243,6 +271,35 @@ async function main() {
       process.stderr.write(Object.keys(COMMAND_HELP).sort().join(', ') + '\n');
     }
     process.exit(0);
+  }
+
+  // ─── Exact Match Mode: reject fuzzy matches ─────────────────────────────────
+  // When --exact is provided, only accept exact command matches
+  if (exactMatch && command) {
+    const { COMMAND_HELP } = require('./lib/constants');
+    const { getSimilarCommands } = require('./lib/commandDiscovery');
+    
+    // Check if this is an exact command in COMMAND_HELP
+    const fullCommand = namespace ? `${namespace}:${remainingArgs[0] || ''}` : command;
+    const exactCommands = Object.keys(COMMAND_HELP);
+    
+    // Check for exact match in various formats
+    const isExact = 
+      exactCommands.includes(fullCommand.replace(/:$/, '')) ||  // plan:phase
+      exactCommands.includes(command) ||  // init:execute-phase
+      exactCommands.includes(`${command} ${remainingArgs[0]}`) ||  // plan intent
+      (namespace && exactCommands.includes(`${namespace}:${remainingArgs.join(' ')}`));  // util classify plan
+    
+    if (!isExact) {
+      // Find similar commands to suggest
+      const similar = getSimilarCommands(command);
+      const suggestions = similar.slice(0, 5).map(s => s.command).join(', ');
+      
+      error(`Exact match required but command not found: ${command}
+
+Did you mean: ${suggestions || 'no similar commands found'}?
+Use without --exact for fuzzy matching.`);
+    }
   }
 
   // ─── Namespace Routing: route commands to appropriate handlers ──────────────
@@ -377,8 +434,16 @@ async function main() {
             }
             const forceFlag = restArgs.includes('--force');
             lazyPhase().cmdMilestoneComplete(cwd, restArgs[1], { name: milestoneName, archivePhases, force: forceFlag }, raw);
+          } else if (msSub === 'summary') {
+            // Pass remaining args directly to cmdMilestoneSummary
+            const summaryArgs = restArgs.slice(1);
+            const { cmdMilestoneSummary } = require('./commands/milestone');
+            cmdMilestoneSummary(cwd, summaryArgs, raw);
+          } else if (msSub === 'info') {
+            const { cmdMilestoneInfo } = require('./commands/milestone');
+            cmdMilestoneInfo(cwd, raw);
           } else {
-            error('Unknown milestone subcommand. Available: complete');
+            error('Unknown milestone subcommand. Available: complete, summary, info');
           }
         } else if (subcommand === 'phase') {
           const phaseSub = restArgs[0];
@@ -779,6 +844,8 @@ async function main() {
           } else {
             error('Unknown frontmatter subcommand. Available: get, set, merge, validate');
           }
+        } else if (subcommand === 'validate-commands') {
+          lazyMisc().cmdValidateCommands(cwd, {}, raw);
         } else if (subcommand === 'progress') {
           const progSub = restArgs[0] || 'json';
           lazyMisc().cmdProgressRender(cwd, progSub, raw);

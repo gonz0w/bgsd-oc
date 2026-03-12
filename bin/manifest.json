@@ -1,5 +1,5 @@
 {
-  "generated": "2026-03-11T12:22:54.970Z",
+  "generated": "2026-03-12T11:44:34.770Z",
   "files": [
     "VERSION",
     "agents/bgsd-codebase-mapper.md",
@@ -19,6 +19,7 @@
     "commands/bgsd-config.md",
     "commands/bgsd-debug.md",
     "commands/bgsd-exec.md",
+    "commands/bgsd-github-ci.md",
     "commands/bgsd-health.md",
     "commands/bgsd-milestone.md",
     "commands/bgsd-plan.md",

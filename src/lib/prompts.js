@@ -2,10 +2,27 @@
  * Prompt factory and reusable question templates for interactive CLI workflows.
  * Uses inquirer v8 for prompting.
  * 
+ * When --defaults flag is set (global._bgsdDefaults), prompts are bypassed
+ * and default values are used automatically.
+ * 
  * @module prompts
  */
 
 let inquirer;
+
+/**
+ * Check if defaults mode is enabled (--defaults flag passed)
+ */
+function isDefaultsMode() {
+  return global._bgsdDefaults === true;
+}
+
+/**
+ * Get the defaults map
+ */
+function getDefaultsMap() {
+  return global._bgsdDefaultsMap || {};
+}
 
 /**
  * Lazy-load inquirer to avoid issues when not in interactive mode.
@@ -34,6 +51,13 @@ function getInquirer() {
  * @returns {Promise<Object>} Answers object with the prompt name as key
  */
 function inputPrompt(name, message, options = {}) {
+  // In defaults mode, return default value immediately without prompting
+  if (isDefaultsMode()) {
+    const defaults = getDefaultsMap();
+    const defaultValue = defaults[name] !== undefined ? defaults[name] : (options.default || '');
+    return Promise.resolve({ [name]: defaultValue });
+  }
+  
   const inq = getInquirer();
   return inq.prompt([{
     type: 'input',
@@ -54,6 +78,13 @@ function inputPrompt(name, message, options = {}) {
  * @returns {Promise<Object>} Answers object
  */
 function confirmPrompt(name, message, defaultValue = false) {
+  // In defaults mode, return default value immediately without prompting
+  if (isDefaultsMode()) {
+    const defaults = getDefaultsMap();
+    const value = defaults[name] !== undefined ? defaults[name] : defaultValue;
+    return Promise.resolve({ [name]: value });
+  }
+  
   const inq = getInquirer();
   return inq.prompt([{
     type: 'confirm',
@@ -73,6 +104,18 @@ function confirmPrompt(name, message, defaultValue = false) {
  * @returns {Promise<Object>} Answers object
  */
 function listPrompt(name, message, choices, options = {}) {
+  // In defaults mode, return default value immediately without prompting
+  if (isDefaultsMode()) {
+    const defaults = getDefaultsMap();
+    let defaultChoice = defaults[name];
+    
+    // If no default specified, use first choice
+    if (defaultChoice === undefined) {
+      defaultChoice = options.default || (choices[0] && (choices[0].value || choices[0]));
+    }
+    return Promise.resolve({ [name]: defaultChoice });
+  }
+  
   const inq = getInquirer();
   return inq.prompt([{
     type: 'list',
@@ -93,6 +136,13 @@ function listPrompt(name, message, choices, options = {}) {
  * @returns {Promise<Object>} Answers object
  */
 function checkboxPrompt(name, message, choices, options = {}) {
+  // In defaults mode, return default value immediately without prompting
+  if (isDefaultsMode()) {
+    const defaults = getDefaultsMap();
+    const value = defaults[name] !== undefined ? defaults[name] : (options.default || []);
+    return Promise.resolve({ [name]: value });
+  }
+  
   const inq = getInquirer();
   return inq.prompt([{
     type: 'checkbox',
@@ -110,6 +160,16 @@ function checkboxPrompt(name, message, choices, options = {}) {
  * @returns {Promise<Object>} Answers object with all responses
  */
 function createPrompt(questions) {
+  // In defaults mode, resolve with default values
+  if (isDefaultsMode()) {
+    const defaults = getDefaultsMap();
+    const result = {};
+    questions.forEach(q => {
+      result[q.name] = defaults[q.name] !== undefined ? defaults[q.name] : (q.default || '');
+    });
+    return Promise.resolve(result);
+  }
+  
   const inq = getInquirer();
   return inq.prompt(questions);
 }
@@ -262,4 +322,8 @@ module.exports = {
   promptWithDefaults,
   validateInput,
   isAbortError,
+  
+  // Defaults mode
+  isDefaultsMode,
+  getDefaultsMap,
 };

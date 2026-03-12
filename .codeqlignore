@@ -1,0 +1,15 @@
+# CodeQL ignore patterns (replaces paths-ignore in analyze action)
+# Test files
+*.test.js
+*.spec.js
+test/
+tests/
+__tests__/
+fixtures/
+*.fixture.js
+
+# Built/bundled files
+bin/bgsd-tools.cjs
+
+# Planning files (not part of the code)
+.planning/

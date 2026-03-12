@@ -17,18 +17,28 @@ Routes to: new-project, discuss-phase, research-phase, list-phase-assumptions, p
 </execution_context>
 
 <context>
-$ARGUMENTS: First word is subcommand, rest are passed to target
+$ARGUMENTS: First word is subcommand, rest are passed to target workflow.
 </context>
 
 <process>
-Parse first argument to determine target command, then route.
+## Routing Mechanism
 
-Subcommands:
-- project → new-project
-- discuss → discuss-phase  
-- research → research-phase
-- assumptions → list-phase-assumptions
-- phase → plan-phase
+The host editor parses `/bgsd plan <subcommand> [args]` as:
+- Command: `bgsd-plan`
+- Arguments: `<subcommand> [args]`
 
-Route all arguments to the target command unchanged.
+The bGSD plugin automatically injects project context via `<bgsd-context>` XML block
+containing equivalent data to what was previously fetched via init:* CLI commands.
+
+### Subcommand Routing
+
+| Subcommand | Target Workflow | Context Injection |
+|-----------|-----------------|-------------------|
+| project | new-project.md | Empty/error allowed (new projects) |
+| discuss | discuss-phase.md | Phase detected from args |
+| research | research-phase.md | Phase detected from args |
+| assumptions | list-phase-assumptions.md | Phase detected from args |
+| phase | plan-phase.md | Phase detected from args |
+
+Route all arguments to the target workflow unchanged.
 </process>

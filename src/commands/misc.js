@@ -1929,6 +1929,35 @@ function cmdExamples(cwd, args, raw) {
   output({ command, examples, formatted }, raw);
 }
 
+/**
+ * Validate command registry - checks help text alignment with routing
+ */
+function cmdValidateCommands(cwd, options = {}, raw) {
+  const { validateCommandRegistry } = require('../lib/commandDiscovery');
+  const { output } = require('../lib/output');
+  
+  const result = validateCommandRegistry();
+  
+  const outputData = {
+    valid: result.valid,
+    totalCommands: result.totalCommands,
+    validCount: result.validCount,
+    issueCount: result.issueCount,
+    message: result.valid 
+      ? 'All commands validated successfully' 
+      : `${result.issues.length} command validation issue(s) found`,
+    issues: result.issues.length > 0 ? result.issues : undefined
+  };
+  
+  if (raw) {
+    console.log(JSON.stringify(outputData, null, 2));
+  } else {
+    output(outputData);
+  }
+  
+  return outputData;
+}
+
 module.exports = {
   cmdGenerateSlug,
   cmdCurrentTimestamp,
@@ -1963,4 +1992,6 @@ module.exports = {
   // Phase 97: UX Polish
   cmdHistory,
   cmdExamples,
+  // Phase 104: Zero Friction
+  cmdValidateCommands,
 };

@@ -1,45 +1,40 @@
-# Milestone v11.0 Requirements
+# Milestone v11.1 Requirements
 
-**Version:** v11.0
-**Name:** Natural Interface & Insights
+**Version:** v11.1
+**Name:** Command Execution & Polish
 **Started:** 2026-03-11
 
 ## Current Requirements
 
-### Natural Language UI (NL-01 - NL-07)
+### Command Routing (ROUTE-01 - ROUTE-03)
 
-- [ ] **NL-01**: Intent classification — Parse natural language input into CLI commands (plan, execute, verify, query)
-- [ ] **NL-02**: Parameter extraction — Extract phase numbers, flags, targets from loose descriptions
-- [ ] **NL-03**: Smart alias resolution — Map natural phrases to commands ("show progress" → `session progress`)
-- [ ] **NL-04**: Fallback help — Show contextual suggestions when input is unclear
-- [ ] **NL-05**: Conversational planning — Accept goal descriptions in natural language, convert to structured plans
-- [ ] **NL-06**: Multi-intent detection — Handle compound commands ("plan phase 5 and verify it")
-- [ ] **NL-07**: Contextual suggestions — Suggest next logical commands based on current state
+- [ ] **ROUTE-01**: Direct slash command execution — `/bgsd milestone new` executes new-milestone workflow without intermediate prompts or clarification
+- [ ] **ROUTE-02**: All 41 slash commands route to correct workflow on first attempt
+- [ ] **ROUTE-03**: Command routing is deterministic — same command always routes to same workflow
 
-### Visualization & Analytics (VIS-01 - VIS-08)
+### Zero Friction (FRIC-01 - FRIC-03)
 
-- [ ] **VIS-01**: Progress bars — Task and phase completion visualization with ASCII bars
-- [ ] **VIS-02**: Milestone progress — Visual tracking of milestone completion percentage
-- [ ] **VIS-03**: Quality score display — Show verification quality metrics visually
-- [ ] **VIS-04**: ASCII burndown charts — Chart progress over time for milestones
-- [ ] **VIS-05**: Velocity sparklines — Inline sparkline charts for velocity trends
-- [ ] **VIS-06**: Terminal dashboard — Overview dashboard showing key project metrics
-- [ ] **VIS-07**: Milestone summaries — Rich formatted reports for completed milestones
-- [ ] **VIS-08**: Velocity metrics — Computation and display of team/project velocity
+- [ ] **FRIC-01**: No clarification loops — commands execute without asking "did you mean X?"
+- [ ] **FRIC-02**: Smart defaults — when ambiguity exists, use most likely option based on context
+- [ ] **FRIC-03**: Explicit override available — users can always specify exact intent if needed
+
+### Polish & Fixes (POLY-01 - POLY-03)
+
+- [ ] **POLY-01**: Fix command confusion scenarios — handle edge cases where routing fails
+- [ ] **POLY-02**: Streamline workflow execution — reduce unnecessary steps in command chain
+- [ ] **POLY-03**: Error messages are actionable — when routing fails, suggest correct command
 
 ## Future Requirements (Deferred)
 
-- AI-powered natural language to command mapping (requires LLM integration)
-- Conversational memory across sessions
-- Voice input support
-- Interactive query interface
-- Web-based dashboard (external server)
+- Enhanced intent recognition using ML/NLP
+- Command history-based learning
+- Predictive command suggestions
 
 ## Out of Scope
 
-- External web dashboard server — Sticking to terminal-based visualization
-- Heavy NLP libraries (langchain, tensorflow) — Wrong architecture for CLI tool
-- Real-time collaboration features — Single-user focus maintained
+- New command types — focus on improving existing command routing
+- Major architecture changes — incremental improvements to current system
+- Additional slash commands — maintain current 41 command surface
 
 ---
 
@@ -47,18 +42,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NL-01 | 98 | Pending |
-| NL-02 | 98 | Pending |
-| NL-03 | 98 | Pending |
-| NL-04 | 98 | Pending |
-| NL-05 | 99 | Pending |
-| NL-06 | 99 | Pending |
-| NL-07 | 99 | Pending |
-| VIS-01 | 100 | Pending |
-| VIS-02 | 100 | Pending |
-| VIS-03 | 100 | Pending |
-| VIS-04 | 101 | Pending |
-| VIS-05 | 101 | Pending |
-| VIS-06 | 101 | Pending |
-| VIS-07 | 102 | Pending |
-| VIS-08 | 102 | Pending |
+| ROUTE-01 | TBD | - |
+| ROUTE-02 | TBD | - |
+| ROUTE-03 | TBD | - |
+| FRIC-01 | TBD | - |
+| FRIC-02 | TBD | - |
+| FRIC-03 | TBD | - |
+| POLY-01 | TBD | - |
+| POLY-02 | TBD | - |
+| POLY-03 | TBD | - |

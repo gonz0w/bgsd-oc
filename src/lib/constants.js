@@ -546,6 +546,16 @@ Subcommands:
   set <file> --field k --value v  Update single field
   merge <file> --data '{json}'    Merge JSON into frontmatter
   validate <file> --schema type   Validate format`,
+  'util:validate-commands': `Usage: bgsd-tools util:validate-commands
+
+Validate command registry - checks help text alignment with routing.
+
+Compares COMMAND_HELP keys against router implementations to detect:
+- Commands in help that have no routing
+- Missing help text for implemented commands
+- Format inconsistencies (space vs colon)
+
+Exit code 0 if all valid, non-zero if issues found.`,
   'util:progress': `Usage: bgsd-tools util:progress [format]
 
 Render progress in various formats.`,

@@ -2,19 +2,114 @@
 // Provides suggestions when input is unrecognized or unclear
 
 const { INTENTS } = require('./command-registry.js');
+const fs = require('fs');
+const path = require('path');
+
+// Config path for learned preferences
+const LEARNED_CONFIG_PATH = path.join(process.cwd(), '.planning', 'config', 'learned-preferences.json');
+const LEARNED_CONFIG_DIR = path.join(process.cwd(), '.planning', 'config');
+
+/**
+ * Load learned preferences from config file
+ * @returns {Object} Learned preferences {command: {input: count}}
+ */
+function loadLearnedPreferences() {
+  try {
+    if (fs.existsSync(LEARNED_CONFIG_PATH)) {
+      const content = fs.readFileSync(LEARNED_CONFIG_PATH, 'utf8');
+      return JSON.parse(content);
+    }
+  } catch (error) {
+    // Ignore errors, return empty
+  }
+  return {};
+}
+
+/**
+ * Save learned preferences to config file
+ * @param {Object} preferences - Preferences to save
+ */
+function saveLearnedPreferences(preferences) {
+  try {
+    // Ensure directory exists
+    if (!fs.existsSync(LEARNED_CONFIG_DIR)) {
+      fs.mkdirSync(LEARNED_CONFIG_DIR, { recursive: true });
+    }
+    fs.writeFileSync(LEARNED_CONFIG_PATH, JSON.stringify(preferences, null, 2));
+  } catch (error) {
+    // Ignore save errors
+  }
+}
+
+/**
+ * Record a user choice - learn from overrides
+ * @param {string} input - User's original input
+ * @param {string} chosen - What user chose
+ */
+function recordUserChoice(input, chosen) {
+  const preferences = loadLearnedPreferences();
+  
+  if (!preferences[input]) {
+    preferences[input] = {};
+  }
+  
+  if (!preferences[input][chosen]) {
+    preferences[input][chosen] = 0;
+  }
+  
+  preferences[input][chosen]++;
+  saveLearnedPreferences(preferences);
+}
+
+/**
+ * Get learned preference for an input
+ * @param {string} input - User's original input
+ * @returns {string|null} Most frequently chosen option or null
+ */
+function getLearnedPreference(input) {
+  const preferences = loadLearnedPreferences();
+  
+  if (!preferences[input]) {
+    return null;
+  }
+  
+  const choices = preferences[input];
+  let maxCount = 0;
+  let topChoice = null;
+  
+  for (const [choice, count] of Object.entries(choices)) {
+    if (count > maxCount) {
+      maxCount = count;
+      topChoice = choice;
+    }
+  }
+  
+  return topChoice;
+}
+
+/**
+ * Clear all learned preferences
+ */
+function clearLearnedPreferences() {
+  saveLearnedPreferences({});
+}
 
 /**
  * Get fallback suggestions for unrecognized input
  * @param {string} input - User input
- * @param {Object} context - Optional context {intent, params, etc.}
+ * @param {Object} context - Optional context {intent, params, bypass: boolean}
  * @returns {Array} Array of suggestion objects grouped by category
  */
 function getFallbackSuggestions(input, context = {}) {
   const suggestions = [];
   const normalizedInput = (input || '').toLowerCase().trim();
   
-  // Get intent from context if available
+  // Get intent and bypass from context if available
   const intent = context.intent || null;
+  const bypass = context.bypass || false;
+  
+  // Check for learned preference first
+  const learnedChoice = getLearnedPreference(normalizedInput);
   
   // Build suggestions based on intents
   for (const [intentName, keywords] of Object.entries(INTENTS)) {
@@ -33,6 +128,12 @@ function getFallbackSuggestions(input, context = {}) {
     const commandPatterns = getCommandsForIntent(intentName);
     intentSuggestions.commands = commandPatterns;
     
+    // Check if learned choice matches this intent
+    if (learnedChoice && commandPatterns.some(cp => cp.command === learnedChoice)) {
+      intentSuggestions.isLearned = true;
+      intentSuggestions.learnedChoice = learnedChoice;
+    }
+    
     // Only include if it matches the input somewhat or no intent specified
     if (!intent || intent === intentName) {
       suggestions.push(intentSuggestions);
@@ -48,12 +149,14 @@ function getFallbackSuggestions(input, context = {}) {
   }
   
   // Add "did you mean" style suggestions if input is close to known commands
-  if (normalizedInput.length > 2) {
+  // Skip if bypass is true (direct command routing mode)
+  if (!bypass && normalizedInput.length > 2) {
     const didYouMean = generateDidYouMean(normalizedInput);
     if (didYouMean.length > 0) {
       suggestions.unshift({
         type: 'did_you_mean',
-        suggestions: didYouMean
+        suggestions: didYouMean,
+        learnedPreference: learnedChoice
       });
     }
   }
@@ -188,4 +291,13 @@ function generateHelp(input) {
   return help;
 }
 
-module.exports = { getFallbackSuggestions, generateHelp, getCommandsForIntent };
+module.exports = { 
+  getFallbackSuggestions, 
+  generateHelp, 
+  getCommandsForIntent,
+  // Learning functions
+  recordUserChoice,
+  getLearnedPreference,
+  clearLearnedPreferences,
+  loadLearnedPreferences
+};

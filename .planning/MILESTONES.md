@@ -446,3 +446,32 @@
 
 ---
 
+
+## v11.0 v11.0 (Shipped: 2026-03-11)
+
+**Phases completed:** 5 phases, 10 plans, 7 tasks
+
+**Key accomplishments:**
+- ASCII visualization modules for progress bars, milestone completion, and quality scores
+- Unified visualization API with end-to-end verification of ASCII output
+- ASCII burndown chart visualization with ideal vs actual progress tracking
+- Velocity sparkline visualization for session trend display
+- Terminal dashboard with keyboard navigation for project metrics overview
+- Intent classification and parameter extraction modules with 31 phrase command registry
+- Fuzzy matching resolver with disambiguation and contextual help fallback
+
+---
+
+
+## v11.1 v11.1 (Shipped: 2026-03-12)
+
+**Phases completed:** 4 phases, 4 plans, 0 tasks
+
+**Key accomplishments:**
+- CLI tool detection infrastructure with caching, platform-specific install guidance, and graceful fallback wrapper
+- ripgrep, fd, and jq CLI tool wrappers with JSON output parsing, graceful fallback, and unified index exports
+- yq, bat, and gh CLI tool wrappers with unified index.js exports and graceful fallbacks
+- Bun runtime detection with session cache, platform-specific install guidance, and startup benchmark command
+
+---
+
