@@ -1,0 +1,4557 @@
+[
+  {
+    "file": "src/commands/agent.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/cache.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "if (!_cacheEngine) {\n    try {\n      const { CacheEngine",
+        "source": "../lib/cache",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/ci.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/codebase.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "checkStaleness",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "performAnalysis",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "readIntel",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "writeIntel",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getGitInfo",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getChangedFilesSinceCommit",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "box",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "relativeTime",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { spawn",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractConventions",
+        "source": "../lib/conventions",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractConventions",
+        "source": "../lib/conventions",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateRules",
+        "source": "../lib/conventions",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildDependencyGraph",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findCycles",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildDependencyGraph",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getTransitiveDependents",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildLifecycleGraph",
+        "source": "../lib/lifecycle",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "if (!planPath) return [];\n  try {\n    const { extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { estimateJsonTokens",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildTaskContext",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildDependencyGraph",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findCycles",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractConventions",
+        "source": "../lib/conventions",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractSignatures",
+        "source": "../lib/ast",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractExports",
+        "source": "../lib/ast",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "computeComplexity",
+        "source": "../lib/ast",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const budgetIdx = args.indexOf('--budget');\n  const tokenBudget = budgetIdx !== -1 ? parseInt(args[budgetIdx + 1]",
+        "source": "../lib/ast",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "10) : 1000;\n\n  const { generateRepoMap",
+        "source": "../lib/ast",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/env.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/features.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "CONFIG_SCHEMA",
+        "source": "../lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseAssertionsMd",
+        "source": "./verify",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getArchivedPhaseDirs",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isValidDateString",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sanitizeShellArg",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedRegex",
+        "source": "../lib/regex-cache",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "estimateTokens",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "estimateJsonTokens",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "checkBudget",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "readIntel",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getTransitiveDependents",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildDependencyGraph",
+        "source": "../lib/deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "actionHint",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "progressBar",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "colorByPercent",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractAtReferences",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cmdHistoryDigest",
+        "source": "./misc",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cmdInitProgress",
+        "source": "./init",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cmdInitExecutePhase",
+        "source": "./init",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cmdInitPlanPhase",
+        "source": "./init",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/init.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "progressBar",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "actionHint",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "colorByPercent",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "resolveModelInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getRoadmapPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getArchivedPhaseDirs",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isValidDateString",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sanitizeShellArg",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "pathExistsInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateSlugInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getIntentDriftData",
+        "source": "./intent",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getIntentSummary",
+        "source": "./intent",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "autoTriggerEnvScan",
+        "source": "./env",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatEnvSummary",
+        "source": "./env",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "readEnvManifest",
+        "source": "./env",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "autoTriggerCodebaseIntel",
+        "source": "./codebase",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "readCodebaseIntel",
+        "source": "./codebase",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getWorktreeConfig",
+        "source": "./worktree",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseWorktreeListPorcelain",
+        "source": "./worktree",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseFilesModified",
+        "source": "./worktree",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getStalenessAge",
+        "source": "../lib/codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "research",
+        "source": "./research",
+        "type": "cjs"
+      },
+      {
+        "name": "const { queryDeadEnds",
+        "source": "./trajectory",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatDeadEndContext",
+        "source": "./trajectory",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { classifyPlan",
+        "source": "../lib/orchestration",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "selectExecutionMode",
+        "source": "../lib/orchestration",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const agentType = agentArg.split('=')[1];\n    if (agentType) {\n      const { scopeContextForAgent",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "research",
+        "source": "./research",
+        "type": "cjs"
+      },
+      {
+        "name": "const agentType = agentArg.split('=')[1];\n    if (agentType) {\n      const { scopeContextForAgent",
+        "source": "../lib/context",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/intent.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseIntentMd",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateIntentMd",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parsePlanIntent",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "box",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "colorByPercent",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "actionHint",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/mcp.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/measure.js",
+    "imports": [
+      {
+        "name": "runBenchmark",
+        "source": "../lib/cli-tools/plugin-benchmark",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/memory.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "crypto",
+        "source": "crypto",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/milestone.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateMilestoneSummary",
+        "source": "../lib/reports/milestone-summary",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/misc.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isGitIgnored",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "MODEL_PROFILES",
+        "source": "../lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "CONFIG_SCHEMA",
+        "source": "../lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateSlugInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getArchivedPhaseDirs",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReaddirSync",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "reconstructFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "spliceFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "cjs"
+      },
+      {
+        "name": "structuredLog",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "diffSummary",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "intel",
+        "source": "../lib/codebase-intel",
+        "type": "cjs"
+      },
+      {
+        "name": "const { checkParity",
+        "source": "../lib/utils/parity-check",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "checkAllParity",
+        "source": "../lib/utils/parity-check",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "CONFIG_SCHEMA",
+        "source": "../lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "trackCommand",
+        "source": "../lib/helpContext",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getRecentCommands",
+        "source": "../lib/helpContext",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getContextualSuggestions",
+        "source": "../lib/helpContext",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "clearHistory",
+        "source": "../lib/helpContext",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "showHistory: showCommandHistory",
+        "source": "../lib/helpContext",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getAutocompleteHints",
+        "source": "../lib/commandDiscovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getSimilarCommands",
+        "source": "../lib/commandDiscovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getCommandCategories",
+        "source": "../lib/commandDiscovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "expandAlias",
+        "source": "../lib/commandDiscovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getExamples",
+        "source": "../lib/helpExamples",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getCommonWorkflows",
+        "source": "../lib/helpExamples",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatExample",
+        "source": "../lib/helpExamples",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatWorkflow",
+        "source": "../lib/helpExamples",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { validateCommandRegistry",
+        "source": "../lib/commandDiscovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/phase.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getArchivedPhaseDirs",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateSlugInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "invalidateFileCache",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "// Get git log for changelog\n    let changelog = '';\n    try {\n      const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/research.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "os",
+        "source": "os",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "checkBinary",
+        "source": "../commands/env",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "status",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "truncate",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "if (!_researchCache) {\n    try {\n      const { CacheEngine",
+        "source": "../lib/cache",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/roadmap.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "invalidateFileCache",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/runtime.js",
+    "imports": [
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "detectBun",
+        "source": "../lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isRunningUnderBun",
+        "source": "../lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "benchmarkStartup",
+        "source": "../lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "benchmarkFileIO",
+        "source": "../lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "benchmarkNested",
+        "source": "../lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "benchmarkHTTPServer",
+        "source": "../lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getInstallGuidance",
+        "source": "../lib/cli-tools/install-guidance",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const testScript = `\nconst fs = require('fs');\nconst path = require('path');\nconst { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/state.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "invalidateFileCache",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "actionHint",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "progressBar",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "box",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/tools.js",
+    "imports": [
+      {
+        "name": "getToolStatus",
+        "source": "../lib/cli-tools/detector",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getInstallGuidance",
+        "source": "../lib/cli-tools/install-guidance",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/trajectory.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "crypto",
+        "source": "crypto",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "diffSummary",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "actionHint",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "relativeTime",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "VALID_TRAJECTORY_SCOPES",
+        "source": "../lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { selectiveRewind",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/verify.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseMustHavesBlock",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getArchivedPhaseDirs",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../lib/helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "colorByPercent",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "progressBar",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "box",
+        "source": "../lib/format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/commands/worktree.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "os",
+        "source": "os",
+        "type": "cjs"
+      },
+      {
+        "name": "execSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "../lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../lib/git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "../lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../lib/frontmatter",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/index.js",
+    "imports": [
+      {
+        "name": "main",
+        "source": "./router",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/abort-handler.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "promptsModule",
+        "source": "./prompts",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/adapters/discovery.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "fg",
+        "source": "fast-glob",
+        "type": "cjs"
+      },
+      {
+        "name": "ignore",
+        "source": "ignore",
+        "type": "cjs"
+      },
+      {
+        "name": "debugLog",
+        "source": "../output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../git",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/ast.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "LANGUAGE_MAP",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "acorn",
+        "source": "acorn",
+        "type": "cjs"
+      },
+      {
+        "name": "getSourceDirs",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "walkSourceFiles",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SKIP_DIRS",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cache.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "DatabaseSync",
+        "source": "node:sqlite",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/bat.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/bun-runtime.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "http",
+        "source": "http",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/detector.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/fallback.js",
+    "imports": [
+      {
+        "name": "detectTool",
+        "source": "./detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getInstallGuidance",
+        "source": "./install-guidance.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/fd.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "// Node.js fallback - basic glob implementation\n      const { globSync",
+        "source": "glob",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/gh.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/index.js",
+    "imports": [
+      {
+        "name": "searchRipgrep",
+        "source": "./ripgrep.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseRipgrepJson",
+        "source": "./ripgrep.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isRipgrepAvailable",
+        "source": "./ripgrep.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findFiles",
+        "source": "./fd.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findDirectories",
+        "source": "./fd.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findByExtension",
+        "source": "./fd.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isFdAvailable",
+        "source": "./fd.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "transformJson",
+        "source": "./jq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "transformWithPreset",
+        "source": "./jq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getFilterPresets",
+        "source": "./jq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "FILTER_PRESETS",
+        "source": "./jq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isJqAvailable",
+        "source": "./jq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseYAML",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "transformYAML",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "YAMLtoJSON",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "transformWithPreset: transformYAMLWithPreset",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getFilterPresets: getYqFilterPresets",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "FILTER_PRESETS: YQ_FILTER_PRESETS",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isYqAvailable",
+        "source": "./yq.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "catWithHighlight",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getFileTheme",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "listThemes",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getLanguage",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getStylePresets",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "STYLE_PRESETS",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isBatAvailable",
+        "source": "./bat.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "listPRs",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPR",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "listIssues",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getIssue",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getRepoInfo",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isGhAvailable",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "checkAuth",
+        "source": "./gh.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "detectTool",
+        "source": "./detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getToolStatus",
+        "source": "./detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "clearCache",
+        "source": "./detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "TOOLS",
+        "source": "./detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getToolGuidance",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getInstallGuidance",
+        "source": "./install-guidance.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/jq.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/plugin-benchmark.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/ripgrep.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "detectTool",
+        "source": "./detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "// Node.js fallback - simple grep implementation\n      const results = [];\n      \n      // Use basic pattern matching fallback\n      for (const path of Array.isArray(paths) ? paths : [paths]) {\n        const { globSync",
+        "source": "glob",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fullPath",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "content",
+        "source": "fs",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/cli-tools/yq.js",
+    "imports": [
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isToolAvailable",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "withToolFallback",
+        "source": "./fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "os",
+        "source": "os",
+        "type": "cjs"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "jsYaml",
+        "source": "js-yaml",
+        "type": "cjs"
+      },
+      {
+        "name": "jsYaml",
+        "source": "js-yaml",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/codebase-intel.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "./git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "./helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "LANGUAGE_MAP",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SKIP_DIRS",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "BINARY_EXTENSIONS",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getSourceDirs: adapterGetSourceDirs",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "walkSourceFiles: adapterWalkSourceFiles",
+        "source": "./adapters/discovery",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/commandDiscovery.js",
+    "imports": [
+      {
+        "name": "try {\n    const { COMMAND_HELP",
+        "source": "./constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { COMMAND_HELP",
+        "source": "./constants",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/config.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "CONFIG_SCHEMA",
+        "source": "./constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/context.js",
+    "imports": [
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "tokenx",
+        "source": "tokenx",
+        "type": "cjs"
+      },
+      {
+        "name": "const { readIntel",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { buildDependencyGraph",
+        "source": "./deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { execGit",
+        "source": "./git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "try {\n      const { extractSignatures",
+        "source": "./ast",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "// Try to get cached intel\n  const { readIntelWithCache",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/conventions.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "LANGUAGE_MAP",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/debug.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "format",
+        "source": "./format.js",
+        "type": "cjs"
+      },
+      {
+        "name": "error",
+        "source": "./error.js",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/deps.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "readIntel",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/error.js",
+    "imports": [
+      {
+        "name": "format",
+        "source": "./format.js",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/git.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "execFileSync",
+        "source": "child_process",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fp",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/helpContext.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/helpers.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "./config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "MODEL_PROFILES",
+        "source": "./constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedRegex",
+        "source": "./regex-cache",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "PHASE_DIR_NUMBER",
+        "source": "./regex-cache",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "if (!_cacheEngine) {\n    try {\n      const { CacheEngine",
+        "source": "./cache",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "if (!content || typeof content !== 'string') return null;\n\n  const { extractFrontmatter",
+        "source": "./frontmatter",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/lifecycle.js",
+    "imports": [
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findCycles",
+        "source": "./deps",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/nl/conversational-planner.js",
+    "imports": [
+      {
+        "name": "parseGoalDescription",
+        "source": "./requirement-extractor.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateClarifyingQuestions",
+        "source": "./requirement-extractor.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractRequirements",
+        "source": "./requirement-extractor.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "detectIntents",
+        "source": "./multi-intent-detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parseCompoundCommand",
+        "source": "./multi-intent-detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sequenceIntents",
+        "source": "./multi-intent-detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "detectAndParse",
+        "source": "./multi-intent-detector.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "detectCommandType",
+        "source": "./suggestion-engine.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getSuggestions",
+        "source": "./suggestion-engine.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildSuggestionChain",
+        "source": "./suggestion-engine.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "parse: nlParse",
+        "source": "./nl-parser.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/nl/fuzzy-resolver.js",
+    "imports": [
+      {
+        "name": "Fuse",
+        "source": "fuse.js",
+        "type": "cjs"
+      },
+      {
+        "name": "// Lazy load command registry\n      const { PHRASES",
+        "source": "./command-registry.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/nl/help-fallback.js",
+    "imports": [
+      {
+        "name": "INTENTS",
+        "source": "./command-registry.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/nl/multi-intent-detector.js",
+    "imports": [
+      {
+        "name": "parse",
+        "source": "./nl-parser.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/nl/nl-parser.js",
+    "imports": [
+      {
+        "name": "classifyIntent",
+        "source": "./intent-classifier.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractPhaseNumber",
+        "source": "./parameter-extractor.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFlags",
+        "source": "./parameter-extractor.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractTarget",
+        "source": "./parameter-extractor.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "PHRASES",
+        "source": "./command-registry.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "ALIASES",
+        "source": "./command-registry.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "FuzzyResolver",
+        "source": "./fuzzy-resolver.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getFallbackSuggestions",
+        "source": "./help-fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "generateHelp",
+        "source": "./help-fallback.js",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getLearnedPreference",
+        "source": "./help-fallback.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/orchestration.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "debugLog",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "./output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "./frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "./format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "./format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "formatTable",
+        "source": "./format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "./format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "./format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "SYMBOLS",
+        "source": "./format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "try {\n    const absPath = path.isAbsolute(planPath) ? planPath : path.resolve(cwd",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "planPath);\n    const content = fs.readFileSync(absPath",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "'utf-8');\n    const frontmatter = extractFrontmatter(content);\n\n    // Parse task blocks\n    const tasks = parseTasksFromPlan(content);\n\n    // Try to load dependency graph (non-blocking)\n    let depGraph = null;\n    try {\n      const { readIntel",
+        "source": "./codebase-intel",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "buildDependencyGraph",
+        "source": "./deps",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "try {\n    const score = complexity?.score || 3;\n    const baseModel = MODEL_MAP[score] || 'sonnet';\n\n    // If config has a model profile",
+        "source": "./constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "resolve from MODEL_PROFILES\n    if (config && config.model_profile) {\n      const { MODEL_PROFILES",
+        "source": "./constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "findPhaseInternal",
+        "source": "./helpers",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/output.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/prompts.js",
+    "imports": [
+      {
+        "name": "inquirer",
+        "source": "inquirer",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/recovery/autoRecovery.js",
+    "imports": [
+      {
+        "name": "SEVERITY",
+        "source": "../review/severity.js",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/recovery/index.js",
+    "imports": [
+      {
+        "name": "autoRecovery",
+        "source": "./autoRecovery.js",
+        "type": "cjs"
+      },
+      {
+        "name": "checkpointAdvisor",
+        "source": "./checkpointAdvisor.js",
+        "type": "cjs"
+      },
+      {
+        "name": "stuckDetector",
+        "source": "./stuck-detector.js",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/recovery/stuck-detector.js",
+    "imports": [
+      {
+        "name": "SEVERITY",
+        "source": "../review/severity.js",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/reports/milestone-summary.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "formatTable",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "box",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "relativeTime",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getTerminalWidth",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "safeReadFile",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "normalizePhaseName",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "extractFrontmatter",
+        "source": "../frontmatter",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../format",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/reports/velocity-metrics.js",
+    "imports": [
+      {
+        "name": "fs",
+        "source": "fs",
+        "type": "cjs"
+      },
+      {
+        "name": "path",
+        "source": "path",
+        "type": "cjs"
+      },
+      {
+        "name": "formatTable",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "sectionHeader",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "banner",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "color",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "relativeTime",
+        "source": "../format",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "cachedReadFile",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getMilestoneInfo",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getPhaseTree",
+        "source": "../helpers",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "execGit",
+        "source": "../git",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "renderSparkline: renderSparklineViz",
+        "source": "../viz/sparkline",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "calculateVelocityTrend",
+        "source": "../viz/sparkline",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "summaryLine",
+        "source": "../format",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/runtime-capabilities.js",
+    "imports": [
+      {
+        "name": "detectCompileCacheSupport",
+        "source": "./lib/runtime-capabilities",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "os",
+        "source": "os",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/utils/parity-check.js",
+    "imports": [
+      {
+        "name": "diagnoseParity",
+        "source": "../adapters/discovery.js",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/viz/dashboard.js",
+    "imports": [
+      {
+        "name": "readline",
+        "source": "readline",
+        "type": "cjs"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/viz/milestone.js",
+    "imports": [
+      {
+        "name": "renderProgressBar",
+        "source": "./progress",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/lib/wizard.js",
+    "imports": [
+      {
+        "name": "createPrompt",
+        "source": "./prompts",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "isAbortError",
+        "source": "./prompts",
+        "type": "cjs-destructure"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/advisory-guardrails.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "basename",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "extname",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "isAbsolute",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "resolve",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "createLogger",
+        "source": "./logger.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/command-enricher.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "./project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "parsePlans",
+        "source": "./parsers/index.js",
+        "type": "named"
+      },
+      {
+        "name": "readdirSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "existsSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/context-builder.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "./project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "countTokens",
+        "source": "./token-budget.js",
+        "type": "named"
+      },
+      {
+        "name": "TOKEN_BUDGET",
+        "source": "./token-budget.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/file-watcher.js",
+    "imports": [
+      {
+        "name": "watch",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "existsSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "invalidateAll",
+        "source": "./parsers/index.js",
+        "type": "named"
+      },
+      {
+        "name": "createLogger",
+        "source": "./logger.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/idle-validator.js",
+    "imports": [
+      {
+        "name": "existsSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "writeFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "execSync",
+        "source": "child_process",
+        "type": "named"
+      },
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "createLogger",
+        "source": "./logger.js",
+        "type": "named"
+      },
+      {
+        "name": "parseState",
+        "source": "./parsers/state.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateState",
+        "source": "./parsers/state.js",
+        "type": "named"
+      },
+      {
+        "name": "parseRoadmap",
+        "source": "./parsers/roadmap.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateRoadmap",
+        "source": "./parsers/roadmap.js",
+        "type": "named"
+      },
+      {
+        "name": "parseConfig",
+        "source": "./parsers/config.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateConfig",
+        "source": "./parsers/config.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/index.js",
+    "imports": [
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "safeHook",
+        "source": "./safe-hook.js",
+        "type": "named"
+      },
+      {
+        "name": "createToolRegistry",
+        "source": "./tool-registry.js",
+        "type": "named"
+      },
+      {
+        "name": "buildSystemPrompt",
+        "source": "./context-builder.js",
+        "type": "named"
+      },
+      {
+        "name": "buildCompactionContext",
+        "source": "./context-builder.js",
+        "type": "named"
+      },
+      {
+        "name": "enrichCommand",
+        "source": "./command-enricher.js",
+        "type": "named"
+      },
+      {
+        "name": "getTools",
+        "source": "./tools/index.js",
+        "type": "named"
+      },
+      {
+        "name": "createNotifier",
+        "source": "./notification.js",
+        "type": "named"
+      },
+      {
+        "name": "createFileWatcher",
+        "source": "./file-watcher.js",
+        "type": "named"
+      },
+      {
+        "name": "createIdleValidator",
+        "source": "./idle-validator.js",
+        "type": "named"
+      },
+      {
+        "name": "createStuckDetector",
+        "source": "./stuck-detector.js",
+        "type": "named"
+      },
+      {
+        "name": "createAdvisoryGuardrails",
+        "source": "./advisory-guardrails.js",
+        "type": "named"
+      },
+      {
+        "name": "parseConfig",
+        "source": "./parsers/config.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/logger.js",
+    "imports": [
+      {
+        "name": "existsSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "mkdirSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "statSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "fstatSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "appendFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "copyFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "writeFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "openSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "ftruncateSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "closeSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "randomBytes",
+        "source": "crypto",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/notification.js",
+    "imports": [
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "createLogger",
+        "source": "./logger.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/config.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/index.js",
+    "imports": [
+      {
+        "name": "invalidateState",
+        "source": "./state.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateRoadmap",
+        "source": "./roadmap.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidatePlans",
+        "source": "./plan.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateConfig",
+        "source": "./config.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateProject",
+        "source": "./project.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidateIntent",
+        "source": "./intent.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/intent.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/plan.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "readdirSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/project.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/roadmap.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/parsers/state.js",
+    "imports": [
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/project-state.js",
+    "imports": [
+      {
+        "name": "parseState",
+        "source": "./parsers/state.js",
+        "type": "named"
+      },
+      {
+        "name": "parseRoadmap",
+        "source": "./parsers/roadmap.js",
+        "type": "named"
+      },
+      {
+        "name": "parsePlans",
+        "source": "./parsers/plan.js",
+        "type": "named"
+      },
+      {
+        "name": "parseConfig",
+        "source": "./parsers/config.js",
+        "type": "named"
+      },
+      {
+        "name": "parseProject",
+        "source": "./parsers/project.js",
+        "type": "named"
+      },
+      {
+        "name": "parseIntent",
+        "source": "./parsers/intent.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/safe-hook.js",
+    "imports": [
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "randomBytes",
+        "source": "crypto",
+        "type": "named"
+      },
+      {
+        "name": "createLogger",
+        "source": "./logger.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/stuck-detector.js",
+    "imports": [
+      {
+        "name": "homedir",
+        "source": "os",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "createLogger",
+        "source": "./logger.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/tools/bgsd-context.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "../project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "createObjectSchema",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      },
+      {
+        "name": "validateArgs",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/tools/bgsd-plan.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "../project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "parseRoadmap",
+        "source": "../parsers/roadmap.js",
+        "type": "named"
+      },
+      {
+        "name": "parsePlans",
+        "source": "../parsers/plan.js",
+        "type": "named"
+      },
+      {
+        "name": "createObjectSchema",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      },
+      {
+        "name": "validateArgs",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/tools/bgsd-progress.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "../project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "readFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "writeFileSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "mkdirSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "rmdirSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "existsSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "statSync",
+        "source": "fs",
+        "type": "named"
+      },
+      {
+        "name": "join",
+        "source": "path",
+        "type": "named"
+      },
+      {
+        "name": "invalidateState",
+        "source": "../parsers/state.js",
+        "type": "named"
+      },
+      {
+        "name": "invalidatePlans",
+        "source": "../parsers/plan.js",
+        "type": "named"
+      },
+      {
+        "name": "createObjectSchema",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      },
+      {
+        "name": "validateArgs",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/tools/bgsd-status.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "../project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "createObjectSchema",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      },
+      {
+        "name": "validateArgs",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/tools/bgsd-validate.js",
+    "imports": [
+      {
+        "name": "getProjectState",
+        "source": "../project-state.js",
+        "type": "named"
+      },
+      {
+        "name": "createObjectSchema",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      },
+      {
+        "name": "validateArgs",
+        "source": "../validation/adapter.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/tools/index.js",
+    "imports": [
+      {
+        "name": "bgsd_status",
+        "source": "./bgsd-status.js",
+        "type": "named"
+      },
+      {
+        "name": "bgsd_plan",
+        "source": "./bgsd-plan.js",
+        "type": "named"
+      },
+      {
+        "name": "bgsd_context",
+        "source": "./bgsd-context.js",
+        "type": "named"
+      },
+      {
+        "name": "bgsd_validate",
+        "source": "./bgsd-validate.js",
+        "type": "named"
+      },
+      {
+        "name": "bgsd_progress",
+        "source": "./bgsd-progress.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/validation/adapter.js",
+    "imports": [
+      {
+        "name": "v",
+        "source": "valibot",
+        "type": "namespace"
+      },
+      {
+        "name": "z",
+        "source": "zod",
+        "type": "named"
+      },
+      {
+        "name": "resolveValidationFlags",
+        "source": "./flags.js",
+        "type": "named"
+      }
+    ]
+  },
+  {
+    "file": "src/router.js",
+    "imports": [
+      {
+        "name": "COMMAND_HELP",
+        "source": "./lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "error",
+        "source": "./lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "output",
+        "source": "./lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "diagnoseCompileCache",
+        "source": "./lib/runtime-capabilities",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "detectBun",
+        "source": "./lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getCachedBunVersion",
+        "source": "./lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "configGet",
+        "source": "./lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "configSet",
+        "source": "./lib/cli-tools/bun-runtime",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "loadConfig",
+        "source": "./lib/config",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "format",
+        "source": "./lib/format",
+        "type": "cjs"
+      },
+      {
+        "name": "debug",
+        "source": "./lib/debug",
+        "type": "cjs"
+      },
+      {
+        "name": "state",
+        "source": "./commands/state",
+        "type": "cjs"
+      },
+      {
+        "name": "roadmap",
+        "source": "./commands/roadmap",
+        "type": "cjs"
+      },
+      {
+        "name": "phase",
+        "source": "./commands/phase",
+        "type": "cjs"
+      },
+      {
+        "name": "verify",
+        "source": "./commands/verify",
+        "type": "cjs"
+      },
+      {
+        "name": "init",
+        "source": "./commands/init",
+        "type": "cjs"
+      },
+      {
+        "name": "features",
+        "source": "./commands/features",
+        "type": "cjs"
+      },
+      {
+        "name": "misc",
+        "source": "./commands/misc",
+        "type": "cjs"
+      },
+      {
+        "name": "memory",
+        "source": "./commands/memory",
+        "type": "cjs"
+      },
+      {
+        "name": "intent",
+        "source": "./commands/intent",
+        "type": "cjs"
+      },
+      {
+        "name": "env",
+        "source": "./commands/env",
+        "type": "cjs"
+      },
+      {
+        "name": "mcp",
+        "source": "./commands/mcp",
+        "type": "cjs"
+      },
+      {
+        "name": "worktree",
+        "source": "./commands/worktree",
+        "type": "cjs"
+      },
+      {
+        "name": "codebase",
+        "source": "./commands/codebase",
+        "type": "cjs"
+      },
+      {
+        "name": "trajectory",
+        "source": "./commands/trajectory",
+        "type": "cjs"
+      },
+      {
+        "name": "git",
+        "source": "./lib/git",
+        "type": "cjs"
+      },
+      {
+        "name": "orchestration",
+        "source": "./lib/orchestration",
+        "type": "cjs"
+      },
+      {
+        "name": "cache",
+        "source": "./commands/cache",
+        "type": "cjs"
+      },
+      {
+        "name": "agent",
+        "source": "./commands/agent",
+        "type": "cjs"
+      },
+      {
+        "name": "research",
+        "source": "./commands/research",
+        "type": "cjs"
+      },
+      {
+        "name": "tools",
+        "source": "./commands/tools",
+        "type": "cjs"
+      },
+      {
+        "name": "runtime",
+        "source": "./commands/runtime",
+        "type": "cjs"
+      },
+      {
+        "name": "measure",
+        "source": "./commands/measure",
+        "type": "cjs"
+      },
+      {
+        "name": "recovery",
+        "source": "./lib/recovery",
+        "type": "cjs"
+      },
+      {
+        "name": "const { COMMAND_HELP",
+        "source": "./lib/constants",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "getSimilarCommands",
+        "source": "./lib/commandDiscovery",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "// Pass remaining args directly to cmdMilestoneSummary\n            const summaryArgs = restArgs.slice(1);\n            const { cmdMilestoneSummary",
+        "source": "./commands/milestone",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const { cmdMilestoneInfo",
+        "source": "./commands/milestone",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "const gitSub = restArgs[0];\n          const gitMod = lazyGit();\n          const { output: gitOutput",
+        "source": "./lib/output",
+        "type": "cjs-destructure"
+      },
+      {
+        "name": "historyMod",
+        "source": "./lib/helpContext",
+        "type": "cjs"
+      },
+      {
+        "name": "discoveryMod",
+        "source": "./lib/commandDiscovery",
+        "type": "cjs"
+      },
+      {
+        "name": "examplesMod",
+        "source": "./lib/helpExamples",
+        "type": "cjs"
+      },
+      {
+        "name": "try {\n    const { trackCommand",
+        "source": "./lib/helpContext",
+        "type": "cjs-destructure"
+      }
+    ]
+  }
+]

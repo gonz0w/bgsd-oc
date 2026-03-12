@@ -1,0 +1,1495 @@
+[
+  {
+    "file": "src/commands/agent.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdAgentAudit",
+      "cmdAgentList",
+      "cmdAgentValidateContracts",
+      "parseRaciMatrix"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/cache.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdCacheStatus",
+      "cmdCacheClear",
+      "cmdCacheWarm",
+      "cmdCacheResearchStats",
+      "cmdCacheResearchClear"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/codebase.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdCodebaseAnalyze",
+      "cmdCodebaseStatus",
+      "cmdCodebaseConventions",
+      "cmdCodebaseRules",
+      "cmdCodebaseDeps",
+      "cmdCodebaseImpact",
+      "cmdCodebaseLifecycle",
+      "cmdCodebaseContext",
+      "cmdCodebaseAst",
+      "cmdCodebaseExports",
+      "cmdCodebaseComplexity",
+      "cmdCodebaseRepoMap",
+      "readCodebaseIntel",
+      "checkCodebaseIntelStaleness",
+      "autoTriggerCodebaseIntel",
+      "spawnBackgroundAnalysis",
+      "computeRiskLevel"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/env.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdEnvScan",
+      "cmdEnvStatus",
+      "LANG_MANIFESTS",
+      "checkBinary",
+      "readEnvManifest",
+      "formatEnvSummary",
+      "autoTriggerEnvScan"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/features.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdSessionDiff",
+      "cmdContextBudget",
+      "cmdContextBudgetBaseline",
+      "cmdContextBudgetCompare",
+      "cmdContextBudgetMeasure",
+      "cmdTestRun",
+      "cmdSearchDecisions",
+      "cmdValidateDependencies",
+      "cmdSearchLessons",
+      "cmdCodebaseImpact",
+      "cmdRollbackInfo",
+      "cmdVelocity",
+      "cmdTraceRequirement",
+      "cmdAnalyzeDeps",
+      "cmdEstimateScope",
+      "cmdValidateConfig",
+      "cmdQuickTaskSummary",
+      "cmdExtractSections",
+      "cmdTokenBudget",
+      "cmdTestCoverage",
+      "cmdSessionSummary"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/init.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdInitExecutePhase",
+      "cmdInitPlanPhase",
+      "cmdInitNewProject",
+      "cmdInitNewMilestone",
+      "cmdInitQuick",
+      "cmdInitResume",
+      "cmdInitVerifyWork",
+      "cmdInitPhaseOp",
+      "cmdInitTodos",
+      "cmdInitMilestoneOp",
+      "cmdInitMapCodebase",
+      "cmdInitProgress",
+      "cmdInitMemory"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/intent.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdIntentCreate",
+      "cmdIntentShow",
+      "cmdIntentUpdate",
+      "cmdIntentValidate",
+      "cmdIntentTrace",
+      "cmdIntentDrift",
+      "getIntentDriftData",
+      "getIntentSummary"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/mcp.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdMcpProfile"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/memory.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdMemoryWrite",
+      "cmdMemoryRead",
+      "cmdMemoryList",
+      "cmdMemoryEnsureDir"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/milestone.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdMilestoneSummary"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/misc.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdGenerateSlug",
+      "cmdCurrentTimestamp",
+      "cmdListTodos",
+      "cmdVerifyPathExists",
+      "cmdConfigEnsureSection",
+      "cmdConfigSet",
+      "cmdConfigGet",
+      "cmdConfigMigrate",
+      "cmdHistoryDigest",
+      "cmdResolveModel",
+      "cmdFindPhase",
+      "cmdCommit",
+      "cmdVerifySummary",
+      "cmdTemplateSelect",
+      "cmdTemplateFill",
+      "cmdPhasePlanIndex",
+      "cmdStateSnapshot",
+      "cmdSummaryExtract",
+      "cmdWebsearch",
+      "cmdFrontmatterGet",
+      "cmdFrontmatterSet",
+      "cmdFrontmatterMerge",
+      "cmdFrontmatterValidate",
+      "cmdProgressRender",
+      "cmdTodoComplete",
+      "cmdScaffold",
+      "cmdTdd",
+      "cmdReview",
+      "cmdSettingsList",
+      "cmdParityCheck",
+      "cmdHistory",
+      "cmdExamples",
+      "cmdValidateCommands"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/phase.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdPhasesList",
+      "cmdPhaseNextDecimal",
+      "cmdPhaseAdd",
+      "cmdPhaseInsert",
+      "cmdPhaseRemove",
+      "cmdRequirementsMarkComplete",
+      "cmdPhaseComplete",
+      "cmdMilestoneComplete"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/research.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "detectCliTools",
+      "detectMcpServers",
+      "calculateTier",
+      "cmdResearchCapabilities",
+      "cmdResearchYtSearch",
+      "cmdResearchYtTranscript",
+      "cmdResearchCollect",
+      "cmdResearchNlmCreate",
+      "cmdResearchNlmAddSource",
+      "cmdResearchNlmAsk"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/roadmap.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdRoadmapGetPhase",
+      "cmdRoadmapAnalyze",
+      "cmdRoadmapUpdatePlanProgress"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/runtime.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdRuntimeStatus"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/state.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdStateLoad",
+      "cmdStateGet",
+      "cmdStatePatch",
+      "cmdStateUpdate",
+      "cmdStateAdvancePlan",
+      "cmdStateRecordMetric",
+      "cmdStateUpdateProgress",
+      "cmdStateAddDecision",
+      "cmdStateAddBlocker",
+      "cmdStateResolveBlocker",
+      "cmdStateRecordSession",
+      "cmdStateValidate"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/trajectory.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdTrajectoryCheckpoint",
+      "cmdTrajectoryList",
+      "cmdTrajectoryPivot",
+      "cmdTrajectoryCompare",
+      "cmdTrajectoryChoose",
+      "cmdTrajectoryDeadEnds",
+      "queryDeadEnds"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/verify.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdVerifyPlanStructure",
+      "cmdVerifyPhaseCompleteness",
+      "cmdVerifyReferences",
+      "cmdVerifyCommits",
+      "cmdVerifyArtifacts",
+      "cmdVerifyKeyLinks",
+      "cmdValidateConsistency",
+      "cmdValidateHealth",
+      "cmdValidateRoadmap",
+      "cmdAnalyzePlan",
+      "cmdVerifyDeliverables",
+      "cmdVerifyRequirements",
+      "cmdVerifyRegression",
+      "cmdVerifyPlanWave",
+      "cmdVerifyPlanDeps",
+      "cmdVerifyQuality",
+      "parseAssertionsMd",
+      "cmdAssertionsList",
+      "cmdAssertionsValidate"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/commands/worktree.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cmdWorktreeCreate",
+      "cmdWorktreeList",
+      "cmdWorktreeRemove",
+      "cmdWorktreeCleanup",
+      "cmdWorktreeMerge",
+      "cmdWorktreeCheckOverlap",
+      "getWorktreeConfig",
+      "parsePlanId",
+      "parseWorktreeListPorcelain",
+      "getPhaseFilesModified"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/abort-handler.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "setupAbortHandler",
+      "handleAbort",
+      "cleanupAndExit",
+      "safePrompt",
+      "isAbortError",
+      "formatAbortMessage",
+      "saveProgress",
+      "loadProgress",
+      "clearProgress",
+      "hasProgress"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/adapters/discovery.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "LANGUAGE_MAP",
+      "SKIP_DIRS",
+      "BINARY_EXTENSIONS",
+      "getSourceDirs",
+      "walkSourceFiles",
+      "legacyGetSourceDirs",
+      "legacyWalkSourceFiles",
+      "optimizedGetSourceDirs",
+      "optimizedWalkSourceFiles",
+      "getActiveMode",
+      "diagnoseParity"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/ast.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "extractSignatures",
+      "extractExports",
+      "computeComplexity",
+      "generateRepoMap"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/bat.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "catWithHighlight",
+      "getFileTheme",
+      "listThemes",
+      "getLanguage",
+      "getStylePresets",
+      "STYLE_PRESETS"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/bun-runtime.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "detectBun",
+      "isRunningUnderBun",
+      "benchmarkStartup",
+      "benchmarkFileIO",
+      "benchmarkNested",
+      "benchmarkHTTPServer",
+      "clearCache",
+      "getCachedResult",
+      "getCachedBunVersion",
+      "configGet"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/detector.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "TOOLS",
+      "detectTool",
+      "getToolStatus"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/fallback.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "withToolFallback",
+      "isToolAvailable"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/fd.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "findFiles",
+      "findDirectories",
+      "findByExtension"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/gh.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "listPRs",
+      "getPR",
+      "listIssues",
+      "getIssue",
+      "getRepoInfo",
+      "isGhAvailable"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/index.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "searchRipgrep",
+      "parseRipgrepJson",
+      "isRipgrepAvailable",
+      "findFiles",
+      "findDirectories",
+      "findByExtension",
+      "isFdAvailable",
+      "transformJson",
+      "transformWithPreset",
+      "getFilterPresets",
+      "FILTER_PRESETS",
+      "isJqAvailable",
+      "parseYAML",
+      "transformYAML",
+      "YAMLtoJSON",
+      "transformYAMLWithPreset",
+      "getYqFilterPresets",
+      "YQ_FILTER_PRESETS",
+      "isYqAvailable",
+      "catWithHighlight",
+      "getFileTheme",
+      "listThemes",
+      "getLanguage",
+      "getStylePresets",
+      "STYLE_PRESETS",
+      "isBatAvailable",
+      "listPRs",
+      "getPR",
+      "listIssues",
+      "getIssue",
+      "getRepoInfo",
+      "isGhAvailable",
+      "checkAuth",
+      "detectTool",
+      "getToolStatus",
+      "clearCache",
+      "TOOLS",
+      "withToolFallback",
+      "isToolAvailable",
+      "getToolGuidance",
+      "getInstallGuidance",
+      "searchFiles",
+      "searchAndTransform",
+      "getAllToolStatus"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/install-guidance.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "TOOL_CONFIG",
+      "getInstallGuidance",
+      "getInstallCommand",
+      "getAllToolConfig"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/jq.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "transformJson",
+      "transformWithPreset",
+      "getFilterPresets",
+      "FILTER_PRESETS"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/plugin-benchmark.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "measureStartup",
+      "measureCommandExecution",
+      "measureContextLoad",
+      "measureMemory",
+      "formatTable",
+      "runBenchmark"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/ripgrep.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "searchRipgrep",
+      "parseRipgrepJson"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/cli-tools/yq.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "parseYAML",
+      "transformYAML",
+      "YAMLtoJSON",
+      "transformWithPreset",
+      "getFilterPresets",
+      "FILTER_PRESETS"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/codebase-intel.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "LANGUAGE_MAP",
+      "SKIP_DIRS",
+      "getSourceDirs",
+      "walkSourceFiles",
+      "getGitInfo",
+      "getChangedFilesSinceCommit",
+      "checkStaleness",
+      "getStalenessAge",
+      "performAnalysis",
+      "readIntel",
+      "writeIntel",
+      "generateAgentContexts",
+      "isIntelStale",
+      "readIntelWithCache"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/command-help.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "COMMAND_CATEGORIES",
+      "COMMAND_BRIEF",
+      "COMMAND_RELATED",
+      "NATURAL_LANGUAGE_ALIASES",
+      "getAllCommandsByCategory",
+      "findCommandByAlias",
+      "getRelatedCommands",
+      "getCommandBrief",
+      "getAllCommands"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/commandDiscovery.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "getAutocompleteHints",
+      "getCommandAliases",
+      "expandAlias",
+      "getSimilarCommands",
+      "getCommandCategories",
+      "generateCommandManifest",
+      "getAllCommands"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/config.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "loadConfig"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/constants.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "MODEL_PROFILES",
+      "CONFIG_SCHEMA",
+      "COMMAND_HELP"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/context.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "estimateTokens",
+      "estimateJsonTokens",
+      "checkBudget",
+      "AGENT_MANIFESTS",
+      "scopeContextForAgent",
+      "compactPlanState",
+      "compactDepGraph",
+      "buildTaskContext",
+      "getCachedAgentContext"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/conventions.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "extractConventions",
+      "generateRules"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/debug.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "trace",
+      "traceError",
+      "traceStack",
+      "getTrace",
+      "clearTrace",
+      "dumpContext",
+      "dumpState",
+      "dumpConfig",
+      "inspectState",
+      "inspectPhase",
+      "inspectRoadmap",
+      "inspectPlans",
+      "parseDebugFlags",
+      "isDebugEnabled",
+      "isTraceEnabled"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/deps.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "buildDependencyGraph",
+      "findCycles",
+      "getTransitiveDependents",
+      "parseJavaScript",
+      "parsePython",
+      "parseGo",
+      "parseElixir",
+      "parseRust"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/error.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "BgsdError",
+      "ValidationError",
+      "FileError",
+      "CommandError",
+      "ConfigError",
+      "formatError",
+      "formatErrorBrief",
+      "formatErrors",
+      "createErrorHandler",
+      "wrapAsync",
+      "isBgsdError",
+      "getErrorCode"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/format.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "getTerminalWidth",
+      "isTTY",
+      "color",
+      "colorByPercent",
+      "setColorMode",
+      "getColorMode",
+      "parseColorFlags",
+      "SYMBOLS",
+      "stripAnsi",
+      "truncate",
+      "relativeTime",
+      "pad",
+      "formatTable",
+      "progressBar",
+      "sectionHeader",
+      "banner",
+      "box",
+      "summaryLine",
+      "actionHint",
+      "listWithTruncation",
+      "Spinner",
+      "ProgressTracker",
+      "getProgressTracker"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/frontmatter.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "extractFrontmatter",
+      "reconstructFrontmatter"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/git.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "execGit",
+      "structuredLog",
+      "diffSummary",
+      "blame",
+      "branchInfo",
+      "selectiveRewind"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/helpContext.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "trackCommand",
+      "getRecentCommands",
+      "getContextualSuggestions",
+      "clearHistory",
+      "showHistory",
+      "HISTORY_FILE"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/helpExamples.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "getExamples",
+      "getCommonWorkflows",
+      "formatExample",
+      "formatWorkflow",
+      "getHelpWithExamples",
+      "COMMAND_EXAMPLES"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/helpers.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "safeReadFile",
+      "cachedReadFile",
+      "invalidateFileCache",
+      "cachedReaddirSync",
+      "getPhaseTree",
+      "normalizePhaseName",
+      "parseMustHavesBlock",
+      "sanitizeShellArg",
+      "isValidDateString",
+      "resolveModelInternal",
+      "getArchivedPhaseDirs",
+      "findPhaseInternal",
+      "getRoadmapPhaseInternal",
+      "pathExistsInternal",
+      "generateSlugInternal",
+      "getMilestoneInfo",
+      "extractAtReferences",
+      "parseIntentMd",
+      "generateIntentMd",
+      "parsePlanIntent"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/lifecycle.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "LIFECYCLE_DETECTORS",
+      "buildLifecycleGraph"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/command-registry.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "PHRASES",
+      "ALIASES"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/conversational-planner.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "parseGoal",
+      "handleCompoundCommand",
+      "getNextSuggestions",
+      "parseGoalDescription",
+      "generateClarifyingQuestions",
+      "extractRequirements",
+      "detectIntents",
+      "parseCompoundCommand",
+      "sequenceIntents",
+      "detectCommandType",
+      "getSuggestions",
+      "buildSuggestionChain",
+      "getProjectContext",
+      "calculateContextBoost"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/fuzzy-resolver.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "FuzzyResolver"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/help-fallback.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "getFallbackSuggestions",
+      "generateHelp",
+      "getCommandsForIntent",
+      "recordUserChoice",
+      "getLearnedPreference",
+      "clearLearnedPreferences"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/intent-classifier.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "classifyIntent"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/multi-intent-detector.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "detectIntents",
+      "parseCompoundCommand",
+      "sequenceIntents"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/nl-parser.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "parse",
+      "isNaturalLanguage",
+      "resolveAlias"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/parameter-extractor.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "extractPhaseNumber",
+      "extractFlags"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/requirement-extractor.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "parseGoalDescription",
+      "generateClarifyingQuestions"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/nl/suggestion-engine.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "detectCommandType",
+      "getSuggestions"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/orchestration.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "classifyTaskComplexity",
+      "classifyPlan",
+      "selectExecutionMode",
+      "parseTasksFromPlan",
+      "cmdClassifyPlan",
+      "cmdClassifyPhase"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/output.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "filterFields",
+      "output",
+      "status",
+      "error"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/prompts.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "inputPrompt",
+      "confirmPrompt",
+      "listPrompt",
+      "checkboxPrompt",
+      "createPrompt",
+      "projectNamePrompt",
+      "createPhaseSelectionPrompt",
+      "createPlanSelectionPrompt",
+      "createConfirmActionPrompt",
+      "promptWithDefaults",
+      "validateInput",
+      "isAbortError",
+      "isDefaultsMode",
+      "getDefaultsMap"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/recovery/autoRecovery.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "createAutoRecovery",
+      "RECOVERY_STRATEGIES",
+      "DEVIATION_PATTERNS"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/recovery/checkpointAdvisor.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "createCheckpointAdvisor",
+      "CheckpointAdvisor",
+      "COMPLEXITY_FACTORS"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/recovery/index.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "createAutoRecovery",
+      "AutoRecovery",
+      "RECOVERY_STRATEGIES",
+      "DEVIATION_PATTERNS",
+      "createCheckpointAdvisor",
+      "CheckpointAdvisor",
+      "COMPLEXITY_FACTORS",
+      "CHECKPOINT_RECOMMENDATIONS",
+      "createStuckDetector",
+      "StuckDetector",
+      "createLoopDetector"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/recovery/stuck-detector.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "createStuckDetector"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/regex-cache.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "cachedRegex",
+      "PHASE_DIR_NUMBER"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/reports/milestone-summary.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "generateMilestoneSummary",
+      "formatMilestoneReport"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/reports/velocity-metrics.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "calculateVelocityMetrics",
+      "renderVelocityReport"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/review/severity.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "SEVERITY"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/runtime-capabilities.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "detectCompileCacheSupport",
+      "isCompileCacheEnabled",
+      "getCompileCacheArgs",
+      "diagnoseCompileCache"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/utils/parity-check.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "checkParity",
+      "checkAllParity",
+      "checkValibotParity",
+      "checkDiscoveryParity",
+      "checkCompileCache",
+      "checkSqliteCache",
+      "normalizeFlag"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/burndown.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "calculateBurndownData"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/dashboard.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "renderDashboard",
+      "createDashboard",
+      "DashboardView"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/index.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "progress",
+      "milestone",
+      "quality",
+      "burndown",
+      "sparkline",
+      "dashboard",
+      "milestoneSummary",
+      "velocityMetrics"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/milestone.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "calculateMilestonePercentage",
+      "renderMilestoneProgress"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/progress.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "renderProgressBar",
+      "renderTaskProgress"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/quality.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "getQualityGrade",
+      "renderQualityBar"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/viz/sparkline.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "calculateVelocityTrend",
+      "renderSparkline"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/lib/wizard.js",
+    "named": [],
+    "default": null,
+    "cjsExports": [
+      "WizardRunner",
+      "runWizard",
+      "isAborted",
+      "validateStep",
+      "transformAnswers",
+      "createProjectWizard",
+      "planPhaseWizard"
+    ],
+    "type": "cjs"
+  },
+  {
+    "file": "src/plugin/advisory-guardrails.js",
+    "named": [
+      "createAdvisoryGuardrails"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/command-enricher.js",
+    "named": [
+      "enrichCommand"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/context-builder.js",
+    "named": [
+      "buildSystemPrompt",
+      "buildCompactionContext"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/file-watcher.js",
+    "named": [
+      "createFileWatcher"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/idle-validator.js",
+    "named": [
+      "createIdleValidator"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/index.js",
+    "named": [
+      "BgsdPlugin"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/logger.js",
+    "named": [
+      "generateCorrelationId",
+      "createLogger"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/notification.js",
+    "named": [
+      "createNotifier"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/config.js",
+    "named": [
+      "parseConfig",
+      "invalidateConfig"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/index.js",
+    "named": [
+      "invalidateAll"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/intent.js",
+    "named": [
+      "parseIntent",
+      "invalidateIntent"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/plan.js",
+    "named": [
+      "parsePlan",
+      "parsePlans",
+      "invalidatePlans"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/project.js",
+    "named": [
+      "parseProject",
+      "invalidateProject"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/roadmap.js",
+    "named": [
+      "parseRoadmap",
+      "invalidateRoadmap"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/parsers/state.js",
+    "named": [
+      "parseState",
+      "invalidateState"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/project-state.js",
+    "named": [
+      "getProjectState"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/safe-hook.js",
+    "named": [
+      "safeHook"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/stuck-detector.js",
+    "named": [
+      "createStuckDetector"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/token-budget.js",
+    "named": [
+      "TOKEN_BUDGET",
+      "countTokens",
+      "isWithinBudget"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tool-registry.js",
+    "named": [
+      "createToolRegistry"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tools/bgsd-context.js",
+    "named": [
+      "bgsd_context"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tools/bgsd-plan.js",
+    "named": [
+      "bgsd_plan"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tools/bgsd-progress.js",
+    "named": [
+      "bgsd_progress"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tools/bgsd-status.js",
+    "named": [
+      "bgsd_status"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tools/bgsd-validate.js",
+    "named": [
+      "bgsd_validate"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/tools/index.js",
+    "named": [
+      "getTools"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/validation/adapter.js",
+    "named": [
+      "createObjectSchema",
+      "validateArgs"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  },
+  {
+    "file": "src/plugin/validation/flags.js",
+    "named": [
+      "resolveValidationFlags"
+    ],
+    "default": null,
+    "cjsExports": [],
+    "type": "esm"
+  }
+]
