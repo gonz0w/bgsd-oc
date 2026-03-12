@@ -9,5 +9,7 @@ module.exports = {
   quality: require('./quality'),
   burndown: require('./burndown'),
   sparkline: require('./sparkline'),
-  dashboard: require('./dashboard')
+  dashboard: require('./dashboard'),
+  milestoneSummary: require('../reports/milestone-summary'),
+  velocityMetrics: require('../reports/velocity-metrics')
 };
