@@ -462,3 +462,16 @@
 
 ---
 
+
+## v11.1 v11.1 (Shipped: 2026-03-12)
+
+**Phases completed:** 4 phases, 4 plans, 0 tasks
+
+**Key accomplishments:**
+- CLI tool detection infrastructure with caching, platform-specific install guidance, and graceful fallback wrapper
+- ripgrep, fd, and jq CLI tool wrappers with JSON output parsing, graceful fallback, and unified index exports
+- yq, bat, and gh CLI tool wrappers with unified index.js exports and graceful fallbacks
+- Bun runtime detection with session cache, platform-specific install guidance, and startup benchmark command
+
+---
+

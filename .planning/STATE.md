@@ -12,7 +12,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-11)
 **Phase:** 105-polish-and-fixes
 **Current Plan:** 1/1
 **Total Plans in Phase:** 1
-**Status:** Phase complete — ready for verification
+**Status:** v11.1 milestone complete
 **Last Activity:** 2026-03-12
 
 ## Execution Notes
