@@ -25,6 +25,8 @@ class BgsdError extends Error {
    * @param {number} [options.line] - Line number
    * @param {string} [options.suggestion] - Recovery action
    * @param {string} [options.code] - Error code for programmatic handling
+   * @param {string} [options.oneLine] - Brief single-line summary for terminal status
+   * @param {Array<string>} [options.examples] - Array of example commands or usage
    */
   constructor(options) {
     const message = typeof options === 'string' ? options : options.message;
@@ -37,6 +39,8 @@ class BgsdError extends Error {
     this.line = options.line || null;
     this.suggestion = options.suggestion || null;
     this.code = options.code || null;
+    this.oneLine = options.oneLine || null;
+    this.examples = options.examples || [];
     
     // Capture stack trace properly
     Error.captureStackTrace(this, this.constructor);
@@ -83,7 +87,34 @@ class ConfigError extends BgsdError {
   }
 }
 
-// ─── Error Formatting ────────────────────────────────────────────────────────
+// ─── Error Formatting ───────────────────────────────────────────────────────
+
+/**
+ * Format a brief one-line error summary for terminal status.
+ * @param {Error|BgsdError} error - Error to format
+ * @returns {string} Brief one-line error message
+ */
+function formatErrorBrief(error) {
+  // Use custom oneLine if provided
+  if (error.oneLine) {
+    return format.color.red('[ERROR]') + ' ' + error.oneLine;
+  }
+  
+  // Generate brief summary from available information
+  let brief = error.message;
+  
+  // Add suggestion if present
+  if (error.suggestion) {
+    brief += ' - ' + error.suggestion;
+  }
+  
+  // Truncate if too long
+  if (brief.length > 120) {
+    brief = brief.substring(0, 117) + '...';
+  }
+  
+  return format.color.red('[ERROR]') + ' ' + brief;
+}
 
 /**
  * Format a single error with color and recovery suggestions.
@@ -115,6 +146,15 @@ function formatError(error, options = {}) {
   // Add suggestion if present
   if (error.suggestion) {
     lines.push('       ' + format.color.green('Try: ') + error.suggestion);
+  }
+  
+  // Add examples if present
+  if (error.examples && error.examples.length > 0) {
+    lines.push('');
+    lines.push('       ' + format.color.bold('Examples:'));
+    error.examples.forEach(example => {
+      lines.push('         ' + format.color.dim('$ ' + example));
+    });
   }
   
   // Add error code if present
@@ -229,6 +269,7 @@ module.exports = {
   
   // Formatting
   formatError,
+  formatErrorBrief,
   formatErrors,
   
   // Utilities
