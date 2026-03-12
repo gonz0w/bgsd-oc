@@ -372,7 +372,7 @@
 2. Identify which exports are never imported within the codebase
 3. Remove unused exports after verification
 
-**Plans:** TBD
+**Plans:** 107-01 (wave 1, 3 tasks), 107-02 (wave 2, 3 tasks)
 
 ---
 
