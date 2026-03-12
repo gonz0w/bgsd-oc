@@ -1,254 +1,181 @@
-# FEATURES.md — Natural Language UI & Visualization/Analytics
+# Feature Research
 
-**Domain:** Natural Language UI + Visualization & Analytics  
-**Milestone:** v11.0 Natural Interface & Insights  
-**Researched:** 2026-03-11  
-**Confidence:** HIGH (feature categorization), MEDIUM (complexity estimates)
-
----
+**Domain:** Code Audit & Performance Tooling
+**Researched:** 2026-03-12
+**Confidence:** HIGH
 
 <!-- section: compact -->
 <features_compact>
 
-**Table Stakes:**
-- Intent classification and parameter extraction
-- Smart alias resolution and fallback help
-- Phase/task progress bars and completion visualization
-- Milestone progress tracking and summary reports
-- Quality score visualization
+**Table stakes (must have):**
+- Unused exports detection — Core to bGSD's existing reachability audit (knip integration planned)
+- Dead code elimination — Identifies unreachable code paths; complements unused exports
+- Cyclomatic complexity analysis — Industry-standard metric for code complexity
 
 **Differentiators:**
-- Conversational planning with goal descriptions
-- ASCII burndown charts and velocity sparklines
-- Terminal dashboard overview
-- AI-powered natural language to command
-- Contextual suggestions and conversational memory
+- Maintainability Index scoring — Compound metric (0-100) combining complexity, LOC, comments; aligns with bGSD's quality scoring
+- Cognitive complexity — Better predictor of human comprehension than cyclomatic alone
+- bGSD-aware analysis — Leverages existing 34-module codebase knowledge, test coverage data
 
-**Key Dependencies:** All build on existing format.js, state parsing, and CLI infrastructure.
+**Defer (v2+):** Duplicate code merging (jscpd integration), Halstead metrics, cross-language analysis
 
+**Key dependencies:** Complexity analysis requires AST parsing (acorn already bundled); unused exports requires module resolution (existing dependency graph capability)
 </features_compact>
 <!-- /section -->
 
----
-
 <!-- section: feature_landscape -->
+## Feature Landscape
 
-## 1. Natural Language UI Features
+### Table Stakes (Users Expect These)
 
-### 1.1 Intent Parsing & Command Interpretation
+Features users assume exist. Missing these = product feels incomplete.
 
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Intent classification | Table Stakes | Medium | Existing CLI parser | Classify input as plan/create/verify/query |
-| Parameter extraction | Table Stakes | Medium | Intent classification | Extract phase numbers, flags, targets |
-| Fallback to help | Table Stakes | Low | Intent classification | Show suggestions when unclear |
-| Smart alias resolution | Table Stakes | Low | Existing alias system | Map "show progress" → `session progress` |
-| Contextual suggestions | Differentiator | Medium | Session state | Suggest next logical commands |
-| Multi-intent detection | Differentiator | High | Intent classification | Handle "plan phase 5 and verify" |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Unused exports detection | bGSD already does reachability audit (verify:orphans); users expect comprehensive export tracking | LOW | Leverage existing acorn AST parsing; extend current reachability logic |
+| Dead code elimination | Unreachable code paths are bugs waiting to happen; ESLint no-unreachable rule sets precedent | LOW | Detect code after return/throw/break in loops; mark as advisory |
+| Cyclomatic complexity | Industry-standard metric; ESLint complexity rule provides baseline (default threshold: 20) | MEDIUM | Calculate per-function; expose via CLI; configurable thresholds |
+| Per-function complexity breakdown | Developers need to know WHICH functions are complex | LOW | Reuse acorn AST to compute complexity per function/method |
 
-### 1.2 Conversational Planning
+### Differentiators (Competitive Advantage)
 
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Goal description input | Table Stakes | Medium | Planning workflows | Accept natural language goals |
-| Requirement extraction | Table Stakes | Medium | Existing state files | Parse loose descriptions |
-| Clarifying questions | Differentiator | High | Intent, workflows | Ask before planning |
-| Voice-ready prompts | Differentiator | Medium | Prompt standardization | Voice-compatible input |
-| Conversational memory | Differentiator | High | Session state, SQLite | Context across turns |
+Features that set the product apart. Not required, but valuable.
 
-### 1.3 AI-Powered Assistance
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Maintainability Index (0-100) | Compound score combining cyclomatic complexity, LOC, Halstead volume, comment ratio; Visual Studio standard | MEDIUM | Formula: MI = max(0, (171 - 5.2×ln(HV) - 0.23×CC - 16.2×ln(LOC)) × 100/171); aligns with bGSD quality scoring |
+| Cognitive complexity | Measures mental effort to understand code; better than cyclomatic for human comprehension | MEDIUM | Adds points for nesting, recursion, method calls; SonarQube/Codacy use this |
+| bGSD-aware code quality | Uses existing knowledge: test coverage, bundle size, 766 tests, 34 modules | LOW | Reuse existing metrics from codebase-intel.json; correlate complexity with test coverage |
+| Performance impact estimation | Estimates runtime cost of complex functions | HIGH | Requires execution profiling; defer to v2+ |
+| Inline complexity annotations | Shows complexity next to function definitions | MEDIUM | IDE integration; parse output for editor display |
 
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Natural language to command | Differentiator | High | AI provider | Convert descriptions to commands |
-| Risk indicators | Differentiator | Medium | AI provider | Warn on destructive ops |
-| Multiple AI provider support | Differentiator | High | Provider abstraction | OpenAI, Anthropic, Gemini |
-| Command explanation | Differentiator | Medium | AI provider | Explain command behavior |
+### Anti-Features (Commonly Requested, Often Problematic)
 
----
+Features that seem good but create problems.
 
-## 2. Visualization & Analytics Features
-
-### 2.1 Progress Tracking
-
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Phase progress bars | Table Stakes | Low | format.js | Visual phase indicator |
-| Task completion visualization | Table Stakes | Low | Plan/task parsing | Completed/pending/total |
-| Milestone progress | Table Stakes | Medium | Milestone tracking | Completion percentage |
-| Burndown charts (ASCII) | Differentiator | Medium | Historical data | Track work over time |
-| Velocity sparklines | Differentiator | Medium | Historical data | Velocity trends |
-| Interactive progress queries | Differentiator | High | Data aggregation | "How much left in phase 3?" |
-
-### 2.2 Rich Reporting
-
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Milestone summary reports | Table Stakes | Low | SUMMARY parsing | Formatted summaries |
-| Quality score visualization | Table Stakes | Low | Quality scoring | A-F grades with trends |
-| Session velocity metrics | Differentiator | Medium | Session tracking | Tasks/session |
-| Team/project insights | Differentiator | High | Multi-project | Aggregate insights |
-| Trend analysis | Differentiator | High | Historical data | Pattern analysis |
-
-### 2.3 Terminal Dashboard
-
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Dashboard overview command | Differentiator | Medium | Multiple sources | Key metrics in one view |
-| Real-time updates | Differentiator | High | TTY detection | Live-updating view |
-| Drill-down navigation | Differentiator | High | Dashboard | Navigate to details |
-| Customizable widgets | Differentiator | Very High | Framework | User-configurable |
-
-### 2.4 Data Visualization (ASCII/Unicode)
-
-| Feature | Category | Complexity | Dependencies | Notes |
-|---------|----------|------------|--------------|-------|
-| Sparkline rendering | Differentiator | Low | Custom | Unicode trend lines |
-| Bar charts (horizontal) | Differentiator | Low | Custom | ASCII comparisons |
-| Tables with progress columns | Table Stakes | Low | format.js | Enhanced tables |
-| Heatmaps | Differentiator | Medium | Data aggregation | Intensity patterns |
-| Gantt-style timelines | Differentiator | High | Phase data | Visual timeline |
-
----
-
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Auto-fix dead code | Sounds like easy cleanup | May break runtime if code is dynamically used (eval, reflection) | Report only, let human verify |
+| Auto-merge duplicates | Sounds like instant savings | Semantic context lost; may introduce bugs | Report duplicates, suggest extraction pattern |
+| Real-time scanning on edit | Sounds like instant feedback | Performance cost; editor already has ESLint | Integrate with existing editor plugins, not replace |
+| Full language support | Sounds comprehensive | 150+ languages requires massive effort | Focus on JavaScript (bGSD's language); extend later |
 <!-- /section -->
 
 <!-- section: dependencies -->
-
-## 3. Feature Dependency Map
+## Feature Dependencies
 
 ```
-Natural Language UI
-├── Intent Parsing
-│   ├── Intent classification ──────┐
-│   ├── Parameter extraction ──────┤
-│   ├── Fallback to help ──────────┤
-│   ├── Smart alias resolution ────┤
-│   └── Contextual suggestions ────┤
-├── Conversational Planning
-│   ├── Goal description input ────┤
-│   ├── Requirement extraction ────┼──► Planning Workflows
-│   ├── Clarifying questions ──────┤
-│   ├── Voice-ready prompts ───────┤
-│   └── Conversational memory ─────┘
-└── AI-Powered Assistance
-    ├── Natural language to command
-    ├── Risk indicators
-    ├── Multiple AI provider support
-    └── Command explanation
+[Unused Exports Detection]
+    └──requires──> [Module Resolution]
+                       └──requires──> [AST Parsing (acorn exists)]
 
-Visualization & Analytics
-├── Progress Tracking
-│   ├── Phase progress bars ───────┐
-│   ├── Task completion ───────────┤
-│   ├── Milestone progress ────────┤
-│   ├── Burndown charts ───────────┤
-│   ├── Velocity sparklines ───────┼──► Session/Milestone Data
-│   └── Interactive queries ───────┘
-├── Rich Reporting
-│   ├── Milestone summaries ───────┤
-│   ├── Quality visualization ──────┤
-│   ├── Session velocity ───────────┤
-│   ├── Team insights ──────────────┼──► Historical Data
-│   └── Trend analysis ─────────────┘
-├── Terminal Dashboard
-│   ├── Dashboard overview ────────┤
-│   ├── Real-time updates ─────────┤
-│   ├── Drill-down ────────────────┤
-│   └── Customizable widgets ───────┘
-└── Data Visualization
-    ├── Sparklines ─────────────────┐
-    ├── Bar charts ─────────────────┤
-    ├── Progress tables ────────────┼──► format.js (existing)
-    ├── Heatmaps ──────────────────┤
-    └── Gantt timelines ────────────┘
+[Dead Code Detection]
+    └──requires──> [Control Flow Analysis]
+                       └──requires──> [AST Parsing]
+
+[Cyclomatic Complexity]
+    └──requires──> [AST Parsing]
+
+[Cognitive Complexity]
+    └──requires──> [AST Parsing]
+
+[Maintainability Index]
+    ├──requires──> [Cyclomatic Complexity]
+    ├──requires──> [Lines of Code]
+    └──requires──> [Halstead Metrics (defer)]
+
+[bGSD-aware Analysis]
+    └──enhances──> [All above features]
 ```
 
----
+### Dependency Notes
 
-<!-- /section -->
-
-<!-- section: anti_features -->
-
-## 4. Anti-Features (Explicitly NOT Build)
-
-| Anti-Feature | Reason |
-|--------------|--------|
-| Web-based dashboard UI | Out of scope for CLI |
-| GUI/graphics dependencies | Must remain terminal-only |
-| Real-time collaboration sync | Beyond CLI scope |
-| External service integrations (Linear, Jira) | Defer to future |
-| Vector/3D charts | Terminal limitations |
-| Voice input processing | Platform-specific, defer |
-| Plugin/extension system | Adds complexity, defer |
-
----
-
+- **AST Parsing requires acorn:** Already bundled (114KB); lazy-loaded for performance. Existing in v7.0.
+- **Module resolution requires dependency graph:** Already exists from v5.0 codebase-intel; reuse module graph.
+- **Cognitive complexity requires nesting analysis:** More complex than cyclomatic; requires recursive AST traversal.
+- **Maintainability Index requires Halstead metrics:** Defer; requires operator/operand counting beyond current scope.
+- **All features reuse existing infrastructure:** bGSD already has 34 modules, 766 tests, SQLite caching—leverage these.
 <!-- /section -->
 
 <!-- section: mvp -->
+## MVP Definition
 
-## 5. MVP Recommendation
+### Launch With (v1)
 
-### Table Stakes (Must-Have for v11.0)
+Minimum viable product — what's needed to validate the concept.
 
-1. **Intent classification** — Parse natural language into CLI commands
-2. **Parameter extraction** — Extract phase numbers, targets from descriptions
-3. **Fallback to help** — Show suggestions when intent unclear
-4. **Smart alias resolution** — Map conversational phrases to commands
-5. **Phase progress bars** — Visual progress in current phase
-6. **Task completion visualization** — Show completed/pending/total
-7. **Milestone progress** — Overall completion percentage
-8. **Milestone summary reports** — Formatted completion summaries
-9. **Quality score visualization** — Show grades with trends
-10. **Tables with progress columns** — Enhanced table formatting
+- [x] Unused exports detection — Extend existing verify:orphans; detect unused exports from module graph
+- [x] Dead code detection — Identify unreachable code after return/throw/break in loops; report only
+- [x] Cyclomatic complexity per function — Use acorn AST to compute; configurable threshold (default 20)
+- [x] Complexity summary CLI — `bgsd audit complexity` showing top-N complex functions
+- [x] Integration with existing quality scoring — Combine complexity with existing A-F grades
 
-### Differentiators (Nice-to-Have for v11.0)
+### Add After Validation (v1.x)
 
-1. **Contextual suggestions** — Suggest next commands
-2. **Requirement extraction** — Parse loose descriptions
-3. **Burndown charts (ASCII)** — Track remaining work over time
-4. **Velocity sparklines** — Show velocity trends
-5. **Sparkline rendering** — Compact trend lines
-6. **Bar charts (horizontal)** — ASCII bar charts
-7. **Dashboard overview command** — Single command for key metrics
+Features to add once core is working.
 
----
+- [ ] Cognitive complexity scoring — Add nesting depth penalties; better human-readability correlation
+- [ ] Maintainability Index (0-100) — Add LOC and comment ratio; compound score
+- [ ] bGSD-aware recommendations — "This complex function has low test coverage" correlation
+- [ ] Threshold configuration — Per-project .bgsdrc settings for complexity limits
+- [ ] Trend tracking — Compare complexity over time; add to existing metrics
 
+### Future Consideration (v2+)
+
+Features to defer until product-market fit is established.
+
+- [ ] Duplicate code detection (jscpd integration) — Requires 150+ language support; high maintenance
+- [ ] Halstead metrics — Operator/operand counting; requires significant additional computation
+- [ ] Performance profiling — Runtime cost estimation; requires execution instrumentation
+- [ ] Auto-fix suggestions — LLM-powered refactoring; beyond static analysis scope
+- [ ] Cross-language analysis — Python, Go, Rust support; defer to language-specific plugins
 <!-- /section -->
 
-<!-- section: complexity -->
+<!-- section: prioritization -->
+## Feature Prioritization Matrix
 
-## 6. Implementation Complexity Summary
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Unused exports detection | HIGH | LOW | P1 |
+| Dead code detection | HIGH | LOW | P1 |
+| Cyclomatic complexity | HIGH | MEDIUM | P1 |
+| Complexity summary CLI | HIGH | LOW | P1 |
+| Cognitive complexity | MEDIUM | MEDIUM | P2 |
+| Maintainability Index | MEDIUM | MEDIUM | P2 |
+| bGSD-aware analysis | MEDIUM | LOW | P2 |
+| Trend tracking | MEDIUM | MEDIUM | P2 |
+| Auto-fix suggestions | LOW | HIGH | P3 |
+| Duplicate code detection | LOW | HIGH | P3 |
 
-| Level | Count | Features |
-|-------|-------|----------|
-| Low | 8 | Progress bars, aliases, sparklines, bars, tables |
-| Medium | 12 | Intent classification, reporting, burndown |
-| High | 8 | Conversational memory, multi-provider, dashboards |
-| Very High | 2 | Customizable widgets |
-
-**Phase Structure Recommendation:**
-
-| Phase | Focus | Key Features |
-|-------|-------|--------------|
-| Phase 1 | Foundation | Intent classification, parameter extraction, smart aliases, progress bars |
-| Phase 2 | Core NL UI | Goal description input, requirement extraction, contextual suggestions |
-| Phase 3 | Visualization | Task completion, milestone progress, quality visualization, ASCII charts |
-| Phase 4 | Reporting | Milestone summaries, velocity metrics, dashboard overview |
-| Phase 5 | Advanced | Burndown charts, sparklines, interactive queries |
-
----
-
+**Priority key:**
+- P1: Must have for launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 <!-- /section -->
+
+<!-- section: competitors -->
+## Competitor Feature Analysis
+
+| Feature | ESLint | Knip | jscpd | SonarQube | Our Approach |
+|---------|--------|------|-------|-----------|--------------|
+| Unused exports | no-unused-vars | Full detection | No | Yes | Extend existing verify:orphans; integrate with bGSD context |
+| Dead code | no-unreachable | Partial (unused files) | No | Yes | Control flow analysis; report-only |
+| Cyclomatic complexity | complexity rule | No | No | Yes | Per-function breakdown; CLI output |
+| Duplicate detection | No | No | Yes (150+ lang) | Yes | Defer; jscpd integration later |
+| Maintainability Index | No | No | No | Yes | Compound score; align with quality grades |
+| CLI-first | Yes (lint) | Yes | Yes | No (server) | Match bGSD's CLI-first philosophy |
 
 ## Sources
 
-- CLI AI tools: GCLI, clai, hai, Gemini CLI, Slashbot
-- Terminal visualization: chartli, pterm, prodash, node-progress
-- Project management CLIs: YouTrack CLI, GitScrum CLI, SPARK CLI, Task CLI
-- NPM libraries: gauge, node-progress, xprogress, ascii-progress
+- ESLint documentation: https://eslint.org/docs/latest/rules/complexity
+- Knip (unused exports/dependencies): https://github.com/webpro-nl/knip
+- jscpd (duplicate detection): https://jscpd.dev/
+- Maintainability Index formula: https://sourcery.ai/blog/maintainability-index
+- Cyclomatic Complexity standards: https://www.esolver.com/blog/cyclomatic-complexity
+- Cognitive Complexity: SonarSource specification
+- bGSD existing capabilities: PROJECT.md (34 modules, acorn, 766 tests, codebase-intel.json)
 
 ---
 
-*Confidence: HIGH for feature categorization and table-stakes. MEDIUM for complexity estimates and phase recommendations.*
+*Feature research for: Code Audit & Performance Tooling*
+*Researched: 2026-03-12*

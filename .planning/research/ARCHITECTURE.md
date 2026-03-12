@@ -1,21 +1,20 @@
-# Architecture Research — v11.0 Natural Interface & Insights
+# Architecture Research — Code Audit & Performance Tooling Integration
 
 **Research mode:** Ecosystem -> Architecture Integration  
-**Scope:** How natural language parsing and visualization integrate with existing bGSD CLI architecture  
-**Question:** How do natural language parsing and visualization integrate with existing bGSD architecture? What new modules/components are needed? What's the build/deploy impact?  
-**Date:** 2026-03-11  
+**Scope:** How code audit and performance profiling integrate with existing bGSD CLI architecture  
+**Question:** How should code audit capabilities be integrated into an existing CLI tool? Consider: AST-based analysis module structure, performance profiling commands, CLI wrappers for external tools, and where these fit in the existing command namespace (util: commands?).  
+**Date:** 2026-03-12  
 **Overall confidence:** HIGH
 
 ---
 
 ## Executive Recommendation
 
-Adopt a **pattern-first intent parser + ASCII visualization layer** that extends existing infrastructure (format.js, state.js, router) without adding external dependencies.
+Add a **dual-module architecture** under the `util:` namespace:
+- **`src/lib/audit.js`** — AST-based code pattern detection (static analysis rules)
+- **`src/lib/performance.js`** — Extended profiling with baseline comparison and trend analysis
 
-**Key insight:** The single-file constraint and zero-dependency philosophy mean:
-- Pattern matching over ML/NLP libraries
-- Inline ASCII rendering over visualization libraries  
-- Command mapping to existing CLI (not parallel command set)
+**Key insight:** The existing codebase already has AST infrastructure (`src/lib/ast.js`, 1199 lines) and profiler (`src/lib/profiler.js`, 116 lines). New capabilities should extend these modules rather than create parallel systems.
 
 ---
 
@@ -24,29 +23,45 @@ Adopt a **pattern-first intent parser + ASCII visualization layer** that extends
 ### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    CLI Input Layer                               │
-│  ┌─────────────────┐    ┌─────────────────────────────────┐    │
-│  │ Standard Args   │    │  Natural Language Input        │    │
-│  │ (existing)      │    │  (NEW: nlp.js parser)         │    │
-│  └────────┬────────┘    └───────────────┬─────────────────┘    │
-│           │                              │                      │
-│           └──────────────┬───────────────┘                      │
-│                          ↓                                       │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              Command Router (existing)                    │   │
-│  │         + Natural Language Routing (NEW)                 │   │
-│  └────────────────────────┬─────────────────────────────────┘   │
-│                           ↓                                      │
-│  ┌────────────────┐  ┌────────────────┐  ┌─────────────────┐    │
-│  │ Format Output  │  │  Visualization │  │  Analytics      │    │
-│  │ (format.js)    │  │  (viz.js NEW) │  │  (metrics.js)  │    │
-│  └────────────────┘  └────────────────┘  └─────────────────┘    │
-│           │                  │                    │              │
-│           └──────────────────┼────────────────────┘              │
-│                              ↓                                   │
-│                      [stdout JSON/TTY]
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLI Input Layer                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  bgsd-tools util:audit <subcommand>                                  │  │
+│  │  bgsd-tools util:profile <subcommand>                               │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │                    Router (existing)                                  │  │
+│  │  - namespace: 'util'                                                │  │
+│  │  - subcommands: audit, profile                                     │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                        │
+│           ┌────────────────────────┴────────────────────────┐             │
+│           ▼                                             ▼              │
+│  ┌─────────────────────┐                    ┌─────────────────────────┐   │
+│  │  audit.js module   │                    │  performance.js module │   │
+│  │  (NEW ~5KB)        │                    │  (NEW ~4KB)            │   │
+│  │  - pattern detection│                    │  - extended profiling  │   │
+│  │  - anti-patterns   │                    │  - baseline comparison │   │
+│  │  - dead code       │                    │  - trend analysis      │   │
+│  └──────────┬──────────┘                    └───────────┬────────────┘   │
+│              │                                             │               │
+│              ▼                                             ▼               │
+│  ┌─────────────────────┐                    ┌─────────────────────────┐   │
+│  │ ast.js (existing)   │                    │  profiler.js (existing) │   │
+│  │ - signatures        │                    │  - timing               │   │
+│  │ - complexity        │                    │  - baselines            │   │
+│  │ - exports           │                    │  - BGSD_PROFILE=1       │   │
+│  └─────────────────────┘                    └─────────────────────────┘   │
+│              │                                             │               │
+│              └─────────────────────┬───────────────────────┘             │
+│                                    ▼                                      │
+│                    ┌───────────────────────────────────┐                 │
+│                    │  .planning/codebase/audit.json     │                 │
+│                    │  .planning/baselines/*.json       │                 │
+│                    └───────────────────────────────────┘                 │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -55,14 +70,13 @@ Adopt a **pattern-first intent parser + ASCII visualization layer** that extends
 
 ### Module Breakdown
 
-| File | Type | Purpose | Estimated Size |
-|------|------|---------|----------------|
-| `src/lib/nlp.js` | NEW | Intent recognition, entity extraction, command mapping | ~5KB |
-| `src/lib/viz.js` | NEW | ASCII charts, sparklines, dashboards | ~8KB |
-| `src/lib/metrics.js` | NEW | Velocity, burndown, completion computation | ~4KB |
-| `src/commands/natural.js` | NEW | `bgsd:natural` command handler | ~3KB |
-| `src/commands/insights.js` | NEW | `bgsd:insights` analytics commands | ~4KB |
-| `src/router.js` | MODIFIED | Add new command routes | ~1KB |
+| File | Type | Purpose | Estimated Size | Depends On |
+|------|------|---------|---------------|------------|
+| `src/lib/audit.js` | NEW | Pattern detection, anti-patterns, dead code | ~5KB | ast.js |
+| `src/lib/performance.js` | NEW | Extended profiling, trend analysis | ~4KB | profiler.js |
+| `src/commands/audit.js` | NEW | `util:audit` command handler | ~3KB | audit.js |
+| `src/commands/performance.js` | NEW | `util:profile` command handler | ~3KB | performance.js |
+| `src/lib/constants.js` | MODIFIED | Add COMMAND_HELP entries | ~1KB | — |
 
 ---
 
@@ -72,132 +86,192 @@ Adopt a **pattern-first intent parser + ASCII visualization layer** that extends
 
 | Module | Integration | Approach |
 |--------|-------------|----------|
-| `format.js` | viz.js uses progressBar, color, table | Extend, don't replace |
-| `src/lib/state.js` | metrics.js reads phase/milestone data | Compute from STATE.md |
-| `src/lib/roadmap.js` | metrics.js computes burndown | Analyze roadmap phases |
-| `src/router.js` | natural.js routes to existing commands | Command mapping table |
-| `src/commands/` | natural.js delegates to | Execute via router |
+| `src/lib/ast.js` | audit.js uses for signature extraction | Reuse `extractSignatures()`, `extractExports()` |
+| `src/lib/profiler.js` | performance.js extends timing | Reuse `startTimer()`, `endTimer()`, add `compareBaselines()` |
+| `src/router.js` | Add lazy loaders, command routes | Extend existing namespace routing |
+| `src/lib/output.js` | Both modules use for JSON output | Standard `output()` pattern |
+| `src/commands/codebase.js` | audit.js reads codebase-intel.json | Read cached intel, extend analysis |
 
 ### Data Flow
 
 ```
-[User Input: "show my progress"]
+[User: bgsd-tools util:audit run --patterns dead-code]
     │
     ▼
-[nlp.parseIntent("show my progress")]
-    │ → Intent: "show-progress", confidence: 0.85
-    │ → Entities: { user: "my" }
+[audit.js: loadCodebaseIntel()]
+    │ → reads .planning/codebase/codebase-intel.json
     │
     ▼
-[nlp.extractCommand(intent, entities)]
-    │ → { command: "session:progress", params: {} }
+[audit.js: detectPatterns(files, options)]
+    │ → uses ast.js for AST traversal
+    │ → applies rule-based detection
     │
     ▼
-[Execute session:progress] → [format.js] → [stdout]
+[audit.js: writeAuditReport(results)]
+    │ → writes .planning/codebase/audit.json
+    │
+    ▼
+[Output JSON to stdout]
+```
+
+```
+[User: bgsd-tools util:profile run --command "verify:state validate"]
+    │
+    ▼
+[performance.js: spawnWithProfiling(command)]
+    │ → runs with BGSD_PROFILE=1
+    │ → captures timing via profiler.js
+    │
+    ▼
+[performance.js: compareWithBaseline(results)]
+    │ → loads .planning/baselines/
+    │ → computes deltas
+    │
+    ▼
+[Output JSON with regression warnings]
 ```
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Pattern-First Intent Parsing
+### Pattern 1: Rule-Based AST Analysis
 
-**What:** Deterministic intent recognition using regex patterns and keyword matching.
+**What:** Extend existing AST infrastructure with pattern detection rules.
 
-**When to use:** CLI commands with bounded vocabulary, structured planning domain.
+**When to use:** Static analysis without external linting tools.
 
 **Trade-offs:**
-- ✅ Zero dependencies, fast, deterministic, works offline
-- ❌ Limited vocabulary, pattern maintenance burden
+- ✅ Zero new dependencies, fast, works offline
+- ✅ Reuses existing ast.js infrastructure
+- ❌ Limited to JS/TS without external parser support
 
 ```javascript
-// src/lib/nlp.js
-const INTENT_PATTERNS = {
-  'create-phase': /create|add|new\s+phase/i,
-  'show-progress': /progress|status|how\s+(much|far)/i,
-  'plan-task': /plan|task|add\s+todo/i,
-  'velocity': /velocity|speed|how\s+fast/i,
-  'burndown': /burndown|remaining|forecast/i,
+// src/lib/audit.js
+const AUDIT_RULES = {
+  'dead-code': {
+    detect: (signatures, exports) => {
+      // Function defined but never exported = potential dead code
+      const defined = new Set(signatures.map(s => s.name));
+      const exported = new Set([...exports.named, ...exports.cjsExports]);
+      return [...defined].filter(fn => !exported.has(fn));
+    },
+  },
+  'complex-function': {
+    threshold: 15,
+    detect: (complexityData) => {
+      return complexityData.functions.filter(fn => fn.complexity > 15);
+    },
+  },
+  'unused-import': {
+    // Would require deeper import analysis
+  },
 };
 
-function parseIntent(input) {
-  const scores = [];
-  for (const [intent, pattern] of Object.entries(INTENT_PATTERNS)) {
-    const match = input.match(pattern);
-    if (match) {
-      scores.push({ intent, confidence: match[0].length / input.length });
-    }
+function runAudit(filePath, options) {
+  const signatures = extractSignatures(filePath);
+  const exports = extractExports(filePath);
+  const complexity = computeComplexity(filePath);
+  
+  const results = {};
+  for (const [rule, config] of Object.entries(AUDIT_RULES)) {
+    if (options.patterns && !options.patterns.includes(rule)) continue;
+    results[rule] = config.detect(signatures, exports, complexity);
   }
-  return scores.sort((a, b) => b.confidence - a.confidence)[0] || null;
-}
-
-function extractEntities(input) {
-  // Extract phase numbers: "phase 3", "phase 2.1"
-  const phaseMatch = input.match(/phase\s+(\d+\.?\d*)/i);
-  // Extract dates: "this week", "last month"  
-  const dateMatch = input.match(/(this|last|past)\s+(week|month|day)/i);
-  return { phase: phaseMatch?.[1], dateRange: dateMatch?.[0] };
+  return results;
 }
 ```
 
-### Pattern 2: ASCII Visualization
+### Pattern 2: External Tool Wrapper
 
-**What:** Render charts using Unicode box-drawing characters, graceful degradation.
+**What:** CLI wrappers for existing tools (eslint, prettier) following existing cli-tools pattern.
 
-**When to use:** Terminal-based tools needing visual data representation.
+**When to use:** When full static analysis capabilities needed beyond custom rules.
 
 **Trade-offs:**
-- ✅ Zero dependencies, works everywhere
-- ❌ Limited visual fidelity
+- ✅ Leverages proven tools
+- ❌ External dependency, installation required
 
 ```javascript
-// src/lib/viz.js
-function renderSparkline(data, width = 20) {
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const chars = ' ▁▂▃▄▅▆▇█';
-  
-  return data.map(v => {
-    const idx = Math.floor(((v - min) / range) * (chars.length - 1));
-    return chars[idx];
-  }).join('');
-}
+// src/lib/cli-tools/eslint.js (existing pattern)
+const { execSync } = require('child_process');
 
-function renderBarChart(data, options = {}) {
-  const { width = 40, colorFn = (v) => '' } = options;
-  const max = Math.max(...Object.values(data));
+function runEslint(cwd, options = {}) {
+  const args = ['--format', 'json', '--no-error-on-unmatched-pattern'];
+  if (options.fix) args.push('--fix');
+  if (options.dir) args.push(options.dir);
   
-  return Object.entries(data).map(([label, value]) => {
-    const barLen = Math.round((value / max) * width);
-    const bar = '█'.repeat(barLen);
-    return `${label.padEnd(15)} ${colorFn(bar)} ${value}`;
-  }).join('\n');
+  try {
+    const result = execSync(`eslint ${args.join(' ')}`, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { success: true, results: JSON.parse(result) };
+  } catch (e) {
+    return { success: false, error: e.message, results: [] };
+  }
 }
 ```
 
-### Pattern 3: Command Mapping
+### Pattern 3: Performance Baseline Comparison
 
-**What:** Map natural language to existing CLI commands with confidence threshold.
+**What:** Extend existing profiler with baseline management and regression detection.
 
-**When to use:** Integrating NLP without parallel command structure.
+**When to use:** Tracking performance trends over time.
+
+**Trade-offs:**
+- ✅ Reuses existing profiler.js infrastructure
+- ✅ Clear regression signals
+- ❌ Requires baseline establishment
 
 ```javascript
-const COMMAND_MAP = {
-  'show-progress': {
-    command: 'session:progress',
-    confidence: 0.6,
-  },
-  'create-phase': {
-    command: 'plan:phase add',
-    confidence: 0.7,
-  },
-  'velocity': {
-    command: 'util:velocity',
-    confidence: 0.7,
-  },
-};
+// src/lib/performance.js
+function compareWithBaseline(currentTimings, baselinePath) {
+  const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf-8'));
+  
+  const results = currentTimings.map(current => {
+    const before = baseline.timings.find(t => t.label === current.label);
+    if (!before) return { label: current.label, status: 'new' };
+    
+    const delta = current.duration_ms - before.duration_ms;
+    const percentChange = (delta / before.duration_ms) * 100;
+    
+    return {
+      label: current.label,
+      before: before.duration_ms,
+      after: current.duration_ms,
+      delta,
+      percentChange,
+      status: Math.abs(percentChange) > 10 ? 'regression' : 'stable',
+    };
+  });
+  
+  return results;
+}
 ```
+
+---
+
+## Command Structure
+
+### util:audit Subcommands
+
+| Command | Purpose | Flags |
+|---------|---------|-------|
+| `util:audit run` | Run audit on codebase | `--patterns <list>`, `--dir <path>`, `--fix` |
+| `util:audit status` | Show last audit results | `--json` |
+| `util:audit rules` | List available audit rules | |
+| `util:audit trends` | Show audit history | `--since <date>` |
+
+### util:profile Subcommands
+
+| Command | Purpose | Flags |
+|---------|---------|-------|
+| `util:profile run` | Run command with profiling | `--command <cmd>`, `--baseline <name>` |
+| `util:profile baselines` | List available baselines | |
+| `util:profile compare` | Compare two profiles | `--before <file>`, `--after <file>` |
+| `util:profile trends` | Show performance over time | `--since <date>` |
 
 ---
 
@@ -205,55 +279,62 @@ const COMMAND_MAP = {
 
 ### Build Order
 
-1. **Create `src/lib/nlp.js`** — Intent parsing layer
-2. **Create `src/lib/metrics.js`** — Analytics computation  
-3. **Create `src/lib/viz.js`** — ASCII visualization
-4. **Create `src/commands/natural.js`** — Natural language command
-5. **Create `src/commands/insights.js`** — Analytics commands
-6. **Update `src/router.js`** — Add routes
+1. **Create `src/lib/audit.js`** — Pattern detection rules extending ast.js
+2. **Create `src/lib/performance.js`** — Extended profiling extending profiler.js
+3. **Create `src/commands/audit.js`** — `util:audit` command handler
+4. **Create `src/commands/performance.js`** — `util:profile` command handler
+5. **Update `src/router.js`** — Add lazy loaders and routes
+6. **Update `src/lib/constants.js`** — Add COMMAND_HELP entries
 7. **Run `npm run build`** — Verify < 1550KB
+
+### Dependency Graph
+
+```
+audit.js ──────► ast.js (existing)
+                    │
+performance.js ───► profiler.js (existing)
+                         │
+codebase.js ◄─────── audit.json ◄── audit.js
+                              │
+baselines/ ◄──────── performance.js
+```
 
 ### Bundle Size Impact
 
 | Component | Estimated Size |
 |-----------|----------------|
 | Current bundle | ~1163KB |
-| NLP module | ~5KB |
-| Viz module | ~8KB |
-| Metrics module | ~4KB |
-| Command handlers | ~7KB |
-| **Total new** | ~24KB |
-| **Projected total** | ~1187KB |
+| audit.js module | ~5KB |
+| performance.js module | ~4KB |
+| audit command | ~3KB |
+| performance command | ~3KB |
+| **Total new** | ~15KB |
+| **Projected total** | ~1178KB |
 
 **Conclusion:** Well within 1550KB budget. No external dependencies added.
-
-### Single-File Compatibility
-
-- All modules use CommonJS (matching existing src/)
-- No ESM-specific imports
-- Inline ASCII rendering (no npm dependencies)
-- Pattern matching uses native RegExp
 
 ---
 
 ## Anti-Patterns to Avoid
 
 | Anti-Pattern | Why Wrong | Correct Approach |
-|--------------|------------|------------------|
-| Heavy NLP library (node-nlp) | Adds 100KB+, overkill | Pattern-first regex matching |
-| External API for parsing | Latency, cost, offline breaks | Local pattern matching |
-| Full TUI library (blessed) | 50-100KB dependency | Inline ASCII rendering |
-| Parallel command set | Duplication, confusion | Map to existing commands |
+|--------------|-----------|------------------|
+| Full ESLint integration | Heavy external dependency, complex config | Rule-based patterns in audit.js |
+| Duplicate AST parsing | Re-parsing wastes time | Reuse ast.js extractSignatures() |
+| Separate data store | Duplication, sync issues | Extend codebase-intel.json |
+| Parallel profiler | Confusion, code duplication | Extend profiler.js |
 
 ---
 
 ## Sources
 
-1. **Pattern-first parsing:** https://dev.to/daniel_romitelli_44e77dc6/search-that-refuses-to-think-the-pattern-first-query-parser-i-use-for-fast-intent-entity-107l
-2. **CLI NLP approaches:** https://github.com/shreshthgoyal/naturalshell
-3. **ASCII visualization:** https://github.com/kroitor/asciichart
-4. **CLI charts:** https://www.npmjs.com/package/simple-ascii-chart
-5. **Terminal gauges:** https://www.npmjs.com/package/gauge
+1. **ast-grep:** https://github.com/ast-grep/ast-grep — Structural search, lint, rewrite (Rust-based, fast)
+2. **AST Guard:** https://www.npmjs.com/package/ast-guard — Production-ready AST validator with rule-based validation
+3. **estree-toolkit:** https://www.npmjs.com/package/estree-toolkit — Fast ESTree AST manipulation
+4. **Clinic.js:** https://clinicjs.org — Node.js performance profiling suite (CPU, memory, async)
+5. **log-sweep:** https://github.com/AmElmo/log-sweep — AST-based console removal tool
+6. **Existing ast.js:** src/lib/ast.js (1199 lines) — Current AST infrastructure
+7. **Existing profiler.js:** src/lib/profiler.js (116 lines) — Current profiling infrastructure
 
 ---
 
@@ -261,13 +342,26 @@ const COMMAND_MAP = {
 
 | Area | Level | Reason |
 |------|-------|--------|
-| Intent parsing approach | HIGH | Pattern-first is proven, zero-dep |
-| Visualization approach | HIGH | ASCII rendering is simple, proven |
-| Bundle size | HIGH | 24KB estimate well within budget |
-| Integration pattern | HIGH | Maps to existing command structure |
-| Offline capability | HIGH | No external dependencies |
+| Architecture approach | HIGH | Extends existing patterns cleanly |
+| Bundle size | HIGH | 15KB estimate well within budget |
+| Integration pattern | HIGH | Uses existing util: namespace |
+| External tools | MEDIUM | Optional wrappers, not required |
+| Offline capability | HIGH | Core features work without external deps |
 
 ---
 
-*Architecture research for: v11.0 Natural Interface & Insights*
-*Researched: 2026-03-11*
+## Roadmap Implications
+
+### Suggested Phase Structure
+
+| Phase | Focus | Notes |
+|-------|-------|-------|
+| Phase 1 | audit.js core + util:audit run | Pattern detection for dead-code, complex functions |
+| Phase 2 | util:profile run + baseline comparison | Extend existing profiler |
+| Phase 3 | External tool wrappers | ESLint, prettier integration (optional) |
+| Phase 4 | Audit trends + Performance trends | Historical analysis |
+
+---
+
+*Architecture research for: Code Audit & Performance Tooling Integration*
+*Researched: 2026-03-12*
