@@ -2,6 +2,11 @@
 
 ## Milestones
 
+- 🆕 **v11.2 Code Audit & Performance** - Phases 106-109 (2026-03-12)
+  - Phase 106: Code Audit Core — Unused exports, dead code, complexity analysis
+  - Phase 107: Performance Profiling — CPU, memory, baselines, trends
+  - Phase 108: CLI Tool Integration — knip, eslint wrappers, unified output
+  - Phase 109: Quality Improvements — Bundle size, export surface, coverage correlation
 - 🆕 **v11.1 Command Execution & Polish** - Phases 103-105 (2026-03-11)
   - ✅ Phase 103: Direct Command Routing — Simplify wrapper → workflow → CLI chain
   - Phase 104: Zero Friction — Remove clarification loops, smart defaults
@@ -25,6 +30,10 @@
 
 ## Phases
 
+- [ ] **Phase 106: Code Audit Core** — Unused exports, dead code, complexity analysis
+- [ ] **Phase 107: Performance Profiling** — CPU, memory, baselines, trends
+- [ ] **Phase 108: CLI Tool Integration** — knip, eslint wrappers, unified output
+- [ ] **Phase 109: Quality Improvements** — Bundle size, export surface, coverage correlation
 - [x] **Phase 103: Direct Command Routing** — Simplify wrapper → workflow → CLI chain ✅
 - [x] **Phase 104: Zero Friction** — Remove clarification loops, smart defaults ✅
 - [ ] **Phase 105: Polish & Fixes** — Fix edge cases, streamline execution
@@ -43,8 +52,8 @@
 
 ---
 
-*Roadmap updated: 2026-03-11*
-*Ready for: /bgsd plan phase 103*
+*Roadmap updated: 2026-03-12*
+*Ready for: /bgsd plan phase 106*
 
 ---
 
@@ -333,10 +342,81 @@
 
 ---
 
+### Phase 106: Code Audit Core
+**Goal:** Users can analyze code quality through built-in audit tools
+
+**Depends on:** Nothing (first phase of v11.2)
+
+**Requirements:** AUDIT-01, AUDIT-02, AUDIT-03, AUDIT-04, AUDIT-05
+
+**Success Criteria** (what must be TRUE):
+1. User can run audit:unused to detect exported functions/variables that are never imported
+2. User can run audit:deadcode to identify unreachable code paths (after return/throw/break in loops)
+3. User can run audit:complexity to calculate cyclomatic complexity per function with configurable threshold
+4. User can run `bgsd util:audit complexity` to see top-N complex functions
+5. User can run a single `bgsd util:audit` command to access all audit subcommands
+
+**Plans:** TBD
+
+---
+
+### Phase 107: Performance Profiling
+**Goal:** Users can profile and analyze performance metrics with baseline comparisons
+
+**Depends on:** Phase 106 (audit foundation enables profiling context)
+
+**Requirements:** PERF-01, PERF-02, PERF-03, PERF-04
+
+**Success Criteria** (what must be TRUE):
+1. User can capture CPU profiles using bgsd commands via node:inspector
+2. User can capture heap snapshots for memory profiling via node:inspector
+3. User can compare current metrics vs stored baselines with difference reporting
+4. User can view performance trends over time with trend indicators (up/down/stable)
+
+**Plans:** TBD
+
+---
+
+### Phase 108: CLI Tool Integration
+**Goal:** Users can run external code quality tools through unified bGSD interface
+
+**Depends on:** Phase 106 (audit infrastructure)
+
+**Requirements:** TOOL-01, TOOL-02, TOOL-03
+
+**Success Criteria** (what must be TRUE):
+1. User can run knip through bgsd wrapper to detect unused code
+2. User can run ESLint rules through bgsd wrapper for complexity and unused-vars
+3. External tool output is parsed and formatted consistently with bGSD output style
+
+**Plans:** TBD
+
+---
+
+### Phase 109: Quality Improvements
+**Goal:** Users can analyze and improve code quality through comprehensive audits
+
+**Depends on:** Phase 107 (profiling), Phase 108 (tool integration)
+
+**Requirements:** QUAL-01, QUAL-02, QUAL-03
+
+**Success Criteria** (what must be TRUE):
+1. User can view bundle composition and identify reduction opportunities
+2. User can analyze public API surface and identify unused exports
+3. User can link complexity metrics to test coverage data for targeted improvements
+
+**Plans:** TBD
+
+---
+
 ## Coverage Map
 
 | Phase | Requirements | Count | Status | Completed |
 |-------|--------------|-------|--------|-----------|
+| 106 | AUDIT-01, AUDIT-02, AUDIT-03, AUDIT-04, AUDIT-05 | 5 | Not Started | - |
+| 107 | PERF-01, PERF-02, PERF-03, PERF-04 | 4 | Not Started | - |
+| 108 | TOOL-01, TOOL-02, TOOL-03 | 3 | Not Started | - |
+| 109 | QUAL-01, QUAL-02, QUAL-03 | 3 | Not Started | - |
 | 98 | NL-01, NL-02, NL-03, NL-04 | 4 | Pending | - |
 | 99 | NL-05, NL-06, NL-07 | 3 | Pending | - |
 | 100 | VIS-01, VIS-02, VIS-03 | 3 | Pending | - |
@@ -353,5 +433,5 @@
 | 104 | 1/3 | In Progress|  | - |
 | 105 | POLY-01, POLY-02, POLY-03 | 3 | Not Started | - |
 
-**Total: 9 requirements across 3 v11.1 phases | 39 requirements across 18 phases total**
+**Total: 15 requirements across 4 v11.2 phases | 54 requirements across 22 phases total**
 

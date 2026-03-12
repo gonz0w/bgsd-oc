@@ -52,18 +52,18 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 | TBD | - |
-| AUDIT-02 | TBD | - |
-| AUDIT-03 | TBD | - |
-| AUDIT-04 | TBD | - |
-| AUDIT-05 | TBD | - |
-| PERF-01 | TBD | - |
-| PERF-02 | TBD | - |
-| PERF-03 | TBD | - |
-| PERF-04 | TBD | - |
-| TOOL-01 | TBD | - |
-| TOOL-02 | TBD | - |
-| TOOL-03 | TBD | - |
-| QUAL-01 | TBD | - |
-| QUAL-02 | TBD | - |
-| QUAL-03 | TBD | - |
+| AUDIT-01 | Phase 106 | Pending |
+| AUDIT-02 | Phase 106 | Pending |
+| AUDIT-03 | Phase 106 | Pending |
+| AUDIT-04 | Phase 106 | Pending |
+| AUDIT-05 | Phase 106 | Pending |
+| PERF-01 | Phase 107 | Pending |
+| PERF-02 | Phase 107 | Pending |
+| PERF-03 | Phase 107 | Pending |
+| PERF-04 | Phase 107 | Pending |
+| TOOL-01 | Phase 108 | Pending |
+| TOOL-02 | Phase 108 | Pending |
+| TOOL-03 | Phase 108 | Pending |
+| QUAL-01 | Phase 109 | Pending |
+| QUAL-02 | Phase 109 | Pending |
+| QUAL-03 | Phase 109 | Pending |
