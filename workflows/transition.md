@@ -347,7 +347,7 @@ Next: Phase [X+1] — [Name]
 ⚡ Auto-continuing: Plan Phase [X+1] in detail
 ```
 
-Exit and run: /bgsd plan phase [X+1] --auto
+Exit and run: /bgsd-plan-phase [X+1] --auto
 
 **If CONTEXT.md does NOT exist:**
 
@@ -359,7 +359,7 @@ Next: Phase [X+1] — [Name]
 ⚡ Auto-continuing: Discuss Phase [X+1] first
 ```
 
-Exit and run: /bgsd plan discuss [X+1] --auto
+Exit and run: /bgsd-discuss-phase [X+1] --auto
 
 </if>
 
@@ -376,15 +376,15 @@ Exit and run: /bgsd plan discuss [X+1] --auto
 
 **Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
 
-`/bgsd plan discuss [X+1]` — gather context and clarify approach
+`/bgsd-discuss-phase [X+1]` — gather context and clarify approach
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd plan phase [X+1]` — skip discussion, plan directly
-- `/bgsd plan research [X+1]` — investigate unknowns
+- `/bgsd-plan-phase [X+1]` — skip discussion, plan directly
+- `/bgsd-research-phase [X+1]` — investigate unknowns
 
 ---
 ```
@@ -401,15 +401,15 @@ Exit and run: /bgsd plan discuss [X+1] --auto
 **Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
 <sub>✓ Context gathered, ready to plan</sub>
 
-`/bgsd plan phase [X+1]`
+`/bgsd-plan-phase [X+1]`
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd plan discuss [X+1]` — revisit context
-- `/bgsd plan research [X+1]` — investigate unknowns
+- `/bgsd-discuss-phase [X+1]` — revisit context
+- `/bgsd-research-phase [X+1]` — investigate unknowns
 
 ---
 ```
@@ -435,7 +435,7 @@ Phase {X} marked complete.
 ⚡ Auto-continuing: Complete milestone and archive
 ```
 
-Exit and run: /bgsd milestone complete {version}
+Exit and run: /bgsd-complete-milestone {version}
 
 </if>
 
@@ -452,7 +452,7 @@ Exit and run: /bgsd milestone complete {version}
 
 **Complete Milestone {version}** — archive and prepare for next
 
-`/bgsd milestone complete {version}`
+`/bgsd-complete-milestone {version}`
 
 <sub>`/clear` first → fresh context window</sub>
 

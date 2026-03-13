@@ -245,13 +245,13 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create
 
 Present completion: project name, artifact locations, phase/requirement counts.
 
-**Auto mode:** Auto-advance → invoke `/bgsd plan discuss 1 --auto`.
+**Auto mode:** Auto-advance → invoke `/bgsd-discuss-phase 1 --auto`.
 
 **Interactive:**
 ```
 ## ▶ Next Up
 **Phase 1: [Name]** — [Goal]
-/bgsd plan discuss 1
+/bgsd-discuss-phase 1
 ```
 
 </process>

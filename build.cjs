@@ -63,7 +63,7 @@ async function build() {
     platform: 'node',
     format: 'esm',
     target: 'node18',
-    external: ['node:*', 'child_process', 'fs', 'path', 'os', 'crypto', 'util', 'stream', 'events', 'buffer', 'url', 'querystring', 'http', 'https', 'net', 'tls', 'zlib'],
+    external: ['node:*', 'child_process', 'fs', 'path', 'os', 'crypto', 'util', 'stream', 'events', 'buffer', 'url', 'querystring', 'http', 'https', 'net', 'tls', 'zlib', 'zod', '@opencode-ai/plugin'],
     minify: false,
     sourcemap: false,
     metafile: true,

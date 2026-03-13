@@ -196,7 +196,7 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "chore: compl
 
 <step name="offer_next">
 Present: milestone complete, what shipped, archived files, tag.
-Next: `/bgsd milestone new` (after `/clear`).
+Next: `/bgsd-new-milestone` (after `/clear`).
 </step>
 
 </process>
@@ -220,5 +220,5 @@ Heuristic: "Is this deployed/usable/shipped?" → milestone.
 - [ ] STATE.md updated
 - [ ] Git tag created
 - [ ] Incomplete requirements surfaced with options
-- [ ] User knows next step (/bgsd milestone new)
+- [ ] User knows next step (/bgsd-new-milestone)
 </success_criteria>

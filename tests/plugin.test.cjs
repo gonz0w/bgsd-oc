@@ -247,27 +247,9 @@ describe('Plugin Tools', () => {
   const pluginPath = path.join(__dirname, '..', 'plugin.js');
   let pluginModule;
 
-  async function runWithValidationModes(run) {
-    const originalFallback = process.env.BGSD_DEP_VALIBOT_FALLBACK;
-
-    try {
-      delete process.env.BGSD_DEP_VALIBOT_FALLBACK;
-      const primary = await run();
-
-      process.env.BGSD_DEP_VALIBOT_FALLBACK = '1';
-      const fallback = await run();
-
-      return {
-        primary: JSON.parse(primary),
-        fallback: JSON.parse(fallback),
-      };
-    } finally {
-      if (originalFallback === undefined) {
-        delete process.env.BGSD_DEP_VALIBOT_FALLBACK;
-      } else {
-        process.env.BGSD_DEP_VALIBOT_FALLBACK = originalFallback;
-      }
-    }
+  async function runValidation(run) {
+    const result = await run();
+    return JSON.parse(result);
   }
 
   // Load plugin module once for all tool tests
@@ -440,73 +422,37 @@ describe('Plugin Tools', () => {
     assert.strictEqual(parsed.error, 'validation_error', 'should return validation_error');
   });
 
-  test('bgsd_plan keeps output parity in forced fallback mode', async () => {
+  test('bgsd_plan validates valid and invalid input', async () => {
     const mod = pluginModule || await import(pluginPath);
     const plugin = await mod.BgsdPlugin({ directory: process.cwd() });
-    const originalFallback = process.env.BGSD_DEP_VALIBOT_FALLBACK;
 
-    try {
-      delete process.env.BGSD_DEP_VALIBOT_FALLBACK;
-      const defaultValid = await plugin.tool.bgsd_plan.execute({ phase: '77' }, { directory: process.cwd() });
-      const defaultInvalid = await plugin.tool.bgsd_plan.execute({ phase: 'not-a-number' }, { directory: process.cwd() });
+    // Get a valid phase number from the overview first
+    const overviewResult = await plugin.tool.bgsd_plan.execute({}, { directory: process.cwd() });
+    const overview = JSON.parse(overviewResult);
+    const validPhase = overview.phases && overview.phases[0] ? String(overview.phases[0].number) : null;
 
-      process.env.BGSD_DEP_VALIBOT_FALLBACK = '1';
-      const fallbackValid = await plugin.tool.bgsd_plan.execute({ phase: '77' }, { directory: process.cwd() });
-      const fallbackInvalid = await plugin.tool.bgsd_plan.execute({ phase: 'not-a-number' }, { directory: process.cwd() });
-
-      assert.deepStrictEqual(JSON.parse(defaultValid), JSON.parse(fallbackValid), 'valid-input contract should match across engines');
-      assert.deepStrictEqual(JSON.parse(defaultInvalid), JSON.parse(fallbackInvalid), 'invalid-input contract should match across engines');
-    } finally {
-      if (originalFallback === undefined) {
-        delete process.env.BGSD_DEP_VALIBOT_FALLBACK;
-      } else {
-        process.env.BGSD_DEP_VALIBOT_FALLBACK = originalFallback;
-      }
+    if (validPhase) {
+      const validResult = await plugin.tool.bgsd_plan.execute({ phase: validPhase }, { directory: process.cwd() });
+      const valid = JSON.parse(validResult);
+      assert.ok(valid.phase || valid.phases, 'valid input should return plan data');
     }
+
+    const invalidResult = await plugin.tool.bgsd_plan.execute({ phase: 'not-a-number' }, { directory: process.cwd() });
+    const invalid = JSON.parse(invalidResult);
+    assert.strictEqual(invalid.error, 'validation_error', 'invalid input should return validation_error');
   });
 
-  test('bgsd_plan emits deterministic validation engine markers in debug mode', async () => {
+  test('bgsd_plan args use Zod schema for OpenCode compatibility', async () => {
     const mod = pluginModule || await import(pluginPath);
     const plugin = await mod.BgsdPlugin({ directory: process.cwd() });
-    const originalDebug = process.env.GSD_DEBUG;
-    const originalFallback = process.env.BGSD_DEP_VALIBOT_FALLBACK;
-    const originalWrite = process.stderr.write;
-    const writes = [];
+    const tool = plugin.tool.bgsd_plan;
 
-    process.env.GSD_DEBUG = '1';
-    delete process.env.BGSD_DEP_VALIBOT_FALLBACK;
-    process.stderr.write = function(chunk, ...args) {
-      writes.push(String(chunk));
-      return originalWrite.call(this, chunk, ...args);
-    };
-
-    try {
-      await plugin.tool.bgsd_plan.execute({ phase: '77' }, { directory: process.cwd() });
-      await plugin.tool.bgsd_plan.execute({ phase: '77' }, { directory: process.cwd() });
-    } finally {
-      process.stderr.write = originalWrite;
-      if (originalDebug === undefined) {
-        delete process.env.GSD_DEBUG;
-      } else {
-        process.env.GSD_DEBUG = originalDebug;
-      }
-      if (originalFallback === undefined) {
-        delete process.env.BGSD_DEP_VALIBOT_FALLBACK;
-      } else {
-        process.env.BGSD_DEP_VALIBOT_FALLBACK = originalFallback;
-      }
-    }
-
-    const markerLines = writes
-      .join('')
-      .split('\n')
-      .filter(line => line.includes('[bGSD:validation-engine] bgsd_plan:'));
-
-    assert.strictEqual(markerLines.length, 2, 'should emit one marker per validation call');
-    assert.strictEqual(markerLines[0], markerLines[1], 'marker should be deterministic for repeated identical input');
+    // Zod schemas have _def property identifying them as ZodType instances
+    assert.ok(tool.args.phase, 'args should have phase parameter');
+    assert.ok(tool.args.phase._def, 'phase arg should be a Zod schema (has _def)');
   });
 
-  test('bgsd_context keeps task coercion contract parity in forced fallback mode', async () => {
+  test('bgsd_context coerces task string to number', async () => {
     const mod = pluginModule || await import(pluginPath);
     const plugin = await mod.BgsdPlugin({ directory: process.cwd() });
 
@@ -522,7 +468,7 @@ plan: 01
 ---
 
 <objective>
-Fixture plan for parity validation tests.
+Fixture plan for validation tests.
 </objective>
 
 <tasks>
@@ -535,55 +481,50 @@ Fixture plan for parity validation tests.
 </tasks>
 `);
 
-      const results = await runWithValidationModes(() =>
+      const result = await runValidation(() =>
         plugin.tool.bgsd_context.execute({ task: '1' }, { directory: tmpDir })
       );
 
-      assert.deepStrictEqual(results.primary, results.fallback, 'task coercion output contract should match across engines');
-      assert.ok(results.primary.task, 'response should include task payload');
-      assert.strictEqual(results.primary.task.number, 1, 'string task arg should coerce to numeric task number');
+      assert.ok(result.task, 'response should include task payload');
+      assert.strictEqual(result.task.number, 1, 'string task arg should coerce to numeric task number');
     } finally {
       cleanup(tmpDir);
     }
   });
 
-  test('bgsd_progress keeps enum validation envelope parity in forced fallback mode', async () => {
+  test('bgsd_progress returns validation_error for invalid enum', async () => {
     const mod = pluginModule || await import(pluginPath);
     const plugin = await mod.BgsdPlugin({ directory: process.cwd() });
 
-    const results = await runWithValidationModes(() =>
+    const result = await runValidation(() =>
       plugin.tool.bgsd_progress.execute({ action: 'not-a-real-action' }, { directory: process.cwd() })
     );
 
-    assert.deepStrictEqual(results.primary, results.fallback, 'enum validation envelope should match across engines');
-    assert.strictEqual(results.primary.error, 'validation_error', 'invalid enum should return validation_error');
+    assert.strictEqual(result.error, 'validation_error', 'invalid enum should return validation_error');
 
-    const progressSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'plugin', 'tools', 'bgsd-progress.js'), 'utf-8');
-    assert.ok(progressSource.includes("validateArgs('bgsd_progress'"), 'bgsd_progress should validate through adapter entrypoint');
-    assert.ok(!progressSource.includes('BGSD_DEP_VALIBOT'), 'bgsd_progress should not read fallback env flags directly');
+    // Verify args use Zod schema for OpenCode compatibility
+    const tool = plugin.tool.bgsd_progress;
+    assert.ok(tool.args.action._def, 'action arg should be a Zod schema (has _def)');
   });
 
-  test('migrated tools keep invalid and missing arg envelopes stable across engines', async () => {
+  test('tools return validation_error for invalid and missing args', async () => {
     const mod = pluginModule || await import(pluginPath);
     const plugin = await mod.BgsdPlugin({ directory: process.cwd() });
 
-    const invalidContext = await runWithValidationModes(() =>
+    const invalidContext = await runValidation(() =>
       plugin.tool.bgsd_context.execute({ task: 'abc' }, { directory: process.cwd() })
     );
-    assert.deepStrictEqual(invalidContext.primary, invalidContext.fallback, 'bgsd_context invalid-input envelope should match across engines');
-    assert.strictEqual(invalidContext.primary.error, 'validation_error');
+    assert.strictEqual(invalidContext.error, 'validation_error');
 
-    const missingProgressAction = await runWithValidationModes(() =>
+    const missingProgressAction = await runValidation(() =>
       plugin.tool.bgsd_progress.execute({}, { directory: process.cwd() })
     );
-    assert.deepStrictEqual(missingProgressAction.primary, missingProgressAction.fallback, 'bgsd_progress missing-action envelope should match across engines');
-    assert.strictEqual(missingProgressAction.primary.error, 'validation_error');
+    assert.strictEqual(missingProgressAction.error, 'validation_error');
 
-    const missingProgressValue = await runWithValidationModes(() =>
+    const missingProgressValue = await runValidation(() =>
       plugin.tool.bgsd_progress.execute({ action: 'remove-blocker' }, { directory: process.cwd() })
     );
-    assert.deepStrictEqual(missingProgressValue.primary, missingProgressValue.fallback, 'bgsd_progress missing-value envelope should match across engines');
-    assert.strictEqual(missingProgressValue.primary.error, 'validation_error');
+    assert.strictEqual(missingProgressValue.error, 'validation_error');
   });
 
   // --- bgsd_validate response test ---

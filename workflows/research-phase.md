@@ -1,7 +1,7 @@
 <purpose>
 Research how to implement a phase. Spawns bgsd-phase-researcher with phase context.
 
-Standalone research command. For most workflows, use `/bgsd plan phase` which integrates research automatically.
+Standalone research command. For most workflows, use `/bgsd-plan-phase` which integrates research automatically.
 </purpose>
 
 <process>
@@ -123,7 +123,7 @@ The following sources were collected automatically from web search and YouTube. 
 </additional_context>
 
 <downstream_consumer>
-Your RESEARCH.md will be loaded by `/bgsd plan phase` which uses specific sections:
+Your RESEARCH.md will be loaded by `/bgsd-plan-phase` which uses specific sections:
 - `## Standard Stack` → Plans use these libraries
 - `## Architecture Patterns` → Task structure follows these
 - `## Don't Hand-Roll` → Tasks NEVER build custom solutions for listed problems

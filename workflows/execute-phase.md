@@ -456,7 +456,7 @@ Create VERIFICATION.md.",
 Read status from VERIFICATION.md:
 - `passed` → update_roadmap
 - `human_needed` → present items for human testing
-- `gaps_found` → present gap summary, offer `/bgsd plan phase {X} --gaps`
+- `gaps_found` → present gap summary, offer `/bgsd-plan-phase {X} --gaps`
 </step>
 
 <step name="update_roadmap">
@@ -485,5 +485,5 @@ Read and follow `transition.md` inline, passing `--auto` flag.
 </process>
 
 <resumption>
-Re-run `/bgsd exec phase {phase}` → discovers completed SUMMARYs → skips them → resumes from first incomplete plan.
+Re-run `/bgsd-execute-phase {phase}` → discovers completed SUMMARYs → skips them → resumes from first incomplete plan.
 </resumption>

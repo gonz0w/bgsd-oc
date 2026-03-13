@@ -101,31 +101,21 @@ function checkSqliteCache(options = {}) {
 }
 
 /**
- * Check valibot/zod parity by comparing the config flags.
+ * Check valibot validation engine status.
  * @param {object} options - Options including env overrides
  * @returns {object} - Parity check result
  */
 function checkValibotParity(options = {}) {
   const env = options.env || process.env;
   const valibotFlag = normalizeFlag(env.BGSD_DEP_VALIBOT);
-  const fallbackFlag = normalizeFlag(env.BGSD_DEP_VALIBOT_FALLBACK);
-
   const valibotEnabled = valibotFlag !== false;
-  const forceFallback = fallbackFlag === true;
-  const activeEngine = forceFallback || !valibotEnabled ? 'zod' : 'valibot';
 
-  // For parity check, we verify that the output contracts are equivalent
-  // when both engines are available. The adapter.js ensures this.
-  // We check if valibot is available and if the fallback is enabled.
-  
   return {
     optimization: 'valibot',
-    match: true, // Adapter ensures output contract parity
+    match: true,
     details: {
       valibotEnabled,
-      forceFallback,
-      activeEngine,
-      parityGuaranteed: true, // Adapter normalizes output contracts
+      activeEngine: 'valibot',
     },
     onlyLegacy: [],
     onlyOptimized: [],

@@ -55,7 +55,10 @@ function cmdPhasesList(cwd, options, raw) {
     // If filtering by phase number
     if (phase) {
       const normalized = normalizePhaseName(phase);
-      const match = dirs.find(d => d.startsWith(normalized));
+      const match = dirs.find(d => {
+        const dm = d.match(/^(\d+(?:\.\d+)?)/);
+        return dm ? normalizePhaseName(dm[1]) === normalized : d.startsWith(normalized);
+      });
       if (!match) {
         output({ files: [], count: 0, phase_dir: null, error: 'Phase not found' }, raw, '');
         return;

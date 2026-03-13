@@ -20,8 +20,8 @@ import { join } from 'path';
 /**
  * Enrich a /bgsd-* command with project context.
  *
- * @param {object} input - Command input { command: string, parts: string[] }
- * @param {object} output - Mutable output { parts: string[] }
+ * @param {object} input - Command input { command: string, sessionID: string, arguments: string }
+ * @param {object} output - Mutable output { parts: Part[] } where Part is { type: string, text: string, ... }
  * @param {string} [cwd] - Working directory
  */
 export function enrichCommand(input, output, cwd) {
@@ -41,9 +41,10 @@ export function enrichCommand(input, output, cwd) {
   } catch (err) {
     // Enrichment failure — tell agent to run /bgsd-health
     if (output.parts) {
-      output.parts.unshift(
-        '<bgsd-context>\n{"error": "Failed to load project state. Run /bgsd-health to diagnose."}\n</bgsd-context>'
-      );
+      output.parts.unshift({
+        type: 'text',
+        text: '<bgsd-context>\n{"error": "Failed to load project state. Run /bgsd-health to diagnose."}\n</bgsd-context>',
+      });
     }
     return;
   }
@@ -52,9 +53,10 @@ export function enrichCommand(input, output, cwd) {
   if (!projectState) {
     if (command !== 'bgsd-new-project' && command !== 'bgsd-help') {
       if (output.parts) {
-        output.parts.unshift(
-          '<bgsd-context>\n{"error": "No .planning/ directory found. Run /bgsd-new-project to initialize."}\n</bgsd-context>'
-        );
+        output.parts.unshift({
+          type: 'text',
+          text: '<bgsd-context>\n{"error": "No .planning/ directory found. Run /bgsd-new-project to initialize."}\n</bgsd-context>',
+        });
       }
     }
     return;
@@ -137,9 +139,10 @@ export function enrichCommand(input, output, cwd) {
 
   // Prepend enrichment as <bgsd-context> XML block
   if (output.parts) {
-    output.parts.unshift(
-      `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`
-    );
+    output.parts.unshift({
+      type: 'text',
+      text: `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`,
+    });
   }
 }
 

@@ -1,8 +1,8 @@
 ---
-description: GitHub CI quality gate — push branch, create PR, run code scanning, fix issues, auto-merge
+description: CI workflow - push, create PR, run code scanning, fix loop, and auto-merge
 ---
 <objective>
-Run GitHub CI quality gate: push branch, create PR, monitor code scanning checks, fix issues, and auto-merge.
+Execute CI workflow: push changes, create PR, run code scanning, fix issues in loop, auto-merge.
 </objective>
 
 <execution_context>
@@ -10,11 +10,7 @@ Run GitHub CI quality gate: push branch, create PR, monitor code scanning checks
 </execution_context>
 
 <context>
-Arguments: $ARGUMENTS
-- --branch {name} — Override branch name
-- --base {branch} — Target branch (default: main)
-- --no-merge — Skip auto-merge
-- --scope {phase-plan or quick-N} — Context identifier
+$ARGUMENTS: Optional arguments
 </context>
 
 <process>

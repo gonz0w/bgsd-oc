@@ -1,18 +1,18 @@
 ---
-description: Backward-compatible wrapper for progress command
+description: Show project progress and status
 ---
 <objective>
-Show project progress and route to next action.
+Show project progress and status.
 </objective>
 
 <execution_context>
-Routes to: progress workflow
+@__OPENCODE_CONFIG__/bgsd-oc/workflows/progress.md
 </execution_context>
 
 <context>
-$ARGUMENTS: Passed to progress workflow
+$ARGUMENTS: Optional arguments
 </context>
 
 <process>
-Route to progress workflow with all arguments.
+Execute the progress workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/progress.md end-to-end.
 </process>

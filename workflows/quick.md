@@ -40,7 +40,7 @@ If `$FULL_MODE`:
 
 Parse `<bgsd-context>` JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
 
-**If `roadmap_exists` false:** Error — run `/bgsd plan project` first.
+**If `roadmap_exists` false:** Error — run `/bgsd-new-project` first.
 
 ---
 
@@ -314,7 +314,7 @@ Quick Task ${next_num}: ${DESCRIPTION}
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Verification: ${QUICK_DIR}/${next_num}-VERIFICATION.md (${VERIFICATION_STATUS})
 Commit: ${commit_hash}
-Ready for next task: /bgsd-quick
+Ready for next task: /bgsd-quick-task
 ```
 
 **If NOT `$FULL_MODE`:**
@@ -323,7 +323,7 @@ bGSD > QUICK TASK COMPLETE
 Quick Task ${next_num}: ${DESCRIPTION}
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Commit: ${commit_hash}
-Ready for next task: /bgsd-quick
+Ready for next task: /bgsd-quick-task
 ```
 </process>
 

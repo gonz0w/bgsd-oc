@@ -11,15 +11,15 @@ Read all files referenced by the invoking prompt's execution_context before star
 <step name="parse_arguments">
 Parse the command arguments:
 - All arguments become the phase description
-- Example: `/bgsd roadmap add Add authentication` → description = "Add authentication"
-- Example: `/bgsd roadmap add Fix critical performance issues` → description = "Fix critical performance issues"
+- Example: `/bgsd-add-phase Add authentication` → description = "Add authentication"
+- Example: `/bgsd-add-phase Fix critical performance issues` → description = "Fix critical performance issues"
 
 If no arguments provided:
 
 ```
 ERROR: Phase description required
-Usage: /bgsd roadmap add <description>
-Example: /bgsd roadmap add Add authentication system
+Usage: /bgsd-add-phase <description>
+Example: /bgsd-add-phase Add authentication system
 ```
 
 Exit.
@@ -33,7 +33,7 @@ Exit.
 Check `roadmap_exists` from `<bgsd-context>` JSON. If false:
 ```
 ERROR: No roadmap found (.planning/ROADMAP.md)
-Run /bgsd plan project to initialize.
+Run /bgsd-new-project to initialize.
 ```
 Exit.
 </step>
@@ -84,14 +84,14 @@ Roadmap updated: .planning/ROADMAP.md
 
 **Phase {N}: {description}**
 
-`/bgsd plan phase {N}`
+`/bgsd-plan-phase {N}`
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd roadmap add <description>` — add another phase
+- `/bgsd-add-phase <description>` — add another phase
 - Review roadmap
 
 ---

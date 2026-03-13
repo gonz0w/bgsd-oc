@@ -1,11 +1,7 @@
+import { z } from 'zod';
 import { getProjectState } from '../project-state.js';
 import { parseRoadmap } from '../parsers/roadmap.js';
 import { parsePlans } from '../parsers/plan.js';
-import { createObjectSchema, validateArgs } from '../validation/adapter.js';
-
-const PLAN_ARGS_SCHEMA = createObjectSchema({
-  phase: { type: 'coerceNumber', optional: true },
-});
 
 /**
  * bgsd_plan — Roadmap and phase reader.
@@ -24,30 +20,18 @@ export const bgsd_plan = {
     'Use no-args mode to understand project structure. Use phase mode to dive into specific phase details.',
 
   args: {
-    phase: {
-      type: 'number',
-      optional: true,
-      description: 'Phase number to get details for. Omit for roadmap overview.',
-    },
+    phase: z.coerce.number().optional().describe('Phase number to get details for. Omit for roadmap overview.'),
   },
 
   async execute(args, context) {
     try {
-      const parsedArgs = validateArgs('bgsd_plan', PLAN_ARGS_SCHEMA, args);
-      if (!parsedArgs.ok) {
-        return JSON.stringify({
-          error: parsedArgs.error.code,
-          message: parsedArgs.error.message,
-        });
-      }
-
       const projectDir = context?.directory || process.cwd();
       const projectState = getProjectState(projectDir);
 
       if (!projectState) {
         return JSON.stringify({
           status: 'no_project',
-          message: 'No .planning/ directory found. Run /bgsd plan project to initialize a project.',
+          message: 'No .planning/ directory found. Run /bgsd-new-project to initialize a project.',
         });
       }
 
@@ -60,8 +44,16 @@ export const bgsd_plan = {
         });
       }
 
+      // Validate phase if provided (defense-in-depth for direct calls)
+      if (args.phase !== undefined && args.phase !== null && isNaN(Number(args.phase))) {
+        return JSON.stringify({
+          error: 'validation_error',
+          message: 'Invalid input: expected number, received NaN',
+        });
+      }
+
       // No-args mode: roadmap summary
-      if (parsedArgs.data.phase === undefined || parsedArgs.data.phase === null) {
+      if (args.phase === undefined || args.phase === null) {
         const phases = roadmap.phases.map(p => ({
           number: p.number,
           name: p.name,
@@ -78,17 +70,17 @@ export const bgsd_plan = {
       }
 
       // Phase mode: detailed phase info
-      const phaseDetail = roadmap.getPhase(parsedArgs.data.phase);
+      const phaseDetail = roadmap.getPhase(args.phase);
 
       if (!phaseDetail) {
         return JSON.stringify({
           error: 'validation_error',
-          message: `Phase ${parsedArgs.data.phase} not found in roadmap. Call bgsd_plan with no args to see available phases.`,
+          message: `Phase ${args.phase} not found in roadmap. Call bgsd_plan with no args to see available phases.`,
         });
       }
 
       // Get plans for this phase
-      const plans = parsePlans(parsedArgs.data.phase, projectDir);
+      const plans = parsePlans(args.phase, projectDir);
       const planData = plans.map(p => ({
         plan: p.frontmatter.plan || null,
         wave: p.frontmatter.wave || null,

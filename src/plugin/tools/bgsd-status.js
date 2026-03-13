@@ -1,7 +1,4 @@
 import { getProjectState } from '../project-state.js';
-import { createObjectSchema, validateArgs } from '../validation/adapter.js';
-
-const STATUS_ARGS_SCHEMA = createObjectSchema({});
 
 /**
  * bgsd_status — Execution state reader.
@@ -21,21 +18,13 @@ export const bgsd_status = {
 
   async execute(args, context) {
     try {
-      const parsedArgs = validateArgs('bgsd_status', STATUS_ARGS_SCHEMA, args);
-      if (!parsedArgs.ok) {
-        return JSON.stringify({
-          error: parsedArgs.error.code,
-          message: parsedArgs.error.message,
-        });
-      }
-
       const projectDir = context?.directory || process.cwd();
       const projectState = getProjectState(projectDir);
 
       if (!projectState) {
         return JSON.stringify({
           status: 'no_project',
-          message: 'No .planning/ directory found. Run /bgsd plan project to initialize a project.',
+          message: 'No .planning/ directory found. Run /bgsd-new-project to initialize a project.',
         });
       }
 
@@ -84,7 +73,7 @@ export const bgsd_status = {
             task: i + 1,
             name: t.name || null,
             files: t.files || [],
-            status: 'pending', // Plan 02 bgsd_progress will add completion tracking
+            status: 'pending',
           });
         }
       }

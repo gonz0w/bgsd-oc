@@ -487,7 +487,10 @@ function cmdFindPhase(cwd, phase, raw) {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
     const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
 
-    const match = dirs.find(d => d.startsWith(normalized));
+    const match = dirs.find(d => {
+      const dm = d.match(/^(\d+(?:\.\d+)?)/);
+      return dm ? normalizePhaseName(dm[1]) === normalized : d.startsWith(normalized);
+    });
     if (!match) {
       output(notFound, raw, '');
       return;
@@ -969,22 +972,16 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
     error('phase required for phase-plan-index');
   }
 
-  const phasesDir = path.join(cwd, '.planning', 'phases');
   const normalized = normalizePhaseName(phase);
 
-  // Find phase directory
+  // Find phase directory via shared tree (handles zero-padded dir names)
   let phaseDir = null;
   let phaseDirName = null;
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
-    const match = dirs.find(d => d.startsWith(normalized));
-    if (match) {
-      phaseDir = path.join(phasesDir, match);
-      phaseDirName = match;
-    }
-  } catch (e) {
-    debugLog('phase.planIndex', 'readdir failed', e);
+  const tree = getPhaseTree(cwd);
+  const cached = tree.get(normalized);
+  if (cached) {
+    phaseDir = cached.fullPath;
+    phaseDirName = cached.dirName;
   }
 
   if (!phaseDir) {

@@ -1,9 +1,9 @@
+import { z } from 'zod';
 import { getProjectState } from '../project-state.js';
 import { readFileSync, writeFileSync, mkdirSync, rmdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { invalidateState } from '../parsers/state.js';
 import { invalidatePlans } from '../parsers/plan.js';
-import { createObjectSchema, validateArgs } from '../validation/adapter.js';
 
 /**
  * bgsd_progress — State mutation tool.
@@ -17,14 +17,8 @@ import { createObjectSchema, validateArgs } from '../validation/adapter.js';
  */
 
 const LOCK_STALE_MS = 10000; // 10 seconds
-const PROGRESS_ARGS_SCHEMA = createObjectSchema({
-  action: {
-    type: 'enum',
-    values: ['complete-task', 'uncomplete-task', 'add-blocker', 'remove-blocker', 'record-decision', 'advance'],
-    optional: false,
-  },
-  value: { type: 'string', optional: true },
-});
+
+const VALID_ACTIONS = ['complete-task', 'uncomplete-task', 'add-blocker', 'remove-blocker', 'record-decision', 'advance'];
 
 export const bgsd_progress = {
   description:
@@ -40,16 +34,8 @@ export const bgsd_progress = {
     'Returns updated state snapshot after the change.',
 
   args: {
-    action: {
-      type: 'enum',
-      values: ['complete-task', 'uncomplete-task', 'add-blocker', 'remove-blocker', 'record-decision', 'advance'],
-      description: 'The progress action to perform',
-    },
-    value: {
-      type: 'string',
-      optional: true,
-      description: 'Value for the action: blocker text for add-blocker, blocker index (1-based) for remove-blocker, decision text for record-decision. Not needed for complete-task, uncomplete-task, advance.',
-    },
+    action: z.enum(VALID_ACTIONS).describe('The progress action to perform'),
+    value: z.string().optional().describe('Value for the action: blocker text for add-blocker, blocker index (1-based) for remove-blocker, decision text for record-decision. Not needed for complete-task, uncomplete-task, advance.'),
   },
 
   async execute(args, context) {
@@ -57,32 +43,31 @@ export const bgsd_progress = {
     const lockDir = join(projectDir, '.planning', '.lock');
 
     try {
-      const parsedArgs = validateArgs('bgsd_progress', PROGRESS_ARGS_SCHEMA, args);
-      if (!parsedArgs.ok) {
+      // Validate action (defense-in-depth for direct calls bypassing Zod)
+      if (!args.action || !VALID_ACTIONS.includes(args.action)) {
         return JSON.stringify({
-          error: parsedArgs.error.code,
-          message: parsedArgs.error.message,
+          error: 'validation_error',
+          message: `Invalid option: expected one of ${VALID_ACTIONS.map(a => `"${a}"`).join('|')}`,
         });
       }
-      const validatedArgs = parsedArgs.data;
 
       // Check project exists
       const projectState = getProjectState(projectDir);
       if (!projectState) {
         return JSON.stringify({
           status: 'no_project',
-          message: 'No .planning/ directory found. Run /bgsd plan project to initialize a project.',
+          message: 'No .planning/ directory found. Run /bgsd-new-project to initialize a project.',
         });
       }
 
       // Validate action-specific requirements
-      if ((validatedArgs.action === 'add-blocker' || validatedArgs.action === 'record-decision') && !validatedArgs.value) {
+      if ((args.action === 'add-blocker' || args.action === 'record-decision') && !args.value) {
         return JSON.stringify({
           error: 'validation_error',
-          message: `Action '${validatedArgs.action}' requires a 'value' parameter.`,
+          message: `Action '${args.action}' requires a 'value' parameter.`,
         });
       }
-      if (validatedArgs.action === 'remove-blocker' && !validatedArgs.value) {
+      if (args.action === 'remove-blocker' && !args.value) {
         return JSON.stringify({
           error: 'validation_error',
           message: "Action 'remove-blocker' requires a 'value' parameter (blocker index, 1-based).",
@@ -127,11 +112,10 @@ export const bgsd_progress = {
         const { state } = projectState;
         let actionResult = null;
 
-        switch (validatedArgs.action) {
+        switch (args.action) {
           case 'complete-task': {
             // Increment progress percentage
             const currentProgress = state.progress !== null ? state.progress : 0;
-            // Estimate step based on total tasks or use 10% increments
             const step = 10;
             const newProgress = Math.min(100, currentProgress + step);
             content = updateProgress(content, newProgress);
@@ -140,7 +124,6 @@ export const bgsd_progress = {
           }
 
           case 'uncomplete-task': {
-            // Decrement progress
             const currentProgress = state.progress !== null ? state.progress : 0;
             const step = 10;
             const newProgress = Math.max(0, currentProgress - step);
@@ -150,13 +133,13 @@ export const bgsd_progress = {
           }
 
           case 'add-blocker': {
-            content = addBlocker(content, validatedArgs.value);
-            actionResult = `Blocker added: ${validatedArgs.value}`;
+            content = addBlocker(content, args.value);
+            actionResult = `Blocker added: ${args.value}`;
             break;
           }
 
           case 'remove-blocker': {
-            const idx = parseInt(validatedArgs.value, 10);
+            const idx = parseInt(args.value, 10);
             if (isNaN(idx) || idx < 1) {
               return JSON.stringify({
                 error: 'validation_error',
@@ -176,8 +159,8 @@ export const bgsd_progress = {
           }
 
           case 'record-decision': {
-            content = recordDecision(content, validatedArgs.value, state.phase);
-            actionResult = `Decision recorded: ${validatedArgs.value}`;
+            content = recordDecision(content, args.value, state.phase);
+            actionResult = `Decision recorded: ${args.value}`;
             break;
           }
 
@@ -205,7 +188,7 @@ export const bgsd_progress = {
 
         return JSON.stringify({
           success: true,
-          action: validatedArgs.action,
+          action: args.action,
           result: actionResult,
           state: {
             phase: fresh ? fresh.phase : null,
@@ -232,18 +215,13 @@ export const bgsd_progress = {
 
 // --- Helper functions for STATE.md manipulation ---
 
-/**
- * Update progress bar and percentage in STATE.md content.
- */
 function updateProgress(content, newPercent) {
-  // Update progress bar: [█████░░░░░] XX%
   const barLength = 10;
   const filled = Math.round(newPercent / 100 * barLength);
   const empty = barLength - filled;
   const newBar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
   const progressLine = `**Progress:** [${newBar}] ${newPercent}%`;
 
-  // Replace existing progress line
   const replaced = content.replace(
     /\*\*Progress:\*\*\s*\[[\u2588\u2591]+\]\s*\d+%/,
     progressLine
@@ -252,16 +230,11 @@ function updateProgress(content, newPercent) {
   return replaced;
 }
 
-/**
- * Add a blocker to the Blockers/Concerns section.
- */
 function addBlocker(content, blockerText) {
-  // Find ### Blockers/Concerns section
   const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
   const match = content.match(sectionPattern);
 
   if (!match) {
-    // No section found — append one
     return content + '\n### Blockers/Concerns\n\n- ' + blockerText + '\n';
   }
 
@@ -269,20 +242,15 @@ function addBlocker(content, blockerText) {
   let body = match[2];
   const after = match[3];
 
-  // If body is just "None" or empty, replace it
   if (body.trim().toLowerCase() === 'none' || body.trim() === '') {
     body = '\n- ' + blockerText + '\n';
   } else {
-    // Append to existing blockers
     body = body.trimEnd() + '\n- ' + blockerText + '\n';
   }
 
   return content.replace(sectionPattern, header + body + after);
 }
 
-/**
- * Remove a blocker by 1-based index from the Blockers/Concerns section.
- */
 function removeBlocker(content, index) {
   const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
   const match = content.match(sectionPattern);
@@ -313,9 +281,6 @@ function removeBlocker(content, index) {
   return { content: content.replace(sectionPattern, header + newBody + after) };
 }
 
-/**
- * Record a decision to the Decisions section.
- */
 function recordDecision(content, decisionText, phase) {
   const phaseTag = phase ? phase.match(/^(\d+)/)?.[1] || '?' : '?';
   const entry = `- [Phase ${phaseTag}]: ${decisionText}`;
@@ -336,15 +301,11 @@ function recordDecision(content, decisionText, phase) {
   return content.replace(sectionPattern, header + body + after);
 }
 
-/**
- * Advance to next plan number.
- */
 function advancePlan(content, currentPlan) {
   if (!currentPlan) {
     return { content, message: 'No current plan to advance from' };
   }
 
-  // Parse current plan number from "Plan 01 complete, Plan 02 pending" or just "02"
   const planNumMatch = currentPlan.match(/(\d+)\s*(?:pending|$)/i) || currentPlan.match(/(\d+)/);
   if (!planNumMatch) {
     return { content, message: `Could not parse plan number from: ${currentPlan}` };
@@ -354,7 +315,6 @@ function advancePlan(content, currentPlan) {
   const nextNum = currentNum + 1;
   const nextPlanStr = `Plan ${String(currentNum).padStart(2, '0')} complete, Plan ${String(nextNum).padStart(2, '0')} pending`;
 
-  // Replace the Current Plan line
   const updated = content.replace(
     /\*\*Current Plan:\*\*\s*[^\n]+/,
     `**Current Plan:** ${nextPlanStr}`
