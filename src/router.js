@@ -969,6 +969,10 @@ Use without --exact for fuzzy matching.`);
           const seFieldsIdx = restArgs.indexOf('--fields');
           const fields = seFieldsIdx !== -1 ? restArgs[seFieldsIdx + 1].split(',') : null;
           lazyMisc().cmdSummaryExtract(cwd, summaryPath, fields, raw);
+        } else if (subcommand === 'summary-generate') {
+          const sgPhase = restArgs[0];
+          const sgPlan = restArgs[1];
+          lazyMisc().cmdSummaryGenerate(cwd, sgPhase, sgPlan, raw);
         } else if (subcommand === 'quick-summary') {
           lazyFeatures().cmdQuickTaskSummary(cwd, raw);
         } else if (subcommand === 'extract-sections') {
@@ -1204,7 +1208,7 @@ Examples:
           const formatted = examples.map(ex => examplesMod.formatExample(ex, verbose)).join('\n');
           output({ command, examples, formatted }, raw);
         } else {
-          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, quick-summary, extract-sections, git, tools, runtime, measure, recovery, history, examples`);
+          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, summary-generate, quick-summary, extract-sections, git, tools, runtime, measure, recovery, history, examples`);
         }
         break;
       }

@@ -432,6 +432,7 @@ function validateCommandRegistry() {
       'phase-plan-index': null,
       'state-snapshot': null,
       'summary-extract': null,
+      'summary-generate': null,
       'quick-summary': null,
       'extract-sections': null,
       'validate-commands': null
