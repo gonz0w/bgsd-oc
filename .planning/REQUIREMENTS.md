@@ -1,54 +1,75 @@
-# Milestone v11.2 Requirements
+# Requirements: bGSD Plugin v11.3
 
-**Version:** v11.2
-**Name:** Code Cleanup
-**Started:** 2026-03-12
+**Defined:** 2026-03-13
+**Core Value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
 
-## Current Requirements
+## v11.3 Requirements
 
-### Phase 106: Code Cleanup (CLEAN-01 - CLEAN-05)
+Requirements for LLM Offloading milestone. Each maps to roadmap phases.
 
-- [x] **CLEAN-01**: Audit src/ for unused exports — Scan src/ directory for exported functions/variables that are never imported within the codebase
-- [x] **CLEAN-02**: Remove verify:orphans — Delete the verify:orphans command and related code (one-time cleanup)
-- [x] **CLEAN-03**: Remove test infrastructure from bundle — Strip node:test, test files, and test utilities from the build output
-- [x] **CLEAN-04**: Remove performance profiling from bundle — Strip profiler.js, benchmarking code from the build output
-- [x] **CLEAN-05**: Measure bundle reduction — Report before/after bundle size to quantify improvements
+### Audit & Decision Framework
 
-### Phase 107: Unused Exports Cleanup (UNUSED-01 - UNUSED-03)
+- [ ] **AUDIT-01**: User can run a codebase scan that catalogs all LLM-offloadable decisions across workflows and agents
+- [ ] **AUDIT-02**: Each offloading candidate is evaluated against a decision criteria rubric (finite inputs, deterministic output, no NLU needed)
+- [ ] **AUDIT-03**: User can see estimated token savings per offloaded decision and per category
 
-- [ ] **UNUSED-01**: Scan src/ for all exports — Use AST analysis to find all exported functions and variables
-- [ ] **UNUSED-02**: Identify unused exports — Determine which exports are never imported within src/
-- [ ] **UNUSED-03**: Remove unused exports — Remove verified unused exports after confirmation
+### Decision Engine & Rules
 
-### Phase 108: Dead Code Removal (DEAD-01 - DEAD-03)
+- [ ] **ENGINE-01**: Shared decision-rules.js module provides pure functions for deterministic decisions (lookup tables, weighted scoring, template functions)
+- [ ] **ENGINE-02**: Plugin decision engine makes in-process decisions via existing hooks without subprocess overhead
+- [ ] **ENGINE-03**: CLI decisions command allows querying and debugging decision logic from the command line
+- [ ] **ENGINE-04**: Progressive confidence model (HIGH/MEDIUM/LOW) gates decisions — HIGH is authoritative, MEDIUM/LOW invite LLM override
 
-- [ ] **DEAD-01**: Detect unreachable code — Find code paths that can never execute (after return/throw/break)
-- [ ] **DEAD-02**: Analyze control flow — Identify dead branches and unreachable functions
-- [ ] **DEAD-03**: Remove dead code — Remove unreachable code after verification
+### Workflow Integration
 
-### Phase 109: Duplicate Code Merge (DUPE-01 - DUPE-03)
+- [ ] **FLOW-01**: Extended bgsd-context JSON includes pre-computed decisions that workflows consume directly
+- [ ] **FLOW-02**: Workflow files simplified to consume pre-computed decisions instead of re-deriving them via LLM reasoning
+- [ ] **FLOW-03**: Token savings telemetry measures before/after LLM call reduction per workflow
 
-- [ ] **DUPE-01**: Find duplicate patterns — Identify duplicate or similar code across src/
-- [ ] **DUPE-02**: Design consolidation — Determine how to extract common patterns into shared utilities
-- [ ] **DUPE-03**: Merge duplicates — Consolidate duplicate code into shared utilities
+## Future Requirements
 
----
+Deferred to future milestone.
+
+### Advanced Offloading
+
+- **ADV-01**: Automated workflow rewriter that programmatically simplifies workflow .md files based on decision catalog
+- **ADV-02**: Decision performance dashboard showing real-time offloading metrics
+- **ADV-03**: A/B testing framework comparing LLM vs code decision quality
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Full NL understanding in code | Requires LLM — violates the decision criteria rubric |
+| Plan content generation | Requires judgment and creativity — not deterministic |
+| Code review decisions | Requires understanding intent and quality — LLM territory |
+| Scope creep detection | Requires comparing intent to implementation — needs reasoning |
+| Deviation classification | Gray areas need LLM judgment, not rule-based classification |
+| Rule engine library (json-rules-engine) | Over-engineering — plain JS patterns already proven in codebase |
+| Template engine (Handlebars, etc.) | Unnecessary dependency — template literals sufficient |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| CLEAN-01 | 106 | Complete |
-| CLEAN-02 | 106 | Complete |
-| CLEAN-03 | 106 | Complete |
-| CLEAN-04 | 106 | Complete |
-| CLEAN-05 | 106 | Complete |
-| UNUSED-01 | 107 | Pending |
-| UNUSED-02 | 107 | Pending |
-| UNUSED-03 | 107 | Pending |
-| DEAD-01 | 108 | Pending |
-| DEAD-02 | 108 | Pending |
-| DEAD-03 | 108 | Pending |
-| DUPE-01 | 109 | Pending |
-| DUPE-02 | 109 | Pending |
-| DUPE-03 | 109 | Pending |
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status | Test Command |
+|-------------|-------|--------|--------------|
+| AUDIT-01 | TBD | Pending | npm test |
+| AUDIT-02 | TBD | Pending | npm test |
+| AUDIT-03 | TBD | Pending | npm test |
+| ENGINE-01 | TBD | Pending | npm test |
+| ENGINE-02 | TBD | Pending | npm test |
+| ENGINE-03 | TBD | Pending | npm test |
+| ENGINE-04 | TBD | Pending | npm test |
+| FLOW-01 | TBD | Pending | npm test |
+| FLOW-02 | TBD | Pending | npm test |
+| FLOW-03 | TBD | Pending | npm test |
+
+**Coverage:**
+- v11.3 requirements: 10 total
+- Mapped to phases: 0
+- Unmapped: 10
+
+---
+*Requirements defined: 2026-03-13*
+*Last updated: 2026-03-13 after initial definition*
