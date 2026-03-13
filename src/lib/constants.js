@@ -939,6 +939,53 @@ Examples:
   bgsd-tools measure --bin ./bin/bgsd-tools.cjs`,
 
   // audit namespace
+  // decisions namespace
+  'decisions:list': `Usage: bgsd-tools decisions:list
+
+List all registered decision rules with category, confidence range, and description.
+
+Groups rules by category with section headers. Shows total rules and categories.
+
+Output: { rules, summary: { total_rules, categories, category_list } }
+
+Examples:
+  bgsd-tools decisions:list
+  bgsd-tools decisions:list --raw`,
+
+  'decisions:inspect': `Usage: bgsd-tools decisions:inspect <rule_id>
+
+Show full details of a specific decision rule.
+
+Arguments:
+  rule_id    The rule identifier (e.g., progress-route, context-gate)
+
+Output: { id, name, category, description, inputs, outputs, confidence_range }
+
+If rule not found, shows available rule IDs.
+
+Examples:
+  bgsd-tools decisions:inspect progress-route
+  bgsd-tools decisions:inspect context-gate --raw`,
+
+  'decisions:evaluate': `Usage: bgsd-tools decisions:evaluate <rule_id> [--state '{json}']
+
+Evaluate a decision rule against a given state object.
+
+Arguments:
+  rule_id          The rule identifier to evaluate
+
+Options:
+  --state '{json}' JSON state object with input values for the rule
+
+Output: { value, confidence, rule_id, metadata? }
+
+If --state is omitted, evaluates with empty state (default values).
+
+Examples:
+  bgsd-tools decisions:evaluate context-gate --state '{"context_present":true}'
+  bgsd-tools decisions:evaluate progress-route --state '{"plan_count":3,"summary_count":1,"roadmap_exists":true,"project_exists":true,"state_exists":true}'
+  bgsd-tools decisions:evaluate auto-advance --state '{"auto_advance_config":true}' --raw`,
+
   'audit:scan': `Usage: bgsd-tools audit:scan
 
 Scan workflows and agents for LLM-offloadable decisions with rubric scoring and token estimates.

@@ -25,7 +25,11 @@ const COMMAND_ALIASES = {
   'u:p': 'util:progress',
   'i': 'init',
   'i:n': 'init:new-project',
-  'i:e': 'init:execute-phase'
+  'i:e': 'init:execute-phase',
+  'd': 'decisions',
+  'd:l': 'decisions:list',
+  'd:i': 'decisions:inspect',
+  'd:e': 'decisions:evaluate'
 };
 
 const COMMAND_CATEGORIES = {
@@ -39,7 +43,7 @@ const COMMAND_CATEGORIES = {
   },
   analysis: {
     name: 'Analysis',
-    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review']
+    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review', 'decisions:list', 'decisions:inspect', 'decisions:evaluate']
   },
   utility: {
     name: 'Utility',
@@ -445,6 +449,11 @@ function validateCommandRegistry() {
       'nlm-report': null
     },
     'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
+    'decisions': {
+      'list': null,
+      'inspect': null,
+      'evaluate': null
+    },
     'measure': null,
     'runtime': null,
     'profile': null

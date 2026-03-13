@@ -106,6 +106,7 @@ function lazyRuntime() { return _modules.runtime || (_modules.runtime = require(
 function lazyMeasure() { return _modules.measure || (_modules.measure = require('./commands/measure')); }
 function lazyRecovery() { return _modules.recovery || (_modules.recovery = require('./lib/recovery')); }
 function lazyAudit() { return _modules.audit || (_modules.audit = require('./commands/audit')); }
+function lazyDecisions() { return _modules.decisions || (_modules.decisions = require('./commands/decisions')); }
 
 
 async function main() {
@@ -226,7 +227,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -1260,9 +1261,23 @@ Examples:
         break;
       }
 
+      // decisions namespace
+      case 'decisions': {
+        if (subCmd === 'list') {
+          lazyDecisions().cmdDecisionsList(cwd, restArgs, raw);
+        } else if (subCmd === 'inspect') {
+          lazyDecisions().cmdDecisionsInspect(cwd, restArgs, raw);
+        } else if (subCmd === 'evaluate') {
+          lazyDecisions().cmdDecisionsEvaluate(cwd, restArgs, raw);
+        } else {
+          error('Unknown decisions subcommand. Available: list, inspect, evaluate');
+        }
+        break;
+      }
+
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions`);
     }
     return; // Exit after handling namespaced command
   }
@@ -1296,7 +1311,7 @@ Examples:
   }
 
   // No command matched any namespace — unknown
-  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache`);
+  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions`);
 }
 
 // Track command execution in history (Phase 97: UX Polish)

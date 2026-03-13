@@ -1,5 +1,6 @@
 import { getProjectState } from './project-state.js';
 import { parsePlans } from './parsers/index.js';
+import { evaluateDecisions } from '../lib/decision-rules.js';
 import { readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -136,6 +137,14 @@ export function enrichCommand(input, output, cwd) {
       }
     }
   }
+
+  // In-process decision evaluation (ENGINE-02: no subprocess overhead)
+  try {
+    const decisions = evaluateDecisions(command, enrichment);
+    if (decisions && Object.keys(decisions).length > 0) {
+      enrichment.decisions = decisions;
+    }
+  } catch { /* decision evaluation failure is non-fatal */ }
 
   // Prepend enrichment as <bgsd-context> XML block
   if (output.parts) {
