@@ -9,9 +9,9 @@ Requirements for LLM Offloading milestone. Each maps to roadmap phases.
 
 ### Audit & Decision Framework
 
-- [ ] **AUDIT-01**: User can run a codebase scan that catalogs all LLM-offloadable decisions across workflows and agents
-- [ ] **AUDIT-02**: Each offloading candidate is evaluated against a decision criteria rubric (finite inputs, deterministic output, no NLU needed)
-- [ ] **AUDIT-03**: User can see estimated token savings per offloaded decision and per category
+- [x] **AUDIT-01**: User can run a codebase scan that catalogs all LLM-offloadable decisions across workflows and agents
+- [x] **AUDIT-02**: Each offloading candidate is evaluated against a decision criteria rubric (finite inputs, deterministic output, no NLU needed)
+- [x] **AUDIT-03**: User can see estimated token savings per offloaded decision and per category
 
 ### Decision Engine & Rules
 
@@ -54,9 +54,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| AUDIT-01 | Phase 110 | Pending | npm test |
-| AUDIT-02 | Phase 110 | Pending | npm test |
-| AUDIT-03 | Phase 110 | Pending | npm test |
+| AUDIT-01 | Phase 110 | Complete | npm test |
+| AUDIT-02 | Phase 110 | Complete | npm test |
+| AUDIT-03 | Phase 110 | Complete | npm test |
 | ENGINE-01 | Phase 111 | Pending | npm test |
 | ENGINE-02 | Phase 111 | Pending | npm test |
 | ENGINE-03 | Phase 111 | Pending | npm test |
