@@ -79,7 +79,9 @@
   3. All 762+ existing tests pass, plus targeted tests added for each replaced decision point
   4. Workflows that previously required LLM reasoning for deterministic decisions now consume pre-computed values
 
-**Plans:** TBD (replanning from scratch)
+**Plans:**
+- 0110-01: Remove old audit CLI artifacts + severity.js cross-reference (wave 1, AUDIT-03)
+- 0110-02: Inline replace 4 LLM decision points in enricher + tests (wave 1, AUDIT-01, AUDIT-02)
 
 ---
 
