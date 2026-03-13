@@ -1,18 +1,18 @@
-# Phase 110: Audit & Decision Framework - Research
+# Phase 110: Audit & Decision Framework - Research (Rescoped)
 
-**Researched:** 2026-03-13
-**Domain:** Static analysis of workflow decision points, rubric-based scoring, token estimation
+**Researched:** 2026-03-13 (revised — replaces previous catalog-focused research)
+**Domain:** Inline replacement of LLM-dependent deterministic decision logic
 **Confidence:** HIGH
 
 ## Summary
 
-Phase 110 is an audit phase — no new runtime code, no new dependencies. The deliverable is a CLI scan command (`audit:scan` or similar) that reads all 44 workflow `.md` files and agent definitions, identifies logical decision points where the LLM currently reasons about things that have finite inputs and deterministic outputs, scores each candidate against a 7-criteria rubric, and produces a prioritized catalog as a JSON artifact with token savings estimates.
+Phase 110 is rescoped from "build a catalog scan tool" to "find LLM waste and fix it inline." The previous Phase 110 execution built `src/commands/audit.js` — a scanner that identifies 87 decision candidates across workflows and agents. That scanner and its tests are now artifacts of the old scope. The new scope says: don't catalog, don't build an engine, just replace the deterministic decisions with code where they live.
 
-The codebase already has strong precedents for this pattern: `util:agent audit` scans agent files and reports responsibility overlap, `verify:validate roadmap` scans planning artifacts for structural issues, and `util:codebase analyze` performs static analysis on source code. The new scan command follows the same architecture — read files, apply regex/heuristic extraction, score with lookup tables, output structured JSON.
+After scanning every workflow `.md` file, every source module, and the plugin infrastructure, there are **5 concrete decision points** that are genuinely LLM-dependent today and can be replaced with inline code. The number is small because this codebase has already offloaded most deterministic work: `orchestration.js` handles task complexity classification, `severity.js` handles finding severity, `command-enricher.js` pre-computes paths and model resolution, and `init.js` resolves models for all major workflows. What remains are specific gaps where the LLM still interprets a routing table or resolves a decision that code could handle.
 
-The key technical challenge is not the scanning (straightforward regex + heuristic extraction on markdown) but the **rubric design** — defining the 3 critical + 4 preferred criteria precisely enough that they can be applied consistently, and the **token estimation model** — producing credible per-candidate savings numbers without runtime telemetry (which doesn't exist yet; FLOW-03 adds it in Phase 112).
+Additionally, `util:classify` is **not dead code** — it has CLI registration, tests (14 test cases in `orchestration.test.cjs`), help text, and command discovery entries. However, **no workflow calls it**. It's a user-facing diagnostic tool, not LLM waste. The CONTEXT.md said "verify and remove if unused" — it's used by humans via CLI but not by any LLM workflow, so the decision of what to do with it should be made during planning.
 
-**Primary recommendation:** Build the scan as a single new command in `src/commands/` following the existing `codebase analyze` pattern. Use regex-based extraction on workflow markdown to find decision indicators. Score with a pure-function rubric. Estimate tokens using a static model based on decision-pattern complexity and invocation frequency from workflow structure.
+**Primary recommendation:** Fix the 5 identified decision points inline, add targeted tests for each, remove `src/commands/audit.js` (old scope artifact), and clean up the `audit:scan` routing. One plan, ~5-7 tasks.
 
 <user_constraints>
 
@@ -20,10 +20,12 @@ The key technical challenge is not the scanning (straightforward regex + heurist
 
 From CONTEXT.md:
 
-1. **Logical decision level granularity** — Scan identifies individual decisions within workflow steps (e.g., "classify scope creep", "pick question format"), not coarser workflow-step level items
-2. **Pattern-based scanning** — CLI scans workflow markdown for decision indicators (conditionals, if/then patterns, option lists, "choose"/"decide" language) to identify candidates programmatically
-3. **Action list only** — The catalog contains offloadable decisions only; candidates that fail the rubric are explicitly marked "keep in LLM" with rationale (per success criteria SC-4), but the catalog is fundamentally an action list
-4. **Context capture depth is agent's discretion** — How much surrounding context to capture per candidate is flexible
+1. **Quick scan + fix in one pass** — No separate catalog tool, no CLI scan command. Analysis is baked into the implementation process.
+2. **Inline code placement** — All decision logic goes where the LLM call currently lives. No new modules, no shared utilities.
+3. **Hard replace** — If it's deterministic, rip out the LLM call entirely. No fallback, no confidence bands.
+4. **Three categories to scan** — Model selection logic, routing/classification, template generation.
+5. **Add targeted tests** — Each replaced decision point gets regression tests.
+6. **`util:classify` investigation** — Verify usage, remove if unused rather than optimizing.
 
 </user_constraints>
 
@@ -31,11 +33,13 @@ From CONTEXT.md:
 
 ## Phase Requirements
 
-| ID | Requirement | Mapping |
-|----|-------------|---------|
-| AUDIT-01 | User can run a codebase scan that catalogs all LLM-offloadable decisions across workflows and agents | CLI `audit:scan` command with JSON output |
-| AUDIT-02 | Each offloading candidate is evaluated against a decision criteria rubric (finite inputs, deterministic output, no NLU needed) | Pure-function rubric scorer with 3 critical + 4 preferred criteria |
-| AUDIT-03 | User can see estimated token savings per offloaded decision and per category | Token estimation model with per-candidate and aggregate savings |
+The roadmap requirements (AUDIT-01, AUDIT-02, AUDIT-03) were written for the old scope (CLI scan tool + rubric + token estimates). Since the phase is rescoped, the planner should redefine requirements or map work to the intent behind the original ones:
+
+| Original ID | Original Scope | Rescoped Intent |
+|-------------|---------------|-----------------|
+| AUDIT-01 | CLI scan command that catalogs decisions | Scan codebase, identify fixable LLM waste, fix inline |
+| AUDIT-02 | Rubric-scored evaluation of candidates | Replace deterministic decisions with code — rubric is implicit (if code can do it, code does it) |
+| AUDIT-03 | Token savings estimates per candidate | Remove old audit scanner artifacts; savings are realized by the replacements themselves |
 
 </phase_requirements>
 
@@ -45,353 +49,232 @@ From CONTEXT.md:
 
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
-| Node.js `fs` | built-in | Read workflow/agent `.md` files | Already used everywhere in bgsd-tools.cjs |
-| Node.js `path` | built-in | Resolve file paths | Already used everywhere |
-| Regex | built-in | Pattern-based decision point detection | User constraint: pattern-based scanning |
+| Node.js built-ins | built-in | All inline replacements use fs, path, regex | Zero-dependency project constraint |
+| Existing `src/lib/constants.js` | existing | MODEL_PROFILES lookup table | Already proven for model selection |
+| Existing `src/lib/helpers.js` | existing | `resolveModelInternal()` | Already proven for model resolution |
 
 ### Supporting
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `src/lib/frontmatter.js` | existing | Extract YAML frontmatter from plan/workflow files | If scanning PLAN.md files for decision metadata |
-| `src/lib/output.js` | existing | Structured JSON/TTY output | For command output formatting |
-| `src/lib/format.js` | existing | Tables, colors, banners | For TTY-formatted catalog display |
+| `src/lib/output.js` | existing | Structured JSON/TTY output | If any new CLI output needed |
+| `src/lib/format.js` | existing | Tables, colors | If any new CLI output needed |
 
 ### Alternatives Considered
 
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
-| Regex-based markdown scanning | AST-based markdown parser (remark, unified) | Over-engineering — workflow files are structured enough for regex; zero-dependency constraint blocks external parsers |
-| Static token estimation | Runtime token counting via LLM API | Not available until Phase 112 adds telemetry; static estimates are sufficient for prioritization |
-| Manual rubric application | LLM-assisted rubric scoring | Defeats the purpose — this is about identifying what code can handle WITHOUT LLM involvement |
+| Inline replacement in workflows | Shared decision-rules.js module | Violates CONTEXT.md "no new modules" constraint — that's Phase 111's scope |
+| Hard-coded lookup tables | Config-driven rule engine | Over-engineering — inline logic is simpler and sufficient |
 
 ## Architecture Patterns
 
-### Recommended Project Structure
+### Recommended Approach: Fix-in-Place
 
-```
-src/commands/audit.js          # New command module (audit:scan, audit:catalog)
-src/lib/audit/                 # (Optional) If audit logic is complex enough to split
-  scanner.js                   # Decision point extractor from markdown
-  rubric.js                    # 7-criteria rubric scorer (pure functions)
-  token-estimator.js           # Token savings estimation model
-```
+Each decision point is fixed exactly where the LLM currently interprets it:
 
-However, given the project convention of single-file CLI and the existing pattern where commands like `codebase.js` (481 lines) contain both command handlers and analysis logic, the simpler approach is:
+1. **Workflow routing tables** → Pre-compute the route in `init.js` or `command-enricher.js`, inject via `<bgsd-context>`
+2. **Model resolution gaps** → Add missing agents to `init.js` enrichment (2 workflows still call `util:resolve-model` manually)
+3. **Commit type selection** → Pure function in `execute-plan.md`'s commit step context, or pre-compute in enricher
+4. **Progress routing** → The routing table in `progress.md` (Routes A-F) is already deterministic based on file counts — pre-compute in enricher
 
-```
-src/commands/audit.js          # All audit logic: scanning, rubric, estimation, output
-```
+### Pattern: Enricher-Injected Decisions (follows `command-enricher.js`)
 
-Register in `src/router.js` under a new `audit` namespace or as subcommands under `util:audit`.
-
-### Pattern 1: File-Scanning Command (follows `codebase analyze`)
-
-The existing `codebase analyze` command demonstrates the exact pattern needed:
-1. Discover target files via glob/directory listing
-2. Read each file
-3. Apply extraction heuristics (regex patterns)
-4. Score/classify extracted items
-5. Output structured JSON with TTY formatting
-
-The audit scanner follows this same flow:
-1. Discover all `workflows/*.md` and agent `.md` files
-2. Read each file
-3. Extract decision points using indicator patterns
-4. Score each candidate against rubric
-5. Output catalog with token estimates
-
-### Pattern 2: Rubric as Lookup Table (follows `orchestration.js` complexity classifier)
-
-`orchestration.js` already implements a scoring pattern: `classifyTaskComplexity()` takes a task object, applies multiple scoring factors with numeric weights, clamps to a range, and returns `{score, label, factors}`. The rubric scorer follows this exact pattern:
+The dominant pattern in this codebase for offloading LLM work is: compute the answer in JS, inject it as a field in the `<bgsd-context>` JSON block, and have the workflow consume the pre-computed value. This is how model resolution, phase directories, plan lists, and config flags already work.
 
 ```javascript
-function scoreCandidate(candidate) {
-  const criteria = {
-    // 3 Critical (must ALL pass)
-    finite_inputs: assessFiniteInputs(candidate),      // boolean
-    deterministic_output: assessDeterministic(candidate), // boolean
-    no_nlu_needed: assessNoNLU(candidate),              // boolean
-    // 4 Preferred (nice to have)
-    high_frequency: assessFrequency(candidate),          // boolean
-    low_complexity: assessComplexity(candidate),         // boolean
-    existing_pattern: assessExistingPattern(candidate),  // boolean
-    low_blast_radius: assessBlastRadius(candidate),      // boolean
-  };
-  const passes = criteria.finite_inputs && criteria.deterministic_output && criteria.no_nlu_needed;
-  const preferredScore = [criteria.high_frequency, criteria.low_complexity, criteria.existing_pattern, criteria.low_blast_radius].filter(Boolean).length;
-  return { passes, criteria, preferred_score: preferredScore, total_score: passes ? 3 + preferredScore : 0 };
-}
+// In command-enricher.js or init.js:
+enrichment.progress_route = computeProgressRoute(state, phaseDir);
+enrichment.next_action = determineNextAction(state, plans, summaries);
+
+// In workflow:
+// "Use progress_route from <bgsd-context> to determine next action"
 ```
-
-### Pattern 3: Token Estimation Model (static, no runtime)
-
-Since no runtime telemetry exists yet (Phase 112 adds FLOW-03), token estimates must be static. Base the model on:
-- **Decision pattern complexity**: simple lookup (50-100 tokens saved) vs multi-step reasoning (200-500 tokens saved) vs conditional chain (300-800 tokens saved)
-- **Invocation frequency**: estimated from workflow structure (how many times per session the workflow runs × how many times the decision point fires)
-- **Context overhead**: each LLM decision requires the decision context to be in the prompt (~100-300 tokens per decision depending on surrounding instructions)
-
-This aligns with STATE.md's existing estimate: "~39K tokens/session savings from P1 offloading opportunities."
 
 ### Anti-Patterns to Avoid
 
-1. **Don't scan source `.js` files for decisions** — The LLM-offloadable decisions live in workflow `.md` files and agent definitions, not in code. The source code already IS the programmatic implementation.
-
-2. **Don't conflate "the LLM reads this" with "the LLM decides this"** — Many workflow instructions are procedural (read file X, write file Y, commit). Only extract actual decision points where the LLM is choosing between alternatives or classifying input.
-
-3. **Don't try to parse natural language instructions as code** — The scanner uses pattern indicators (conditionals, option lists, routing tables) not full NL understanding.
-
-4. **Don't estimate tokens with false precision** — Order-of-magnitude estimates (50/200/500 tokens) are more honest and useful than claiming "exactly 347 tokens saved."
+1. **Don't create new modules** — CONTEXT.md is explicit: inline placement only, no new files.
+2. **Don't abstract prematurely** — Each fix is a one-off inline replacement. If Phase 111 wants to generalize later, it can.
+3. **Don't break workflow readability** — Workflows should still be understandable. If a routing table is replaced with "use `progress_route` from context," the logic is just hidden, not eliminated. The routing table should stay as documentation/comments.
 
 ## Don't Hand-Roll
 
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
-| File discovery | Custom file finder | `readdirSync` + glob on `workflows/` and agent paths | Already used in `codebase analyze` |
-| Frontmatter parsing | Custom YAML parser | `src/lib/frontmatter.js` `extractFrontmatter()` | Proven in 50+ call sites |
-| JSON output formatting | Custom formatter | `src/lib/output.js` `output()` | Handles TTY vs piped modes |
-| Table rendering | Custom table builder | `src/lib/format.js` `formatTable()` | Rich TTY tables already working |
-| Command routing | Custom dispatch | Register in `src/router.js` namespace switch | All 100+ commands use this pattern |
+| Model resolution | Custom model lookup | `resolveModelInternal()` from helpers.js | Already handles overrides + profiles |
+| Phase directory lookup | Custom dir finder | `resolvePhaseDir()` from command-enricher.js | Already handles padding + directory scan |
+| Plan/summary counting | Custom file counter | `parsePlans()` from plugin/parsers | Already used by enricher |
+| Config reading | Custom config loader | `loadConfig()` from helpers.js | Handles defaults + nested keys |
 
 ## Common Pitfalls
 
-### Pitfall 1: Over-Classifying Everything as "Offloadable"
-**What goes wrong:** Scanner marks every conditional in a workflow as a decision point, producing hundreds of false-positive candidates that dilute the catalog's value.
-**Why it happens:** Workflow files are full of procedural conditionals ("if file exists → read it") that aren't LLM decisions — they're instruction steps.
-**How to avoid:** Apply a clear filter: a decision point is only where the LLM must CHOOSE between alternatives or CLASSIFY input. Procedural conditionals (file exists, command succeeds) are not decisions.
-**Warning signs:** Catalog has 100+ candidates where most are "check if X exists" patterns.
+### Pitfall 1: Confusing "LLM reads instructions" with "LLM makes decisions"
 
-### Pitfall 2: Rubric Criteria Too Vague
-**What goes wrong:** Criteria like "deterministic output" are interpreted differently for each candidate, making the rubric inconsistent.
-**Why it happens:** Without concrete examples of what passes/fails each criterion, the scorer applies subjective judgment.
-**How to avoid:** Define each criterion with 2-3 clear pass/fail examples in the rubric definition. For example, "deterministic output" PASSES for "route command to workflow" (same command → same workflow), FAILS for "assess code quality" (same code → different assessments based on context).
-**Warning signs:** Same type of decision scores differently in different workflows.
+**What goes wrong:** Every workflow routing table looks like an LLM decision, but most are just structured instructions. The LLM follows Route A because the counts say so — it doesn't "decide" in a way that requires understanding.
+**Why it happens:** The routing tables ARE instructions the LLM follows, but the branching is on deterministic data (file counts, existence checks).
+**How to avoid:** Only replace decision points where the LLM evaluates deterministic data to pick a branch. If the "decision" is really just following a lookup table, pre-compute the lookup.
+**Warning signs:** Replacing a workflow section that the LLM was following correctly and predictably — no actual improvement.
 
-### Pitfall 3: Token Estimates Without a Model
-**What goes wrong:** Token savings numbers are invented ("save 200 tokens") without a systematic model, making the estimates useless for prioritization.
-**Why it happens:** No runtime telemetry exists, so the temptation is to guess.
-**How to avoid:** Build explicit token estimation categories (simple lookup: 50-100, conditional chain: 200-500, multi-step reasoning: 300-800) and assign each candidate to a category. Document the model.
-**Warning signs:** All candidates have the same savings estimate, or estimates vary wildly for similar decisions.
+### Pitfall 2: Breaking workflow readability for marginal token savings
 
-### Pitfall 4: Scanning Only Workflows, Missing Agents
-**What goes wrong:** Agent `.md` files (planner, executor, verifier, etc.) contain decision instructions that never appear in workflow files.
-**Why it happens:** Workflow files are the obvious scan target, but agents contain their own decision logic.
-**How to avoid:** Scan both `workflows/*.md` AND agent definition files. The agent system prompts include decision patterns (deviation classification, severity inference, scope creep detection).
-**Warning signs:** Catalog only references workflow files.
+**What goes wrong:** Replacing a clear 10-line routing table in a workflow with "use `progress_route` from context" makes the workflow harder to understand and debug.
+**Why it happens:** Optimizing for token count without considering maintainability.
+**How to avoid:** Keep routing tables as comments in workflows. The pre-computed value is the execution path; the table is the documentation.
+**Warning signs:** Workflow becomes a thin wrapper around opaque context fields.
 
-### Pitfall 5: Ignoring "Keep in LLM" Candidates
-**What goes wrong:** Candidates that fail the rubric are silently dropped, leaving the user wondering if they were ever considered.
-**Why it happens:** Success criteria SC-4 requires explicit "keep in LLM" marking, but it's easy to forget when focusing on the positive catalog.
-**How to avoid:** The scanner should emit ALL identified decision points, with rubric scores. The output partitions them into "offloadable" and "keep in LLM" with rationale per SC-4.
-**Warning signs:** User can't see why certain obvious decisions were excluded.
+### Pitfall 3: Removing `audit.js` without cleaning up dependencies
 
-## Code Examples
+**What goes wrong:** Build breaks because router.js still references the audit command handlers.
+**Why it happens:** The audit module is wired into the router namespace, command discovery, and help text.
+**How to avoid:** Clean up all references: router.js namespace, constants.js help text, commandDiscovery.js, command-help.js.
+**Warning signs:** `npm test` fails after removal.
 
-### Decision Point Extraction Patterns
+## Concrete Candidates for Inline Replacement
 
-Based on analysis of all 44 workflow files, these are the concrete patterns that indicate LLM decision points:
+### Candidate 1: `debug.md` manual model resolution (HIGH priority)
 
-```javascript
-// Pattern indicators in workflow markdown
-const DECISION_INDICATORS = [
-  // Explicit routing/choice tables
-  /\|\s*Condition\s*\|\s*(?:Meaning|Action|Route)\s*\|/i,     // Routing tables
-  /\|\s*(?:Route|Pattern)\s+[A-F]\b/i,                        // Named routes
-  
-  // Conditional logic requiring LLM judgment
-  /\bIf\s+.*(?:ask|offer|present|suggest|route|classify)\b/i, // Decision conditionals
-  /\b(?:choose|decide|determine|select|pick)\b/i,             // Decision verbs
-  
-  // Option presentation (LLM picks for user)
-  /options?:\s*\n\s*-/i,                                       // YAML-style options
-  /(?:offer|present).*(?:options?|choice)/i,                   // Option offering
-  
-  // Classification/inference
-  /\b(?:infer|classify|categorize|severity|priority)\b/i,      // Classification language
-  /\b(?:heuristic|rule|criteria)\b.*\b(?:apply|check|use)\b/i, // Rule application
-];
-```
+**File:** `workflows/debug.md:17`
+**Current:** `DEBUGGER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-debugger --raw)`
+**Problem:** Workflow manually calls CLI to resolve model instead of using pre-computed context.
+**Fix:** Add `debugger_model` to the enricher output for `bgsd-debug` commands. The enricher already resolves models for all other workflows via `init.js`.
+**Complexity:** Low — add one `resolveModelInternal()` call to the init handler for debug commands, include in `<bgsd-context>`.
+**Files:** `src/commands/init.js`, `workflows/debug.md`
 
-### Rubric Criteria Definitions
+### Candidate 2: `audit-milestone.md` manual model resolution (HIGH priority)
 
-```javascript
-const CRITICAL_CRITERIA = {
-  finite_inputs: {
-    description: 'Decision has a bounded set of possible inputs',
-    pass_examples: ['command name → workflow', 'file extension → language', 'error code → severity'],
-    fail_examples: ['user description → requirements', 'code diff → review feedback'],
-    test: (candidate) => candidate.input_type === 'enum' || candidate.input_type === 'pattern'
-  },
-  deterministic_output: {
-    description: 'Same inputs always produce same output',
-    pass_examples: ['phase complete + more phases → suggest next phase', 'plan has checkpoints → Pattern B'],
-    fail_examples: ['code quality assessment', 'scope creep judgment'],
-    test: (candidate) => candidate.output_variability === 'none'
-  },
-  no_nlu_needed: {
-    description: 'No natural language understanding required to make the decision',
-    pass_examples: ['count summaries vs plans', 'check file existence', 'parse frontmatter field'],
-    fail_examples: ['detect scope creep', 'infer severity from user description', 'judge code quality'],
-    test: (candidate) => !candidate.requires_language_understanding
-  }
-};
+**File:** `workflows/audit-milestone.md:21`
+**Current:** `CHECKER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-verifier)`
+**Problem:** Same as Candidate 1 — manual CLI call instead of pre-computed context.
+**Fix:** Add `verifier_model` (or `checker_model`) to enricher output for `bgsd-audit-milestone`.
+**Complexity:** Low — same pattern as Candidate 1.
+**Files:** `src/commands/init.js`, `workflows/audit-milestone.md`
 
-const PREFERRED_CRITERIA = {
-  high_frequency: { description: 'Decision executes frequently (every plan, every session)' },
-  low_complexity: { description: 'Implementation is simple (lookup table, <20 lines)' },
-  existing_pattern: { description: 'Similar logic already exists in codebase' },
-  low_blast_radius: { description: 'Changing this decision affects few downstream consumers' }
-};
-```
+### Candidate 3: `progress.md` routing logic (MEDIUM priority)
 
-### Token Estimation Categories
+**File:** `workflows/progress.md:104-330`
+**Current:** LLM evaluates a routing table (Routes A-F) based on file counts (plans vs summaries, UAT gaps, milestone position). The LLM runs `ls` commands, counts files, then picks a route.
+**Problem:** The route selection is 100% deterministic — it's based on integer comparisons of file counts. Code can do this faster and more reliably.
+**Fix:** Pre-compute `progress_route` in the init/enricher: count plans, summaries, UAT gaps, determine current vs highest phase, and return the route letter (A-F) plus the relevant context (next plan path, next phase number, etc.).
+**Complexity:** Medium — requires counting files in phase directory and evaluating the routing conditions. The `findPhaseInternal()` helper already provides most of this data.
+**Files:** `src/commands/init.js` (add route computation), `workflows/progress.md` (consume pre-computed route)
 
-```javascript
-const TOKEN_CATEGORIES = {
-  simple_lookup: {
-    label: 'Simple Lookup',
-    range: [50, 100],
-    midpoint: 75,
-    examples: ['command → workflow routing', 'file extension → language type', 'error code → message']
-  },
-  conditional_chain: {
-    label: 'Conditional Chain',
-    range: [200, 500],
-    midpoint: 350,
-    examples: ['next action routing in progress', 'execution pattern selection (A/B/C)', 'plan status determination']
-  },
-  multi_step_reasoning: {
-    label: 'Multi-Step Reasoning',
-    range: [300, 800],
-    midpoint: 550,
-    examples: ['deviation classification (4 rules)', 'severity inference from text', 'checkpoint type selection']
-  },
-  context_overhead: {
-    label: 'Context Overhead',
-    range: [100, 300],
-    midpoint: 200,
-    description: 'Instructions for the decision that must be in prompt whether or not decision fires'
-  }
-};
-```
+### Candidate 4: `execute-plan.md` pattern selection (MEDIUM priority)
 
-## Identified Decision Categories (From Codebase Analysis)
+**File:** `workflows/execute-plan.md:44-57`
+**Current:** LLM greps for checkpoint task types, counts them, and selects Pattern A/B/C.
+**Problem:** Pattern selection is deterministic: no checkpoints → A, verify-only checkpoints → B, decision checkpoints → C. This is a simple grep + classify.
+**Fix:** Pre-compute `execution_pattern` in enricher/init by parsing the plan's task types. The `parseTasksFromPlan()` function in `orchestration.js` already extracts task types.
+**Complexity:** Medium — need to call `parseTasksFromPlan()` during init, classify checkpoint presence.
+**Files:** `src/commands/init.js`, `workflows/execute-plan.md`
 
-Based on reading all 44 workflows, here are the concrete decision categories found with examples:
+### Candidate 5: `verify-work.md` severity inference (LOW priority)
 
-### Category 1: Workflow Routing / Next-Step Selection
-**Frequency:** Every workflow invocation
-**Examples found:**
-- `progress.md` Route A/B/C/D/E/F (6 routes based on plan/summary/milestone counts) — lines 104-330
-- `execute-plan.md` Pattern A/B/C selection (based on checkpoint presence) — lines 44-57
-- `resume-project.md` Next action routing (8 branches based on state) — lines 116-148
-- `verify-work.md` Post-completion routing (issues → diagnose, no issues → suggest next)
-**Rubric prediction:** PASS critical (finite inputs: plan/summary counts; deterministic: same counts → same route; no NLU). HIGH priority.
+**File:** `workflows/verify-work.md:64`
+**Current:** LLM infers severity from user text responses ("crash" → blocker, "doesn't work" → major, "slow" → minor).
+**Problem:** This is keyword-based classification — the same pattern already offloaded in `src/lib/review/severity.js`.
+**Fix:** The severity inference instructions in the workflow could reference the existing `severity.js` classification rules, or the executor could call a new `util:classify-severity` inline. However, this is borderline — the LLM is already following a simple keyword table, and the "inference" happens during interactive conversation where the LLM is already running.
+**Complexity:** Low code change, but marginal benefit — the LLM handles this during a conversational loop where it's already loaded.
+**Files:** `workflows/verify-work.md`, possibly `src/lib/review/severity.js`
 
-### Category 2: Model/Agent Selection
-**Frequency:** Every agent spawn
-**Examples found:**
-- `plan-phase.md` Model resolution for researcher, planner, checker — lines 17, 51, 111
-- `execute-plan.md` executor_model selection
-- `quick.md` 4 model resolutions (planner, executor, checker, verifier)
-- `orchestration.js` `classifyTaskComplexity()` → `recommended_model` already does this in code
-**Rubric prediction:** PASS critical (finite inputs: config + complexity; deterministic). Already partially offloaded — orchestration.js proves it works.
+### NOT a candidate: `progress.md` "recent work" extraction
 
-### Category 3: Execution Mode / Plan Classification
-**Frequency:** Every plan execution
-**Examples found:**
-- `execute-plan.md` "parse_segments" step: count checkpoints → select Pattern A/B/C
-- `execute-plan.md` "deviation_rules" table: classify deviation → pick rule 1-4
-- `execute-plan.md` "auto_test_after_edit": decide when to run tests
-- `quick.md` `--full` mode routing (5+ branch points)
-**Rubric prediction:** PASS critical (finite inputs: checkpoint count, deviation type; deterministic). MEDIUM priority — some fire per-task, not per-session.
+The old research flagged this, but reading recent SUMMARY files and extracting one-liners requires the LLM to read file content and summarize — this is NLU, not deterministic logic.
 
-### Category 4: State Assessment / Progress Determination
-**Frequency:** Multiple times per session
-**Examples found:**
-- `progress.md` "current_phase is complete" determination (summaries == plans && plans > 0)
-- `complete-milestone.md` readiness check (all phases complete, requirements checked off)
-- `resume-project.md` incomplete work detection (plans without summaries, interrupted agents)
-**Rubric prediction:** PASS critical (finite inputs: file counts; deterministic). Already partially offloaded — `plan:roadmap analyze` computes this.
+### NOT a candidate: Commit type selection
 
-### Category 5: Severity / Priority Classification
-**Frequency:** Per finding/issue
-**Examples found:**
-- `verify-work.md` severity inference from user text ("crash" → blocker, "doesn't work" → major) — lines 131-139
-- `execute-plan.md` deviation classification (4 rules based on error type) — lines 99-110
-- `src/lib/review/severity.js` — Already offloaded! Pattern-based classification in code.
-**Rubric prediction:** MIXED. Simple keyword → severity PASSES. Complex "assess code quality" FAILS (requires NLU).
+`execute-plan.md:151` lists commit types (feat/fix/test/refactor/perf/docs/style/chore). The LLM picks the right type based on what the task actually did. This requires understanding the semantic nature of the change — not deterministic.
 
-### Category 6: File/Path Resolution
-**Frequency:** Every workflow invocation
-**Examples found:**
-- All workflows: resolve phase directory, plan paths, summary paths from phase number
-- `discuss-phase.md` check existing CONTEXT.md, decide whether to create/update
-- `plan-phase.md` RESEARCH.md existence check → skip/use existing
-**Rubric prediction:** PASS critical. Already MOSTLY offloaded — `command-enricher.js` pre-computes paths. Remaining gaps are workflow-specific path logic.
+### NOT a candidate: `resume-project.md` next action routing
 
-### Category 7: Template / Format Selection
-**Frequency:** Per document creation
-**Examples found:**
-- `execute-plan.md` commit message type selection (feat/fix/test/refactor/perf/docs/style/chore)
-- `complete-milestone.md` milestone naming heuristic (major/minor versioning)
-- `discuss-phase.md` gray area generation from phase domain type
-**Rubric prediction:** MIXED. Commit type from file changes PASSES. Gray area generation from domain FAILS (requires understanding).
+Although the routing looks deterministic, the "determine next action" step in resume involves reading free-form STATE.md content, checking for interrupted agents, and evaluating project state holistically. The branching conditions involve agent state that isn't fully captured in structured data.
 
-### Candidates That FAIL the Rubric (Keep in LLM)
+## Old Scope Artifacts to Remove
 
-Based on analysis, these decision types should be explicitly marked "keep in LLM":
+The previous Phase 110 execution built these artifacts that no longer serve the rescoped phase:
 
-1. **Scope creep detection** (`discuss-phase.md`) — Requires understanding whether a feature extends existing scope vs adds new capability. Requires NLU.
-2. **Gray area identification** (`discuss-phase.md`) — Requires domain understanding to generate relevant questions. Not deterministic.
-3. **Code quality assessment** (`execute-plan.md` post_execution_review) — Requires judgment about code conventions, style, intent. Requires NLU.
-4. **Task decomposition** (planner agent) — Requires understanding problem space to create tasks. Not deterministic.
-5. **Gap diagnosis** (`verify-work.md` diagnose_issues) — Root cause analysis from test failures. Requires reasoning.
-6. **Research synthesis** (researcher agents) — Requires evaluating and combining information. Not deterministic.
-7. **Questioning / interview** (`new-project.md`, `discuss-phase.md`) — Requires understanding user responses and generating follow-ups. Requires NLU.
+### `src/commands/audit.js` (739 lines)
+- Scanner, rubric scorer, token estimator, catalog writer, TTY formatter
+- Registered in router under `audit` namespace
+- Has command help text in `constants.js` and `command-help.js`
+- Referenced in `commandDiscovery.js`
+- **No tests** — audit.js has no dedicated test file (the scanner was validated via manual execution)
 
-## State of the Art
+### `.planning/audit-catalog.json`
+- Generated artifact from the old scanner runs
+- Consumed by nobody (Phase 111 hasn't started)
+- Can be deleted
 
-| Old Approach | Current Approach | When Changed | Impact |
-|--------------|------------------|--------------|--------|
-| All workflow routing via LLM reasoning | `command-enricher.js` pre-computes some paths | v9.0 (2026-03-09) | Eliminated init subprocess calls |
-| LLM classifies task complexity | `orchestration.js` `classifyTaskComplexity()` | v10.0 (2026-03-11) | Proves pattern works for this codebase |
-| LLM determines severity from patterns | `src/lib/review/severity.js` regex-based classification | v10.0 (2026-03-11) | Small-scale precedent for the rubric pattern |
-| All model selection via LLM | `util:resolve-model` command with config lookup | v9.3 (2026-03-10) | Already offloaded |
+### Router/help/discovery cleanup
+- `src/router.js`: `audit` namespace case
+- `src/lib/constants.js`: `COMMAND_HELP['audit:scan']` and related entries
+- `src/lib/command-help.js`: audit entries
+- `src/lib/commandDiscovery.js`: audit entries
+
+## `util:classify` Investigation
+
+**Verdict: NOT dead code. But NOT LLM waste either.**
+
+`util:classify` is a user-facing CLI command that classifies task complexity and recommends models:
+- **Router:** Registered in `src/router.js` under `util` → `classify` subcommand
+- **Implementation:** `src/lib/orchestration.js` → `cmdClassifyPlan()`, `cmdClassifyPhase()`
+- **Tests:** 14 test cases in `tests/orchestration.test.cjs` covering plan classification, phase classification, edge cases
+- **Help text:** In `constants.js` COMMAND_HELP
+- **Command discovery:** Listed in `commandDiscovery.js`
+
+**Who calls it:**
+- **Users via CLI:** `node bgsd-tools.cjs util:classify plan <path>` or `util:classify phase <num>`
+- **No workflow calls it** — grep of all 44 workflow `.md` files returns zero matches
+- **`init.js` calls `classifyPlan()` and `selectExecutionMode()` programmatically** — the functions are used internally, but the CLI command wrappers (`cmdClassifyPlan`, `cmdClassifyPhase`) are only invoked via the router
+
+The CONTEXT.md said "verify and remove if unused rather than optimizing." The functions ARE used (by init.js). The CLI command wrappers are user-facing diagnostic tools. Removing the CLI commands would remove user visibility into task complexity classification. Recommendation: **keep the functions, keep the CLI commands** — they're diagnostic tools, not LLM waste. The classify command is comparable to `util:progress` or `verify:state` — a user inspection tool.
+
+## Scope Estimate
+
+| Work Item | Effort | Files |
+|-----------|--------|-------|
+| Candidate 1: debug.md model resolution | ~10 min | 2 files |
+| Candidate 2: audit-milestone.md model resolution | ~10 min | 2 files |
+| Candidate 3: progress.md route pre-computation | ~30 min | 2-3 files |
+| Candidate 4: execute-plan.md pattern selection | ~20 min | 2-3 files |
+| Candidate 5: verify-work.md severity (optional) | ~10 min | 1-2 files |
+| Remove audit.js + cleanup references | ~20 min | 5-6 files |
+| Targeted tests for each replacement | ~20 min | 1-2 test files |
+| **Total** | **~2 hours** | **~10-15 files** |
+
+This fits in a single plan with 5-7 tasks. The work is straightforward because all patterns already exist in the codebase — every fix follows a proven template.
 
 ## Open Questions
 
-1. **Where to register the command?** — New `audit` namespace (e.g., `audit:scan`, `audit:catalog`) or under existing `util` namespace (e.g., `util:audit scan`)? New namespace is cleaner and aligns with AUDIT-01 requirement naming.
+1. **What to do with `util:classify` CLI?** — Functions are used internally. CLI wrappers are user-facing diagnostics. Recommendation: keep. But planner should decide.
 
-2. **Catalog output format?** — JSON artifact in `.planning/` (e.g., `.planning/audit-catalog.json`) vs inline CLI output? Recommend both: JSON artifact for Phase 111 consumption + TTY formatted summary for user.
+2. **Should `progress.md` routing be fully pre-computed or partially?** — Full pre-computation means the enricher returns the exact route letter + all data needed for that route (next plan path, phase number, etc.). Partial means just returning the counts and letting the LLM do the final comparison. Full pre-computation saves ~350 tokens/invocation but adds complexity to the enricher.
 
-3. **How to handle agent definition files?** — Agent `.md` files live in the host editor config dir, not in `$PWD`. The scanner needs the `$BGSD_HOME` path to find them. The `command-enricher.js` already resolves this via environment.
-
-4. **Invocation frequency estimation** — How to estimate how often each decision fires per session without runtime data? Recommend a simple model: categorize workflows by type (every-session: progress/resume/execute, per-phase: plan/research/discuss, rare: new-project/milestone) and multiply by expected decisions per invocation.
+3. **Should old ROADMAP.md success criteria be updated?** — The success criteria (SC-1 through SC-4) reference CLI scan commands, rubric scores, and token estimates from the old scope. These are now invalid. The planner should update ROADMAP.md to reflect the new scope's success criteria.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Direct codebase analysis**: Read all 44 workflow files, 6 key source modules, router, orchestration, plugin hooks
-- `src/lib/orchestration.js` — Existing complexity classifier demonstrates rubric pattern
-- `src/lib/review/severity.js` — Existing severity classifier demonstrates regex-based decision offloading
-- `src/plugin/command-enricher.js` — Existing path pre-computation demonstrates context injection pattern
+- **Direct codebase analysis:** Read all 44 workflow files, all src/commands/*.js, all src/lib/*.js, all plugin/*.js modules
+- `src/commands/init.js` — Where model resolution is pre-computed for enrichment
+- `src/plugin/command-enricher.js` — The pattern for injecting pre-computed decisions
+- `src/lib/orchestration.js` — Existing task classification proving the inline pattern
+- `src/lib/review/severity.js` — Existing severity classification proving keyword-based offloading
 
 ### Secondary (MEDIUM confidence)
-- `STATE.md` — "~39K tokens/session savings from P1 offloading opportunities" (pre-existing estimate, methodology unknown)
-- Token estimation model — Based on typical GPT/Claude token counts for structured decision instructions; validated against known workflow sizes
+- `src/commands/audit.js` — Old Phase 110 artifact; analyzed to understand removal scope
+- `.planning/audit-catalog.json` — Old artifact; not used by any code
 
 ### Tertiary (LOW confidence)
-- Invocation frequency estimates — Based on typical bGSD session patterns; no runtime data to validate
+- Token savings estimates — Based on typical prompt sizes for routing tables; rough order-of-magnitude
 
 ## Metadata
 
 **Confidence breakdown:**
-- Scanner architecture: HIGH (follows proven codebase patterns)
-- Rubric design: HIGH (criteria are well-defined from CONTEXT.md and success criteria)
-- Token estimation: MEDIUM (static model without runtime validation)
-- Candidate identification: HIGH (systematic workflow analysis, concrete examples)
-- Invocation frequency: LOW (no runtime data)
+- Candidate identification: HIGH (systematic grep + read of every workflow and source file)
+- Fix patterns: HIGH (every fix follows an existing proven pattern in the codebase)
+- Scope estimate: HIGH (small number of well-defined changes)
+- `util:classify` verdict: HIGH (comprehensive trace of all references)
+- Token savings from fixes: LOW (no runtime telemetry to validate)
 
 **Research date:** 2026-03-13
-**Valid until:** Phase 110 completion — catalog becomes the authoritative source
+**Valid until:** Phase 110 completion
