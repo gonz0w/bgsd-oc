@@ -38,7 +38,7 @@
 - [x] **Phase 110: Audit & Decision Framework** — Scan codebase for LLM waste, replace deterministic LLM calls with inline code, remove old audit CLI artifacts (completed 2026-03-13)
 - [x] **Phase 111: Decision Engine & Enrichment** — Build shared decision-rules.js module, in-process decision engine, CLI decisions command, progressive confidence model (completed 2026-03-13)
 - [x] **Phase 112: Workflow Integration & Measurement** — Extend bgsd-context with pre-computed decisions, simplify workflows, measure before/after token savings (completed 2026-03-13)
-- [ ] **Phase 113: Programmatic Summary Generation** — Pre-build SUMMARY.md from git history and plan metadata, reduce LLM summary work by 50%+
+- [x] **Phase 113: Programmatic Summary Generation** — Pre-build SUMMARY.md from git history and plan metadata, reduce LLM summary work by 50%+ (completed 2026-03-13)
 - [ ] **Phase 106: Code Cleanup** — Remove verify:orphans, profiler, test infrastructure from bundle
 - [ ] **Phase 107: Unused Exports Cleanup** — Find and remove unused exports from src/ directory
 - [ ] **Phase 108: Dead Code Removal** — Find and remove unreachable code paths
@@ -137,6 +137,11 @@
   1. `summary:generate` command produces a pre-filled SUMMARY.md with frontmatter (phase, plan, subsystem, tags, key-files), performance section (duration, timestamps), task commits (from git log), and files created/modified (from git diff) — all without LLM involvement
   2. The execute-plan workflow calls `summary:generate` to get a pre-built scaffold, and the LLM only fills in: one-liner, accomplishments, decisions made, and deviations — at least 50% less LLM writing per summary
   3. Generated summaries pass `verify:summary` validation and `summary-extract` parsing without regressions
+
+**Plans:**
+2/2 plans complete
+- 0113-01: cmdSummaryGenerate CLI command with git data extraction, merge/preserve, 20 contract tests (wave 1, SUM-01, SUM-03)
+- 0113-02: Workflow integration — summary:generate scaffold in execute-plan, SUM-01/02/03 requirements (wave 2, SUM-02)
 
 ---
 
@@ -496,7 +501,7 @@
 | 110 | AUDIT-01, AUDIT-02, AUDIT-03 | Complete    | 2026-03-13 | - |
 | 111 | 2/2 | Complete    | 2026-03-13 | - |
 | 112 | 3/3 | Complete    | 2026-03-13 | - |
-| 113 | SUM-01, SUM-02, SUM-03 | 3 | In Progress | - |
+| 113 | SUM-01, SUM-02, SUM-03 | 3 | Complete | 2026-03-13 |
 | 106 | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-04, CLEAN-05 | 5 | Complete | 2026-03-12 |
 | 107 | UNUSED-01, UNUSED-02, UNUSED-03 | 3 | Not Started | - |
 | 108 | DEAD-01, DEAD-02, DEAD-03 | 3 | Not Started | - |

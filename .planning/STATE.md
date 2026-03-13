@@ -10,16 +10,17 @@ See: `.planning/PROJECT.md` (updated 2026-03-13)
 ## Current Position
 
 **Phase:** 113 (Programmatic Summary Generation)
-**Current Plan:** 01 complete
-**Status:** In progress
+**Current Plan:** 02 complete (2/2 plans)
+**Status:** Complete
 **Last Activity:** 2026-03-13
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Execution Notes
 
-**Phase 113 (programmatic-summary-generation):** In progress
+**Phase 113 (programmatic-summary-generation):** Complete
 - Plan 0113-01: cmdSummaryGenerate with git data extraction, merge/preserve, 20 contract tests (14 min)
+- Plan 0113-02: Workflow integration — summary:generate scaffold in execute-plan, SUM-01/02/03 requirements (4 min)
 
 **Phase 112 (workflow-integration-measurement):** Complete
 - Plan 0112-01: Extended command-enricher with 15+ decision rule inputs, 46 contract tests (9 min)
@@ -46,7 +47,7 @@ Progress: [█████░░░░░] 50%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 210 (v1.0-v11.3)
+- Total plans completed: 211 (v1.0-v11.3)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
@@ -84,6 +85,8 @@ Progress: [█████░░░░░] 50%
 - [0113-01]: Used phase_number from findPhaseInternal for filenames — preserves zero-padding matching directory structure
 - [0113-01]: Scope matching accepts both 0113-01 and 113-01 for backward compat with varying commit conventions
 - [0113-01]: Merge/preserve detects filled sections by absence of TODO: markers — simple and reliable
+- [0113-02]: Scaffold-then-fill pattern — CLI generates data, LLM fills 8 explicitly-listed judgment sections
+- [0113-02]: Graceful fallback to full authorship when summary:generate fails — no hard dependency on CLI command
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None — research complete with HIGH confidence, ready for planning.
 
 ## Session Continuity
 
-**Last session:** 2026-03-13T18:57:26Z
-**Stopped at:** Completed 0113-01-PLAN.md
-**Next step:** None — phase 113 has 1 plan, now complete
+**Last session:** 2026-03-13T19:05:36Z
+**Stopped at:** Completed 0113-02-PLAN.md
+**Next step:** Phase 113 complete — all 2/2 plans done. v11.3 milestone ready for completion.
