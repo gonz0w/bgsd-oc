@@ -23,7 +23,9 @@ This milestone eliminates accumulated technical debt across four areas: a broken
   3. User can run plugin tests in isolation without errors from missing project context
   4. User can trust that test assertions match current CLI output (no stale expected values)
   5. User can run the full test suite without missing module import errors
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
+  - Plan 01 (Wave 1): Suppress Bun banner + fix profiler tests + rebuild CLI [TEST-01, TEST-02]
+  - Plan 02 (Wave 2): Fix all residual test failures — stale assertions, plugin isolation, config migration, env edge cases [TEST-03, TEST-04, TEST-05, TEST-06]
 
 ### Phase 115: CLI Command Routing
 **Goal**: Every registered CLI command resolves correctly — no missing routes, no orphaned modules, no stale validator data
@@ -67,7 +69,7 @@ Phases execute in numeric order: 114 → 115 → 116 → 117
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 114. Test Suite Stabilization | 0/0 | Not started | - |
+| 114. Test Suite Stabilization | 0/2 | In progress | - |
 | 115. CLI Command Routing | 0/0 | Not started | - |
 | 116. Planning Artifact Cleanup | 0/0 | Not started | - |
 | 117. Intent Archival System | 0/0 | Not started | - |

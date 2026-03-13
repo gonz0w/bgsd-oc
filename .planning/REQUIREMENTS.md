@@ -52,12 +52,12 @@
 
 | REQ-ID | Phase | Plan |
 |--------|-------|------|
-| TEST-01 | Phase 114 | — |
-| TEST-02 | Phase 114 | — |
-| TEST-03 | Phase 114 | — |
-| TEST-04 | Phase 114 | — |
-| TEST-05 | Phase 114 | — |
-| TEST-06 | Phase 114 | — |
+| TEST-01 | Phase 114 | 0114-01 |
+| TEST-02 | Phase 114 | 0114-01 |
+| TEST-03 | Phase 114 | 0114-02 |
+| TEST-04 | Phase 114 | 0114-02 |
+| TEST-05 | Phase 114 | 0114-02 |
+| TEST-06 | Phase 114 | 0114-02 |
 | CMD-01 | Phase 115 | — |
 | CMD-02 | Phase 115 | — |
 | CMD-03 | Phase 115 | — |
