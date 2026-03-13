@@ -105,6 +105,7 @@ function lazyTools() { return _modules.tools || (_modules.tools = require('./com
 function lazyRuntime() { return _modules.runtime || (_modules.runtime = require('./commands/runtime')); }
 function lazyMeasure() { return _modules.measure || (_modules.measure = require('./commands/measure')); }
 function lazyRecovery() { return _modules.recovery || (_modules.recovery = require('./lib/recovery')); }
+function lazyAudit() { return _modules.audit || (_modules.audit = require('./commands/audit')); }
 
 
 async function main() {
@@ -225,7 +226,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -1249,9 +1250,19 @@ Examples:
         break;
       }
 
+      // audit namespace
+      case 'audit': {
+        if (subCmd === 'scan') {
+          lazyAudit().cmdAuditScan(cwd, restArgs, raw);
+        } else {
+          error('Unknown audit subcommand. Available: scan');
+        }
+        break;
+      }
+
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit`);
     }
     return; // Exit after handling namespaced command
   }

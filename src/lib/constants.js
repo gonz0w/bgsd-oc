@@ -937,6 +937,25 @@ Examples:
   bgsd-tools measure
   bgsd-tools measure --verbose
   bgsd-tools measure --bin ./bin/bgsd-tools.cjs`,
+
+  // audit namespace
+  'audit:scan': `Usage: bgsd-tools audit:scan
+
+Scan workflows and agents for LLM-offloadable decisions with rubric scoring and token estimates.
+
+Scans all workflow .md files and agent definitions for decision points where
+the LLM currently reasons about things that deterministic code could handle.
+Each candidate is scored against a 7-criteria rubric (3 critical + 4 preferred)
+and assigned a token savings estimate.
+
+Output: { candidates, offloadable, keep_in_llm, summary }
+
+Summary includes: total_candidates, offloadable_count, keep_count,
+estimated_total_savings, savings_by_category
+
+Examples:
+  bgsd-tools audit:scan
+  bgsd-tools audit:scan --raw`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
