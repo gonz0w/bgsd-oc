@@ -10,30 +10,27 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v11.0 Natural Interface & Insights (2026-03-11)
+**Last shipped:** v11.2 Code Cleanup (2026-03-12)
 
-## Current Milestone: v11.1 Command Execution & Polish
+## Current Milestone: v11.3 LLM Offloading
 
-**Goal:** Make all commands execute immediately without confusion - when user types `/bgsd {command} {subcommand}`, it should happen directly without debate or hunting/pecking.
+**Goal:** Reduce LLM calls by pushing deterministic decisions into programmatic code — the plugin should handle what code can handle, faster and cheaper than asking the LLM.
 
 **Target features:**
-- Command routing:
-  - Direct execution: `/bgsd {cmd} {sub}` executes immediately without multi-step parsing
-  - Smart intent: Commands understand what user wants and execute without clarification loops
-  - Zero friction: No hunting through options, just execute the stated command
-- Polish & fixes:
-  - Fix command confusion scenarios
-  - Streamline existing workflows
-- Enhanced NL Input:
-  - Better natural language understanding for commands
-
-## Next Milestone Goals
-
-- v11.1 is now active — Command Execution & Polish
+- Codebase scan:
+  - Comprehensive audit of workflows, agents, and commands to identify decisions currently made by LLM that are deterministic
+  - Catalog of offloading opportunities ranked by frequency and complexity
+- Programmatic decision-making:
+  - Move simple/deterministic decisions from LLM prompts into plugin code
+  - Auto-resolution of routine choices (file paths, command routing, parameter defaults)
+  - Code-driven validation and pre-checks that currently rely on LLM reasoning
+- Workflow optimization:
+  - Reduce round-trips between LLM and CLI by batching or pre-computing
+  - Plugin-side logic for common patterns (phase numbering, requirement IDs, state transitions)
 
 ## Active Milestone
 
-v11.1 Command Execution & Polish — See Current Milestone above.
+v11.3 LLM Offloading — See Current Milestone above.
 
 <details>
 <summary>Previous: v10.0 Agent Intelligence & UX (shipped 2026-03-11)</summary>
@@ -193,7 +190,7 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ### Active
 
-v10.0 milestone is active — Agent Intelligence & UX
+v11.3 milestone is active — LLM Offloading
 
 ### Out of Scope
 
@@ -269,4 +266,4 @@ Known tech debt: Bundle at ~1163KB (over 1050KB budget). `node:sqlite` is Stabil
 | Namespace routing (colon syntax) | Semantic grouping for 100+ CLI commands | Good — discoverable, backward-compatible |
 
 ---
-*Last updated: 2026-03-10 after v10.0 milestone start*
+*Last updated: 2026-03-13 after v11.3 milestone start*
