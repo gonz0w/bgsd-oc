@@ -10,16 +10,17 @@ See: `.planning/PROJECT.md` (updated 2026-03-13)
 ## Current Position
 
 **Phase:** 111 (Decision Engine & Enrichment)
-**Current Plan:** 01 complete, 02 pending
-**Status:** In progress
+**Current Plan:** 02 complete (all plans done)
+**Status:** Phase complete
 **Last Activity:** 2026-03-13
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Execution Notes
 
-**Phase 111 (decision-engine-enrichment):** In progress
+**Phase 111 (decision-engine-enrichment):** Complete
 - Plan 0111-01: 12 pure decision functions, registry, 85 contract tests (6 min)
+- Plan 0111-02: CLI decisions namespace (list/inspect/evaluate), enricher integration, router/constants/discovery wiring (5 min)
 
 **Phase 110 (audit-decision-framework):** Complete
 - Plan 0110-01: Audit scanner, rubric scorer, token estimator — 87 candidates found (15 min)
@@ -63,6 +64,8 @@ Progress: [█████░░░░░] 50%
 - [0110-02]: Catalog artifact auto-written on every scan (no --save flag) — always fresh for Phase 111
 - [0110-02]: 5 of 7 RESEARCH.md categories found — model-selection and file-resolution already offloaded to code
 - [Phase 0111]: 12 pure decision functions covering all 85 audit candidates with progressive confidence model — Functions implement all unique decision types from audit catalog; 4 use MEDIUM confidence for ambiguous state
+- [0111-02]: Enricher evaluates decisions in-process (no subprocess) — decisions field is purely additive to existing enrichment contract
+- [0111-02]: Decision evaluation wrapped in try/catch — non-fatal, enrichment continues without decisions if evaluation fails
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None — research complete with HIGH confidence, ready for planning.
 
 ## Session Continuity
 
-**Last session:** 2026-03-13T15:06:53.971Z
-**Stopped at:** Completed 0111-01-PLAN.md
-**Next step:** Execute Plan 02 (enricher wiring + CLI) — `/bgsd execute phase 111`
+**Last session:** 2026-03-13T15:17:11.220Z
+**Stopped at:** Completed 0111-02-PLAN.md (Phase 111 complete)
+**Next step:** Plan and execute Phase 112 (Integration) — `/bgsd plan phase 112`
