@@ -232,14 +232,35 @@ Skip conditions (do NOT review):
 </step>
 
 <step name="create_summary">
-Create `{phase}-{plan}-SUMMARY.md` using templates/summary.md.
+**Step 1: Generate scaffold via CLI**
 
-Frontmatter: phase, plan, subsystem, tags, requires/provides/affects, tech-stack, key-files, key-decisions, requirements-completed (copy from PLAN frontmatter), duration, completed date.
+```bash
+SCAFFOLD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-generate ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)
+```
 
-One-liner MUST be substantive. Include duration, start/end, task count, file count.
+Parse the JSON output. If `error` field exists or the command failed (non-zero exit), log a warning:
+"⚠ summary:generate failed — falling back to full authorship" and skip to the **Fallback** section below.
 
-**Review Findings section:**
-If post_execution_review produced findings, include in SUMMARY:
+If scaffold succeeded: the SUMMARY.md file is already written to disk with all data sections populated. The `todos_remaining` count from the JSON output tells you how many sections need filling.
+
+**Step 2: Fill remaining TODO sections**
+
+Read the generated SUMMARY.md file. Fill each of these sections with substantive content based on execution experience, then write back:
+
+1. **`one-liner:`** in frontmatter — and the matching bold line under the heading (must be identical)
+2. **`key-decisions:`** in frontmatter — list of decision strings from execution
+3. **`patterns-established:`** in frontmatter — if any new patterns were established (omit if none)
+4. **Accomplishments** section — 2-3 bullets describing what changed and why
+5. **Decisions Made** section — key decisions with brief rationale, or "None - followed plan as specified"
+6. **Deviations from Plan** section — describe deviations per deviation rules format, or "None - plan executed exactly as written"
+7. **Issues Encountered** section — problems and how resolved, or "None"
+8. **Next Phase Readiness** section — what's ready for next phase, any blockers
+
+After filling, verify the `todos_remaining` count matches the number of sections you filled.
+
+**Step 3: Review Findings**
+
+If post_execution_review produced findings, add a Review Findings section:
 
 ## Review Findings
 
@@ -250,6 +271,14 @@ If post_execution_review produced findings, include in SUMMARY:
 | {severity} | {file} | {dimension} | {finding} | {suggestion} |
 
 If no review was performed (gap closure, skipped, etc.): omit this section entirely.
+
+**Fallback (if scaffold generation failed):**
+
+Create `{phase}-{plan}-SUMMARY.md` using templates/summary.md with full authorship.
+
+Frontmatter: phase, plan, subsystem, tags, requires/provides/affects, tech-stack, key-files, key-decisions, requirements-completed (copy from PLAN frontmatter), duration, completed date.
+
+One-liner MUST be substantive. Include duration, start/end, task count, file count.
 </step>
 
 <step name="update_current_position">
