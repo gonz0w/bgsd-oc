@@ -1269,8 +1269,10 @@ Examples:
           lazyDecisions().cmdDecisionsInspect(cwd, restArgs, raw);
         } else if (subCmd === 'evaluate') {
           lazyDecisions().cmdDecisionsEvaluate(cwd, restArgs, raw);
+        } else if (subCmd === 'savings') {
+          lazyDecisions().cmdDecisionsSavings(cwd, restArgs, raw);
         } else {
-          error('Unknown decisions subcommand. Available: list, inspect, evaluate');
+          error('Unknown decisions subcommand. Available: list, inspect, evaluate, savings');
         }
         break;
       }

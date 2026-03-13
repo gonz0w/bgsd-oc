@@ -104,6 +104,39 @@ function formatDecisionsEvaluate(data) {
 }
 
 
+/**
+ * Format decisions:savings output for TTY display.
+ *
+ * @param {object} data - { workflows, totals, note }
+ * @returns {string}
+ */
+function formatDecisionsSavings(data) {
+  const lines = [];
+
+  lines.push(banner('DECISION SAVINGS'));
+  lines.push('');
+
+  const headers = ['Workflow', 'Before', 'After', 'Saved', 'Decisions Used'];
+  const rows = data.workflows.map(w => [
+    w.workflow,
+    String(w.before),
+    String(w.after),
+    String(w.saved),
+    w.decisions.join(', '),
+  ]);
+  lines.push(formatTable(headers, rows, { showAll: true }));
+  lines.push('');
+
+  const t = data.totals;
+  const pctColor = t.percent_reduction >= 70 ? color.green : t.percent_reduction >= 40 ? color.yellow : color.red;
+  lines.push(summaryLine(`Total: ${t.before} ${SYMBOLS.arrow || '→'} ${t.after} LLM reasoning steps (${t.saved} saved, ${pctColor(t.percent_reduction + '%')} reduction)`));
+  lines.push('');
+  lines.push(actionHint(data.note));
+
+  return lines.join('\n');
+}
+
+
 // ─── Command Handlers ────────────────────────────────────────────────────────
 
 /**
@@ -227,14 +260,61 @@ function cmdDecisionsEvaluate(cwd, args, raw) {
 }
 
 
+/**
+ * cmdDecisionsSavings — Report before/after LLM reasoning step counts per workflow.
+ *
+ * @param {string} cwd - Project root
+ * @param {string[]} args - CLI arguments
+ * @param {boolean} raw - Raw JSON output mode
+ */
+function cmdDecisionsSavings(cwd, args, raw) {
+  const SAVINGS_DATA = [
+    { workflow: 'progress.md', before: 7, after: 1, decisions: ['progress-route'] },
+    { workflow: 'execute-plan.md', before: 5, after: 1, decisions: ['execution-pattern', 'context-budget-gate', 'previous-check-gate'] },
+    { workflow: 'execute-phase.md', before: 4, after: 1, decisions: ['branch-handling', 'ci-gate'] },
+    { workflow: 'resume-project.md', before: 5, after: 1, decisions: ['resume-route'] },
+    { workflow: 'discuss-phase.md', before: 2, after: 0, decisions: ['auto-advance'] },
+    { workflow: 'plan-phase.md', before: 2, after: 0, decisions: ['auto-advance'] },
+    { workflow: 'transition.md', before: 3, after: 1, decisions: ['auto-advance', 'branch-handling'] },
+    { workflow: 'debug.md', before: 3, after: 1, decisions: ['debug-handler-route', 'model-resolution'] },
+    { workflow: 'audit-milestone.md', before: 2, after: 0, decisions: ['model-resolution'] },
+  ];
+
+  const workflows = SAVINGS_DATA.map(w => ({
+    ...w,
+    saved: w.before - w.after,
+  }));
+
+  const totalBefore = workflows.reduce((sum, w) => sum + w.before, 0);
+  const totalAfter = workflows.reduce((sum, w) => sum + w.after, 0);
+  const totalSaved = totalBefore - totalAfter;
+  const percentReduction = totalBefore > 0 ? Math.round((totalSaved / totalBefore) * 100) : 0;
+
+  const result = {
+    workflows,
+    totals: {
+      before: totalBefore,
+      after: totalAfter,
+      saved: totalSaved,
+      percent_reduction: percentReduction,
+    },
+    note: 'Counts are per-invocation. High-traffic workflows multiply savings.',
+  };
+
+  output(result, { formatter: formatDecisionsSavings });
+}
+
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
   cmdDecisionsList,
   cmdDecisionsInspect,
   cmdDecisionsEvaluate,
+  cmdDecisionsSavings,
   // Exported for testing
   formatDecisionsList,
   formatDecisionsInspect,
   formatDecisionsEvaluate,
+  formatDecisionsSavings,
 };

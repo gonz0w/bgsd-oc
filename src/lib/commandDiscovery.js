@@ -29,7 +29,8 @@ const COMMAND_ALIASES = {
   'd': 'decisions',
   'd:l': 'decisions:list',
   'd:i': 'decisions:inspect',
-  'd:e': 'decisions:evaluate'
+  'd:e': 'decisions:evaluate',
+  'd:s': 'decisions:savings'
 };
 
 const COMMAND_CATEGORIES = {
@@ -43,7 +44,7 @@ const COMMAND_CATEGORIES = {
   },
   analysis: {
     name: 'Analysis',
-    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review', 'decisions:list', 'decisions:inspect', 'decisions:evaluate']
+    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review', 'decisions:list', 'decisions:inspect', 'decisions:evaluate', 'decisions:savings']
   },
   utility: {
     name: 'Utility',
@@ -452,7 +453,8 @@ function validateCommandRegistry() {
     'decisions': {
       'list': null,
       'inspect': null,
-      'evaluate': null
+      'evaluate': null,
+      'savings': null
     },
     'measure': null,
     'runtime': null,

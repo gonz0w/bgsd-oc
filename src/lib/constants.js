@@ -986,6 +986,19 @@ Examples:
   bgsd-tools decisions:evaluate progress-route --state '{"plan_count":3,"summary_count":1,"roadmap_exists":true,"project_exists":true,"state_exists":true}'
   bgsd-tools decisions:evaluate auto-advance --state '{"auto_advance_config":true}' --raw`,
 
+  'decisions:savings': `Usage: bgsd-tools decisions:savings
+
+Show before/after LLM reasoning step counts per workflow.
+
+Reports savings from decision offloading — how many LLM reasoning steps
+each workflow used to perform vs how many remain after pre-computed decisions.
+
+Output: { workflows: [{workflow, before, after, saved, decisions}], totals: {before, after, saved, percent_reduction}, note }
+
+Examples:
+  bgsd-tools decisions:savings
+  bgsd-tools decisions:savings --raw`,
+
   'audit:scan': `Usage: bgsd-tools audit:scan
 
 Scan workflows and agents for LLM-offloadable decisions with rubric scoring and token estimates.
