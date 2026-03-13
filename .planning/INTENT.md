@@ -1,4 +1,4 @@
-**Revision:** 18
+**Revision:** 19
 **Created:** 2026-02-25
 **Updated:** 2026-03-13
 
@@ -100,6 +100,7 @@ An intelligent agent orchestration engine for building large-scale software with
 <constraints>
 ### Technical
 - C-03: All operations are advisory — never block workflow execution
+- C-06: C-06|Workflow prompts may be modified or simplified when programmatic replacement is demonstrably better
 
 ### Business
 - C-04: Backward compatible — projects without codebase analysis work exactly as before
@@ -130,6 +131,8 @@ Orchestration should feel invisible — the right agent gets the right task with
   - Reason: Milestone v11.3: Reduce LLM round-trips
 - **Added** DO-71 [P2]: DO-71|P2|Metrics captured showing before/after LLM call reduction per workflow
   - Reason: Milestone v11.3: Measure offloading impact
+- **Added** C-06: C-06|Workflow prompts may be modified or simplified when programmatic replacement is demonstrably better
+  - Reason: Milestone v11.3: Allow workflow changes when code can handle the work
 
 ### v11.1 — 2026-03-11
 - **Added** outcomes: DO-60 (Direct command execution), DO-61 (Zero friction), DO-62 (Polish).
