@@ -52,26 +52,26 @@
 
 | REQ-ID | Phase | Plan |
 |--------|-------|------|
-| TEST-01 | — | — |
-| TEST-02 | — | — |
-| TEST-03 | — | — |
-| TEST-04 | — | — |
-| TEST-05 | — | — |
-| TEST-06 | — | — |
-| CMD-01 | — | — |
-| CMD-02 | — | — |
-| CMD-03 | — | — |
-| CMD-04 | — | — |
-| CMD-05 | — | — |
-| CMD-06 | — | — |
-| ART-01 | — | — |
-| ART-02 | — | — |
-| ART-03 | — | — |
-| ART-04 | — | — |
-| ART-05 | — | — |
-| ART-06 | — | — |
-| ART-07 | — | — |
-| INT-01 | — | — |
-| INT-02 | — | — |
-| INT-03 | — | — |
-| INT-04 | — | — |
+| TEST-01 | Phase 114 | — |
+| TEST-02 | Phase 114 | — |
+| TEST-03 | Phase 114 | — |
+| TEST-04 | Phase 114 | — |
+| TEST-05 | Phase 114 | — |
+| TEST-06 | Phase 114 | — |
+| CMD-01 | Phase 115 | — |
+| CMD-02 | Phase 115 | — |
+| CMD-03 | Phase 115 | — |
+| CMD-04 | Phase 115 | — |
+| CMD-05 | Phase 115 | — |
+| CMD-06 | Phase 115 | — |
+| ART-01 | Phase 116 | — |
+| ART-02 | Phase 116 | — |
+| ART-03 | Phase 116 | — |
+| ART-04 | Phase 116 | — |
+| ART-05 | Phase 116 | — |
+| ART-06 | Phase 116 | — |
+| ART-07 | Phase 116 | — |
+| INT-01 | Phase 117 | — |
+| INT-02 | Phase 117 | — |
+| INT-03 | Phase 117 | — |
+| INT-04 | Phase 117 | — |
