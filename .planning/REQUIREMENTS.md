@@ -22,7 +22,7 @@ Requirements for LLM Offloading milestone. Each maps to roadmap phases.
 
 ### Workflow Integration
 
-- [ ] **FLOW-01**: Extended bgsd-context JSON includes pre-computed decisions that workflows consume directly
+- [x] **FLOW-01**: Extended bgsd-context JSON includes pre-computed decisions that workflows consume directly
 - [ ] **FLOW-02**: Workflow files simplified to consume pre-computed decisions instead of re-deriving them via LLM reasoning
 - [ ] **FLOW-03**: Token savings telemetry measures before/after LLM call reduction per workflow
 
@@ -61,7 +61,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENGINE-02 | Phase 111 | Complete | npm test |
 | ENGINE-03 | Phase 111 | Complete | npm test |
 | ENGINE-04 | Phase 111 | Complete | npm test |
-| FLOW-01 | Phase 112 | Pending | npm test |
+| FLOW-01 | Phase 112 | Complete | npm test |
 | FLOW-02 | Phase 112 | Pending | npm test |
 | FLOW-03 | Phase 112 | Pending | npm test |
 

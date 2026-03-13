@@ -5,18 +5,21 @@
 See: `.planning/PROJECT.md` (updated 2026-03-13)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v11.3 LLM Offloading — Phase 111 (Decision Engine & Enrichment)
+**Current focus:** v11.3 LLM Offloading — Phase 112 (Workflow Integration & Measurement)
 
 ## Current Position
 
-**Phase:** 111 (Decision Engine & Enrichment)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 112 (Workflow Integration & Measurement)
+**Current Plan:** 01 complete, 02 pending
+**Status:** In progress
 **Last Activity:** 2026-03-13
 
-Progress: [██████████] 100%
+Progress: [█████░░░░░] 50%
 
 ## Execution Notes
+
+**Phase 112 (workflow-integration-measurement):** In progress
+- Plan 0112-01: Extended command-enricher with 15+ decision rule inputs, 46 contract tests (9 min)
 
 **Phase 111 (decision-engine-enrichment):** Complete
 - Plan 0111-01: 12 pure decision functions, registry, 85 contract tests (6 min)
@@ -38,7 +41,7 @@ Progress: [██████████] 100%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 208 (v1.0-v11.0)
+- Total plans completed: 209 (v1.0-v11.0)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
@@ -66,6 +69,9 @@ Progress: [██████████] 100%
 - [Phase 0111]: 12 pure decision functions covering all 85 audit candidates with progressive confidence model — Functions implement all unique decision types from audit catalog; 4 use MEDIUM confidence for ambiguous state
 - [0111-02]: Enricher evaluates decisions in-process (no subprocess) — decisions field is purely additive to existing enrichment contract
 - [0111-02]: Decision evaluation wrapped in try/catch — non-fatal, enrichment continues without decisions if evaluation fails
+- [0112-01]: Each enrichment derivation wrapped in individual try/catch — failure in one field doesn't break enrichment
+- [0112-01]: Task types extracted from first incomplete plan only (not all plans) per research recommendation
+- [0112-01]: UAT gap detection uses simple readFileSync + string.includes() — no heavy parsing
 
 ### Pending Todos
 
@@ -77,6 +83,6 @@ None — research complete with HIGH confidence, ready for planning.
 
 ## Session Continuity
 
-**Last session:** 2026-03-13T15:59:14.173Z
-**Stopped at:** Phase 112 planned — 2 plans in 2 waves
-**Next step:** Plan and execute Phase 112 (Integration) — `/bgsd plan phase 112`
+**Last session:** 2026-03-13T16:10:56Z
+**Stopped at:** Completed 0112-01-PLAN.md
+**Next step:** Execute Phase 112 Plan 02 (workflow simplification + measurement)
