@@ -1,7 +1,7 @@
 # Pitfalls Research
 
-**Domain:** Natural Language UI & Visualization for CLI Tools + Code Audit & Performance Profiling
-**Researched:** 2026-03-11 (NL UI), 2026-03-12 (Code Audit)
+**Domain:** LLM Offloading — Replacing LLM Decisions with Programmatic Code
+**Researched:** 2026-03-13
 **Confidence:** HIGH
 
 <!-- section: compact -->
@@ -9,207 +9,265 @@
 <!-- Compact view for planners. Keep under 25 lines. -->
 
 **Top pitfalls:**
-1. **Interactive prompts block agents** — Add --non-interactive escape hatches for every prompt (Phase 1)
-2. **NL parsing hallucinations** — Validate and sanitize all natural language-extracted parameters (Phase 1-2)
-3. **Human-structured output breaks agents** — Always provide --json flag, treat output as API contract (Phase 1)
-4. **Visualization context pollution** — Rich terminal output consumes agent context tokens; provide --quiet modes (Phase 2)
-5. **No escape from pagination** — Agents can't navigate pagers; add --no-pager or --limit flags (Phase 1)
+1. **Decision tree explosion** — Start with lookup tables, not nested if/else; cap at 3 levels deep (Scan phase)
+2. **Killing the escape hatch** — Every programmatic decision MUST have an LLM fallback path for unrecognized inputs (All phases)
+3. **The last-20% trap** — Easy 80% is trivial; edge cases will eat all the savings. Scope offloading to truly deterministic cases only (Scan phase)
+4. **Regression avalanche** — Changing a decision path can silently break 45 workflows. Add contract tests per offloaded decision (Implementation phase)
+5. **False determinism** — A decision that LOOKS deterministic has hidden context the LLM was quietly handling (Scan phase)
+6. **Over-coupling plugin to workflow text** — Programmatic code that parses workflow markdown creates a brittle contract (All phases)
 
-**Tech debt traps:** Hardcoding prompt text, ignoring exit codes, assuming TTY availability
+**Tech debt traps:** Giant switch statements, regex-based decision parsing, duplicating logic between plugin and CLI
 
-**Security risks:** Shell injection via NL-generated parameters, prompt injection in user input
+**Security risks:** Code-driven auto-resolution bypassing human-in-the-loop gates, programmatic path construction without sanitization
 
 **"Looks done but isn't" checks:**
-- NL parsing: verify edge cases (empty input, typos, ambiguous intent)
-- Visualization: verify works in non-TTY, minimal terminals
-- Output: verify JSON schema is stable across versions
+- Decision offloading: verify edge cases (empty input, unexpected format, null state)
+- Workflow integration: verify the LLM fallback actually fires when code returns "unknown"
+- Performance: verify offloaded path is actually faster than LLM (measure, don't assume)
 </pitfalls_compact>
+<!-- /section -->
+
+<!-- section: decision_criteria -->
+## Decision Criteria: Code vs. LLM
+
+**Use this rubric before offloading any decision.** Score each criterion; if ANY answer is "no" on the critical row, keep it as LLM.
+
+| Criterion | Code (Offload) | LLM (Keep) | Critical? |
+|-----------|----------------|------------|-----------|
+| Input is finite and enumerable | Yes — e.g., phase numbers, command names, config keys | No — free-form text, ambiguous descriptions | YES |
+| Output is deterministic | Same input always produces same output | Output depends on broader context or judgment | YES |
+| No natural language understanding needed | Pure data transformation, lookup, routing | Requires interpreting intent, summarizing, reasoning | YES |
+| Decision logic fits in <50 lines | Simple mapping, threshold check, pattern match | Would need hundreds of lines of conditionals | No |
+| Edge cases are known and finite | Can enumerate all edge cases | New edge cases appear regularly | No |
+| Decision doesn't need project history | Uses only current state/config | Needs to "understand" what happened before | No |
+| Failure mode is safe | Wrong answer = minor inconvenience | Wrong answer = data loss, broken state, wasted work | No |
+
+### Concrete Examples from bGSD
+
+**OFFLOAD (deterministic):**
+- Phase number padding: `"1"` -> `"01"` (pure transformation)
+- Plan file path resolution: phase + plan number -> directory path (lookup)
+- Progress bar rendering: percentage -> filled/empty blocks (calculation)
+- Config default resolution: key -> value from CONFIG_DEFAULTS (lookup)
+- Requirement ID formatting: `"REQ-1"` -> `"REQ-01"` (pattern)
+- Wave assignment from frontmatter: read `wave:` field (extraction)
+- Namespace routing: `"init:state"` -> command handler (lookup table)
+
+**KEEP AS LLM (requires reasoning):**
+- "Should this task be in wave 1 or wave 2?" (dependency analysis + judgment)
+- "Is this plan well-structured?" (quality assessment)
+- "What's the right commit message?" (summarization)
+- "Does this code change satisfy the requirement?" (semantic verification)
+- "Which files are relevant to this task?" (codebase understanding)
+- "Is this a bug or a feature gap?" (classification requiring context)
+- "Should we escalate or auto-fix?" (risk assessment)
 <!-- /section -->
 
 <!-- section: critical_pitfalls -->
 ## Critical Pitfalls
 
-### Pitfall 1: Interactive Prompts Block Agent Execution
+### Pitfall 1: Decision Tree Explosion
 
 **What goes wrong:**
-Natural language interface adds conversational prompts that require human input. When AI agents invoke the CLI, they get stuck waiting for responses that can't be provided through shell commands. The workflow halts entirely.
+A simple "replace this LLM decision with code" turns into a 500-line nested if/else/switch monster that handles every edge case the LLM was quietly absorbing. The code becomes harder to maintain than the original prompt, takes longer to update, and introduces new bugs.
 
 **Why it happens:**
-"Make it conversational" design principle leads to interactive prompts for humans. These become blockers for agents that invoke the CLI programmatically. The same design that feels friendly for humans becomes hostile for automation.
+LLMs are flexible by default — they handle edge cases, malformed input, and unexpected combinations gracefully because they "reason" about them. When you move to code, you must explicitly handle every case. Developers start with a clean `switch` statement and progressively add special cases until it's unmaintainable.
+
+**Concrete bGSD example:**
+The `classifyTaskComplexity` function in `orchestration.js` is already 80 lines of scoring logic with 7 factors. Imagine trying to codify "should this plan run sequentially or in parallel" — the current code handles 4 cases but the LLM handles dozens of nuanced situations (mixed checkpoint types, conditional parallelism, worktree availability, file overlap detection).
 
 **How to avoid:**
-- Add `--non-interactive` or `--skip-prompts` flag to every command
-- Implement sensible defaults when in non-interactive mode
-- Make the default behavior work without user input, with interactive mode as opt-in
-- Test all commands with `CI=true` environment variable to simulate agent invocation
+- Use **lookup tables** (Map/Object) instead of decision trees — flat is better than nested
+- Cap decision depth at 3 levels. If you need more, the decision isn't deterministic enough
+- Use the **"3-rule test"**: if you can express the decision in 3 or fewer rules, offload it. If you need 10+ rules, keep LLM
+- Extract the deterministic PART of a decision (data gathering, formatting) while keeping the judgment in LLM
+- Write the code first in pseudocode; if it's hard to describe, it's hard to maintain
 
 **Warning signs:**
-- Any `readline()`, `inquirer`, or stdin-read in command flow
-- Commands that fail without a TTY attached
-- Documentation that doesn't explain automated/scripted usage
+- Function exceeds 50 lines of conditional logic
+- `// TODO: handle edge case` comments proliferating
+- Decision function requires more than 3 parameters
+- Tests for the decision logic outnumber tests for actual features
+- Developers avoid modifying the function because "it might break something"
 
-**Phase to address:** Phase 1 (Foundation)
+**Phase to address:**
+Scan phase — reject offloading candidates that would require complex decision trees. Score complexity during the audit.
 
 ---
 
-### Pitfall 2: Natural Language Parsing Generates Invalid Parameters
+### Pitfall 2: Killing the LLM Escape Hatch
 
 **What goes wrong:**
-Natural language input is interpreted into CLI arguments. The LLM hallucinates parameters, misunderstands intent, or generates syntactically invalid values. The CLI either fails unexpectedly or silently does the wrong thing.
+Programmatic code replaces an LLM decision but provides no fallback path. When an unexpected input arrives that doesn't match any coded case, the system either crashes, returns a wrong default, or silently drops the decision. The user gets a worse experience than before.
 
 **Why it happens:**
-- LLMs generate creative outputs including incorrect parameters
-- Ambiguous user input gets resolved incorrectly
-- No validation layer between NL interpretation and command execution
-- Edge cases (empty strings, special characters, paths) aren't handled
+Developers assume they've covered all cases. The original LLM path gets removed from the workflow prompt ("we handle this in code now"). Six months later, a new input format arrives that the code doesn't handle, and there's no LLM to fall back to.
+
+**Concrete bGSD example:**
+The `selectExecutionMode` function returns `'sequential'` as a default when it can't determine the right mode. This is a safe fallback. But if you offloaded "which model to use for this task" and the code returns `null` for an unrecognized task type, the workflow would fail entirely — whereas the LLM would just pick a reasonable default.
 
 **How to avoid:**
-- Implement input validation schema (use valibot which bGSD already has)
-- Add `--dry-run` flag for destructive operations to preview interpreted intent
-- Log the interpreted parameters before execution for debugging
-- Create a validation phase: interpret → validate → confirm → execute
-- Handle shell metacharacters in NL-generated paths (the `../../.ssh` problem)
+- Every offloaded decision function MUST return a `{ result, confidence }` tuple
+- When confidence is `'low'` or result is `null`, route back to LLM
+- Keep the original LLM prompt text available (don't delete it from workflows)
+- Implement a **circuit breaker**: if the code path fails 3x, automatically revert to LLM for that session
+- Add metrics/logging for fallback-to-LLM events so you know when code coverage is slipping
 
 **Warning signs:**
-- No validation on NL-extracted parameters
-- Commands accept arbitrary strings without type checking
-- Error messages don't explain what went wrong with the input
+- Decision functions that throw errors instead of returning defaults
+- Workflow prompts edited to remove decision instructions "because code handles it now"
+- No logging when the code path can't determine an answer
+- Tests only cover happy paths, not "what if none of the rules match?"
 
-**Phase to address:** Phase 1-2 (Foundation + NL Parsing)
+**Phase to address:**
+All phases — this is an architectural principle. The fallback pattern should be established in the first implementation and enforced in every subsequent offloading.
 
 ---
 
-### Pitfall 3: Human-Optimized Output Breaks Agent Consumption
+### Pitfall 3: The Last-20% Trap
 
 **What goes wrong:**
-CLI outputs beautifully formatted tables, progress bars, and prose explanations. Agents must parse this "human-friendly" output to extract structured data. Parsing fails when terminal width changes, colors are stripped, or format varies.
+The scan identifies 50 offloading candidates. The first 40 (80%) are trivially deterministic — phase number padding, config lookups, path resolution. The remaining 10 require nuanced handling of edge cases, legacy formats, and cross-cutting concerns. The team spends 80% of total effort on these 10 and still can't get them right.
 
 **Why it happens:**
-- Default output optimized for human readability, not machine parsing
-- Tables wrap differently based on terminal width
-- Color codes and formatting escape sequences pollute data
-- No machine-readable alternative by default
+The Pareto principle in reverse: the easy cases are extremely easy (lookup tables), but the hard cases are genuinely hard because they involve hidden context. "Format this requirement ID" is trivial until you encounter legacy IDs without prefixes, IDs with decimal suffixes, or IDs from imported projects with different naming conventions.
+
+**Concrete bGSD example:**
+Phase number resolution looks deterministic: `"1"` -> `"01"`. But the actual `resolvePhaseDir` function handles: padded numbers (`"01-"`), un-padded numbers, directory names with slugs, missing directories, and decimal phases (`"1.1"`). The `find-phase` CLI command exists precisely because this "simple" lookup has 5+ edge cases. The LLM handles all of these naturally.
 
 **How to avoid:**
-- Make JSON the default or ensure `--json`/`--output json` works everywhere
-- Use line-delimited JSON (NDJSON) for streaming data
-- Output JSON to stdout, human messages to stderr
-- Include `next_actions` field with command templates agents can run next
-- Treat CLI output as a stable API contract with semantic versioning
+- During the scan phase, score each candidate's edge-case count explicitly
+- Set a **hard cutoff**: if a candidate has >5 known edge cases, don't offload it
+- Offload the common case but route edge cases to LLM: `if (isSimpleCase(input)) return codePath(input); else return llmPath(input);`
+- Time-box implementation: if an offloading takes >2 hours, it's not worth it
+- Calculate actual token savings vs implementation cost. A decision that fires once per session saves almost nothing
 
 **Warning signs:**
-- Only text/table output available
-- Help text varies based on environment
-- No `--quiet` flag for bare output
+- "Just one more edge case" commits keep appearing
+- Edge case tests outnumber happy path tests 3:1
+- The offloaded function has more comments than code
+- Implementation estimate keeps growing ("it was supposed to be 30 minutes")
 
-**Phase to address:** Phase 1 (Foundation)
+**Phase to address:**
+Scan phase — the audit must include honest edge-case counts per candidate. Reject candidates with high edge-case density.
 
 ---
 
-### Pitfall 4: Visualization Consumes Excessive Context Tokens
+### Pitfall 4: False Determinism
 
 **What goes wrong:**
-Rich terminal visualizations (progress bars, charts, dashboards) are rendered. Agents consuming this output spend context tokens on visual elements that provide no programmatic value. Large outputs exhaust context windows.
+A decision appears deterministic from the outside ("just look up the config value") but actually depends on implicit context the LLM was incorporating: recent conversation history, the nature of the current task, user preferences expressed earlier in the session, or the semantic content of files being worked on.
 
 **Why it happens:**
-- Visualization libraries output ANSI escape sequences and box-drawing characters
-- Progress bars emit continuous updates that compound token usage
-- Terminal width calculations embed formatting into output
+LLMs maintain conversational context. When an LLM in a workflow "decides" which model to assign to a task, it considers not just the task metadata but also what failed before, what the user said about preferences, and the nature of the project. Extracting the decision into code loses this context.
+
+**Concrete bGSD example:**
+The `command-enricher.js` detects phase arguments from command input — seemingly deterministic. But the LLM also considers: "the user just said 'continue with phase 3'" or "we're in the middle of executing phase 2, so 'next phase' means 3." The enricher only handles explicit numeric arguments, not conversational references. If you tried to offload "determine which phase the user means" into code, you'd miss conversational context entirely.
 
 **How to avoid:**
-- Provide `--quiet` or `--no-progress` flag to disable visualizations
-- Output structured data instead of rendered visualizations
-- Use streaming JSON lines instead of full renders
-- Truncate unbounded output with file pointers for full data
-- Create separate "data export" commands for programmatic access
+- For each candidate, ask: "Does this decision ever change based on conversation context?"
+- Shadow-test: run the code path alongside the LLM path for 20 sessions and compare results
+- Document the **full input space** for each decision, including implicit inputs
+- If a decision function needs access to conversation history, session state, or file content beyond structured metadata — it's not deterministic
+- Distinguish "structured data in, structured data out" (offloadable) from "unstructured context in, decision out" (keep LLM)
 
 **Warning signs:**
-- No way to disable progress indicators
-- Output size grows linearly with data size
-- Visual elements mixed with data in output
+- The offloaded function works perfectly in tests but produces wrong results in real sessions
+- Users report "it used to work" after offloading — the LLM was compensating for ambiguous inputs
+- Decision functions that need growing numbers of parameters to handle "just one more context signal"
+- Functions that work for existing projects but fail for new project types
 
-**Phase to address:** Phase 2 (Visualization)
+**Phase to address:**
+Scan phase — the audit must distinguish truly deterministic decisions from "usually deterministic" ones. Test with diverse project states, not just the current project.
 
 ---
 
-### Pitfall 5: Pagination Breaks Agent Workflows
+### Pitfall 5: Regression Avalanche
 
 **What goes wrong:**
-CLI uses a pager (less, more) or waits for keypresses to navigate output. Agents cannot interact with pagers, causing hangs or truncated results.
+A programmatic decision is introduced or modified, and it silently breaks downstream workflows. Because the decision was previously embedded in LLM prompts (which are forgiving), the downstream code never had explicit contracts around the decision's output format. Now that it's in code, a small change (different capitalization, missing field, new enum value) cascades through 10+ workflows.
 
 **Why it happens:**
-- Default terminal behavior enables paging for long output
-- Interactive features assumed, not detected
-- No explicit flag to disable paging
+bGSD has 45 workflows, 27 skills, and 9 agents. A single decision like "what's the current phase status?" flows through: plugin context injection -> workflow prompt -> agent prompt -> CLI tool invocation -> state update. Changing the decision at any point can break downstream consumers that expected a specific format.
+
+**Concrete bGSD example:**
+The `updateProgress` function modifies STATE.md progress bars. The format `[████████░░] 80%` is consumed by: the plugin parser (`parseState`), the system prompt builder (`buildSystemPrompt`), the idle validator (`fixProgressBar`), workflow prompts that regex-match progress, and agents that read progress as context. If an offloaded decision changes the progress format even slightly, all consumers break.
 
 **How to avoid:**
-- Detect non-TTY environments and disable paging automatically
-- Add explicit `--no-pager` and `--limit` flags
-- Set `PAGER=cat` or `LESS=` environment variable handling
-- Implement `--page-size` for controlling output batches
-- Never require terminal interaction for automated flows
+- Add **contract tests** (snapshot tests) for every offloaded decision's output format
+- Create a shared type/schema for decision outputs that both code and workflows reference
+- Use the existing `verify:` CLI namespace to validate offloaded decisions
+- Before modifying any offloaded decision, run the full test suite (762+ tests exist for a reason)
+- Implement **versioned output formats**: `{ version: 1, result: "..." }` so consumers can handle format changes
+- Map the dependency chain for each decision: who produces it, who consumes it, what format do they expect
 
 **Warning signs:**
-- Commands hang without input in CI environments
-- Output truncated in automated tests
-- No `--limit` or `--max-results` options
+- "Tests pass but workflows fail" — the test suite doesn't cover the integration point
+- Agents producing unexpected output after a code change in a seemingly unrelated module
+- The same decision output is parsed by regex in 3+ different files
+- No snapshot tests for CLI output consumed by workflows
 
-**Phase to address:** Phase 1 (Foundation)
+**Phase to address:**
+Implementation phase — every offloaded decision must ship with contract tests. The scan phase should map the consumer chain for each candidate.
 
 ---
 
-### Pitfall 6: Shell Injection via NL-Generated Parameters
+### Pitfall 6: Over-Coupling Plugin to Workflow Text
 
 **What goes wrong:**
-Natural language input is interpreted into shell commands. Malicious prompts or hallucinated parameters contain shell metacharacters (`;`, `|`, `&&`, `$()`) that execute arbitrary commands.
+Programmatic code in the plugin starts parsing workflow markdown to extract decision parameters. The plugin becomes tightly coupled to the exact wording, formatting, and structure of `.md` workflow files. Any workflow edit requires a corresponding code change, and vice versa.
 
 **Why it happens:**
-- NL output directly interpolated into shell commands
-- No sanitization of extracted parameters
-- User prompts can contain prompt injection attacks
-- LLM generates parameters with special characters
+The temptation is strong: "The workflow already contains the logic, let's just parse it programmatically." But workflows are prose instructions for LLMs, not structured data for code. They use natural language, vary in formatting, and evolve without considering code parsers.
+
+**Concrete bGSD example:**
+The `enrichCommand` function already does lightweight parsing of `<bgsd-context>` JSON blocks — this works because the format is structured JSON. But if someone tried to programmatically extract "should we run research for this phase?" by parsing the `plan-phase.md` workflow text, they'd be coupling to prose that changes with every iteration.
 
 **How to avoid:**
-- Use `execFile` instead of `exec` or shell interpolation
-- Sanitize all NL-extracted parameters with shell escaping
-- Implement command allowlist (if feasible)
-- Add input validation that rejects suspicious patterns
-- Document in AGENTS.md: "This CLI is frequently invoked by AI/LLM agents. Always assume inputs can be adversarial."
+- Decision parameters must come from **structured sources**: config.json, frontmatter, STATE.md fields, CLI arguments
+- NEVER parse workflow `.md` prose programmatically — workflows are LLM instructions, not data
+- Create explicit configuration points: if a decision needs a flag, add it to `config.json` or frontmatter schema
+- Use the plugin's `<bgsd-context>` injection to pass structured data TO workflows, not extract data FROM them
+- Establish a **data flow direction**: plugin/CLI -> structured data -> workflow prompt -> LLM. Never reverse this.
 
 **Warning signs:**
-- Uses `execSync` with string concatenation
-- No parameter sanitization before shell invocation
-- Accepts arbitrary user strings without escaping
+- Regex patterns matching workflow markdown content (not frontmatter/XML blocks)
+- Plugin code that reads `.md` files outside of `.planning/` directory
+- Code comments like "parse the 'Handle Research' section of plan-phase.md"
+- Changes to workflow prose requiring code changes
 
-**Phase to address:** Phase 1-2 (Foundation + NL Parsing)
+**Phase to address:**
+All phases — this is an architectural boundary. Enforce it from the first offloading.
 
 ---
 
-### Pitfall 7: Model Fabricates User Messages in Conversational UI
+### Pitfall 7: The "Code Can Do Everything" Trap
 
 **What goes wrong:**
-During long conversational sessions, the NL interface generates fabricated user messages and processes them as genuine input. Actions are taken based on conversations that never happened.
+Early successes with easy offloading (lookups, formatting) create false confidence. The team starts offloading progressively harder decisions: "classify this deviation," "decide if this plan needs revision," "determine optimal execution strategy." Each one is possible in code but produces brittle, inaccurate results compared to LLM judgment.
 
 **Why it happens:**
-- Context window pressure causes the model to fill gaps
-- Long conversations lose track of what's real vs. generated
-- No message provenance tracking
+The `classifyTaskComplexity` and `selectExecutionMode` functions in `orchestration.js` actually work well — they're concrete examples of successful programmatic decision-making. But they work because their domains are narrow and well-defined. The temptation is to apply the same pattern to broader decisions that genuinely need reasoning.
+
+**Concrete bGSD example:**
+The `autoRecovery.js` module has 4 deviation rules (bug, missing_critical, blocking, architectural) with pattern-matching classification. This works for common patterns but uses keyword matching — it would misclassify a novel deviation type. The LLM deviation detection in the executor is more accurate because it understands context. Offloading this "further" would degrade quality.
 
 **How to avoid:**
-- Implement message ID tracking with collision detection
-- Add gap analysis to detect missing messages
-- Validate message timestamps are monotonically increasing
-- Include "source" metadata for each message
-- Add confirmation step for actions derived from interpreted intent
+- Set an explicit **offloading boundary** per milestone: "We offload X, Y, Z this milestone. Period."
+- Require justification for each candidate: expected token savings, confidence in determinism, fallback plan
+- Track decision accuracy after offloading — if accuracy drops below 95%, revert to LLM
+- Recognize that some "decisions" are actually "judgments" — judgment requires reasoning, decisions require data
+- Review the decision criteria rubric above for each candidate. If even one critical criterion fails, stop.
 
 **Warning signs:**
-- Message IDs out of sequence
-- Gaps in conversation timeline
-- Model generates "realistic but fake" user messages
+- Token savings claims without measurement
+- "We could also offload..." scope creep in planning
+- Offloaded decisions that are "usually right" instead of "always right"
+- Code that tries to simulate LLM reasoning with increasingly complex heuristics
 
-**Phase to address:** Phase 2 (NL Parsing)
-
----
+**Phase to address:**
+Scan phase — the audit should explicitly label each candidate as "decision" (offloadable) or "judgment" (keep LLM). The boundary should be enforced during implementation.
 <!-- /section -->
 
 <!-- section: tech_debt -->
@@ -219,53 +277,69 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Skip --json flag, parse text with regex | Faster initial implementation | Brittle, breaks on format changes | Never - use proper JSON output |
-| Hardcode prompt text strings | Quick to write | Hard to localize, no theming | Only for MVP, refactor before ship |
-| Ignore exit codes beyond 0/1 | Simpler error handling | Agents can't distinguish error types | Never - use semantic exit codes |
-| Assume TTY always available | Simpler output code | Breaks in CI, scripts, agents | Always detect and handle non-TTY |
-| Single output format for all modes | One code path | Can't satisfy humans AND agents | Never - separate output modes |
+| Giant switch/case for all offloaded decisions | Quick to add new cases | Unmaintainable past 20 cases; merge conflicts in multi-dev | Never — use registry pattern (Map of handlers) |
+| Regex-based decision extraction from markdown | No parser needed | Fragile to formatting changes; false matches | Only for well-defined XML/frontmatter blocks with tests |
+| Duplicating logic between plugin.js and bgsd-tools.cjs | Each runs independently | Drift between implementations; double maintenance | Never — share via common module in src/ |
+| Hardcoding decision thresholds | Fast to implement | Tuning requires code changes and redeploy | Only if threshold is truly universal (e.g., 0-100% range) |
+| Removing LLM fallback "to simplify" | Cleaner code paths | No recovery when code can't decide | Never — always keep fallback path |
+| Testing only with current project state | Faster test writing | Breaks on different project structures or legacy formats | Only for initial prototype; add diverse test fixtures before merge |
+| Inlining decision logic in workflow orchestrators | Fewer files to manage | Workflows become untestable code-in-prose | Never — decisions belong in src/ modules |
+
+## Integration Gotchas
+
+Common mistakes when connecting offloaded decisions across the plugin/CLI/workflow boundary.
+
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| Plugin -> Workflow (context injection) | Adding raw decision output to system prompt, bloating tokens | Inject minimal structured data; let workflow interpret |
+| CLI -> Plugin (tool execution) | Offloaded decision in CLI duplicates logic already in plugin | Single source of truth: either in plugin tools or CLI, never both |
+| Workflow -> CLI (command invocation) | Workflow passes LLM-interpreted params to code that expects strict format | Validate all params at the CLI boundary; reject with clear error |
+| Plugin parser -> State file | Parsing assumes format won't change; no version negotiation | Use defensive parsing with fallback: try new format, fall back to old |
+| Config.json -> Decision logic | Reading config for every decision invocation | Cache config at session start (already done — `parseConfig` has cache) |
+| Agent prompt -> Tool call | Agent misuses tool because offloaded decision changed output schema | Version tool schemas; document breaking changes in tool description |
+| Test suite -> Production paths | Tests mock the decision function instead of testing it | Test the actual decision function; mock only external I/O |
 <!-- /section -->
 
 <!-- section: performance -->
 ## Performance Traps
 
-Patterns that work at small scale but fail as usage grows.
+Patterns that work at small scale but fail as complexity grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Continuous progress updates | Token exhaustion, slow rendering | Batch updates, --quiet flag | In agent context |
-| Full result dumps to stdout | Context overflow | Pagination, --limit, streaming | Large datasets |
-| Re-parsing NL input each command | Latency accumulation | Cache interpreted intents | High-frequency commands |
-| Visualization rendering per line | Slow output, buffer bloat | Render once, update incrementally | Large data exports |
+| Over-eager offloading | Every prompt call replaced with code; total code complexity exceeds maintainability | Offload only high-frequency, truly deterministic decisions | >30 offloaded decision functions |
+| Decision function I/O | Offloaded function reads files on every call instead of using cache | Use existing cache layer (parseState, parseRoadmap already cached) | >10 file reads per CLI invocation |
+| Validation overhead | Input validation for offloaded decisions takes longer than LLM would | Validate at entry point, not in every function; use schema-based validation | Validation adds >50ms per decision |
+| Bundle size bloat | Each offloaded decision adds code to the 1163KB bundle | Keep decision logic minimal; use data files (JSON maps) over code | Bundle exceeds 1500KB |
+| Regex compilation | Complex regexes for decision parsing compiled on every invocation | Pre-compile and cache regexes (regex-cache.js exists for this) | >50 regex patterns per decision path |
 <!-- /section -->
 
 <!-- section: security -->
 ## Security Mistakes
 
-Domain-specific security issues beyond general web security.
+Domain-specific security issues when replacing LLM judgment with code.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| NL input directly in shell commands | Arbitrary code execution | Parameter sanitization, execFile |
-| No input validation on NL-extracted params | Command injection, data corruption | Schema validation, allowlists |
-| Pasting @ symbols triggers file expansion | Unexpected file access | Escape @ in input handling |
-| Prompt injection in user input | Manipulated agent behavior | Input sanitization, rate limiting |
-| Logging NL input with secrets | Credential exposure | Scrub sensitive patterns from logs |
+| Auto-resolving file paths without sanitization | Path traversal — offloaded "resolve file" decision constructs paths from user input | Use existing `sanitizeShellArg`; validate paths are within project root |
+| Bypassing human-in-the-loop gates | Code auto-approves what LLM would flag for human review | Offloaded decisions must NEVER bypass checkpoint types (human-verify, decision, human-action) |
+| Trusting config.json without validation | Malformed config could lead to unexpected decision outcomes | Validate config against schema before using in decisions (valibot validation exists) |
+| Decision function exposes internal state | Error messages from decision code reveal file paths, internal state | Return user-safe messages; log details to bgsd-plugin.log only |
+| Programmatic state modification without locking | Two processes make conflicting decisions about state | Use existing lock mechanism (mkdir-based lock in bgsd-progress tool) |
 <!-- /section -->
 
 <!-- section: ux -->
 ## UX Pitfalls
 
-Common user experience mistakes in this domain.
+How offloading can degrade the user/agent experience.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Mixed noun-verb grammar | Confused command guessing | Consistent `noun verb` hierarchy |
-| Unhelpful error messages | Can't fix problems | Actionable errors with error codes |
-| No --dry-run for destructive ops | Accidental data loss | Preview before execute |
-| Non-idempotent commands | Repeated execution causes issues | Idempotent by default or explicit handling |
-| Inconsistent field names across commands | Hard to script | Unified schema across commands |
-| Help varies by environment | Unpredictable behavior | Static, discoverable help |
+| Code returns cryptic error instead of LLM's natural explanation | User sees "EINVAL: invalid phase argument" instead of "Phase 3 doesn't exist yet — did you mean to create it?" | Return structured error with `message` (human-readable) + `code` (machine-readable) + `suggestion` (recovery hint) |
+| Offloaded decision is faster but less accurate | User gets wrong model recommendation 5% of the time; was always right with LLM | Accuracy > speed. If code isn't 99%+ accurate, keep LLM |
+| Silent fallback to LLM with no indication | User doesn't know when code handles it vs LLM — can't report issues | Log fallback events; surface in `--verbose` mode |
+| Decision code doesn't explain its reasoning | LLM naturally says "I chose X because Y"; code just returns X | Add `reason` field to decision output: `{ result: "sequential", reason: "plan has checkpoint tasks" }` |
+| Inconsistent behavior between code path and LLM path | User gets different results depending on whether fallback fires | Ensure code path output format matches what LLM would produce |
 <!-- /section -->
 
 <!-- section: looks_done -->
@@ -273,13 +347,16 @@ Common user experience mistakes in this domain.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **NL Parsing:** Often missing validation on edge cases — verify with empty input, special chars, maximum length
-- [ ] **--json flag:** Often works for some commands but not all — verify every command supports JSON output
-- [ ] **--non-interactive:** Often missing on subset of commands — verify all prompts have escape hatches
-- [ ] **Error codes:** Often only 0/1 — verify semantic exit codes (1=error, 2=usage, 3=validation)
-- [ ] **Terminal detection:** Often assumes TTY — verify works in CI, pipes, scripts
-- [ ] **Visualization fallback:** Often no plain-text alternative — verify --quiet mode works everywhere
-- [ ] **Input sanitization:** Often missing for NL-generated params — verify shell metacharacters are escaped
+- [ ] **Decision offloading:** Often missing LLM fallback path — verify fallback fires for unrecognized inputs
+- [ ] **Contract tests:** Often missing snapshot tests for output format — verify decision output is tested as a contract
+- [ ] **Edge case coverage:** Often missing legacy format handling — verify with pre-v8.0 project structures
+- [ ] **Workflow integration:** Often missing `<bgsd-context>` update — verify the workflow receives the offloaded decision's result
+- [ ] **Error messages:** Often missing human-readable recovery hints — verify error.js patterns are used
+- [ ] **Performance measurement:** Often missing before/after token count comparison — verify actual savings with tokenx
+- [ ] **Config integration:** Often missing config flag to disable offloading — verify `config.json` has a toggle
+- [ ] **Test diversity:** Often missing test cases for empty/null/malformed state — verify with fresh project and mature project
+- [ ] **Fallback metrics:** Often missing logging for fallback events — verify `debugLog` is called when code can't decide
+- [ ] **Documentation:** Often missing update to AGENTS.md or skill files — verify agents know about the new code path
 <!-- /section -->
 
 <!-- section: recovery -->
@@ -289,13 +366,13 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Agent stuck on prompt | LOW | Kill process, add --non-interactive, retry |
-| Invalid NL parameters | MEDIUM | Enable --dry-run, review logs, fix validation |
-| Output parsing failure | LOW | Add --json flag, parse structured output |
-| Context overflow from visualization | LOW | Add --quiet flag, reduce output size |
-| Shell injection detected | HIGH | Audit logs, rotate credentials, patch validation |
-| Fabricated messages detected | MEDIUM | Reset conversation, add message provenance |
-<!-- /section -->
+| Decision tree explosion | MEDIUM | Extract to lookup table; move edge cases to LLM fallback; write contract tests for remaining cases |
+| Missing LLM fallback | LOW | Add `else { return llmFallback(input); }` clause; restore original prompt instructions in workflow |
+| Last-20% trap | LOW | Revert the complex offloading; keep only the simple cases; route the rest to LLM |
+| False determinism | MEDIUM | Add shadow-testing mode; compare code vs LLM output for 20 sessions; revert if divergence >5% |
+| Regression avalanche | HIGH | Roll back the breaking change; add missing contract tests; re-introduce change with tests passing |
+| Over-coupling to workflows | HIGH | Extract structured data to config/frontmatter; rewrite decision to use structured sources only |
+| "Code can do everything" | LOW | Audit offloaded decisions; revert those with <95% accuracy; establish explicit boundary |
 
 ## Pitfall-to-Phase Mapping
 
@@ -303,416 +380,25 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Interactive prompts block agents | Phase 1 | Test with CI=true, verify --non-interactive works |
-| NL parsing generates invalid params | Phase 1-2 | Test with adversarial input, verify validation |
-| Human output breaks agents | Phase 1 | Verify --json on all commands |
-| Visualization context pollution | Phase 2 | Test with large dataset, verify --quiet |
-| Pagination breaks agents | Phase 1 | Test in non-TTY, verify --no-pager |
-| Shell injection via NL params | Phase 1-2 | Audit code, verify sanitization |
-| Model fabricates messages | Phase 2 | Test long conversations, verify message tracking |
-| Mixed noun-verb grammar | Phase 1 | Consistency audit across all commands |
-| Non-idempotent operations | Phase 1 | Test repeated execution, verify idempotency |
+| Decision tree explosion | Scan (complexity scoring) | No candidate accepted with >3 decision depth or >5 edge cases |
+| Missing LLM fallback | Implementation (architectural rule) | Every offloaded function has a fallback return path; tested |
+| Last-20% trap | Scan (honest edge-case counting) | Candidates scored with edge-case count; >5 edge cases = rejected |
+| False determinism | Scan (input space analysis) | Each candidate documented with full input space including implicit inputs |
+| Regression avalanche | Implementation (contract tests) | Every offloaded decision ships with snapshot tests; CI validates |
+| Over-coupling to workflows | All phases (boundary enforcement) | Code review gate: no `.md` prose parsing in src/ modules |
+| "Code can do everything" | Scan (explicit boundary) | Candidates labeled as "decision" or "judgment"; judgment = rejected |
+| Testing burden | Implementation (test strategy) | Decision tests use diverse fixtures, not just current project state |
+<!-- /section -->
 
----
-
+<!-- section: sources -->
 ## Sources
 
-- [Making your CLI agent-friendly - Speakeasy](https://www.speakeasy.com/blog/engineering-agent-friendly-cli)
-- [Designing CLI Tools for AI Agents - nibzard](http://nibzard.com/ai-native/)
-- [Writing CLI Tools That AI Agents Actually Want to Use - DEV Community](https://dev.to/uenyioha/writing-cli-tools-that-ai-agents-actually-want-to-use-39no)
-- [CLI Design for AI Agents - JoelClaw](https://joelclaw.com/cli-design-for-ai-agents)
-- [Keep the Terminal Relevant: Patterns for AI Agent Driven CLIs - InfoQ](https://infoq.com/articles/ai-agent-cli)
-- [Securing CLI Based AI Agent - Vishal Mysore](https://medium.com/@visrow/securing-cli-based-ai-agent-c36429e88783)
-- [Top 7 CLI Developer Experience Mistakes - TechBuddies](https://www.techbuddies.io/2026/01/09/top-7-cli-developer-experience-mistakes-devs-still-make-in-2025/)
-- [Model fabricates user messages - OpenClaw Issue #25021](https://github.com/openclaw/openclaw/issues/25021)
-- [Robust @ paste escaping - Google Gemini CLI PR #21239](https://github.com/google-gemini/gemini-cli/pull/21239)
-- [Claude Code Issue #32176 - Agent draws false conclusions](https://github.com/anthropics/claude-code/issues/32176)
+- **Training data (verified against codebase):** Patterns observed in `orchestration.js`, `autoRecovery.js`, `checkpointAdvisor.js`, `command-enricher.js`, `advisory-guardrails.js` — existing examples of both successful and borderline programmatic decision-making in bGSD. Confidence: HIGH
+- **Codebase analysis:** `plugin.js` (2834 lines), `src/` (90+ modules), `workflows/` (44 files) — analyzed integration points and data flow patterns. Confidence: HIGH
+- **Architecture patterns:** Existing fallback patterns (circuit breaker in `safeHook`, graceful degradation in `parseConfig`, default-on-error in `classifyTaskComplexity`) provide templates for safe offloading. Confidence: HIGH
+- **Project constraints:** From `PROJECT.md` — single-file deploy, backward compatibility, 762+ tests, 9-agent cap, advisory-only validation. Confidence: HIGH
+- **Decision-making precedents:** `CONFIG_DEFAULTS`, `MODEL_MAP`, `COMPLEXITY_LABELS`, `RECOVERY_STRATEGIES`, `PLANNING_COMMANDS`, `NAMING_PATTERNS` — existing lookup-table patterns that work well. Confidence: HIGH
 
 ---
-*Pitfalls research for: Natural Language UI & Visualization for CLI Tools*
-*Researched: 2026-03-11*
-
----
-
-# CODE AUDIT & PERFORMANCE TOOLING PITFALLS
-
-**Domain:** Code Audit & Performance Profiling for CLI Tools
-**Researched:** 2026-03-12
-**Confidence:** HIGH
-
-<!-- section: compact_audit -->
-<pitfalls_compact>
-<!-- Compact view for planners. Keep under 25 lines. -->
-
-**Top pitfalls:**
-1. **False positives in unused code detection** — Build allowlist for generated code, tests, exports (Phase 1)
-2. **Complexity metrics misread as quality scores** — Use multiple metrics, not just cyclomatic (Phase 1-2)
-3. **Profiling overhead distorts measurements** — Use sampling, separate warmup from measurement (Phase 1)
-4. **Static analysis misses runtime behavior** — Combine with dynamic analysis, warn about limitations (Phase 1)
-5. **Noisy audit output causes alert fatigue** — Implement severity tiers, confidence levels, suppression (Phase 2)
-
-**Tech debt traps:** Hardcoding thresholds, ignoring language differences, single-metric obsession
-
-**Security risks:** Audit tool DoS via large codebase, path traversal in file analysis, memory exhaustion
-
-**"Looks done but isn't" checks:**
-- Unused code: verify generated code excluded, dynamic requires handled
-- Complexity: verify metric thresholds documented, context considered
-- Profiling: verify warmup separated, sampling overhead measured
-</pitfalls_compact>
-<!-- /section -->
-
-<!-- section: critical_audit -->
-## Critical Pitfalls
-
-### Pitfall 1: False Positives in Unused Code Detection
-
-**What goes wrong:**
-The unused code detector reports legitimate code as dead: generated functions (`.gen.go`, `_pb.go`), dynamically required modules (`require('./' + name)`), test files, polyfills, and conditionally compiled code. Users stop trusting the tool.
-
-**Why it happens:**
-- Static analysis cannot understand dynamic requires, code generation, or conditional compilation
-- Generated code follows patterns that look "unused" to simple AST analysis
-- Build toolchain transformations aren't modeled in the analysis
-- Reflection and runtime metaprogramming are invisible to static analysis
-
-**How to avoid:**
-- Build an allowlist of patterns to exclude (generated files, test files, node_modules by default)
-- Implement dynamic-require detection that tracks string concatenation in require calls
-- Add configuration for project-specific exclusions (build outputs, conditional compilation)
-- Report confidence levels: "likely unused" vs "definitely unused"
-- Create a `--include-generated` flag for thorough scans with manual filtering
-
-**Warning signs:**
-- High percentage of "unused" findings in well-maintained projects
-- No configuration options for exclusions
-- Reports generated code as unused
-- Single-pass analysis without iteration
-
-**Phase to address:** Phase 1 (Foundation - unused code detection)
-
----
-
-### Pitfall 2: Complexity Metrics Misread as Quality Scores
-
-**What goes wrong:**
-Cyclomatic complexity is treated as the definitive quality metric. Developers refactor to lower scores while actually making code harder to understand. Short functions with complex logic score well; long functions with simple logic score poorly.
-
-**Why it happens:**
-- Cyclomatic complexity is easy to measure but captures only control flow
-- Cognitive complexity, coupling, and cohesion aren't considered
-- Thresholds (e.g., "max complexity 10") become goals rather than guidelines
-- No context: utility functions, error handlers, and test helpers have different complexity profiles than business logic
-
-**How to avoid:**
-- Use multiple metrics: cyclomatic + cognitive complexity + coupling + lines of code
-- Set context-aware thresholds: higher for utilities, lower for business logic
-- Never block builds on complexity alone — use as warning/advisory
-- Track complexity trends over time, not absolute values
-- Document what complexity means for your codebase
-
-**Warning signs:**
-- Single metric drives all decisions
-- Thresholds enforced as hard limits
-- Refactoring to lower scores increases confusion
-- No trend analysis over time
-
-**Phase to address:** Phase 1-2 (Foundation + complexity analysis)
-
----
-
-### Pitfall 3: Profiling Overhead Distorts Measurements
-
-**What goes wrong:**
-The profiler adds so much overhead that the results don't reflect production behavior. Instrumented code runs 10-100x slower. Hot paths appear slower than they are because profiling adds overhead to every operation.
-
-**Why it happens:**
-- Heavy instrumentation on every function call
-- No warmup period — measures JIT compilation time
-- Sampling rate too high, overwhelming the application
-- Memory profiling triggers additional allocations
-- Ignoring that profiling changes timing
-
-**How to avoid:**
-- Use sampling-based profiling (not instrumentation) for CPU
-- Separate warmup phase from measurement phase
-- Run multiple iterations, discard first results
-- Measure and report profiling overhead separately
-- Use production-like workloads, not synthetic benchmarks
-- Provide `--profile-mode=sampling` vs `--profile-mode=instrumentation` options
-
-**Warning signs:**
-- Profiling 10x+ slower than normal execution
-- Results vary wildly between runs
-- No warmup or JIT consideration
-- Single run results accepted without iteration
-
-**Phase to address:** Phase 1 (Foundation - performance profiling)
-
----
-
-### Pitfall 4: Static Analysis Misses Runtime Behavior
-
-**What goes wrong:**
-The code audit reports issues based on static analysis that don't occur at runtime: dead code that's actually used via reflection, performance issues that only manifest under load, or type errors that TypeScript erases.
-
-**Why it happens:**
-- Static analysis operates on source code, not runtime behavior
-- Build steps (transpilation, minification) change code
-- Runtime conditions (environment variables, feature flags) affect behavior
-- Native modules and bindings bypass static analysis
-
-**How to avoid:**
-- Document static analysis limitations prominently
-- Combine static analysis with dynamic/runtime checks where possible
-- Add "known limitations" section to audit output
-- Warn when analysis makes assumptions about runtime
-- Support `--include-runtime` or `--trace-execution` for deeper analysis
-- Provide confidence levels: "static analysis shows X" vs "runtime confirms X"
-
-**Warning signs:**
-- Audit claims confidence it shouldn't have
-- No runtime verification option
-- Results differ from runtime behavior
-- Build artifacts not accounted for
-
-**Phase to address:** Phase 1 (Foundation - static analysis scope)
-
----
-
-### Pitfall 5: Noisy Audit Output Causes Alert Fatigue
-
-**What goes wrong:**
-The code audit produces hundreds of findings with equal severity. Users ignore all findings because they can't prioritize. Real issues are lost in noise. The tool becomes useless.
-
-**Why it happens:**
-- No severity classification (blocking vs warning vs info)
-- No confidence scoring (definite vs likely vs possible)
-- All findings reported regardless of user interest
-- No suppression or ignore mechanism
-- Findings not actionable (e.g., "this is complex" without guidance)
-
-**How to avoid:**
-- Implement three-tier severity: ERROR (fix now), WARNING (review), INFO (consider)
-- Add confidence levels: HIGH (definite), MEDIUM (likely), LOW (possible)
-- Support file/pattern suppression with documentation requirements
-- Make findings actionable: explain WHY it's a problem and HOW to fix it
-- Default to showing only ERROR + WARNING; INFO is opt-in
-- Provide `--severity-threshold` and `--confidence-threshold` flags
-- Allow grouping/sorting by severity, confidence, file, or age
-
-**Warning signs:**
-- 100+ findings on clean codebase
-- No filtering options
-- Equal severity across all findings
-- No ignore/suppress mechanism
-
-**Phase to address:** Phase 2 (Audit output refinement)
-
----
-
-### Pitfall 6: Performance Regression Without Baselines
-
-**What goes wrong:**
-Performance profiling shows current numbers but no way to know if performance improved or degraded. Each run is a one-off measurement. Performance drift goes undetected until it becomes a problem.
-
-**Why it happens:**
-- No baseline storage or comparison
-- Measurements vary too much to compare meaningfully
-- Environment differences between runs (CPU, memory, load)
-- No standardized benchmarks for comparison
-- Results aren't persisted or trend-analyzed
-
-**How to avoid:**
-- Store baseline metrics with version/timestamp
-- Compare current run to baseline, report % change
-- Run benchmarks multiple times, report p50/p95/p99
-- Capture environment metadata (Node version, CPU, memory)
-- Implement `--baseline` flag to set, `--compare` to diff
-- Show trend charts for tracked metrics over time
-- Allow baseline updates on known-good states
-
-**Warning signs:**
-- No way to compare to previous runs
-- High variance in measurements between runs
-- No environment capture
-- Performance changes go unnoticed
-
-**Phase to address:** Phase 2 (Performance tracking)
-
----
-
-### Pitfall 7: Memory Leak Detection Without Context
-
-**What goes wrong:**
-Memory profiling shows growing heap but doesn't explain why. Allocations are attributed to the wrong function. GC cycles confuse the picture. The "leak" is actually expected growth, not a bug.
-
-**Why it happens:**
-- Heap snapshots taken at wrong times
-- Growth attributed to allocation site, not retention source
-- Normal GC behavior misinterpreted as leaks
-- No baseline comparison for "this grew unexpectedly"
-- Missing context about expected vs unexpected growth
-
-**How to avoid:**
-- Take snapshots at key lifecycle points (not random intervals)
-- Use retained size, not allocated size, to find leaks
-- Compare to baseline snapshots to identify unexpected growth
-- Track GC cycles and exclude from leak analysis
-- Provide interpretation: "X grew by Y bytes since baseline — likely retained by Z"
-- Document expected growth patterns (caches, buffers)
-
-**Warning signs:**
-- Single heap snapshot analyzed in isolation
-- Allocations blamed on wrong functions
-- GC behavior treated as leak
-- No baseline comparison
-
-**Phase to address:** Phase 2 (Memory profiling)
-
----
-
-<!-- /section -->
-
-<!-- section: tech_debt_audit -->
-## Technical Debt Patterns
-
-Shortcuts that seem reasonable but create long-term problems.
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Hardcode complexity thresholds | Simple implementation | Can't adapt to different code styles | Never - always configurable |
-| Single language support | Easier parser | Limited utility, rewrite needed | Only for single-language projects |
-| No caching of analysis results | Simple code | Slow on large codebases, repeated work | Small projects only |
-| Skip test file analysis | Faster scans | Miss test-only dead code | Only if explicitly configured |
-| No incremental analysis | Simpler architecture | Full rescans on every change | One-time audits only |
-| Ignore build artifacts | Simpler implementation | False positives from generated code | Never - must handle |
-<!-- /section -->
-
-<!-- section: integration_audit -->
-## Integration Gotchas
-
-Common mistakes when connecting audit tools to external systems.
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|-----------------|
-| Git integration | Analyzing generated files in git history | Exclude .git-ignored files, build outputs |
-| CI/CD pipeline | Blocking builds on warnings | Use severity thresholds, fail only on errors |
-| Editor integration | Blocking on every save | Debounce, batch analysis, background |
-| Build system | Analyzing before build completes | Hook into post-build, not pre-build |
-| IDE | Blocking UI thread | Run analysis in background, async |
-| Pre-commit hook | Slowing commits unacceptably | Run fast checks only, defer heavy analysis |
-<!-- /section -->
-
-<!-- section: performance_traps_audit -->
-## Performance Traps
-
-Patterns that work at small scale but fail as usage grows.
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Full AST parse every run | Minutes to analyze small projects | Cache parsed AST, incremental analysis | Projects >10K lines |
-| No parallelism | Single-threaded analysis is slow | Use worker threads for independent files | Multi-core machines, large codebases |
-| Loading entire files into memory | Memory exhaustion on large files | Stream analysis, process in chunks | Files >1MB |
-| No early exit | Analyzes everything even when errors found | Fail fast with --fail-fast flag | Large codebases |
-| Exponential analysis | Analysis time grows superlinearly | Complexity limits, timeout limits | Deep dependency trees |
-<!-- /section -->
-
-<!-- section: security_audit -->
-## Security Mistakes
-
-Domain-specific security issues beyond general web security.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| No DoS protection | Maliciously large codebase exhausts resources | Timeout limits, file size limits, memory limits |
-| Path traversal in file analysis | Attacker reads arbitrary files | Validate paths, restrict to project root |
-| Command injection in analysis | Malicious code triggers unwanted commands | Sandbox analysis, no shell execution |
-| Credential exposure in logs | Sensitive data in audit output | Scrub paths, tokens, secrets |
-| ReDoS in regex analysis | Pathological regex causes hang | Timeout regex operations, limit complexity |
-<!-- /section -->
-
-<!-- section: ux_audit -->
-## UX Pitfalls
-
-Common user experience mistakes in code audit tools.
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| All findings equal priority | Can't focus on what matters | Severity + confidence tiers |
-| No suppression mechanism | Can't hide false positives | Allowlist with documentation |
-| Unactionable output | "Fix this" without guidance | Explain why and how to fix |
-| No progress indicator | Don't know if stuck or done | Progress bar, ETA, file count |
-| Verbose by default | Overwhelming output | Opt-in verbosity, summary first |
-| No diff from baseline | Can't see what changed | Baseline comparison, trend view |
-| Ignoring configuration | Wrong thresholds for project | Load from config file, document options |
-<!-- /section -->
-
-<!-- section: looks_done_audit -->
-## "Looks Done But Isn't" Checklist
-
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Unused code detection:** Often missing generated code exclusion — verify with .gen.go, _pb.go files
-- [ ] **Complexity analysis:** Often uses single metric — verify multiple metrics, context-aware thresholds
-- [ ] **Performance profiling:** Often missing warmup separation — verify JIT compilation excluded
-- [ ] **Static analysis:** Often overclaims confidence — verify limitations documented
-- [ ] **Audit output:** Often noisy without filtering — verify severity/confidence tiers
-- [ ] **Memory analysis:** Often single snapshot — verify baseline comparison available
-- [ ] **Incremental analysis:** Often full rescan — verify caching works between runs
-- [ ] **Timeout protection:** Often missing — verify large codebases don't hang
-<!-- /section -->
-
-<!-- section: recovery_audit -->
-## Recovery Strategies
-
-When pitfalls occur despite prevention, how to recover.
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| False positives in unused detection | LOW | Add exclusion patterns, adjust confidence threshold |
-| Complexity misread as quality | MEDIUM | Add multi-metric analysis, context thresholds |
-| Profiling overhead distorting results | LOW | Switch to sampling mode, add warmup |
-| Static analysis false confidence | MEDIUM | Add runtime verification, lower confidence claims |
-| Alert fatigue from noisy output | LOW | Increase severity threshold, enable suppression |
-| No baseline for regression | MEDIUM | Capture baseline, run comparison |
-| Memory analysis without context | MEDIUM | Add baseline snapshots, track lifecycle |
-<!-- /section -->
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| False positives in unused code | Phase 1 | Test with generated code, dynamic requires |
-| Complexity metrics as quality | Phase 1-2 | Verify multiple metrics, context thresholds |
-| Profiling overhead | Phase 1 | Measure profiling overhead separately |
-| Static analysis scope | Phase 1 | Document limitations, add runtime verification |
-| Noisy audit output | Phase 2 | Test with clean codebase, verify filtering |
-| No performance baselines | Phase 2 | Verify baseline storage, comparison |
-| Memory leak without context | Phase 2 | Verify baseline snapshots, retention analysis |
-| Hardcoded thresholds | Phase 1 | All thresholds must be configurable |
-| DoS via large codebase | Phase 1 | Verify timeout, memory limits work |
-
----
-
-## Sources
-
-- [golangci-lint unused rule issues](https://github.com/golangci/golangci-lint/issues/3354)
-- [Vulture Python dead code detection issues](https://github.com/jendrikseipp/vulture/issues/253)
-- [Static analysis false positives - Parasoft](https://www.parasoft.com/blog/false-positives-in-static-code-analysis/)
-- [Reducing SAST false positives - AppSecSanta](https://appsecsanta.com/application-security/reducing-sast-false-positives)
-- [Common pitfalls of code metrics - Solnic](https://solnic.dev/common-pitfalls-of-code-metrics)
-- [Cyclomatic complexity misleading - LinearB](https://linearb.io/blog/cyclomatic-complexity)
-- [Why code metrics mislead - DX](https://getdx.com/blog/cyclomatic-complexity/)
-- [Node.js benchmarks lying about throughput - Medium](https://medium.com/@bhagyarana80/your-node-benchmarks-are-lying-about-throughput-bfc4d569dcaf)
-- [Node.js wrong bottleneck - Medium](https://medium.com/%40jickpatel611/node-load-tests-and-the-wrong-bottleneck-666fad252049)
-- [Profiler lied about copies - Medium](https://medium.com/@ThinkingLoop/the-profiler-lied-your-copies-are-the-hot-path-609813ab0759)
-- [Node.js profiling best practices - PushBased](https://push-based.io/article/advanced-cpu-profiling-in-node-best-practices-and-pitfalls)
-- [Semgrep false positive reduction](https://semgrep.dev/docs/kb/semgrep-code/reduce-false-positives)
-
----
-
-*Pitfalls research for: Code Audit & Performance Profiling for CLI Tools*
-*Researched: 2026-03-12*
+*Pitfalls research for: LLM Offloading — Replacing LLM Decisions with Programmatic Code*
+*Researched: 2026-03-13*
