@@ -2,7 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { output, error, debugLog } = require('../lib/output');
+const { output, status, error, debugLog } = require('../lib/output');
+const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS } = require('../lib/format');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -536,6 +537,128 @@ function estimateTokenSavings(candidate) {
 }
 
 
+// ─── TTY Formatter ───────────────────────────────────────────────────────────
+
+/**
+ * Format audit scan results for TTY display.
+ * Shows banner, summary, offloadable candidates table, keep-in-LLM section,
+ * savings-by-category table, and action hint.
+ *
+ * @param {object} data - Scan result with offloadable, keep_in_llm, summary
+ * @returns {string}
+ */
+function formatAuditScan(data) {
+  const lines = [];
+
+  // 1. Banner
+  lines.push(banner('AUDIT SCAN'));
+  lines.push('');
+
+  // 2. Summary section
+  lines.push(sectionHeader('Summary'));
+  lines.push(` Total candidates:     ${color.bold(String(data.summary.total_candidates))}`);
+  lines.push(` Offloadable:          ${color.green(String(data.summary.offloadable_count))}`);
+  lines.push(` Keep in LLM:          ${color.yellow(String(data.summary.keep_count))}`);
+  lines.push(` Est. savings/session: ${color.cyan(data.summary.estimated_total_savings.toLocaleString() + ' tokens')}`);
+  lines.push('');
+
+  // 3. Offloadable candidates table (sorted by total_score desc, then per_session desc)
+  lines.push(sectionHeader('Offloadable Candidates'));
+  if (data.offloadable.length > 0) {
+    const offHeaders = ['ID', 'Category', 'Score', 'Savings/Sess', 'Source'];
+    const offRows = data.offloadable.map(c => [
+      c.id.length > 40 ? c.id.substring(0, 37) + '...' : c.id,
+      c.category,
+      `${c.rubric.preferred_score}+3/${7}`,
+      String(c.token_estimate.per_session),
+      c.source_file,
+    ]);
+    lines.push(formatTable(offHeaders, offRows, { showAll: true, maxRows: 200 }));
+  } else {
+    lines.push(color.dim(' No offloadable candidates found.'));
+  }
+  lines.push('');
+
+  // 4. Keep in LLM section
+  lines.push(sectionHeader('Keep in LLM'));
+  if (data.keep_in_llm.length > 0) {
+    for (const c of data.keep_in_llm) {
+      lines.push(color.dim(` ${SYMBOLS.bullet} ${c.id}`));
+      lines.push(color.dim(`   Category: ${c.category}`));
+      lines.push(color.dim(`   Reason: ${c.rubric.rationale}`));
+      lines.push('');
+    }
+  } else {
+    lines.push(color.dim(' All candidates are offloadable.'));
+    lines.push('');
+  }
+
+  // 5. Savings by category table
+  lines.push(sectionHeader('Savings by Category'));
+  const catEntries = Object.entries(data.summary.savings_by_category)
+    .sort((a, b) => b[1] - a[1]);
+  if (catEntries.length > 0) {
+    const catHeaders = ['Category', 'Candidates', 'Savings/Session'];
+    // Count candidates per category
+    const catCounts = {};
+    for (const c of data.offloadable) {
+      catCounts[c.category] = (catCounts[c.category] || 0) + 1;
+    }
+    const catRows = catEntries.map(([cat, savings]) => [
+      cat,
+      String(catCounts[cat] || 0),
+      savings.toLocaleString() + ' tokens',
+    ]);
+    lines.push(formatTable(catHeaders, catRows, { showAll: true }));
+  }
+  lines.push('');
+
+  // 6. Summary line and action hint
+  lines.push(summaryLine(`${data.summary.offloadable_count} offloadable decisions, ~${data.summary.estimated_total_savings.toLocaleString()} tokens/session savings`));
+  lines.push(actionHint('Run /bgsd plan phase 111 to build the decision engine'));
+
+  return lines.join('\n');
+}
+
+
+// ─── Catalog Writer ──────────────────────────────────────────────────────────
+
+/**
+ * Write the audit catalog artifact to .planning/audit-catalog.json.
+ * This is the primary input for Phase 111 (Decision Engine).
+ *
+ * @param {string} cwd - Project root
+ * @param {object} data - Full scan result
+ * @param {number} filesScanned - Count of files scanned
+ */
+function writeCatalog(cwd, data, filesScanned) {
+  const planningDir = path.join(cwd, '.planning');
+  if (!fs.existsSync(planningDir)) {
+    debugLog('audit.catalog', '.planning/ directory not found, skipping catalog write');
+    return;
+  }
+
+  const catalog = {
+    generated_at: new Date().toISOString(),
+    scanner_version: '1.0.0',
+    files_scanned: filesScanned,
+    candidates: data.candidates,
+    offloadable: data.offloadable,
+    keep_in_llm: data.keep_in_llm,
+    summary: data.summary,
+    token_model: 'Static estimation using category-based midpoint model: simple_lookup=75, conditional_chain=350, multi_step_reasoning=550, context_overhead=200 tokens/invocation. Frequency derived from workflow session classification (every-session, per-phase, rare).',
+  };
+
+  const catalogPath = path.join(planningDir, 'audit-catalog.json');
+  try {
+    fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2), 'utf-8');
+    status('Catalog written to .planning/audit-catalog.json');
+  } catch (e) {
+    debugLog('audit.catalog', 'failed to write catalog', e);
+  }
+}
+
+
 // ─── Command Handler ─────────────────────────────────────────────────────────
 
 /**
@@ -550,6 +673,12 @@ function cmdAuditScan(cwd, args, raw) {
   // Run scanner
   const allCandidates = scanAll();
 
+  // Track files scanned for catalog metadata
+  const { workflowsDir, agentsDir } = resolvePluginDirs();
+  const wfCount = fs.existsSync(workflowsDir) ? fs.readdirSync(workflowsDir).filter(f => f.endsWith('.md')).length : 0;
+  const agCount = fs.existsSync(agentsDir) ? fs.readdirSync(agentsDir).filter(f => f.endsWith('.md')).length : 0;
+  const filesScanned = wfCount + agCount;
+
   // Score each candidate
   const scoredCandidates = allCandidates.map(candidate => {
     const rubric = scoreCandidate(candidate);
@@ -560,7 +689,7 @@ function cmdAuditScan(cwd, args, raw) {
   // Partition into offloadable vs keep-in-LLM
   const offloadable = scoredCandidates
     .filter(c => c.rubric.passes)
-    .sort((a, b) => b.rubric.total_score - a.rubric.total_score);
+    .sort((a, b) => b.rubric.total_score - a.rubric.total_score || b.token_estimate.per_session - a.token_estimate.per_session);
 
   const keep_in_llm = scoredCandidates
     .filter(c => !c.rubric.passes)
@@ -588,7 +717,12 @@ function cmdAuditScan(cwd, args, raw) {
     },
   };
 
-  output(result, raw);
+  // Write catalog artifact to .planning/
+  writeCatalog(cwd, result, filesScanned);
+
+  output(result, {
+    formatter: formatAuditScan,
+  });
 }
 
 
@@ -597,6 +731,7 @@ function cmdAuditScan(cwd, args, raw) {
 module.exports = {
   cmdAuditScan,
   // Exported for testing
+  formatAuditScan,
   scoreCandidate,
   estimateTokenSavings,
   scanAll,
