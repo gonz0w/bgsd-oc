@@ -26,6 +26,12 @@ Requirements for LLM Offloading milestone. Each maps to roadmap phases.
 - [x] **FLOW-02**: Workflow files simplified to consume pre-computed decisions instead of re-deriving them via LLM reasoning
 - [x] **FLOW-03**: Token savings telemetry measures before/after LLM call reduction per workflow
 
+### Summary Generation
+
+- [x] **SUM-01**: `summary:generate` CLI command produces a pre-filled SUMMARY.md with frontmatter, performance, task commits, and files created/modified — all without LLM involvement
+- [x] **SUM-02**: Execute-plan workflow calls `summary:generate` and LLM only fills judgment sections — at least 50% less LLM writing per summary
+- [x] **SUM-03**: Generated summaries pass `verify:summary` validation and `summary-extract` parsing without regressions
+
 ## Future Requirements
 
 Deferred to future milestone.
@@ -64,10 +70,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FLOW-01 | Phase 112 | Complete | npm test |
 | FLOW-02 | Phase 112 | Complete | npm test |
 | FLOW-03 | Phase 112 | Complete | npm test |
+| SUM-01 | Phase 113 | Complete | npm test |
+| SUM-02 | Phase 113 | Complete | Manual verification |
+| SUM-03 | Phase 113 | Complete | npm test |
 
 **Coverage:**
-- v11.3 requirements: 10 total
-- Mapped to phases: 10
+- v11.3 requirements: 13 total
+- Mapped to phases: 13
 - Unmapped: 0
 
 ---
