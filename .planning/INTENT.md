@@ -1,4 +1,4 @@
-**Revision:** 14
+**Revision:** 15
 **Created:** 2026-02-25
 **Updated:** 2026-03-13
 
@@ -53,6 +53,7 @@ An intelligent agent orchestration engine for building large-scale software with
 - DO-65 [P1]: Static analysis pipeline integrated — Automated code quality checks in CI/build
 - DO-66 [P2]: Bundle size reduced — Measurable reduction via dead code removal and optimization
 - DO-67 [P2]: Execution speed improved — Measurable latency reduction for hot paths
+- DO-68 [P2]: DO-68|P1|Comprehensive audit identifies all decisions currently delegated to LLM that could be handled programmatically — catalogued by frequency and complexity
 </outcomes>
 
 <criteria>
@@ -118,6 +119,8 @@ Orchestration should feel invisible — the right agent gets the right task with
 ### v9.2 — 2026-03-13
 - **Modified** objective: An intelligent agent orchestration engine for building large-scale software with a deeply embedded plugin experience. This milestone emphasizes reducing LLM dependency by pushing deterministic decisions into programmatic code — the plugin should handle what code can handle, faster and cheaper than asking the LLM.
   - Reason: Milestone v11.3: Shift from performance benchmarking to LLM offloading — code should handle deterministic decisions
+- **Added** DO-68 [P2]: DO-68|P1|Comprehensive audit identifies all decisions currently delegated to LLM that could be handled programmatically — catalogued by frequency and complexity
+  - Reason: Milestone v11.3: LLM Offloading audit
 
 ### v11.1 — 2026-03-11
 - **Added** outcomes: DO-60 (Direct command execution), DO-61 (Zero friction), DO-62 (Polish).
