@@ -10,7 +10,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-13)
 ## Current Position
 
 **Phase:** 112 (Workflow Integration & Measurement)
-**Current Plan:** 01 complete, 02 complete
+**Current Plan:** 01 complete, 02 complete, 03 complete
 **Status:** Complete
 **Last Activity:** 2026-03-13
 
@@ -21,6 +21,7 @@ Progress: [██████████] 100%
 **Phase 112 (workflow-integration-measurement):** Complete
 - Plan 0112-01: Extended command-enricher with 15+ decision rule inputs, 46 contract tests (9 min)
 - Plan 0112-02: 13 workflows consume decisions from bgsd-context, added decisions:savings report (7 min)
+- Plan 0112-03: Gap closure — dynamic workflow scanning for decisions:savings, resolved GAP-112-01/02 (6 min)
 
 **Phase 111 (decision-engine-enrichment):** Complete
 - Plan 0111-01: 12 pure decision functions, registry, 85 contract tests (6 min)
@@ -54,6 +55,7 @@ Progress: [██████████] 100%
 | v11.2 | 4 (106-109) | 15 | Complete |
 | v11.1 | 4 (103-105) | 9 | Complete |
 | Phase 0112 P02 | 7 min | 2 tasks | 14 files |
+| Phase 0112 P03 | 6 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -75,6 +77,7 @@ Progress: [██████████] 100%
 - [0112-01]: Task types extracted from first incomplete plan only (not all plans) per research recommendation
 - [0112-01]: UAT gap detection uses simple readFileSync + string.includes() — no heavy parsing
 - [Phase 0112-02]: Workflows consume pre-computed decisions first and preserve existing derivation as fallback — Delivers token savings while maintaining backward compatibility when bgsd-context decisions are absent
+- [Phase 0112-03]: decisions:savings uses dynamic workflow scanning instead of static data — Each Pre-computed block saves exactly 1 LLM reasoning step, BEFORE_ESTIMATES kept as static baseline
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None — research complete with HIGH confidence, ready for planning.
 
 ## Session Continuity
 
-**Last session:** 2026-03-13T17:28:43.825Z
-**Stopped at:** Completed 0112-02-PLAN.md
+**Last session:** 2026-03-13T17:46:12Z
+**Stopped at:** Completed 0112-03-PLAN.md (gap closure)
 **Next step:** Run milestone verification/closure for v11.3 (audit + complete-milestone)

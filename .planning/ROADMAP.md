@@ -118,7 +118,7 @@
   3. Token savings telemetry captures before/after LLM call counts per workflow, with total savings reported and compared against Phase 110 estimates
 
 **Plans:**
-2/2 plans complete
+3/3 plans complete
 - 0112-02: Workflow simplifications + measurement report (wave 2, FLOW-02, FLOW-03)
 
 ---
@@ -478,7 +478,7 @@
 |-------|--------------|-------|--------|-----------|
 | 110 | AUDIT-01, AUDIT-02, AUDIT-03 | Complete    | 2026-03-13 | - |
 | 111 | 2/2 | Complete    | 2026-03-13 | - |
-| 112 | 2/2 | Complete   | 2026-03-13 | - |
+| 112 | 3/3 | Complete   | 2026-03-13 | - |
 | 106 | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-04, CLEAN-05 | 5 | Complete | 2026-03-12 |
 | 107 | UNUSED-01, UNUSED-02, UNUSED-03 | 3 | Not Started | - |
 | 108 | DEAD-01, DEAD-02, DEAD-03 | 3 | Not Started | - |
