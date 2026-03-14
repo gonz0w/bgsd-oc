@@ -10,8 +10,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-14)
 ## Current Position
 
 **Phase:** 120 of 123 (Enricher Acceleration)
-**Current Plan:** Plan 01 complete
-**Status:** Plan 01 complete — proceed to plan 02
+**Current Plan:** Plan 02 complete — Phase 120 complete
+**Status:** Phase 120 complete — all 2 plans done (ENR-01, ENR-02, ENR-03 satisfied)
 **Last Activity:** 2026-03-14
 
 Progress: [████████░░] 81%
@@ -19,7 +19,7 @@ Progress: [████████░░] 81%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 216 (v1.0-v12.0 Phase 120 Plan 01)
+- Total plans completed: 217 (v1.0-v12.0 Phase 120 Plan 02)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
@@ -28,6 +28,7 @@ Progress: [████████░░] 81%
 - v12.0 Phase 119 Plan 02: 24 min, 3 tasks, 6 files
 - v12.0 Phase 119 Plan 03: 16 min, 2 tasks, 2 files (71 tests)
 - v12.0 Phase 120 Plan 01: 20 min, 2 tasks, 4 files (1108 tests)
+- v12.0 Phase 120 Plan 02: 7 min, 2 tasks, 4 files (1160 tests)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -54,6 +55,7 @@ Progress: [████████░░] 81%
 - [Phase 0120]: ensurePlans/ensureSummaryFiles closures provide single-allocation lazy access — parsePlans and listSummaryFiles called exactly once per enrichCommand invocation — Eliminates CPU waste from 3x parsePlans and 3x listSummaryFiles redundant calls per invocation
 - [Phase 0120]: PlanningCache.getSummaryCount and getIncompletePlans: SQLite-first enrichment data for plan/summary counts — warm cache serves from SQL, cold falls back to parsers — ENR-02: SQL-backed enrichment eliminates redundant fs operations on warm cache hits
 - [Phase 0120]: ProjectState.phaseDir added to frozen facade — enricher uses statePhaseDir to skip redundant resolvePhaseDir call for current phase — Avoids extra readdirSync on the phases directory when current phase is already resolved in getProjectState
+- [Phase 0120]: performance.now() + Date.now() fallback for _enrichment_ms timing; setTimeout(0) for background warm-up — Sub-millisecond precision needed for ENR-03 measurement; setTimeout(0) is clear fire-and-forget pattern
 
 ### Roadmap Evolution
 
@@ -70,6 +72,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T18:26:21.212Z
-**Stopped at:** Completed 0120-01-PLAN.md
-**Next step:** Phase 120 Plan 01 complete — proceed to Phase 120 Plan 02 (if exists) or plan next
+**Last session:** 2026-03-14T18:37:36.682Z
+**Stopped at:** Completed 0120-02-PLAN.md
+**Next step:** Phase 120 complete — proceed to Phase 121 (Memory Store) or next planned phase

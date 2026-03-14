@@ -8,7 +8,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
 
 - [x] **Phase 118: Foundation & Schema** - DataStore class with schema versioning, migration runner, WAL mode, and Map fallback (completed 2026-03-14)
 - [x] **Phase 119: Parser Integration & Planning Tables** - Write-through cache for parsers with git-hash + mtime invalidation (completed 2026-03-14)
-- [ ] **Phase 120: Enricher Acceleration** - Eliminate 3x/2x parser duplication with SQL-backed enrichment
+- [x] **Phase 120: Enricher Acceleration** - Eliminate 3x/2x parser duplication with SQL-backed enrichment (completed 2026-03-14)
 - [ ] **Phase 121: Memory Store Migration** - Sacred data (decisions, lessons, trajectories, bookmarks) to SQLite with JSON backup
 - [ ] **Phase 122: Decision Rules** - Six new deterministic decision functions consuming SQLite state
 - [ ] **Phase 123: Session State** - Session persistence in SQLite with STATE.md as generated view
@@ -48,7 +48,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
   1. User can run any `/bgsd-*` command and have enrichment complete with zero redundant parser calls (no 3x listSummaryFiles, no 2x parsePlans)
   2. User can run commands with warm SQLite cache and have enrichment data served from SQL queries instead of file re-parsing
   3. User can observe measurably faster command startup with warm SQLite cache compared to cold start (target: enricher <50ms on warm)
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
   - Plan 01 (Wave 1): Eliminate duplication + SQLite-first enrichment queries
   - Plan 02 (Wave 2): Timing instrumentation, background warm-up, test suite
 
@@ -92,7 +92,7 @@ Phases execute in numeric order: 118 → 119 → 120 → 121 → 122 → 123
 |-------|----------------|--------|-----------|
 | 118. Foundation & Schema | 3/3 | Complete    | 2026-03-14 |
 | 119. Parser Integration & Planning Tables | 2/3 | Complete    | 2026-03-14 |
-| 120. Enricher Acceleration | 1/2 | In Progress|  |
+| 120. Enricher Acceleration | 2/2 | Complete   | 2026-03-14 |
 | 121. Memory Store Migration | 0/0 | Not started | - |
 | 122. Decision Rules | 0/0 | Not started | - |
 | 123. Session State | 0/0 | Not started | - |
