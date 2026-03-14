@@ -9,10 +9,10 @@
 
 ## Planning Tables
 
-- [ ] **TBL-01**: User can query phases from SQLite instead of re-parsing ROADMAP.md on cache hit
-- [ ] **TBL-02**: User can query plans (frontmatter, task counts, completion status) from SQLite instead of re-parsing plan markdown
-- [ ] **TBL-03**: User can query requirements from SQLite with REQ-ID lookups and phase mapping
-- [ ] **TBL-04**: User can trust that SQLite planning data stays fresh via git-hash + mtime hybrid invalidation after edits and commits
+- [x] **TBL-01**: User can query phases from SQLite instead of re-parsing ROADMAP.md on cache hit
+- [x] **TBL-02**: User can query plans (frontmatter, task counts, completion status) from SQLite instead of re-parsing plan markdown
+- [x] **TBL-03**: User can query requirements from SQLite with REQ-ID lookups and phase mapping
+- [x] **TBL-04**: User can trust that SQLite planning data stays fresh via git-hash + mtime hybrid invalidation after edits and commits
 
 ## Enricher Acceleration
 
@@ -62,10 +62,10 @@ _None deferred — all 6 categories selected for v12.0._
 | FND-02 | Phase 118 | Complete |
 | FND-03 | Phase 118 | Complete |
 | FND-04 | Phase 118 | Complete |
-| TBL-01 | Phase 119 | Pending |
-| TBL-02 | Phase 119 | Pending |
-| TBL-03 | Phase 119 | Pending |
-| TBL-04 | Phase 119 | Pending |
+| TBL-01 | Phase 119 | Complete |
+| TBL-02 | Phase 119 | Complete |
+| TBL-03 | Phase 119 | Complete |
+| TBL-04 | Phase 119 | Complete |
 | ENR-01 | Phase 120 | Pending |
 | ENR-02 | Phase 120 | Pending |
 | ENR-03 | Phase 120 | Pending |

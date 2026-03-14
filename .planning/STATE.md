@@ -5,28 +5,27 @@
 See: `.planning/PROJECT.md` (updated 2026-03-14)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Phase 118 — Foundation & Schema (v12.0 SQLite-First Data Layer)
+**Current focus:** Phase 119 — Parser Integration Planning Tables
 
 ## Current Position
 
-**Phase:** 118 of 123 (Foundation & Schema)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 119 of 123 (Parser Integration Planning Tables)
+**Current Plan:** Plan 01 complete (Plan 02 next)
+**Status:** In progress
 **Last Activity:** 2026-03-14
 
-Progress: [██████████] 100%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 214 (v1.0-v12.0 Phase 118 Plan 02)
+- Total plans completed: 215 (v1.0-v12.0 Phase 119 Plan 01)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
 **Recent Trend:**
-- v12.0 Phase 118 Plan 01: 9 min, 2 tasks, 2 files
-- v12.0 Phase 118 Plan 02: 7 min, 2 tasks, 3 files
 - v12.0 Phase 118 Plan 03: 4 min, 2 tasks, 1 file (52 tests)
+- v12.0 Phase 119 Plan 01: 4 min, 2 tasks, 4 files
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -43,6 +42,8 @@ Progress: [██████████] 100%
 - [v11.3]: In-process decision engine via enricher — zero subprocess overhead
 - [Phase 118]: All 10 db.test.cjs test groups implemented in one commit — both tasks write to same file, no value in split commits — Avoids incomplete intermediate state; 52 tests cover full FND-01 through FND-04 contract
 - [Phase 118 Plan 02]: db init placed after --no-cache flag parsing so BGSD_CACHE_FORCE_MAP is set before getDb() runs; closeAll() called before unlinkSync in cache:clear for safe file deletion
+- [Phase 119-01]: Schema version 2: MIGRATIONS[1] appended — db.test.cjs assertions updated from v1 to v2 — MIGRATIONS[1] advances schema from version 1 to 2; tests were checking specific version numbers and needed updating
+- [Phase 119-01]: PlanningCache null-return pattern: getPhases/getPlans return null (not []) on miss — callers distinguish no-data from empty — Enables callers to differentiate cache miss from empty result, ensuring parse-on-miss is triggered correctly
 
 ### Roadmap Evolution
 
@@ -59,6 +60,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T16:09:02.499Z
-**Stopped at:** Phase 119 context gathered
-**Next step:** Phase 118 complete — advance to Phase 119 or verify work
+**Last session:** 2026-03-14T16:38:27.811Z
+**Stopped at:** Completed 0119-01-PLAN.md
+**Next step:** Execute Phase 119 Plan 02 — wire PlanningCache into roadmap/plan parsers
