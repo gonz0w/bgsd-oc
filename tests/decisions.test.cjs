@@ -20,6 +20,11 @@ const {
   resolveAutoAdvance,
   resolvePhaseArgParse,
   resolveDebugHandlerRoute,
+  resolveModelSelection,
+  resolveVerificationRouting,
+  resolveResearchGate,
+  resolveMilestoneCompletion,
+  resolveCommitStrategy,
   DECISION_REGISTRY,
   evaluateDecisions,
 } = require('../src/lib/decision-rules');
@@ -37,8 +42,8 @@ const VALID_CONFIDENCES = ['HIGH', 'MEDIUM', 'LOW'];
 // ─── Registry Completeness ───────────────────────────────────────────────────
 
 describe('decisions: registry completeness', () => {
-  it('registry has >= 10 entries', () => {
-    assert.ok(DECISION_REGISTRY.length >= 10, `Expected >= 10 rules, got ${DECISION_REGISTRY.length}`);
+  it('registry has >= 17 entries', () => {
+    assert.ok(DECISION_REGISTRY.length >= 17, `Expected >= 17 rules, got ${DECISION_REGISTRY.length}`);
   });
 
   it('every entry has required fields', () => {
@@ -510,6 +515,276 @@ describe('decisions: confidence distribution', () => {
   it('debug-handler-route always returns MEDIUM', () => {
     const result = resolveDebugHandlerRoute({ return_type: 'fix' });
     assert.strictEqual(result.confidence, 'MEDIUM');
+  });
+});
+
+// ─── Phase 122: New Decision Function Tests ───────────────────────────────────
+
+describe('decisions: resolveModelSelection contract', () => {
+  it('contract check: returns {value, confidence, rule_id}', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-planner', model_profile: 'balanced' });
+    const contract = contractCheck(result, DECISION_CONTRACT, 'model-selection');
+    assert.ok(contract.pass, contract.message);
+    assert.strictEqual(result.rule_id, 'model-selection');
+    assert.strictEqual(result.confidence, 'HIGH');
+  });
+
+  it('returns { tier, model } shape in value', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: 'balanced' });
+    assert.ok(typeof result.value === 'object', 'value should be an object');
+    assert.ok(typeof result.value.tier === 'string', 'value.tier should be a string');
+    assert.ok(typeof result.value.model === 'string', 'value.model should be a string');
+  });
+
+  it('falls back to static defaults when db is null', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: 'balanced', db: null });
+    assert.ok(result.value.model, 'Should return a model');
+    assert.strictEqual(result.confidence, 'HIGH');
+  });
+
+  it('falls back to sonnet when agent_type is unknown', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-unknown-agent', model_profile: 'balanced' });
+    assert.strictEqual(result.value.model, 'sonnet');
+  });
+
+  it('uses model_profile default when not provided', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-executor' });
+    assert.strictEqual(result.value.tier, 'balanced');
+  });
+
+  it('handles undefined state gracefully', () => {
+    const result = resolveModelSelection(undefined);
+    assert.strictEqual(result.rule_id, 'model-selection');
+    assert.ok(result.value.model, 'Should return a model');
+  });
+
+  it('returns correct tier in value', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-planner', model_profile: 'quality' });
+    assert.strictEqual(result.value.tier, 'quality');
+  });
+});
+
+describe('decisions: resolveVerificationRouting contract', () => {
+  it('contract check: returns {value, confidence, rule_id}', () => {
+    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
+    const contract = contractCheck(result, DECISION_CONTRACT, 'verification-routing');
+    assert.ok(contract.pass, contract.message);
+    assert.strictEqual(result.rule_id, 'verification-routing');
+  });
+
+  it('returns full for high task count', () => {
+    const result = resolveVerificationRouting({ task_count: 5, files_modified_count: 6, verifier_enabled: true });
+    assert.strictEqual(result.value, 'full');
+    assert.strictEqual(result.confidence, 'HIGH');
+  });
+
+  it('returns light for small plan (<=2 tasks, <=4 files)', () => {
+    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
+    assert.strictEqual(result.value, 'light');
+  });
+
+  it('returns light for exactly 2 tasks and 4 files boundary', () => {
+    const result = resolveVerificationRouting({ task_count: 2, files_modified_count: 4, verifier_enabled: true });
+    assert.strictEqual(result.value, 'light');
+  });
+
+  it('returns full when task_count exceeds boundary', () => {
+    const result = resolveVerificationRouting({ task_count: 3, files_modified_count: 4, verifier_enabled: true });
+    assert.strictEqual(result.value, 'full');
+  });
+
+  it('returns skip when verifier disabled', () => {
+    const result = resolveVerificationRouting({ task_count: 10, files_modified_count: 20, verifier_enabled: false });
+    assert.strictEqual(result.value, 'skip');
+  });
+
+  it('handles undefined state gracefully', () => {
+    const result = resolveVerificationRouting(undefined);
+    assert.strictEqual(result.rule_id, 'verification-routing');
+    // defaults: task_count=0, files_modified_count=0 → light
+    assert.strictEqual(result.value, 'light');
+  });
+});
+
+describe('decisions: resolveResearchGate contract', () => {
+  it('contract check: returns {value, confidence, rule_id}', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: false, has_context: false });
+    const contract = contractCheck(result, DECISION_CONTRACT, 'research-gate');
+    assert.ok(contract.pass, contract.message);
+    assert.strictEqual(result.rule_id, 'research-gate');
+  });
+
+  it('returns { run, depth } compound shape', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: false, has_context: false });
+    assert.ok(typeof result.value === 'object', 'value should be an object');
+    assert.ok(typeof result.value.run === 'boolean', 'value.run should be boolean');
+  });
+
+  it('returns { run: false, depth: null } when research disabled', () => {
+    const result = resolveResearchGate({ research_enabled: false });
+    assert.deepStrictEqual(result.value, { run: false, depth: null });
+    assert.strictEqual(result.confidence, 'HIGH');
+  });
+
+  it('returns { run: false, depth: null } when research already exists', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: true });
+    assert.deepStrictEqual(result.value, { run: false, depth: null });
+  });
+
+  it('returns { run: true, depth: "deep" } for external deps', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: false, phase_has_external_deps: true });
+    assert.deepStrictEqual(result.value, { run: true, depth: 'deep' });
+  });
+
+  it('returns { run: true, depth: "quick" } for no context', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: false, has_context: false, phase_has_external_deps: false });
+    assert.deepStrictEqual(result.value, { run: true, depth: 'quick' });
+  });
+
+  it('returns { run: false, depth: null } when context exists but no research needed', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: false, has_context: true, phase_has_external_deps: false });
+    assert.deepStrictEqual(result.value, { run: false, depth: null });
+  });
+
+  it('handles undefined state gracefully', () => {
+    const result = resolveResearchGate(undefined);
+    assert.strictEqual(result.rule_id, 'research-gate');
+  });
+});
+
+describe('decisions: resolvePlanExistenceRoute expanded contract', () => {
+  it('old behavior preserved: plan_count > 0 → has-plans (no context supplied)', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 3 }).value, 'has-plans');
+  });
+
+  it('old behavior preserved: plan_count > 0 without has_context → has-plans', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 1, has_research: false }).value, 'has-plans');
+  });
+
+  it('new: plan_count > 0 + has_blockers → blocked-deps', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, has_blockers: true }).value, 'blocked-deps');
+  });
+
+  it('new: plan_count > 0 + deps_complete=false → blocked-deps', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, deps_complete: false }).value, 'blocked-deps');
+  });
+
+  it('new: plan_count > 0 + has_context → ready', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, has_context: true }).value, 'ready');
+  });
+
+  it('new: no plans, no context, no research → missing-context', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 0, has_research: false, has_context: false }).value, 'missing-context');
+  });
+
+  it('old callers (without new inputs) get identical behavior', () => {
+    // Old caller: only passes plan_count
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 5 }).value, 'has-plans');
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 0, has_research: true }).value, 'needs-planning');
+  });
+
+  it('blocked-deps takes priority over ready/has-plans', () => {
+    // has_blockers + has_context → blocked-deps wins
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, has_blockers: true, has_context: true }).value, 'blocked-deps');
+  });
+});
+
+describe('decisions: resolveMilestoneCompletion contract', () => {
+  it('contract check: returns {value, confidence, rule_id}', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 6, phases_complete: 3, has_incomplete_plans: false });
+    const contract = contractCheck(result, DECISION_CONTRACT, 'milestone-completion');
+    assert.ok(contract.pass, contract.message);
+    assert.strictEqual(result.rule_id, 'milestone-completion');
+  });
+
+  it('returns { ready, action } compound shape', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 3, phases_complete: 3, has_incomplete_plans: false });
+    assert.ok(typeof result.value === 'object', 'value should be an object');
+    assert.ok(typeof result.value.ready === 'boolean', 'value.ready should be boolean');
+    assert.ok(typeof result.value.action === 'string', 'value.action should be string');
+  });
+
+  it('returns { ready: true, action: "complete" } when all phases done', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 6, phases_complete: 6, has_incomplete_plans: false });
+    assert.deepStrictEqual(result.value, { ready: true, action: 'complete' });
+    assert.strictEqual(result.confidence, 'HIGH');
+  });
+
+  it('returns { ready: false, action: "finish-last-phase" } when one remaining', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 6, phases_complete: 5, has_incomplete_plans: false });
+    assert.deepStrictEqual(result.value, { ready: false, action: 'finish-last-phase' });
+  });
+
+  it('returns { ready: false, action: "continue" } when multiple phases remaining', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 6, phases_complete: 3, has_incomplete_plans: false });
+    assert.deepStrictEqual(result.value, { ready: false, action: 'continue' });
+  });
+
+  it('returns continue (not complete) when all phases done but incomplete plans exist', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 6, phases_complete: 6, has_incomplete_plans: true });
+    // phases_complete === phases_total but has_incomplete_plans → not complete
+    assert.strictEqual(result.value.ready, false);
+  });
+
+  it('handles undefined state gracefully', () => {
+    const result = resolveMilestoneCompletion(undefined);
+    assert.strictEqual(result.rule_id, 'milestone-completion');
+    // phases_total=0, phases_complete=0, no incomplete → complete
+    assert.deepStrictEqual(result.value, { ready: true, action: 'complete' });
+  });
+});
+
+describe('decisions: resolveCommitStrategy contract', () => {
+  it('contract check: returns {value, confidence, rule_id}', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'execute', is_tdd: false });
+    const contract = contractCheck(result, DECISION_CONTRACT, 'commit-strategy');
+    assert.ok(contract.pass, contract.message);
+    assert.strictEqual(result.rule_id, 'commit-strategy');
+  });
+
+  it('returns { granularity, prefix } compound shape', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'execute', is_tdd: false });
+    assert.ok(typeof result.value === 'object', 'value should be an object');
+    assert.ok(typeof result.value.granularity === 'string', 'value.granularity should be string');
+    assert.ok(typeof result.value.prefix === 'string', 'value.prefix should be string');
+  });
+
+  it('returns per-task granularity for multi-task plans', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'execute', is_tdd: false });
+    assert.strictEqual(result.value.granularity, 'per-task');
+  });
+
+  it('returns per-plan granularity for single-task plans', () => {
+    const result = resolveCommitStrategy({ task_count: 1, plan_type: 'execute', is_tdd: false });
+    assert.strictEqual(result.value.granularity, 'per-plan');
+  });
+
+  it('returns per-phase granularity for TDD plans', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'tdd', is_tdd: true });
+    assert.strictEqual(result.value.granularity, 'per-phase');
+  });
+
+  it('returns prefix test for TDD plan type', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'tdd', is_tdd: true });
+    assert.strictEqual(result.value.prefix, 'test');
+  });
+
+  it('returns prefix docs when files_modified_count is 0', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'execute', files_modified_count: 0 });
+    assert.strictEqual(result.value.prefix, 'docs');
+  });
+
+  it('returns MEDIUM confidence for feat prefix (inferred from file patterns)', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'execute', files_modified_count: 5 });
+    assert.strictEqual(result.value.prefix, 'feat');
+    assert.strictEqual(result.confidence, 'MEDIUM');
+  });
+
+  it('handles undefined state gracefully', () => {
+    const result = resolveCommitStrategy(undefined);
+    assert.strictEqual(result.rule_id, 'commit-strategy');
+    // task_count=0 → per-plan; no plan_type → prefix docs (files=0)
+    assert.strictEqual(result.value.granularity, 'per-plan');
   });
 });
 
