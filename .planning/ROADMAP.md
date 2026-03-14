@@ -60,7 +60,10 @@ This milestone transforms SQLite from a dumb file cache into the structured data
   1. User can search decisions, lessons, and trajectories via SQL queries without JSON.parse of entire files
   2. User can verify that all sacred data was migrated to SQLite with zero loss — JSON backup files remain untouched on disk
   3. User can add new bookmarks and have them written to both SQLite and JSON (dual-write ensures no data loss during transition)
-**Plans**: TBD
+**Plans**: 3 plans
+  - Plan 01 (Wave 1): Schema migration + PlanningCache memory methods
+  - Plan 02 (Wave 2): Dual-write integration + SQL-powered reads
+  - Plan 03 (Wave 3): Comprehensive test suite
 
 ### Phase 122: Decision Rules
 **Goal**: Six new deterministic decision functions resolve common workflow questions from SQLite-backed state — no subprocess calls, no LLM inference needed
@@ -93,6 +96,6 @@ Phases execute in numeric order: 118 → 119 → 120 → 121 → 122 → 123
 | 118. Foundation & Schema | 3/3 | Complete    | 2026-03-14 |
 | 119. Parser Integration & Planning Tables | 2/3 | Complete    | 2026-03-14 |
 | 120. Enricher Acceleration | 2/2 | Complete    | 2026-03-14 |
-| 121. Memory Store Migration | 0/0 | Not started | - |
+| 121. Memory Store Migration | 0/3 | Not started | - |
 | 122. Decision Rules | 0/0 | Not started | - |
 | 123. Session State | 0/0 | Not started | - |
