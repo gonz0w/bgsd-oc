@@ -6,7 +6,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
 
 ## Phases
 
-- [ ] **Phase 118: Foundation & Schema** - DataStore class with schema versioning, migration runner, WAL mode, and Map fallback
+- [x] **Phase 118: Foundation & Schema** - DataStore class with schema versioning, migration runner, WAL mode, and Map fallback (completed 2026-03-14)
 - [ ] **Phase 119: Parser Integration & Planning Tables** - Write-through cache for parsers with git-hash + mtime invalidation
 - [ ] **Phase 120: Enricher Acceleration** - Eliminate 3x/2x parser duplication with SQL-backed enrichment
 - [ ] **Phase 121: Memory Store Migration** - Sacred data (decisions, lessons, trajectories, bookmarks) to SQLite with JSON backup
@@ -24,7 +24,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
   2. User can upgrade bGSD versions and have schema migrations run transparently on first command — no data loss, no manual steps
   3. User can run any bGSD command on Node <22.5 and have all features work identically via Map fallback with no errors
   4. User can run concurrent bGSD commands (multiple terminals, git hooks) without database locking errors
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 ### Phase 119: Parser Integration & Planning Tables
 **Goal**: Parsed planning data (phases, plans, tasks, requirements) persists in SQLite across invocations — queries replace markdown re-parsing on cache hit
@@ -85,7 +85,7 @@ Phases execute in numeric order: 118 → 119 → 120 → 121 → 122 → 123
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 118. Foundation & Schema | 2/3 | In Progress|  |
+| 118. Foundation & Schema | 3/3 | Complete   | 2026-03-14 |
 | 119. Parser Integration & Planning Tables | 0/0 | Not started | - |
 | 120. Enricher Acceleration | 0/0 | Not started | - |
 | 121. Memory Store Migration | 0/0 | Not started | - |
