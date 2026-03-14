@@ -9,7 +9,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
 - [x] **Phase 118: Foundation & Schema** - DataStore class with schema versioning, migration runner, WAL mode, and Map fallback (completed 2026-03-14)
 - [x] **Phase 119: Parser Integration & Planning Tables** - Write-through cache for parsers with git-hash + mtime invalidation (completed 2026-03-14)
 - [x] **Phase 120: Enricher Acceleration** - Eliminate 3x/2x parser duplication with SQL-backed enrichment (completed 2026-03-14)
-- [ ] **Phase 121: Memory Store Migration** - Sacred data (decisions, lessons, trajectories, bookmarks) to SQLite with JSON backup
+- [x] **Phase 121: Memory Store Migration** - Sacred data (decisions, lessons, trajectories, bookmarks) to SQLite with JSON backup (completed 2026-03-14)
 - [ ] **Phase 122: Decision Rules** - Six new deterministic decision functions consuming SQLite state
 - [ ] **Phase 123: Session State** - Session persistence in SQLite with STATE.md as generated view
 
@@ -60,7 +60,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
   1. User can search decisions, lessons, and trajectories via SQL queries without JSON.parse of entire files
   2. User can verify that all sacred data was migrated to SQLite with zero loss — JSON backup files remain untouched on disk
   3. User can add new bookmarks and have them written to both SQLite and JSON (dual-write ensures no data loss during transition)
-**Plans**: 3 plans
+**Plans**: 3/3 plans complete
   - Plan 01 (Wave 1): Schema migration + PlanningCache memory methods
   - Plan 02 (Wave 2): Dual-write integration + SQL-powered reads
   - Plan 03 (Wave 3): Comprehensive test suite
@@ -96,6 +96,6 @@ Phases execute in numeric order: 118 → 119 → 120 → 121 → 122 → 123
 | 118. Foundation & Schema | 3/3 | Complete    | 2026-03-14 |
 | 119. Parser Integration & Planning Tables | 2/3 | Complete    | 2026-03-14 |
 | 120. Enricher Acceleration | 2/2 | Complete    | 2026-03-14 |
-| 121. Memory Store Migration | 0/3 | Not started | - |
+| 121. Memory Store Migration | 0/3 | Complete    | 2026-03-14 |
 | 122. Decision Rules | 0/0 | Not started | - |
 | 123. Session State | 0/0 | Not started | - |
