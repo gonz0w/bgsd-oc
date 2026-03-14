@@ -89,6 +89,100 @@ const MIGRATIONS = [
     );
     stmt.run(new Date().toISOString());
   },
+
+  // Version 2: Phase 119 — planning tables for roadmap/plan/task caching
+  function migration_v2(rawDb) {
+    rawDb.exec(`
+      -- File cache tracking for mtime invalidation
+      CREATE TABLE IF NOT EXISTS file_cache (
+        file_path TEXT PRIMARY KEY,
+        mtime_ms  INTEGER NOT NULL,
+        parsed_at TEXT NOT NULL
+      );
+
+      -- Roadmap milestones
+      CREATE TABLE IF NOT EXISTS milestones (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd         TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        version     TEXT,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        phase_start INTEGER,
+        phase_end   INTEGER
+      );
+
+      -- Roadmap phases
+      CREATE TABLE IF NOT EXISTS phases (
+        number       TEXT NOT NULL,
+        cwd          TEXT NOT NULL,
+        name         TEXT NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'incomplete',
+        plan_count   INTEGER NOT NULL DEFAULT 0,
+        goal         TEXT,
+        depends_on   TEXT,
+        requirements TEXT,
+        section      TEXT,
+        PRIMARY KEY (number, cwd)
+      );
+
+      -- Roadmap progress table
+      CREATE TABLE IF NOT EXISTS progress (
+        phase          TEXT NOT NULL,
+        cwd            TEXT NOT NULL,
+        plans_complete INTEGER NOT NULL DEFAULT 0,
+        plans_total    INTEGER NOT NULL DEFAULT 0,
+        status         TEXT,
+        completed_date TEXT,
+        PRIMARY KEY (phase, cwd)
+      );
+
+      -- Plan metadata
+      CREATE TABLE IF NOT EXISTS plans (
+        path           TEXT PRIMARY KEY,
+        cwd            TEXT NOT NULL,
+        phase_number   TEXT,
+        plan_number    TEXT,
+        wave           INTEGER,
+        autonomous     INTEGER,
+        objective      TEXT,
+        task_count     INTEGER NOT NULL DEFAULT 0,
+        frontmatter_json TEXT,
+        raw            TEXT
+      );
+
+      -- Plan tasks
+      CREATE TABLE IF NOT EXISTS tasks (
+        plan_path TEXT NOT NULL,
+        idx       INTEGER NOT NULL,
+        type      TEXT NOT NULL DEFAULT 'auto',
+        name      TEXT,
+        files_json TEXT,
+        action    TEXT,
+        verify    TEXT,
+        done      TEXT,
+        PRIMARY KEY (plan_path, idx),
+        FOREIGN KEY (plan_path) REFERENCES plans(path) ON DELETE CASCADE
+      );
+
+      -- Requirements from ROADMAP.md
+      CREATE TABLE IF NOT EXISTS requirements (
+        req_id       TEXT NOT NULL,
+        cwd          TEXT NOT NULL,
+        phase_number TEXT,
+        description  TEXT,
+        PRIMARY KEY (req_id, cwd)
+      );
+
+      -- Indexes for common queries
+      CREATE INDEX IF NOT EXISTS idx_phases_cwd ON phases(cwd);
+      CREATE INDEX IF NOT EXISTS idx_plans_cwd ON plans(cwd);
+      CREATE INDEX IF NOT EXISTS idx_plans_phase ON plans(phase_number);
+      CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_path);
+      CREATE INDEX IF NOT EXISTS idx_requirements_cwd ON requirements(cwd);
+      CREATE INDEX IF NOT EXISTS idx_requirements_phase ON requirements(phase_number);
+      CREATE INDEX IF NOT EXISTS idx_file_cache_mtime ON file_cache(mtime_ms);
+    `);
+  },
 ];
 
 // ---------------------------------------------------------------------------
