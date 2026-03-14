@@ -5,29 +5,29 @@
 See: `.planning/PROJECT.md` (updated 2026-03-14)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Phase 119 — Parser Integration Planning Tables
+**Current focus:** Phase 120 — Enricher Acceleration
 
 ## Current Position
 
-**Phase:** 119 of 123 (Parser Integration Planning Tables)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 120 of 123 (Enricher Acceleration)
+**Current Plan:** Plan 01 complete
+**Status:** Plan 01 complete — proceed to plan 02
 **Last Activity:** 2026-03-14
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 81%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 215 (v1.0-v12.0 Phase 119 Plan 01)
+- Total plans completed: 216 (v1.0-v12.0 Phase 120 Plan 01)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
 **Recent Trend:**
-- v12.0 Phase 118 Plan 03: 4 min, 2 tasks, 1 file (52 tests)
 - v12.0 Phase 119 Plan 01: 4 min, 2 tasks, 4 files
 - v12.0 Phase 119 Plan 02: 24 min, 3 tasks, 6 files
 - v12.0 Phase 119 Plan 03: 16 min, 2 tasks, 2 files (71 tests)
+- v12.0 Phase 120 Plan 01: 20 min, 2 tasks, 4 files (1108 tests)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -51,6 +51,9 @@ Progress: [████████░░] 80%
 - [Phase 119-02]: raw is null on cache hits (markdown not stored in SQLite) — in-memory Map cache retains full object with raw after first parse in session
 - [Phase 119-03]: clearForCwd() added to PlanningCache — was specified in Plan 02 but not implemented; added as blocking deviation since tests require it for end-to-end invalidation flow — Rule 3 blocking fix
 - [Phase 119-03]: PlanningCache test isolation uses string cwds ('/test/project/tblXX') per describe group — avoids SQLite getDb() singleton collision while providing logical scoping across groups
+- [Phase 0120]: ensurePlans/ensureSummaryFiles closures provide single-allocation lazy access — parsePlans and listSummaryFiles called exactly once per enrichCommand invocation — Eliminates CPU waste from 3x parsePlans and 3x listSummaryFiles redundant calls per invocation
+- [Phase 0120]: PlanningCache.getSummaryCount and getIncompletePlans: SQLite-first enrichment data for plan/summary counts — warm cache serves from SQL, cold falls back to parsers — ENR-02: SQL-backed enrichment eliminates redundant fs operations on warm cache hits
+- [Phase 0120]: ProjectState.phaseDir added to frozen facade — enricher uses statePhaseDir to skip redundant resolvePhaseDir call for current phase — Avoids extra readdirSync on the phases directory when current phase is already resolved in getProjectState
 
 ### Roadmap Evolution
 
@@ -67,6 +70,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T17:48:27.212Z
-**Stopped at:** Phase 120 context gathered
-**Next step:** Phase 119 complete — proceed to Phase 120 (query integration)
+**Last session:** 2026-03-14T18:26:21.212Z
+**Stopped at:** Completed 0120-01-PLAN.md
+**Next step:** Phase 120 Plan 01 complete — proceed to Phase 120 Plan 02 (if exists) or plan next

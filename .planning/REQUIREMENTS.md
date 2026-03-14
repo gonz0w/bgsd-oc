@@ -16,8 +16,8 @@
 
 ## Enricher Acceleration
 
-- [ ] **ENR-01**: User can run any `/bgsd-*` command and have the enricher complete without redundant parser calls (zero 3x/2x duplication)
-- [ ] **ENR-02**: User can run commands with warm SQLite cache and have enrichment data served from SQL queries instead of file re-parsing
+- [x] **ENR-01**: User can run any `/bgsd-*` command and have the enricher complete without redundant parser calls (zero 3x/2x duplication)
+- [x] **ENR-02**: User can run commands with warm SQLite cache and have enrichment data served from SQL queries instead of file re-parsing
 - [ ] **ENR-03**: User can observe measurably faster command startup when SQLite cache is warm vs cold
 
 ## Memory Store Migration
@@ -66,8 +66,8 @@ _None deferred — all 6 categories selected for v12.0._
 | TBL-02 | Phase 119 | Complete |
 | TBL-03 | Phase 119 | Complete |
 | TBL-04 | Phase 119 | Complete |
-| ENR-01 | Phase 120 | Pending |
-| ENR-02 | Phase 120 | Pending |
+| ENR-01 | Phase 120 | Complete |
+| ENR-02 | Phase 120 | Complete |
 | ENR-03 | Phase 120 | Pending |
 | MEM-01 | Phase 121 | Pending |
 | MEM-02 | Phase 121 | Pending |
