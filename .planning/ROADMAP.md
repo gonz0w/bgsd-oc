@@ -24,7 +24,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
   2. User can upgrade bGSD versions and have schema migrations run transparently on first command — no data loss, no manual steps
   3. User can run any bGSD command on Node <22.5 and have all features work identically via Map fallback with no errors
   4. User can run concurrent bGSD commands (multiple terminals, git hooks) without database locking errors
-**Plans**: TBD
+**Plans**: 3 (Wave 1: Plan 01 — core db module; Wave 2: Plan 02 — CLI integration, Plan 03 — tests)
 
 ### Phase 119: Parser Integration & Planning Tables
 **Goal**: Parsed planning data (phases, plans, tasks, requirements) persists in SQLite across invocations — queries replace markdown re-parsing on cache hit
@@ -85,7 +85,7 @@ Phases execute in numeric order: 118 → 119 → 120 → 121 → 122 → 123
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 118. Foundation & Schema | 0/0 | Not started | - |
+| 118. Foundation & Schema | 0/3 | Planned | - |
 | 119. Parser Integration & Planning Tables | 0/0 | Not started | - |
 | 120. Enricher Acceleration | 0/0 | Not started | - |
 | 121. Memory Store Migration | 0/0 | Not started | - |
