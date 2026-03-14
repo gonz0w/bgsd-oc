@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 53 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Eighteen versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), and v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows).
+A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-two versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), and v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows).
 
 ## Core Value
 
@@ -61,9 +61,6 @@ Manage and deliver high-quality software with high-quality documentation, while 
 - Terminal dashboard with keyboard navigation for project metrics overview
 - Intent classification and parameter extraction modules with 31 phrase command registry
 - Fuzzy matching resolver with disambiguation and contextual help fallback
-
-</details>
-
 
 </details>
 
@@ -208,7 +205,6 @@ See `.planning/REQUIREMENTS.md` for v11.4 requirements.
 - npm package publishing — Plugin deployed via file copy, not a library
 - ESM output format — CJS avoids __dirname/require rewriting
 - RAG / vector search — Wrong architecture for a CLI tool
-- ~~SQLite codebase index~~ — Reconsidered for v8.0 as read cache layer
 - Runtime MCP server connection — Static analysis sufficient
 - CI/CD pipeline management — Handled by external tooling
 - TypeScript migration — Not worth 34-module migration cost
@@ -218,14 +214,14 @@ See `.planning/REQUIREMENTS.md` for v11.4 requirements.
 
 ## Context
 
-Shipped v1.0 through v11.3. 1014 tests (414 passing), 53 src/ modules, ~799KB bundle, esbuild bundler.
+Shipped v1.0 through v11.3. 1008 tests (1007 passing), 52 src/ modules, ~837KB bundle, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
-Source: 53 modules — `src/lib/` (35 modules) and `src/commands/` (23 modules) + router + index.
+Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
 9 specialized AI agents, 41 slash commands, 45 workflows, 27 skills.
 
-Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate). Test suite has 600 failures needing investigation (mostly JSON parse errors from Bun runtime banner).
+Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate). Test suite has 1 failure in intent.test.cjs.
 
 ## Constraints
 
@@ -281,7 +277,7 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate). Test suite 
 ---
 
 ### Archived Constraints
-- ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for `node:sqlite` support with graceful Map fallback
+(None - all constraints addressed)
 
 ---
 *Last updated: 2026-03-14 after v11.4 constraint audit*
