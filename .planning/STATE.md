@@ -9,28 +9,28 @@ See: `.planning/PROJECT.md` (updated 2026-03-14)
 
 ## Current Position
 
-**Phase:** 122 of 123 (Decision Rules)
-**Current Plan:** Plan 01 complete (1 of 2)
+**Phase:** 122 of 123 (Decision Rules) — COMPLETE
+**Current Plan:** Plan 02 complete (2 of 2)
 **Status:** In Progress
 **Last Activity:** 2026-03-14
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 220 (v12.0 Phase 122 Plan 01)
+- Total plans completed: 221 (v12.0 Phase 122 Plan 02)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
 **Recent Trend:**
-- v12.0 Phase 119 Plan 03: 16 min, 2 tasks, 2 files (71 tests)
 - v12.0 Phase 120 Plan 01: 20 min, 2 tasks, 4 files (1108 tests)
 - v12.0 Phase 120 Plan 02: 7 min, 2 tasks, 4 files (1160 tests)
 - v12.0 Phase 121 Plan 01: 5 min, 2 tasks, 6 files (1160 tests)
 - v12.0 Phase 121 Plan 02: 27 min, 3 tasks, 5 files (1160 tests)
 - v12.0 Phase 121 Plan 03: 17 min, 2 tasks, 2 files (1179 tests)
 - v12.0 Phase 122 Plan 01: 14 min, 2 tasks, 9 files (1189 tests)
+- v12.0 Phase 122 Plan 02: 17 min, 2 tasks, 7 files (202 decision tests)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -66,6 +66,8 @@ Progress: [█████████░] 87%
 - [Phase 0121-03]: SQLite test isolation uses os.tmpdir() prefix dirs + closeAll() before getDb() in beforeEach — avoids getDb() singleton collision; PlanningCache direct API for unit tests, CLI for end-to-end verification
 - [Phase 0122-01]: model_profiles uses multi-column schema (quality_model, balanced_model, budget_model, override_model) with '__defaults__' CWD sentinel for idempotent global seeding — Simpler than one-row-per-tier, matches static MODEL_PROFILES shape
 - [Phase 0122-01]: resolvePlanExistenceRoute backward compat: plan_count > 0 without has_context returns 'has-plans'; with has_context=true returns 'ready' — Old callers unaffected; new behavior only triggered with explicit new inputs
+- [Phase 0122-02]: COMMAND_TO_AGENT static map in enricher for agent_type derivation — simpler than dynamic lookup, covers all known bgsd-* commands
+- [Phase 0122-02]: routeTask cwd parameter added as optional third arg — backward compatible, enables model-selection rule lookup without breaking existing callers
 
 ### Roadmap Evolution
 
@@ -82,6 +84,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T23:23:16.639Z
-**Stopped at:** Completed 0122-01-PLAN.md
-**Next step:** Phase 122 — advance to next phase
+**Last session:** 2026-03-14T23:44:25.308Z
+**Stopped at:** Completed 0122-02-PLAN.md
+**Next step:** Phase 123 (final phase)

@@ -10,7 +10,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
 - [x] **Phase 119: Parser Integration & Planning Tables** - Write-through cache for parsers with git-hash + mtime invalidation (completed 2026-03-14)
 - [x] **Phase 120: Enricher Acceleration** - Eliminate 3x/2x parser duplication with SQL-backed enrichment (completed 2026-03-14)
 - [x] **Phase 121: Memory Store Migration** - Sacred data (decisions, lessons, trajectories, bookmarks) to SQLite with JSON backup (completed 2026-03-14)
-- [ ] **Phase 122: Decision Rules** - Six new deterministic decision functions consuming SQLite state
+- [x] **Phase 122: Decision Rules** - Six new deterministic decision functions consuming SQLite state (completed 2026-03-14)
 - [ ] **Phase 123: Session State** - Session persistence in SQLite with STATE.md as generated view
 
 ## Phase Details
@@ -74,7 +74,7 @@ This milestone transforms SQLite from a dumb file cache into the structured data
   2. User can have verification routing, research gate, and phase readiness resolved deterministically from SQLite-backed state
   3. User can have milestone completion and commit strategy resolved deterministically from roadmap/change data
   4. User can run `decisions list` and see all 6 new rules registered alongside existing v11.3 rules
-**Plans**: 0/2 plans complete
+**Plans**: 2/2 plans complete
   - Plan 01 (Wave 1): DB migration + decision functions + PlanningCache methods
   - Plan 02 (Wave 2): Enricher integration + model consumer migration + test suite
 
@@ -99,5 +99,5 @@ Phases execute in numeric order: 118 → 119 → 120 → 121 → 122 → 123
 | 119. Parser Integration & Planning Tables | 2/3 | Complete    | 2026-03-14 |
 | 120. Enricher Acceleration | 2/2 | Complete    | 2026-03-14 |
 | 121. Memory Store Migration | 0/3 | Complete    | 2026-03-14 |
-| 122. Decision Rules | 0/2 | Planned | - |
+| 122. Decision Rules | 2/2 | Complete   | 2026-03-14 |
 | 123. Session State | 0/0 | Not started | - |
