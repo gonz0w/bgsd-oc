@@ -36,8 +36,12 @@ This milestone eliminates accumulated technical debt across four areas: a broken
   2. User can run builds without bundling the orphaned `src/commands/ci.js` module
   3. User can run `util:validate-commands` and see results matching actual router state
   4. User can run `--help` on any routed command and receive usage information
-  5. User sees no duplicate command routes when listing available commands
-**Plans**: TBD
+   5. User sees no duplicate command routes when listing available commands
+**Plans**: 4/4 plans created
+  - Plan 01 (Wave 1): Implement verify:handoff and verify:agents commands [CMD-01, CMD-02]
+  - Plan 02 (Wave 1): Remove orphaned ci.js, execute:profile, deduplicate runtime/measure [CMD-03, CMD-06]
+  - Plan 03 (Wave 1): Fix commandDiscovery.js validator — add audit namespace, fix 5 stale subcommand lists [CMD-04]
+  - Plan 04 (Wave 1): Add 32 missing COMMAND_HELP entries for util, verify, cache [CMD-05]
 
 ### Phase 116: Planning Artifact Cleanup
 **Goal**: Planning artifacts are accurate, complete, and consistently formatted — every agent consuming these files gets correct data
@@ -70,6 +74,6 @@ Phases execute in numeric order: 114 → 115 → 116 → 117
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 114. Test Suite Stabilization | 1/2 | Complete    | 2026-03-14 |
-| 115. CLI Command Routing | 0/0 | Not started | - |
+| 115. CLI Command Routing | 0/4 | Not started | - |
 | 116. Planning Artifact Cleanup | 0/0 | Not started | - |
 | 117. Intent Archival System | 0/0 | Not started | - |
