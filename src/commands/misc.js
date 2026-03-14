@@ -1960,6 +1960,38 @@ function cmdValidateCommands(cwd, options = {}, raw) {
   return outputData;
 }
 
+/**
+ * Validate planning artifacts - checks MILESTONES.md, PROJECT.md, etc.
+ */
+function cmdValidateArtifacts(cwd, options = {}, raw) {
+  const { validateArtifacts } = require('../lib/commandDiscovery');
+  const { output } = require('../lib/output');
+  
+  const result = validateArtifacts(cwd);
+  
+  const outputData = {
+    valid: result.valid,
+    message: result.valid 
+      ? (result.warningCount > 0 ? `${result.warningCount} warning(s) found` : 'All artifacts validated successfully')
+      : `${result.errorCount} error(s) found`,
+    errors: result.errors.length > 0 ? result.errors : undefined,
+    warnings: result.warnings.length > 0 ? result.warnings : undefined
+  };
+  
+  if (raw) {
+    console.log(JSON.stringify(outputData, null, 2));
+  } else {
+    output(outputData);
+  }
+  
+  // Exit with error code if validation failed
+  if (!result.valid) {
+    process.exitCode = 1;
+  }
+  
+  return outputData;
+}
+
 // ─── Summary Generation (Phase 113: Programmatic Summary Generation) ─────────
 
 /**
@@ -2461,6 +2493,7 @@ module.exports = {
   cmdExamples,
   // Phase 104: Zero Friction
   cmdValidateCommands,
+  cmdValidateArtifacts,
   // Phase 113: Programmatic Summary Generation
   cmdSummaryGenerate,
 };

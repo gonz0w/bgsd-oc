@@ -277,7 +277,7 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate). Test suite 
 ---
 
 ### Archived Constraints
-(None - all constraints addressed)
+- ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
 *Last updated: 2026-03-14 after v11.4 constraint audit*

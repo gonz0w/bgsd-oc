@@ -861,6 +861,8 @@ Use without --exact for fuzzy matching.`);
           }
         } else if (subcommand === 'validate-commands') {
           lazyMisc().cmdValidateCommands(cwd, {}, raw);
+        } else if (subcommand === 'validate-artifacts') {
+          lazyMisc().cmdValidateArtifacts(cwd, {}, raw);
         } else if (subcommand === 'progress') {
           const progSub = restArgs[0] || 'json';
           lazyMisc().cmdProgressRender(cwd, progSub, raw);

@@ -126,6 +126,32 @@ async function build() {
     process.exit(1);
   }
 
+  // Artifact validation - gates build if planning artifacts have issues
+  try {
+    const result = execSync('node bin/bgsd-tools.cjs util:validate-artifacts --raw', {
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    const validation = JSON.parse(result);
+    if (!validation.valid) {
+      console.error('Artifact validation FAILED:');
+      for (const err of validation.errors) {
+        console.error(`  ❌ ${err.file}: ${err.issue}`);
+      }
+      process.exit(1);
+    }
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.log('Artifact warnings:');
+      for (const warn of validation.warnings) {
+        console.log(`  ⚠ ${warn.file}: ${warn.issue}`);
+      }
+    }
+    console.log('Artifact validation passed');
+  } catch (err) {
+    console.error('Artifact validation FAILED:', err.message);
+    process.exit(1);
+  }
+
   // Bundle size tracking
   const BUNDLE_BUDGET_KB = 1550;
   const bundlePath = 'bin/bgsd-tools.cjs';

@@ -572,6 +572,16 @@ Compares COMMAND_HELP keys against router implementations to detect:
 - Format inconsistencies (space vs colon)
 
 Exit code 0 if all valid, non-zero if issues found.`,
+  'util:validate-artifacts': `Usage: bgsd-tools util:validate-artifacts
+
+Validate planning artifacts for structural issues.
+
+Checks:
+- MILESTONES.md: Balanced headers, valid date formats
+- PROJECT.md: Balanced <details> tags, no strikethrough in out-of-scope
+- Required files exist: STATE.md, ROADMAP.md
+
+Exit code 0 if all valid, non-zero if errors found.`,
   'util:progress': `Usage: bgsd-tools util:progress [format]
 
 Render progress in various formats.`,

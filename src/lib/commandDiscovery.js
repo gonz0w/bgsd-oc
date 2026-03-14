@@ -445,6 +445,7 @@ function validateCommandRegistry() {
       'quick-summary': null,
       'extract-sections': null,
       'validate-commands': null,
+      'validate-artifacts': null,
       'settings': null,
       'parity-check': null,
       'verify-path-exists': null,
@@ -607,5 +608,99 @@ module.exports = {
   getCommandCategories,
   generateCommandManifest,
   getAllCommands,
-  validateCommandRegistry
+  validateCommandRegistry,
+  validateArtifacts
 };
+
+/**
+ * Validate planning artifacts (MILESTONES.md, PROJECT.md, etc.)
+ * Checks for common structural issues that cause build/deploy problems
+ */
+function validateArtifacts(cwd = process.cwd()) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const errors = [];
+  const warnings = [];
+  
+  // Check .planning directory exists
+  const planningDir = path.join(cwd, '.planning');
+  if (!fs.existsSync(planningDir)) {
+    errors.push({ file: '.planning', issue: 'Directory does not exist' });
+    return { valid: false, errors, warnings };
+  }
+  
+  // Validate MILESTONES.md
+  const milestonesPath = path.join(planningDir, 'MILESTONES.md');
+  if (fs.existsSync(milestonesPath)) {
+    const content = fs.readFileSync(milestonesPath, 'utf8');
+    
+    // Check for balanced ## headers (should be even for details/summary pairs)
+    const h2Matches = content.match(/^##\s+.+$/gm) || [];
+    if (h2Matches.length % 2 !== 0) {
+      warnings.push({ file: 'MILESTONES.md', issue: `Unbalanced ## headers (${h2Matches.length} found) - check for missing closing headers` });
+    }
+    
+    // Check for valid date formats (YYYY-MM-DD)
+    const datePattern = /\d{4}-\d{2}-\d{2}/g;
+    const dates = content.match(datePattern) || [];
+    for (const date of dates) {
+      const parsed = new Date(date);
+      if (isNaN(parsed.getTime())) {
+        errors.push({ file: 'MILESTONES.md', issue: `Invalid date format: ${date}` });
+      }
+    }
+  } else {
+    warnings.push({ file: 'MILESTONES.md', issue: 'File not found' });
+  }
+  
+  // Validate PROJECT.md
+  const projectPath = path.join(planningDir, 'PROJECT.md');
+  if (fs.existsSync(projectPath)) {
+    const content = fs.readFileSync(projectPath, 'utf8');
+    
+    // Check for balanced <details> tags
+    const openDetails = (content.match(/<details>/g) || []).length;
+    const closeDetails = (content.match(/<\/details>/g) || []).length;
+    if (openDetails !== closeDetails) {
+      errors.push({ file: 'PROJECT.md', issue: `Unbalanced <details> tags: ${openDetails} open, ${closeDetails} close` });
+    }
+    
+    // Check for strikethrough in out-of-scope section
+    const outOfScopeMatch = content.match(/## Out of Scope\n([\s\S]*?)(?=\n## |\n---)/i);
+    if (outOfScopeMatch) {
+      const outOfScopeContent = outOfScopeMatch[1];
+      if (outOfScopeContent.includes('~~')) {
+        errors.push({ file: 'PROJECT.md', issue: 'Found strikethrough (~~) in out-of-scope section - use other formatting instead' });
+      }
+    }
+    
+    // Check for orphaned </details> without opening
+    const orphanClose = content.match(/<\/details>/g) || [];
+    if (orphanClose.length > 0 && openDetails === 0) {
+      errors.push({ file: 'PROJECT.md', issue: 'Found </details> without any <details> opening tags' });
+    }
+  } else {
+    warnings.push({ file: 'PROJECT.md', issue: 'File not found' });
+  }
+  
+  // Validate STATE.md exists
+  const statePath = path.join(planningDir, 'STATE.md');
+  if (!fs.existsSync(statePath)) {
+    warnings.push({ file: 'STATE.md', issue: 'File not found' });
+  }
+  
+  // Validate ROADMAP.md exists
+  const roadmapPath = path.join(planningDir, 'ROADMAP.md');
+  if (!fs.existsSync(roadmapPath)) {
+    warnings.push({ file: 'ROADMAP.md', issue: 'File not found' });
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    errorCount: errors.length,
+    warningCount: warnings.length
+  };
+}

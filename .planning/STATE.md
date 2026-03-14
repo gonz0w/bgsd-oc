@@ -10,7 +10,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-14)
 ## Current Position
 
 **Phase:** 116 of 117 (Planning Artifact Cleanup)
-**Current Plan:** 02 (Complete)
+**Current Plan:** Plan 03 complete, Plan 04 pending
 **Status:** Ready for next plan
 **Last Activity:** 2026-03-14
 
@@ -47,6 +47,7 @@ Progress: [██████████] 100%
 - [v11.3]: Scaffold-then-fill pattern for SUMMARY.md — CLI generates data, LLM fills judgment sections
 - [v116-01]: Cleaned MILESTONES.md — added 4 missing milestones (v9.1, v11.0, v11.1, v11.2), reordered to 21 entries chronologically, standardized formatting
 - [v116-02]: Fixed PROJECT.md — valid HTML (removed orphaned </details>), updated counts (52 modules, 1008 tests, ~837KB), removed strikethrough from out-of-scope list
+- [v116-03]: Added artifact validation as build gate — CLI validates PROJECT.md and MILESTONES.md structure on every build
 
 ### Pending Todos
 
@@ -58,6 +59,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T01:58:28.000Z
-**Stopped at:** Completed Phase 116 Plan 2 (PROJECT.md cleanup)
+**Last session:** 2026-03-14T02:09:28.000Z
+**Stopped at:** Completed Phase 116 Plan 3 (artifact validation + constraint cleanup)
 **Next step:** Ready for next plan in Phase 116
