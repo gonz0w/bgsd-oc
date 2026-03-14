@@ -5,12 +5,12 @@
 See: `.planning/PROJECT.md` (updated 2026-03-13)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Phase 114 — Test Suite Stabilization (v11.4 Housekeeping & Stabilization)
+**Current focus:** Phase 115 — CLI Command Routing (v11.5 CLI Refinement)
 
 ## Current Position
 
-**Phase:** 114 of 117 (Test Suite Stabilization)
-**Current Plan:** Not started
+**Phase:** 115 of 117 (CLI Command Routing)
+**Current Plan:** 02
 **Status:** Ready to plan
 **Last Activity:** 2026-03-14
 
@@ -33,6 +33,9 @@ Progress: [██████████] 100%
 
 ### Decisions
 
+- [v11.5]: Removed orphaned ci.js module (329 lines dead code)
+- [v11.5]: Removed execute:profile dead route from router
+- [v11.5]: Deduplicated runtime/measure commands - only util:runtime and util:measure work
 - [v11.4]: Test suite fully stabilized — 1008 pass / 0 fail, zero failures achieved
 - [v11.4]: isTTY guard in showRuntimeBanner() — suppresses banner in piped/non-TTY mode, fixes 576 test failures
 - [v11.4]: Deleted dead profiler tests — src/lib/profiler.js intentionally removed, tests had no replacement
@@ -50,6 +53,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T00:04:43Z
-**Stopped at:** Completed 0114-02-PLAN.md (test suite fully stabilized)
-**Next step:** Phase complete — ready for next phase
+**Last session:** 2026-03-14T00:39:03Z
+**Stopped at:** Completed 115-02-PLAN.md (CLI command routing deduplicated)
+**Next step:** Ready for next plan in Phase 115
