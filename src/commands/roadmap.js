@@ -242,12 +242,16 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
   const status = isComplete ? 'Complete' : summaryCount > 0 ? 'In Progress' : 'Planned';
   const today = new Date().toISOString().split('T')[0];
 
-  if (!fs.existsSync(roadmapPath)) {
-    output({ updated: false, reason: 'ROADMAP.md not found', plan_count: planCount, summary_count: summaryCount }, raw, 'no roadmap');
-    return;
+  let roadmapContent;
+  try {
+    roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      output({ updated: false, reason: 'ROADMAP.md not found', plan_count: planCount, summary_count: summaryCount }, raw, 'no roadmap');
+      return;
+    }
+    throw e;
   }
-
-  let roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
   const phaseEscaped = phaseNum.replace('.', '\\.');
 
   // Progress table row: update Plans column (summaries/plans) and Status column

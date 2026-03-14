@@ -1,7 +1,4 @@
 import { getProjectState } from '../project-state.js';
-import { createObjectSchema, validateArgs } from '../validation/adapter.js';
-
-const VALIDATE_ARGS_SCHEMA = createObjectSchema({});
 
 /**
  * bgsd_validate — Project validation tool.
@@ -22,21 +19,13 @@ export const bgsd_validate = {
 
   async execute(args, context) {
     try {
-      const parsedArgs = validateArgs('bgsd_validate', VALIDATE_ARGS_SCHEMA, args);
-      if (!parsedArgs.ok) {
-        return JSON.stringify({
-          error: parsedArgs.error.code,
-          message: parsedArgs.error.message,
-        });
-      }
-
       const projectDir = context?.directory || process.cwd();
       const projectState = getProjectState(projectDir);
 
       if (!projectState) {
         return JSON.stringify({
           status: 'no_project',
-          message: 'No .planning/ directory found. Run /bgsd plan project to initialize a project.',
+          message: 'No .planning/ directory found. Run /bgsd-new-project to initialize a project.',
         });
       }
 
@@ -192,12 +181,14 @@ export const bgsd_validate = {
 
       // --- Progress bar auto-fix detection (read-only report) ---
       if (state.progress !== null && state.raw) {
-        const barMatch = state.raw.match(/\[([\u2588\u2591]+)\]\s*(\d+)%/);
+        const barMatch = state.raw.match(/[\u2588\u2591]+\]\s*(\d+)%/);
         if (barMatch) {
-          const bar = barMatch[1];
-          const pct = parseInt(barMatch[2], 10);
-          const filled = (bar.match(/\u2588/g) || []).length;
-          const total = bar.length;
+          const bar = barMatch[0];
+          const pct = parseInt(barMatch[1], 10);
+          const filledMatch = bar.match(/\u2588/g);
+          const filled = filledMatch ? filledMatch.length : 0;
+          const totalMatch = bar.match(/[\u2588\u2591]/g);
+          const total = totalMatch ? totalMatch.length : 0;
           const expectedFilled = Math.round(pct / 100 * total);
           if (filled !== expectedFilled) {
             issues.push({ severity: 'info', check: 'state_progress_bar', message: `Progress bar visual (${filled}/${total} filled) doesn't match ${pct}% — could be auto-fixed` });

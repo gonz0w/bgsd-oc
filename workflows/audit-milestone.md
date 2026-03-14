@@ -17,6 +17,10 @@ Read all execution_context files before starting.
 Extract from `<bgsd-context>` JSON: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `commit_docs`.
 
 Resolve verifier model:
+
+**Pre-computed value:** If `verifier_model` or `checker_model` exists in `<bgsd-context>`, use it as `CHECKER_MODEL`. Skip subprocess call below.
+
+**Fallback** (if not available in context):
 ```bash
 CHECKER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-verifier)
 ```
@@ -196,7 +200,7 @@ All requirements covered. Cross-phase integration verified. E2E flows complete.
 
 **Complete milestone** — archive and tag
 
-/bgsd milestone complete {version}
+/bgsd-complete-milestone {version}
 
 <sub>/clear first → fresh context window</sub>
 
@@ -241,7 +245,7 @@ All requirements covered. Cross-phase integration verified. E2E flows complete.
 
 **Also available:**
 - cat .planning/v{version}-MILESTONE-AUDIT.md — see full report
-- /bgsd milestone complete {version} — proceed anyway (accept tech debt)
+- /bgsd-complete-milestone {version} — proceed anyway (accept tech debt)
 
 ───────────────────────────────────────────────────────────────
 
@@ -271,7 +275,7 @@ All requirements met. No critical blockers. Accumulated tech debt needs review.
 
 **A. Complete milestone** — accept debt, track in backlog
 
-/bgsd milestone complete {version}
+/bgsd-complete-milestone {version}
 
 **B. Plan cleanup phase** — address debt before completing
 

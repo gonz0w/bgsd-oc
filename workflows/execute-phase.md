@@ -55,6 +55,10 @@ If `phase_found` false or `plan_count` 0 → error. No STATE.md but `.planning/`
 </step>
 
 <step name="handle_branching">
+**Pre-computed decision:** If `decisions.branch-handling` exists in `<bgsd-context>`, use its `.value` (skip/create/update/use-existing). Skip branch state evaluation below.
+
+**Fallback** (if decisions not available):
+
 If `branching_strategy` is `"none"`: skip.
 Otherwise use pre-computed `branch_name`:
 ```bash
@@ -389,6 +393,10 @@ After all waves, report:
 <step name="ci_quality_gate">
 **Optional CI quality gate — push, PR, code scanning, fix loop, auto-merge.**
 
+**Pre-computed decision:** If `decisions.ci-gate` exists in `<bgsd-context>`, use its `.value` (run/skip/warn). Skip CI flag evaluation below.
+
+**Fallback** (if decisions not available):
+
 Determine if CI gate should run using `CI_FLAG` from initialize step:
 - `CI_FLAG="force"` → run CI regardless of config
 - `CI_FLAG="skip"` → skip CI regardless of config
@@ -456,7 +464,7 @@ Create VERIFICATION.md.",
 Read status from VERIFICATION.md:
 - `passed` → update_roadmap
 - `human_needed` → present items for human testing
-- `gaps_found` → present gap summary, offer `/bgsd plan phase {X} --gaps`
+- `gaps_found` → present gap summary, offer `/bgsd-plan-phase {X} --gaps`
 </step>
 
 <step name="update_roadmap">
@@ -485,5 +493,5 @@ Read and follow `transition.md` inline, passing `--auto` flag.
 </process>
 
 <resumption>
-Re-run `/bgsd exec phase {phase}` → discovers completed SUMMARYs → skips them → resumes from first incomplete plan.
+Re-run `/bgsd-execute-phase {phase}` → discovers completed SUMMARYs → skips them → resumes from first incomplete plan.
 </resumption>

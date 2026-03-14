@@ -21,7 +21,7 @@ Parse `<bgsd-context>` JSON for: `state_exists`, `roadmap_exists`, `project_exis
 
 **If `state_exists` is true:** Proceed to load_state
 **If `state_exists` is false but `roadmap_exists` or `project_exists` is true:** Offer to reconstruct STATE.md
-**If `planning_exists` is false:** This is a new project - route to /bgsd plan project
+**If `planning_exists` is false:** This is a new project - route to /bgsd-new-project
 </step>
 
 <step name="load_state">
@@ -114,6 +114,10 @@ Present complete project status to user:
 </step>
 
 <step name="determine_next_action">
+**Pre-computed decision:** If `decisions.resume-route` exists in `<bgsd-context>`, use its `.value` as the primary next action. Skip condition evaluation below.
+
+**Fallback** (if decisions not available):
+
 Based on project state, determine the most logical next action:
 
 **If interrupted agent exists:**
@@ -156,11 +160,11 @@ What would you like to do?
 [Primary action based on state - e.g.:]
 1. Resume interrupted agent [if interrupted agent found]
    OR
-1. Execute phase (/bgsd exec phase {phase})
+1. Execute phase (/bgsd-execute-phase {phase})
    OR
-1. Discuss Phase 3 context (/bgsd plan discuss 3) [if CONTEXT.md missing]
+1. Discuss Phase 3 context (/bgsd-discuss-phase 3) [if CONTEXT.md missing]
    OR
-1. Plan Phase 3 (/bgsd plan phase 3) [if CONTEXT.md exists or discuss option declined]
+1. Plan Phase 3 (/bgsd-plan-phase 3) [if CONTEXT.md exists or discuss option declined]
 
 [Secondary options:]
 2. Review current phase status
@@ -191,7 +195,7 @@ Based on user selection, route to appropriate workflow:
 
   **{phase}-{plan}: [Plan Name]** — [objective from PLAN.md]
 
-`/bgsd exec phase {phase}`
+`/bgsd-execute-phase {phase}`
 
 <sub>`/clear` first → fresh context window</sub>
 
@@ -205,15 +209,15 @@ Based on user selection, route to appropriate workflow:
 
   **Phase [N]: [Name]** — [Goal from ROADMAP.md]
 
-`/bgsd plan phase [phase-number]`
+`/bgsd-plan-phase [phase-number]`
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd plan discuss [N]` — gather context first
-- `/bgsd plan research [N]` — investigate unknowns
+- `/bgsd-discuss-phase [N]` — gather context first
+- `/bgsd-research-phase [N]` — investigate unknowns
 
   ---
   ```

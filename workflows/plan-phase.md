@@ -20,7 +20,7 @@ File paths: `state_path`, `roadmap_path`, `requirements_path`, `context_path`, `
 
 Intent fields (from 16-01): `intent_summary` (objective, outcome count, top P1 outcomes — null if no INTENT.md), `intent_path` (path to INTENT.md for @context references — null if absent). Use these to inject intent context into researcher and planner spawns when available.
 
-If no `.planning/`: error — run `/bgsd plan project`.
+If no `.planning/`: error — run `/bgsd-new-project`.
 
 ## 2. Parse Arguments
 
@@ -146,9 +146,13 @@ Route to offer_next or auto_advance.
 
 ## 15. Auto-Advance
 
+**Pre-computed decision:** If `decisions.auto-advance` exists in `<bgsd-context>`, use its `.value` (boolean). Skip config/flag check below.
+
+**Fallback** (if decisions not available):
+
 If `--auto` or `config-get workflow.auto_advance` true:
 ```
-Task(prompt="Run /bgsd exec phase ${PHASE} --auto", subagent_type="general", description="Execute Phase ${PHASE}")
+Task(prompt="Run /bgsd-execute-phase ${PHASE} --auto", subagent_type="general", description="Execute Phase ${PHASE}")
 ```
 PHASE COMPLETE → done. GAPS/FAILED → stop chain, display for manual review.
 
@@ -160,7 +164,7 @@ Otherwise: offer_next.
 Phase {X} planned: {N} plans in {M} waves. Table of waves/objectives.
 Research: completed/existing/skipped. Verification: passed/overridden/skipped.
 
-Next: `/bgsd exec phase {X}` (after `/clear`).
+Next: `/bgsd-execute-phase {X}` (after `/clear`).
 Also: review plans, re-research.
 </offer_next>
 

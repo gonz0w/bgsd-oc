@@ -228,7 +228,10 @@ function normalizePhaseName(phase) {
   if (!match) return phase;
   const num = match[1];
   const parts = num.split('.');
-  const padded = parts[0].padStart(2, '0');
+  // Strip leading zeros first, then pad to minimum 2 digits
+  // This ensures both "0110" (from dir name) and "110" (from user input) normalize to "110"
+  const stripped = parts[0].replace(/^0+/, '') || '0';
+  const padded = stripped.padStart(2, '0');
   return parts.length > 1 ? `${padded}.${parts[1]}` : padded;
 }
 
@@ -375,7 +378,10 @@ function searchPhaseInDir(baseDir, relBase, normalized) {
   try {
     const entries = fs.readdirSync(baseDir, { withFileTypes: true });
     const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
-    const match = dirs.find(d => d.startsWith(normalized));
+    const match = dirs.find(d => {
+      const dm = d.match(PHASE_DIR_NUMBER);
+      return dm ? normalizePhaseName(dm[1]) === normalized : d.startsWith(normalized);
+    });
     if (!match) return null;
 
     const dirMatch = match.match(PHASE_DIR_NUMBER);

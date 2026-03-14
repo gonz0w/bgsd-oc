@@ -19,14 +19,14 @@ If `todo_count` is 0:
 ```
 No pending todos.
 
-Todos are captured during work sessions with /bgsd todo add.
+Todos are captured during work sessions with /bgsd-add-todo.
 
 ---
 
 Would you like to:
 
-1. Continue with current phase (/bgsd session progress)
-2. Add a todo now (/bgsd todo add)
+1. Continue with current phase (/bgsd-progress)
+2. Add a todo now (/bgsd-add-todo)
 ```
 
 Exit.
@@ -115,7 +115,7 @@ Use question:
 - question: "What would you like to do with this todo?"
 - options:
   - "Work on it now" — move to done, start working
-  - "Create a phase" — /bgsd roadmap add with this scope
+  - "Create a phase" — /bgsd-add-phase with this scope
   - "Brainstorm approach" — think through before deciding
   - "Put it back" — return to list
 </step>
@@ -131,7 +131,7 @@ Update STATE.md todo count. Present problem/solution context. Begin work or ask 
 Note todo reference in phase planning notes. Keep in pending. Return to list or exit.
 
 **Create a phase:**
-Display: `/bgsd roadmap add [description from todo]`
+Display: `/bgsd-add-phase [description from todo]`
 Keep in pending. User runs command in fresh context.
 
 **Brainstorm approach:**

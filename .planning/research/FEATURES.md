@@ -1,181 +1,382 @@
-# Feature Research
+# Feature Research: CLI Command Routing Audit
 
-**Domain:** Code Audit & Performance Tooling
-**Researched:** 2026-03-12
-**Confidence:** HIGH
+**Domain:** CLI Command Routing — bGSD Plugin v11.4 Housekeeping
+**Researched:** 2026-03-13
+**Confidence:** HIGH (source-of-truth analysis of router.js, constants.js, commandDiscovery.js, 41 slash commands, 43 workflows, 24 command modules)
 
 <!-- section: compact -->
 <features_compact>
+**Critical findings (must fix):**
+- 2 missing CLI routes called by workflows (`verify:handoff`, `verify:agents`) — execute-phase.md L190, L196
+- 1 orphaned command module (`src/commands/ci.js`) — no lazy loader, no router route, never imported
+- 1 namespace missing from validator (`audit` not in `commandDiscovery.js` routerImplementations)
+- 20 routed commands missing `COMMAND_HELP` entries (no `--help` output)
 
-**Table stakes (must have):**
-- Unused exports detection — Core to bGSD's existing reachability audit (knip integration planned)
-- Dead code elimination — Identifies unreachable code paths; complements unused exports
-- Cyclomatic complexity analysis — Industry-standard metric for code complexity
+**Moderate findings (should fix):**
+- 5 stale subcommand lists in `commandDiscovery.js` routerImplementations vs actual router
+- 2 duplicate routes: `runtime` and `measure` exist as both `util:` and standalone commands
+- `bgsd-quick.md` slash command has no workflow reference (orphaned wrapper)
+- `execute:profile` route in router just returns an error message — dead route
 
-**Differentiators:**
-- Maintainability Index scoring — Compound metric (0-100) combining complexity, LOC, comments; aligns with bGSD's quality scoring
-- Cognitive complexity — Better predictor of human comprehension than cyclomatic alone
-- bGSD-aware analysis — Leverages existing 34-module codebase knowledge, test coverage data
+**Low priority:**
+- 13 init namespace commands have no COMMAND_HELP entries (internal-only, acceptable)
+- 5 cache namespace commands have no COMMAND_HELP entries
+- Research namespace has duplicate help entries (space and colon format) — intentional for backward compat
 
-**Defer (v2+):** Duplicate code merging (jscpd integration), Halstead metrics, cross-language analysis
-
-**Key dependencies:** Complexity analysis requires AST parsing (acorn already bundled); unused exports requires module resolution (existing dependency graph capability)
+**Key dependencies:** All fixes are independent; no ordering constraints
 </features_compact>
 <!-- /section -->
 
 <!-- section: feature_landscape -->
-## Feature Landscape
+## Complete Route Inventory
 
-### Table Stakes (Users Expect These)
+### Registered Namespaces (router.js L230)
 
-Features users assume exist. Missing these = product feels incomplete.
+| Namespace | KNOWN_NAMESPACES | Router case | commandDiscovery |
+|-----------|:----------------:|:-----------:|:----------------:|
+| init      | ✓                | ✓           | ✓                |
+| plan      | ✓                | ✓           | ✓                |
+| execute   | ✓                | ✓           | ✓                |
+| verify    | ✓                | ✓           | ✓                |
+| util      | ✓                | ✓           | ✓                |
+| research  | ✓                | ✓           | ✓                |
+| cache     | ✓                | ✓           | ✓                |
+| audit     | ✓                | ✓           | **MISSING**       |
+| decisions | ✓                | ✓           | ✓                |
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Unused exports detection | bGSD already does reachability audit (verify:orphans); users expect comprehensive export tracking | LOW | Leverage existing acorn AST parsing; extend current reachability logic |
-| Dead code elimination | Unreachable code paths are bugs waiting to happen; ESLint no-unreachable rule sets precedent | LOW | Detect code after return/throw/break in loops; mark as advisory |
-| Cyclomatic complexity | Industry-standard metric; ESLint complexity rule provides baseline (default threshold: 20) | MEDIUM | Calculate per-function; expose via CLI; configurable thresholds |
-| Per-function complexity breakdown | Developers need to know WHICH functions are complex | LOW | Reuse acorn AST to compute complexity per function/method |
+**Issue:** `audit` namespace added to KNOWN_NAMESPACES and router but never added to `commandDiscovery.js` `routerImplementations` object. This causes `util:validate-commands` to report `audit:scan` as invalid.
 
-### Differentiators (Competitive Advantage)
+### init Namespace Routes (13 commands)
 
-Features that set the product apart. Not required, but valuable.
+| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
+|-------|---------|--------|:--------:|:------------:|-----------------|
+| init:execute-phase | cmdInitExecutePhase | init.js | ✓ | ✗ | execute-phase.md (indirect) |
+| init:plan-phase | cmdInitPlanPhase | init.js | ✓ | ✗ | plan-phase.md (indirect) |
+| init:new-project | cmdInitNewProject | init.js | ✓ | ✗ | new-project.md (indirect) |
+| init:new-milestone | cmdInitNewMilestone | init.js | ✓ | ✗ | new-milestone.md (indirect) |
+| init:quick | cmdInitQuick | init.js | ✓ | ✗ | quick.md (indirect) |
+| init:resume | cmdInitResume | init.js | ✓ | ✗ | resume-project.md (indirect) |
+| init:verify-work | cmdInitVerifyWork | init.js | ✓ | ✗ | verify-work.md (indirect) |
+| init:phase-op | cmdInitPhaseOp | init.js | ✓ | ✗ | add/insert/remove-phase.md |
+| init:todos | cmdInitTodos | init.js | ✓ | ✗ | add-todo/check-todos.md |
+| init:milestone-op | cmdInitMilestoneOp | init.js | ✓ | ✗ | complete-milestone.md |
+| init:map-codebase | cmdInitMapCodebase | init.js | ✓ | ✗ | map-codebase.md |
+| init:progress | cmdInitProgress | init.js | ✓ | ✗ | progress.md |
+| init:memory | cmdInitMemory | init.js | ✓ | ✗ | pause-work.md |
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Maintainability Index (0-100) | Compound score combining cyclomatic complexity, LOC, Halstead volume, comment ratio; Visual Studio standard | MEDIUM | Formula: MI = max(0, (171 - 5.2×ln(HV) - 0.23×CC - 16.2×ln(LOC)) × 100/171); aligns with bGSD quality scoring |
-| Cognitive complexity | Measures mental effort to understand code; better than cyclomatic for human comprehension | MEDIUM | Adds points for nesting, recursion, method calls; SonarQube/Codacy use this |
-| bGSD-aware code quality | Uses existing knowledge: test coverage, bundle size, 766 tests, 34 modules | LOW | Reuse existing metrics from codebase-intel.json; correlate complexity with test coverage |
-| Performance impact estimation | Estimates runtime cost of complex functions | HIGH | Requires execution profiling; defer to v2+ |
-| Inline complexity annotations | Shows complexity next to function definitions | MEDIUM | IDE integration; parse output for editor display |
+**Assessment:** All init routes are functional. Missing COMMAND_HELP is low priority — these are context-injection commands called by the plugin system, not by users directly.
 
-### Anti-Features (Commonly Requested, Often Problematic)
+### plan Namespace Routes (7 top-level, 20+ sub-routes)
 
-Features that seem good but create problems.
+| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
+|-------|---------|--------|:--------:|:------------:|-----------------|
+| plan:intent create | cmdIntentCreate | intent.js | ✓ | ✓ | new-project.md |
+| plan:intent show | cmdIntentShow | intent.js | ✓ | ✓ | new-milestone.md |
+| plan:intent read | cmdIntentShow(raw=true) | intent.js | ✓ | ✓ | — |
+| plan:intent update | cmdIntentUpdate | intent.js | ✓ | ✓ | — |
+| plan:intent validate | cmdIntentValidate | intent.js | ✓ | ✓ | — |
+| plan:intent trace | cmdIntentTrace | intent.js | ✓ | ✓ | — |
+| plan:intent drift | cmdIntentDrift | intent.js | ✓ | ✓ | — |
+| plan:requirements mark-complete | cmdRequirementsMarkComplete | phase.js | ✓ | ✓ | execute-plan.md |
+| plan:roadmap get-phase | cmdRoadmapGetPhase | roadmap.js | ✓ | ✓ | plan-phase.md, research-phase.md |
+| plan:roadmap analyze | cmdRoadmapAnalyze | roadmap.js | ✓ | ✓ | progress.md, complete-milestone.md, transition.md |
+| plan:roadmap update-plan-progress | cmdRoadmapUpdatePlanProgress | roadmap.js | ✓ | ✓ | execute-plan.md |
+| plan:phases list | cmdPhasesList | phase.js | ✓ | ✓ | audit-milestone.md, plan-milestone-gaps.md |
+| plan:find-phase | cmdFindPhase | misc.js | ✓ | ✓ | audit-milestone.md |
+| plan:milestone complete | cmdMilestoneComplete | phase.js | ✓ | ✓ | complete-milestone.md |
+| plan:milestone summary | cmdMilestoneSummary | milestone.js | ✓ | ✓ | — |
+| plan:milestone info | cmdMilestoneInfo | milestone.js | ✓ | ✓ | — |
+| plan:phase next-decimal | cmdPhaseNextDecimal | phase.js | ✓ | ✓ | — |
+| plan:phase add | cmdPhaseAdd | phase.js | ✓ | ✓ | add-phase.md |
+| plan:phase insert | cmdPhaseInsert | phase.js | ✓ | ✓ | insert-phase.md |
+| plan:phase remove | cmdPhaseRemove | phase.js | ✓ | ✓ | remove-phase.md |
+| plan:phase complete | cmdPhaseComplete | phase.js | ✓ | ✓ | execute-phase.md, transition.md |
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Auto-fix dead code | Sounds like easy cleanup | May break runtime if code is dynamically used (eval, reflection) | Report only, let human verify |
-| Auto-merge duplicates | Sounds like instant savings | Semantic context lost; may introduce bugs | Report duplicates, suggest extraction pattern |
-| Real-time scanning on edit | Sounds like instant feedback | Performance cost; editor already has ESLint | Integrate with existing editor plugins, not replace |
-| Full language support | Sounds comprehensive | 150+ languages requires massive effort | Focus on JavaScript (bGSD's language); extend later |
+**Assessment:** All plan routes are fully functional and documented.
+
+### execute Namespace Routes (9 top-level, 18+ sub-routes)
+
+| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
+|-------|---------|--------|:--------:|:------------:|-----------------|
+| execute:commit | cmdCommit | misc.js | ✓ | ✓ | 16 workflows |
+| execute:rollback-info | cmdRollbackInfo | features.js | ✓ | ✓ | cmd-rollback-info.md |
+| execute:session-diff | cmdSessionDiff | features.js | ✓ | ✓ | cmd-session-diff.md |
+| execute:session-summary | cmdSessionSummary | features.js | ✓ | ✓ | — |
+| execute:velocity | cmdVelocity | features.js | ✓ | ✓ | cmd-velocity.md |
+| execute:worktree create | cmdWorktreeCreate | worktree.js | ✓ | ✓ | execute-phase.md |
+| execute:worktree list | cmdWorktreeList | worktree.js | ✓ | ✓ | — |
+| execute:worktree remove | cmdWorktreeRemove | worktree.js | ✓ | ✓ | — |
+| execute:worktree cleanup | cmdWorktreeCleanup | worktree.js | ✓ | ✓ | execute-phase.md |
+| execute:worktree merge | cmdWorktreeMerge | worktree.js | ✓ | ✓ | execute-phase.md |
+| execute:worktree check-overlap | cmdWorktreeCheckOverlap | worktree.js | ✓ | ✓ | — |
+| execute:tdd * | cmdTdd | misc.js | ✓ | ✓ | tdd.md, execute-plan.md |
+| execute:test-run | cmdTestRun | features.js | ✓ | ✓ | cmd-test-run.md |
+| execute:trajectory checkpoint | cmdTrajectoryCheckpoint | trajectory.js | ✓ | ✓ | — |
+| execute:trajectory list | cmdTrajectoryList | trajectory.js | ✓ | ✓ | — |
+| execute:trajectory pivot | cmdTrajectoryPivot | trajectory.js | ✓ | ✓ | — |
+| execute:trajectory compare | cmdTrajectoryCompare | trajectory.js | ✓ | ✓ | — |
+| execute:trajectory choose | cmdTrajectoryChoose | trajectory.js | ✓ | ✓ | — |
+| execute:trajectory dead-ends | cmdTrajectoryDeadEnds | trajectory.js | ✓ | ✓ | — |
+| execute:profile | *(error only)* | — | — | ✗ | — |
+
+**Issue:** `execute:profile` (router.js L524-526) is a dead route — it just throws an error saying "Set BGSD_PROFILE=1". Should be removed or turned into a proper command.
+
+### verify Namespace Routes (18+ sub-routes)
+
+| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
+|-------|---------|--------|:--------:|:------------:|-----------------|
+| verify:state load | cmdStateLoad | state.js | ✓ | ✓ | debug.md, settings.md, set-profile.md |
+| verify:state update | cmdStateUpdate | state.js | ✓ | ✓ | — |
+| verify:state get | cmdStateGet | state.js | ✓ | ✓ | — |
+| verify:state patch | cmdStatePatch | state.js | ✓ | ✓ | — |
+| verify:state advance-plan | cmdStateAdvancePlan | state.js | ✓ | ✓ | execute-plan.md |
+| verify:state record-metric | cmdStateRecordMetric | state.js | ✓ | ✓ | execute-plan.md |
+| verify:state update-progress | cmdStateUpdateProgress | state.js | ✓ | ✓ | execute-plan.md |
+| verify:state add-decision | cmdStateAddDecision | state.js | ✓ | ✓ | execute-plan.md, github-ci.md |
+| verify:state add-blocker | cmdStateAddBlocker | state.js | ✓ | ✓ | — |
+| verify:state resolve-blocker | cmdStateResolveBlocker | state.js | ✓ | ✓ | — |
+| verify:state record-session | cmdStateRecordSession | state.js | ✓ | ✓ | execute-plan.md, discuss-phase.md, github-ci.md |
+| verify:state validate | cmdStateValidate | state.js | ✓ | ✓ | execute-phase.md |
+| verify:verify plan-structure | cmdVerifyPlanStructure | verify.js | ✓ | ✓ | — |
+| verify:verify phase-completeness | cmdVerifyPhaseCompleteness | verify.js | ✓ | ✓ | — |
+| verify:verify references | cmdVerifyReferences | verify.js | ✓ | ✓ | — |
+| verify:verify commits | cmdVerifyCommits | verify.js | ✓ | ✓ | — |
+| verify:verify artifacts | cmdVerifyArtifacts | verify.js | ✓ | ✓ | — |
+| verify:verify key-links | cmdVerifyKeyLinks | verify.js | ✓ | ✓ | — |
+| verify:verify analyze-plan | cmdAnalyzePlan | verify.js | ✓ | ✓ | — |
+| verify:verify deliverables | cmdVerifyDeliverables | verify.js | ✓ | ✓ | — |
+| verify:verify requirements | cmdVerifyRequirements | verify.js | ✓ | ✓ | — |
+| verify:verify regression | cmdVerifyRegression | verify.js | ✓ | ✓ | — |
+| verify:verify plan-wave | cmdVerifyPlanWave | verify.js | ✓ | ✓ | — |
+| verify:verify plan-deps | cmdVerifyPlanDeps | verify.js | ✓ | ✓ | — |
+| verify:verify quality | cmdVerifyQuality | verify.js | ✓ | ✓ | — |
+| verify:regression | cmdVerifyRegression | verify.js | ✓ | ✗ | — |
+| verify:quality | cmdVerifyQuality | verify.js | ✓ | ✗ | — |
+| verify:review | cmdReview | misc.js | ✓ | ✓ | execute-plan.md |
+| verify:assertions list | cmdAssertionsList | verify.js | ✓ | ✓ | plan-phase.md |
+| verify:assertions validate | cmdAssertionsValidate | verify.js | ✓ | ✓ | — |
+| verify:search-decisions | cmdSearchDecisions | features.js | ✓ | ✓ | cmd-search-decisions.md |
+| verify:search-lessons | cmdSearchLessons | features.js | ✓ | ✓ | cmd-search-lessons.md, plan-phase.md |
+| verify:context-budget | cmdContextBudget | features.js | ✓ | ✓ | cmd-context-budget.md, execute-plan.md |
+| verify:context-budget baseline | cmdContextBudgetBaseline | features.js | ✓ | ✓ | — |
+| verify:context-budget compare | cmdContextBudgetCompare | features.js | ✓ | ✓ | — |
+| verify:context-budget measure | cmdContextBudgetMeasure | features.js | ✓ | ✓ | — |
+| verify:token-budget | cmdTokenBudget | features.js | ✓ | ✓ | — |
+| verify:summary | cmdVerifySummary | misc.js | ✓ | ✗ | — |
+| verify:validate consistency | cmdValidateConsistency | verify.js | ✓ | ✗ | — |
+| verify:validate health | cmdValidateHealth | verify.js | ✓ | ✗ | health.md |
+| verify:validate roadmap | cmdValidateRoadmap | verify.js | ✓ | ✗ | execute-phase.md, new-milestone.md, new-project.md |
+| verify:validate-dependencies | cmdValidateDependencies | features.js | ✓ | ✗ | execute-phase.md, cmd-validate-deps.md |
+| verify:validate-config | cmdValidateConfig | features.js | ✓ | ✗ | cmd-validate-config.md |
+| verify:test-coverage | cmdTestCoverage | features.js | ✓ | ✗ | — |
+| **verify:handoff** | **MISSING** | — | — | — | **execute-phase.md L190** |
+| **verify:agents** | **MISSING** | — | — | — | **execute-phase.md L196** |
+
+**CRITICAL:** `verify:handoff` and `verify:agents` are called in `execute-phase.md` (the main execution workflow) but have NO router implementation, NO handler function, and NO module. These calls will fail at runtime.
+
+### util Namespace Routes (40+ sub-routes)
+
+All util routes verified as functional. Key routes with missing COMMAND_HELP:
+
+| Route | Handler | COMMAND_HELP |
+|-------|---------|:------------:|
+| util:settings | cmdSettingsList | ✗ |
+| util:parity-check | cmdParityCheck | ✗ |
+| util:resolve-model | cmdResolveModel | ✗ |
+| util:verify-path-exists | cmdVerifyPathExists | ✗ |
+| util:config-ensure-section | cmdConfigEnsureSection | ✗ |
+| util:scaffold | cmdScaffold | ✗ |
+| util:phase-plan-index | cmdPhasePlanIndex | ✗ |
+| util:state-snapshot | cmdStateSnapshot | ✗ |
+| util:summary-extract | cmdSummaryExtract | ✗ |
+| util:summary-generate | cmdSummaryGenerate | ✗ |
+| util:quick-summary | cmdQuickTaskSummary | ✗ |
+| util:extract-sections | cmdExtractSections | ✗ |
+| util:tools | cmdToolsStatus | ✗ |
+| util:runtime | cmdRuntimeStatus/Benchmark | ✗ |
+| util:recovery | createAutoRecovery etc | ✗ |
+| util:history | helpContext module | ✗ |
+| util:examples | helpExamples module | ✗ |
+| util:analyze-deps | cmdAnalyzeDeps | ✗ |
+| util:estimate-scope | cmdEstimateScope | ✗ |
+| util:test-coverage | cmdTestCoverage | ✗ |
+
+### research Namespace Routes (8 commands) — All functional, all have COMMAND_HELP
+
+### cache Namespace Routes (5 commands)
+
+| Route | Handler | Module | COMMAND_HELP |
+|-------|---------|--------|:------------:|
+| cache:research-stats | cmdCacheResearchStats | cache.js | ✗ |
+| cache:research-clear | cmdCacheResearchClear | cache.js | ✗ |
+| cache:status | cmdCacheStatus | cache.js | ✗ |
+| cache:clear | cmdCacheClear | cache.js | ✗ |
+| cache:warm | cmdCacheWarm | cache.js | ✗ |
+
+**Note:** cache commands also exist under `util:cache` — they are accessible both ways.
+
+### audit Namespace Routes (1 command) — Functional, has COMMAND_HELP
+
+### decisions Namespace Routes (4 commands) — All functional, all have COMMAND_HELP
+
+### Standalone Routes (2 commands)
+
+| Route | Handler | Also in util: |
+|-------|---------|:-------------:|
+| runtime | cmdRuntimeStatus/Benchmark | ✓ (duplicate) |
+| measure | cmdMeasure | ✓ (duplicate) |
 <!-- /section -->
 
 <!-- section: dependencies -->
-## Feature Dependencies
+## Issue Classification
+
+### CRITICAL — Broken Routes (Workflow calls non-existent CLI commands)
 
 ```
-[Unused Exports Detection]
-    └──requires──> [Module Resolution]
-                       └──requires──> [AST Parsing (acorn exists)]
+execute-phase.md L190
+    └──calls──> verify:handoff --preview --from planner --to executor
+                    └──MISSING: No router handler, no module, no function
 
-[Dead Code Detection]
-    └──requires──> [Control Flow Analysis]
-                       └──requires──> [AST Parsing]
-
-[Cyclomatic Complexity]
-    └──requires──> [AST Parsing]
-
-[Cognitive Complexity]
-    └──requires──> [AST Parsing]
-
-[Maintainability Index]
-    ├──requires──> [Cyclomatic Complexity]
-    ├──requires──> [Lines of Code]
-    └──requires──> [Halstead Metrics (defer)]
-
-[bGSD-aware Analysis]
-    └──enhances──> [All above features]
+execute-phase.md L196
+    └──calls──> verify:agents --verify --from planner --to executor
+                    └──MISSING: No router handler, no module, no function
 ```
 
-### Dependency Notes
+**Impact:** The main `execute-phase` workflow references these commands. When an LLM encounters these steps, the CLI invocations will fail. The LLM may silently skip them, create confusing error output, or stall execution.
 
-- **AST Parsing requires acorn:** Already bundled (114KB); lazy-loaded for performance. Existing in v7.0.
-- **Module resolution requires dependency graph:** Already exists from v5.0 codebase-intel; reuse module graph.
-- **Cognitive complexity requires nesting analysis:** More complex than cyclomatic; requires recursive AST traversal.
-- **Maintainability Index requires Halstead metrics:** Defer; requires operator/operand counting beyond current scope.
-- **All features reuse existing infrastructure:** bGSD already has 34 modules, 766 tests, SQLite caching—leverage these.
+**Evidence:** `grep` confirms no handler in router.js, no export in any command module, no function definition anywhere in `src/`.
+
+**Fix options:**
+1. Remove the dead references from `execute-phase.md` (if handoff verification is no longer needed)
+2. Implement the commands (if the feature was planned but never built)
+3. Replace with `util:agent validate-contracts` which exists and does similar validation
+
+### CRITICAL — Orphaned Command Module
+
+```
+src/commands/ci.js
+    └──exports──> cmdExecuteCi (327 lines)
+                    └──ORPHANED: No lazy loader in router.js, no route, never imported
+```
+
+**Impact:** 327 lines of dead code bundled into `bin/bgsd-tools.cjs` on every build. The `bgsd-github-ci` slash command works via its workflow (which calls `verify:state` commands), not this module.
+
+**Evidence:** `grep -r 'commands/ci\|cmdExecuteCi\|lazyCi' src/` returns only definitions within `ci.js` itself.
+
+**Fix:** Either wire `ci.js` into the router or delete it. The github-ci workflow doesn't use it.
+
+### HIGH — Validator Missing Namespace
+
+```
+src/lib/commandDiscovery.js L341-463 (routerImplementations)
+    └──missing──> 'audit' namespace
+                    └──causes: util:validate-commands reports audit:scan as invalid
+```
+
+**Evidence:** Running `node bin/bgsd-tools.cjs util:validate-commands` outputs `"issue": "Unknown namespace: audit"`.
+
+**Fix:** Add `'audit': { 'scan': null }` to `routerImplementations` in `commandDiscovery.js`.
+
+### HIGH — Stale Subcommand Lists in commandDiscovery.js
+
+The `routerImplementations` object has several entries that don't match the actual router:
+
+| Namespace | commandDiscovery says | Router actually has |
+|-----------|----------------------|---------------------|
+| plan:roadmap | `['add', 'insert', 'remove', 'list']` | `['get-phase', 'analyze', 'update-plan-progress']` |
+| plan:milestone | `['new', 'complete', 'audit', 'gaps']` | `['complete', 'summary', 'info']` |
+| execute:tdd | `['init', 'red', 'green', 'refactor', 'cycle', 'auto']` | Dynamic (passes to cmdTdd) |
+| verify:state | includes `'add-todo'` | No `add-todo` in router |
+| util:git | `['status', 'log', 'diff', 'branch', 'checkout']` | `['log', 'diff-summary', 'blame', 'branch-info', 'rewind', 'trajectory-branch']` |
+
+**Impact:** `util:validate-commands` may miss real routing issues or report false positives.
+
+### MODERATE — Missing COMMAND_HELP Entries
+
+20 `util:` routes, 7 `verify:` routes, and 5 `cache:` routes lack `COMMAND_HELP` entries. This means `bgsd-tools <command> --help` outputs "No help available" for these commands.
+
+### MODERATE — Dead Route
+
+`execute:profile` (router.js L524-526) only outputs an error message. It's not a real command.
+
+### MODERATE — Duplicate Routes
+
+`runtime` and `measure` are accessible both as `util:runtime`/`util:measure` and as standalone `runtime`/`measure`. This works but is confusing for discoverability.
+
+### LOW — bgsd-quick.md Orphaned Wrapper
+
+`commands/bgsd-quick.md` is described as "backward-compatible wrapper for quick command" but has no execution_context workflow reference (unlike `bgsd-quick-task.md` which properly references `workflows/quick.md`). This wrapper likely does nothing useful.
 <!-- /section -->
 
 <!-- section: mvp -->
-## MVP Definition
+## Prioritized Fix List
 
-### Launch With (v1)
+### P1: Must Fix (Broken at runtime)
 
-Minimum viable product — what's needed to validate the concept.
+- [ ] **Remove or implement `verify:handoff` and `verify:agents`** in execute-phase.md — these are dead code references that fail at runtime
+  - File: `workflows/execute-phase.md` L190, L196
+  - Likely fix: Replace with `util:agent validate-contracts` or remove the blocks entirely
 
-- [x] Unused exports detection — Extend existing verify:orphans; detect unused exports from module graph
-- [x] Dead code detection — Identify unreachable code after return/throw/break in loops; report only
-- [x] Cyclomatic complexity per function — Use acorn AST to compute; configurable threshold (default 20)
-- [x] Complexity summary CLI — `bgsd audit complexity` showing top-N complex functions
-- [x] Integration with existing quality scoring — Combine complexity with existing A-F grades
+- [ ] **Add `audit` namespace to `commandDiscovery.js` routerImplementations** — causes the built-in validator to report false failures
+  - File: `src/lib/commandDiscovery.js` ~L341
+  - Fix: Add `'audit': { 'scan': null }` entry
 
-### Add After Validation (v1.x)
+- [ ] **Fix stale routerImplementations subcommand lists** — validator lies about valid/invalid commands
+  - File: `src/lib/commandDiscovery.js` L341-463
+  - Fix: Sync all subcommand arrays with actual router.js case statements
 
-Features to add once core is working.
+### P2: Should Fix (Dead code, missing docs)
 
-- [ ] Cognitive complexity scoring — Add nesting depth penalties; better human-readability correlation
-- [ ] Maintainability Index (0-100) — Add LOC and comment ratio; compound score
-- [ ] bGSD-aware recommendations — "This complex function has low test coverage" correlation
-- [ ] Threshold configuration — Per-project .bgsdrc settings for complexity limits
-- [ ] Trend tracking — Compare complexity over time; add to existing metrics
+- [ ] **Remove or wire `src/commands/ci.js`** — 327 lines of dead code bundled into every build
+  - If needed: Add `lazyCi` loader and router route
+  - If not needed: Delete the file
 
-### Future Consideration (v2+)
+- [ ] **Remove `execute:profile` dead route** — confusing; just prints an error
+  - File: `src/router.js` L524-526
 
-Features to defer until product-market fit is established.
+- [ ] **Add COMMAND_HELP for 20 util: routes** — `--help` returns nothing for these commands
+  - File: `src/lib/constants.js`
 
-- [ ] Duplicate code detection (jscpd integration) — Requires 150+ language support; high maintenance
-- [ ] Halstead metrics — Operator/operand counting; requires significant additional computation
-- [ ] Performance profiling — Runtime cost estimation; requires execution instrumentation
-- [ ] Auto-fix suggestions — LLM-powered refactoring; beyond static analysis scope
-- [ ] Cross-language analysis — Python, Go, Rust support; defer to language-specific plugins
+- [ ] **Add COMMAND_HELP for 7 verify: routes** (regression, quality, summary, validate, validate-dependencies, validate-config, test-coverage)
+
+- [ ] **Add COMMAND_HELP for 5 cache: routes**
+
+### P3: Nice to Have (Cleanup)
+
+- [ ] **Remove `bgsd-quick.md` duplicate wrapper** — `bgsd-quick-task.md` already handles this
+- [ ] **Consolidate `runtime`/`measure` standalone routes** — decide if standalone access is intentional or should be deprecated
+- [ ] **Remove `research collect --resume` from COMMAND_HELP** — this is a flag variant, not a command
 <!-- /section -->
 
 <!-- section: prioritization -->
-## Feature Prioritization Matrix
+## Summary Statistics
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Unused exports detection | HIGH | LOW | P1 |
-| Dead code detection | HIGH | LOW | P1 |
-| Cyclomatic complexity | HIGH | MEDIUM | P1 |
-| Complexity summary CLI | HIGH | LOW | P1 |
-| Cognitive complexity | MEDIUM | MEDIUM | P2 |
-| Maintainability Index | MEDIUM | MEDIUM | P2 |
-| bGSD-aware analysis | MEDIUM | LOW | P2 |
-| Trend tracking | MEDIUM | MEDIUM | P2 |
-| Auto-fix suggestions | LOW | HIGH | P3 |
-| Duplicate code detection | LOW | HIGH | P3 |
+| Metric | Count |
+|--------|-------|
+| Total registered router routes | ~130 |
+| Total COMMAND_HELP entries | 81 |
+| Slash commands (commands/) | 41 |
+| Workflows referencing CLI | 35 |
+| Command modules (src/commands/) | 24 |
+| Lazy loaders in router | 25 |
+| **Missing routes (broken)** | **2** (verify:handoff, verify:agents) |
+| **Orphaned modules (dead code)** | **1** (ci.js) |
+| **Dead routes** | **1** (execute:profile) |
+| **Missing COMMAND_HELP** | **32** |
+| **Stale validator entries** | **5 namespace groups** |
+| **Duplicate routes** | **2** (runtime, measure) |
 
-**Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+## Cross-Reference Matrix: Slash Commands → Workflows → CLI
+
+All 41 slash commands verified. Routing chain:
+- 40/41 properly reference workflows via `execution_context`
+- 1/41 (`bgsd-quick.md`) is an orphaned backward-compat wrapper
+- All referenced workflows exist on disk
+- 2 CLI commands referenced by workflows don't exist in router
+- 0 workflows reference non-existent slash commands
 <!-- /section -->
 
-<!-- section: competitors -->
-## Competitor Feature Analysis
-
-| Feature | ESLint | Knip | jscpd | SonarQube | Our Approach |
-|---------|--------|------|-------|-----------|--------------|
-| Unused exports | no-unused-vars | Full detection | No | Yes | Extend existing verify:orphans; integrate with bGSD context |
-| Dead code | no-unreachable | Partial (unused files) | No | Yes | Control flow analysis; report-only |
-| Cyclomatic complexity | complexity rule | No | No | Yes | Per-function breakdown; CLI output |
-| Duplicate detection | No | No | Yes (150+ lang) | Yes | Defer; jscpd integration later |
-| Maintainability Index | No | No | No | Yes | Compound score; align with quality grades |
-| CLI-first | Yes (lint) | Yes | Yes | No (server) | Match bGSD's CLI-first philosophy |
-
-## Sources
-
-- ESLint documentation: https://eslint.org/docs/latest/rules/complexity
-- Knip (unused exports/dependencies): https://github.com/webpro-nl/knip
-- jscpd (duplicate detection): https://jscpd.dev/
-- Maintainability Index formula: https://sourcery.ai/blog/maintainability-index
-- Cyclomatic Complexity standards: https://www.esolver.com/blog/cyclomatic-complexity
-- Cognitive Complexity: SonarSource specification
-- bGSD existing capabilities: PROJECT.md (34 modules, acorn, 766 tests, codebase-intel.json)
-
 ---
-
-*Feature research for: Code Audit & Performance Tooling*
-*Researched: 2026-03-12*
+*CLI Command Routing Audit for: bGSD Plugin v11.4*
+*Researched: 2026-03-13*
+*Method: Static analysis of router.js (1337 lines), constants.js (1021 lines), commandDiscovery.js (584 lines), 24 command modules, 41 slash commands, 43 workflows*

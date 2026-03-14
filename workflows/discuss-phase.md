@@ -129,7 +129,7 @@ Use question:
 - header: "Plans exist"
 - question: "Phase [X] already has {plan_count} plan(s) created without user context. Your decisions here won't affect existing plans unless you replan."
 - options:
-  - "Continue and replan after" — Capture context, then run /bgsd plan phase {X} to replan
+  - "Continue and replan after" — Capture context, then run /bgsd-plan-phase {X} to replan
   - "View existing plans" — Show plans before deciding
   - "Cancel" — Skip discuss-phase
 
@@ -361,14 +361,14 @@ Created: .planning/phases/${PADDED_PHASE}-${SLUG}/${PADDED_PHASE}-CONTEXT.md
 
 **Phase ${PHASE}: [Name]** — [Goal from ROADMAP.md]
 
-`/bgsd plan phase ${PHASE}`
+`/bgsd-plan-phase ${PHASE}`
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd plan phase ${PHASE} --skip-research` — plan without research
+- `/bgsd-plan-phase ${PHASE} --skip-research` — plan without research
 - Review/edit CONTEXT.md before continuing
 
 ---
@@ -402,6 +402,10 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs(state):
 </step>
 
 <step name="auto_advance">
+**Pre-computed decision:** If `decisions.auto-advance` exists in `<bgsd-context>`, use its `.value` (boolean). Skip config/flag check below.
+
+**Fallback** (if decisions not available):
+
 Check for auto-advance trigger:
 
 1. Parse `--auto` flag from $ARGUMENTS
@@ -429,7 +433,7 @@ Context captured. Spawning plan-phase...
 Spawn plan-phase as Task:
 ```
 Task(
-  prompt="Run /bgsd plan phase ${PHASE} --auto",
+  prompt="Run /bgsd-plan-phase ${PHASE} --auto",
   subagent_type="general",
   description="Plan Phase ${PHASE}"
 )
@@ -442,7 +446,7 @@ Task(
   Auto-advance stopped: Planning needs input.
 
   Review the output above and continue manually:
-  /bgsd plan phase ${PHASE}
+  /bgsd-plan-phase ${PHASE}
   ```
 
 **If neither `--auto` nor config enabled:**

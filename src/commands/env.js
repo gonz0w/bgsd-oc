@@ -735,29 +735,37 @@ function getWatchedFilesMtimes(cwd, watchedFiles) {
  */
 function ensureManifestGitignored(cwd) {
   const planningDir = path.join(cwd, '.planning');
-  if (!fs.existsSync(planningDir)) return;
-
   const planningGitignore = path.join(planningDir, '.gitignore');
 
-  // Check if already gitignored in .planning/.gitignore
-  if (fs.existsSync(planningGitignore)) {
+  // Try to read .planning/.gitignore — if it exists, check/append
+  try {
     const content = fs.readFileSync(planningGitignore, 'utf-8');
     if (content.includes('env-manifest.json')) return; // Already there
     // Append
     const newContent = content.endsWith('\n') ? content + 'env-manifest.json\n' : content + '\nenv-manifest.json\n';
     fs.writeFileSync(planningGitignore, newContent);
     return;
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+    // File doesn't exist — fall through
   }
 
   // Check root .gitignore
   const rootGitignore = path.join(cwd, '.gitignore');
-  if (fs.existsSync(rootGitignore)) {
+  try {
     const content = fs.readFileSync(rootGitignore, 'utf-8');
     if (content.includes('env-manifest.json')) return; // Already there
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
   }
 
-  // Create .planning/.gitignore with env-manifest.json
-  fs.writeFileSync(planningGitignore, 'env-manifest.json\n');
+  // Create .planning/.gitignore with env-manifest.json (only if .planning/ exists)
+  try {
+    fs.writeFileSync(planningGitignore, 'env-manifest.json\n');
+  } catch (e) {
+    if (e.code === 'ENOENT') return; // .planning/ dir doesn't exist — skip
+    throw e;
+  }
 }
 
 /**
@@ -765,7 +773,6 @@ function ensureManifestGitignored(cwd) {
  */
 function writeProjectProfile(cwd, result) {
   const planningDir = path.join(cwd, '.planning');
-  if (!fs.existsSync(planningDir)) return;
 
   const ci = result.tools && result.tools.ci;
   const infraServices = result.infrastructure && result.infrastructure.docker_services
@@ -784,7 +791,12 @@ function writeProjectProfile(cwd, result) {
   };
 
   const profilePath = path.join(planningDir, 'project-profile.json');
-  fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2) + '\n');
+  try {
+    fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2) + '\n');
+  } catch (e) {
+    if (e.code === 'ENOENT') return; // .planning/ dir doesn't exist — skip
+    throw e;
+  }
 }
 
 /**

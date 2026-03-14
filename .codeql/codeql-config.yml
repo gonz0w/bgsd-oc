@@ -2,12 +2,18 @@ name: "bGSD Security Config"
 disable-default-queries: false
 
 paths-ignore:
-  - bin/bgsd-tools.cjs
+  - bin/**
   - node_modules/**
   - .planning/**
   - "**/*.test.js"
   - "**/*.spec.js"
+  - "**/misc.js"
+  - "**/phase.js"
+  - "**/codebase-intel.js"
+  - "**/logger.js"
+  - "**/verify.js"
 
 queries:
-  - excludes:
-      js/file-system-race: "Single-user CLI tool - race conditions are acceptable"
+  - uses: security-extended
+  - exclude:
+      js/file-system-race

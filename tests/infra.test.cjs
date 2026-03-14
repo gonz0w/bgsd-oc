@@ -187,32 +187,8 @@ describe('shell sanitization', () => {
 });
 
 describe('temp file cleanup', () => {
-  test('process exit handler is registered for temp file cleanup', () => {
-    // Verify that bgsd-tools.cjs registers a process.on("exit") handler
-    // by checking the source code directly (the handler is at module level)
-    const source = fs.readFileSync(TOOLS_PATH, 'utf-8');
-    assert.ok(
-      source.includes("process.on('exit'") || source.includes('process.on("exit"'),
-      'bgsd-tools.cjs should register a process.on(exit) handler'
-    );
-    assert.ok(
-      source.includes('_tmpFiles'),
-      'bgsd-tools.cjs should track temp files in _tmpFiles array'
-    );
-  });
-
-  test('_tmpFiles tracking is wired into output pipeline', () => {
-    // Verify that the output pipeline (outputJSON) pushes to _tmpFiles when writing large payloads
-    const source = fs.readFileSync(TOOLS_PATH, 'utf-8');
-    // _tmpFiles.push lives in outputJSON(), which is called by output()
-    const jsonStart = source.indexOf('function outputJSON(');
-    const jsonEnd = source.indexOf('\nfunction ', jsonStart + 1);
-    const jsonSection = source.substring(jsonStart, jsonEnd > 0 ? jsonEnd : jsonStart + 800);
-    assert.ok(
-      jsonSection.includes('_tmpFiles.push'),
-      'outputJSON() function should push tmpPath to _tmpFiles'
-    );
-  });
+  // Source inspection tests for _tmpFiles removed — the build is minified so literal
+  // string checks are unreliable. The behavioral test below verifies the same thing.
 
   test('no temp files remain after CLI invocation', () => {
     // Run a normal CLI command and verify no gsd-*.json files are created
@@ -236,8 +212,9 @@ describe('temp file cleanup', () => {
   test('exit handler cleans up tracked files', () => {
     // Create a temp file that mimics what bgsd-tools would create,
     // then verify the cleanup pattern works
-    const tmpPath = path.join(require('os').tmpdir(), `gsd-test-cleanup-${Date.now()}.json`);
-    fs.writeFileSync(tmpPath, '{}', 'utf-8');
+    const crypto = require('crypto');
+    const tmpPath = path.join(require('os').tmpdir(), `gsd-test-cleanup-${crypto.randomBytes(8).toString('hex')}.json`);
+    fs.writeFileSync(tmpPath, '{}', { encoding: 'utf-8', mode: 0o600 });
     assert.ok(fs.existsSync(tmpPath), 'Temp file should exist before cleanup');
 
     // Simulate the cleanup logic directly
@@ -381,6 +358,7 @@ describe('config-migrate command', () => {
       ytdlp_path: '',
       nlm_path: '',
       mcp_config_path: '',
+      runtime: 'auto',
     };
     fs.writeFileSync(configPath, JSON.stringify(fullConfig, null, 2));
 
@@ -873,111 +851,6 @@ describe('compact default behavior', () => {
   });
 });
 
-describe('profiler', () => {
-  let tmpDir;
-
-  beforeEach(() => {
-    tmpDir = createTempProject();
-    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap\n\n## Milestones\n\n- **v1.0 Test** — Phases 1-1\n\n## Phases\n\n- [ ] Phase 1: Foundation (0/1 plans)\n`);
-    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State\n\n## Current Position\n\nPhase: 1\n`);
-    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ commit_docs: true }));
-  });
-
-  afterEach(() => { cleanup(tmpDir); });
-
-  test('profiler disabled by default — no baselines created', () => {
-    // Run a command without BGSD_PROFILE
-    const env = { ...process.env };
-    delete env.BGSD_PROFILE;
-    try {
-      execSync(`node "${TOOLS_PATH}" init progress`, {
-        cwd: tmpDir,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env,
-      });
-    } catch (e) {
-      // Command may fail but profiler should not write baselines
-    }
-    const baselinesDir = path.join(tmpDir, '.planning', 'baselines');
-    // Baselines directory should NOT be created when profiling is disabled
-    const exists = fs.existsSync(baselinesDir);
-    if (exists) {
-      const files = fs.readdirSync(baselinesDir).filter(f => f.startsWith('init-'));
-      assert.strictEqual(files.length, 0, 'No profiler baselines should exist when BGSD_PROFILE is not set');
-    }
-  });
-
-  test('profiler enabled writes baseline', () => {
-    const env = { ...process.env, BGSD_PROFILE: '1' };
-    try {
-      execSync(`node "${TOOLS_PATH}" init progress`, {
-        cwd: tmpDir,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env,
-      });
-    } catch (e) {
-      // Command may fail but profiler should still write baseline
-    }
-    const baselinesDir = path.join(tmpDir, '.planning', 'baselines');
-    assert.ok(fs.existsSync(baselinesDir), 'Baselines directory should be created');
-    const files = fs.readdirSync(baselinesDir).filter(f => f.endsWith('.json'));
-    assert.ok(files.length > 0, 'Should have at least one baseline file');
-
-    // Parse and verify structure
-    const baseline = JSON.parse(fs.readFileSync(path.join(baselinesDir, files[0]), 'utf-8'));
-    assert.ok(baseline.command, 'Baseline should have command field');
-    assert.ok(baseline.timestamp, 'Baseline should have timestamp field');
-    assert.ok(Array.isArray(baseline.timings), 'Baseline should have timings array');
-    assert.strictEqual(typeof baseline.total_ms, 'number', 'Baseline should have total_ms as number');
-  });
-
-  test('profiler baseline JSON structure', () => {
-    const env = { ...process.env, BGSD_PROFILE: '1' };
-    try {
-      execSync(`node "${TOOLS_PATH}" init progress`, {
-        cwd: tmpDir,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env,
-      });
-    } catch (e) { /* ignore */ }
-    const baselinesDir = path.join(tmpDir, '.planning', 'baselines');
-    const files = fs.readdirSync(baselinesDir).filter(f => f.endsWith('.json'));
-    const baseline = JSON.parse(fs.readFileSync(path.join(baselinesDir, files[0]), 'utf-8'));
-
-    // Verify full expected shape
-    assert.strictEqual(typeof baseline.command, 'string', 'command should be string');
-    assert.strictEqual(typeof baseline.timestamp, 'string', 'timestamp should be string');
-    assert.strictEqual(typeof baseline.node_version, 'string', 'node_version should be string');
-    assert.ok(Array.isArray(baseline.timings), 'timings should be array');
-    assert.strictEqual(typeof baseline.total_ms, 'number', 'total_ms should be number');
-    // Verify timings have correct structure if present
-    if (baseline.timings.length > 0) {
-      assert.strictEqual(typeof baseline.timings[0].label, 'string', 'timing.label should be string');
-      assert.strictEqual(typeof baseline.timings[0].duration_ms, 'number', 'timing.duration_ms should be number');
-    }
-  });
-
-  test('profiler zero-cost when disabled', () => {
-    // Direct module test — require profiler and check isProfilingEnabled
-    // Since we're not setting BGSD_PROFILE in this test process, it should be false
-    // But since the module caches the env at load time, we test the built bundle's behavior
-    // by running a separate process
-    const env = { ...process.env };
-    delete env.BGSD_PROFILE;
-
-    // Measure time: run command twice — once with profiler, once without.
-    // The disabled path should not be significantly slower (zero-cost assertion).
-    // We just verify the function returns false when BGSD_PROFILE is unset.
-    const checkResult = execSync(
-      `node -e "delete process.env.BGSD_PROFILE; const p = require('./src/lib/profiler'); console.log(JSON.stringify({ enabled: p.isProfilingEnabled(), timings: p.getTimings() }))"`,
-      { cwd: path.join(__dirname, '..'), encoding: 'utf-8', env }
-    ).trim();
-    const check = JSON.parse(checkResult);
-    assert.strictEqual(check.enabled, false, 'isProfilingEnabled should return false when BGSD_PROFILE unset');
-    assert.deepStrictEqual(check.timings, [], 'getTimings should return empty array when disabled');
-  });
-});
+// profiler tests removed — src/lib/profiler.js module was intentionally deleted
+// (Phase 114: Test Suite Stabilization)
 

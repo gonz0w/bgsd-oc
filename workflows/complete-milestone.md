@@ -156,11 +156,12 @@ This automation ensures every milestone has complete documentation with:
 ARCHIVE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:milestone complete "v[X.Y]" --name "[Name]")
 ```
 
-CLI handles: milestones dir, ROADMAP archive, REQUIREMENTS archive, MILESTONES.md entry, STATE.md update.
+CLI handles: milestones dir, ROADMAP archive, REQUIREMENTS archive, INTENT.md archive, MILESTONES.md entry, STATE.md update.
 
 **Phase archival:** Ask user to move phase dirs to `milestones/v[X.Y]-phases/` or keep in place.
 
 After CLI archival, AI handles: reorganize ROADMAP.md, evolve PROJECT.md, delete original ROADMAP.md and REQUIREMENTS.md.
+**Note:** INTENT.md is automatically archived by the CLI — completed outcomes are archived, active file stays lean with only objective and pending outcomes.
 </step>
 
 <step name="reorganize_roadmap_and_delete_originals">
@@ -196,7 +197,7 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "chore: compl
 
 <step name="offer_next">
 Present: milestone complete, what shipped, archived files, tag.
-Next: `/bgsd milestone new` (after `/clear`).
+Next: `/bgsd-new-milestone` (after `/clear`).
 </step>
 
 </process>
@@ -214,11 +215,13 @@ Heuristic: "Is this deployed/usable/shipped?" → milestone.
 - [ ] MILESTONES.md entry with stats and accomplishments
 - [ ] PROJECT.md full evolution review completed
 - [ ] ROADMAP.md reorganized with milestone grouping
-- [ ] Archives created (ROADMAP, REQUIREMENTS, DOCS)
+- [ ] Archives created (ROADMAP, REQUIREMENTS, DOCS, INTENT)
+- [ ] INTENT.md archived to .planning/archive/INTENT-v{version}.md
+- [ ] Active INTENT.md contains only objective + pending outcomes
 - [ ] DOCS artifact includes changelog and STATE.md metrics
 - [ ] Original REQUIREMENTS.md deleted
 - [ ] STATE.md updated
 - [ ] Git tag created
 - [ ] Incomplete requirements surfaced with options
-- [ ] User knows next step (/bgsd milestone new)
+- [ ] User knows next step (/bgsd-new-milestone)
 </success_criteria>

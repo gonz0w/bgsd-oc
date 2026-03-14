@@ -1,215 +1,188 @@
 # Pitfalls Research
 
-**Domain:** Natural Language UI & Visualization for CLI Tools + Code Audit & Performance Profiling
-**Researched:** 2026-03-11 (NL UI), 2026-03-12 (Code Audit)
-**Confidence:** HIGH
+**Domain:** Intent Archival System — integrating automated INTENT.md outcome/criteria archival into the milestone completion workflow
+**Researched:** 2026-03-13
+**Confidence:** HIGH (based on direct source code analysis of `src/commands/phase.js`, `src/commands/intent.js`, `src/lib/helpers.js`, `workflows/complete-milestone.md`, `workflows/new-milestone.md`)
 
 <!-- section: compact -->
 <pitfalls_compact>
-<!-- Compact view for planners. Keep under 25 lines. -->
-
 **Top pitfalls:**
-1. **Interactive prompts block agents** — Add --non-interactive escape hatches for every prompt (Phase 1)
-2. **NL parsing hallucinations** — Validate and sanitize all natural language-extracted parameters (Phase 1-2)
-3. **Human-structured output breaks agents** — Always provide --json flag, treat output as API contract (Phase 1)
-4. **Visualization context pollution** — Rich terminal output consumes agent context tokens; provide --quiet modes (Phase 2)
-5. **No escape from pagination** — Agents can't navigate pagers; add --no-pager or --limit flags (Phase 1)
+1. **Broken traceability after archival** — preserve outcome IDs in archived file and cross-reference from MILESTONES.md entry (Phase 1)
+2. **History section grows unbounded** — archive history entries along with outcomes, not just the active sections (Phase 1)
+3. **Partial archival on failure** — make INTENT.md archival atomic: snapshot before modification, restore on any error (Phase 1)
+4. **Drift validation breaks post-archival** — `cmdIntentDrift` and `cmdIntentTrace` scan by `phaseRange`; archived outcomes no longer match active plans (Phase 2)
+5. **`new-milestone` workflow expects stale outcomes** — Step 4.5 "Q2 — Outcomes review" asks about existing outcomes; if archival already removed them, the evolution questionnaire is empty (Phase 1)
 
-**Tech debt traps:** Hardcoding prompt text, ignoring exit codes, assuming TTY availability
+**Tech debt traps:** storing archived intents inline in INTENT.md instead of a separate file, skipping history archival, hardcoding archive paths instead of reusing `archiveDir` pattern
 
-**Security risks:** Shell injection via NL-generated parameters, prompt injection in user input
+**Security risks:** none domain-specific (intent data is non-sensitive planning metadata)
 
 **"Looks done but isn't" checks:**
-- NL parsing: verify edge cases (empty input, typos, ambiguous intent)
-- Visualization: verify works in non-TTY, minimal terminals
-- Output: verify JSON schema is stable across versions
+- Intent archival: verify that `plan:intent trace` still works for archived milestone plans (needs to check archived intent file)
+- Intent archival: verify `getNextId()` doesn't collide with archived IDs when new milestone starts
+- Complete-milestone: verify INTENT archive file appears in git commit alongside ROADMAP/REQUIREMENTS archives
 </pitfalls_compact>
 <!-- /section -->
 
 <!-- section: critical_pitfalls -->
 ## Critical Pitfalls
 
-### Pitfall 1: Interactive Prompts Block Agent Execution
+### Pitfall 1: Broken Traceability — Plans Reference Archived Outcome IDs
 
 **What goes wrong:**
-Natural language interface adds conversational prompts that require human input. When AI agents invoke the CLI, they get stuck waiting for responses that can't be provided through shell commands. The workflow halts entirely.
+PLAN.md files have YAML frontmatter with `intent.outcome_ids: [DO-72, DO-73]` tracing to INTENT.md outcomes. When outcomes are archived (removed from INTENT.md), `cmdIntentTrace()` (line 1087-1259 of `intent.js`) can't find those outcomes in the active INTENT.md, reporting 0% coverage for archived plans. The `cmdIntentDrift()` function (line 1262+) would flag phantom "feature creep" because outcome references in plans point to IDs no longer in the active file.
 
 **Why it happens:**
-"Make it conversational" design principle leads to interactive prompts for humans. These become blockers for agents that invoke the CLI programmatically. The same design that feels friendly for humans becomes hostile for automation.
+The current intent trace/drift system assumes all valid outcome IDs live in INTENT.md. There's no concept of "retired but valid" IDs. The `validOutcomeIds` set at line 1349 of `intent.js` only contains current outcomes.
 
 **How to avoid:**
-- Add `--non-interactive` or `--skip-prompts` flag to every command
-- Implement sensible defaults when in non-interactive mode
-- Make the default behavior work without user input, with interactive mode as opt-in
-- Test all commands with `CI=true` environment variable to simulate agent invocation
+1. Store archived INTENT data in `.planning/milestones/{version}-INTENT.md` (parallel to existing `-ROADMAP.md` and `-REQUIREMENTS.md` archive pattern)
+2. Modify `cmdIntentTrace()` and `getIntentDriftData()` to also load archived intent files when scanning plans whose `phaseRange` falls within an archived milestone
+3. Or: keep a `<retired_outcomes>` section in INTENT.md that trace/drift can reference without displaying as active
 
 **Warning signs:**
-- Any `readline()`, `inquirer`, or stdin-read in command flow
-- Commands that fail without a TTY attached
-- Documentation that doesn't explain automated/scripted usage
+- After archival, `plan:intent trace` reports 0% coverage
+- `plan:intent drift` shows high drift score despite no actual deviation
+- Plans in archived milestone directories have dangling outcome references
 
-**Phase to address:** Phase 1 (Foundation)
+**Phase to address:**
+Phase 1 — Core implementation. This is the fundamental design decision that determines the archival strategy.
 
 ---
 
-### Pitfall 2: Natural Language Parsing Generates Invalid Parameters
+### Pitfall 2: History Section Grows Without Bound
 
 **What goes wrong:**
-Natural language input is interpreted into CLI arguments. The LLM hallucinates parameters, misunderstands intent, or generates syntactically invalid values. The CLI either fails unexpectedly or silently does the wrong thing.
+The current INTENT.md `<history>` section (lines 54-100 of current `.planning/INTENT.md`) already has 10 milestone entries tracking 44+ archived outcomes across v7.1 through v11.4. Each `intent update` call appends to history via the auto-logging at line 592-691 of `intent.js`. After 20+ milestones, the history section dominates INTENT.md, adding hundreds of lines that get injected into agent context windows via the plugin's `context-builder.js` (line 74-93), wasting tokens.
 
 **Why it happens:**
-- LLMs generate creative outputs including incorrect parameters
-- Ambiguous user input gets resolved incorrectly
-- No validation layer between NL interpretation and command execution
-- Edge cases (empty strings, special characters, paths) aren't handled
+History is append-only by design — the `generateIntentMd()` function (line 934-948 of `helpers.js`) writes all history entries sequentially. There's no pruning, archival, or truncation mechanism. The `<history>` tag is parsed as a flat list of milestone entries.
 
 **How to avoid:**
-- Implement input validation schema (use valibot which bGSD already has)
-- Add `--dry-run` flag for destructive operations to preview interpreted intent
-- Log the interpreted parameters before execution for debugging
-- Create a validation phase: interpret → validate → confirm → execute
-- Handle shell metacharacters in NL-generated paths (the `../../.ssh` problem)
+Archive history entries alongside outcomes during milestone completion:
+1. Move history entries for the completed milestone into the archive file (e.g., `{version}-INTENT.md`)
+2. Keep only the last 2-3 milestone history entries in the active INTENT.md for continuity
+3. Add a `--keep-history N` option to control retention depth
 
 **Warning signs:**
-- No validation on NL-extracted parameters
-- Commands accept arbitrary strings without type checking
-- Error messages don't explain what went wrong with the input
+- INTENT.md exceeds 200 lines (current is 102, already growing)
+- `plan:intent show` compact summary reports high change counts
+- Context builder injects large `<intent>` blocks
 
-**Phase to address:** Phase 1-2 (Foundation + NL Parsing)
+**Phase to address:**
+Phase 1 — must be part of the archival design, not retrofitted later.
 
 ---
 
-### Pitfall 3: Human-Optimized Output Breaks Agent Consumption
+### Pitfall 3: Partial Archival on Failure — Inconsistent State
 
 **What goes wrong:**
-CLI outputs beautifully formatted tables, progress bars, and prose explanations. Agents must parse this "human-friendly" output to extract structured data. Parsing fails when terminal width changes, colors are stripped, or format varies.
+The current `cmdMilestoneComplete()` (line 848-1241 of `phase.js`) performs multiple sequential operations: archive ROADMAP, archive REQUIREMENTS, update MILESTONES.md, update STATE.md, move phase directories, reorganize ROADMAP, generate DOCS, create git tag, and commit. If any step fails (e.g., git tag already exists, disk write error), the subsequent steps still proceed via `try/catch` with `debugLog`. Adding intent archival as another step introduces another failure point. If intent archival succeeds but the git commit fails, INTENT.md is modified but not committed, leaving the working tree dirty.
 
 **Why it happens:**
-- Default output optimized for human readability, not machine parsing
-- Tables wrap differently based on terminal width
-- Color codes and formatting escape sequences pollute data
-- No machine-readable alternative by default
+`cmdMilestoneComplete()` uses a "best-effort" pattern — each step is independently try/caught and logged, not transactional. This is intentional for resilience (line 992: `debugLog('milestone.complete', 'readdir failed', e)`) but means partial completion is possible.
 
 **How to avoid:**
-- Make JSON the default or ensure `--json`/`--output json` works everywhere
-- Use line-delimited JSON (NDJSON) for streaming data
-- Output JSON to stdout, human messages to stderr
-- Include `next_actions` field with command templates agents can run next
-- Treat CLI output as a stable API contract with semantic versioning
+1. **Snapshot before modify:** Read INTENT.md into memory before any archival writes. If any step fails, restore the snapshot.
+2. **Archive first, modify last:** Write the archive file (`{version}-INTENT.md`) before modifying the active INTENT.md. The archive file is additive (no data loss risk).
+3. **Add intent files to the existing commit file list:** At line 1193-1200, the `commitFiles` array lists files to `git add`. Add `.planning/INTENT.md` and `.planning/milestones/{version}-INTENT.md` to this list.
 
 **Warning signs:**
-- Only text/table output available
-- Help text varies based on environment
-- No `--quiet` flag for bare output
+- After `milestone complete`, `git status` shows unstaged changes to INTENT.md
+- Archive file exists but active INTENT.md still has old outcomes
+- Active INTENT.md was cleared but archive file wasn't written
 
-**Phase to address:** Phase 1 (Foundation)
+**Phase to address:**
+Phase 1 — core implementation must follow the existing resilience pattern.
 
 ---
 
-### Pitfall 4: Visualization Consumes Excessive Context Tokens
+### Pitfall 4: ID Collision After Archival Reset
 
 **What goes wrong:**
-Rich terminal visualizations (progress bars, charts, dashboards) are rendered. Agents consuming this output spend context tokens on visual elements that provide no programmatic value. Large outputs exhaust context windows.
+When outcomes DO-72 through DO-78 are archived and INTENT.md is reset for the new milestone, `getNextId()` (line 726-738 of `intent.js`) scans only the current `data.outcomes` array to find the max ID number. If the new milestone starts with an empty outcomes list, `getNextId([], 'DO')` returns `DO-01`, potentially colliding with historically-used IDs. Plans referencing `DO-01` from milestone v1.0 could be confused with a new `DO-01` from milestone v12.0.
 
 **Why it happens:**
-- Visualization libraries output ANSI escape sequences and box-drawing characters
-- Progress bars emit continuous updates that compound token usage
-- Terminal width calculations embed formatting into output
+`getNextId()` has no awareness of historical ID usage — it only looks at the current items array (line 729-737). The function finds max, increments, and returns. This works when IDs accumulate monotonically but breaks when the list is periodically cleared.
 
 **How to avoid:**
-- Provide `--quiet` or `--no-progress` flag to disable visualizations
-- Output structured data instead of rendered visualizations
-- Use streaming JSON lines instead of full renders
-- Truncate unbounded output with file pointers for full data
-- Create separate "data export" commands for programmatic access
+1. **Continue sequence across milestones:** Never reset ID counters. After archiving DO-72 through DO-78, the next outcome should be DO-79, not DO-01. Modify `getNextId()` to also scan archived intent files, or store a `last_id` counter in config.json.
+2. **Milestone-prefixed IDs:** Change format to `DO-{milestone}-{num}` (e.g., `DO-11.4-01`). This is a larger change and may break existing regex patterns.
+3. **Simplest:** When archiving, don't remove outcomes from the `data` structure used by `getNextId()` — instead mark them with a status field and filter them from display/trace.
 
 **Warning signs:**
-- No way to disable progress indicators
-- Output size grows linearly with data size
-- Visual elements mixed with data in output
+- `plan:intent validate` reports duplicate IDs across milestones
+- `plan:intent trace` maps a new plan to an archived outcome with the same ID
+- ID gaps or resets visible in history entries
 
-**Phase to address:** Phase 2 (Visualization)
+**Phase to address:**
+Phase 1 — ID continuity must be a design constraint before implementing archival.
 
 ---
 
-### Pitfall 5: Pagination Breaks Agent Workflows
+### Pitfall 5: `new-milestone` Workflow Assumes Active Outcomes Exist
 
 **What goes wrong:**
-CLI uses a pager (less, more) or waits for keypresses to navigate output. Agents cannot interact with pagers, causing hangs or truncated results.
+The `new-milestone.md` workflow Step 4.5 "Q2 — Outcomes review" (line 76-80) iterates over existing outcomes asking "which are now complete, which still apply, and are there new ones?" If milestone completion already archived all outcomes, this review step finds nothing to iterate. The workflow becomes: "Looking at your desired outcomes... (none found)." The guided evolution questionnaire loses its value.
 
 **Why it happens:**
-- Default terminal behavior enables paging for long output
-- Interactive features assumed, not detected
-- No explicit flag to disable paging
+The `new-milestone` and `complete-milestone` workflows are separate, sequential operations. Currently, `complete-milestone` archives ROADMAP and REQUIREMENTS but leaves INTENT.md untouched. The `new-milestone` workflow (Step 4.5) handles intent evolution interactively. If automated intent archival runs during `complete-milestone`, it preempts the interactive evolution step in `new-milestone`.
 
 **How to avoid:**
-- Detect non-TTY environments and disable paging automatically
-- Add explicit `--no-pager` and `--limit` flags
-- Set `PAGER=cat` or `LESS=` environment variable handling
-- Implement `--page-size` for controlling output batches
-- Never require terminal interaction for automated flows
+1. **Archive timing matters:** Intent archival should happen during `new-milestone` Step 4.5, not during `complete-milestone`. The sequence should be: `complete-milestone` snapshots INTENT.md to archive → `new-milestone` Step 4.5 reviews outcomes, marks completed, adds new → then INTENT.md is written with only active outcomes.
+2. **Alternative:** If archival happens during `complete-milestone`, the `new-milestone` workflow must be updated to load the archived intent file for the evolution questionnaire.
+3. **Recommended:** Follow the existing pattern — `complete-milestone` creates the archive file as a snapshot, `new-milestone` cleans up the active INTENT.md during evolution.
 
 **Warning signs:**
-- Commands hang without input in CI environments
-- Output truncated in automated tests
-- No `--limit` or `--max-results` options
+- After `complete-milestone` + `new-milestone`, INTENT.md has no history of what was delivered
+- User is never asked about completed vs ongoing outcomes
+- New milestone starts with blank intent instead of evolved intent
 
-**Phase to address:** Phase 1 (Foundation)
+**Phase to address:**
+Phase 1 — workflow integration design. This is a sequencing decision, not a code complexity issue.
 
 ---
 
-### Pitfall 6: Shell Injection via NL-Generated Parameters
+### Pitfall 6: Plugin Context Builder Serves Stale Intent Data
 
 **What goes wrong:**
-Natural language input is interpreted into shell commands. Malicious prompts or hallucinated parameters contain shell metacharacters (`;`, `|`, `&&`, `$()`) that execute arbitrary commands.
+The plugin's `context-builder.js` (line 81-93) builds a `<sacred>` block from intent data, including `intent.objective` and up to 3 key outcomes. The `parseIntent` plugin parser (`src/plugin/parsers/intent.js`, line 16-40) caches parsed intent per-CWD with no TTL. After archival modifies INTENT.md, the cached intent data still reflects pre-archival state until the cache is invalidated. The `.planning/` file watcher (mentioned in v9.2 accomplishments) should catch this, but only if it fires before the next context injection.
 
 **Why it happens:**
-- NL output directly interpolated into shell commands
-- No sanitization of extracted parameters
-- User prompts can contain prompt injection attacks
-- LLM generates parameters with special characters
+Module-level cache at line 12-13 of `src/plugin/parsers/intent.js` stores parsed intent as frozen objects. The `invalidateIntent()` function (line 73) exists but must be explicitly called. The milestone complete CLI command doesn't import or call plugin-layer invalidation.
 
 **How to avoid:**
-- Use `execFile` instead of `exec` or shell interpolation
-- Sanitize all NL-extracted parameters with shell escaping
-- Implement command allowlist (if feasible)
-- Add input validation that rejects suspicious patterns
-- Document in AGENTS.md: "This CLI is frequently invoked by AI/LLM agents. Always assume inputs can be adversarial."
+1. The file watcher already invalidates on `.planning/` changes (v9.2 feature) — verify this covers INTENT.md modifications made by CLI commands run via `execSync`.
+2. After writing INTENT.md in the archival step, call `invalidateFileCache(intentPath)` (the helpers.js cache) — the plugin cache invalidation should follow via the file watcher.
+3. Add INTENT.md to the `cmdMilestoneComplete` cache invalidation list alongside STATE.md (line 942-943, 964 of `phase.js`).
 
 **Warning signs:**
-- Uses `execSync` with string concatenation
-- No parameter sanitization before shell invocation
-- Accepts arbitrary user strings without escaping
+- After milestone completion, system prompt still shows old objective/outcomes
+- `plan:intent show` returns different data than what context builder injects
+- Agent makes decisions based on completed-milestone outcomes instead of new ones
 
-**Phase to address:** Phase 1-2 (Foundation + NL Parsing)
+**Phase to address:**
+Phase 2 — integration testing. Core archival (Phase 1) should use the existing `invalidateFileCache()` pattern.
 
 ---
 
-### Pitfall 7: Model Fabricates User Messages in Conversational UI
+### Pitfall 7: Advisory Guardrails Block Legitimate INTENT.md Modifications
 
 **What goes wrong:**
-During long conversational sessions, the NL interface generates fabricated user messages and processes them as genuine input. Actions are taken based on conversations that never happened.
+The `advisory-guardrails.js` (line 109) lists INTENT.md as a file whose modifications should be suggested through specific commands: `'/bgsd-new-project'` and `'/bgsd-new-milestone'`. If intent archival modifies INTENT.md during `complete-milestone` (which isn't in the allowlist), the guardrail would flag it as an unexpected modification, potentially confusing the agent.
 
 **Why it happens:**
-- Context window pressure causes the model to fill gaps
-- Long conversations lose track of what's real vs. generated
-- No message provenance tracking
+The guardrail was designed when INTENT.md was only modified during project creation and milestone start. Adding a third modification point (milestone completion) isn't covered by the current allowlist.
 
 **How to avoid:**
-- Implement message ID tracking with collision detection
-- Add gap analysis to detect missing messages
-- Validate message timestamps are monotonically increasing
-- Include "source" metadata for each message
-- Add confirmation step for actions derived from interpreted intent
+Add `/bgsd-complete-milestone` to the INTENT.md guardrail allowlist in `advisory-guardrails.js` line 109.
 
 **Warning signs:**
-- Message IDs out of sequence
-- Gaps in conversation timeline
-- Model generates "realistic but fake" user messages
+- Agent receives advisory warning during milestone completion about INTENT.md being modified outside expected commands
+- Warning is benign but adds noise to milestone completion output
 
-**Phase to address:** Phase 2 (NL Parsing)
-
----
+**Phase to address:**
+Phase 1 — trivial fix, include in the archival implementation.
 <!-- /section -->
 
 <!-- section: tech_debt -->
@@ -219,11 +192,24 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Skip --json flag, parse text with regex | Faster initial implementation | Brittle, breaks on format changes | Never - use proper JSON output |
-| Hardcode prompt text strings | Quick to write | Hard to localize, no theming | Only for MVP, refactor before ship |
-| Ignore exit codes beyond 0/1 | Simpler error handling | Agents can't distinguish error types | Never - use semantic exit codes |
-| Assume TTY always available | Simpler output code | Breaks in CI, scripts, agents | Always detect and handle non-TTY |
-| Single output format for all modes | One code path | Can't satisfy humans AND agents | Never - separate output modes |
+| Store archived intents inline in INTENT.md (e.g., `<archived_outcomes>` section) | No new files, simpler implementation | INTENT.md grows without bound, token waste in context injection, violates the separate-archive-file pattern used by ROADMAP and REQUIREMENTS | Never — breaks the established `.planning/milestones/{version}-FILE.md` pattern |
+| Skip archiving the `<history>` section | Simpler archival logic (only outcomes/criteria) | History becomes a permanent append-only log that inflates INTENT.md across milestones; defeats the purpose of "keeping planning clean and fast" | Never — history archival is part of the user's stated goal |
+| Reset outcome IDs to DO-01 after archival | Cleaner-looking IDs for new milestones | ID collision risk across milestone boundaries; breaks traceability if anyone references historical IDs | Never — monotonic IDs are a correctness requirement |
+| Hardcode archive filename pattern instead of reusing `archiveDir` variable | Faster to implement | Diverges from `phase.js` pattern (line 857); archive directory could change; breaks if milestones dir is renamed | Never — reuse the existing `archiveDir` pattern at line 857 of `phase.js` |
+| Archive only during `complete-milestone`, not during `new-milestone` | Single integration point | Preempts the interactive evolution questionnaire in `new-milestone` Step 4.5; user never reviews what was completed vs what carries forward | Only if `new-milestone` workflow is updated to load archived intent for review |
+
+## Integration Gotchas
+
+Common mistakes when connecting the archival system to existing components.
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| `cmdMilestoneComplete()` in `phase.js` | Adding intent archival after the git commit step (line 1193-1212), so the archive isn't committed | Insert intent archival before the commit step; add both files to the `commitFiles` array at line 1193 |
+| `generateIntentMd()` in `helpers.js` | Calling it with stale `data` that still includes archived outcomes (passing old parsed data back) | Re-parse after removing archived outcomes; or build new data object from scratch for the post-archival INTENT.md |
+| `cmdIntentTrace()` in `intent.js` | Not updating `validOutcomeIds` set to include archived outcomes from milestone files | Add a fallback: if `phaseRange` for a plan falls within an archived milestone, load that milestone's intent archive for validation |
+| `new-milestone.md` workflow | Not updating Step 4.5 to handle the case where outcomes were already archived | Add conditional: "If archived intents exist for previous milestone, load them for review before evolving" |
+| Plugin `parseIntent` parser | Not invalidating cache after archival modifies INTENT.md | Call `invalidateIntent()` from `src/plugin/parsers/intent.js` after writing INTENT.md in the archival step, or rely on the file watcher (verify it catches CLI-driven writes) |
+| Test suite (`intent.test.js` or similar) | Not testing the archive→new-milestone→trace round-trip | Add integration test: create intent → complete milestone → verify archive file → start new milestone → verify trace works for both archived and new outcomes |
 <!-- /section -->
 
 <!-- section: performance -->
@@ -233,24 +219,9 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Continuous progress updates | Token exhaustion, slow rendering | Batch updates, --quiet flag | In agent context |
-| Full result dumps to stdout | Context overflow | Pagination, --limit, streaming | Large datasets |
-| Re-parsing NL input each command | Latency accumulation | Cache interpreted intents | High-frequency commands |
-| Visualization rendering per line | Slow output, buffer bloat | Render once, update incrementally | Large data exports |
-<!-- /section -->
-
-<!-- section: security -->
-## Security Mistakes
-
-Domain-specific security issues beyond general web security.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| NL input directly in shell commands | Arbitrary code execution | Parameter sanitization, execFile |
-| No input validation on NL-extracted params | Command injection, data corruption | Schema validation, allowlists |
-| Pasting @ symbols triggers file expansion | Unexpected file access | Escape @ in input handling |
-| Prompt injection in user input | Manipulated agent behavior | Input sanitization, rate limiting |
-| Logging NL input with secrets | Credential exposure | Scrub sensitive patterns from logs |
+| Scanning all milestone archive files during `intent trace` | `plan:intent trace` becomes slow as milestone count grows | Only scan archived intents when the plan's `phaseRange` falls within that milestone; cache results per-session | >20 milestones with 50+ outcomes each |
+| Loading full archived INTENT.md files for ID validation in `getNextId()` | Outcome add operation reads N archived files to find max ID | Store `last_outcome_id`, `last_criteria_id` counters in `config.json` or INTENT.md metadata; single read, no scanning | >30 milestones |
+| History section parse time in `parseIntentMd()` | The regex-based history parser (line 775-807 of `helpers.js`) processes every line; large histories slow parsing | Archive history during milestone completion; keep ≤3 milestone entries in active INTENT.md | >500 history lines (approximately 15+ milestones without archival) |
 <!-- /section -->
 
 <!-- section: ux -->
@@ -260,12 +231,10 @@ Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Mixed noun-verb grammar | Confused command guessing | Consistent `noun verb` hierarchy |
-| Unhelpful error messages | Can't fix problems | Actionable errors with error codes |
-| No --dry-run for destructive ops | Accidental data loss | Preview before execute |
-| Non-idempotent commands | Repeated execution causes issues | Idempotent by default or explicit handling |
-| Inconsistent field names across commands | Hard to script | Unified schema across commands |
-| Help varies by environment | Unpredictable behavior | Static, discoverable help |
+| Silently archiving outcomes without confirmation | User doesn't know what was archived or where it went; feels like data loss | Show summary: "Archived 7 outcomes (DO-72 through DO-78) to `.planning/milestones/v11.4-INTENT.md`" — match existing milestone complete output pattern |
+| Archiving outcomes that are still relevant to the next milestone | User has to manually re-add outcomes they wanted to carry forward | During archival, distinguish "completed" outcomes from "ongoing" ones; only archive completed outcomes |
+| No way to recover archived intents | If archival was premature, user has to manually reconstruct from the archive file | Provide `plan:intent restore --from v11.4` command, or at minimum document the archive file location in the completion output |
+| Archive file location not discoverable | User can't find historical intents | List archive file in the `milestone complete` output alongside ROADMAP/REQUIREMENTS archives; add to MILESTONES.md entry |
 <!-- /section -->
 
 <!-- section: looks_done -->
@@ -273,13 +242,14 @@ Common user experience mistakes in this domain.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **NL Parsing:** Often missing validation on edge cases — verify with empty input, special chars, maximum length
-- [ ] **--json flag:** Often works for some commands but not all — verify every command supports JSON output
-- [ ] **--non-interactive:** Often missing on subset of commands — verify all prompts have escape hatches
-- [ ] **Error codes:** Often only 0/1 — verify semantic exit codes (1=error, 2=usage, 3=validation)
-- [ ] **Terminal detection:** Often assumes TTY — verify works in CI, pipes, scripts
-- [ ] **Visualization fallback:** Often no plain-text alternative — verify --quiet mode works everywhere
-- [ ] **Input sanitization:** Often missing for NL-generated params — verify shell metacharacters are escaped
+- [ ] **Intent archival:** Often missing `<history>` section archival — verify that history entries for the completed milestone are moved to the archive file, not just outcomes and criteria
+- [ ] **Intent archival:** Often missing ID continuity — verify that `getNextId()` produces IDs that don't collide with any historically-used ID after archival resets the active outcomes list
+- [ ] **Milestone complete output:** Often missing the intent archive file in the result JSON — verify `result.archived` object (line 1222-1228 of `phase.js`) includes `intent: true/false`
+- [ ] **Git commit scope:** Often missing INTENT.md in the commit — verify `.planning/INTENT.md` and `.planning/milestones/{version}-INTENT.md` are both in the `commitFiles` array
+- [ ] **Plugin invalidation:** Often missing cache clear — verify `invalidateFileCache(intentPath)` is called after INTENT.md is rewritten
+- [ ] **Guardrail update:** Often missing allowlist entry — verify `advisory-guardrails.js` line 109 includes the milestone complete command
+- [ ] **Drift validation post-archival:** Often missing validation — run `plan:intent drift` after archival and verify score is 0 (no false positives from archived outcomes)
+- [ ] **New-milestone workflow update:** Often missing conditional logic — verify Step 4.5 handles the case where previous milestone's outcomes were already archived
 <!-- /section -->
 
 <!-- section: recovery -->
@@ -289,13 +259,13 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Agent stuck on prompt | LOW | Kill process, add --non-interactive, retry |
-| Invalid NL parameters | MEDIUM | Enable --dry-run, review logs, fix validation |
-| Output parsing failure | LOW | Add --json flag, parse structured output |
-| Context overflow from visualization | LOW | Add --quiet flag, reduce output size |
-| Shell injection detected | HIGH | Audit logs, rotate credentials, patch validation |
-| Fabricated messages detected | MEDIUM | Reset conversation, add message provenance |
-<!-- /section -->
+| Broken traceability (plans reference archived IDs) | LOW | Load archived intent file, reconstruct `validOutcomeIds` set by merging active + archived IDs; or modify trace to auto-fallback to milestone archives |
+| History grew unbounded | LOW | One-time script: parse INTENT.md, split history by milestone, write older entries to archive files, keep last 3 in active |
+| Partial archival left inconsistent state | LOW | Check `git status` for unstaged INTENT.md changes; if archive file exists and active file is stale, re-run the archival step manually |
+| ID collision after reset | MEDIUM | Audit all plans' `intent.outcome_ids` frontmatter; rename colliding IDs in the newer milestone; update `getNextId()` to check archives |
+| `new-milestone` skipped evolution because outcomes were already archived | LOW | Run `plan:intent show` on the archive file, manually re-add any ongoing outcomes via `plan:intent update outcomes --add "..." --reason "Carried forward from vX.Y"` |
+| Plugin serves stale intent data | LOW | Restart the host editor session (clears module-level cache); or call `invalidateIntent()` via plugin API |
+| Advisory guardrail blocks archival | LOW | Add `/bgsd-complete-milestone` to allowlist in `advisory-guardrails.js`; redeploy |
 
 ## Pitfall-to-Phase Mapping
 
@@ -303,416 +273,29 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Interactive prompts block agents | Phase 1 | Test with CI=true, verify --non-interactive works |
-| NL parsing generates invalid params | Phase 1-2 | Test with adversarial input, verify validation |
-| Human output breaks agents | Phase 1 | Verify --json on all commands |
-| Visualization context pollution | Phase 2 | Test with large dataset, verify --quiet |
-| Pagination breaks agents | Phase 1 | Test in non-TTY, verify --no-pager |
-| Shell injection via NL params | Phase 1-2 | Audit code, verify sanitization |
-| Model fabricates messages | Phase 2 | Test long conversations, verify message tracking |
-| Mixed noun-verb grammar | Phase 1 | Consistency audit across all commands |
-| Non-idempotent operations | Phase 1 | Test repeated execution, verify idempotency |
+| Broken traceability | Phase 1 (archival design) | `plan:intent trace` returns valid coverage after archival for both active and archived milestone plans |
+| History unbounded growth | Phase 1 (archive history with outcomes) | INTENT.md `<history>` section has ≤3 milestone entries after archival |
+| Partial archival failure | Phase 1 (snapshot-before-modify) | Simulate failure mid-archival; verify INTENT.md is restored to pre-archival state |
+| ID collision | Phase 1 (monotonic ID design) | After archival + new milestone, `getNextId()` returns DO-79 (not DO-01) |
+| `new-milestone` workflow gap | Phase 1 (workflow update) | Complete milestone → start new milestone → verify evolution questionnaire references archived outcomes |
+| Plugin stale cache | Phase 2 (integration test) | Modify INTENT.md via CLI → verify plugin context builder reflects changes within 1 second |
+| Advisory guardrail | Phase 1 (allowlist update) | Complete milestone with intent archival → no advisory warnings about INTENT.md |
+<!-- /section -->
 
----
-
+<!-- section: sources -->
 ## Sources
 
-- [Making your CLI agent-friendly - Speakeasy](https://www.speakeasy.com/blog/engineering-agent-friendly-cli)
-- [Designing CLI Tools for AI Agents - nibzard](http://nibzard.com/ai-native/)
-- [Writing CLI Tools That AI Agents Actually Want to Use - DEV Community](https://dev.to/uenyioha/writing-cli-tools-that-ai-agents-actually-want-to-use-39no)
-- [CLI Design for AI Agents - JoelClaw](https://joelclaw.com/cli-design-for-ai-agents)
-- [Keep the Terminal Relevant: Patterns for AI Agent Driven CLIs - InfoQ](https://infoq.com/articles/ai-agent-cli)
-- [Securing CLI Based AI Agent - Vishal Mysore](https://medium.com/@visrow/securing-cli-based-ai-agent-c36429e88783)
-- [Top 7 CLI Developer Experience Mistakes - TechBuddies](https://www.techbuddies.io/2026/01/09/top-7-cli-developer-experience-mistakes-devs-still-make-in-2025/)
-- [Model fabricates user messages - OpenClaw Issue #25021](https://github.com/openclaw/openclaw/issues/25021)
-- [Robust @ paste escaping - Google Gemini CLI PR #21239](https://github.com/google-gemini/gemini-cli/pull/21239)
-- [Claude Code Issue #32176 - Agent draws false conclusions](https://github.com/anthropics/claude-code/issues/32176)
+- `src/commands/phase.js` lines 848-1241 — `cmdMilestoneComplete()` implementation (direct code analysis)
+- `src/commands/intent.js` lines 1-1260 — all intent CRUD and trace/drift commands (direct code analysis)
+- `src/lib/helpers.js` lines 655-999 — `parseIntentMd()`, `generateIntentMd()`, `parsePlanIntent()` (direct code analysis)
+- `workflows/complete-milestone.md` — milestone completion workflow (direct file analysis)
+- `workflows/new-milestone.md` lines 40-119 — intent evolution during milestone start (direct file analysis)
+- `src/plugin/context-builder.js` lines 74-93, 237-353 — sacred block and intent context injection (direct code analysis)
+- `src/plugin/parsers/intent.js` — plugin-layer intent parser with module-level caching (direct code analysis)
+- `src/plugin/advisory-guardrails.js` line 109 — INTENT.md modification guardrail (direct code analysis)
+- `.planning/INTENT.md` — current intent state showing 10 history entries across 7 milestones (direct file analysis)
+- `.planning/milestones/` — archive directory pattern with 53 existing files across 18 milestones (directory listing)
 
 ---
-*Pitfalls research for: Natural Language UI & Visualization for CLI Tools*
-*Researched: 2026-03-11*
-
----
-
-# CODE AUDIT & PERFORMANCE TOOLING PITFALLS
-
-**Domain:** Code Audit & Performance Profiling for CLI Tools
-**Researched:** 2026-03-12
-**Confidence:** HIGH
-
-<!-- section: compact_audit -->
-<pitfalls_compact>
-<!-- Compact view for planners. Keep under 25 lines. -->
-
-**Top pitfalls:**
-1. **False positives in unused code detection** — Build allowlist for generated code, tests, exports (Phase 1)
-2. **Complexity metrics misread as quality scores** — Use multiple metrics, not just cyclomatic (Phase 1-2)
-3. **Profiling overhead distorts measurements** — Use sampling, separate warmup from measurement (Phase 1)
-4. **Static analysis misses runtime behavior** — Combine with dynamic analysis, warn about limitations (Phase 1)
-5. **Noisy audit output causes alert fatigue** — Implement severity tiers, confidence levels, suppression (Phase 2)
-
-**Tech debt traps:** Hardcoding thresholds, ignoring language differences, single-metric obsession
-
-**Security risks:** Audit tool DoS via large codebase, path traversal in file analysis, memory exhaustion
-
-**"Looks done but isn't" checks:**
-- Unused code: verify generated code excluded, dynamic requires handled
-- Complexity: verify metric thresholds documented, context considered
-- Profiling: verify warmup separated, sampling overhead measured
-</pitfalls_compact>
-<!-- /section -->
-
-<!-- section: critical_audit -->
-## Critical Pitfalls
-
-### Pitfall 1: False Positives in Unused Code Detection
-
-**What goes wrong:**
-The unused code detector reports legitimate code as dead: generated functions (`.gen.go`, `_pb.go`), dynamically required modules (`require('./' + name)`), test files, polyfills, and conditionally compiled code. Users stop trusting the tool.
-
-**Why it happens:**
-- Static analysis cannot understand dynamic requires, code generation, or conditional compilation
-- Generated code follows patterns that look "unused" to simple AST analysis
-- Build toolchain transformations aren't modeled in the analysis
-- Reflection and runtime metaprogramming are invisible to static analysis
-
-**How to avoid:**
-- Build an allowlist of patterns to exclude (generated files, test files, node_modules by default)
-- Implement dynamic-require detection that tracks string concatenation in require calls
-- Add configuration for project-specific exclusions (build outputs, conditional compilation)
-- Report confidence levels: "likely unused" vs "definitely unused"
-- Create a `--include-generated` flag for thorough scans with manual filtering
-
-**Warning signs:**
-- High percentage of "unused" findings in well-maintained projects
-- No configuration options for exclusions
-- Reports generated code as unused
-- Single-pass analysis without iteration
-
-**Phase to address:** Phase 1 (Foundation - unused code detection)
-
----
-
-### Pitfall 2: Complexity Metrics Misread as Quality Scores
-
-**What goes wrong:**
-Cyclomatic complexity is treated as the definitive quality metric. Developers refactor to lower scores while actually making code harder to understand. Short functions with complex logic score well; long functions with simple logic score poorly.
-
-**Why it happens:**
-- Cyclomatic complexity is easy to measure but captures only control flow
-- Cognitive complexity, coupling, and cohesion aren't considered
-- Thresholds (e.g., "max complexity 10") become goals rather than guidelines
-- No context: utility functions, error handlers, and test helpers have different complexity profiles than business logic
-
-**How to avoid:**
-- Use multiple metrics: cyclomatic + cognitive complexity + coupling + lines of code
-- Set context-aware thresholds: higher for utilities, lower for business logic
-- Never block builds on complexity alone — use as warning/advisory
-- Track complexity trends over time, not absolute values
-- Document what complexity means for your codebase
-
-**Warning signs:**
-- Single metric drives all decisions
-- Thresholds enforced as hard limits
-- Refactoring to lower scores increases confusion
-- No trend analysis over time
-
-**Phase to address:** Phase 1-2 (Foundation + complexity analysis)
-
----
-
-### Pitfall 3: Profiling Overhead Distorts Measurements
-
-**What goes wrong:**
-The profiler adds so much overhead that the results don't reflect production behavior. Instrumented code runs 10-100x slower. Hot paths appear slower than they are because profiling adds overhead to every operation.
-
-**Why it happens:**
-- Heavy instrumentation on every function call
-- No warmup period — measures JIT compilation time
-- Sampling rate too high, overwhelming the application
-- Memory profiling triggers additional allocations
-- Ignoring that profiling changes timing
-
-**How to avoid:**
-- Use sampling-based profiling (not instrumentation) for CPU
-- Separate warmup phase from measurement phase
-- Run multiple iterations, discard first results
-- Measure and report profiling overhead separately
-- Use production-like workloads, not synthetic benchmarks
-- Provide `--profile-mode=sampling` vs `--profile-mode=instrumentation` options
-
-**Warning signs:**
-- Profiling 10x+ slower than normal execution
-- Results vary wildly between runs
-- No warmup or JIT consideration
-- Single run results accepted without iteration
-
-**Phase to address:** Phase 1 (Foundation - performance profiling)
-
----
-
-### Pitfall 4: Static Analysis Misses Runtime Behavior
-
-**What goes wrong:**
-The code audit reports issues based on static analysis that don't occur at runtime: dead code that's actually used via reflection, performance issues that only manifest under load, or type errors that TypeScript erases.
-
-**Why it happens:**
-- Static analysis operates on source code, not runtime behavior
-- Build steps (transpilation, minification) change code
-- Runtime conditions (environment variables, feature flags) affect behavior
-- Native modules and bindings bypass static analysis
-
-**How to avoid:**
-- Document static analysis limitations prominently
-- Combine static analysis with dynamic/runtime checks where possible
-- Add "known limitations" section to audit output
-- Warn when analysis makes assumptions about runtime
-- Support `--include-runtime` or `--trace-execution` for deeper analysis
-- Provide confidence levels: "static analysis shows X" vs "runtime confirms X"
-
-**Warning signs:**
-- Audit claims confidence it shouldn't have
-- No runtime verification option
-- Results differ from runtime behavior
-- Build artifacts not accounted for
-
-**Phase to address:** Phase 1 (Foundation - static analysis scope)
-
----
-
-### Pitfall 5: Noisy Audit Output Causes Alert Fatigue
-
-**What goes wrong:**
-The code audit produces hundreds of findings with equal severity. Users ignore all findings because they can't prioritize. Real issues are lost in noise. The tool becomes useless.
-
-**Why it happens:**
-- No severity classification (blocking vs warning vs info)
-- No confidence scoring (definite vs likely vs possible)
-- All findings reported regardless of user interest
-- No suppression or ignore mechanism
-- Findings not actionable (e.g., "this is complex" without guidance)
-
-**How to avoid:**
-- Implement three-tier severity: ERROR (fix now), WARNING (review), INFO (consider)
-- Add confidence levels: HIGH (definite), MEDIUM (likely), LOW (possible)
-- Support file/pattern suppression with documentation requirements
-- Make findings actionable: explain WHY it's a problem and HOW to fix it
-- Default to showing only ERROR + WARNING; INFO is opt-in
-- Provide `--severity-threshold` and `--confidence-threshold` flags
-- Allow grouping/sorting by severity, confidence, file, or age
-
-**Warning signs:**
-- 100+ findings on clean codebase
-- No filtering options
-- Equal severity across all findings
-- No ignore/suppress mechanism
-
-**Phase to address:** Phase 2 (Audit output refinement)
-
----
-
-### Pitfall 6: Performance Regression Without Baselines
-
-**What goes wrong:**
-Performance profiling shows current numbers but no way to know if performance improved or degraded. Each run is a one-off measurement. Performance drift goes undetected until it becomes a problem.
-
-**Why it happens:**
-- No baseline storage or comparison
-- Measurements vary too much to compare meaningfully
-- Environment differences between runs (CPU, memory, load)
-- No standardized benchmarks for comparison
-- Results aren't persisted or trend-analyzed
-
-**How to avoid:**
-- Store baseline metrics with version/timestamp
-- Compare current run to baseline, report % change
-- Run benchmarks multiple times, report p50/p95/p99
-- Capture environment metadata (Node version, CPU, memory)
-- Implement `--baseline` flag to set, `--compare` to diff
-- Show trend charts for tracked metrics over time
-- Allow baseline updates on known-good states
-
-**Warning signs:**
-- No way to compare to previous runs
-- High variance in measurements between runs
-- No environment capture
-- Performance changes go unnoticed
-
-**Phase to address:** Phase 2 (Performance tracking)
-
----
-
-### Pitfall 7: Memory Leak Detection Without Context
-
-**What goes wrong:**
-Memory profiling shows growing heap but doesn't explain why. Allocations are attributed to the wrong function. GC cycles confuse the picture. The "leak" is actually expected growth, not a bug.
-
-**Why it happens:**
-- Heap snapshots taken at wrong times
-- Growth attributed to allocation site, not retention source
-- Normal GC behavior misinterpreted as leaks
-- No baseline comparison for "this grew unexpectedly"
-- Missing context about expected vs unexpected growth
-
-**How to avoid:**
-- Take snapshots at key lifecycle points (not random intervals)
-- Use retained size, not allocated size, to find leaks
-- Compare to baseline snapshots to identify unexpected growth
-- Track GC cycles and exclude from leak analysis
-- Provide interpretation: "X grew by Y bytes since baseline — likely retained by Z"
-- Document expected growth patterns (caches, buffers)
-
-**Warning signs:**
-- Single heap snapshot analyzed in isolation
-- Allocations blamed on wrong functions
-- GC behavior treated as leak
-- No baseline comparison
-
-**Phase to address:** Phase 2 (Memory profiling)
-
----
-
-<!-- /section -->
-
-<!-- section: tech_debt_audit -->
-## Technical Debt Patterns
-
-Shortcuts that seem reasonable but create long-term problems.
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Hardcode complexity thresholds | Simple implementation | Can't adapt to different code styles | Never - always configurable |
-| Single language support | Easier parser | Limited utility, rewrite needed | Only for single-language projects |
-| No caching of analysis results | Simple code | Slow on large codebases, repeated work | Small projects only |
-| Skip test file analysis | Faster scans | Miss test-only dead code | Only if explicitly configured |
-| No incremental analysis | Simpler architecture | Full rescans on every change | One-time audits only |
-| Ignore build artifacts | Simpler implementation | False positives from generated code | Never - must handle |
-<!-- /section -->
-
-<!-- section: integration_audit -->
-## Integration Gotchas
-
-Common mistakes when connecting audit tools to external systems.
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|-----------------|
-| Git integration | Analyzing generated files in git history | Exclude .git-ignored files, build outputs |
-| CI/CD pipeline | Blocking builds on warnings | Use severity thresholds, fail only on errors |
-| Editor integration | Blocking on every save | Debounce, batch analysis, background |
-| Build system | Analyzing before build completes | Hook into post-build, not pre-build |
-| IDE | Blocking UI thread | Run analysis in background, async |
-| Pre-commit hook | Slowing commits unacceptably | Run fast checks only, defer heavy analysis |
-<!-- /section -->
-
-<!-- section: performance_traps_audit -->
-## Performance Traps
-
-Patterns that work at small scale but fail as usage grows.
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Full AST parse every run | Minutes to analyze small projects | Cache parsed AST, incremental analysis | Projects >10K lines |
-| No parallelism | Single-threaded analysis is slow | Use worker threads for independent files | Multi-core machines, large codebases |
-| Loading entire files into memory | Memory exhaustion on large files | Stream analysis, process in chunks | Files >1MB |
-| No early exit | Analyzes everything even when errors found | Fail fast with --fail-fast flag | Large codebases |
-| Exponential analysis | Analysis time grows superlinearly | Complexity limits, timeout limits | Deep dependency trees |
-<!-- /section -->
-
-<!-- section: security_audit -->
-## Security Mistakes
-
-Domain-specific security issues beyond general web security.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| No DoS protection | Maliciously large codebase exhausts resources | Timeout limits, file size limits, memory limits |
-| Path traversal in file analysis | Attacker reads arbitrary files | Validate paths, restrict to project root |
-| Command injection in analysis | Malicious code triggers unwanted commands | Sandbox analysis, no shell execution |
-| Credential exposure in logs | Sensitive data in audit output | Scrub paths, tokens, secrets |
-| ReDoS in regex analysis | Pathological regex causes hang | Timeout regex operations, limit complexity |
-<!-- /section -->
-
-<!-- section: ux_audit -->
-## UX Pitfalls
-
-Common user experience mistakes in code audit tools.
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| All findings equal priority | Can't focus on what matters | Severity + confidence tiers |
-| No suppression mechanism | Can't hide false positives | Allowlist with documentation |
-| Unactionable output | "Fix this" without guidance | Explain why and how to fix |
-| No progress indicator | Don't know if stuck or done | Progress bar, ETA, file count |
-| Verbose by default | Overwhelming output | Opt-in verbosity, summary first |
-| No diff from baseline | Can't see what changed | Baseline comparison, trend view |
-| Ignoring configuration | Wrong thresholds for project | Load from config file, document options |
-<!-- /section -->
-
-<!-- section: looks_done_audit -->
-## "Looks Done But Isn't" Checklist
-
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Unused code detection:** Often missing generated code exclusion — verify with .gen.go, _pb.go files
-- [ ] **Complexity analysis:** Often uses single metric — verify multiple metrics, context-aware thresholds
-- [ ] **Performance profiling:** Often missing warmup separation — verify JIT compilation excluded
-- [ ] **Static analysis:** Often overclaims confidence — verify limitations documented
-- [ ] **Audit output:** Often noisy without filtering — verify severity/confidence tiers
-- [ ] **Memory analysis:** Often single snapshot — verify baseline comparison available
-- [ ] **Incremental analysis:** Often full rescan — verify caching works between runs
-- [ ] **Timeout protection:** Often missing — verify large codebases don't hang
-<!-- /section -->
-
-<!-- section: recovery_audit -->
-## Recovery Strategies
-
-When pitfalls occur despite prevention, how to recover.
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| False positives in unused detection | LOW | Add exclusion patterns, adjust confidence threshold |
-| Complexity misread as quality | MEDIUM | Add multi-metric analysis, context thresholds |
-| Profiling overhead distorting results | LOW | Switch to sampling mode, add warmup |
-| Static analysis false confidence | MEDIUM | Add runtime verification, lower confidence claims |
-| Alert fatigue from noisy output | LOW | Increase severity threshold, enable suppression |
-| No baseline for regression | MEDIUM | Capture baseline, run comparison |
-| Memory analysis without context | MEDIUM | Add baseline snapshots, track lifecycle |
-<!-- /section -->
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| False positives in unused code | Phase 1 | Test with generated code, dynamic requires |
-| Complexity metrics as quality | Phase 1-2 | Verify multiple metrics, context thresholds |
-| Profiling overhead | Phase 1 | Measure profiling overhead separately |
-| Static analysis scope | Phase 1 | Document limitations, add runtime verification |
-| Noisy audit output | Phase 2 | Test with clean codebase, verify filtering |
-| No performance baselines | Phase 2 | Verify baseline storage, comparison |
-| Memory leak without context | Phase 2 | Verify baseline snapshots, retention analysis |
-| Hardcoded thresholds | Phase 1 | All thresholds must be configurable |
-| DoS via large codebase | Phase 1 | Verify timeout, memory limits work |
-
----
-
-## Sources
-
-- [golangci-lint unused rule issues](https://github.com/golangci/golangci-lint/issues/3354)
-- [Vulture Python dead code detection issues](https://github.com/jendrikseipp/vulture/issues/253)
-- [Static analysis false positives - Parasoft](https://www.parasoft.com/blog/false-positives-in-static-code-analysis/)
-- [Reducing SAST false positives - AppSecSanta](https://appsecsanta.com/application-security/reducing-sast-false-positives)
-- [Common pitfalls of code metrics - Solnic](https://solnic.dev/common-pitfalls-of-code-metrics)
-- [Cyclomatic complexity misleading - LinearB](https://linearb.io/blog/cyclomatic-complexity)
-- [Why code metrics mislead - DX](https://getdx.com/blog/cyclomatic-complexity/)
-- [Node.js benchmarks lying about throughput - Medium](https://medium.com/@bhagyarana80/your-node-benchmarks-are-lying-about-throughput-bfc4d569dcaf)
-- [Node.js wrong bottleneck - Medium](https://medium.com/%40jickpatel611/node-load-tests-and-the-wrong-bottleneck-666fad252049)
-- [Profiler lied about copies - Medium](https://medium.com/@ThinkingLoop/the-profiler-lied-your-copies-are-the-hot-path-609813ab0759)
-- [Node.js profiling best practices - PushBased](https://push-based.io/article/advanced-cpu-profiling-in-node-best-practices-and-pitfalls)
-- [Semgrep false positive reduction](https://semgrep.dev/docs/kb/semgrep-code/reduce-false-positives)
-
----
-
-*Pitfalls research for: Code Audit & Performance Profiling for CLI Tools*
-*Researched: 2026-03-12*
+*Pitfalls research for: Intent Archival System (v11.4 Housekeeping)*
+*Researched: 2026-03-13*

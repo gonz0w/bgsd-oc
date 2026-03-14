@@ -49,6 +49,7 @@ if (!process.env.BGSD_RUNTIME_DETECTED) {
  */
 function showRuntimeBanner(runtime, verbose = false) {
   if (!runtime) return;
+  if (!process.stdout.isTTY) return;
   
   const isBun = runtime.available && runtime.preference !== 'node';
   const isFallback = runtime.preference === 'node' || (runtime.preference === 'auto' && !runtime.available);
@@ -105,6 +106,8 @@ function lazyTools() { return _modules.tools || (_modules.tools = require('./com
 function lazyRuntime() { return _modules.runtime || (_modules.runtime = require('./commands/runtime')); }
 function lazyMeasure() { return _modules.measure || (_modules.measure = require('./commands/measure')); }
 function lazyRecovery() { return _modules.recovery || (_modules.recovery = require('./lib/recovery')); }
+function lazyAudit() { return _modules.audit || (_modules.audit = require('./commands/audit')); }
+function lazyDecisions() { return _modules.decisions || (_modules.decisions = require('./commands/decisions')); }
 
 
 async function main() {
@@ -225,7 +228,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -519,9 +522,6 @@ Use without --exact for fuzzy matching.`);
             case 'dead-ends': lazyTrajectory().cmdTrajectoryDeadEnds(cwd, restArgs.slice(1), raw); break;
             default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint, list, pivot, compare, choose, dead-ends');
           }
-        } else if (subcommand === 'profile') {
-          // Handle profile via environment variable, not a command
-          error('Set BGSD_PROFILE=1 to enable performance profiling');
         } else {
           error(`Unknown execute subcommand: ${subcommand}. Available: commit, rollback-info, session-diff, session-summary, velocity, worktree, tdd, test-run, trajectory`);
         }
@@ -715,8 +715,36 @@ Use without --exact for fuzzy matching.`);
           lazyFeatures().cmdValidateConfig(cwd, raw);
         } else if (subcommand === 'test-coverage') {
           lazyFeatures().cmdTestCoverage(cwd, raw);
+        } else if (subcommand === 'handoff') {
+          const handoffSub = restArgs[0];
+          const fromIdx = restArgs.indexOf('--from');
+          const toIdx = restArgs.indexOf('--to');
+          const previewIdx = restArgs.indexOf('--preview');
+          const validateIdx = restArgs.indexOf('--validate');
+          lazyVerify().cmdVerifyHandoff(cwd, {
+            subcommand: handoffSub,
+            from: fromIdx !== -1 ? restArgs[fromIdx + 1] : null,
+            to: toIdx !== -1 ? restArgs[toIdx + 1] : null,
+            preview: previewIdx !== -1,
+            validate: validateIdx !== -1 ? restArgs[validateIdx + 1] : null,
+          }, raw);
+        } else if (subcommand === 'agents') {
+          const agentsSub = restArgs[0];
+          const verifyIdx = restArgs.indexOf('--verify');
+          const contractsIdx = restArgs.indexOf('--contracts');
+          const checkOverlapIdx = restArgs.indexOf('--check-overlap');
+          const fromIdx = restArgs.indexOf('--from');
+          const toIdx = restArgs.indexOf('--to');
+          lazyVerify().cmdVerifyAgents(cwd, {
+            subcommand: agentsSub,
+            verify: verifyIdx !== -1,
+            contracts: contractsIdx !== -1,
+            check_overlap: checkOverlapIdx !== -1,
+            from: fromIdx !== -1 ? restArgs[fromIdx + 1] : null,
+            to: toIdx !== -1 ? restArgs[toIdx + 1] : null,
+          }, raw);
         } else {
-          error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage`);
+          error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, handoff, agents`);
         }
         break;
       }
@@ -833,6 +861,8 @@ Use without --exact for fuzzy matching.`);
           }
         } else if (subcommand === 'validate-commands') {
           lazyMisc().cmdValidateCommands(cwd, {}, raw);
+        } else if (subcommand === 'validate-artifacts') {
+          lazyMisc().cmdValidateArtifacts(cwd, {}, raw);
         } else if (subcommand === 'progress') {
           const progSub = restArgs[0] || 'json';
           lazyMisc().cmdProgressRender(cwd, progSub, raw);
@@ -967,6 +997,10 @@ Use without --exact for fuzzy matching.`);
           const seFieldsIdx = restArgs.indexOf('--fields');
           const fields = seFieldsIdx !== -1 ? restArgs[seFieldsIdx + 1].split(',') : null;
           lazyMisc().cmdSummaryExtract(cwd, summaryPath, fields, raw);
+        } else if (subcommand === 'summary-generate') {
+          const sgPhase = restArgs[0];
+          const sgPlan = restArgs[1];
+          lazyMisc().cmdSummaryGenerate(cwd, sgPhase, sgPlan, raw);
         } else if (subcommand === 'quick-summary') {
           lazyFeatures().cmdQuickTaskSummary(cwd, raw);
         } else if (subcommand === 'extract-sections') {
@@ -1202,7 +1236,7 @@ Examples:
           const formatted = examples.map(ex => examplesMod.formatExample(ex, verbose)).join('\n');
           output({ command, examples, formatted }, raw);
         } else {
-          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, quick-summary, extract-sections, git, tools, runtime, measure, recovery, history, examples`);
+          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, summary-generate, quick-summary, extract-sections, git, tools, runtime, measure, recovery, history, examples`);
         }
         break;
       }
@@ -1249,43 +1283,41 @@ Examples:
         break;
       }
 
+      // audit namespace
+      case 'audit': {
+        if (subCmd === 'scan') {
+          lazyAudit().cmdAuditScan(cwd, restArgs, raw);
+        } else {
+          error('Unknown audit subcommand. Available: scan');
+        }
+        break;
+      }
+
+      // decisions namespace
+      case 'decisions': {
+        if (subCmd === 'list') {
+          lazyDecisions().cmdDecisionsList(cwd, restArgs, raw);
+        } else if (subCmd === 'inspect') {
+          lazyDecisions().cmdDecisionsInspect(cwd, restArgs, raw);
+        } else if (subCmd === 'evaluate') {
+          lazyDecisions().cmdDecisionsEvaluate(cwd, restArgs, raw);
+        } else if (subCmd === 'savings') {
+          lazyDecisions().cmdDecisionsSavings(cwd, restArgs, raw);
+        } else {
+          error('Unknown decisions subcommand. Available: list, inspect, evaluate, savings');
+        }
+        break;
+      }
+
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions`);
     }
     return; // Exit after handling namespaced command
   }
 
-  // Standalone commands (no namespace prefix)
-  if (command === 'runtime') {
-    const runtimeSub = remainingArgs[0];
-    if (runtimeSub === 'benchmark') {
-      const runsIdx = remainingArgs.indexOf('--runs');
-      const runs = runsIdx !== -1 ? parseInt(remainingArgs[runsIdx + 1], 10) : 10;
-      lazyRuntime().cmdRuntimeBenchmark(cwd, raw, { runs });
-    } else {
-      lazyRuntime().cmdRuntimeStatus(cwd, raw);
-    }
-    return;
-  }
-
-  if (command === 'measure') {
-    // Check build-time feature flag
-    if (global.BGSD_INCLUDE_BENCHMARKS === false) {
-      error('Benchmarks are disabled in this build. Set INCLUDE_BENCHMARKS=true to enable.');
-    }
-    const binPathIdx = remainingArgs.indexOf('--bin');
-    // --verbose is a global flag - check global._gsdCompactMode
-    const isVerbose = global._gsdCompactMode === false;
-    lazyMeasure().cmdMeasure(cwd, {
-      verbose: isVerbose,
-      binPath: binPathIdx !== -1 ? remainingArgs[binPathIdx + 1] : 'bin/bgsd-tools.cjs'
-    }, raw);
-    return;
-  }
-
   // No command matched any namespace — unknown
-  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache`);
+  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions`);
 }
 
 // Track command execution in history (Phase 97: UX Polish)

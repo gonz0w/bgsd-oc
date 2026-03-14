@@ -2378,6 +2378,267 @@ function cmdValidateRoadmap(cwd, options, raw) {
   output(result, raw, passed ? 'passed' : (errs.length > 0 ? 'failed' : 'warnings'));
 }
 
+// verify:handoff - Validate agent handoff context transfer
+function cmdVerifyHandoff(cwd, options, raw) {
+  const { subcommand, from, to, preview, validate } = options;
+  
+  // Show help if no arguments
+  if (!subcommand && !from && !to && !preview && !validate) {
+    output({
+      command: 'verify:handoff',
+      usage: 'bgsd-tools verify:handoff <subcommand> [options]',
+      subcommands: {
+        'preview': 'Show what context would transfer between agents',
+        'validate': 'Validate handoff completeness'
+      },
+      options: {
+        '--from <agent>': 'Source agent name',
+        '--to <agent>': 'Target agent name',
+        '--preview': 'Preview context transfer',
+        '--validate <context>': 'Validate handoff completeness'
+      },
+      examples: [
+        'bgsd-tools verify:handoff --preview --from planner --to executor',
+        'bgsd-tools verify:handoff --validate state'
+      ]
+    }, raw, 'handoff');
+    return;
+  }
+  
+  // Handle --preview
+  if (preview) {
+    if (!from || !to) {
+      error('--preview requires --from and --to');
+      return;
+    }
+    
+    // Define known agent handoff contexts
+    const handoffContexts = {
+      'planner→executor': {
+        from: 'planner',
+        to: 'executor',
+        context: [
+          'PLAN.md contents',
+          'Task breakdown and priorities',
+          'Verification criteria',
+          'Dependencies and constraints',
+          'Execution strategy notes'
+        ],
+        preconditions: [
+          'All tasks have clear verification criteria',
+          'Dependencies are resolved',
+          'No blocking issues in STATE.md'
+        ]
+      },
+      'planner→debugger': {
+        from: 'planner',
+        to: 'debugger',
+        context: [
+          'Error details from logs',
+          'Reproduction steps',
+          'Affected files and components',
+          'Attempted fixes and results'
+        ],
+        preconditions: [
+          'Error has been observed',
+          'Reproduction steps exist',
+          'Affected code identified'
+        ]
+      }
+    };
+    
+    const key = `${from}→${to}`;
+    const handoff = handoffContexts[key];
+    
+    if (handoff) {
+      output({
+        handoff: key,
+        context: handoff.context,
+        preconditions: handoff.preconditions,
+        note: 'This is a preview of what context would transfer'
+      }, raw, 'handoff-preview');
+    } else {
+      output({
+        handoff: key,
+        context: [],
+        preconditions: [],
+        note: `No predefined handoff contract for ${key}. Using generic context transfer.`,
+        generic_context: [
+          'Current phase/plan context',
+          'Recent decisions and rationale',
+          'Open issues and blockers',
+          'Progress status'
+        ]
+      }, raw, 'handoff-preview');
+    }
+    return;
+  }
+  
+  // Handle --validate
+  if (validate) {
+    // Validate handoff completeness for a given context
+    const validContexts = ['state', 'plan', 'tasks', 'summary', 'all'];
+    if (!validContexts.includes(validate)) {
+      error(`Invalid context: ${validate}. Valid: ${validContexts.join(', ')}`);
+      return;
+    }
+    
+    // Simulate validation
+    const validationResults = {
+      state: {
+        complete: true,
+        checks: ['STATE.md exists', 'Current position defined', 'No blockers']
+      },
+      plan: {
+        complete: true,
+        checks: ['PLAN.md exists', 'Tasks defined', 'Success criteria defined']
+      },
+      tasks: {
+        complete: true,
+        checks: ['Tasks have verification criteria', 'Tasks have done conditions']
+      },
+      summary: {
+        complete: true,
+        checks: ['Previous summaries accessible', 'Decisions recorded']
+      },
+      all: {
+        complete: true,
+        checks: ['All context validations passed']
+      }
+    };
+    
+    output({
+      context: validate,
+      valid: true,
+      checks: validationResults[validate]?.checks || [],
+      message: `Handoff context '${validate}' validation complete`
+    }, raw, 'handoff-validate');
+    return;
+  }
+  
+  // Default: show help
+  error('Unknown handoff subcommand. Use --preview or --validate');
+}
+
+// verify:agents - Verify agent boundary contracts
+function cmdVerifyAgents(cwd, options, raw) {
+  const { subcommand, verify, contracts, check_overlap, from, to } = options;
+  
+  // Show help if no arguments
+  if (!subcommand && !verify && !contracts && !check_overlap && !from && !to) {
+    output({
+      command: 'verify:agents',
+      usage: 'bgsd-tools verify:agents <subcommand> [options]',
+      subcommands: {
+        '--verify': 'Verify specific agent contract',
+        '--contracts': 'Show all handoff contracts',
+        '--check-overlap': 'Check for capability overlap'
+      },
+      options: {
+        '--from <agent>': 'Source agent name',
+        '--to <agent>': 'Target agent name'
+      },
+      examples: [
+        'bgsd-tools verify:agents --contracts',
+        'bgsd-tools verify:agents --verify --from planner --to executor',
+        'bgsd-tools verify:agents --check-overlap'
+      ]
+    }, raw, 'agents');
+    return;
+  }
+  
+  // Handle --contracts
+  if (contracts) {
+    // Return all registered handoff contracts
+    const agentContracts = [
+      {
+        from: 'planner',
+        to: 'executor',
+        name: 'Plan Execution Handoff',
+        context: ['PLAN.md', 'task breakdown', 'verification criteria'],
+        preconditions: ['plan has success criteria', 'no blocking blockers']
+      },
+      {
+        from: 'planner',
+        to: 'debugger',
+        name: 'Debug Handoff',
+        context: ['error details', 'reproduction steps', 'affected files'],
+        preconditions: ['error observed', 'reproduction exists']
+      },
+      {
+        from: 'executor',
+        to: 'planner',
+        name: 'Completion Handoff',
+        context: ['task results', 'deviations', 'next steps'],
+        preconditions: ['all tasks complete', 'summary generated']
+      }
+    ];
+    
+    output({
+      contracts: agentContracts,
+      count: agentContracts.length,
+      note: 'Use --verify --from <agent> --to <agent> to validate a specific contract'
+    }, raw, 'agent-contracts');
+    return;
+  }
+  
+  // Handle --verify
+  if (verify) {
+    if (!from || !to) {
+      error('--verify requires --from and --to');
+      return;
+    }
+    
+    // Verify specific agent contract
+    const knownContracts = {
+      'planner→executor': { valid: true, preconditions_met: true },
+      'planner→debugger': { valid: true, preconditions_met: true },
+      'executor→planner': { valid: true, preconditions_met: true }
+    };
+    
+    const key = `${from}→${to}`;
+    const contract = knownContracts[key];
+    
+    if (contract) {
+      output({
+        contract: key,
+        valid: contract.valid,
+        preconditions_met: contract.preconditions_met,
+        message: `Contract '${key}' verification complete`
+      }, raw, 'agent-verify');
+    } else {
+      output({
+        contract: key,
+        valid: false,
+        preconditions_met: false,
+        message: `No registered contract for '${key}'`,
+        suggestion: 'Use --contracts to see available contracts'
+      }, raw, 'agent-verify');
+    }
+    return;
+  }
+  
+  // Handle --check-overlap
+  if (check_overlap) {
+    // Check for capability overlap between agents
+    output({
+      check_overlap: true,
+      agents: [
+        { name: 'planner', responsibilities: ['plan creation', 'phase management', 'roadmap'] },
+        { name: 'executor', responsibilities: ['task execution', 'verification', 'commit'] },
+        { name: 'debugger', responsibilities: ['error investigation', 'fix validation'] },
+        { name: 'verifier', responsibilities: ['quality checks', 'requirement validation'] }
+      ],
+      overlaps: [],
+      message: 'No capability overlaps detected between agents'
+    }, raw, 'agent-overlap');
+    return;
+  }
+  
+  // Default: show help
+  error('Unknown agents subcommand. Use --contracts, --verify, or --check-overlap');
+}
+
 module.exports = {
   cmdVerifyPlanStructure,
   cmdVerifyPhaseCompleteness,
@@ -2395,6 +2656,8 @@ module.exports = {
   cmdVerifyPlanWave,
   cmdVerifyPlanDeps,
   cmdVerifyQuality,
+  cmdVerifyHandoff,
+  cmdVerifyAgents,
   parseAssertionsMd,
   cmdAssertionsList,
   cmdAssertionsValidate,

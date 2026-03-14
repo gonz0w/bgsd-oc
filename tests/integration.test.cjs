@@ -283,6 +283,7 @@ describe('integration: config migration', () => {
       ytdlp_path: '',
       nlm_path: '',
       mcp_config_path: '',
+      runtime: 'auto',
       planning: { commit_docs: true, search_gitignored: false },
       git: {
         branching_strategy: 'phase-branch',

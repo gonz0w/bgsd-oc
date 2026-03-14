@@ -25,7 +25,12 @@ const COMMAND_ALIASES = {
   'u:p': 'util:progress',
   'i': 'init',
   'i:n': 'init:new-project',
-  'i:e': 'init:execute-phase'
+  'i:e': 'init:execute-phase',
+  'd': 'decisions',
+  'd:l': 'decisions:list',
+  'd:i': 'decisions:inspect',
+  'd:e': 'decisions:evaluate',
+  'd:s': 'decisions:savings'
 };
 
 const COMMAND_CATEGORIES = {
@@ -39,7 +44,7 @@ const COMMAND_CATEGORIES = {
   },
   analysis: {
     name: 'Analysis',
-    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review']
+    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review', 'decisions:list', 'decisions:inspect', 'decisions:evaluate', 'decisions:savings', 'audit:scan']
   },
   utility: {
     name: 'Utility',
@@ -346,10 +351,10 @@ function validateCommandRegistry() {
         'drift': null
       },
       'requirements': ['mark-complete'],
-      'roadmap': ['add', 'insert', 'remove', 'list'],
+      'roadmap': ['get-phase', 'analyze', 'update-plan-progress'],
       'phases': null,
       'find-phase': null,
-      'milestone': ['new', 'complete', 'audit', 'gaps'],
+      'milestone': ['complete', 'summary', 'info'],
       'phase': null
     },
     'execute': {
@@ -359,7 +364,7 @@ function validateCommandRegistry() {
       'session-summary': null,
       'velocity': null,
       'worktree': ['create', 'list', 'remove', 'cleanup', 'merge', 'check-overlap'],
-      'tdd': ['init', 'red', 'green', 'refactor', 'cycle', 'auto'],
+      'tdd': null,
       'test-run': null,
       'trajectory': {
         'checkpoint': null,
@@ -371,7 +376,7 @@ function validateCommandRegistry() {
       }
     },
     'verify': {
-      'state': ['update', 'get', 'patch', 'advance-plan', 'record-metric', 'update-progress', 'add-decision', 'add-blocker', 'add-todo'],
+      'state': ['update', 'get', 'patch', 'advance-plan', 'record-metric', 'update-progress', 'add-decision', 'add-blocker', 'resolve-blocker', 'record-session', 'validate'],
       'verify': null,
       'assertions': null,
       'search-decisions': null,
@@ -380,7 +385,16 @@ function validateCommandRegistry() {
       'context-budget': null,
       'token-budget': null,
       'regression': null,
-      'quality': null
+      'quality': null,
+      'handoff': null,
+      'agents': null,
+      'summary': null,
+      'validate': {
+        'consistency': null,
+        'health': null
+      },
+      'validate-config': null,
+      'validate-dependencies': null
     },
     'util': {
       'config-get': null,
@@ -416,7 +430,7 @@ function validateCommandRegistry() {
       },
       'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
       'agent': ['audit', 'list', 'validate-contracts'],
-      'git': ['status', 'log', 'diff', 'branch', 'checkout'],
+      'git': ['log', 'diff-summary', 'blame', 'branch-info', 'rewind', 'trajectory-branch'],
       'config-migrate': null,
       'resolve-model': null,
       'template': ['select', 'fill'],
@@ -427,9 +441,30 @@ function validateCommandRegistry() {
       'phase-plan-index': null,
       'state-snapshot': null,
       'summary-extract': null,
+      'summary-generate': null,
       'quick-summary': null,
       'extract-sections': null,
-      'validate-commands': null
+      'validate-commands': null,
+      'validate-artifacts': null,
+      'settings': null,
+      'parity-check': null,
+      'verify-path-exists': null,
+      'config-ensure-section': null,
+      'scaffold': null,
+      'phase-plan-index': null,
+      'state-snapshot': null,
+      'summary-extract': null,
+      'summary-generate': null,
+      'quick-summary': null,
+      'extract-sections': null,
+      'tools': null,
+      'runtime': null,
+      'recovery': null,
+      'history': null,
+      'examples': null,
+      'analyze-deps': null,
+      'estimate-scope': null,
+      'test-coverage': null
     },
     'research': {
       'capabilities': null,
@@ -444,9 +479,16 @@ function validateCommandRegistry() {
       'nlm-ask': null,
       'nlm-report': null
     },
+    'audit': {
+      'scan': null
+    },
     'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
-    'measure': null,
-    'runtime': null,
+    'decisions': {
+      'list': null,
+      'inspect': null,
+      'evaluate': null,
+      'savings': null
+    },
     'profile': null
   };
   
@@ -464,7 +506,8 @@ function validateCommandRegistry() {
     'execute:trajectory dead-ends', 'execute:trajectory pivot',
     'plan:intent show', 'util:classify phase', 'util:classify plan',
     'util:codebase ast', 'util:codebase complexity', 'util:codebase context',
-    'util:codebase exports', 'util:codebase repo-map', 'research:collect --resume'
+    'util:codebase exports', 'util:codebase repo-map', 'research:collect --resume',
+    'verify:validate consistency', 'verify:validate health'
   ];
   
   commands.forEach(cmd => {
@@ -486,7 +529,7 @@ function validateCommandRegistry() {
     
     // Standalone commands (no colon)
     if (parts.length === 1) {
-      if (['measure', 'runtime', 'research', 'profile'].includes(namespace)) {
+      if (['research', 'profile'].includes(namespace)) {
         validCommands.push(cmd);
       } else if (routerImplementations[namespace] !== undefined) {
         validCommands.push(cmd);
@@ -503,7 +546,24 @@ function validateCommandRegistry() {
       return;
     }
     
-    // Handle nested subcommands (object with sub-subs)
+    // Handle arrays (simple subcommand list like cache:*, or null for direct commands)
+    if (Array.isArray(namespaceImpl)) {
+      const subcommand = parts[1];
+      if (!namespaceImpl.includes(subcommand)) {
+        issues.push({ command: cmd, issue: `Unknown subcommand: ${subcommand} for namespace ${namespace}` });
+        return;
+      }
+      validCommands.push(cmd);
+      return;
+    }
+    
+    // Handle null (no subcommands, direct command like util:settings)
+    if (namespaceImpl === null) {
+      validCommands.push(cmd);
+      return;
+    }
+    
+    // Handle nested subcommands (object with sub-subs like util:codebase)
     if (typeof namespaceImpl === 'object' && namespaceImpl !== null) {
       const subcommand = parts[1];
       const validSubs = namespaceImpl[subcommand];
@@ -515,33 +575,13 @@ function validateCommandRegistry() {
       
       // If there are nested subcommands, check for them
       if (validSubs !== null && parts.length > 2) {
-        // Handle subcommands with additional parts (e.g., "trajectory choose", "intent show", "codebase ast")
-        // These are treated as a combined key
         const subSubCommand = parts.slice(2).join(' ');
-        // Also check with space separator for commands like "trajectory choose"
         if (!validSubs.includes(subSubCommand) && !validSubs.includes(parts[2])) {
           issues.push({ command: cmd, issue: `Unknown nested subcommand: ${subSubCommand} for ${namespace}:${subcommand}` });
           return;
         }
       }
       
-      validCommands.push(cmd);
-      return;
-    }
-    
-    // Handle flat subcommands (array)
-    if (Array.isArray(namespaceImpl)) {
-      const subcommand = parts[1];
-      if (!namespaceImpl.includes(subcommand)) {
-        issues.push({ command: cmd, issue: `Unknown subcommand: ${subcommand} for namespace ${namespace}` });
-        return;
-      }
-      validCommands.push(cmd);
-      return;
-    }
-    
-    // Handle null (no subcommands, direct command)
-    if (namespaceImpl === null) {
       validCommands.push(cmd);
       return;
     }
@@ -568,5 +608,99 @@ module.exports = {
   getCommandCategories,
   generateCommandManifest,
   getAllCommands,
-  validateCommandRegistry
+  validateCommandRegistry,
+  validateArtifacts
 };
+
+/**
+ * Validate planning artifacts (MILESTONES.md, PROJECT.md, etc.)
+ * Checks for common structural issues that cause build/deploy problems
+ */
+function validateArtifacts(cwd = process.cwd()) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const errors = [];
+  const warnings = [];
+  
+  // Check .planning directory exists
+  const planningDir = path.join(cwd, '.planning');
+  if (!fs.existsSync(planningDir)) {
+    errors.push({ file: '.planning', issue: 'Directory does not exist' });
+    return { valid: false, errors, warnings };
+  }
+  
+  // Validate MILESTONES.md
+  const milestonesPath = path.join(planningDir, 'MILESTONES.md');
+  if (fs.existsSync(milestonesPath)) {
+    const content = fs.readFileSync(milestonesPath, 'utf8');
+    
+    // Check for balanced ## headers (should be even for details/summary pairs)
+    const h2Matches = content.match(/^##\s+.+$/gm) || [];
+    if (h2Matches.length % 2 !== 0) {
+      warnings.push({ file: 'MILESTONES.md', issue: `Unbalanced ## headers (${h2Matches.length} found) - check for missing closing headers` });
+    }
+    
+    // Check for valid date formats (YYYY-MM-DD)
+    const datePattern = /\d{4}-\d{2}-\d{2}/g;
+    const dates = content.match(datePattern) || [];
+    for (const date of dates) {
+      const parsed = new Date(date);
+      if (isNaN(parsed.getTime())) {
+        errors.push({ file: 'MILESTONES.md', issue: `Invalid date format: ${date}` });
+      }
+    }
+  } else {
+    warnings.push({ file: 'MILESTONES.md', issue: 'File not found' });
+  }
+  
+  // Validate PROJECT.md
+  const projectPath = path.join(planningDir, 'PROJECT.md');
+  if (fs.existsSync(projectPath)) {
+    const content = fs.readFileSync(projectPath, 'utf8');
+    
+    // Check for balanced <details> tags
+    const openDetails = (content.match(/<details>/g) || []).length;
+    const closeDetails = (content.match(/<\/details>/g) || []).length;
+    if (openDetails !== closeDetails) {
+      errors.push({ file: 'PROJECT.md', issue: `Unbalanced <details> tags: ${openDetails} open, ${closeDetails} close` });
+    }
+    
+    // Check for strikethrough in out-of-scope section
+    const outOfScopeMatch = content.match(/## Out of Scope\n([\s\S]*?)(?=\n## |\n---)/i);
+    if (outOfScopeMatch) {
+      const outOfScopeContent = outOfScopeMatch[1];
+      if (outOfScopeContent.includes('~~')) {
+        errors.push({ file: 'PROJECT.md', issue: 'Found strikethrough (~~) in out-of-scope section - use other formatting instead' });
+      }
+    }
+    
+    // Check for orphaned </details> without opening
+    const orphanClose = content.match(/<\/details>/g) || [];
+    if (orphanClose.length > 0 && openDetails === 0) {
+      errors.push({ file: 'PROJECT.md', issue: 'Found </details> without any <details> opening tags' });
+    }
+  } else {
+    warnings.push({ file: 'PROJECT.md', issue: 'File not found' });
+  }
+  
+  // Validate STATE.md exists
+  const statePath = path.join(planningDir, 'STATE.md');
+  if (!fs.existsSync(statePath)) {
+    warnings.push({ file: 'STATE.md', issue: 'File not found' });
+  }
+  
+  // Validate ROADMAP.md exists
+  const roadmapPath = path.join(planningDir, 'ROADMAP.md');
+  if (!fs.existsSync(roadmapPath)) {
+    warnings.push({ file: 'ROADMAP.md', issue: 'File not found' });
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    errorCount: errors.length,
+    warningCount: warnings.length
+  };
+}

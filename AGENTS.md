@@ -47,64 +47,63 @@ npm run build     # Build validation
 ```
 
 ## Slash Commands
-41 commands available in `commands/`:
+40 commands available in `commands/`:
 
 **Project Lifecycle:**
-- `/bgsd plan project` — Initialize a new project with planning structure
-- `/bgsd milestone new` — Start a new milestone
-- `/bgsd milestone complete` — Complete current milestone and archive
-- `/bgsd session progress` — Show project progress and status
-- `/bgsd session resume` — Resume work on an existing project
-- `/bgsd session pause` — Pause current work session
+- `/bgsd-new-project` — Initialize a new project with planning structure
+- `/bgsd-new-milestone` — Start a new milestone
+- `/bgsd-complete-milestone` — Complete current milestone and archive
+- `/bgsd-progress` — Show project progress and status
+- `/bgsd-resume` — Resume work on an existing project
+- `/bgsd-pause` — Pause current work session
 
 **Planning:**
-- `/bgsd plan discuss` — Discuss and scope a phase before planning
-- `/bgsd plan phase` — Create execution plans for a phase
-- `/bgsd plan research` — Research phase requirements
-- `/bgsd plan assumptions` — List assumptions for a phase
+- `/bgsd-discuss-phase` — Discuss and scope a phase before planning
+- `/bgsd-plan-phase` — Create execution plans for a phase
+- `/bgsd-research-phase` — Research phase requirements
+- `/bgsd-list-assumptions` — List assumptions for a phase
 
 **Roadmap:**
-- `/bgsd roadmap add` — Add a new phase to the roadmap
-- `/bgsd roadmap insert` — Insert a phase at a specific position
-- `/bgsd roadmap remove` — Remove a phase from the roadmap
+- `/bgsd-add-phase` — Add a new phase to the roadmap
+- `/bgsd-insert-phase` — Insert a phase at a specific position
+- `/bgsd-remove-phase` — Remove a phase from the roadmap
 
 **Execution & Verification:**
-- `/bgsd exec phase` — Execute plans in a phase
-- `/bgsd exec quick` — Quick task execution
-- `/bgsd exec ci` — Push, create PR, run code scanning, fix loop, and auto-merge
-- `/bgsd verify-work` — Verify completed work against criteria
-- `/bgsd milestone audit` — Audit milestone completion
-- `/bgsd milestone gaps` — Plan gap closure from verification
+- `/bgsd-execute-phase` — Execute plans in a phase
+- `/bgsd-quick-task` — Quick task execution
+- `/bgsd-github-ci` — Push, create PR, run code scanning, fix loop, and auto-merge
+- `/bgsd-verify-work` — Verify completed work against criteria
+- `/bgsd-audit-milestone` — Audit milestone completion
+- `/bgsd-plan-gaps` — Plan gap closure from verification
 
 **Todo Management:**
-- `/bgsd todo add` — Add a todo item
-- `/bgsd todo check` — Check and manage todo items
+- `/bgsd-add-todo` — Add a todo item
+- `/bgsd-check-todos` — Check and manage todo items
 
 **Analysis & Diagnostics:**
-- `/bgsd util velocity` — Execution velocity metrics and forecast
-- `/bgsd util impact` — Module dependencies and blast radius
-- `/bgsd util context-budget` — Token usage estimation for plans
-- `/bgsd util map` — Map codebase structure
-- `/bgsd health` — Project health check
-- `/bgsd debug` — Debug planning issues
+- `/bgsd-velocity` — Execution velocity metrics and forecast
+- `/bgsd-impact` — Module dependencies and blast radius
+- `/bgsd-context-budget` — Token usage estimation for plans
+- `/bgsd-map-codebase` — Map codebase structure
+- `/bgsd-health` — Project health check
+- `/bgsd-debug` — Debug planning issues
 
 **Search & History:**
-- `/bgsd util search-decisions` — Search past decisions
-- `/bgsd util search-lessons` — Search completed phase lessons
-- `/bgsd util session-diff` — Git commits since last session
-- `/bgsd util rollback-info` — Commits and revert command for a plan
-- `/bgsd util trace` — Trace requirement from spec to files
+- `/bgsd-search-decisions` — Search past decisions
+- `/bgsd-search-lessons` — Search completed phase lessons
+- `/bgsd-session-diff` — Git commits since last session
+- `/bgsd-rollback-info` — Commits and revert command for a plan
+- `/bgsd-trace` — Trace requirement from spec to files
 
 **Configuration & Maintenance:**
-- `/bgsd config settings` — View/edit settings
-- `/bgsd config profile` — Set user profile
-- `/bgsd config validate` — Schema validation for config.json
-- `/bgsd util validate-deps` — Phase dependency graph validation
-- `/bgsd util test-run` — Parse test output with pass/fail gating
-- `/bgsd util update` — Check for and apply updates
-- `/bgsd util patches` — Reapply editor patches
-- `/bgsd util cleanup` — Clean up stale planning artifacts
-- `/bgsd util help` — Show help and available commands
+- `/bgsd-settings` — View/edit settings
+- `/bgsd-set-profile` — Set user profile
+- `/bgsd-validate-config` — Schema validation for config.json
+- `/bgsd-validate-deps` — Phase dependency graph validation
+- `/bgsd-test-run` — Parse test output with pass/fail gating
+- `/bgsd-update` — Check for and apply updates
+- `/bgsd-cleanup` — Clean up stale planning artifacts
+- `/bgsd-help` — Show help and available commands
 ## IMPORTANT: String Replacement Warning
 The Anthropic auth plugin rewrites ALL system prompt text, replacing the host editor
 name with "Claude Code" and its lowercase form with "Claude". This means any file path,

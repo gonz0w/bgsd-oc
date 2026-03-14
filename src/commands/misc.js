@@ -8,7 +8,7 @@ const { loadConfig, isGitIgnored } = require('../lib/config');
 const { MODEL_PROFILES, CONFIG_SCHEMA } = require('../lib/constants');
 const { safeReadFile, cachedReadFile, normalizePhaseName, findPhaseInternal, generateSlugInternal, getArchivedPhaseDirs, getMilestoneInfo, getPhaseTree, cachedReaddirSync } = require('../lib/helpers');
 const { extractFrontmatter, reconstructFrontmatter, spliceFrontmatter } = require('../lib/frontmatter');
-const { execGit } = require('../lib/git');
+const { execGit, structuredLog, diffSummary } = require('../lib/git');
 
 function cmdGenerateSlug(text, raw) {
   if (!text) {
@@ -104,21 +104,12 @@ function cmdConfigEnsureSection(cwd, raw) {
   const configPath = path.join(cwd, '.planning', 'config.json');
   const planningDir = path.join(cwd, '.planning');
 
-  // Ensure .planning directory exists
+  // Ensure .planning directory exists (recursive: true is a no-op if it already exists)
   try {
-    if (!fs.existsSync(planningDir)) {
-      fs.mkdirSync(planningDir, { recursive: true });
-    }
+    fs.mkdirSync(planningDir, { recursive: true });
   } catch (err) {
     debugLog('config.ensure', 'mkdir failed', err);
     error('Failed to create .planning directory: ' + err.message);
-  }
-
-  // Check if config already exists
-  if (fs.existsSync(configPath)) {
-    const result = { created: false, reason: 'already_exists' };
-    output(result, raw, 'exists');
-    return;
   }
 
   // Detect Brave Search API key availability
@@ -156,13 +147,28 @@ function cmdConfigEnsureSection(cwd, raw) {
     workflow: { ...hardcoded.workflow, ...(userDefaults.workflow || {}) },
   };
 
+  // Use exclusive-create flag to atomically check existence + write (no TOCTOU race)
+  let fd;
   try {
-    fs.writeFileSync(configPath, JSON.stringify(defaults, null, 2), 'utf-8');
+    fd = fs.openSync(configPath, 'wx');
+  } catch (err) {
+    if (err.code === 'EEXIST') {
+      const result = { created: false, reason: 'already_exists' };
+      output(result, raw, 'exists');
+      return;
+    }
+    debugLog('config.ensure', 'write failed', err);
+    error('Failed to create config.json: ' + err.message);
+  }
+  try {
+    fs.writeFileSync(fd, JSON.stringify(defaults, null, 2), 'utf-8');
     const result = { created: true, path: '.planning/config.json' };
     output(result, raw, 'created');
   } catch (err) {
     debugLog('config.ensure', 'write failed', err);
     error('Failed to create config.json: ' + err.message);
+  } finally {
+    fs.closeSync(fd);
   }
 }
 
@@ -487,7 +493,10 @@ function cmdFindPhase(cwd, phase, raw) {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
     const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
 
-    const match = dirs.find(d => d.startsWith(normalized));
+    const match = dirs.find(d => {
+      const dm = d.match(/^(\d+(?:\.\d+)?)/);
+      return dm ? normalizePhaseName(dm[1]) === normalized : d.startsWith(normalized);
+    });
     if (!match) {
       output(notFound, raw, '');
       return;
@@ -574,8 +583,13 @@ function preCommitChecks(cwd, force) {
   if (statusResult.exitCode === 0 && statusResult.stdout) {
     const dirtyNonPlanning = statusResult.stdout.split('\n').filter(line => {
       if (!line.trim()) return false;
-      // The porcelain format has 2 status chars + space + path
-      const filePath = line.slice(3).trim();
+      // Porcelain format: XY PATH or XY PATH -> PATH (for renames)
+      // execGit trims stdout, which can strip leading space from the first line's
+      // status column (e.g., " M .planning/foo" becomes "M .planning/foo").
+      // Use a regex to robustly extract the file path after status chars.
+      const match = line.match(/^[A-Z? ]{1,2}\s+(.+)/);
+      if (!match) return false;
+      const filePath = match[1].trim();
       // Handle renamed files: "R  old -> new"
       const actualPath = filePath.includes(' -> ') ? filePath.split(' -> ')[1] : filePath;
       return !actualPath.startsWith('.planning/') && !actualPath.startsWith('.planning\\');
@@ -954,12 +968,22 @@ function cmdTemplateFill(cwd, templateType, options, raw) {
   const fullContent = `---\n${reconstructFrontmatter(frontmatter)}\n---\n\n${body}\n`;
   const outPath = path.join(cwd, phaseInfo.directory, fileName);
 
-  if (fs.existsSync(outPath)) {
-    output({ error: 'File already exists', path: path.relative(cwd, outPath) }, raw);
-    return;
+  // Use exclusive-create flag to atomically check existence + write (no TOCTOU race)
+  let fd;
+  try {
+    fd = fs.openSync(outPath, 'wx');
+  } catch (err) {
+    if (err.code === 'EEXIST') {
+      output({ error: 'File already exists', path: path.relative(cwd, outPath) }, raw);
+      return;
+    }
+    throw err;
   }
-
-  fs.writeFileSync(outPath, fullContent, 'utf-8');
+  try {
+    fs.writeFileSync(fd, fullContent, 'utf-8');
+  } finally {
+    fs.closeSync(fd);
+  }
   const relPath = path.relative(cwd, outPath);
   output({ created: true, path: relPath, template: templateType }, raw, relPath);
 }
@@ -969,22 +993,16 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
     error('phase required for phase-plan-index');
   }
 
-  const phasesDir = path.join(cwd, '.planning', 'phases');
   const normalized = normalizePhaseName(phase);
 
-  // Find phase directory
+  // Find phase directory via shared tree (handles zero-padded dir names)
   let phaseDir = null;
   let phaseDirName = null;
-  try {
-    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
-    const match = dirs.find(d => d.startsWith(normalized));
-    if (match) {
-      phaseDir = path.join(phasesDir, match);
-      phaseDirName = match;
-    }
-  } catch (e) {
-    debugLog('phase.planIndex', 'readdir failed', e);
+  const tree = getPhaseTree(cwd);
+  const cached = tree.get(normalized);
+  if (cached) {
+    phaseDir = cached.fullPath;
+    phaseDirName = cached.dirName;
   }
 
   if (!phaseDir) {
@@ -1319,8 +1337,8 @@ function cmdFrontmatterGet(cwd, filePath, field, raw) {
 function cmdFrontmatterSet(cwd, filePath, field, value, raw) {
   if (!filePath || !field || value === undefined) { error('file, field, and value required'); }
   const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
-  if (!fs.existsSync(fullPath)) { output({ error: 'File not found', path: filePath }, raw); return; }
   const content = cachedReadFile(fullPath);
+  if (content === null) { output({ error: 'File not found', path: filePath }, raw); return; }
   const fm = extractFrontmatter(content);
   let parsedValue;
   try { parsedValue = JSON.parse(value); } catch (e) { debugLog('frontmatter.set', 'JSON parse value failed, using string', e); parsedValue = value; }
@@ -1333,8 +1351,8 @@ function cmdFrontmatterSet(cwd, filePath, field, value, raw) {
 function cmdFrontmatterMerge(cwd, filePath, data, raw) {
   if (!filePath || !data) { error('file and data required'); }
   const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
-  if (!fs.existsSync(fullPath)) { output({ error: 'File not found', path: filePath }, raw); return; }
   const content = cachedReadFile(fullPath);
+  if (content === null) { output({ error: 'File not found', path: filePath }, raw); return; }
   const fm = extractFrontmatter(content);
   let mergeData;
   try { mergeData = JSON.parse(data); } catch (e) { debugLog('frontmatter.merge', 'JSON parse --data failed', e); error('Invalid JSON for --data'); return; }
@@ -1495,12 +1513,22 @@ function cmdScaffold(cwd, type, options, raw) {
       error(`Unknown scaffold type: ${type}. Available: context, uat, verification, phase-dir`);
   }
 
-  if (fs.existsSync(filePath)) {
-    output({ created: false, reason: 'already_exists', path: filePath }, raw, 'exists');
-    return;
+  // Use exclusive-create flag to atomically check existence + write (no TOCTOU race)
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'wx');
+  } catch (err) {
+    if (err.code === 'EEXIST') {
+      output({ created: false, reason: 'already_exists', path: filePath }, raw, 'exists');
+      return;
+    }
+    throw err;
   }
-
-  fs.writeFileSync(filePath, content, 'utf-8');
+  try {
+    fs.writeFileSync(fd, content, 'utf-8');
+  } finally {
+    fs.closeSync(fd);
+  }
   const relPath = path.relative(cwd, filePath);
   output({ created: true, path: relPath }, raw, relPath);
 }
@@ -1509,29 +1537,31 @@ function cmdTdd(cwd, subcommand, parsedArgs, raw) {
   const testCmd = parsedArgs['test-cmd'];
   const snip = (s) => (s || '').slice(0, 500);
 
-  if (subcommand === 'validate-red' || subcommand === 'validate-green' || subcommand === 'validate-refactor') {
-    if (!testCmd) { error('--test-cmd required'); }
-    const phase = subcommand.replace('validate-', '');
-    const expectFail = phase === 'red';
+  // Helper: run test command safely via execFile with shell
+  // testCmd is intentionally user-provided (e.g., "npm test") and must be shell-evaluated
+  function runTestCmd(cmd) {
+    const { execFileSync } = require('child_process');
     let exitCode = 0, out = '';
     try {
-      out = execSync(testCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 120000, cwd });
+      out = execFileSync('/bin/sh', ['-c', cmd], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 120000, cwd });
     } catch (e) {
       exitCode = e.status || 1;
       out = (e.stdout || '') + (e.stderr || '');
     }
+    return { exitCode, out };
+  }
+
+  if (subcommand === 'validate-red' || subcommand === 'validate-green' || subcommand === 'validate-refactor') {
+    if (!testCmd) { error('--test-cmd required'); }
+    const phase = subcommand.replace('validate-', '');
+    const expectFail = phase === 'red';
+    const { exitCode, out } = runTestCmd(testCmd);
     const valid = expectFail ? exitCode !== 0 : exitCode === 0;
     if (!valid) process.exitCode = 1;
     output({ phase, valid, test_exit_code: exitCode, output_snippet: snip(out) }, raw);
   } else if (subcommand === 'auto-test') {
     if (!testCmd) { error('--test-cmd required'); }
-    let exitCode = 0, out = '';
-    try {
-      out = execSync(testCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 120000, cwd });
-    } catch (e) {
-      exitCode = e.status || 1;
-      out = (e.stdout || '') + (e.stderr || '');
-    }
+    const { exitCode, out } = runTestCmd(testCmd);
     output({ passed: exitCode === 0, exit_code: exitCode, output_snippet: snip(out) }, raw);
   } else if (subcommand === 'detect-antipattern') {
     const phase = parsedArgs.phase;
@@ -1958,6 +1988,507 @@ function cmdValidateCommands(cwd, options = {}, raw) {
   return outputData;
 }
 
+/**
+ * Validate planning artifacts - checks MILESTONES.md, PROJECT.md, etc.
+ */
+function cmdValidateArtifacts(cwd, options = {}, raw) {
+  const { validateArtifacts } = require('../lib/commandDiscovery');
+  const { output } = require('../lib/output');
+  
+  const result = validateArtifacts(cwd);
+  
+  const outputData = {
+    valid: result.valid,
+    message: result.valid 
+      ? (result.warningCount > 0 ? `${result.warningCount} warning(s) found` : 'All artifacts validated successfully')
+      : `${result.errorCount} error(s) found`,
+    errors: result.errors.length > 0 ? result.errors : undefined,
+    warnings: result.warnings.length > 0 ? result.warnings : undefined
+  };
+  
+  if (raw) {
+    console.log(JSON.stringify(outputData, null, 2));
+  } else {
+    output(outputData);
+  }
+  
+  // Exit with error code if validation failed
+  if (!result.valid) {
+    process.exitCode = 1;
+  }
+  
+  return outputData;
+}
+
+// ─── Summary Generation (Phase 113: Programmatic Summary Generation) ─────────
+
+/**
+ * Subsystem inference: map top-level directories to category names.
+ */
+const SUBSYSTEM_MAP = {
+  'src/commands': 'cli',
+  'src/plugin': 'plugin',
+  'src/lib': 'core',
+  'tests': 'testing',
+  'workflows': 'workflow',
+  'templates': 'templates',
+  'commands': 'commands',
+  'references': 'references',
+  'bin': 'cli',
+  'skills': 'skills',
+};
+
+/**
+ * Extension to tech tag mapping.
+ */
+const EXT_TAG_MAP = {
+  '.js': 'javascript',
+  '.cjs': 'commonjs',
+  '.mjs': 'esm',
+  '.ts': 'typescript',
+  '.md': 'markdown',
+  '.json': 'json',
+  '.sh': 'shell',
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+};
+
+/**
+ * Judgment sections that the LLM fills in. Key = section heading, value = TODO hint text.
+ */
+const JUDGMENT_SECTIONS = {
+  'Accomplishments': 'accomplishments (2-3 bullets, what changed and why)',
+  'Decisions Made': 'decisions (key decisions with brief rationale, or "None - followed plan as specified")',
+  'Deviations from Plan': 'deviations (describe any deviations, or "None - plan executed exactly as written")',
+  'Issues Encountered': 'issues (problems and how resolved, or "None")',
+  'Next Phase Readiness': 'next-phase-readiness (what\'s ready for next phase)',
+};
+
+function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
+  try {
+    // 1. Resolve inputs
+    if (!phaseArg) {
+      output({ error: 'Phase argument required', fallback: true }, raw);
+      return;
+    }
+
+    const phaseInfo = findPhaseInternal(cwd, phaseArg);
+    if (!phaseInfo || !phaseInfo.found) {
+      output({ error: `Phase ${phaseArg} not found`, fallback: true }, raw);
+      return;
+    }
+
+    // Use phase_number from the directory (e.g. "0112") for file naming
+    const paddedPhase = phaseInfo.phase_number;
+    const paddedPlan = (planArg || '01').padStart(2, '0');
+    const phaseDir = path.join(cwd, phaseInfo.directory);
+
+    // Find PLAN.md
+    const planFileName = fs.readdirSync(phaseDir).find(f =>
+      f.endsWith(`-${paddedPlan}-PLAN.md`) || (paddedPlan === '01' && f === 'PLAN.md')
+    );
+    if (!planFileName) {
+      output({ error: `PLAN.md not found for phase ${phaseArg} plan ${paddedPlan}`, fallback: true }, raw);
+      return;
+    }
+    const planPath = path.join(phaseDir, planFileName);
+    const planContent = safeReadFile(planPath);
+    if (!planContent) {
+      output({ error: `Cannot read ${planFileName}`, fallback: true }, raw);
+      return;
+    }
+
+    // 2. Extract PLAN.md data
+    const planFm = extractFrontmatter(planContent);
+    const taskNameRegex = /<name>Task\s+\d+:\s*(.+?)<\/name>/g;
+    const taskNames = [];
+    let taskMatch;
+    while ((taskMatch = taskNameRegex.exec(planContent)) !== null) {
+      taskNames.push(taskMatch[1].trim());
+    }
+
+    // Extract objective from <objective> block or frontmatter
+    let objective = '';
+    const objectiveMatch = planContent.match(/<objective>\s*([\s\S]*?)\s*<\/objective>/);
+    if (objectiveMatch) {
+      // Take first sentence/line
+      objective = objectiveMatch[1].split('\n')[0].trim();
+    }
+
+    // 3. Extract git commits scoped to this plan
+    const phaseNum = paddedPhase.replace(/^0+/, '') || '0';
+    const allCommits = structuredLog(cwd, { count: 50 });
+    let scopedCommits = [];
+
+    if (Array.isArray(allCommits)) {
+      scopedCommits = allCommits.filter(c => {
+        if (!c.conventional || !c.conventional.scope) return false;
+        const scope = c.conventional.scope;
+        // Accept both zero-padded and unpadded: 0113-01, 113-01
+        return scope === `${paddedPhase}-${paddedPlan}` ||
+               scope === `${phaseNum}-${paddedPlan}`;
+      });
+    }
+
+    // 4. Extract file diffs
+    let diffFiles = [];
+    let totalInsertions = 0;
+    let totalDeletions = 0;
+
+    if (scopedCommits.length > 0) {
+      // structuredLog returns newest-first, so last element is earliest
+      const earliest = scopedCommits[scopedCommits.length - 1];
+      const latest = scopedCommits[0];
+      const diff = diffSummary(cwd, { from: earliest.hash + '~1', to: latest.hash });
+      if (diff && !diff.error && diff.files) {
+        diffFiles = diff.files;
+        totalInsertions = diff.total_insertions || 0;
+        totalDeletions = diff.total_deletions || 0;
+      }
+    }
+
+    // 5. Extract timing from git commits
+    let startTime = null;
+    let endTime = null;
+    let durationMin = null;
+
+    if (scopedCommits.length > 0) {
+      const earliest = scopedCommits[scopedCommits.length - 1];
+      const latest = scopedCommits[0];
+      startTime = earliest.date;
+      endTime = latest.date;
+      const startMs = new Date(startTime).getTime();
+      const endMs = new Date(endTime).getTime();
+      if (!isNaN(startMs) && !isNaN(endMs)) {
+        durationMin = Math.max(1, Math.round((endMs - startMs) / 60000));
+      }
+    }
+
+    // 6. Infer frontmatter fields
+    const allChangedFiles = diffFiles.map(f => f.path);
+
+    // Subsystem: most common top-level directory
+    const dirCounts = {};
+    for (const filePath of allChangedFiles) {
+      for (const [prefix, category] of Object.entries(SUBSYSTEM_MAP)) {
+        if (filePath.startsWith(prefix)) {
+          dirCounts[category] = (dirCounts[category] || 0) + 1;
+          break;
+        }
+      }
+    }
+    const subsystem = Object.keys(dirCounts).sort((a, b) => dirCounts[b] - dirCounts[a])[0] || 'general';
+
+    // Tags: unique extensions + plan tags
+    const extTags = new Set();
+    for (const filePath of allChangedFiles) {
+      const ext = path.extname(filePath);
+      if (EXT_TAG_MAP[ext]) extTags.add(EXT_TAG_MAP[ext]);
+    }
+    const tags = [...extTags];
+    if (planFm.tags && Array.isArray(planFm.tags)) {
+      for (const t of planFm.tags) {
+        if (!tags.includes(t)) tags.push(t);
+      }
+    }
+
+    // Key files: created (0 deletions) and modified (top 3 by total changes)
+    const createdFiles = diffFiles
+      .filter(f => f.deletions === 0 && f.insertions > 0)
+      .map(f => f.path);
+    const modifiedFiles = diffFiles
+      .filter(f => f.deletions > 0)
+      .sort((a, b) => (b.insertions + b.deletions) - (a.insertions + a.deletions))
+      .slice(0, 3)
+      .map(f => f.path);
+
+    // Requirements
+    const requirementsCompleted = planFm.requirements && Array.isArray(planFm.requirements)
+      ? planFm.requirements
+      : [];
+
+    // 7. Build frontmatter object
+    const fmObj = {
+      phase: planFm.phase || `${paddedPhase}-${phaseInfo.phase_name || 'unnamed'}`,
+      plan: paddedPlan,
+      subsystem,
+      tags,
+      provides: [],
+      affects: [],
+      'tech-stack': { added: [], patterns: [] },
+      'key-files': {
+        created: createdFiles.length > 0 ? createdFiles : [],
+        modified: modifiedFiles.length > 0 ? modifiedFiles : [],
+      },
+      'key-decisions': ['TODO: key-decisions'],
+      'patterns-established': [],
+      'requirements-completed': requirementsCompleted,
+      'one-liner': 'TODO: one-liner (substantive one-liner — NOT "phase complete")',
+      duration: durationMin ? `${durationMin}min` : 'TODO: duration',
+      completed: new Date().toISOString().split('T')[0],
+    };
+
+    // 8. Build markdown body
+    const bodyLines = [];
+
+    // Heading
+    bodyLines.push(`# Phase ${phaseNum} Plan ${paddedPlan}: ${objective || 'Summary'} Summary`);
+    bodyLines.push('');
+    bodyLines.push('**TODO: one-liner (substantive one-liner — NOT "phase complete")**');
+    bodyLines.push('');
+
+    // Performance
+    bodyLines.push('## Performance');
+    bodyLines.push('');
+    bodyLines.push(`- **Duration:** ${durationMin ? `${durationMin} min` : 'TODO: duration'}`);
+    bodyLines.push(`- **Started:** ${startTime || 'TODO: start-time'}`);
+    bodyLines.push(`- **Completed:** ${endTime || 'TODO: end-time'}`);
+    bodyLines.push(`- **Tasks:** ${taskNames.length}`);
+    bodyLines.push(`- **Files modified:** ${diffFiles.length}`);
+    bodyLines.push('');
+
+    // Accomplishments (judgment)
+    bodyLines.push('## Accomplishments');
+    bodyLines.push('');
+    bodyLines.push(`TODO: ${JUDGMENT_SECTIONS['Accomplishments']}`);
+    bodyLines.push('');
+
+    // Task Commits
+    bodyLines.push('## Task Commits');
+    bodyLines.push('');
+    bodyLines.push('Each task was committed atomically:');
+    bodyLines.push('');
+
+    if (scopedCommits.length > 0 && taskNames.length > 0) {
+      // Map commits to tasks by order (commits are newest-first, reverse for chronological)
+      const chronological = [...scopedCommits].reverse();
+      for (let i = 0; i < taskNames.length; i++) {
+        const commit = chronological[i];
+        if (commit) {
+          const type = commit.conventional ? commit.conventional.type : 'feat';
+          bodyLines.push(`${i + 1}. **Task ${i + 1}: ${taskNames[i]}** - \`${commit.hash.slice(0, 7)}\` (${type})`);
+        } else {
+          bodyLines.push(`${i + 1}. **Task ${i + 1}: ${taskNames[i]}** - _no matching commit_`);
+        }
+      }
+      // Handle extra commits not mapped to tasks
+      if (chronological.length > taskNames.length) {
+        for (let i = taskNames.length; i < chronological.length; i++) {
+          const commit = chronological[i];
+          const type = commit.conventional ? commit.conventional.type : 'misc';
+          bodyLines.push(`${i + 1}. **Additional commit** - \`${commit.hash.slice(0, 7)}\` (${type}: ${commit.message})`);
+        }
+      }
+    } else if (scopedCommits.length === 0) {
+      bodyLines.push('_No scoped commits found for this plan._');
+    }
+    bodyLines.push('');
+
+    // Files Created/Modified
+    bodyLines.push('## Files Created/Modified');
+    bodyLines.push('');
+    if (diffFiles.length > 0) {
+      for (const f of diffFiles) {
+        bodyLines.push(`- \`${f.path}\` [+${f.insertions}/-${f.deletions}]`);
+      }
+    } else {
+      bodyLines.push('_No file changes detected._');
+    }
+    bodyLines.push('');
+
+    // Judgment sections
+    for (const [heading, hint] of Object.entries(JUDGMENT_SECTIONS)) {
+      if (heading === 'Accomplishments') continue; // Already added above
+      bodyLines.push(`## ${heading}`);
+      bodyLines.push('');
+      bodyLines.push(`TODO: ${hint}`);
+      bodyLines.push('');
+    }
+
+    // Footer
+    bodyLines.push('---');
+    bodyLines.push(`*Phase: ${fmObj.phase}*`);
+    bodyLines.push(`*Completed: ${fmObj.completed}*`);
+
+    const body = bodyLines.join('\n');
+    const fmYaml = reconstructFrontmatter(fmObj);
+    let fullContent = `---\n${fmYaml}\n---\n\n${body}\n`;
+
+    // 8b. Merge/preserve on re-run
+    const summaryFileName = `${paddedPhase}-${paddedPlan}-SUMMARY.md`;
+    const summaryPath = path.join(phaseDir, summaryFileName);
+
+    // 8b. Merge with existing summary if present (no TOCTOU: try read, catch ENOENT)
+    try {
+      const existing = fs.readFileSync(summaryPath, 'utf-8');
+      if (existing) {
+        fullContent = mergeSummary(existing, fullContent);
+      }
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      // No existing summary — use fullContent as-is
+    }
+
+    // 9. Write file
+    fs.writeFileSync(summaryPath, fullContent, 'utf-8');
+
+    // 10. Count TODOs remaining
+    const todoCount = (fullContent.match(/TODO:/g) || []).length;
+
+    // Validation warning (basic check)
+    const warnings = [];
+    if (scopedCommits.length === 0) {
+      warnings.push('No scoped commits found — commit data sections may be incomplete');
+    }
+
+    const result = {
+      path: path.relative(cwd, summaryPath),
+      commits_found: scopedCommits.length,
+      files_found: diffFiles.length,
+      todos_remaining: todoCount,
+      warnings,
+    };
+
+    output(result, raw);
+  } catch (e) {
+    debugLog('summary.generate', 'generation failed', e);
+    output({ error: e.message, fallback: true }, raw);
+  }
+}
+
+/**
+ * Merge a newly generated summary with an existing one, preserving LLM-filled judgment sections.
+ * A section is considered "filled" if it does NOT contain a TODO: marker.
+ * Data sections (frontmatter, Performance, Task Commits, Files) are always regenerated.
+ */
+function mergeSummary(existing, generated) {
+  // Parse sections from both documents
+  const existingSections = parseSummarySections(existing);
+  const generatedSections = parseSummarySections(generated);
+
+  // Judgment section headings to check for preservation
+  const judgmentHeadings = [
+    'Accomplishments',
+    'Decisions Made',
+    'Deviations from Plan',
+    'Issues Encountered',
+    'Next Phase Readiness',
+  ];
+
+  // Replace judgment sections in generated with existing ones if filled
+  for (const heading of judgmentHeadings) {
+    const existingSection = existingSections[heading];
+    if (existingSection && !existingSection.includes('TODO:')) {
+      // Section was filled by LLM — preserve it
+      generatedSections[heading] = existingSection;
+    }
+  }
+
+  // Check the one-liner (bold line after heading)
+  const existingOneLiner = existing.match(/^\*\*([^*]+)\*\*$/m);
+  const generatedOneLiner = generated.match(/^\*\*([^*]+)\*\*$/m);
+  if (existingOneLiner && !existingOneLiner[1].includes('TODO:')) {
+    // One-liner was filled — preserve in generated
+    if (generatedOneLiner) {
+      generated = generated.replace(generatedOneLiner[0], existingOneLiner[0]);
+    }
+  }
+
+  // Preserve filled frontmatter fields from existing
+  const existingFm = extractFrontmatter(existing);
+  const generatedFm = extractFrontmatter(generated);
+
+  // Fields to preserve from existing if they contain non-TODO values
+  const preservableFmFields = [
+    'key-decisions', 'one-liner', 'provides', 'affects', 'requires',
+    'tech-stack', 'patterns-established', 'subsystem', 'tags',
+  ];
+
+  for (const field of preservableFmFields) {
+    const existVal = existingFm[field];
+    if (existVal === undefined || existVal === null) continue;
+
+    // Check if existing value is filled (not TODO)
+    const isTodo = (v) => typeof v === 'string' && v.includes('TODO:');
+    const isArrayWithTodo = (v) => Array.isArray(v) && v.some(item => isTodo(item));
+
+    if (isTodo(existVal) || isArrayWithTodo(existVal)) continue;
+
+    // Preserve non-empty arrays and non-TODO values
+    if (Array.isArray(existVal) && existVal.length === 0) continue;
+    if (typeof existVal === 'object' && !Array.isArray(existVal)) {
+      // For objects like tech-stack, check if it has any non-empty sub-fields
+      const hasContent = Object.values(existVal).some(v =>
+        (Array.isArray(v) && v.length > 0) || (typeof v === 'string' && v.trim())
+      );
+      if (!hasContent) continue;
+    }
+
+    generatedFm[field] = existVal;
+  }
+
+  // Rebuild: use generated frontmatter (with preserved fields) + rebuilt body
+  const newFmYaml = reconstructFrontmatter(generatedFm);
+
+  // Rebuild body from sections
+  const bodyLines = [];
+  // Get heading line and one-liner from generated
+  const headingMatch = generated.match(/^---[\s\S]*?---\n\n(# .+\n)/);
+  if (headingMatch) bodyLines.push(headingMatch[1].trim());
+  else bodyLines.push('# Summary');
+
+  // One-liner
+  const oneLiner = generated.match(/^\*\*[^*]+\*\*$/m);
+  if (oneLiner) bodyLines.push('', oneLiner[0]);
+
+  // Data sections (always from generated)
+  const dataSections = ['Performance', 'Task Commits', 'Files Created/Modified'];
+  for (const heading of dataSections) {
+    bodyLines.push('', `## ${heading}`, '');
+    bodyLines.push(generatedSections[heading] || '');
+  }
+
+  // Judgment sections (preserved if filled)
+  bodyLines.push('', '## Accomplishments', '');
+  bodyLines.push(generatedSections['Accomplishments'] || '');
+  for (const heading of judgmentHeadings) {
+    if (heading === 'Accomplishments') continue;
+    bodyLines.push('', `## ${heading}`, '');
+    bodyLines.push(generatedSections[heading] || '');
+  }
+
+  // Footer
+  const footerMatch = generated.match(/\n---\n\*Phase:.+\n\*Completed:.+\n?$/);
+  if (footerMatch) bodyLines.push('', footerMatch[0].trim());
+
+  return `---\n${newFmYaml}\n---\n\n${bodyLines.join('\n')}\n`;
+}
+
+/**
+ * Parse a summary markdown into heading → content map.
+ */
+function parseSummarySections(content) {
+  const sections = {};
+  // Remove frontmatter
+  const bodyMatch = content.match(/^---[\s\S]*?---\n\n([\s\S]*)$/);
+  const body = bodyMatch ? bodyMatch[1] : content;
+
+  const headingRegex = /^## (.+)$/gm;
+  let match;
+  const headings = [];
+  while ((match = headingRegex.exec(body)) !== null) {
+    headings.push({ heading: match[1], index: match.index + match[0].length });
+  }
+
+  for (let i = 0; i < headings.length; i++) {
+    const start = headings[i].index;
+    const end = i + 1 < headings.length ? headings[i + 1].index - headings[i + 1].heading.length - 4 : body.length;
+    sections[headings[i].heading] = body.slice(start, end).trim();
+  }
+
+  return sections;
+}
+
 module.exports = {
   cmdGenerateSlug,
   cmdCurrentTimestamp,
@@ -1994,4 +2525,7 @@ module.exports = {
   cmdExamples,
   // Phase 104: Zero Friction
   cmdValidateCommands,
+  cmdValidateArtifacts,
+  // Phase 113: Programmatic Summary Generation
+  cmdSummaryGenerate,
 };

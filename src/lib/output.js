@@ -109,8 +109,9 @@ function outputJSON(result, rawValue) {
   // Write to tmpfile and output the path prefixed with @file: so callers can detect it.
   // BGSD_NO_TMPFILE: skip file redirect (used by context-budget measure to capture full output)
   if (json.length > 50000 && !process.env.BGSD_NO_TMPFILE) {
-    const tmpPath = path.join(require('os').tmpdir(), `gsd-${Date.now()}.json`);
-    fs.writeFileSync(tmpPath, json, 'utf-8');
+    const crypto = require('crypto');
+    const tmpPath = path.join(require('os').tmpdir(), `gsd-${crypto.randomBytes(8).toString('hex')}.json`);
+    fs.writeFileSync(tmpPath, json, 'utf-8', { mode: 0o600 });
     _tmpFiles.push(tmpPath);
     process.stdout.write('@file:' + tmpPath);
   } else {

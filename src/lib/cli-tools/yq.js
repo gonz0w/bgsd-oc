@@ -33,8 +33,9 @@ const FILTER_PRESETS = {
  * Write content to temp file for yq processing
  */
 function writeTempFile(content) {
-  const tempPath = path.join(os.tmpdir(), `yq-input-${Date.now()}.yaml`);
-  fs.writeFileSync(tempPath, content, 'utf8');
+  const crypto = require('crypto');
+  const tempPath = path.join(os.tmpdir(), `yq-input-${crypto.randomBytes(8).toString('hex')}.yaml`);
+  fs.writeFileSync(tempPath, content, { encoding: 'utf8', mode: 0o600 });
   return tempPath;
 }
 

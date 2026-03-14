@@ -1061,15 +1061,15 @@ describe('codebase context', () => {
   });
 
   test('risk level: file with few dependents returns "normal"', () => {
-    // src/lib/profiler.js is a utility with limited dependents
-    const result = runGsdTools('util:codebase context --files src/lib/profiler.js');
+    // src/lib/debug.js is a utility with limited dependents
+    const result = runGsdTools('util:codebase context --files src/lib/debug.js');
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const data = JSON.parse(result.output);
-    const fileCtx = data.files['src/lib/profiler.js'];
-    // profiler.js should have few dependents
+    const fileCtx = data.files['src/lib/debug.js'];
+    // debug.js should have few dependents
     assert.ok(['normal', 'caution'].includes(fileCtx.risk_level),
-      `risk_level for profiler.js should be normal or caution, got ${fileCtx.risk_level}`);
+      `risk_level for debug.js should be normal or caution, got ${fileCtx.risk_level}`);
   });
 
   test('relevance score: target file gets score 1.0', () => {

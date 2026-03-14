@@ -73,27 +73,28 @@ function analyzeFile(filePath) {
   const language = LANGUAGE_MAP[ext] || null;
 
   let stat;
+  let lines = 0;
+  let size_bytes = 0;
   try {
-    stat = fs.statSync(filePath);
+    // Read file first, then fstat the same fd to avoid TOCTOU race
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      stat = fs.fstatSync(fd);
+      const content = fs.readFileSync(fd);
+      size_bytes = content.length;
+      // Count newlines in buffer for performance
+      for (let i = 0; i < content.length; i++) {
+        if (content[i] === 0x0a) lines++;
+      }
+      // If file doesn't end with newline but has content, count final line
+      if (content.length > 0 && content[content.length - 1] !== 0x0a) {
+        lines++;
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
   } catch {
     return { language, size_bytes: 0, lines: 0, last_modified: null };
-  }
-
-  let lines = 0;
-  let size_bytes = stat.size;
-  try {
-    const content = fs.readFileSync(filePath);
-    size_bytes = content.length;
-    // Count newlines in buffer for performance
-    for (let i = 0; i < content.length; i++) {
-      if (content[i] === 0x0a) lines++;
-    }
-    // If file doesn't end with newline but has content, count final line
-    if (content.length > 0 && content[content.length - 1] !== 0x0a) {
-      lines++;
-    }
-  } catch {
-    // Can't read file — just use 0 lines
   }
 
   return {

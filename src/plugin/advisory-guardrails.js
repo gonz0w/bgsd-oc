@@ -98,15 +98,15 @@ function toConvention(name, convention) {
 
 /** Maps planning file basenames to recommended bGSD commands */
 const PLANNING_COMMANDS = {
-  'ROADMAP.md': ['/bgsd roadmap add', '/bgsd roadmap remove', '/bgsd roadmap insert'],
-  'STATE.md': ['/bgsd session progress', '/bgsd exec phase'],
-  'PLAN.md': ['/bgsd plan phase'],
-  'CONTEXT.md': ['/bgsd plan discuss'],
-  'RESEARCH.md': ['/bgsd plan research'],
-  'REQUIREMENTS.md': ['/bgsd milestone new'],
-  'config.json': ['/bgsd config'],
-  'SUMMARY.md': ['/bgsd exec phase'],
-  'INTENT.md': ['/bgsd plan project', '/bgsd milestone new'],
+  'ROADMAP.md': ['/bgsd-add-phase', '/bgsd-remove-phase', '/bgsd-insert-phase'],
+  'STATE.md': ['/bgsd-progress', '/bgsd-execute-phase'],
+  'PLAN.md': ['/bgsd-plan-phase'],
+  'CONTEXT.md': ['/bgsd-discuss-phase'],
+  'RESEARCH.md': ['/bgsd-research-phase'],
+  'REQUIREMENTS.md': ['/bgsd-new-milestone'],
+  'config.json': ['/bgsd-settings'],
+  'SUMMARY.md': ['/bgsd-execute-phase'],
+  'INTENT.md': ['/bgsd-new-project', '/bgsd-new-milestone', '/bgsd-complete-milestone'],
 };
 
 // ─── Helper: Test File Detection ─────────────────────────────────────────────

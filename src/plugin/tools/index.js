@@ -3,8 +3,11 @@
  *
  * Single wiring point for all LLM-callable tools.
  * Each tool is defined in its own file in src/plugin/tools/.
- * This module imports them, registers via the tool registry, and
- * returns the assembled tool object for the plugin entry point.
+ * This module imports them, wraps via the tool registry (safeHook),
+ * and returns the assembled tool object for the plugin entry point.
+ *
+ * Tool args use Zod schemas as required by @opencode-ai/plugin.
+ * OpenCode validates args via Zod before execute() is called.
  */
 
 import { bgsd_status } from './bgsd-status.js';

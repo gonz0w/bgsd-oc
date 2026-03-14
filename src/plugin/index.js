@@ -47,14 +47,13 @@ export { createAdvisoryGuardrails } from './advisory-guardrails.js';
  * - Notification system with dual-channel routing (OS + context injection)
  * - Advisory guardrails: convention, planning file, test suggestion warnings (Phase 76)
  *
- * Hooks registered (7 total):
- * 1. session.created — greeting
- * 2. shell.env — BGSD_HOME injection
- * 3. experimental.chat.system.transform — compact system prompt + notification injection
- * 4. experimental.session.compacting — structured XML context preservation
- * 5. command.execute.before — slash command enrichment
- * 6. event — session.idle + file.watcher.updated dispatch
- * 7. tool.execute.after — stuck/loop detection
+ * Hooks registered (6 total):
+ * 1. shell.env — BGSD_HOME injection
+ * 2. experimental.chat.system.transform — compact system prompt + notification injection
+ * 3. experimental.session.compacting — structured XML context preservation
+ * 4. command.execute.before — slash command enrichment
+ * 5. event — session.idle + file.watcher.updated dispatch
+ * 6. tool.execute.after — stuck/loop detection
  *
  * All hooks are wrapped in safeHook for universal error boundary protection:
  * retry, timeout, circuit breaker, correlation-ID logging.
@@ -82,10 +81,6 @@ export const BgsdPlugin = async ({ directory, $ }) => {
 
   // Start file watcher for .planning/ directory
   fileWatcher.start();
-
-  const sessionCreated = safeHook('session.created', async (input, output) => {
-    console.log('[bGSD] Planning plugin available. Use /bgsd-help to get started.');
-  });
 
   const shellEnv = safeHook('shell.env', async (input, output) => {
     if (!output || !output.env) return;
@@ -149,7 +144,6 @@ export const BgsdPlugin = async ({ directory, $ }) => {
   });
 
   return {
-    'session.created': sessionCreated,
     'shell.env': shellEnv,
     'experimental.session.compacting': compacting,
     'experimental.chat.system.transform': systemTransform,

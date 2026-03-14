@@ -63,7 +63,7 @@ async function build() {
     platform: 'node',
     format: 'esm',
     target: 'node18',
-    external: ['node:*', 'child_process', 'fs', 'path', 'os', 'crypto', 'util', 'stream', 'events', 'buffer', 'url', 'querystring', 'http', 'https', 'net', 'tls', 'zlib'],
+    external: ['node:*', 'child_process', 'fs', 'path', 'os', 'crypto', 'util', 'stream', 'events', 'buffer', 'url', 'querystring', 'http', 'https', 'net', 'tls', 'zlib', 'zod', '@opencode-ai/plugin'],
     minify: false,
     sourcemap: false,
     metafile: true,
@@ -123,6 +123,32 @@ async function build() {
     console.log(`Smoke test passed: ${result.trim()}`);
   } catch (err) {
     console.error('Smoke test FAILED:', err.message);
+    process.exit(1);
+  }
+
+  // Artifact validation - gates build if planning artifacts have issues
+  try {
+    const result = execSync('node bin/bgsd-tools.cjs util:validate-artifacts --raw', {
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    const validation = JSON.parse(result);
+    if (!validation.valid) {
+      console.error('Artifact validation FAILED:');
+      for (const err of validation.errors) {
+        console.error(`  ❌ ${err.file}: ${err.issue}`);
+      }
+      process.exit(1);
+    }
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.log('Artifact warnings:');
+      for (const warn of validation.warnings) {
+        console.log(`  ⚠ ${warn.file}: ${warn.issue}`);
+      }
+    }
+    console.log('Artifact validation passed');
+  } catch (err) {
+    console.error('Artifact validation FAILED:', err.message);
     process.exit(1);
   }
 
@@ -251,8 +277,9 @@ async function build() {
     console.log(`\nWrote ${baselinesDir}/build-analysis.json`);
 
     // Write raw metafile for ad-hoc analysis
-    fs.writeFileSync('/tmp/bgsd-metafile.json', JSON.stringify(result.metafile, null, 2));
-    console.log('Wrote /tmp/bgsd-metafile.json');
+    const metafilePath = require('path').join(baselinesDir, 'metafile.json');
+    fs.writeFileSync(metafilePath, JSON.stringify(result.metafile, null, 2), { mode: 0o600 });
+    console.log(`Wrote ${metafilePath}`);
   }
 
   // --- Manifest generation: list all deployable files ---

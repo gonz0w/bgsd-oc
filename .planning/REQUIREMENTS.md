@@ -1,54 +1,77 @@
-# Milestone v11.2 Requirements
+# Requirements — v11.4 Housekeeping & Stabilization
 
-**Version:** v11.2
-**Name:** Code Cleanup
-**Started:** 2026-03-12
+## Test Suite Stabilization
 
-## Current Requirements
+- [x] **TEST-01**: User can run `npm test` and see all tests pass — Bun runtime banner suppressed in piped mode via `process.stdout.isTTY` guard
+- [x] **TEST-02**: User can run tests without missing profiler module errors — profiler import paths resolved or mocked
+- [x] **TEST-03**: User can run plugin tests in isolation — test setup handles missing plugin context gracefully
+- [x] **TEST-04**: User can trust test assertions — stale infrastructure assertions updated to match current output
+- [x] **TEST-05**: User can run config migration tests — expected migration outputs updated for current schema
+- [x] **TEST-06**: User can run all edge case tests — env and miscellaneous test failures fixed
 
-### Phase 106: Code Cleanup (CLEAN-01 - CLEAN-05)
+## CLI Command Routing
 
-- [x] **CLEAN-01**: Audit src/ for unused exports — Scan src/ directory for exported functions/variables that are never imported within the codebase
-- [x] **CLEAN-02**: Remove verify:orphans — Delete the verify:orphans command and related code (one-time cleanup)
-- [x] **CLEAN-03**: Remove test infrastructure from bundle — Strip node:test, test files, and test utilities from the build output
-- [x] **CLEAN-04**: Remove performance profiling from bundle — Strip profiler.js, benchmarking code from the build output
-- [x] **CLEAN-05**: Measure bundle reduction — Report before/after bundle size to quantify improvements
+- [ ] **CMD-01**: User can call `verify:handoff` without silent failure — route either implemented or workflow references removed
+- [ ] **CMD-02**: User can call `verify:agents` without silent failure — route either implemented or workflow references removed
+- [ ] **CMD-03**: User can run builds without bundling dead code — orphaned `src/commands/ci.js` removed
+- [ ] **CMD-04**: User can run `util:validate-commands` and see accurate results — `audit` namespace added to `commandDiscovery.js`, 5 stale subcommand lists corrected
+- [ ] **CMD-05**: User can run `--help` on any routed command — 32 missing COMMAND_HELP entries added for util, verify, and cache routes
+- [ ] **CMD-06**: User sees no duplicate command routes — `runtime` and `measure` deduplicated, `execute:profile` dead route removed
 
-### Phase 107: Unused Exports Cleanup (UNUSED-01 - UNUSED-03)
+## Planning Artifact Cleanup
 
-- [ ] **UNUSED-01**: Scan src/ for all exports — Use AST analysis to find all exported functions and variables
-- [ ] **UNUSED-02**: Identify unused exports — Determine which exports are never imported within src/
-- [ ] **UNUSED-03**: Remove unused exports — Remove verified unused exports after confirmation
+- [ ] **ART-01**: User can read MILESTONES.md with complete history — 6 missing milestone entries added (v8.0, v8.1, v9.1, v11.0, v11.1, v11.2)
+- [ ] **ART-02**: User can read MILESTONES.md with accurate content — v9.2 entry corrected (currently contains v9.0 description)
+- [ ] **ART-03**: User can read MILESTONES.md with consistent formatting — checkmarks, dates, and archive references normalized
+- [ ] **ART-04**: User can read PROJECT.md without broken HTML — orphaned `</details>` tag removed, broken table rows fixed
+- [ ] **ART-05**: User can read PROJECT.md with accurate counts — module count, workflow count, test format, Node.js version updated
+- [ ] **ART-06**: User can see current out-of-scope list — stale items removed, irrelevant exclusions pruned
+- [ ] **ART-07**: User can see current constraints and decisions — resolved items archived, current items verified
 
-### Phase 108: Dead Code Removal (DEAD-01 - DEAD-03)
+## Intent Archival System
 
-- [ ] **DEAD-01**: Detect unreachable code — Find code paths that can never execute (after return/throw/break)
-- [ ] **DEAD-02**: Analyze control flow — Identify dead branches and unreachable functions
-- [ ] **DEAD-03**: Remove dead code — Remove unreachable code after verification
+- [ ] **INT-01**: User can complete a milestone and have INTENT.md automatically snapshot to `.planning/milestones/{version}-INTENT.md`
+- [ ] **INT-02**: User can complete a milestone and have completed outcomes/criteria stripped from active INTENT.md
+- [ ] **INT-03**: User can add new outcomes after archival without ID collisions — `getNextId()` tracks highest-ever ID, not just current items
+- [ ] **INT-04**: User can complete a milestone and have history section archived alongside outcomes — keeping active INTENT.md lean
 
-### Phase 109: Duplicate Code Merge (DUPE-01 - DUPE-03)
+## Future Requirements
 
-- [ ] **DUPE-01**: Find duplicate patterns — Identify duplicate or similar code across src/
-- [ ] **DUPE-02**: Design consolidation — Determine how to extract common patterns into shared utilities
-- [ ] **DUPE-03**: Merge duplicates — Consolidate duplicate code into shared utilities
+- Intent archival rollback (restore archived outcomes to active)
+- Automated INTENT.md health check in `/bgsd-health`
+- Intent drift validation against archived milestones
 
----
+## Out of Scope
+
+- Test behavior changes — only infrastructure fixes (Bun banner, imports, assertions)
+- New CLI commands — only fixing existing routing
+- New features or capabilities — this is purely cleanup
+- ROADMAP.md format changes — existing format works
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| CLEAN-01 | 106 | Complete |
-| CLEAN-02 | 106 | Complete |
-| CLEAN-03 | 106 | Complete |
-| CLEAN-04 | 106 | Complete |
-| CLEAN-05 | 106 | Complete |
-| UNUSED-01 | 107 | Pending |
-| UNUSED-02 | 107 | Pending |
-| UNUSED-03 | 107 | Pending |
-| DEAD-01 | 108 | Pending |
-| DEAD-02 | 108 | Pending |
-| DEAD-03 | 108 | Pending |
-| DUPE-01 | 109 | Pending |
-| DUPE-02 | 109 | Pending |
-| DUPE-03 | 109 | Pending |
+| REQ-ID | Phase | Plan |
+|--------|-------|------|
+| TEST-01 | Phase 114 | 0114-01 |
+| TEST-02 | Phase 114 | 0114-01 |
+| TEST-03 | Phase 114 | 0114-02 |
+| TEST-04 | Phase 114 | 0114-02 |
+| TEST-05 | Phase 114 | 0114-02 |
+| TEST-06 | Phase 114 | 0114-02 |
+| CMD-01 | Phase 115 | — |
+| CMD-02 | Phase 115 | — |
+| CMD-03 | Phase 115 | — |
+| CMD-04 | Phase 115 | — |
+| CMD-05 | Phase 115 | — |
+| CMD-06 | Phase 115 | — |
+| ART-01 | Phase 116 | — |
+| ART-02 | Phase 116 | — |
+| ART-03 | Phase 116 | — |
+| ART-04 | Phase 116 | — |
+| ART-05 | Phase 116 | — |
+| ART-06 | Phase 116 | — |
+| ART-07 | Phase 116 | — |
+| INT-01 | Phase 117 | — |
+| INT-02 | Phase 117 | — |
+| INT-03 | Phase 117 | — |
+| INT-04 | Phase 117 | — |

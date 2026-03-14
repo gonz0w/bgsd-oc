@@ -226,8 +226,13 @@ const OPENCODE_CFG = OPENCODE_DIR
  * Recursively substitute placeholders in all .md files in a directory.
  */
 function substituteInDir(dir) {
-  if (!existsSync(dir)) return
-  const entries = readdirSync(dir, { recursive: true })
+  let entries
+  try {
+    entries = readdirSync(dir, { recursive: true })
+  } catch (e) {
+    if (e.code === 'ENOENT') return
+    throw e
+  }
   for (const entry of entries) {
     const fullPath = join(dir, entry)
     try {

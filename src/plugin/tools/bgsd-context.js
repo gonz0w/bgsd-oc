@@ -1,9 +1,5 @@
+import { z } from 'zod';
 import { getProjectState } from '../project-state.js';
-import { createObjectSchema, validateArgs } from '../validation/adapter.js';
-
-const CONTEXT_ARGS_SCHEMA = createObjectSchema({
-  task: { type: 'coerceNumber', optional: true },
-});
 
 /**
  * bgsd_context — Task-scoped context reader.
@@ -21,30 +17,18 @@ export const bgsd_context = {
     'for a different task in the current plan.',
 
   args: {
-    task: {
-      type: 'number',
-      optional: true,
-      description: 'Task number within current plan. Defaults to current task.',
-    },
+    task: z.coerce.number().optional().describe('Task number within current plan. Defaults to current task.'),
   },
 
   async execute(args, context) {
     try {
-      const parsedArgs = validateArgs('bgsd_context', CONTEXT_ARGS_SCHEMA, args);
-      if (!parsedArgs.ok) {
-        return JSON.stringify({
-          error: parsedArgs.error.code,
-          message: parsedArgs.error.message,
-        });
-      }
-
       const projectDir = context?.directory || process.cwd();
       const projectState = getProjectState(projectDir);
 
       if (!projectState) {
         return JSON.stringify({
           status: 'no_project',
-          message: 'No .planning/ directory found. Run /bgsd plan project to initialize a project.',
+          message: 'No .planning/ directory found. Run /bgsd-new-project to initialize a project.',
         });
       }
 
@@ -53,7 +37,7 @@ export const bgsd_context = {
       if (!plans || plans.length === 0) {
         return JSON.stringify({
           error: 'validation_error',
-          message: 'No plans found for current phase. Run /bgsd plan phase to create plans.',
+          message: 'No plans found for current phase. Run /bgsd-plan-phase to create plans.',
         });
       }
 
@@ -74,8 +58,16 @@ export const bgsd_context = {
         ? 'P' + String(currentPlan.frontmatter.plan).padStart(2, '0')
         : null;
 
+      // Validate task if provided (defense-in-depth for direct calls)
+      if (args.task !== undefined && args.task !== null && isNaN(Number(args.task))) {
+        return JSON.stringify({
+          error: 'validation_error',
+          message: 'Invalid input: expected number, received NaN',
+        });
+      }
+
       // Determine task index (1-indexed input, 0-indexed array)
-      const taskNumber = parsedArgs.data.task;
+      const taskNumber = args.task;
       const taskIndex = taskNumber ? taskNumber - 1 : 0;
       const totalTasks = currentPlan.tasks.length;
 

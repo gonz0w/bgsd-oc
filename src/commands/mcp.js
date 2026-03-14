@@ -275,9 +275,11 @@ function generateRecommendations(servers, cwd, contextWindow) {
 function applyRecommendations(cwd, servers) {
   const cfgPath = path.join(cwd, 'opencode.json');
   const bakPath = path.join(cwd, 'opencode.json.bak');
-  if (!fs.existsSync(cfgPath)) return { applied: false, reason: 'No opencode.json found — only OpenCode configs support disable' };
   let config;
-  try { config = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')); } catch (e) { return { applied: false, reason: `Failed to parse opencode.json: ${e.message}` }; }
+  try { config = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')); } catch (e) {
+    if (e.code === 'ENOENT') return { applied: false, reason: 'No opencode.json found — only OpenCode configs support disable' };
+    return { applied: false, reason: `Failed to parse opencode.json: ${e.message}` };
+  }
   if (!config.mcp || typeof config.mcp !== 'object') return { applied: false, reason: 'No mcp section in opencode.json' };
   fs.copyFileSync(cfgPath, bakPath);
   const toDisable = servers.filter(s => s.recommendation === 'disable' && s.source === 'opencode.json');
@@ -292,8 +294,12 @@ function applyRecommendations(cwd, servers) {
 function restoreBackup(cwd) {
   const cfgPath = path.join(cwd, 'opencode.json');
   const bakPath = path.join(cwd, 'opencode.json.bak');
-  if (!fs.existsSync(bakPath)) return { restored: false, reason: 'No backup found (opencode.json.bak)' };
-  fs.copyFileSync(bakPath, cfgPath);
+  try {
+    fs.copyFileSync(bakPath, cfgPath);
+  } catch (e) {
+    if (e.code === 'ENOENT') return { restored: false, reason: 'No backup found (opencode.json.bak)' };
+    throw e;
+  }
   fs.unlinkSync(bakPath);
   return { restored: true, message: 'Restored opencode.json from backup' };
 }

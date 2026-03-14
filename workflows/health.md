@@ -65,7 +65,7 @@ Errors: N | Warnings: N | Info: N
   Fix: Run /bgsd-health --repair to reset to defaults
 
 - [E002] PROJECT.md not found
-  Fix: Run /bgsd plan project to create
+  Fix: Run /bgsd-new-project to create
 ```
 
 **If warnings exist:**

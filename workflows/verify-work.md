@@ -119,7 +119,7 @@ After revision → re-check. Max reached: offer force proceed / provide guidance
 </step>
 
 <step name="present_ready">
-Display fixes ready: gap table, plan references. Next: `/bgsd exec phase {phase} --gaps-only`.
+Display fixes ready: gap table, plan references. Next: `/bgsd-execute-phase {phase} --gaps-only`.
 </step>
 
 </process>

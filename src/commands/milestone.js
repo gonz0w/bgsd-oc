@@ -23,7 +23,7 @@ function formatMilestoneSummary(result) {
 
 /**
  * Milestone summary command - display or save milestone summary report
- * Usage: /bgsd milestone summary [version] [--format json] [--save] [--file <path>]
+ * Usage: bgsd-tools milestone:summary [version] [--format json] [--save] [--file <path>]
  */
 function cmdMilestoneSummary(cwd, args, raw) {
   // Parse arguments

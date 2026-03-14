@@ -12,17 +12,18 @@ const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, box, co
 function cmdIntentCreate(cwd, args, raw) {
   const planningDir = path.join(cwd, '.planning');
 
-  // Guard: .planning/ must exist
-  if (!fs.existsSync(planningDir)) {
-    error('.planning/ directory not found. Run project initialization first.');
-  }
-
   const intentPath = path.join(planningDir, 'INTENT.md');
   const force = args.includes('--force');
 
-  // Check existence
-  if (fs.existsSync(intentPath) && !force) {
-    error('INTENT.md already exists. Use --force to overwrite.');
+  // Check existence (if not forcing, verify file doesn't already exist)
+  if (!force) {
+    try {
+      fs.accessSync(intentPath);
+      error('INTENT.md already exists. Use --force to overwrite.');
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      // File doesn't exist — good, proceed
+    }
   }
 
   // Parse CLI flags for section content
@@ -91,7 +92,8 @@ function cmdIntentCreate(cwd, args, raw) {
   // Generate INTENT.md content
   const content = generateIntentMd(data);
 
-  // Write file
+  // Write file (ensure .planning/ dir exists)
+  fs.mkdirSync(planningDir, { recursive: true });
   fs.writeFileSync(intentPath, content, 'utf-8');
 
   // Build section list for output
@@ -408,10 +410,6 @@ function cmdIntentUpdate(cwd, args, raw) {
   const planningDir = path.join(cwd, '.planning');
   const intentPath = path.join(planningDir, 'INTENT.md');
 
-  if (!fs.existsSync(intentPath)) {
-    error('No INTENT.md found. Run `intent create` first.');
-  }
-
   // Parse --reason flag before anything else
   const reasonIndex = args.indexOf('--reason');
   let reason = null;
@@ -426,7 +424,13 @@ function cmdIntentUpdate(cwd, args, raw) {
     args.splice(reasonIndex, reasonParts.length + 1);
   }
 
-  const content = fs.readFileSync(intentPath, 'utf-8');
+  let content;
+  try {
+    content = fs.readFileSync(intentPath, 'utf-8');
+  } catch (e) {
+    if (e.code === 'ENOENT') error('No INTENT.md found. Run `intent create` first.');
+    throw e;
+  }
   const data = parseIntentMd(content);
 
   // Snapshot sections before modification for history diffing

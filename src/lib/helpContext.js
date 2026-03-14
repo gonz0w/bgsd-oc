@@ -14,9 +14,12 @@ const MAX_HISTORY = 20;
 const MAX_AGE_DAYS = 7;
 
 /**
- * Ensure cache directory exists
+ * Ensure cache directory exists.
+ * Only creates .cache/ if .planning/ already exists — never creates .planning/ as a side effect.
  */
 function ensureCacheDir() {
+  const planningDir = path.join(process.cwd(), '.planning');
+  if (!fs.existsSync(planningDir)) return;
   if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
   }
