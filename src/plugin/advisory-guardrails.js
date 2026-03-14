@@ -106,7 +106,7 @@ const PLANNING_COMMANDS = {
   'REQUIREMENTS.md': ['/bgsd-new-milestone'],
   'config.json': ['/bgsd-settings'],
   'SUMMARY.md': ['/bgsd-execute-phase'],
-  'INTENT.md': ['/bgsd-new-project', '/bgsd-new-milestone'],
+  'INTENT.md': ['/bgsd-new-project', '/bgsd-new-milestone', '/bgsd-complete-milestone'],
 };
 
 // ─── Helper: Test File Detection ─────────────────────────────────────────────
