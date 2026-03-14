@@ -4,10 +4,10 @@
 
 - [x] **TEST-01**: User can run `npm test` and see all tests pass — Bun runtime banner suppressed in piped mode via `process.stdout.isTTY` guard
 - [x] **TEST-02**: User can run tests without missing profiler module errors — profiler import paths resolved or mocked
-- [ ] **TEST-03**: User can run plugin tests in isolation — test setup handles missing plugin context gracefully
-- [ ] **TEST-04**: User can trust test assertions — stale infrastructure assertions updated to match current output
-- [ ] **TEST-05**: User can run config migration tests — expected migration outputs updated for current schema
-- [ ] **TEST-06**: User can run all edge case tests — env and miscellaneous test failures fixed
+- [x] **TEST-03**: User can run plugin tests in isolation — test setup handles missing plugin context gracefully
+- [x] **TEST-04**: User can trust test assertions — stale infrastructure assertions updated to match current output
+- [x] **TEST-05**: User can run config migration tests — expected migration outputs updated for current schema
+- [x] **TEST-06**: User can run all edge case tests — env and miscellaneous test failures fixed
 
 ## CLI Command Routing
 
