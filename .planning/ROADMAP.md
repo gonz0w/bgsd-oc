@@ -10,6 +10,7 @@ This milestone eliminates accumulated technical debt across four areas: a broken
 - [x] **Phase 115: CLI Command Routing** - Fix missing routes, remove dead code, sync command validator (completed 2026-03-14)
 - [x] **Phase 116: Planning Artifact Cleanup** - Normalize MILESTONES.md, fix PROJECT.md, audit out-of-scope and decisions (completed 2026-03-14)
 - [x] **Phase 117: Intent Archival System** - Automate INTENT.md outcome archival during milestone completion (completed 2026-03-14)
+- [ ] **Phase 118: Project health dashboard**
 
 ## Phase Details
 
@@ -81,3 +82,12 @@ Phases execute in numeric order: 114 → 115 → 116 → 117
 | 115. CLI Command Routing | 3/4 | Complete    | 2026-03-14 |
 | 116. Planning Artifact Cleanup | 2/3 | Complete    | 2026-03-14 |
 | 117. Intent Archival System | 1/1 | Complete    | 2026-03-14 |
+
+### Phase 118: Project health dashboard
+
+**Goal:** [To be planned]
+**Depends on:** Phase 117
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 118 to break down)

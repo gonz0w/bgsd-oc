@@ -50,6 +50,9 @@ Progress: [██████████] 100%
 - [v116-03]: Added artifact validation as build gate — CLI validates PROJECT.md and MILESTONES.md structure on every build
 - [v117-01]: Implemented automatic INTENT.md archival during milestone completion — completed outcomes archived to .planning/archive/INTENT-v{version}.md, active file stays lean with only objective + pending outcomes
 
+### Roadmap Evolution
+- Phase 118 added: Project health dashboard
+
 ### Pending Todos
 
 None.
