@@ -1,9 +1,9 @@
-**Revision:** 20
+**Revision:** 21
 **Created:** 2026-02-25
-**Updated:** 2026-03-13
+**Updated:** 2026-03-14
 
 <objective>
-A well-maintained, reliable agent orchestration engine. This milestone focuses on internal quality: stabilizing the test suite, cleaning accumulated planning debt, auditing CLI command routing, and resetting the intent/outcomes tracking system — ensuring the foundation is solid before building new features.
+A high-performance, data-driven agent orchestration engine. This milestone transforms SQLite from a dumb file cache into the structured data backbone for all workflow operations — parsed state persists across invocations, queries replace markdown re-parsing, and workflows get deterministic data from SQL instead of subprocess calls or LLM inference.
 </objective>
 
 <users>
@@ -13,45 +13,66 @@ A well-maintained, reliable agent orchestration engine. This milestone focuses o
 </users>
 
 <outcomes>
-- DO-72 [P1]: Test suite fully green — all 1014 tests pass with zero failures (fix Bun runtime banner JSON parse errors)
-- DO-73 [P1]: INTENT.md is clean and current — only active outcomes tracked, completed outcomes archived in history
-- DO-74 [P1]: CLI command routing verified — every registered command resolves correctly, missing routes identified and fixed, unused commands removed
-- DO-75 [P1]: Planning artifacts normalized — MILESTONES.md, PROJECT.md cleaned of formatting inconsistencies and cruft
-- DO-76 [P2]: Out-of-scope list reviewed and updated — stale items removed, new exclusions documented with rationale
-- DO-77 [P2]: Constraints and decisions audited — resolved items archived, current items verified as still relevant
-- DO-78 [P2]: Health metrics updated to reflect current baselines (not v7.1 references from 12 milestones ago)
+- DO-79 [P1]: Structured SQLite tables for planning data — phases, plans, tasks, requirements stored as rows with indexes, replacing markdown re-parsing
+- DO-80 [P1]: Cross-invocation persistence — parsed roadmap, plan metadata, phase mappings survive between CLI invocations with git-hash watermark invalidation
+- DO-81 [P1]: Session state in SQLite — current position, metrics, accumulated context stored in SQL; STATE.md becomes a generated view for human readability
+- DO-82 [P1]: Memory store migration — decisions.json, lessons.json, trajectories.json, bookmarks.json migrated to SQLite tables with proper indexes and searchability
+- DO-83 [P1]: Enricher acceleration — eliminated duplication (3x listSummaryFiles, 2x parsePlans), all workflow data pre-computed from SQLite
+- DO-84 [P2]: 6-8 new deterministic decision functions consuming SQLite-backed state — resolve-model, resolve-verification-route, resolve-research-gate, resolve-phase-readiness, resolve-milestone-completion, resolve-commit-strategy
+- DO-85 [P2]: Subprocess elimination — workflows consume pre-computed bgsd-context data instead of CLI subprocess calls for read-only operations
 </outcomes>
 
 <criteria>
-- SC-51: `npm test` runs with zero failures across all test suites
-- SC-52: INTENT.md has fewer than 15 active outcomes, all relevant to current or near-future work
-- SC-53: Every slash command in `commands/` directory has a working route in the CLI router
-- SC-54: No orphaned command files (commands that reference non-existent CLI operations)
-- SC-55: PROJECT.md has no stale version references or broken details/summary blocks
-- SC-56: MILESTONES.md entries have consistent formatting (checkmarks, dates, archives)
-- SC-57: Out-of-scope section reflects actual current exclusions, not historical ones
+- SC-58: All planning data (phases, plans, tasks) queryable via SQLite without markdown parsing on cache hit
+- SC-59: CLI cold-start with warm SQLite cache is measurably faster than cold-start with file-only parsing
+- SC-60: STATE.md can be regenerated from SQLite state — SQL is the source of truth for programmatic access
+- SC-61: Memory stores (decisions, lessons, trajectories, bookmarks) are fully searchable via SQL queries
+- SC-62: Enricher makes zero redundant parser calls per enrichment pass (no 3x/2x duplication)
+- SC-63: At least 6 new deterministic decision functions registered and consumed by workflows
+- SC-64: Map fallback still works on Node <22.5 — no SQLite-only code paths without fallback
+- SC-65: `npm test` continues to pass with zero failures after each phase
 </criteria>
 
 <constraints>
 ### Technical
 - C-03: All operations are advisory — never block workflow execution
-- C-07: Test fixes must not change test behavior — only fix infrastructure issues (Bun banner)
+- C-08: Map fallback must still work on Node <22.5 — SQLite is an acceleration layer, not a hard dependency
+- C-09: Markdown files remain human-readable and git-trackable — SQLite augments, doesn't hide data
 
 ### Business
-- C-04: Backward compatible — projects without codebase analysis work exactly as before
+- C-04: Backward compatible — projects without SQLite work exactly as before via Map fallback
 - C-05: Analysis adds value without adding ceremony — no mandatory steps
 </constraints>
 
 <health>
 ### Quantitative
-- HM-06: All 1014 tests pass with zero failures after each phase
-- HM-07: CLI command routing has zero broken routes
+- HM-08: All tests pass with zero failures after each phase
+- HM-09: Enricher completes in <50ms with warm SQLite cache
+- HM-10: Zero redundant file reads per enrichment pass
 
 ### Qualitative
-The planning system should be lean and accurate — every tracked outcome is actionable, every command route works, and the test suite provides reliable signal. Technical debt should decrease, not accumulate.
+The data layer should be invisible to users — workflows feel faster, decisions are instant, and the human-readable markdown files stay accurate. SQLite is infrastructure, not ceremony.
 </health>
 
 <history>
+### v12.0 — 2026-03-14
+- **Updated** objective: Shifted from internal quality/housekeeping to SQLite-first data layer architecture
+  - Reason: Milestone v12.0: Transform SQLite from file cache to structured data backbone
+- **Archived** outcomes: DO-72 through DO-78 (7 outcomes delivered in v11.4) — all housekeeping goals achieved
+  - Reason: Milestone v12.0: All v11.4 outcomes delivered, fresh scope for SQLite work
+- **Added** outcomes: DO-79 through DO-85 for structured tables, persistence, memory migration, enricher acceleration, decisions
+  - Reason: Milestone v12.0: SQLite-first data layer features
+- **Archived** criteria: SC-51 through SC-57 (7 criteria from v11.4) — all achieved
+  - Reason: Milestone v12.0: Fresh criteria for SQLite architecture
+- **Added** criteria: SC-58 through SC-65 for v12.0 verification
+  - Reason: Milestone v12.0: Measurable criteria for data layer work
+- **Removed** C-07 (test fixes preserve behavior) — v11.4-specific, no longer relevant
+  - Reason: Housekeeping constraint completed
+- **Added** C-08 (Map fallback on Node <22.5) — SQLite must not become a hard dependency
+  - Reason: Milestone v12.0: Backward compatibility for older Node versions
+- **Added** C-09 (markdown stays human-readable) — SQLite augments, doesn't replace human-facing files
+  - Reason: Milestone v12.0: Preserve git-trackable planning artifacts
+
 ### v11.4 — 2026-03-13
 - **Reset** objective: Shifted from LLM offloading to internal quality and planning debt cleanup
   - Reason: Milestone v11.4: Housekeeping & Stabilization — 44 outcomes had accumulated across 18 milestones
