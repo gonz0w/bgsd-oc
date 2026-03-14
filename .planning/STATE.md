@@ -5,32 +5,32 @@
 See: `.planning/PROJECT.md` (updated 2026-03-14)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Phase 121 — Memory Store Migration
+**Current focus:** Phase 122 — Decision Rules
 
 ## Current Position
 
-**Phase:** 121 of 123 (Memory Store Migration)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 122 of 123 (Decision Rules)
+**Current Plan:** Plan 01 complete (1 of 2)
+**Status:** In Progress
 **Last Activity:** 2026-03-14
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 219 (v1.0-v12.0 Phase 121 Plan 03)
+- Total plans completed: 220 (v12.0 Phase 122 Plan 01)
 - Average duration: ~15 min/plan
 - Total execution time: ~38 hours
 
 **Recent Trend:**
-- v12.0 Phase 119 Plan 02: 24 min, 3 tasks, 6 files
 - v12.0 Phase 119 Plan 03: 16 min, 2 tasks, 2 files (71 tests)
 - v12.0 Phase 120 Plan 01: 20 min, 2 tasks, 4 files (1108 tests)
 - v12.0 Phase 120 Plan 02: 7 min, 2 tasks, 4 files (1160 tests)
 - v12.0 Phase 121 Plan 01: 5 min, 2 tasks, 6 files (1160 tests)
 - v12.0 Phase 121 Plan 02: 27 min, 3 tasks, 5 files (1160 tests)
 - v12.0 Phase 121 Plan 03: 17 min, 2 tasks, 2 files (1179 tests)
+- v12.0 Phase 122 Plan 01: 14 min, 2 tasks, 9 files (1189 tests)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -64,6 +64,8 @@ Progress: [█████████░] 85%
 - [Phase 0121]: JSON canonical, SQLite best-effort dual-write — failures log but never roll back JSON — Sacred data integrity requires JSON as source of truth; SQLite is an acceleration layer
 - [Phase 0121]: searchMemory extended to support null query (fetch all for cwd) for init.js reads without search term — cmdInitMemory needs to fetch recent decisions/lessons without a search query
 - [Phase 0121-03]: SQLite test isolation uses os.tmpdir() prefix dirs + closeAll() before getDb() in beforeEach — avoids getDb() singleton collision; PlanningCache direct API for unit tests, CLI for end-to-end verification
+- [Phase 0122-01]: model_profiles uses multi-column schema (quality_model, balanced_model, budget_model, override_model) with '__defaults__' CWD sentinel for idempotent global seeding — Simpler than one-row-per-tier, matches static MODEL_PROFILES shape
+- [Phase 0122-01]: resolvePlanExistenceRoute backward compat: plan_count > 0 without has_context returns 'has-plans'; with has_context=true returns 'ready' — Old callers unaffected; new behavior only triggered with explicit new inputs
 
 ### Roadmap Evolution
 
@@ -80,6 +82,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T20:35:31.009Z
-**Stopped at:** Phase 122 context gathered
+**Last session:** 2026-03-14T23:23:16.639Z
+**Stopped at:** Completed 0122-01-PLAN.md
 **Next step:** Phase 122 — advance to next phase

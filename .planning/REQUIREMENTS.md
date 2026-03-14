@@ -28,12 +28,12 @@
 
 ## Decision Rules
 
-- [ ] **DEC-01**: User can have model selection resolved deterministically from config + agent role without subprocess calls
-- [ ] **DEC-02**: User can have verification routing resolved deterministically from config + plan state
-- [ ] **DEC-03**: User can have research gate resolved deterministically from config + file existence
-- [ ] **DEC-04**: User can have phase readiness resolved deterministically from roadmap + plan + blocker state
-- [ ] **DEC-05**: User can have milestone completion resolved deterministically from roadmap progress data
-- [ ] **DEC-06**: User can have commit strategy resolved deterministically from config + change state
+- [x] **DEC-01**: User can have model selection resolved deterministically from config + agent role without subprocess calls
+- [x] **DEC-02**: User can have verification routing resolved deterministically from config + plan state
+- [x] **DEC-03**: User can have research gate resolved deterministically from config + file existence
+- [x] **DEC-04**: User can have phase readiness resolved deterministically from roadmap + plan + blocker state
+- [x] **DEC-05**: User can have milestone completion resolved deterministically from roadmap progress data
+- [x] **DEC-06**: User can have commit strategy resolved deterministically from config + change state
 
 ## Session State
 
@@ -72,12 +72,12 @@ _None deferred — all 6 categories selected for v12.0._
 | MEM-01 | Phase 121 | Complete |
 | MEM-02 | Phase 121 | Complete |
 | MEM-03 | Phase 121 | Complete |
-| DEC-01 | Phase 122 | Pending |
-| DEC-02 | Phase 122 | Pending |
-| DEC-03 | Phase 122 | Pending |
-| DEC-04 | Phase 122 | Pending |
-| DEC-05 | Phase 122 | Pending |
-| DEC-06 | Phase 122 | Pending |
+| DEC-01 | Phase 122 | Complete |
+| DEC-02 | Phase 122 | Complete |
+| DEC-03 | Phase 122 | Complete |
+| DEC-04 | Phase 122 | Complete |
+| DEC-05 | Phase 122 | Complete |
+| DEC-06 | Phase 122 | Complete |
 | SES-01 | Phase 123 | Pending |
 | SES-02 | Phase 123 | Pending |
 | SES-03 | Phase 123 | Pending |
