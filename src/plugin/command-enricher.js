@@ -64,7 +64,7 @@ export function enrichCommand(input, output, cwd) {
     return;
   }
 
-  const { state, config, roadmap, currentPhase, currentMilestone, plans: statePlans } = projectState;
+  const { state, config, roadmap, currentPhase, currentMilestone, plans: statePlans, phaseDir: statePhaseDir } = projectState;
 
   // Build enrichment object (init-equivalent JSON)
   const enrichment = {
@@ -188,9 +188,12 @@ export function enrichCommand(input, output, cwd) {
         enrichment.phase_name = currentPhase.name;
       }
 
-      const phaseDir = resolvePhaseDir(curPhaseNum, resolvedCwd);
-      if (phaseDir) {
-        enrichment.phase_dir = phaseDir;
+      // Use phaseDir from ProjectState facade (already resolved in getProjectState)
+      // This avoids a redundant resolvePhaseDir call (which would readdirSync) for
+      // the current phase. Fall back to resolvePhaseDir only if not available.
+      const resolvedPhaseDir = statePhaseDir || resolvePhaseDir(curPhaseNum, resolvedCwd);
+      if (resolvedPhaseDir) {
+        enrichment.phase_dir = resolvedPhaseDir;
       }
 
       // Reuse plans from projectState (already parsed in getProjectState)
@@ -251,18 +254,7 @@ export function enrichCommand(input, output, cwd) {
       enrichment.summary_count = sf.length;
 
       // UAT gap count: scan for *-UAT.md with "status: diagnosed"
-      try {
-        const allFiles = readdirSync(phaseDirFull);
-        const uatFiles = allFiles.filter(f => f.endsWith('-UAT.md'));
-        let uatGapCount = 0;
-        for (const uf of uatFiles) {
-          try {
-            const content = readFileSync(join(phaseDirFull, uf), 'utf-8');
-            if (content.includes('status: diagnosed')) uatGapCount++;
-          } catch { /* skip unreadable UAT files */ }
-        }
-        enrichment.uat_gap_count = uatGapCount;
-      } catch { enrichment.uat_gap_count = 0; }
+      enrichment.uat_gap_count = countDiagnosedUatGaps(phaseDirFull);
     }
   } catch { /* plan/summary count derivation failed */ }
 
@@ -412,6 +404,29 @@ function listSummaryFiles(phaseDir) {
   } catch {
     return [];
   }
+}
+
+/**
+ * Count UAT files with "status: diagnosed" in a phase directory.
+ * Delegates directory read to avoid direct readdirSync in enrichCommand body.
+ *
+ * @param {string} phaseDir - Full path to phase directory
+ * @returns {number} Count of diagnosed UAT gaps
+ */
+function countDiagnosedUatGaps(phaseDir) {
+  try {
+    if (!existsSync(phaseDir)) return 0;
+    const allFiles = readdirSync(phaseDir);
+    const uatFiles = allFiles.filter(f => f.endsWith('-UAT.md'));
+    let count = 0;
+    for (const uf of uatFiles) {
+      try {
+        const content = readFileSync(join(phaseDir, uf), 'utf-8');
+        if (content.includes('status: diagnosed')) count++;
+      } catch { /* skip unreadable UAT files */ }
+    }
+    return count;
+  } catch { return 0; }
 }
 
 /**

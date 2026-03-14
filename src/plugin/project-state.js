@@ -133,10 +133,25 @@ export function getProjectState(cwd) {
   // Get current milestone from roadmap
   const currentMilestone = roadmap ? roadmap.currentMilestone : null;
 
-  // Parse plans for current phase
+  // Parse plans for current phase and resolve phaseDir
   let plans = Object.freeze([]);
+  let phaseDir = null;
   if (phaseNum) {
     plans = parsePlans(phaseNum, resolvedCwd);
+
+    // Resolve phaseDir for current phase (relative path like '.planning/phases/0120-name')
+    // This is already computed inside _eagerMtimeCheck — compute it here for the facade.
+    try {
+      const numStr = String(phaseNum).padStart(2, '0');
+      const phasesDir = join(resolvedCwd, '.planning', 'phases');
+      const entries = readdirSync(phasesDir);
+      const dirName = entries.find(d => d.startsWith(numStr + '-') || d === numStr);
+      if (dirName) {
+        phaseDir = `.planning/phases/${dirName}`;
+      }
+    } catch {
+      // Phase directory not found — phaseDir stays null
+    }
   }
 
   return Object.freeze({
@@ -146,6 +161,7 @@ export function getProjectState(cwd) {
     project,
     intent,
     plans,
+    phaseDir,
     currentPhase,
     currentMilestone,
   });

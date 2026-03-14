@@ -2089,8 +2089,19 @@ function getProjectState(cwd) {
   }
   const currentMilestone = roadmap ? roadmap.currentMilestone : null;
   let plans = Object.freeze([]);
+  let phaseDir = null;
   if (phaseNum) {
     plans = parsePlans(phaseNum, resolvedCwd);
+    try {
+      const numStr = String(phaseNum).padStart(2, "0");
+      const phasesDir = join10(resolvedCwd, ".planning", "phases");
+      const entries = readdirSync2(phasesDir);
+      const dirName = entries.find((d) => d.startsWith(numStr + "-") || d === numStr);
+      if (dirName) {
+        phaseDir = `.planning/phases/${dirName}`;
+      }
+    } catch {
+    }
   }
   return Object.freeze({
     state,
@@ -2099,6 +2110,7 @@ function getProjectState(cwd) {
     project,
     intent,
     plans,
+    phaseDir,
     currentPhase,
     currentMilestone
   });
@@ -2410,7 +2422,7 @@ function enrichCommand(input, output, cwd) {
     }
     return;
   }
-  const { state, config, roadmap, currentPhase, currentMilestone, plans: statePlans } = projectState;
+  const { state, config, roadmap, currentPhase, currentMilestone, plans: statePlans, phaseDir: statePhaseDir } = projectState;
   const enrichment = {
     // Paths
     planning_dir: ".planning",
@@ -2497,9 +2509,9 @@ function enrichCommand(input, output, cwd) {
       if (currentPhase) {
         enrichment.phase_name = currentPhase.name;
       }
-      const phaseDir = resolvePhaseDir(curPhaseNum, resolvedCwd);
-      if (phaseDir) {
-        enrichment.phase_dir = phaseDir;
+      const resolvedPhaseDir = statePhaseDir || resolvePhaseDir(curPhaseNum, resolvedCwd);
+      if (resolvedPhaseDir) {
+        enrichment.phase_dir = resolvedPhaseDir;
       }
       if (statePlans && statePlans.length > 0) {
         plans = statePlans;
@@ -2542,21 +2554,7 @@ function enrichCommand(input, output, cwd) {
       enrichment.plan_count = enrichment.plans ? enrichment.plans.length : 0;
       const sf = ensureSummaryFiles(phaseDirFull);
       enrichment.summary_count = sf.length;
-      try {
-        const allFiles = readdirSync3(phaseDirFull);
-        const uatFiles = allFiles.filter((f) => f.endsWith("-UAT.md"));
-        let uatGapCount = 0;
-        for (const uf of uatFiles) {
-          try {
-            const content = readFileSync7(join11(phaseDirFull, uf), "utf-8");
-            if (content.includes("status: diagnosed")) uatGapCount++;
-          } catch {
-          }
-        }
-        enrichment.uat_gap_count = uatGapCount;
-      } catch {
-        enrichment.uat_gap_count = 0;
-      }
+      enrichment.uat_gap_count = countDiagnosedUatGaps(phaseDirFull);
     }
   } catch {
   }
@@ -2670,6 +2668,24 @@ function listSummaryFiles(phaseDir) {
     return files.filter((f) => f.endsWith("-SUMMARY.md"));
   } catch {
     return [];
+  }
+}
+function countDiagnosedUatGaps(phaseDir) {
+  try {
+    if (!existsSync3(phaseDir)) return 0;
+    const allFiles = readdirSync3(phaseDir);
+    const uatFiles = allFiles.filter((f) => f.endsWith("-UAT.md"));
+    let count = 0;
+    for (const uf of uatFiles) {
+      try {
+        const content = readFileSync7(join11(phaseDir, uf), "utf-8");
+        if (content.includes("status: diagnosed")) count++;
+      } catch {
+      }
+    }
+    return count;
+  } catch {
+    return 0;
   }
 }
 function toSlug(name) {
