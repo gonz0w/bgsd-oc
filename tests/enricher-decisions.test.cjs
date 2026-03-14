@@ -215,9 +215,19 @@ describe('enricher-decisions: plan-existence-route fires with enrichment', () =>
     assert.strictEqual(result.value, 'needs-planning');
   });
 
-  it('returns needs-research when nothing exists', () => {
+  it('returns missing-context when nothing exists (no research, no context)', () => {
     const result = resolvePlanExistenceRoute({ plan_count: 0, has_research: false, has_context: false });
-    assert.strictEqual(result.value, 'needs-research');
+    assert.strictEqual(result.value, 'missing-context');
+  });
+
+  it('returns blocked-deps when plan_count > 0 and has_blockers', () => {
+    const result = resolvePlanExistenceRoute({ plan_count: 2, has_blockers: true });
+    assert.strictEqual(result.value, 'blocked-deps');
+  });
+
+  it('returns ready when plan_count > 0 and has_context', () => {
+    const result = resolvePlanExistenceRoute({ plan_count: 2, has_context: true });
+    assert.strictEqual(result.value, 'ready');
   });
 });
 

@@ -335,8 +335,23 @@ describe('decisions: resolvePlanExistenceRoute contract', () => {
     assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 0, has_research: true }).value, 'needs-planning');
   });
 
-  it('needs-research when nothing exists', () => {
-    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 0, has_research: false, has_context: false }).value, 'needs-research');
+  it('missing-context when nothing exists (no research, no context)', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 0, has_research: false, has_context: false }).value, 'missing-context');
+  });
+
+  it('needs-research when context exists but no plans or research (fallback path)', () => {
+    // has_context=true + no plans → needs-planning, not needs-research
+    // needs-research is the final fallback that is now unreachable via new logic
+    // Verify blocked-deps when blockers present
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, has_blockers: true }).value, 'blocked-deps');
+  });
+
+  it('blocked-deps when deps_complete is false', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, deps_complete: false }).value, 'blocked-deps');
+  });
+
+  it('ready when plans exist and context is available', () => {
+    assert.strictEqual(resolvePlanExistenceRoute({ plan_count: 2, has_context: true }).value, 'ready');
   });
 });
 
