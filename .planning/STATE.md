@@ -10,11 +10,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-14)
 ## Current Position
 
 **Phase:** 119 of 123 (Parser Integration Planning Tables)
-**Current Plan:** Plan 01 complete (Plan 02 next)
+**Current Plan:** Plan 02 complete (Phase complete)
 **Status:** In progress
 **Last Activity:** 2026-03-14
 
-Progress: [████░░░░░░] 40%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -26,6 +26,7 @@ Progress: [████░░░░░░] 40%
 **Recent Trend:**
 - v12.0 Phase 118 Plan 03: 4 min, 2 tasks, 1 file (52 tests)
 - v12.0 Phase 119 Plan 01: 4 min, 2 tasks, 4 files
+- v12.0 Phase 119 Plan 02: 24 min, 3 tasks, 6 files
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -44,6 +45,9 @@ Progress: [████░░░░░░] 40%
 - [Phase 118 Plan 02]: db init placed after --no-cache flag parsing so BGSD_CACHE_FORCE_MAP is set before getDb() runs; closeAll() called before unlinkSync in cache:clear for safe file deletion
 - [Phase 119-01]: Schema version 2: MIGRATIONS[1] appended — db.test.cjs assertions updated from v1 to v2 — MIGRATIONS[1] advances schema from version 1 to 2; tests were checking specific version numbers and needed updating
 - [Phase 119-01]: PlanningCache null-return pattern: getPhases/getPlans return null (not []) on miss — callers distinguish no-data from empty — Enables callers to differentiate cache miss from empty result, ensuring parse-on-miss is triggered correctly
+- [Phase 119-02]: ESM plugin cannot import CJS db.js — esbuild __require wrapper fails in native ESM; created ESM-native db-cache.js using top-level await dynamic import('node:sqlite')
+- [Phase 119-02]: storeRoadmap field name adaptation: parser uses camelCase (planCount) but DB schema uses snake_case (plan_count) — adapt in write-through call
+- [Phase 119-02]: raw is null on cache hits (markdown not stored in SQLite) — in-memory Map cache retains full object with raw after first parse in session
 
 ### Roadmap Evolution
 
@@ -60,6 +64,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-14T16:38:27.811Z
-**Stopped at:** Completed 0119-01-PLAN.md
-**Next step:** Execute Phase 119 Plan 02 — wire PlanningCache into roadmap/plan parsers
+**Last session:** 2026-03-14T17:03:11Z
+**Stopped at:** Completed 0119-02-PLAN.md
+**Next step:** Phase 119 complete — proceed to Phase 120 (query integration)
