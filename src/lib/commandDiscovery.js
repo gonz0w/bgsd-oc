@@ -44,7 +44,7 @@ const COMMAND_CATEGORIES = {
   },
   analysis: {
     name: 'Analysis',
-    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review', 'decisions:list', 'decisions:inspect', 'decisions:evaluate', 'decisions:savings']
+    commands: ['util:codebase', 'util:progress', 'util:velocity', 'verify:review', 'decisions:list', 'decisions:inspect', 'decisions:evaluate', 'decisions:savings', 'audit:scan']
   },
   utility: {
     name: 'Utility',
@@ -351,10 +351,10 @@ function validateCommandRegistry() {
         'drift': null
       },
       'requirements': ['mark-complete'],
-      'roadmap': ['add', 'insert', 'remove', 'list'],
+      'roadmap': ['get-phase', 'analyze', 'update-plan-progress'],
       'phases': null,
       'find-phase': null,
-      'milestone': ['new', 'complete', 'audit', 'gaps'],
+      'milestone': ['complete', 'summary', 'info'],
       'phase': null
     },
     'execute': {
@@ -364,7 +364,7 @@ function validateCommandRegistry() {
       'session-summary': null,
       'velocity': null,
       'worktree': ['create', 'list', 'remove', 'cleanup', 'merge', 'check-overlap'],
-      'tdd': ['init', 'red', 'green', 'refactor', 'cycle', 'auto'],
+      'tdd': null,
       'test-run': null,
       'trajectory': {
         'checkpoint': null,
@@ -376,7 +376,7 @@ function validateCommandRegistry() {
       }
     },
     'verify': {
-      'state': ['update', 'get', 'patch', 'advance-plan', 'record-metric', 'update-progress', 'add-decision', 'add-blocker', 'add-todo'],
+      'state': ['update', 'get', 'patch', 'advance-plan', 'record-metric', 'update-progress', 'add-decision', 'add-blocker', 'resolve-blocker', 'record-session', 'validate'],
       'verify': null,
       'assertions': null,
       'search-decisions': null,
@@ -385,7 +385,9 @@ function validateCommandRegistry() {
       'context-budget': null,
       'token-budget': null,
       'regression': null,
-      'quality': null
+      'quality': null,
+      'handoff': null,
+      'agents': null
     },
     'util': {
       'config-get': null,
@@ -421,7 +423,7 @@ function validateCommandRegistry() {
       },
       'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
       'agent': ['audit', 'list', 'validate-contracts'],
-      'git': ['status', 'log', 'diff', 'branch', 'checkout'],
+      'git': ['log', 'diff-summary', 'blame', 'branch-info', 'rewind', 'trajectory-branch'],
       'config-migrate': null,
       'resolve-model': null,
       'template': ['select', 'fill'],
@@ -450,6 +452,9 @@ function validateCommandRegistry() {
       'nlm-ask': null,
       'nlm-report': null
     },
+    'audit': {
+      'scan': null
+    },
     'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
     'decisions': {
       'list': null,
@@ -457,8 +462,6 @@ function validateCommandRegistry() {
       'evaluate': null,
       'savings': null
     },
-    'measure': null,
-    'runtime': null,
     'profile': null
   };
   
@@ -498,7 +501,7 @@ function validateCommandRegistry() {
     
     // Standalone commands (no colon)
     if (parts.length === 1) {
-      if (['measure', 'runtime', 'research', 'profile'].includes(namespace)) {
+      if (['research', 'profile'].includes(namespace)) {
         validCommands.push(cmd);
       } else if (routerImplementations[namespace] !== undefined) {
         validCommands.push(cmd);

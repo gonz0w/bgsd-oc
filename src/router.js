@@ -1314,34 +1314,6 @@ Examples:
     return; // Exit after handling namespaced command
   }
 
-  // Standalone commands (no namespace prefix)
-  if (command === 'runtime') {
-    const runtimeSub = remainingArgs[0];
-    if (runtimeSub === 'benchmark') {
-      const runsIdx = remainingArgs.indexOf('--runs');
-      const runs = runsIdx !== -1 ? parseInt(remainingArgs[runsIdx + 1], 10) : 10;
-      lazyRuntime().cmdRuntimeBenchmark(cwd, raw, { runs });
-    } else {
-      lazyRuntime().cmdRuntimeStatus(cwd, raw);
-    }
-    return;
-  }
-
-  if (command === 'measure') {
-    // Check build-time feature flag
-    if (global.BGSD_INCLUDE_BENCHMARKS === false) {
-      error('Benchmarks are disabled in this build. Set INCLUDE_BENCHMARKS=true to enable.');
-    }
-    const binPathIdx = remainingArgs.indexOf('--bin');
-    // --verbose is a global flag - check global._gsdCompactMode
-    const isVerbose = global._gsdCompactMode === false;
-    lazyMeasure().cmdMeasure(cwd, {
-      verbose: isVerbose,
-      binPath: binPathIdx !== -1 ? remainingArgs[binPathIdx + 1] : 'bin/bgsd-tools.cjs'
-    }, raw);
-    return;
-  }
-
   // No command matched any namespace — unknown
   error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions`);
 }

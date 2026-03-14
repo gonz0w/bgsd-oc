@@ -478,6 +478,34 @@ Subcommands:
   'verify:token-budget': `Usage: bgsd-tools verify:token-budget
 
 Show token counts for workflow files vs budgets.`,
+  'verify:handoff': `Usage: bgsd-tools verify:handoff [options]
+
+Validate agent handoff context transfer.
+
+Options:
+  --preview              Show what context would transfer between agents
+  --from <agent>        Source agent name
+  --to <agent>          Target agent name
+  --validate <context>  Validate handoff completeness (state|plan|tasks|summary|all)
+
+Examples:
+  bgsd-tools verify:handoff --preview --from planner --to executor
+  bgsd-tools verify:handoff --validate state`,
+  'verify:agents': `Usage: bgsd-tools verify:agents [options]
+
+Verify agent boundary contracts and capabilities.
+
+Options:
+  --verify              Verify specific agent contract
+  --contracts           Show all handoff contracts
+  --check-overlap       Check for capability overlap
+  --from <agent>        Source agent name
+  --to <agent>          Target agent name
+
+Examples:
+  bgsd-tools verify:agents --contracts
+  bgsd-tools verify:agents --verify --from planner --to executor
+  bgsd-tools verify:agents --check-overlap`,
   // util namespace
   'util:config-get': `Usage: bgsd-tools util:config-get <key.path>
 
@@ -919,25 +947,6 @@ Examples:
   'research:collect --resume': 'Resume interrupted research session from last completed stage',
   'research collect --resume': 'Resume interrupted research session from last completed stage',
 
-  'measure': `Usage: bgsd-tools measure [--verbose] [--bin <path>]
-
-Run plugin benchmark to measure performance metrics.
-
-This is a developer tool - undocumented in production builds.
-
-Options:
-  --verbose    Show full metrics including memory and context load times
-  --bin <path> Path to bgsd-tools binary (default: bin/bgsd-tools.cjs)
-
-Output:
-  Default: Table with startup times (cold/warm) and command execution times
-  --verbose: Full metrics table including memory and context load times
-
-Examples:
-  bgsd-tools measure
-  bgsd-tools measure --verbose
-  bgsd-tools measure --bin ./bin/bgsd-tools.cjs`,
-
   // audit namespace
   // decisions namespace
   'decisions:list': `Usage: bgsd-tools decisions:list
@@ -1016,6 +1025,459 @@ estimated_total_savings, savings_by_category
 Examples:
   bgsd-tools audit:scan
   bgsd-tools audit:scan --raw`,
+
+  // Missing COMMAND_HELP entries - adding per plan 115-04
+
+  // util namespace (20 commands)
+  'util:settings': `Usage: bgsd-tools util:settings [key]
+
+List all bGSD settings or get a specific value.
+
+Arguments:
+  key          Optional key path (e.g., "model_profile", "workflow.auto_advance")
+
+Output: All settings with current values, types, and defaults, or single value.
+
+Examples:
+  bgsd-tools util:settings
+  bgsd-tools util:settings model_profile`,
+
+  'util:parity-check': `Usage: bgsd-tools util:parity-check
+
+Check feature parity between production config and development config.
+
+Compares settings in .planning/config.json against expected production defaults
+and reports any gaps or mismatches.
+
+Output: { parity_ok, differences: [...] }
+
+Examples:
+  bgsd-tools util:parity-check`,
+
+  'util:resolve-model': `Usage: bgsd-tools util:resolve-model <agent-type>
+
+Resolve which model to use for a given agent type based on profile settings.
+
+Arguments:
+  agent-type    Agent type (e.g., "bgsd-planner", "bgsd-executor")
+
+Uses model_profile config (quality/balanced/budget) to select appropriate model.
+
+Output: { agent_type, profile, resolved_model, quality_model, balanced_model, budget_model }
+
+Examples:
+  bgsd-tools util:resolve-model bgsd-planner
+  bgsd-tools util:resolve-model bgsd-executor`,
+
+  'util:verify-path-exists': `Usage: bgsd-tools util:verify-path-exists <path>
+
+Verify that a path exists in the project.
+
+Arguments:
+  path         Path to verify (file or directory)
+
+Returns whether the path exists and its type (file/directory).
+
+Output: { path, exists: true|false, type: "file"|"directory"|"none" }
+
+Examples:
+  bgsd-tools util:verify-path-exists .planning/STATE.md
+  bgsd-tools util:verify-path-exists src/lib`,
+
+  'util:config-ensure-section': `Usage: bgsd-tools util:config-ensure-section
+
+Ensure all required sections exist in .planning/config.json.
+
+Creates missing sections with empty defaults. Does not overwrite existing values.
+
+Output: { added: [...], existing: [...], config_ensured: true }
+
+Examples:
+  bgsd-tools util:config-ensure-section`,
+
+  'util:scaffold': `Usage: bgsd-tools util:scaffold <type> [--path path]
+
+Scaffold common planning files and structures.
+
+Arguments:
+  type         Type to scaffold (plan|phase|milestone|summary)
+
+Options:
+  --path       Target path for scaffold operation
+
+Output: { scaffolded: [...], errors: [...] }
+
+Examples:
+  bgsd-tools util:scaffold plan --path .planning/phases/99-test
+  bgsd-tools util:scaffold phase`,
+
+  'util:phase-plan-index': `Usage: bgsd-tools util:phase-plan-index <phase>
+
+Build or update phase plan index file.
+
+Arguments:
+  phase        Phase number or directory
+
+Creates/updates .planning/phases/{phase}/INDEX.json with plan metadata.
+
+Output: { phase, plans_indexed, index_path }
+
+Examples:
+  bgsd-tools util:phase-plan-index 99
+  bgsd-tools util:phase-plan-index .planning/phases/99-test`,
+
+  'util:state-snapshot': `Usage: bgsd-tools util:state-snapshot
+
+Create a point-in-time snapshot of STATE.md.
+
+Captures current phase, plan position, blockers, decisions, and metrics.
+
+Output: { timestamp, phase, plan, position, blockers: [...], decisions: [...] }
+
+Examples:
+  bgsd-tools util:state-snapshot`,
+
+  'util:summary-extract': `Usage: bgsd-tools util:summary-extract <summary-path> [fields...]
+
+Extract specific fields from a SUMMARY.md file.
+
+Arguments:
+  summary-path  Path to SUMMARY.md file
+  fields       Field names to extract (default: all)
+
+Output: JSON with extracted field values.
+
+Examples:
+  bgsd-tools util:summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md one-liner
+  bgsd-tools util:summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md`,
+
+  'util:summary-generate': `Usage: bgsd-tools util:summary-generate <phase> <plan>
+
+Generate SUMMARY.md scaffold from PLAN.md.
+
+Arguments:
+  phase        Phase number (e.g., "01", "99")
+  plan         Plan number (e.g., "01", "04")
+
+Creates a structured SUMMARY.md template based on PLAN.md frontmatter and tasks.
+
+Output: JSON with generated sections and todo_remaining count.
+
+Examples:
+  bgsd-tools util:summary-generate 01 01
+  bgsd-tools util:summary-generate 99 04`,
+
+  'util:quick-summary': `Usage: bgsd-tools util:quick-summary [options]
+
+Generate a quick task summary from current state.
+
+Options:
+  --plan <path>    Plan file to summarize
+  --format         Output format (text|json)
+
+Output: Summary of tasks, completion status, and time estimates.
+
+Examples:
+  bgsd-tools util:quick-summary
+  bgsd-tools util:quick-summary --plan .planning/phases/01-foundation/01-01-PLAN.md`,
+
+  'util:extract-sections': `Usage: bgsd-tools util:extract-sections <file> <section>...
+
+Extract specific sections from a markdown file.
+
+Arguments:
+  file         Source markdown file
+  sections     Section names to extract (e.g., "context", "tasks")
+
+Output: JSON with section content.
+
+Examples:
+  bgsd-tools util:extract-sections .planning/PROJECT.md description goals`,
+
+  'util:tools': `Usage: bgsd-tools util:tools [options]
+
+Check status of external tools and dependencies.
+
+Options:
+  --detailed    Show detailed version info
+  --json        Output as JSON
+
+Detects: Node.js, Bun, git, yt-dlp, notebooklm-py, MCP servers.
+
+Output: { tools: [...], all_available: true|false }
+
+Examples:
+  bgsd-tools util:tools
+  bgsd-tools util:tools --detailed`,
+
+  'util:runtime': `Usage: bgsd-tools util:runtime [options]
+
+Show runtime information and benchmarks.
+
+Options:
+  --benchmark   Run quick benchmark
+  --details     Show detailed timing
+
+Reports runtime version, memory usage, and command execution times.
+
+Output: { runtime, version, memory, benchmark_results: {...} }
+
+Examples:
+  bgsd-tools util:runtime
+  bgsd-tools util:runtime --benchmark`,
+
+  'util:recovery': `Usage: bgsd-tools util:recovery <subcommand> [options]
+
+Auto-recovery and stuck task resolution.
+
+Subcommands:
+  analyze <error>     Analyze error and suggest fix
+  checkpoint <json>  Restore from checkpoint
+  stuck <task-id>     Diagnose why task is stuck
+
+Examples:
+  bgsd-tools util:recovery analyze "Cannot read property 'foo' of undefined"
+  bgsd-tools util:recovery checkpoint '{"files":["a.js"],"type":"auto"}'
+  bgsd-tools util:recovery stuck task-123`,
+
+  'util:history': `Usage: bgsd-tools util:history [options]
+
+Lookup command history and recent activity.
+
+Options:
+  --limit N         Number of entries (default: 10)
+  --command <cmd>   Filter by command
+  --since <date>    Filter since date
+
+Output: { entries: [...], count }
+
+Examples:
+  bgsd-tools util:history
+  bgsd-tools util:history --limit 20
+  bgsd-tools util:history --command util:settings`,
+
+  'util:examples': `Usage: bgsd-tools util:examples [command]
+
+Show usage examples for a command or list all examples.
+
+Arguments:
+  command      Optional command to get examples for
+
+Output: { examples: [...] }
+
+Examples:
+  bgsd-tools util:examples
+  bgsd-tools util:examples util:codebase`,
+
+  'util:analyze-deps': `Usage: bgsd-tools util:analyze-deps [path]
+
+Analyze dependencies for a file or entire project.
+
+Arguments:
+  path         Optional file or directory path
+
+Output: { dependencies: [...], dev_dependencies: [...], circular: [...] }
+
+Examples:
+  bgsd-tools util:analyze-deps
+  bgsd-tools util:analyze-deps src/lib/utils.js`,
+
+  'util:estimate-scope': `Usage: bgsd-tools util:estimate-scope <plan-path>
+
+Estimate token scope for executing a plan.
+
+Arguments:
+  plan-path    Path to PLAN.md file
+
+Analyzes task count, file modifications, and complexity to estimate context budget.
+
+Output: { estimated_tokens, tasks, files, complexity, recommendation }
+
+Examples:
+  bgsd-tools util:estimate-scope .planning/phases/01-foundation/01-01-PLAN.md`,
+
+  'util:test-coverage': `Usage: bgsd-tools util:test-coverage [options]
+
+Show test coverage information.
+
+Options:
+  --summary     Show summary only
+  --file <path> Coverage for specific file
+
+Output: { lines_covered, lines_total, percentage, uncovered_lines: [...] }
+
+Examples:
+  bgsd-tools util:test-coverage
+  bgsd-tools util:test-coverage --summary`,
+
+  // verify namespace (7 commands)
+  'verify:regression': `Usage: bgsd-tools verify:regression [options]
+
+Detect regressions by comparing before/after states.
+
+Options:
+  --before <ref>    Before commit/tag (default: HEAD~1)
+  --after <ref>     After commit/tag (default: HEAD)
+  --plan <path>    Check plan-specific regressions
+
+Runs test suite and compares outputs to detect behavioral changes.
+
+Output: { regressions_found: N, details: [...] }
+
+Examples:
+  bgsd-tools verify:regression
+  bgsd-tools verify:regression --before main --after HEAD
+  bgsd-tools verify:regression --plan .planning/phases/01-foundation/01-01-PLAN.md`,
+
+  'verify:quality': `Usage: bgsd-tools verify:quality [options]
+
+Run composite quality checks on planning documents.
+
+Options:
+  --plan <path>    Check specific plan
+  --phase <N>      Check entire phase
+  --score          Show numeric score
+
+Checks: structure, references, must_haves, key_links, dependencies.
+
+Output: { quality_score, issues: [...], warnings: [...] }
+
+Examples:
+  bgsd-tools verify:quality
+  bgsd-tools verify:quality --phase 01
+  bgsd-tools verify:quality --plan .planning/phases/01-foundation/01-01-PLAN.md --score`,
+
+  'verify:summary': `Usage: bgsd-tools verify:summary <summary-path>
+
+Verify SUMMARY.md completeness and correctness.
+
+Arguments:
+  summary-path  Path to SUMMARY.md file
+
+Checks: required sections, frontmatter completeness, task commit references.
+
+Output: { valid: true|false, issues: [...], completeness_score }
+
+Examples:
+  bgsd-tools verify:summary .planning/phases/01-foundation/01-01-SUMMARY.md`,
+
+  'verify:validate consistency': `Usage: bgsd-tools verify:validate consistency
+
+Validate consistency across planning documents.
+
+Checks: phase numbers match directories, plan numbers are sequential,
+references resolve correctly, no orphaned files.
+
+Output: { consistent: true|false, issues: [...] }
+
+Examples:
+  bgsd-tools verify:validate consistency`,
+
+  'verify:validate health': `Usage: bgsd-tools verify:validate health [options]
+
+Validate project health indicators.
+
+Options:
+  --detailed     Show detailed health metrics
+
+Checks: test pass rate, recent commit activity, blocker count, phase progress.
+
+Output: { healthy: true|false, metrics: {...}, recommendations: [...] }
+
+Examples:
+  bgsd-tools verify:validate health
+  bgsd-tools verify:validate health --detailed`,
+
+  'verify:validate-dependencies': `Usage: bgsd-tools verify:validate-dependencies
+
+Validate phase and plan dependencies.
+
+Checks: no circular dependencies, all required phases exist,
+plan depends_on references valid.
+
+Output: { valid: true|false, cycles: [...], missing: [...], warnings: [...] }
+
+Examples:
+  bgsd-tools verify:validate-dependencies`,
+
+  'verify:validate-config': `Usage: bgsd-tools verify:validate-config [options]
+
+Validate .planning/config.json against schema.
+
+Options:
+  --fix          Auto-fix trivial issues
+  --detailed     Show detailed validation results
+
+Checks: required keys present, types correct, defaults applied.
+
+Output: { valid: true|false, issues: [...], fixed: [...] }
+
+Examples:
+  bgsd-tools verify:validate-config
+  bgsd-tools verify:validate-config --fix`,
+
+  // cache namespace (5 commands)
+  'cache:research-stats': `Usage: bgsd-tools cache:research-stats
+
+Show research cache statistics.
+
+Reports entry count, hits, and misses for research results cached via
+the research:collect command.
+
+Output: { count, hits, misses, hit_rate_percent }
+
+Examples:
+  bgsd-tools cache:research-stats`,
+
+  'cache:research-clear': `Usage: bgsd-tools cache:research-clear
+
+Clear all research cache entries.
+
+Removes cached research results from the research_cache table.
+Does not affect general file cache.
+
+Output: { cleared: true, entries_removed: N }
+
+Examples:
+  bgsd-tools cache:research-clear`,
+
+  'cache:status': `Usage: bgsd-tools cache:status
+
+Show cache backend type and entry count.
+
+Reports which cache backend is active (memory/SQLite) and total entries.
+
+Output: { backend, count, hits, misses }
+
+Examples:
+  bgsd-tools cache:status`,
+
+  'cache:clear': `Usage: bgsd-tools cache:clear
+
+Clear all cache entries.
+
+Removes all entries from the active cache backend.
+Does not affect research cache.
+
+Output: { cleared: true, entries_removed: N }
+
+Examples:
+  bgsd-tools cache:clear`,
+
+  'cache:warm': `Usage: bgsd-tools cache:warm [files...]
+
+Pre-populate cache with file contents.
+
+Arguments:
+  files        Optional file paths to cache (default: all .planning/ files)
+
+Discovers and caches planning documents for faster subsequent access.
+
+Output: { warmed: N, elapsed_ms: M }
+
+Examples:
+  bgsd-tools cache:warm
+  bgsd-tools cache:warm .planning/STATE.md .planning/ROADMAP.md`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
