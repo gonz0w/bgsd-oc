@@ -80,4 +80,4 @@ Phases execute in numeric order: 114 → 115 → 116 → 117
 | 114. Test Suite Stabilization | 1/2 | Complete    | 2026-03-14 |
 | 115. CLI Command Routing | 3/4 | Complete    | 2026-03-14 |
 | 116. Planning Artifact Cleanup | 2/3 | Complete    | 2026-03-14 |
-| 117. Intent Archival System | 1/1 | Complete   | 2026-03-14 |
+| 117. Intent Archival System | 1/1 | Complete    | 2026-03-14 |
