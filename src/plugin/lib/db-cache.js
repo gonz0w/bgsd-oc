@@ -49,10 +49,10 @@ class MapBackend {
 }
 
 // ---------------------------------------------------------------------------
-// Schema SQL (version 2 — planning tables)
+// Schema SQL (version 3 — planning tables + memory stores)
 // ---------------------------------------------------------------------------
 
-const SCHEMA_V2_SQL = `
+const SCHEMA_V3_SQL = `
   CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT);
   CREATE TABLE IF NOT EXISTS file_cache (
     file_path TEXT PRIMARY KEY,
@@ -120,12 +120,62 @@ const SCHEMA_V2_SQL = `
     description  TEXT,
     PRIMARY KEY (req_id, cwd)
   );
+  CREATE TABLE IF NOT EXISTS memory_decisions (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd       TEXT NOT NULL,
+    summary   TEXT,
+    phase     TEXT,
+    timestamp TEXT,
+    data_json TEXT
+  );
+  CREATE TABLE IF NOT EXISTS memory_lessons (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd       TEXT NOT NULL,
+    summary   TEXT,
+    phase     TEXT,
+    timestamp TEXT,
+    data_json TEXT
+  );
+  CREATE TABLE IF NOT EXISTS memory_trajectories (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd             TEXT NOT NULL,
+    entry_id        TEXT,
+    category        TEXT,
+    text            TEXT,
+    phase           TEXT,
+    scope           TEXT,
+    checkpoint_name TEXT,
+    attempt         INTEGER,
+    confidence      TEXT,
+    timestamp       TEXT,
+    tags_json       TEXT,
+    data_json       TEXT
+  );
+  CREATE TABLE IF NOT EXISTS memory_bookmarks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    phase       TEXT,
+    plan        TEXT,
+    task        INTEGER,
+    total_tasks INTEGER,
+    git_head    TEXT,
+    timestamp   TEXT,
+    data_json   TEXT
+  );
   CREATE INDEX IF NOT EXISTS idx_phases_cwd ON phases(cwd);
   CREATE INDEX IF NOT EXISTS idx_plans_cwd ON plans(cwd);
   CREATE INDEX IF NOT EXISTS idx_plans_phase ON plans(phase_number);
   CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_path);
   CREATE INDEX IF NOT EXISTS idx_requirements_cwd ON requirements(cwd);
   CREATE INDEX IF NOT EXISTS idx_file_cache_mtime ON file_cache(mtime_ms);
+  CREATE INDEX IF NOT EXISTS idx_mem_decisions_cwd ON memory_decisions(cwd);
+  CREATE INDEX IF NOT EXISTS idx_mem_decisions_phase ON memory_decisions(phase);
+  CREATE INDEX IF NOT EXISTS idx_mem_lessons_cwd ON memory_lessons(cwd);
+  CREATE INDEX IF NOT EXISTS idx_mem_lessons_phase ON memory_lessons(phase);
+  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_cwd ON memory_trajectories(cwd);
+  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_category ON memory_trajectories(category);
+  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_phase ON memory_trajectories(phase);
+  CREATE INDEX IF NOT EXISTS idx_mem_bookmarks_cwd ON memory_bookmarks(cwd);
 `;
 
 // ---------------------------------------------------------------------------
@@ -164,13 +214,13 @@ class SQLiteBackend {
       version = row ? row.user_version : 0;
     } catch {}
 
-    if (version >= 2) return;
+    if (version >= 3) return;
 
     try {
       this._db.exec('BEGIN');
-      this._db.exec(SCHEMA_V2_SQL);
+      this._db.exec(SCHEMA_V3_SQL);
       this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + new Date().toISOString() + "')");
-      this._db.exec('PRAGMA user_version = 2');
+      this._db.exec('PRAGMA user_version = 3');
       this._db.exec('COMMIT');
     } catch {
       try { this._db.exec('ROLLBACK'); } catch {}
@@ -184,9 +234,9 @@ class SQLiteBackend {
         this._db = new _DatabaseSync(this._dbPath);
         this._db.exec('PRAGMA journal_mode = WAL');
         this._db.exec('BEGIN');
-        this._db.exec(SCHEMA_V2_SQL);
+        this._db.exec(SCHEMA_V3_SQL);
         this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + new Date().toISOString() + "')");
-        this._db.exec('PRAGMA user_version = 2');
+        this._db.exec('PRAGMA user_version = 3');
         this._db.exec('COMMIT');
       } catch {
         this._degraded = true;

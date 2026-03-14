@@ -206,9 +206,9 @@ describe('Group 1: Schema Migration (MIGRATIONS[1])', () => {
     removeTempDir(tempDir);
   });
 
-  it('schema version is 2 after getDb() on fresh database', () => {
+  it('schema version is 3 after getDb() on fresh database', () => {
     const version = db.getSchemaVersion();
-    assert.strictEqual(version, 2, 'Schema version should be 2 after V1 + V2 migrations');
+    assert.strictEqual(version, 3, 'Schema version should be 3 after V1 + V2 + V3 migrations');
   });
 
   it('file_cache table exists', () => {

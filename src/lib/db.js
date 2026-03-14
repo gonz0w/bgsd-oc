@@ -183,6 +183,69 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_file_cache_mtime ON file_cache(mtime_ms);
     `);
   },
+
+  // Version 3: Phase 121 — memory store tables for decisions, lessons, trajectories, bookmarks
+  function migration_v3(rawDb) {
+    rawDb.exec(`
+      -- Decisions
+      CREATE TABLE IF NOT EXISTS memory_decisions (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd       TEXT NOT NULL,
+        summary   TEXT,
+        phase     TEXT,
+        timestamp TEXT,
+        data_json TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_mem_decisions_cwd ON memory_decisions(cwd);
+      CREATE INDEX IF NOT EXISTS idx_mem_decisions_phase ON memory_decisions(phase);
+
+      -- Lessons
+      CREATE TABLE IF NOT EXISTS memory_lessons (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd       TEXT NOT NULL,
+        summary   TEXT,
+        phase     TEXT,
+        timestamp TEXT,
+        data_json TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_mem_lessons_cwd ON memory_lessons(cwd);
+      CREATE INDEX IF NOT EXISTS idx_mem_lessons_phase ON memory_lessons(phase);
+
+      -- Trajectories
+      CREATE TABLE IF NOT EXISTS memory_trajectories (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd             TEXT NOT NULL,
+        entry_id        TEXT,
+        category        TEXT,
+        text            TEXT,
+        phase           TEXT,
+        scope           TEXT,
+        checkpoint_name TEXT,
+        attempt         INTEGER,
+        confidence      TEXT,
+        timestamp       TEXT,
+        tags_json       TEXT,
+        data_json       TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_mem_trajectories_cwd ON memory_trajectories(cwd);
+      CREATE INDEX IF NOT EXISTS idx_mem_trajectories_category ON memory_trajectories(category);
+      CREATE INDEX IF NOT EXISTS idx_mem_trajectories_phase ON memory_trajectories(phase);
+
+      -- Bookmarks
+      CREATE TABLE IF NOT EXISTS memory_bookmarks (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd         TEXT NOT NULL,
+        phase       TEXT,
+        plan        TEXT,
+        task        INTEGER,
+        total_tasks INTEGER,
+        git_head    TEXT,
+        timestamp   TEXT,
+        data_json   TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_mem_bookmarks_cwd ON memory_bookmarks(cwd);
+    `);
+  },
 ];
 
 // ---------------------------------------------------------------------------
