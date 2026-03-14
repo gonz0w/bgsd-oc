@@ -514,6 +514,337 @@ class PlanningCache {
     } catch { return null; }
   }
 
+  // -------------------------------------------------------------------------
+  // Memory Store Operations (decisions, lessons, trajectories, bookmarks)
+  // -------------------------------------------------------------------------
+
+  /**
+   * One-time JSON → SQLite migration for memory stores.
+   * Reads .planning/memory/{decisions,lessons,trajectory,bookmarks}.json and
+   * inserts all entries into the corresponding memory_* tables.
+   * Idempotent — skips migration if any entries already exist for this cwd.
+   *
+   * @param {string} cwd - Project root directory
+   * @returns {{ migrated: { decisions: number, lessons: number, trajectories: number, bookmarks: number }, skipped: string[] }|null}
+   */
+  migrateMemoryStores(cwd) {
+    if (this._isMap()) return null;
+
+    const result = { migrated: { decisions: 0, lessons: 0, trajectories: 0, bookmarks: 0 }, skipped: [] };
+
+    try {
+      // Check if already migrated (any existing entries for this cwd)
+      const existing = this._stmt(
+        'mem_dec_count',
+        'SELECT COUNT(*) AS cnt FROM memory_decisions WHERE cwd = ?'
+      ).get(cwd);
+      if (existing && existing.cnt > 0) {
+        return result; // Already migrated
+      }
+
+      const memoryDir = require('path').join(cwd, '.planning', 'memory');
+
+      // decisions.json
+      try {
+        const raw = require('fs').readFileSync(require('path').join(memoryDir, 'decisions.json'), 'utf8');
+        const entries = JSON.parse(raw);
+        if (Array.isArray(entries) && entries.length > 0) {
+          const ins = this._stmt(
+            'mem_dec_ins',
+            'INSERT INTO memory_decisions (cwd, summary, phase, timestamp, data_json) VALUES (?, ?, ?, ?, ?)'
+          );
+          this._db.exec('BEGIN');
+          for (const entry of entries) {
+            ins.run(cwd, entry.summary || null, entry.phase || null, entry.timestamp || null, JSON.stringify(entry));
+            result.migrated.decisions++;
+          }
+          this._db.exec('COMMIT');
+        }
+      } catch { result.skipped.push('decisions'); }
+
+      // lessons.json
+      try {
+        const raw = require('fs').readFileSync(require('path').join(memoryDir, 'lessons.json'), 'utf8');
+        const entries = JSON.parse(raw);
+        if (Array.isArray(entries) && entries.length > 0) {
+          const ins = this._stmt(
+            'mem_les_ins',
+            'INSERT INTO memory_lessons (cwd, summary, phase, timestamp, data_json) VALUES (?, ?, ?, ?, ?)'
+          );
+          this._db.exec('BEGIN');
+          for (const entry of entries) {
+            ins.run(cwd, entry.summary || null, entry.phase || null, entry.timestamp || null, JSON.stringify(entry));
+            result.migrated.lessons++;
+          }
+          this._db.exec('COMMIT');
+        }
+      } catch { result.skipped.push('lessons'); }
+
+      // trajectory.json
+      try {
+        const raw = require('fs').readFileSync(require('path').join(memoryDir, 'trajectory.json'), 'utf8');
+        const entries = JSON.parse(raw);
+        if (Array.isArray(entries) && entries.length > 0) {
+          const ins = this._stmt(
+            'mem_trj_ins',
+            'INSERT INTO memory_trajectories (cwd, entry_id, category, text, phase, scope, checkpoint_name, attempt, confidence, timestamp, tags_json, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          );
+          this._db.exec('BEGIN');
+          for (const entry of entries) {
+            ins.run(
+              cwd,
+              entry.id || null,
+              entry.category || null,
+              entry.text || null,
+              entry.phase || null,
+              entry.scope || null,
+              entry.checkpoint_name || null,
+              entry.attempt != null ? entry.attempt : null,
+              entry.confidence || null,
+              entry.timestamp || null,
+              entry.tags ? JSON.stringify(entry.tags) : null,
+              JSON.stringify(entry)
+            );
+            result.migrated.trajectories++;
+          }
+          this._db.exec('COMMIT');
+        }
+      } catch { result.skipped.push('trajectories'); }
+
+      // bookmarks.json
+      try {
+        const raw = require('fs').readFileSync(require('path').join(memoryDir, 'bookmarks.json'), 'utf8');
+        const entries = JSON.parse(raw);
+        if (Array.isArray(entries) && entries.length > 0) {
+          const ins = this._stmt(
+            'mem_bkm_ins',
+            'INSERT INTO memory_bookmarks (cwd, phase, plan, task, total_tasks, git_head, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          );
+          this._db.exec('BEGIN');
+          for (const entry of entries) {
+            ins.run(
+              cwd,
+              entry.phase || null,
+              entry.plan || null,
+              entry.task != null ? entry.task : null,
+              entry.total_tasks != null ? entry.total_tasks : null,
+              entry.git_head || null,
+              entry.timestamp || null,
+              JSON.stringify(entry)
+            );
+            result.migrated.bookmarks++;
+          }
+          this._db.exec('COMMIT');
+        }
+      } catch { result.skipped.push('bookmarks'); }
+
+    } catch {
+      // Outer error — return what we have
+    }
+
+    return result;
+  }
+
+  /**
+   * LIKE-based SQL search across a memory store.
+   *
+   * @param {string} cwd - Project root directory
+   * @param {'decisions'|'lessons'|'trajectories'|'bookmarks'} store
+   * @param {string} query - Text to search (uses %query% LIKE pattern)
+   * @param {{ phase?: string, category?: string, limit?: number, offset?: number }} [options]
+   * @returns {{ entries: object[], total: number }|null}
+   */
+  searchMemory(cwd, store, query, options) {
+    if (this._isMap()) return null;
+
+    const opts = options || {};
+    const limit = opts.limit != null ? opts.limit : 50;
+    const offset = opts.offset != null ? opts.offset : 0;
+    const likePattern = '%' + query + '%';
+
+    try {
+      let table, searchCols, orderBy;
+      switch (store) {
+        case 'decisions':
+          table = 'memory_decisions';
+          searchCols = '(summary LIKE ? OR data_json LIKE ?)';
+          orderBy = 'timestamp DESC';
+          break;
+        case 'lessons':
+          table = 'memory_lessons';
+          searchCols = '(summary LIKE ? OR data_json LIKE ?)';
+          orderBy = 'timestamp DESC';
+          break;
+        case 'trajectories':
+          table = 'memory_trajectories';
+          searchCols = '(text LIKE ? OR data_json LIKE ?)';
+          orderBy = 'id DESC';
+          break;
+        case 'bookmarks':
+          table = 'memory_bookmarks';
+          searchCols = '(phase LIKE ? OR data_json LIKE ?)';
+          orderBy = 'timestamp DESC';
+          break;
+        default:
+          return null;
+      }
+
+      const params = [cwd, likePattern, likePattern];
+      let whereClauses = `cwd = ? AND ${searchCols}`;
+
+      if (opts.phase) {
+        whereClauses += ' AND phase = ?';
+        params.push(opts.phase);
+      }
+      if (opts.category && store === 'trajectories') {
+        whereClauses += ' AND category = ?';
+        params.push(opts.category);
+      }
+
+      // Count query
+      const countSql = `SELECT COUNT(*) AS cnt FROM ${table} WHERE ${whereClauses}`;
+      const countRow = this._db.prepare(countSql).get(...params);
+      const total = countRow ? countRow.cnt : 0;
+
+      // Data query
+      const dataSql = `SELECT * FROM ${table} WHERE ${whereClauses} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+      const rows = this._db.prepare(dataSql).all(...params, limit, offset);
+
+      const entries = rows.map(row => {
+        try {
+          const parsed = JSON.parse(row.data_json);
+          return { ...parsed, _id: row.id };
+        } catch {
+          return { ...row };
+        }
+      });
+
+      return { entries, total };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Insert a single entry into a memory store table (for dual-write).
+   * Does NOT touch JSON files — caller's responsibility.
+   *
+   * @param {string} cwd - Project root directory
+   * @param {'decisions'|'lessons'|'trajectories'|'bookmarks'} store
+   * @param {object} entry - Entry to insert
+   * @returns {{ inserted: boolean }|null}
+   */
+  writeMemoryEntry(cwd, store, entry) {
+    if (this._isMap()) return null;
+
+    try {
+      switch (store) {
+        case 'decisions':
+          this._stmt(
+            'mem_dec_write',
+            'INSERT INTO memory_decisions (cwd, summary, phase, timestamp, data_json) VALUES (?, ?, ?, ?, ?)'
+          ).run(cwd, entry.summary || null, entry.phase || null, entry.timestamp || null, JSON.stringify(entry));
+          break;
+        case 'lessons':
+          this._stmt(
+            'mem_les_write',
+            'INSERT INTO memory_lessons (cwd, summary, phase, timestamp, data_json) VALUES (?, ?, ?, ?, ?)'
+          ).run(cwd, entry.summary || null, entry.phase || null, entry.timestamp || null, JSON.stringify(entry));
+          break;
+        case 'trajectories':
+          this._stmt(
+            'mem_trj_write',
+            'INSERT INTO memory_trajectories (cwd, entry_id, category, text, phase, scope, checkpoint_name, attempt, confidence, timestamp, tags_json, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ).run(
+            cwd,
+            entry.id || null,
+            entry.category || null,
+            entry.text || null,
+            entry.phase || null,
+            entry.scope || null,
+            entry.checkpoint_name || null,
+            entry.attempt != null ? entry.attempt : null,
+            entry.confidence || null,
+            entry.timestamp || null,
+            entry.tags ? JSON.stringify(entry.tags) : null,
+            JSON.stringify(entry)
+          );
+          break;
+        case 'bookmarks':
+          this._stmt(
+            'mem_bkm_write',
+            'INSERT INTO memory_bookmarks (cwd, phase, plan, task, total_tasks, git_head, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          ).run(
+            cwd,
+            entry.phase || null,
+            entry.plan || null,
+            entry.task != null ? entry.task : null,
+            entry.total_tasks != null ? entry.total_tasks : null,
+            entry.git_head || null,
+            entry.timestamp || null,
+            JSON.stringify(entry)
+          );
+          break;
+        default:
+          return null;
+      }
+      return { inserted: true };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Delete all entries for a memory store and cwd.
+   * Used for re-migration or test cleanup.
+   *
+   * @param {string} cwd - Project root directory
+   * @param {'decisions'|'lessons'|'trajectories'|'bookmarks'} store
+   */
+  clearMemoryStore(cwd, store) {
+    if (this._isMap()) return;
+
+    const tableMap = {
+      decisions: 'memory_decisions',
+      lessons: 'memory_lessons',
+      trajectories: 'memory_trajectories',
+      bookmarks: 'memory_bookmarks',
+    };
+    const table = tableMap[store];
+    if (!table) return;
+
+    try {
+      this._db.prepare(`DELETE FROM ${table} WHERE cwd = ?`).run(cwd);
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  /**
+   * Get the most recent bookmark for a project.
+   *
+   * @param {string} cwd - Project root directory
+   * @returns {object|null}
+   */
+  getBookmarkTop(cwd) {
+    if (this._isMap()) return null;
+
+    try {
+      const row = this._stmt(
+        'mem_bkm_top',
+        'SELECT * FROM memory_bookmarks WHERE cwd = ? ORDER BY id DESC LIMIT 1'
+      ).get(cwd);
+      if (!row) return null;
+      try {
+        return JSON.parse(row.data_json);
+      } catch {
+        return { ...row };
+      }
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Clear all cached data for a given project root directory.
    * Removes all rows from phases, milestones, progress, requirements, plans, tasks,
