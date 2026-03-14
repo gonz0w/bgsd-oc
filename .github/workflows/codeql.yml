@@ -40,4 +40,4 @@ jobs:
           category: "/language:${{ matrix.language }}"
           query-filters: |
             not rule.id in ("js/file-system-race")
-          upload: false
+          upload: always
