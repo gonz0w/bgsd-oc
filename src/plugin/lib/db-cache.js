@@ -684,6 +684,182 @@ export class PlanningCache {
       this._db.exec('COMMIT');
     } catch { try { this._db.exec('ROLLBACK'); } catch {} }
   }
+
+  // -------------------------------------------------------------------------
+  // Session State Operations (Phase 123)
+  // -------------------------------------------------------------------------
+
+  storeSessionState(cwd, state) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt('ss_upsert', `INSERT OR REPLACE INTO session_state (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(cwd, state.phase_number || null, state.phase_name || null, state.total_phases != null ? state.total_phases : null, state.current_plan || null, state.status || null, state.last_activity || null, state.progress != null ? state.progress : null, state.milestone || null, JSON.stringify(state));
+      return { stored: true };
+    } catch { return null; }
+  }
+
+  getSessionState(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt('ss_get', 'SELECT * FROM session_state WHERE cwd = ?').get(cwd);
+      return row || null;
+    } catch { return null; }
+  }
+
+  migrateStateFromMarkdown(cwd, parsed) {
+    if (this._isMap()) return null;
+    try {
+      const existing = this._stmt('ss_check', 'SELECT cwd FROM session_state WHERE cwd = ?').get(cwd);
+      if (existing) return { migrated: false, reason: 'already_exists' };
+      this._db.exec('BEGIN');
+      this._stmt('ss_upsert2', `INSERT OR REPLACE INTO session_state (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(cwd, parsed.phase_number || null, parsed.phase_name || null, parsed.total_phases != null ? parsed.total_phases : null, parsed.current_plan || null, parsed.status || null, parsed.last_activity || null, parsed.progress != null ? parsed.progress : null, parsed.milestone || null, JSON.stringify(parsed));
+      if (Array.isArray(parsed.decisions) && parsed.decisions.length > 0) {
+        const ins = this._stmt('ss_dec_ins', 'INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        for (const d of parsed.decisions) ins.run(cwd, d.milestone || null, d.phase || null, d.summary || null, d.rationale || null, d.timestamp || null, JSON.stringify(d));
+      }
+      if (Array.isArray(parsed.metrics) && parsed.metrics.length > 0) {
+        const ins = this._stmt('ss_met_ins', 'INSERT INTO session_metrics (cwd, milestone, phase, plan, duration, tasks, files, test_count, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        for (const m of parsed.metrics) ins.run(cwd, m.milestone || null, m.phase || null, m.plan || null, m.duration || null, m.tasks != null ? m.tasks : null, m.files != null ? m.files : null, m.test_count != null ? m.test_count : null, m.timestamp || null, JSON.stringify(m));
+      }
+      if (Array.isArray(parsed.todos) && parsed.todos.length > 0) {
+        const ins = this._stmt('ss_todo_ins', 'INSERT INTO session_todos (cwd, text, priority, category, status, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        for (const t of parsed.todos) ins.run(cwd, t.text || '', t.priority || null, t.category || null, t.status || 'pending', t.created_at || null, JSON.stringify(t));
+      }
+      if (Array.isArray(parsed.blockers) && parsed.blockers.length > 0) {
+        const ins = this._stmt('ss_blk_ins', 'INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)');
+        for (const b of parsed.blockers) ins.run(cwd, b.text || '', b.status || 'open', b.created_at || null, JSON.stringify(b));
+      }
+      if (parsed.continuity) {
+        const c = parsed.continuity;
+        this._stmt('ss_cont_ins', 'INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)').run(cwd, c.last_session || null, c.stopped_at || null, c.next_step || null, JSON.stringify(c));
+      }
+      this._db.exec('COMMIT');
+      return { migrated: true };
+    } catch { try { this._db.exec('ROLLBACK'); } catch {} return null; }
+  }
+
+  writeSessionMetric(cwd, metric) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt('sm_ins', 'INSERT INTO session_metrics (cwd, milestone, phase, plan, duration, tasks, files, test_count, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(cwd, metric.milestone || null, metric.phase || null, metric.plan || null, metric.duration || null, metric.tasks != null ? metric.tasks : null, metric.files != null ? metric.files : null, metric.test_count != null ? metric.test_count : null, metric.timestamp || null, JSON.stringify(metric));
+      return { inserted: true };
+    } catch { return null; }
+  }
+
+  getSessionMetrics(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      let w = 'cwd = ?'; const p = [cwd];
+      if (opts.phase) { w += ' AND phase = ?'; p.push(opts.phase); }
+      const total = (this._db.prepare('SELECT COUNT(*) AS cnt FROM session_metrics WHERE ' + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare('SELECT * FROM session_metrics WHERE ' + w + ' ORDER BY id DESC LIMIT ?').all(...p, limit);
+      return { entries: rows.map(r => { try { return JSON.parse(r.data_json); } catch { return r; } }), total };
+    } catch { return null; }
+  }
+
+  writeSessionDecision(cwd, decision) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt('sd_ins', 'INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(cwd, decision.milestone || null, decision.phase || null, decision.summary || null, decision.rationale || null, decision.timestamp || null, JSON.stringify(decision));
+      return { inserted: true };
+    } catch { return null; }
+  }
+
+  getSessionDecisions(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      const offset = opts.offset != null ? opts.offset : 0;
+      let w = 'cwd = ?'; const p = [cwd];
+      if (opts.phase) { w += ' AND phase = ?'; p.push(opts.phase); }
+      const total = (this._db.prepare('SELECT COUNT(*) AS cnt FROM session_decisions WHERE ' + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare('SELECT * FROM session_decisions WHERE ' + w + ' ORDER BY id DESC LIMIT ? OFFSET ?').all(...p, limit, offset);
+      return { entries: rows.map(r => { try { return JSON.parse(r.data_json); } catch { return r; } }), total };
+    } catch { return null; }
+  }
+
+  writeSessionTodo(cwd, todo) {
+    if (this._isMap()) return null;
+    try {
+      const result = this._stmt('st_ins', 'INSERT INTO session_todos (cwd, text, priority, category, status, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(cwd, todo.text || '', todo.priority || null, todo.category || null, todo.status || 'pending', todo.created_at || null, JSON.stringify(todo));
+      return { inserted: true, id: result ? result.lastInsertRowid : null };
+    } catch { return null; }
+  }
+
+  getSessionTodos(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      let w = 'cwd = ?'; const p = [cwd];
+      if (opts.status) { w += ' AND status = ?'; p.push(opts.status); }
+      const total = (this._db.prepare('SELECT COUNT(*) AS cnt FROM session_todos WHERE ' + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare('SELECT * FROM session_todos WHERE ' + w + ' ORDER BY id DESC LIMIT ?').all(...p, limit);
+      return { entries: rows.map(r => { try { return JSON.parse(r.data_json); } catch { return r; } }), total };
+    } catch { return null; }
+  }
+
+  completeSessionTodo(cwd, id) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt('st_complete', "UPDATE session_todos SET status='completed', completed_at=? WHERE id=? AND cwd=?").run(new Date().toISOString(), id, cwd);
+      return { updated: true };
+    } catch { return null; }
+  }
+
+  writeSessionBlocker(cwd, blocker) {
+    if (this._isMap()) return null;
+    try {
+      const result = this._stmt('sb_ins', 'INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)'
+      ).run(cwd, blocker.text || '', blocker.status || 'open', blocker.created_at || null, JSON.stringify(blocker));
+      return { inserted: true, id: result ? result.lastInsertRowid : null };
+    } catch { return null; }
+  }
+
+  getSessionBlockers(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      let w = 'cwd = ?'; const p = [cwd];
+      if (opts.status) { w += ' AND status = ?'; p.push(opts.status); }
+      const total = (this._db.prepare('SELECT COUNT(*) AS cnt FROM session_blockers WHERE ' + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare('SELECT * FROM session_blockers WHERE ' + w + ' ORDER BY id DESC LIMIT ?').all(...p, limit);
+      return { entries: rows.map(r => { try { return JSON.parse(r.data_json); } catch { return r; } }), total };
+    } catch { return null; }
+  }
+
+  resolveSessionBlocker(cwd, id, resolution) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt('sb_resolve', "UPDATE session_blockers SET status='resolved', resolved_at=?, resolution=? WHERE id=? AND cwd=?").run(new Date().toISOString(), resolution || null, id, cwd);
+      return { updated: true };
+    } catch { return null; }
+  }
+
+  recordSessionContinuity(cwd, continuity) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt('sc_upsert', 'INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)'
+      ).run(cwd, continuity.last_session || null, continuity.stopped_at || null, continuity.next_step || null, JSON.stringify(continuity));
+      return { stored: true };
+    } catch { return null; }
+  }
+
+  getSessionContinuity(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt('sc_get', 'SELECT * FROM session_continuity WHERE cwd = ?').get(cwd);
+      return row || null;
+    } catch { return null; }
+  }
 }
 
 // ---------------------------------------------------------------------------
