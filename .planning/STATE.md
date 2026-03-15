@@ -11,8 +11,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Milestone:** v12.1 Tool Integration & Agent Enhancement
 **Phase:** 126 (All 3 plans complete)
-**Current Plan:** Plan 03 complete — Phase 126 complete
-**Status:** Phase 126 complete
+**Current Plan:** Not started
+**Status:** Ready to plan
 **Last Activity:** 2026-03-15
 
 Progress: [██████████] 100% (Phase 126 complete, 3 of 3 plans)

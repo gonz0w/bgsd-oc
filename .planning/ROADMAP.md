@@ -17,7 +17,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
 
 - [✓] **Phase 124: Tool Detection & Infrastructure** (2/2 plans complete) - Unified tool capability detection with caching and cross-platform support
 - [x] **Phase 125: Core Tools Integration** - ripgrep, fd, jq integration with graceful degradation (completed 2026-03-15)
-- [ ] **Phase 126: Extended Tools** - yq, bat, GitHub CLI integration for enhanced workflows
+- [x] **Phase 126: Extended Tools** - yq, bat, GitHub CLI integration for enhanced workflows (completed 2026-03-15)
 - [ ] **Phase 127: Agent Routing Enhancement** - Tool-aware agent routing with decision functions
 - [ ] **Phase 128: Agent Collaboration** - Enhanced handoffs, multi-phase sequencing, shared patterns
 - [ ] **Phase 124: Tool Detection & Infrastructure**
@@ -85,7 +85,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
   5. gh CLI version constraint enforced (2.88.1+, avoiding 2.88.0 regression)
 
 **Plans:**
-  1/3 plans executed
+  3/3 plans complete
   - Plan 02 (Wave 1): gh version blocklist (isGhUsable) + detect:gh-preflight CLI command
   - Plan 03 (Wave 2): Integration test suite (46+ tests) for yq, bat, gh
 
@@ -135,7 +135,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
 |-------|----------------|--------|-----------|
 | 124. Tool Detection & Infrastructure | 2/2 | ✅ Complete | 2026-03-15 |
 | 125. Core Tools Integration | 0/3 | Complete    | 2026-03-15 |
-| 126. Extended Tools | 1/3 | In Progress|  |
+| 126. Extended Tools | 1/3 | Complete    | 2026-03-15 |
 | 127. Agent Routing Enhancement | 0/2 | Planned | — |
 | 128. Agent Collaboration | 0/2 | Planned | — |
 
