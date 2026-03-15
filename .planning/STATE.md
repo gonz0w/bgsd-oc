@@ -10,12 +10,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v13.0 Closed-Loop Agent Evolution
-**Phase:** Phase 132 of 133 (Deviation Recovery Auto-Capture)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** Phase 133 of 133 (Enhanced Research Workflow) — COMPLETE
+**Current Plan:** Plan 02 complete
+**Status:** Milestone complete
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -41,6 +41,8 @@ Progress: [██████████] 99%
 - v13.0 Phase 131 Plan 03: 6 min, 2 tasks, 6 files (router wiring + enricher installed_skills + new-milestone Step 8.5)
 - v13.0 Phase 132 Plan 01: 8 min, 2 tasks, 9 files (autonomousRecoveries typo fix + lessons:deviation-capture with Rule-1 filter + 3-cap)
 - v13.0 Phase 132 Plan 02: 5 min, 2 tasks, 4 files (deviation_auto_capture hook in execute-plan.md + help/discovery metadata)
+- v13.0 Phase 133 Plan 01: 8 min, 2 tasks, 4 files (research:score + research:gaps command handlers with 22 tests)
+- v13.0 Phase 133 Plan 02: 8 min, 2 tasks, 5 files (help/discovery wiring + new-milestone.md quality profile integration)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -64,6 +66,7 @@ Progress: [██████████] 99%
 | 132 | Deviation Recovery Auto-Capture | Rule-1-only auto-capture in execute-phase | DEVCAP-01 through DEVCAP-04 |
 | 133 | Enhanced Research Workflow | Structured quality profile + conflict detection | RESEARCH-01 through RESEARCH-04 |
 | Phase 0133 P01 | 8min | 2 tasks | 4 files |
+| Phase 0133-02 P02 | 8min | 2 tasks | 5 files |
 
 ### Key Decisions
 
@@ -100,10 +103,12 @@ Progress: [██████████] 99%
 - [Phase 133 Plan 01]: research:score + research:gaps use composite negative-signal scoring (5 signals, >= 3 = LOW); router wiring added as Rule-3 blocking fix — commands need explicit case blocks to be callable
 - [Phase 133 Plan 01]: cache-first pattern: cmdResearchScore writes research-score.json, cmdResearchGaps reads it — no independent recomputation keeps the two commands decoupled
 - [Phase 133 Plan 01]: parseResearchFile scans Primary+Secondary sources only for official docs detection (docs.* domain or "official" keyword) — Tertiary sources excluded as secondary references
+- [Phase 133 Plan 02]: quality profile section placed after RESEARCH COMPLETE banner with non-blocking re-research prompt (N default) — shows profile to completers without forcing on skippers; HIGH/MEDIUM gaps only per CONTEXT.md
+- [Phase 133 Plan 02]: advisory gate pattern: surface quality info after completion banner, offer remediation with N default — never block primary workflow
 
 ### Pending Work
 
-Phase 130 complete. Phase 131 Plans 01–03 complete (security scanner + full skills CLI + router wiring + enricher installed_skills + new-milestone Step 8.5). Phase 131 Plan 04 remains. Phase 132 complete (Plans 01 + 02): autonomousRecoveries typo fix + lessons:deviation-capture CLI + deviation_auto_capture hook in execute-plan.md + help/discovery metadata. Phase 133 Plan 01 complete: research:score + research:gaps command handlers with 22 tests. Phase 133 may have more plans.
+Phase 130 complete. Phase 131 Plans 01–03 complete (security scanner + full skills CLI + router wiring + enricher installed_skills + new-milestone Step 8.5). Phase 131 Plan 04 remains. Phase 132 complete (Plans 01 + 02). Phase 133 complete (Plans 01 + 02): research:score + research:gaps command handlers + CLI wiring + new-milestone.md quality profile integration. v13.0 milestone complete.
 
 ### Blockers/Concerns
 
@@ -111,9 +116,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T23:11:29.593Z
-**This session:** 2026-03-15 — Completed Phase 133 Plan 01 (research:score + research:gaps command handlers with parseResearchFile, computeConfidenceLevel, 22 tests, router wiring)
+**Last session:** 2026-03-15T23:21:02Z
+**This session:** 2026-03-15 — Completed Phase 133 Plan 02 (research:score + research:gaps CLI wiring into help/discovery/categories + new-milestone.md quality profile integration)
 **Next steps:**
-1. Check for Phase 133 Plan 02+ (new-milestone.md integration with LOW confidence flagging)
-2. Phase 131 Plan 04 (final verification) if it remains
-2. Phase 131 Plan 04 (final verification) may also be executed if it remains
+1. v13.0 milestone is complete — consider /bgsd-complete-milestone
+2. Phase 131 Plan 04 (final verification) may remain
