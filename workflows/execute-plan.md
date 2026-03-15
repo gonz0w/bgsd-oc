@@ -121,6 +121,31 @@ Priority: R4 (STOP) > R1-3 (auto) > unsure → R4.
 Document in SUMMARY: per deviation with rule/category/task/issue/fix/files/commit. None? → "plan executed exactly as written."
 </deviation_rules>
 
+<deviation_auto_capture>
+After a SUCCESSFUL Rule 1 (Bug) deviation recovery — meaning the fix was applied, verified working, and execution continued — auto-capture the recovery pattern as a structured lesson:
+
+```bash
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:deviation-capture \
+  --rule 1 \
+  --failure-count "${FAILURE_COUNT}" \
+  --behavioral-change "${WHAT_FIXED_IT}" \
+  --agent "${AGENT_NAME}" \
+  2>/dev/null || true
+```
+
+Where:
+- `FAILURE_COUNT`: Number of failed attempts before the successful recovery (1-3)
+- `WHAT_FIXED_IT`: Brief description of the behavioral change that resolved the issue (e.g., "Added null check before property access", "Used path.resolve instead of relative path")
+- `AGENT_NAME`: The agent that performed the recovery (e.g., bgsd-executor)
+
+**Rules:**
+- ONLY capture after Rule 1 (Bug) recoveries — the command filters internally, but do NOT invoke for Rule 3 (Blocking/environmental) failures like missing deps, npm errors, or permission issues
+- ONLY capture after SUCCESSFUL recovery (fix verified working) — never on failure or escalation
+- The `2>/dev/null || true` suffix is MANDATORY — capture must never block execution
+- The command silently stops after 3 captures per milestone — no action needed from the executor
+- Do NOT capture Rule 2 (Missing Critical) or Rule 4 (Architectural) deviations — only Rule 1 code bugs carry reusable behavioral patterns
+</deviation_auto_capture>
+
 <tdd_plan_execution>
 For `type: tdd` plans, follow the dedicated TDD workflow:
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/tdd.md
