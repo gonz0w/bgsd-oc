@@ -98,50 +98,93 @@ function isWithinBudget(text, config = {}) {
 
 const AGENT_MANIFESTS = {
   'bgsd-executor': {
+    tool_dependency_level: 'high',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'incomplete_plans',
              'plan_count', 'incomplete_count', 'branch_name', 'commit_docs',
-             'verifier_enabled', 'task_routing', 'env_summary'],
-    optional: ['codebase_conventions', 'codebase_dependencies'],
+             'verifier_enabled', 'task_routing', 'env_summary', 'tool_availability'],
+    optional: ['codebase_conventions', 'codebase_dependencies', 'decisions'],
     exclude: ['intent_drift', 'intent_summary', 'worktree_config', 'worktree_active',
               'file_overlaps', 'codebase_freshness', 'codebase_stats'],
   },
   'bgsd-verifier': {
+    tool_dependency_level: 'low',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'summaries',
              'verifier_enabled'],
-    optional: ['codebase_stats'],
+    optional: ['codebase_stats', 'decisions'],
     exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
               'worktree_active', 'file_overlaps', 'env_summary', 'branch_name',
-              'codebase_conventions', 'codebase_dependencies'],
+              'codebase_conventions', 'codebase_dependencies', 'tool_availability'],
   },
   'bgsd-planner': {
+    tool_dependency_level: 'medium',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count',
-             'research_enabled', 'plan_checker_enabled', 'intent_summary'],
+             'research_enabled', 'plan_checker_enabled', 'intent_summary', 'tool_availability'],
     optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
-               'codebase_freshness', 'env_summary'],
+               'codebase_freshness', 'env_summary', 'decisions'],
     exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
               'branch_name'],
   },
   'bgsd-phase-researcher': {
+    tool_dependency_level: 'low',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary'],
-    optional: ['codebase_stats', 'env_summary'],
+    optional: ['codebase_stats', 'env_summary', 'decisions'],
     exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
-              'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans'],
+              'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans',
+              'tool_availability'],
   },
   'bgsd-plan-checker': {
+    tool_dependency_level: 'low',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'plan_count'],
-    optional: ['codebase_stats', 'codebase_dependencies'],
+    optional: ['codebase_stats', 'codebase_dependencies', 'decisions'],
     exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
-              'worktree_active', 'file_overlaps', 'env_summary', 'branch_name'],
+              'worktree_active', 'file_overlaps', 'env_summary', 'branch_name',
+              'tool_availability'],
   },
   'bgsd-reviewer': {
+    tool_dependency_level: 'low',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'codebase_conventions', 'codebase_dependencies'],
-    optional: ['codebase_stats'],
-    exclude: ['intent_summary', 'plan_count', 'summaries', 'incomplete_plans'],
+    optional: ['codebase_stats', 'decisions'],
+    exclude: ['intent_summary', 'plan_count', 'summaries', 'incomplete_plans',
+              'tool_availability'],
+  },
+  'bgsd-roadmapper': {
+    tool_dependency_level: 'low',
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count', 'intent_summary'],
+    optional: ['codebase_stats', 'decisions'],
+    exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
+              'branch_name', 'verifier_enabled', 'env_summary', 'tool_availability'],
+  },
+  'bgsd-project-researcher': {
+    tool_dependency_level: 'low',
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary'],
+    optional: ['codebase_stats', 'env_summary', 'decisions'],
+    exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
+              'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans',
+              'tool_availability'],
+  },
+  'bgsd-debugger': {
+    tool_dependency_level: 'high',
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'branch_name',
+             'env_summary', 'tool_availability'],
+    optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
+               'codebase_freshness', 'decisions'],
+    exclude: ['intent_drift', 'worktree_config', 'worktree_active', 'file_overlaps',
+              'plan_count', 'verifier_enabled'],
+  },
+  'bgsd-codebase-mapper': {
+    tool_dependency_level: 'high',
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'branch_name',
+             'env_summary', 'tool_availability'],
+    optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
+               'codebase_freshness', 'decisions'],
+    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
+              'worktree_active', 'file_overlaps'],
   },
 };
 
 /**
  * Filter init output to agent-declared fields.
+ * Applies capability-aware filtering: low-dependency agents get tool context stripped.
  * @param {object} result - Full init output object
  * @param {string} agentType - Agent type key (e.g. 'bgsd-executor')
  * @returns {object} Scoped result with _agent and _savings metadata
@@ -162,6 +205,39 @@ function scopeContextForAgent(result, agentType) {
       scoped[key] = result[key];
     }
   }
+
+  const toolDependencyLevel = manifest.tool_dependency_level || 'high';
+
+  // Capability-aware filtering: strip tool details for low/medium dependency agents
+  if (toolDependencyLevel === 'low') {
+    // Silent removal — agent doesn't know what was removed
+    delete scoped.tool_availability;
+    // Remove tool-routing decisions (file-discovery-mode, search-mode, json-transform-mode)
+    if (scoped.decisions && typeof scoped.decisions === 'object') {
+      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'json-transform-mode'];
+      const filteredDecisions = {};
+      for (const [key, val] of Object.entries(scoped.decisions)) {
+        if (!toolRoutingIds.includes(key)) {
+          filteredDecisions[key] = val;
+        }
+      }
+      scoped.decisions = filteredDecisions;
+    }
+  } else if (toolDependencyLevel === 'medium') {
+    // Keep tool_availability (planner needs it for planning context)
+    // Remove tool-routing decisions (planner doesn't need runtime tool choices)
+    if (scoped.decisions && typeof scoped.decisions === 'object') {
+      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'json-transform-mode'];
+      const filteredDecisions = {};
+      for (const [key, val] of Object.entries(scoped.decisions)) {
+        if (!toolRoutingIds.includes(key)) {
+          filteredDecisions[key] = val;
+        }
+      }
+      scoped.decisions = filteredDecisions;
+    }
+  }
+  // 'high': keep everything (full context)
 
   const scopedKeys = Object.keys(scoped).length - 1; // exclude _agent
   scoped._savings = {
