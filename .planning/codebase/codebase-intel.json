@@ -2121,6 +2121,7 @@
         "src/plugin/tool-registry.js",
         "src/plugin/context-builder.js",
         "src/plugin/command-enricher.js",
+        "src/plugin/project-state.js",
         "src/plugin/tools/index.js",
         "src/plugin/notification.js",
         "src/plugin/file-watcher.js",
@@ -2133,8 +2134,7 @@
         "src/plugin/parsers/plan.js",
         "src/plugin/parsers/project.js",
         "src/plugin/parsers/intent.js",
-        "src/plugin/parsers/index.js",
-        "src/plugin/project-state.js"
+        "src/plugin/parsers/index.js"
       ],
       "src/plugin/notification.js": [
         "src/plugin/logger.js"
@@ -2674,7 +2674,7 @@
       ],
       "parse_errors": 2
     },
-    "built_at": "2026-03-14T11:42:56.610Z"
+    "built_at": "2026-03-15T01:54:24.258Z"
   },
   "conventions": {
     "naming": {

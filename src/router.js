@@ -108,6 +108,7 @@ function lazyMeasure() { return _modules.measure || (_modules.measure = require(
 function lazyRecovery() { return _modules.recovery || (_modules.recovery = require('./lib/recovery')); }
 function lazyAudit() { return _modules.audit || (_modules.audit = require('./commands/audit')); }
 function lazyDecisions() { return _modules.decisions || (_modules.decisions = require('./commands/decisions')); }
+function lazyDb() { return _modules.db || (_modules.db = require('./lib/db')); }
 
 
 async function main() {
@@ -188,6 +189,28 @@ async function main() {
   if (noCacheIdx !== -1) {
     process.env.BGSD_CACHE_FORCE_MAP = '1';
     args.splice(noCacheIdx, 1);
+  }
+
+  // ─── Project-local database initialization (Phase 118: Foundation & Schema) ────
+  // Eagerly initialize the project-local SQLite database on every command.
+  // Per CONTEXT.md: "DB created eagerly on any command — ensure it exists at startup,
+  // no first-use latency surprises."
+  // This is separate from the global file-content cache (cache.js).
+  try {
+    const cwd = process.cwd();
+    const db = lazyDb().getDb(cwd);
+    // Drain any notices (first-creation, fallback mode, etc.)
+    // These are stored for the plugin notification system to pick up
+    const notices = db.notices;
+    if (notices && notices.length > 0) {
+      // Store notices for plugin system to drain via drainPendingContext()
+      global._gsdDbNotices = notices;
+    }
+  } catch (e) {
+    // Silent failure — database is a cache, not critical
+    if (process.env.BGSD_DEBUG === '1') {
+      console.error('[bGSD] Database initialization failed:', e.message);
+    }
   }
 
   // Parse --exact flag: require exact command match, reject fuzzy matches

@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmdirSync, existsSync, statSync
 import { join } from 'path';
 import { invalidateState } from '../parsers/state.js';
 import { invalidatePlans } from '../parsers/plan.js';
+import { getDb, PlanningCache } from '../lib/db-cache.js';
 
 /**
  * bgsd_progress — State mutation tool.
@@ -112,12 +113,32 @@ export const bgsd_progress = {
         const { state } = projectState;
         let actionResult = null;
 
+        // SQL-first: attempt SQLite write before regex mutation
+        let sqliteCache = null;
+        try {
+          const db = getDb(projectDir);
+          if (db.backend === 'sqlite') {
+            sqliteCache = new PlanningCache(db);
+          }
+        } catch { /* SQLite unavailable — use regex path only */ }
+
         switch (args.action) {
           case 'complete-task': {
             // Increment progress percentage
             const currentProgress = state.progress !== null ? state.progress : 0;
             const step = 10;
             const newProgress = Math.min(100, currentProgress + step);
+
+            // SQL-first: update progress in session_state
+            if (sqliteCache) {
+              try {
+                const sessionState = sqliteCache.getSessionState(projectDir);
+                if (sessionState) {
+                  sqliteCache.storeSessionState(projectDir, { ...sessionState, progress: newProgress, last_activity: new Date().toISOString().split('T')[0] });
+                }
+              } catch { /* non-fatal */ }
+            }
+
             content = updateProgress(content, newProgress);
             actionResult = `Progress updated to ${newProgress}%`;
             break;
@@ -127,12 +148,34 @@ export const bgsd_progress = {
             const currentProgress = state.progress !== null ? state.progress : 0;
             const step = 10;
             const newProgress = Math.max(0, currentProgress - step);
+
+            // SQL-first: update progress in session_state
+            if (sqliteCache) {
+              try {
+                const sessionState = sqliteCache.getSessionState(projectDir);
+                if (sessionState) {
+                  sqliteCache.storeSessionState(projectDir, { ...sessionState, progress: newProgress });
+                }
+              } catch { /* non-fatal */ }
+            }
+
             content = updateProgress(content, newProgress);
             actionResult = `Progress reverted to ${newProgress}%`;
             break;
           }
 
           case 'add-blocker': {
+            // SQL-first: write blocker to SQLite
+            if (sqliteCache) {
+              try {
+                sqliteCache.writeSessionBlocker(projectDir, {
+                  text: args.value,
+                  status: 'open',
+                  created_at: new Date().toISOString(),
+                });
+              } catch { /* non-fatal */ }
+            }
+
             content = addBlocker(content, args.value);
             actionResult = `Blocker added: ${args.value}`;
             break;
@@ -153,12 +196,41 @@ export const bgsd_progress = {
                 message: result.error,
               });
             }
+
+            // SQL-first: resolve blocker by 1-based index in SQLite
+            if (sqliteCache) {
+              try {
+                const blockersResult = sqliteCache.getSessionBlockers(projectDir, { status: 'open', limit: 100 });
+                const blockers = blockersResult ? blockersResult.entries : [];
+                // entries are ordered by id DESC — reverse to get oldest-first (same as display order)
+                const sorted = blockers.slice().reverse();
+                const target = sorted[idx - 1];
+                if (target && target._id != null) {
+                  sqliteCache.resolveSessionBlocker(projectDir, target._id, 'Removed');
+                }
+              } catch { /* non-fatal */ }
+            }
+
             content = result.content;
             actionResult = `Blocker ${idx} removed`;
             break;
           }
 
           case 'record-decision': {
+            // SQL-first: write decision to SQLite
+            if (sqliteCache) {
+              try {
+                const phaseTag = state.phase ? (state.phase.match(/^(\d+)/)?.[1] || '?') : '?';
+                sqliteCache.writeSessionDecision(projectDir, {
+                  phase: `Phase ${phaseTag}`,
+                  summary: args.value,
+                  rationale: null,
+                  timestamp: new Date().toISOString(),
+                  milestone: null,
+                });
+              } catch { /* non-fatal */ }
+            }
+
             content = recordDecision(content, args.value, state.phase);
             actionResult = `Decision recorded: ${args.value}`;
             break;
@@ -166,6 +238,21 @@ export const bgsd_progress = {
 
           case 'advance': {
             const result = advancePlan(content, state.currentPlan);
+
+            // SQL-first: update current_plan in session_state
+            if (sqliteCache && result.newPlanNum) {
+              try {
+                const sessionState = sqliteCache.getSessionState(projectDir);
+                if (sessionState) {
+                  sqliteCache.storeSessionState(projectDir, {
+                    ...sessionState,
+                    current_plan: String(result.newPlanNum),
+                    last_activity: new Date().toISOString().split('T')[0],
+                  });
+                }
+              } catch { /* non-fatal */ }
+            }
+
             content = result.content;
             actionResult = result.message;
             break;
@@ -174,6 +261,11 @@ export const bgsd_progress = {
 
         // Write updated STATE.md
         writeFileSync(statePath, content, 'utf-8');
+
+        // SQL-first: update file_cache mtime so _checkAndReimportState doesn't re-import
+        if (sqliteCache) {
+          try { sqliteCache.updateMtime(statePath); } catch { /* non-fatal */ }
+        }
 
         // Release lock before invalidating caches
         try { rmdirSync(lockDir); } catch { /* already released */ }
@@ -303,12 +395,12 @@ function recordDecision(content, decisionText, phase) {
 
 function advancePlan(content, currentPlan) {
   if (!currentPlan) {
-    return { content, message: 'No current plan to advance from' };
+    return { content, message: 'No current plan to advance from', newPlanNum: null };
   }
 
   const planNumMatch = currentPlan.match(/(\d+)\s*(?:pending|$)/i) || currentPlan.match(/(\d+)/);
   if (!planNumMatch) {
-    return { content, message: `Could not parse plan number from: ${currentPlan}` };
+    return { content, message: `Could not parse plan number from: ${currentPlan}`, newPlanNum: null };
   }
 
   const currentNum = parseInt(planNumMatch[1], 10);
@@ -320,5 +412,5 @@ function advancePlan(content, currentPlan) {
     `**Current Plan:** ${nextPlanStr}`
   );
 
-  return { content: updated, message: `Advanced to Plan ${String(nextNum).padStart(2, '0')}` };
+  return { content: updated, message: `Advanced to Plan ${String(nextNum).padStart(2, '0')}`, newPlanNum: nextNum };
 }

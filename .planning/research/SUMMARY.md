@@ -1,8 +1,8 @@
 # Project Research Summary
 
-**Project:** bGSD Plugin — v11.4 Housekeeping & Stabilization
-**Domain:** Internal quality, test infrastructure, CLI routing, planning artifact cleanup
-**Researched:** 2026-03-13
+**Project:** bGSD Plugin — v12.0 SQLite-First Data Layer
+**Domain:** Structured SQLite schema management for zero-dependency Node.js CLI
+**Researched:** 2026-03-14
 **Confidence:** HIGH
 
 <!-- section: compact -->
@@ -11,97 +11,102 @@
      Keep it under 30 lines. Synthesizes all 4 research areas.
      Full sections below are loaded on-demand via extract-sections. -->
 
-**Summary:** Four areas of technical debt researched: test suite failures (607/1014 failing — 97% caused by a single Bun runtime banner bug), CLI command routing gaps (2 missing routes, 1 orphaned module, stale validator data), planning artifact inconsistencies (30 issues across MILESTONES.md, PROJECT.md, STATE.md, INTENT.md), and intent archival pitfalls (7 pitfalls around traceability, ID collision, workflow sequencing). All fixes are well-understood with high confidence.
+**Summary:** Transform SQLite from a dumb file cache into the structured data backbone for all workflow operations. The recommended approach uses `node:sqlite` DatabaseSync (already in production via cache.js) with version-gated inline migrations via `PRAGMA user_version`, per-project database at `.planning/.cache.db`, and a write-through cache pattern where markdown remains authority and SQLite is a derived query layer. The primary risk is stale cache from uncommitted edits, mitigated by hybrid git-hash + mtime invalidation.
 
-**Recommended stack:** Existing Node.js CLI (`bin/bgsd-tools.cjs`), `node:test` runner, `execSync` test harness — no new dependencies needed
+**Recommended stack:** node:sqlite DatabaseSync (structured tables + prepared statements), PRAGMA user_version (schema versioning), SQLTagStore/createTagStore (statement caching with db.prepare() fallback), STRICT tables (type enforcement), JSON1 extension (querying JSON TEXT columns)
 
-**Architecture:** Single-file CLI with modular `src/` build, 130+ routes across 9 namespaces, 41 slash commands, 43 workflows
+**Architecture:** Dual-store layered data access — markdown authority, SQLite query cache, Map L1 → SQLite L2 → markdown L3 hierarchy with DataStore class, modified parsers, accelerated enricher, and memory migrator
 
 **Top pitfalls:**
-1. **Bun banner poisons JSON output** — guard `showBanner` on `process.stdout.isTTY` (1-line fix, 589 tests recovered)
-2. **Missing CLI routes called by workflows** — `verify:handoff` and `verify:agents` don't exist but `execute-phase.md` calls them
-3. **Intent ID collision after archival** — `getNextId()` must continue sequence monotonically, never reset to DO-01
-4. **MILESTONES.md missing 6 entries** — v8.0, v8.1, v9.1, v11.0, v11.1, v11.2 shipped but never recorded
-5. **Partial archival on failure** — snapshot INTENT.md before modify, restore on error
+1. **node:sqlite API drift** — feature-detect capabilities at runtime, use only v22.5 baseline API for core paths
+2. **Schema migration in single-file deploy** — embed versioned migration array in code, use PRAGMA user_version, run on every db open
+3. **Stale cache after uncommitted edits** — combine git-hash for cross-session staleness with mtime checks for within-session freshness
+4. **Sacred data loss during memory migration** — never delete JSON files, two-phase migrate-then-verify, keep JSON as backup indefinitely
+5. **Database locking under concurrent invocations** — WAL mode + busy timeout from day one
 
 **Suggested phases:**
-1. **Test Suite Stabilization** — fix banner bug + 18 residual test failures (unblocks all other work)
-2. **CLI Routing Cleanup** — fix missing routes, remove dead code, sync validator
-3. **Planning Artifact Normalization** — fix MILESTONES.md, PROJECT.md, STATE.md, INTENT.md formatting and data
-4. **Intent Archival System** — implement automated outcome archival in milestone completion workflow
+1. **Foundation & Schema** — DataStore class, migration runner, WAL/locking, capability detection (enables everything)
+2. **Parser Integration & Invalidation** — Write-through cache for parsers, git-hash + mtime invalidation, file-watcher hookup
+3. **Enricher Acceleration** — Replace 3x listSummaryFiles / 2x parsePlans with SQL queries, pre-computed enrichment cache
+4. **Memory Store Migration** — decisions/lessons/bookmarks/trajectories from JSON to SQLite, sacred data protection
+5. **Decision Rules & Session State** — New SQLite-backed decision rules, session state persistence, STATE.md as generated view
 
-**Confidence:** HIGH | **Gaps:** v11.2 milestone status unclear (no archives found); intent archival timing (complete-milestone vs new-milestone) needs design decision
+**Confidence:** HIGH | **Gaps:** Concurrent access stress testing needed; enricher V2 query design needs benchmarking against real projects
 </compact_summary>
 <!-- /section -->
 
 <!-- section: executive_summary -->
 ## Executive Summary
 
-This milestone targets four areas of accumulated technical debt in the bGSD plugin. The test suite has 607 of 1014 tests failing, but 97% share a single root cause: a Bun runtime banner that pollutes JSON output parsed by tests. A one-line guard in `src/router.js` fixes 589 failures instantly. The remaining 18 failures are spread across stale profiler references, plugin test isolation issues, and infrastructure edge cases — all individually straightforward.
+The v12.0 milestone transforms SQLite from a simple file content cache (two tables in cache.js) into the structured data backbone for all bGSD workflow operations. Research confirms this is achievable using only the existing `node:sqlite` DatabaseSync API — zero new dependencies. The recommended architecture follows the "derived index" pattern used by tools like Turborepo and Jujutsu: markdown files remain the source of truth for all human-facing data, while SQLite provides a fast queryable index over parsed structures. A new `DataStore` class manages per-project databases at `.planning/.cache.db` (gitignored), separate from the global file cache.
 
-The CLI command routing audit found 130+ registered routes across 9 namespaces. Two routes (`verify:handoff`, `verify:agents`) are called by the main execution workflow but don't exist — they'll fail at runtime. One command module (`src/commands/ci.js`, 327 lines) is completely orphaned: not imported, not routed, never loaded. The command validator (`commandDiscovery.js`) is missing the `audit` namespace and has 5 stale subcommand lists. None of these issues are interconnected; all fixes are independent.
+The highest-impact deliverable is enricher acceleration: the current `command-enricher.js` calls `parsePlans()` 2x and `listSummaryFiles()` 3x on every command invocation, re-reading files that were already parsed. With structured SQLite tables, the enricher becomes a single SQL query on warm starts — estimated 5-30x speedup for the hot path. Schema versioning via `PRAGMA user_version` with inline migration functions (no migration files) fits the single-file deploy model perfectly.
 
-Planning artifacts have accumulated 30 issues across 5 files over 18 milestones. The most impactful: MILESTONES.md is missing entries for 6 shipped milestones, has entries out of chronological order, and the v9.2 entry contains v9.0's description (copy-paste error). PROJECT.md has stale module counts, orphaned HTML tags, and broken table rows. INTENT.md history entries are out of order with a mislabeled version. The intent archival system (automating outcome cleanup during milestone completion) has 7 identified pitfalls, with ID collision and workflow sequencing being the most critical design decisions.
+The primary risks are cache staleness from uncommitted edits (mitigated by hybrid git-hash + mtime invalidation), sacred data loss during memory store migration (mitigated by keeping JSON backups indefinitely), and node:sqlite API drift between Node versions (mitigated by runtime capability detection using only the v22.5 baseline API for core paths). All risks have established mitigation patterns verified against the existing codebase.
 <!-- /section -->
 
 <!-- section: key_findings -->
 ## Key Findings
 
-### Test Suite (STACK.md)
+### Recommended Stack
 
-The test suite uses `node:test` with `execSync`-based CLI invocation. Tests pipe stdout and `JSON.parse()` the output. When Bun is installed on the system, a runtime banner (`[bGSD] Running with Bun v1.3.10`) is written to stdout via `console.log()`, prepending invalid text to JSON output.
+No new dependencies. Everything builds on the existing `node:sqlite` DatabaseSync already proven in `src/lib/cache.js`. The stack leverages SQLite built-ins (PRAGMA user_version, STRICT tables, JSON1 extension) and Node.js built-ins (crypto for content hashing) exclusively.
 
-**Root cause breakdown:**
+**Core technologies:**
+- **node:sqlite DatabaseSync**: Synchronous SQLite access — already in production, zero-dependency, matches CLI's synchronous architecture. Stability 1.2 (Release Candidate) as of Node v25.7.0.
+- **PRAGMA user_version**: Integer schema version stored in database header — no migration tables needed, atomic read/write, zero overhead. Standard pattern for embedded SQLite applications.
+- **SQLTagStore (createTagStore)**: LRU-cached prepared statements via tagged template literals — already used in cache.js. Requires Node 24.9+ with automatic fallback to `db.prepare()` for Node 22.5+.
+- **STRICT tables**: Type enforcement at write time — catches coercion errors early. Available in all Node.js-bundled SQLite versions (3.45+).
+- **JSON1 extension (JSON_EXTRACT, json_each)**: Query into JSON TEXT columns without full schema decomposition — built into Node.js SQLite, enables flexible querying of arrays and nested objects stored as TEXT.
 
-| Category | Failures | Fix Complexity |
-|----------|----------|----------------|
-| Bun runtime banner (stdout pollution) | 589 | 1-line guard on `process.stdout.isTTY` |
-| Missing `src/lib/profiler` module | 3 | Remove stale tests |
-| Plugin parser/tool test isolation | 7 | Use temp dirs, not live project |
-| Infrastructure assertions (`_tmpFiles`) | 3 | Update assertions |
-| Config migration edge cases | 2 | Update test expectations |
-| Env/misc edge cases | 3 | Individual investigation |
+**Key patterns:** Version-gated inline migrations, `BEGIN IMMEDIATE` transactions for batch writes, `INSERT OR REPLACE` for upserts, per-file content hashing for surgical cache invalidation, Map L1 → SQLite L2 → markdown L3 data hierarchy.
 
-**Estimated total effort:** 1.5-2 hours across 5 fix waves.
+**What to avoid:** ORMs (adds dependencies), better-sqlite3 (duplicates built-in), migration file systems (incompatible with single-file deploy), WAL mode for global cache (unnecessary for single-process), async SQLite APIs (CLI is synchronous by design).
 
-### CLI Command Routing (FEATURES.md)
+### Expected Features
 
-Full inventory of 130+ routes across 9 namespaces verified via static analysis.
+**Must have (table stakes):**
+- Structured planning tables (phases, plans, tasks, requirements, decisions) — eliminates re-parsing markdown on every CLI invocation
+- Schema versioning with migration runner — forward-compatible upgrades without data loss
+- Git-hash + mtime invalidation — ensures cached data stays fresh after edits and commits
+- Enricher deduplication/acceleration — fixes 3x listSummaryFiles and 2x parsePlans calls
+- Session state persistence — position and metrics in SQLite, STATE.md becomes generated view
+- Backward-compatible Map fallback — graceful degradation on Node < 22.5
 
-**Critical findings:**
-- 2 missing routes: `verify:handoff` and `verify:agents` — called by `execute-phase.md` but have no implementation
-- 1 orphaned module: `src/commands/ci.js` (327 lines) — no lazy loader, no route, never imported
-- 1 missing validator namespace: `audit` not in `commandDiscovery.js`
-- 5 stale subcommand lists in validator vs actual router
-- 20 routes missing `COMMAND_HELP` entries
-- 1 dead route: `execute:profile` just prints an error
-- 2 duplicate routes: `runtime` and `measure` exist as both `util:` and standalone
+**Should have (differentiators):**
+- Cross-entity SQL queries — "show decisions from phase X" via JOINs (impossible with JSON files)
+- Memory store migration — decisions/lessons/bookmarks/trajectories from JSON to indexed SQLite tables
+- Query-based decision inputs — decision rules consume SQL directly instead of enricher JSON
+- Atomic multi-file updates — wrap related writes in transactions (prevents partial-write corruption)
 
-**Key dependency:** All fixes are independent; no ordering constraints.
+**Defer (v2+):**
+- FTS5 full-text search — current volumes (<1000 entries) don't justify overhead
+- Materialized enrichment views with triggers — only when benchmarked as bottleneck
+- WAL mode for parallel agent access — when multi-agent parallelism is attempted
+- SQLite session/changeset tracking — when undo/redo or audit trail needed
 
-### Planning Artifacts (ARCHITECTURE.md)
+### Architecture Approach
 
-30 issues cataloged across MILESTONES.md (11), PROJECT.md (14), STATE.md (2), config.json (1), INTENT.md (2).
+The target architecture adds a `DataStore` class as a unified SQLite access layer sitting between parsers and consumers. Parsers gain write-through persistence: on parse, they write structured rows to DataStore; on subsequent reads, they check DataStore validity before re-parsing. The enricher reads pre-computed data from DataStore instead of re-scanning files. Memory stores dual-write to both JSON (for git tracking) and SQLite (for indexed queries). Two database files with clear separation: global `cache.db` for file/research cache (unchanged), per-project `.planning/.cache.db` for structured planning data.
 
-**Major issues:**
-1. **MILESTONES.md missing 6 milestone entries** — v8.0, v8.1, v9.1, v11.0, v11.1, v11.2 all shipped (archives exist) but were never recorded
-2. **MILESTONES.md v9.2 entry has v9.0's content** — heading says "CLI Tool Integrations" but body describes "Embedded Plugin Experience"
-3. **Non-chronological ordering** in both MILESTONES.md and INTENT.md history
-4. **PROJECT.md stale counts** — "53 modules" (actual: ~119), "45 workflows" (actual: 44), "34-module split" (actual: 61+)
-5. **Orphaned HTML tags** — standalone `</details>` at PROJECT.md:68
-6. **Broken table rows** — 3 rows missing columns in Key Decisions table
+**Major components:**
+1. **DataStore (NEW)** — Unified SQLite access: schema management, migrations, structured CRUD, git-hash + mtime invalidation. Located at `src/lib/datastore.js`.
+2. **Modified Parsers (state.js, roadmap.js, plan.js)** — Write-through cache: parse markdown → persist rows to DataStore → read from DataStore when cache is valid.
+3. **Enricher V2 (MODIFIED)** — Reads pre-computed counts and metadata from DataStore instead of re-parsing files. Eliminates 3x listSummaryFiles and 2x parsePlans duplication.
+4. **MemoryMigrator (NEW)** — One-time migration of `.planning/memory/*.json` into SQLite tables with sacred data protection and round-trip verification.
+5. **QueryAPI (NEW)** — SQL query functions replacing subprocess calls for CLI commands (count plans, filter decisions, aggregate metrics).
 
-### Critical Pitfalls (PITFALLS.md)
+### Critical Pitfalls
 
-7 pitfalls identified for the intent archival system:
+1. **node:sqlite API drift between Node versions** — The API gained 15+ new methods between v22.5 and v22.22. Create a capability detection layer; use only v22.5 baseline API for core paths; wrap optional features (createTagStore, iterate, aggregate) behind runtime checks.
 
-1. **Broken traceability** — Plans reference outcome IDs (DO-72, etc.) that become invalid after archival. `cmdIntentTrace()` only checks active INTENT.md.
-2. **History grows unbounded** — Append-only history section inflates context windows across milestones.
-3. **Partial archival failure** — `cmdMilestoneComplete()` uses best-effort try/catch; adding intent archival adds another failure point.
-4. **ID collision after reset** — `getNextId()` scans only current outcomes; if list is cleared, it returns DO-01 instead of continuing the sequence.
-5. **`new-milestone` workflow assumes active outcomes exist** — If archival runs during `complete-milestone`, the evolution questionnaire in `new-milestone` Step 4.5 finds nothing to review.
-6. **Plugin stale cache** — Module-level intent cache isn't invalidated after CLI-driven INTENT.md modifications.
-7. **Advisory guardrails block archival** — INTENT.md modification allowlist doesn't include `complete-milestone`.
+2. **Schema migration in single-file deploy** — `CREATE TABLE IF NOT EXISTS` is NOT a migration; it silently preserves old schemas missing new columns. Use `PRAGMA user_version` with an append-only migration array embedded in code. Never delete migrations. Test upgrades from version 0 AND every intermediate version.
+
+3. **Stale cache after uncommitted file edits** — Git-hash invalidation is blind to working-directory changes. Use hybrid invalidation: git-hash for cross-session staleness, file mtime for within-session freshness. Always check source file mtime before trusting SQLite cache.
+
+4. **Sacred data loss during memory store migration** — Never delete JSON files during migration. Two-phase approach: copy JSON → SQLite (additive), then verify round-trip equality for every entry. Only switch read path after verification passes.
+
+5. **Database locking under concurrent invocations** — Plugin hooks, multiple terminals, and git hooks can trigger concurrent access. Enable WAL mode and set busy timeout from the very first database open. Test with 5 simultaneous CLI processes.
 <!-- /section -->
 
 <!-- section: roadmap_implications -->
@@ -109,50 +114,55 @@ Full inventory of 130+ routes across 9 namespaces verified via static analysis.
 
 Based on research, suggested phase structure:
 
-### Phase 1: Test Suite Stabilization
-**Rationale:** Tests must be green before making any other changes — they provide the safety net for all subsequent work.
-**Delivers:** All 1014 tests passing (zero failures).
-**Addresses:** DO-72 (test suite green), SC-51 (npm test zero failures)
-**Avoids:** Bun banner pitfall — single guard in `src/router.js`; stale test references to deleted modules
-**Estimated effort:** 1.5-2 hours across 5 fix waves
+### Phase 1: Foundation & Schema Design
+**Rationale:** DataStore is the foundation all other components depend on. Schema versioning must exist before any structured tables are created. WAL mode and capability detection are prerequisites, not afterthoughts.
+**Delivers:** DataStore class with schema management, migration runner, PRAGMA user_version tracking, WAL mode + busy timeout, node:sqlite capability detection layer, Map fallback guard pattern.
+**Addresses:** Schema versioning (P1), backward-compatible fallback (P1)
+**Avoids:** API drift (Pitfall 1), schema migration breakage (Pitfall 2), Map/SQLite divergence (Pitfall 3), database locking (Pitfall 6)
 
-### Phase 2: CLI Routing Cleanup
-**Rationale:** Routing issues affect agent execution reliability. Missing routes silently fail during phase execution workflows. Independent of test fixes but benefits from green tests for verification.
-**Delivers:** Verified command routing with zero broken routes, zero orphaned modules.
-**Addresses:** DO-74 (CLI routing verified), SC-53 (working routes), SC-54 (no orphaned commands)
-**Avoids:** Missing route pitfall — workflow calls to non-existent `verify:handoff`/`verify:agents`
-**Estimated effort:** 1-1.5 hours
+### Phase 2: Parser Integration & Cache Invalidation
+**Rationale:** Parsers are the writers to DataStore — they must work before any consumers (enricher, CLI) can read. Invalidation strategy must be proven before caching derived data.
+**Delivers:** Write-through cache for state/roadmap/plan parsers, git-hash + mtime invalidation logic, file-watcher integration with DataStore invalidation, structured tables for phases/plans/tasks.
+**Uses:** DataStore (Phase 1), existing parser architecture, existing file-watcher
+**Implements:** Write-through structured cache pattern, git-hash staleness detection
+**Avoids:** Stale cache (Pitfall 5), enricher duplication creating new duplication (Pitfall 9)
 
-### Phase 3: Planning Artifact Normalization
-**Rationale:** Planning files are consumed by every agent. Stale data wastes tokens and creates confusion. Can be done independently but benefits from green tests.
-**Delivers:** Clean MILESTONES.md (all entries, chronological, consistent format), accurate PROJECT.md, ordered INTENT.md history.
-**Addresses:** DO-75 (artifacts normalized), DO-76 (out-of-scope reviewed), DO-77 (decisions audited), DO-78 (health metrics), SC-55-SC-57
-**Avoids:** Copy-paste anti-pattern — generate entries from archived ROADMAP data, not from other entries
-**Estimated effort:** 2-3 hours across 3 plans (mechanical fixes, MILESTONES.md overhaul, PROJECT.md streamlining)
+### Phase 3: Enricher Acceleration
+**Rationale:** Highest-impact single change — eliminates the hot-path duplication that affects every command invocation. Depends on parsers populating DataStore (Phase 2).
+**Delivers:** Enricher V2 reading from DataStore, pre-computed enrichment cache table, elimination of 3x listSummaryFiles / 2x parsePlans, measurable latency reduction.
+**Uses:** DataStore (Phase 1), populated tables (Phase 2)
+**Implements:** Pre-computed enrichment view, single-query enrichment path
 
-### Phase 4: Intent Archival System
-**Rationale:** Depends on understanding gathered from Phase 3 artifact audit. Requires design decisions about archive timing, ID continuity, and workflow integration.
-**Delivers:** Automated INTENT.md outcome archival during milestone completion.
-**Addresses:** DO-73 (INTENT.md clean and current), SC-52 (fewer than 15 active outcomes)
-**Avoids:** All 7 intent archival pitfalls — especially ID collision (monotonic IDs), partial failure (snapshot-before-modify), and workflow sequencing (archive during `complete-milestone`, load archive in `new-milestone` for evolution review)
-**Estimated effort:** 2-3 hours
+### Phase 4: Memory Store Migration
+**Rationale:** Independent of enricher work, but depends on DataStore foundation. Sacred data protection makes this high-risk and requires careful migration with verification.
+**Delivers:** SQLite tables for decisions/lessons/bookmarks/trajectories, one-time JSON import with round-trip verification, dual-write for ongoing sync, JSON backups preserved, cross-entity SQL queries.
+**Uses:** DataStore (Phase 1), schema migration runner
+**Avoids:** Sacred data loss (Pitfall 8), JSON-to-SQLite type coercion (Pitfall 4)
+
+### Phase 5: Decision Rules & Session State
+**Rationale:** Depends on enricher acceleration (Phase 3) for query-based inputs and parser integration (Phase 2) for session state. Most architecturally aggressive change (STATE.md becomes generated view).
+**Delivers:** 6-8 new decision rules consuming SQLite-backed state, session state persistence in SQLite, STATE.md as generated view, QueryAPI for CLI commands.
+**Uses:** DataStore (Phase 1), enricher V2 (Phase 3), structured tables (Phase 2)
+**Implements:** Query-based decision inputs, session continuity across invocations
 
 ### Phase Ordering Rationale
 
-- **Phase 1 first:** Green tests are the prerequisite for safe changes everywhere else. The banner fix is a 1-line change with massive impact (589 tests).
-- **Phase 2 before Phase 3:** Routing fixes are code changes that should happen while the test suite is fresh. Artifact fixes are markdown-only and lower risk.
-- **Phase 3 before Phase 4:** The artifact audit reveals the full scope of planning debt (especially MILESTONES.md gaps). Intent archival design should account for all the patterns discovered.
-- **Phase 4 last:** Intent archival is the most complex work (7 pitfalls, design decisions, workflow integration). All other cleanup should be complete first.
+- **Foundation first** (Phase 1): DataStore, migrations, and locking are prerequisites for everything. Building these first avoids retrofitting migration support later (a known pitfall).
+- **Parsers before consumers** (Phase 2 before 3): The write-through pattern requires parsers to populate tables before the enricher can read from them. Invalidation must be proven before caching derived data.
+- **Enricher is highest-impact** (Phase 3): Every `/bgsd-*` command triggers the enricher. Fixing the 3x/2x duplication delivers measurable latency reduction for all users.
+- **Memory migration is independent** (Phase 4): Can theoretically run in parallel with Phase 3, but sacred data handling requires focused attention. Sequencing after enricher reduces risk.
+- **Session state is most aggressive** (Phase 5): Changes the authority model for STATE.md from "source of truth" to "generated view." Should come last when the data layer is proven stable.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 4 (Intent Archival):** Design decision needed on archive timing — during `complete-milestone` vs `new-milestone`. PITFALLS.md recommends archiving during `complete-milestone` with workflow updates for `new-milestone` to load archived intents for evolution review.
+- **Phase 2:** Complex integration across 6 parsers; need to verify write-through pattern doesn't break existing frozen object contracts
+- **Phase 4:** Sacred data migration needs real-data testing; JSON entry shapes may vary across project histories
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Test Stabilization):** Root cause fully identified; fix strategy verified via env-var test.
-- **Phase 2 (CLI Routing):** All issues enumerated with specific file/line references.
-- **Phase 3 (Artifact Normalization):** All 30 issues cataloged with fixes. Mechanical work.
+- **Phase 1:** Well-documented SQLite patterns (PRAGMA user_version, WAL mode), existing cache.js as template
+- **Phase 3:** Clear target (eliminate duplication), existing enricher code well-analyzed
+- **Phase 5:** Decision rules follow established pure-function pattern from v11.3
 <!-- /section -->
 
 <!-- section: confidence -->
@@ -160,35 +170,36 @@ Phases with standard patterns (skip research-phase):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack (Test Suite) | HIGH | Root cause verified via live test runs with/without env suppression |
-| Features (CLI Routing) | HIGH | Source-of-truth analysis of router.js, constants.js, commandDiscovery.js, all slash commands and workflows |
-| Architecture (Artifacts) | HIGH | All findings verified against filesystem; line numbers confirmed |
-| Pitfalls (Intent Archival) | HIGH | Direct code analysis of phase.js, intent.js, helpers.js, workflows |
+| Stack | HIGH | All technologies already in production (node:sqlite in cache.js). API verified against official Node.js v25.8.1 docs. Zero new dependencies. |
+| Features | HIGH | Feature list derived directly from PROJECT.md v12.0 targets. Prioritization validated against codebase analysis of 6 parsers, enricher, and memory stores. |
+| Architecture | HIGH | Architecture patterns verified against existing cache.js implementation. Write-through cache, Map fallback, and git-hash invalidation are extensions of proven patterns. |
+| Pitfalls | HIGH | All pitfalls verified against existing codebase. API drift validated by comparing Node v22.5 and v25.x docs. Schema migration patterns from SQLite official docs. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **v11.2 milestone status:** No archives exist (no ROADMAP, REQUIREMENTS, DOCS, or phases directory). Only referenced in INTENT.md history. Needs investigation: was it shipped, folded into another milestone, or abandoned?
-- **Intent archival timing:** Research recommends archiving during `complete-milestone` and loading archives in `new-milestone` for evolution review, but this is a design recommendation, not a verified pattern. Needs user confirmation.
-- **Test count accuracy after fixes:** The projected pass/fail counts after banner fix are based on env-var suppression testing, not the actual code fix. Final numbers may differ slightly.
+- **Concurrent access stress testing:** WAL mode + busy timeout is the recommended pattern, but actual behavior under 5+ simultaneous CLI invocations on the per-project `.planning/.cache.db` has not been benchmarked. Validate during Phase 1 implementation.
+- **Enricher V2 query design:** The exact SQL queries for pre-computed enrichment need benchmarking against real projects with 20+ phases and 50+ plans to verify the claimed 5-30x speedup. Design during Phase 3 planning.
+- **Memory store entry shape variance:** Older projects may have decision/lesson entries with different field shapes than current format. Migration code needs to handle variable schemas gracefully. Investigate during Phase 4 planning.
+- **Bundle size impact:** Research estimates 50-100KB growth. Actual impact depends on how SQL strings compress under esbuild minification. Monitor after each phase against the 1000KB budget.
 <!-- /section -->
 
 <!-- section: sources -->
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Live test run:** `node --test --test-force-exit --test-concurrency=8 tests/*.test.cjs` — 1014 tests, 407 pass, 607 fail
-- **Banner suppression test:** `BGSD_RUNTIME=node BGSD_RUNTIME_DETECTED=true` — 996 pass, 18 fail
-- **Source analysis:** `src/router.js` (1337 lines), `src/lib/constants.js` (1021 lines), `src/lib/commandDiscovery.js` (584 lines)
-- **Source analysis:** `src/commands/phase.js` lines 848-1241, `src/commands/intent.js` (1260 lines), `src/lib/helpers.js` lines 655-999
-- **Filesystem audit:** `.planning/milestones/` (71 archive files, 21 version prefixes), `src/lib/` (35 files), `src/commands/` (24 files)
-- **Cross-reference:** 41 slash commands, 43 workflows, 24 command modules — all verified
+- Node.js v25.8.1 SQLite documentation — Full API reference, DatabaseSync, SQLTagStore, all feature availability dates
+- Node.js v22.x SQLite documentation — Baseline API (Stability 1.1), minimum version compatibility
+- SQLite official documentation (sqlite.org) — PRAGMA user_version, STRICT tables, JSON1, ALTER TABLE limitations, WAL mode
+- Existing codebase analysis — cache.js (752 lines), command-enricher.js (340 lines), project-state.js (67 lines), 6 plugin parsers, decision-rules.js (467 lines), memory.js (378 lines), init.js memory store access
+- PROJECT.md — v12.0 milestone goals, constraints, architecture decisions
 
 ### Secondary (MEDIUM confidence)
-- **v11.2 status:** Only evidence is INTENT.md history entry at line 93 — no corroborating archives
+- Ben Johnson / Fly.io "All-In on Server-Side SQLite" (2022) — Architecture patterns for SQLite as application database
+- Comparable tool analysis — Fossil SCM, Turborepo, Nx, Jujutsu patterns for SQLite-backed CLI tools
 
 ---
-*Research completed: 2026-03-13*
+*Research completed: 2026-03-14*
 *Ready for roadmap: yes*
 <!-- /section -->

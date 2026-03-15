@@ -353,13 +353,35 @@ function selectExecutionMode(planClassifications) {
  * @param {object} [config] - { model_profile?: string }
  * @returns {{ model: string, agent: string, reason: string }}
  */
-function routeTask(complexity, config) {
+function routeTask(complexity, config, cwd) {
   try {
     const score = complexity?.score || 3;
     const baseModel = MODEL_MAP[score] || 'sonnet';
 
-    // If config has a model profile, resolve from MODEL_PROFILES
+    // If config has a model profile, try model-selection decision rule first (Phase 122)
     if (config && config.model_profile) {
+      try {
+        const { resolveModelSelection } = require('./decision-rules');
+        const { getDb } = require('./db');
+        const resolvedCwd = cwd || process.cwd();
+        const db = getDb(resolvedCwd);
+        const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: config.model_profile, db });
+        if (result && result.value && result.value.model) {
+          const profileModel = result.value.model;
+          // Use the higher of profile model and complexity recommendation
+          const priority = { haiku: 0, sonnet: 1, opus: 2, inherit: 2 };
+          const profilePriority = priority[profileModel] || 1;
+          const basePriority = priority[baseModel] || 1;
+          const resolvedModel = profilePriority >= basePriority ? profileModel : baseModel;
+          return {
+            model: resolvedModel === 'opus' ? 'inherit' : resolvedModel,
+            agent: 'bgsd-executor',
+            reason: `score ${score} (${complexity.label}) via ${config.model_profile} profile (decision-rule)`,
+          };
+        }
+      } catch { /* Fall through to static lookup */ }
+
+      // Static fallback
       const { MODEL_PROFILES } = require('./constants');
       const agentModels = MODEL_PROFILES['bgsd-executor'];
       if (agentModels && agentModels[config.model_profile]) {

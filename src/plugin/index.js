@@ -4,6 +4,7 @@ import { safeHook } from './safe-hook.js';
 import { createToolRegistry } from './tool-registry.js';
 import { buildSystemPrompt, buildCompactionContext } from './context-builder.js';
 import { enrichCommand } from './command-enricher.js';
+import { getProjectState } from './project-state.js';
 import { getTools } from './tools/index.js';
 import { createNotifier } from './notification.js';
 import { createFileWatcher } from './file-watcher.js';
@@ -81,6 +82,24 @@ export const BgsdPlugin = async ({ directory, $ }) => {
 
   // Start file watcher for .planning/ directory
   fileWatcher.start();
+
+  // ENR-03: Background cache warm-up — non-blocking, runs after plugin init completes.
+  // Calls getProjectState to trigger parsing + SQLite write-through for all planning files,
+  // so the first user command hits a warm cache.
+  // Per CONTEXT.md decision: "Background warm on plugin load: When the plugin initializes
+  // (editor startup), kick off background cache warm-up so the first user command already
+  // has a warm cache."
+  setTimeout(() => {
+    try {
+      getProjectState(projectDir);
+    } catch {
+      // Warm-up failure is non-fatal — enricher falls back to cold-cache parse
+      if (process.env.BGSD_DEBUG) {
+        // eslint-disable-next-line no-console
+        console.error('[bgsd-plugin] background warm-up failed (non-fatal)');
+      }
+    }
+  }, 0);
 
   const shellEnv = safeHook('shell.env', async (input, output) => {
     if (!output || !output.env) return;

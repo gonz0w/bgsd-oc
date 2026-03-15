@@ -1,382 +1,426 @@
-# Feature Research: CLI Command Routing Audit
+# Feature Research: SQLite-First Data Layer for CLI Tools
 
-**Domain:** CLI Command Routing — bGSD Plugin v11.4 Housekeeping
-**Researched:** 2026-03-13
-**Confidence:** HIGH (source-of-truth analysis of router.js, constants.js, commandDiscovery.js, 41 slash commands, 43 workflows, 24 command modules)
+**Domain:** SQLite-as-application-database for CLI development tools
+**Researched:** 2026-03-14
+**Confidence:** HIGH (Node.js official docs, SQLite official docs, codebase analysis of 6 parsers + cache.js + enricher + memory stores)
 
 <!-- section: compact -->
 <features_compact>
-**Critical findings (must fix):**
-- 2 missing CLI routes called by workflows (`verify:handoff`, `verify:agents`) — execute-phase.md L190, L196
-- 1 orphaned command module (`src/commands/ci.js`) — no lazy loader, no router route, never imported
-- 1 namespace missing from validator (`audit` not in `commandDiscovery.js` routerImplementations)
-- 20 routed commands missing `COMMAND_HELP` entries (no `--help` output)
+<!-- Compact view for planners. Keep under 30 lines. -->
 
-**Moderate findings (should fix):**
-- 5 stale subcommand lists in `commandDiscovery.js` routerImplementations vs actual router
-- 2 duplicate routes: `runtime` and `measure` exist as both `util:` and standalone commands
-- `bgsd-quick.md` slash command has no workflow reference (orphaned wrapper)
-- `execute:profile` route in router just returns an error message — dead route
+**Table stakes (must have):**
+- Structured planning tables (phases, plans, tasks, decisions, requirements) — eliminates re-parsing markdown on every invocation
+- Git-hash invalidation — SQLite rows keyed by source file hash, stale on any commit touching `.planning/`
+- Session state in SQLite — current position, metrics, accumulated context; STATE.md becomes generated view
+- Memory store migration — decisions.json, lessons.json, trajectories.json, bookmarks.json into SQLite tables with indexes
+- Enricher deduplication — pre-compute all workflow data from SQLite, eliminate 3x listSummaryFiles / 2x parsePlans calls
+- Schema versioning — `schema_version` table with migration runner for forward-compatible upgrades
 
-**Low priority:**
-- 13 init namespace commands have no COMMAND_HELP entries (internal-only, acceptable)
-- 5 cache namespace commands have no COMMAND_HELP entries
-- Research namespace has duplicate help entries (space and colon format) — intentional for backward compat
+**Differentiators:**
+- Query-based decision inputs — decision rules consume SQL queries directly instead of enricher-derived JSON
+- Cross-entity queries — "show all decisions for phase X that affected task Y" via JOINs (impossible with JSON files)
+- Materialized views for hot paths — pre-joined enrichment data refreshed on write, not computed on every read
+- Incremental parse cache — parse markdown once, store structured rows, invalidate per-file not per-session
 
-**Key dependencies:** All fixes are independent; no ordering constraints
+**Defer (v2+):** FTS5 full-text search over decisions/lessons, WAL-mode read replicas for parallel agents, SQLite session/changeset tracking, backup/restore commands for planning databases
+
+**Key dependencies:** Schema versioning requires migration runner; memory migration requires schema; enricher acceleration requires structured tables; query-based decisions require enricher acceleration
 </features_compact>
 <!-- /section -->
 
 <!-- section: feature_landscape -->
-## Complete Route Inventory
+## Feature Landscape
 
-### Registered Namespaces (router.js L230)
+### Table Stakes (Users Expect These)
 
-| Namespace | KNOWN_NAMESPACES | Router case | commandDiscovery |
-|-----------|:----------------:|:-----------:|:----------------:|
-| init      | ✓                | ✓           | ✓                |
-| plan      | ✓                | ✓           | ✓                |
-| execute   | ✓                | ✓           | ✓                |
-| verify    | ✓                | ✓           | ✓                |
-| util      | ✓                | ✓           | ✓                |
-| research  | ✓                | ✓           | ✓                |
-| cache     | ✓                | ✓           | ✓                |
-| audit     | ✓                | ✓           | **MISSING**       |
-| decisions | ✓                | ✓           | ✓                |
+Features that must exist for the SQLite data layer to be useful. Without these, the migration adds complexity without benefit.
 
-**Issue:** `audit` namespace added to KNOWN_NAMESPACES and router but never added to `commandDiscovery.js` `routerImplementations` object. This causes `util:validate-commands` to report `audit:scan` as invalid.
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Planning data tables | Eliminate re-parsing ROADMAP.md, STATE.md, PLAN.md on every CLI invocation; structured data enables SQL queries | HIGH | 5-7 tables: `phases`, `plans`, `tasks`, `requirements`, `decisions`, `lessons`, `sessions`. Each mirrors existing parser output. Must handle the full regex surface area (309+ patterns) |
+| Git-hash invalidation | Data becomes stale when `.planning/` files change; must detect and re-parse automatically | MEDIUM | Store `file_path + git_hash` or `mtime` per row. On CLI startup, compare current hash/mtime to stored. Invalidate affected rows only. Current `cache.js` already does mtime-based invalidation for file cache |
+| Schema versioning with migrations | Database schema will evolve across milestones; users must upgrade without data loss | MEDIUM | `CREATE TABLE schema_meta (version INTEGER, applied_at TEXT)`. Migration runner executes numbered scripts in a transaction. Pattern used by every serious SQLite application (Fossil, Firefox, Android) |
+| Session state persistence | Current position, metrics, accumulated context stored in SQL; STATE.md becomes a generated view | HIGH | `sessions` table stores phase, plan, task, status, metrics JSON, timestamps. STATE.md writer generates markdown from SQL row. Biggest behavioral change: STATE.md is no longer the source of truth |
+| Memory store migration | decisions.json, lessons.json, trajectories.json, bookmarks.json → SQLite tables | MEDIUM | 4 JSON files → 4 tables. Each has well-defined structure (from init.js L1659-1754). Must preserve sacred data protection (compaction guard). Migration script reads existing JSON, inserts rows, renames JSON to `.bak` |
+| Enricher deduplication | Fix the 3x `listSummaryFiles` and 2x `parsePlans` calls in command-enricher.js | LOW | Replace file-scanning enrichment logic with single SQL query. The enricher currently does: parse state → parse roadmap → find phase dir → list plans → list summaries → count UAT files → evaluate decisions. With SQLite: `SELECT * FROM enrichment_cache WHERE cwd = ?` |
+| Backward-compatible fallback | Must work when SQLite unavailable (Node < 22.5) or database corrupt | MEDIUM | Existing MapBackend pattern in cache.js. Structured data layer follows same pattern: SQLite preferred, markdown re-parsing as fallback. Never crash if DB missing |
 
-### init Namespace Routes (13 commands)
+### Differentiators (Competitive Advantage)
 
-| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
-|-------|---------|--------|:--------:|:------------:|-----------------|
-| init:execute-phase | cmdInitExecutePhase | init.js | ✓ | ✗ | execute-phase.md (indirect) |
-| init:plan-phase | cmdInitPlanPhase | init.js | ✓ | ✗ | plan-phase.md (indirect) |
-| init:new-project | cmdInitNewProject | init.js | ✓ | ✗ | new-project.md (indirect) |
-| init:new-milestone | cmdInitNewMilestone | init.js | ✓ | ✗ | new-milestone.md (indirect) |
-| init:quick | cmdInitQuick | init.js | ✓ | ✗ | quick.md (indirect) |
-| init:resume | cmdInitResume | init.js | ✓ | ✗ | resume-project.md (indirect) |
-| init:verify-work | cmdInitVerifyWork | init.js | ✓ | ✗ | verify-work.md (indirect) |
-| init:phase-op | cmdInitPhaseOp | init.js | ✓ | ✗ | add/insert/remove-phase.md |
-| init:todos | cmdInitTodos | init.js | ✓ | ✗ | add-todo/check-todos.md |
-| init:milestone-op | cmdInitMilestoneOp | init.js | ✓ | ✗ | complete-milestone.md |
-| init:map-codebase | cmdInitMapCodebase | init.js | ✓ | ✗ | map-codebase.md |
-| init:progress | cmdInitProgress | init.js | ✓ | ✗ | progress.md |
-| init:memory | cmdInitMemory | init.js | ✓ | ✗ | pause-work.md |
+Features that transform SQLite from "faster cache" into "structured data backbone." These make the architecture qualitatively different.
 
-**Assessment:** All init routes are functional. Missing COMMAND_HELP is low priority — these are context-injection commands called by the plugin system, not by users directly.
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Cross-entity SQL queries | "Show decisions from phase 73 that mention cache" — impossible with separate JSON files, trivial with JOINs | LOW | Consequence of having structured tables. No extra code needed beyond schema design. Enables `/bgsd-search-decisions` to use SQL instead of reading/filtering JSON |
+| Query-based decision inputs | Decision rules consume SQL results directly instead of enricher-computed JSON | MEDIUM | Current `decision-rules.js` functions take `(state)` objects. New: functions can call `getDecisionContext(ruleId)` which runs a cached SQL query. Eliminates enricher as intermediary for some rules |
+| Materialized enrichment view | Pre-joined table with all enricher fields, refreshed on write triggers | HIGH | `CREATE TABLE enrichment_view AS SELECT ...` updated via SQLite triggers on insert/update to planning tables. Enricher reads one row instead of running 8+ queries. Tricky: triggers must be maintained as schema evolves |
+| Incremental parse-and-store | Parse markdown file → store structured rows → only re-parse when file changes | MEDIUM | Different from file cache (which stores raw text). This stores parsed structures: phases array, tasks array, etc. Parse once, query many times. Invalidate per-file via git hash or mtime |
+| Atomic multi-file updates | Update phase status + task completion + metrics in one transaction | LOW | `db.exec('BEGIN'); ... db.exec('COMMIT');` wraps multiple updates. Currently, bgsd-tools writes STATE.md + PLAN.md + memory JSON separately — any crash mid-write corrupts state |
+| Session continuity across invocations | CLI knows "last 5 commands, their durations, what changed" without reading git log | MEDIUM | `sessions` table with invocation log. Enables velocity metrics, stuck detection, and resume intelligence. Currently some of this lives in memory stores |
 
-### plan Namespace Routes (7 top-level, 20+ sub-routes)
+### Anti-Features (Commonly Requested, Often Problematic)
 
-| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
-|-------|---------|--------|:--------:|:------------:|-----------------|
-| plan:intent create | cmdIntentCreate | intent.js | ✓ | ✓ | new-project.md |
-| plan:intent show | cmdIntentShow | intent.js | ✓ | ✓ | new-milestone.md |
-| plan:intent read | cmdIntentShow(raw=true) | intent.js | ✓ | ✓ | — |
-| plan:intent update | cmdIntentUpdate | intent.js | ✓ | ✓ | — |
-| plan:intent validate | cmdIntentValidate | intent.js | ✓ | ✓ | — |
-| plan:intent trace | cmdIntentTrace | intent.js | ✓ | ✓ | — |
-| plan:intent drift | cmdIntentDrift | intent.js | ✓ | ✓ | — |
-| plan:requirements mark-complete | cmdRequirementsMarkComplete | phase.js | ✓ | ✓ | execute-plan.md |
-| plan:roadmap get-phase | cmdRoadmapGetPhase | roadmap.js | ✓ | ✓ | plan-phase.md, research-phase.md |
-| plan:roadmap analyze | cmdRoadmapAnalyze | roadmap.js | ✓ | ✓ | progress.md, complete-milestone.md, transition.md |
-| plan:roadmap update-plan-progress | cmdRoadmapUpdatePlanProgress | roadmap.js | ✓ | ✓ | execute-plan.md |
-| plan:phases list | cmdPhasesList | phase.js | ✓ | ✓ | audit-milestone.md, plan-milestone-gaps.md |
-| plan:find-phase | cmdFindPhase | misc.js | ✓ | ✓ | audit-milestone.md |
-| plan:milestone complete | cmdMilestoneComplete | phase.js | ✓ | ✓ | complete-milestone.md |
-| plan:milestone summary | cmdMilestoneSummary | milestone.js | ✓ | ✓ | — |
-| plan:milestone info | cmdMilestoneInfo | milestone.js | ✓ | ✓ | — |
-| plan:phase next-decimal | cmdPhaseNextDecimal | phase.js | ✓ | ✓ | — |
-| plan:phase add | cmdPhaseAdd | phase.js | ✓ | ✓ | add-phase.md |
-| plan:phase insert | cmdPhaseInsert | phase.js | ✓ | ✓ | insert-phase.md |
-| plan:phase remove | cmdPhaseRemove | phase.js | ✓ | ✓ | remove-phase.md |
-| plan:phase complete | cmdPhaseComplete | phase.js | ✓ | ✓ | execute-phase.md, transition.md |
+Features that seem good but create problems in a CLI tool context.
 
-**Assessment:** All plan routes are fully functional and documented.
-
-### execute Namespace Routes (9 top-level, 18+ sub-routes)
-
-| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
-|-------|---------|--------|:--------:|:------------:|-----------------|
-| execute:commit | cmdCommit | misc.js | ✓ | ✓ | 16 workflows |
-| execute:rollback-info | cmdRollbackInfo | features.js | ✓ | ✓ | cmd-rollback-info.md |
-| execute:session-diff | cmdSessionDiff | features.js | ✓ | ✓ | cmd-session-diff.md |
-| execute:session-summary | cmdSessionSummary | features.js | ✓ | ✓ | — |
-| execute:velocity | cmdVelocity | features.js | ✓ | ✓ | cmd-velocity.md |
-| execute:worktree create | cmdWorktreeCreate | worktree.js | ✓ | ✓ | execute-phase.md |
-| execute:worktree list | cmdWorktreeList | worktree.js | ✓ | ✓ | — |
-| execute:worktree remove | cmdWorktreeRemove | worktree.js | ✓ | ✓ | — |
-| execute:worktree cleanup | cmdWorktreeCleanup | worktree.js | ✓ | ✓ | execute-phase.md |
-| execute:worktree merge | cmdWorktreeMerge | worktree.js | ✓ | ✓ | execute-phase.md |
-| execute:worktree check-overlap | cmdWorktreeCheckOverlap | worktree.js | ✓ | ✓ | — |
-| execute:tdd * | cmdTdd | misc.js | ✓ | ✓ | tdd.md, execute-plan.md |
-| execute:test-run | cmdTestRun | features.js | ✓ | ✓ | cmd-test-run.md |
-| execute:trajectory checkpoint | cmdTrajectoryCheckpoint | trajectory.js | ✓ | ✓ | — |
-| execute:trajectory list | cmdTrajectoryList | trajectory.js | ✓ | ✓ | — |
-| execute:trajectory pivot | cmdTrajectoryPivot | trajectory.js | ✓ | ✓ | — |
-| execute:trajectory compare | cmdTrajectoryCompare | trajectory.js | ✓ | ✓ | — |
-| execute:trajectory choose | cmdTrajectoryChoose | trajectory.js | ✓ | ✓ | — |
-| execute:trajectory dead-ends | cmdTrajectoryDeadEnds | trajectory.js | ✓ | ✓ | — |
-| execute:profile | *(error only)* | — | — | ✗ | — |
-
-**Issue:** `execute:profile` (router.js L524-526) is a dead route — it just throws an error saying "Set BGSD_PROFILE=1". Should be removed or turned into a proper command.
-
-### verify Namespace Routes (18+ sub-routes)
-
-| Route | Handler | Module | Exported | COMMAND_HELP | Workflow Callers |
-|-------|---------|--------|:--------:|:------------:|-----------------|
-| verify:state load | cmdStateLoad | state.js | ✓ | ✓ | debug.md, settings.md, set-profile.md |
-| verify:state update | cmdStateUpdate | state.js | ✓ | ✓ | — |
-| verify:state get | cmdStateGet | state.js | ✓ | ✓ | — |
-| verify:state patch | cmdStatePatch | state.js | ✓ | ✓ | — |
-| verify:state advance-plan | cmdStateAdvancePlan | state.js | ✓ | ✓ | execute-plan.md |
-| verify:state record-metric | cmdStateRecordMetric | state.js | ✓ | ✓ | execute-plan.md |
-| verify:state update-progress | cmdStateUpdateProgress | state.js | ✓ | ✓ | execute-plan.md |
-| verify:state add-decision | cmdStateAddDecision | state.js | ✓ | ✓ | execute-plan.md, github-ci.md |
-| verify:state add-blocker | cmdStateAddBlocker | state.js | ✓ | ✓ | — |
-| verify:state resolve-blocker | cmdStateResolveBlocker | state.js | ✓ | ✓ | — |
-| verify:state record-session | cmdStateRecordSession | state.js | ✓ | ✓ | execute-plan.md, discuss-phase.md, github-ci.md |
-| verify:state validate | cmdStateValidate | state.js | ✓ | ✓ | execute-phase.md |
-| verify:verify plan-structure | cmdVerifyPlanStructure | verify.js | ✓ | ✓ | — |
-| verify:verify phase-completeness | cmdVerifyPhaseCompleteness | verify.js | ✓ | ✓ | — |
-| verify:verify references | cmdVerifyReferences | verify.js | ✓ | ✓ | — |
-| verify:verify commits | cmdVerifyCommits | verify.js | ✓ | ✓ | — |
-| verify:verify artifacts | cmdVerifyArtifacts | verify.js | ✓ | ✓ | — |
-| verify:verify key-links | cmdVerifyKeyLinks | verify.js | ✓ | ✓ | — |
-| verify:verify analyze-plan | cmdAnalyzePlan | verify.js | ✓ | ✓ | — |
-| verify:verify deliverables | cmdVerifyDeliverables | verify.js | ✓ | ✓ | — |
-| verify:verify requirements | cmdVerifyRequirements | verify.js | ✓ | ✓ | — |
-| verify:verify regression | cmdVerifyRegression | verify.js | ✓ | ✓ | — |
-| verify:verify plan-wave | cmdVerifyPlanWave | verify.js | ✓ | ✓ | — |
-| verify:verify plan-deps | cmdVerifyPlanDeps | verify.js | ✓ | ✓ | — |
-| verify:verify quality | cmdVerifyQuality | verify.js | ✓ | ✓ | — |
-| verify:regression | cmdVerifyRegression | verify.js | ✓ | ✗ | — |
-| verify:quality | cmdVerifyQuality | verify.js | ✓ | ✗ | — |
-| verify:review | cmdReview | misc.js | ✓ | ✓ | execute-plan.md |
-| verify:assertions list | cmdAssertionsList | verify.js | ✓ | ✓ | plan-phase.md |
-| verify:assertions validate | cmdAssertionsValidate | verify.js | ✓ | ✓ | — |
-| verify:search-decisions | cmdSearchDecisions | features.js | ✓ | ✓ | cmd-search-decisions.md |
-| verify:search-lessons | cmdSearchLessons | features.js | ✓ | ✓ | cmd-search-lessons.md, plan-phase.md |
-| verify:context-budget | cmdContextBudget | features.js | ✓ | ✓ | cmd-context-budget.md, execute-plan.md |
-| verify:context-budget baseline | cmdContextBudgetBaseline | features.js | ✓ | ✓ | — |
-| verify:context-budget compare | cmdContextBudgetCompare | features.js | ✓ | ✓ | — |
-| verify:context-budget measure | cmdContextBudgetMeasure | features.js | ✓ | ✓ | — |
-| verify:token-budget | cmdTokenBudget | features.js | ✓ | ✓ | — |
-| verify:summary | cmdVerifySummary | misc.js | ✓ | ✗ | — |
-| verify:validate consistency | cmdValidateConsistency | verify.js | ✓ | ✗ | — |
-| verify:validate health | cmdValidateHealth | verify.js | ✓ | ✗ | health.md |
-| verify:validate roadmap | cmdValidateRoadmap | verify.js | ✓ | ✗ | execute-phase.md, new-milestone.md, new-project.md |
-| verify:validate-dependencies | cmdValidateDependencies | features.js | ✓ | ✗ | execute-phase.md, cmd-validate-deps.md |
-| verify:validate-config | cmdValidateConfig | features.js | ✓ | ✗ | cmd-validate-config.md |
-| verify:test-coverage | cmdTestCoverage | features.js | ✓ | ✗ | — |
-| **verify:handoff** | **MISSING** | — | — | — | **execute-phase.md L190** |
-| **verify:agents** | **MISSING** | — | — | — | **execute-phase.md L196** |
-
-**CRITICAL:** `verify:handoff` and `verify:agents` are called in `execute-phase.md` (the main execution workflow) but have NO router implementation, NO handler function, and NO module. These calls will fail at runtime.
-
-### util Namespace Routes (40+ sub-routes)
-
-All util routes verified as functional. Key routes with missing COMMAND_HELP:
-
-| Route | Handler | COMMAND_HELP |
-|-------|---------|:------------:|
-| util:settings | cmdSettingsList | ✗ |
-| util:parity-check | cmdParityCheck | ✗ |
-| util:resolve-model | cmdResolveModel | ✗ |
-| util:verify-path-exists | cmdVerifyPathExists | ✗ |
-| util:config-ensure-section | cmdConfigEnsureSection | ✗ |
-| util:scaffold | cmdScaffold | ✗ |
-| util:phase-plan-index | cmdPhasePlanIndex | ✗ |
-| util:state-snapshot | cmdStateSnapshot | ✗ |
-| util:summary-extract | cmdSummaryExtract | ✗ |
-| util:summary-generate | cmdSummaryGenerate | ✗ |
-| util:quick-summary | cmdQuickTaskSummary | ✗ |
-| util:extract-sections | cmdExtractSections | ✗ |
-| util:tools | cmdToolsStatus | ✗ |
-| util:runtime | cmdRuntimeStatus/Benchmark | ✗ |
-| util:recovery | createAutoRecovery etc | ✗ |
-| util:history | helpContext module | ✗ |
-| util:examples | helpExamples module | ✗ |
-| util:analyze-deps | cmdAnalyzeDeps | ✗ |
-| util:estimate-scope | cmdEstimateScope | ✗ |
-| util:test-coverage | cmdTestCoverage | ✗ |
-
-### research Namespace Routes (8 commands) — All functional, all have COMMAND_HELP
-
-### cache Namespace Routes (5 commands)
-
-| Route | Handler | Module | COMMAND_HELP |
-|-------|---------|--------|:------------:|
-| cache:research-stats | cmdCacheResearchStats | cache.js | ✗ |
-| cache:research-clear | cmdCacheResearchClear | cache.js | ✗ |
-| cache:status | cmdCacheStatus | cache.js | ✗ |
-| cache:clear | cmdCacheClear | cache.js | ✗ |
-| cache:warm | cmdCacheWarm | cache.js | ✗ |
-
-**Note:** cache commands also exist under `util:cache` — they are accessible both ways.
-
-### audit Namespace Routes (1 command) — Functional, has COMMAND_HELP
-
-### decisions Namespace Routes (4 commands) — All functional, all have COMMAND_HELP
-
-### Standalone Routes (2 commands)
-
-| Route | Handler | Also in util: |
-|-------|---------|:-------------:|
-| runtime | cmdRuntimeStatus/Benchmark | ✓ (duplicate) |
-| measure | cmdMeasure | ✓ (duplicate) |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Full ORM layer | "Structured data needs an ORM" | Adds massive dependency, fights single-file deploy, overkill for CLI. ORMs solve problems CLI tools don't have (connection pooling, lazy loading, migrations across servers) | Direct `node:sqlite` with prepared statements and thin helper functions. The `SQLTagStore` API already provides ergonomic parameterized queries |
+| Async SQLite operations | "Modern Node.js should be async" | `node:sqlite` is `DatabaseSync` — synchronous by design. CLI tools are single-threaded, short-lived (<5s). Async adds complexity (promises, error handling) for zero benefit in this context. The project explicitly lists "Async I/O rewrite" as out of scope | Keep synchronous. `DatabaseSync` is the correct choice for CLI tools |
+| Real-time file watching for invalidation | "Detect .planning/ changes automatically" | CLI tools are invocation-based, not long-running. File watching (fs.watch/chokidar) adds complexity, platform differences, and race conditions. The enricher already runs fresh on each command | Invalidation on CLI startup via mtime/hash comparison. Takes <1ms for typical `.planning/` directory |
+| SQLite as the ONLY data format | "Move everything to SQLite, drop markdown" | Markdown files ARE the user interface. Users read ROADMAP.md, edit STATE.md, commit PLAN.md to git. SQLite is the machine interface. Removing markdown breaks git diffs, human readability, and the entire workflow model | Hybrid: markdown is source of truth for human-facing data, SQLite is derived structured cache that accelerates machine access. STATE.md becomes a generated view |
+| FTS5 full-text search | "Search across all decisions and lessons" | Adds index maintenance overhead, increases DB size, requires FTS5 extension availability. Current decision/lesson volumes (<1000 entries) don't need full-text search — simple LIKE queries suffice | Defer to v2+. Use `WHERE content LIKE '%term%'` for now. FTS5 when volumes justify it |
+| WAL-mode for concurrent access | "Multiple CLI processes might run simultaneously" | CLI invocations are sequential (human-driven). WAL mode adds the `-wal` and `-shm` sidecar files, complicates backup/restore, and the project's deploy model (single-file copy) doesn't handle sidecar files well | Default journal mode (DELETE). If concurrent access needed later, WAL can be enabled with a pragma |
+| Per-project SQLite database | "Each project should have its own .planning/data.db" | Makes `.planning/` directory heavier, adds binary file to git (bad for diffs/merges), increases project setup complexity | Keep DB in user config dir (`~/.config/oc/bgsd-oc/data.db`) alongside existing `cache.db`. Scope data by project path. Multiple projects share one DB file with path-based partitioning |
 <!-- /section -->
 
 <!-- section: dependencies -->
-## Issue Classification
-
-### CRITICAL — Broken Routes (Workflow calls non-existent CLI commands)
+## Feature Dependencies
 
 ```
-execute-phase.md L190
-    └──calls──> verify:handoff --preview --from planner --to executor
-                    └──MISSING: No router handler, no module, no function
+[Schema Versioning + Migration Runner]
+    └──requires──> [Database initialization (already exists in cache.js)]
 
-execute-phase.md L196
-    └──calls──> verify:agents --verify --from planner --to executor
-                    └──MISSING: No router handler, no module, no function
+[Planning Data Tables]
+    └──requires──> [Schema Versioning]
+
+[Memory Store Migration]
+    └──requires──> [Schema Versioning]
+    └──requires──> [Planning Data Tables] (for foreign keys to phases/plans)
+
+[Enricher Acceleration]
+    └──requires──> [Planning Data Tables]
+    └──requires──> [Session State Persistence]
+
+[Query-Based Decision Inputs]
+    └──requires──> [Enricher Acceleration]
+    └──requires──> [Planning Data Tables]
+
+[Materialized Enrichment View]
+    └──requires──> [Planning Data Tables]
+    └──requires──> [Session State Persistence]
+    └──enhances──> [Enricher Acceleration]
+
+[Git-Hash Invalidation]
+    └──enhances──> [Planning Data Tables]
+    └──enhances──> [Incremental Parse-and-Store]
+
+[New Deterministic Decisions]
+    └──requires──> [Query-Based Decision Inputs]
+    └──requires──> [Planning Data Tables]
 ```
 
-**Impact:** The main `execute-phase` workflow references these commands. When an LLM encounters these steps, the CLI invocations will fail. The LLM may silently skip them, create confusing error output, or stall execution.
+### Dependency Notes
 
-**Evidence:** `grep` confirms no handler in router.js, no export in any command module, no function definition anywhere in `src/`.
+- **Planning Data Tables requires Schema Versioning:** Tables will evolve; must have migration path from day one. Retrofitting migrations is painful.
+- **Memory Store Migration requires Planning Data Tables:** Decisions and lessons reference phases/plans by number. With proper tables, these become foreign key relationships instead of string matching.
+- **Enricher Acceleration requires Planning Data Tables:** The enricher's job is to assemble data from multiple sources. If those sources are already in SQL, the enricher becomes a single query instead of 8+ file operations.
+- **Query-Based Decision Inputs requires Enricher Acceleration:** Decision rules currently receive pre-computed `(state)` objects from the enricher. With SQL-backed data, they can query directly, but only after the data layer exists.
+- **Materialized Enrichment View enhances Enricher Acceleration:** Optional optimization. Pre-join the most common enrichment query so the enricher reads one row. Only worth it if enrichment query is measured as a bottleneck.
+- **Git-Hash Invalidation enhances Planning Data Tables:** Not strictly required (mtime works), but git-hash gives stronger guarantees. If a file is reverted to a prior state, mtime changes but content hash matches cache — avoiding unnecessary re-parse.
+<!-- /section -->
 
-**Fix options:**
-1. Remove the dead references from `execute-phase.md` (if handoff verification is no longer needed)
-2. Implement the commands (if the feature was planned but never built)
-3. Replace with `util:agent validate-contracts` which exists and does similar validation
+<!-- section: data_placement -->
+## Data Placement: What Belongs Where
 
-### CRITICAL — Orphaned Command Module
+Critical architectural decision: which data lives in SQLite vs markdown vs both.
 
+### SQLite Only (Machine Data)
+
+Data that humans never read directly. No markdown representation needed.
+
+| Data | Current Location | Why SQLite Only |
+|------|-----------------|-----------------|
+| File cache (raw text) | `cache.db` file_cache table | Already there. Purely machine optimization |
+| Research cache | `cache.db` research_cache table | Already there. TTL-based, no human relevance |
+| Parser output cache | Per-parser `new Map()` (in-memory, lost between invocations) | Structured parse results. Humans read the source markdown, not parsed JSON |
+| Enrichment cache | Computed fresh on every command | Derived data. Assembled from multiple sources for machine consumption |
+| Session metrics | Partially in memory stores, partially in STATE.md | Invocation count, timing, velocity — pure machine data |
+| Invocation log | Not stored today | Which commands ran, when, how long. Enables velocity/stuck detection |
+
+### Markdown Only (Human Data)
+
+Data that humans read, edit, and commit to git. SQLite never writes these.
+
+| Data | Why Markdown Only |
+|------|-------------------|
+| ROADMAP.md | Humans review phase structure, goals, dependencies. Git diff shows what changed |
+| PLAN.md files | Humans review task lists, verify instructions. Agents follow plan text |
+| INTENT.md | Human-authored goals and success criteria |
+| PROJECT.md | Project identity, constraints, decisions — human-curated |
+| SUMMARY.md files | Post-execution narrative. Human reviews and commits |
+| RESEARCH.md files | Research findings. Human reviews conclusions |
+
+### Both (Derived from Markdown, Cached in SQLite)
+
+Markdown is source of truth. SQLite stores parsed/structured version for fast queries.
+
+| Data | Markdown Source | SQLite Derived |
+|------|----------------|----------------|
+| Phase list | ROADMAP.md `## Phase N:` headers | `phases` table: number, name, goal, status, depends_on |
+| Plan metadata | PLAN.md frontmatter + XML sections | `plans` table: phase_id, plan_number, objective, task_count, status |
+| Task list | PLAN.md `<task>` elements | `tasks` table: plan_id, name, type, files, status |
+| Requirements | REQUIREMENTS.md checkboxes | `requirements` table: id, text, status, phase, plan |
+| Current state | STATE.md `**Field:** Value` | `sessions` table: phase, plan, status, progress, last_activity |
+
+### Both (SQLite is Source, Markdown is Generated View)
+
+SQLite is source of truth. Markdown file is generated for human readability.
+
+| Data | SQLite Source | Markdown Generated |
+|------|--------------|-------------------|
+| Session state | `sessions` table (position, metrics) | STATE.md — regenerated on each state change |
+| Decisions | `decisions` table | decisions.json kept for backward compat during migration period |
+| Lessons | `lessons` table | lessons.json kept for backward compat during migration period |
+| Bookmarks | `bookmarks` table | bookmarks.json kept for backward compat during migration period |
+<!-- /section -->
+
+<!-- section: query_patterns -->
+## Query Patterns for Planning Data
+
+Real queries the CLI tool would run against structured planning data.
+
+### Hot Path Queries (Every Invocation)
+
+```sql
+-- Enricher: get current project state (replaces 6+ file reads)
+SELECT s.phase, s.plan, s.status, s.progress, s.last_activity,
+       p.name as phase_name, p.goal as phase_goal
+FROM sessions s
+LEFT JOIN phases p ON s.phase = p.number
+WHERE s.project_path = ?;
+
+-- Enricher: get plan/summary counts for current phase
+SELECT
+  COUNT(*) FILTER (WHERE type = 'plan') as plan_count,
+  COUNT(*) FILTER (WHERE type = 'summary') as summary_count
+FROM plan_files
+WHERE phase_number = ?;
+
+-- Decision rule input: check if context gate is satisfied
+SELECT 1 FROM sessions WHERE project_path = ? AND phase IS NOT NULL;
 ```
-src/commands/ci.js
-    └──exports──> cmdExecuteCi (327 lines)
-                    └──ORPHANED: No lazy loader in router.js, no route, never imported
+
+### Warm Path Queries (Specific Commands)
+
+```sql
+-- Progress route: determine which workflow path to take
+SELECT
+  s.phase, s.status,
+  (SELECT COUNT(*) FROM plans WHERE phase_number = s.phase) as plan_count,
+  (SELECT COUNT(*) FROM summaries WHERE phase_number = s.phase) as summary_count,
+  (SELECT MAX(number) FROM phases) as highest_phase,
+  (SELECT COUNT(*) FROM uat_gaps WHERE phase_number = s.phase AND status = 'diagnosed') as uat_gap_count
+FROM sessions s
+WHERE s.project_path = ?;
+
+-- Search decisions across phases
+SELECT d.*, p.name as phase_name
+FROM decisions d
+LEFT JOIN phases p ON d.phase = p.number
+WHERE d.content LIKE '%' || ? || '%'
+ORDER BY d.created_at DESC;
+
+-- Velocity metrics: recent session durations
+SELECT command, duration_ms, started_at
+FROM invocations
+WHERE project_path = ?
+ORDER BY started_at DESC
+LIMIT 20;
 ```
 
-**Impact:** 327 lines of dead code bundled into `bin/bgsd-tools.cjs` on every build. The `bgsd-github-ci` slash command works via its workflow (which calls `verify:state` commands), not this module.
+### Cold Path Queries (Rare Operations)
 
-**Evidence:** `grep -r 'commands/ci\|cmdExecuteCi\|lazyCi' src/` returns only definitions within `ci.js` itself.
+```sql
+-- Requirement traceability: which plans cover which requirements
+SELECT r.id, r.text, r.status, p.phase_number, p.plan_number
+FROM requirements r
+LEFT JOIN requirement_plan_map rpm ON r.id = rpm.requirement_id
+LEFT JOIN plans p ON rpm.plan_id = p.id
+ORDER BY r.id;
 
-**Fix:** Either wire `ci.js` into the router or delete it. The github-ci workflow doesn't use it.
-
-### HIGH — Validator Missing Namespace
-
+-- Phase dependency validation
+SELECT p1.number, p1.name, p1.depends_on, p2.status as dependency_status
+FROM phases p1
+LEFT JOIN phases p2 ON p1.depends_on LIKE '%' || p2.number || '%'
+WHERE p2.status != 'complete' AND p1.depends_on IS NOT NULL;
 ```
-src/lib/commandDiscovery.js L341-463 (routerImplementations)
-    └──missing──> 'audit' namespace
-                    └──causes: util:validate-commands reports audit:scan as invalid
+<!-- /section -->
+
+<!-- section: migration_patterns -->
+## Memory Store Migration Patterns
+
+How to migrate from JSON files to SQLite tables without data loss.
+
+### Migration Strategy: Gradual with Dual-Write
+
+1. **Phase 1 — Schema + Import:** Create SQLite tables. On first run, detect existing JSON files and import all records. Rename JSON to `.json.migrated`.
+2. **Phase 2 — Dual Write:** Write to both SQLite and JSON for one milestone. JSON serves as backup. If SQLite fails, fall back to JSON.
+3. **Phase 3 — SQLite Only:** Remove JSON writing. Keep import capability for projects that haven't migrated yet.
+
+### Table Designs for Memory Stores
+
+```sql
+-- Decisions (from decisions.json)
+CREATE TABLE decisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_path TEXT NOT NULL,
+  phase TEXT,
+  plan TEXT,
+  decision TEXT NOT NULL,
+  rationale TEXT,
+  outcome TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  sacred INTEGER NOT NULL DEFAULT 0  -- compaction protection
+);
+CREATE INDEX idx_decisions_project ON decisions(project_path);
+CREATE INDEX idx_decisions_phase ON decisions(project_path, phase);
+
+-- Lessons (from lessons.json)
+CREATE TABLE lessons (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_path TEXT NOT NULL,
+  phase TEXT,
+  lesson TEXT NOT NULL,
+  category TEXT,
+  impact TEXT,  -- HIGH/MEDIUM/LOW
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  sacred INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_lessons_project ON lessons(project_path);
+
+-- Bookmarks (from bookmarks.json)
+CREATE TABLE bookmarks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_path TEXT NOT NULL,
+  phase TEXT,
+  plan TEXT,
+  task TEXT,
+  last_file TEXT,
+  git_head TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_bookmarks_project ON bookmarks(project_path);
+
+-- Trajectories (from trajectories.json / trajectory decision journal)
+CREATE TABLE trajectories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_path TEXT NOT NULL,
+  phase TEXT,
+  plan TEXT,
+  task TEXT,
+  level TEXT,  -- 'task', 'plan', 'phase'
+  type TEXT,   -- 'checkpoint', 'pivot', 'dead-end'
+  reason TEXT,
+  branch TEXT,
+  metrics TEXT,  -- JSON blob
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  sacred INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_trajectories_project ON trajectories(project_path);
 ```
 
-**Evidence:** Running `node bin/bgsd-tools.cjs util:validate-commands` outputs `"issue": "Unknown namespace: audit"`.
+### Sacred Data Protection in SQLite
 
-**Fix:** Add `'audit': { 'scan': null }` to `routerImplementations` in `commandDiscovery.js`.
+Current memory stores have "sacred data protection" — compaction guards that prevent automated cleanup from deleting important entries. In SQLite:
 
-### HIGH — Stale Subcommand Lists in commandDiscovery.js
-
-The `routerImplementations` object has several entries that don't match the actual router:
-
-| Namespace | commandDiscovery says | Router actually has |
-|-----------|----------------------|---------------------|
-| plan:roadmap | `['add', 'insert', 'remove', 'list']` | `['get-phase', 'analyze', 'update-plan-progress']` |
-| plan:milestone | `['new', 'complete', 'audit', 'gaps']` | `['complete', 'summary', 'info']` |
-| execute:tdd | `['init', 'red', 'green', 'refactor', 'cycle', 'auto']` | Dynamic (passes to cmdTdd) |
-| verify:state | includes `'add-todo'` | No `add-todo` in router |
-| util:git | `['status', 'log', 'diff', 'branch', 'checkout']` | `['log', 'diff-summary', 'blame', 'branch-info', 'rewind', 'trajectory-branch']` |
-
-**Impact:** `util:validate-commands` may miss real routing issues or report false positives.
-
-### MODERATE — Missing COMMAND_HELP Entries
-
-20 `util:` routes, 7 `verify:` routes, and 5 `cache:` routes lack `COMMAND_HELP` entries. This means `bgsd-tools <command> --help` outputs "No help available" for these commands.
-
-### MODERATE — Dead Route
-
-`execute:profile` (router.js L524-526) only outputs an error message. It's not a real command.
-
-### MODERATE — Duplicate Routes
-
-`runtime` and `measure` are accessible both as `util:runtime`/`util:measure` and as standalone `runtime`/`measure`. This works but is confusing for discoverability.
-
-### LOW — bgsd-quick.md Orphaned Wrapper
-
-`commands/bgsd-quick.md` is described as "backward-compatible wrapper for quick command" but has no execution_context workflow reference (unlike `bgsd-quick-task.md` which properly references `workflows/quick.md`). This wrapper likely does nothing useful.
+- `sacred INTEGER NOT NULL DEFAULT 0` column on all memory tables
+- Sacred rows: `sacred = 1`, never auto-deleted
+- Compaction query: `DELETE FROM decisions WHERE sacred = 0 AND created_at < datetime('now', '-30 days') AND project_path = ?`
+- Import preserves sacred flags from JSON source
 <!-- /section -->
 
 <!-- section: mvp -->
-## Prioritized Fix List
+## MVP Definition
 
-### P1: Must Fix (Broken at runtime)
+### Launch With (v12.0 Phase 1-2)
 
-- [ ] **Remove or implement `verify:handoff` and `verify:agents`** in execute-phase.md — these are dead code references that fail at runtime
-  - File: `workflows/execute-phase.md` L190, L196
-  - Likely fix: Replace with `util:agent validate-contracts` or remove the blocks entirely
+Minimum viable structured data layer — enough to prove the architecture and deliver measurable speedup.
 
-- [ ] **Add `audit` namespace to `commandDiscovery.js` routerImplementations** — causes the built-in validator to report false failures
-  - File: `src/lib/commandDiscovery.js` ~L341
-  - Fix: Add `'audit': { 'scan': null }` entry
+- [ ] Schema versioning with migration runner — foundation for all subsequent work
+- [ ] Planning data tables (phases, plans, tasks) — populated from markdown parsers on first run
+- [ ] Git-hash or mtime invalidation — ensure cached data stays fresh
+- [ ] Enricher acceleration — replace file-scanning with SQL queries, fix 3x/2x duplication
+- [ ] Session state in SQLite — position and metrics, STATE.md becomes generated view
+- [ ] Backward-compatible Map fallback — graceful degradation on Node < 22.5
 
-- [ ] **Fix stale routerImplementations subcommand lists** — validator lies about valid/invalid commands
-  - File: `src/lib/commandDiscovery.js` L341-463
-  - Fix: Sync all subcommand arrays with actual router.js case statements
+### Add After Validation (v12.0 Phase 3-4)
 
-### P2: Should Fix (Dead code, missing docs)
+Features to add once core tables and enricher are working.
 
-- [ ] **Remove or wire `src/commands/ci.js`** — 327 lines of dead code bundled into every build
-  - If needed: Add `lazyCi` loader and router route
-  - If not needed: Delete the file
+- [ ] Memory store migration (decisions, lessons, bookmarks, trajectories) — triggered when structured tables proven stable
+- [ ] Cross-entity queries for search commands — `/bgsd-search-decisions` uses SQL
+- [ ] Query-based decision inputs — decision rules consume SQL instead of enricher JSON
+- [ ] New deterministic decisions (6-8 rules) — leverage SQL-backed state for faster evaluation
+- [ ] Atomic multi-file updates — wrap related writes in transactions
 
-- [ ] **Remove `execute:profile` dead route** — confusing; just prints an error
-  - File: `src/router.js` L524-526
+### Future Consideration (v13+)
 
-- [ ] **Add COMMAND_HELP for 20 util: routes** — `--help` returns nothing for these commands
-  - File: `src/lib/constants.js`
+Features to defer until the data layer is battle-tested.
 
-- [ ] **Add COMMAND_HELP for 7 verify: routes** (regression, quality, summary, validate, validate-dependencies, validate-config, test-coverage)
-
-- [ ] **Add COMMAND_HELP for 5 cache: routes**
-
-### P3: Nice to Have (Cleanup)
-
-- [ ] **Remove `bgsd-quick.md` duplicate wrapper** — `bgsd-quick-task.md` already handles this
-- [ ] **Consolidate `runtime`/`measure` standalone routes** — decide if standalone access is intentional or should be deprecated
-- [ ] **Remove `research collect --resume` from COMMAND_HELP** — this is a flag variant, not a command
+- [ ] FTS5 full-text search — when decision/lesson volumes justify it (>1000 entries)
+- [ ] Materialized enrichment views with triggers — when enrichment query is measured bottleneck
+- [ ] WAL mode for parallel agent access — when multi-agent parallelism is attempted
+- [ ] SQLite session/changeset tracking — when undo/redo or audit trail is needed
+- [ ] Database backup/restore CLI commands — when users request data portability
+- [ ] Per-project database option — when config-dir approach proves limiting
 <!-- /section -->
 
 <!-- section: prioritization -->
-## Summary Statistics
+## Feature Prioritization Matrix
 
-| Metric | Count |
-|--------|-------|
-| Total registered router routes | ~130 |
-| Total COMMAND_HELP entries | 81 |
-| Slash commands (commands/) | 41 |
-| Workflows referencing CLI | 35 |
-| Command modules (src/commands/) | 24 |
-| Lazy loaders in router | 25 |
-| **Missing routes (broken)** | **2** (verify:handoff, verify:agents) |
-| **Orphaned modules (dead code)** | **1** (ci.js) |
-| **Dead routes** | **1** (execute:profile) |
-| **Missing COMMAND_HELP** | **32** |
-| **Stale validator entries** | **5 namespace groups** |
-| **Duplicate routes** | **2** (runtime, measure) |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Schema versioning + migrations | HIGH | LOW | P1 |
+| Planning data tables (phases, plans, tasks) | HIGH | HIGH | P1 |
+| Git-hash/mtime invalidation | HIGH | MEDIUM | P1 |
+| Enricher deduplication/acceleration | HIGH | MEDIUM | P1 |
+| Session state persistence | HIGH | HIGH | P1 |
+| Backward-compatible fallback | HIGH | MEDIUM | P1 |
+| Memory store migration | MEDIUM | MEDIUM | P2 |
+| Cross-entity SQL queries | MEDIUM | LOW | P2 |
+| Query-based decision inputs | MEDIUM | MEDIUM | P2 |
+| New deterministic decisions | MEDIUM | MEDIUM | P2 |
+| Atomic multi-file updates | MEDIUM | LOW | P2 |
+| FTS5 full-text search | LOW | MEDIUM | P3 |
+| Materialized enrichment views | LOW | HIGH | P3 |
+| WAL mode | LOW | LOW | P3 |
+| Session/changeset tracking | LOW | MEDIUM | P3 |
 
-## Cross-Reference Matrix: Slash Commands → Workflows → CLI
+**Priority key:**
+- P1: Must have for v12.0 launch — defines the milestone
+- P2: Should have in v12.0 — add in later phases if time permits
+- P3: Future consideration — defer to v13+
+<!-- /section -->
 
-All 41 slash commands verified. Routing chain:
-- 40/41 properly reference workflows via `execution_context`
-- 1/41 (`bgsd-quick.md`) is an orphaned backward-compat wrapper
-- All referenced workflows exist on disk
-- 2 CLI commands referenced by workflows don't exist in router
-- 0 workflows reference non-existent slash commands
+<!-- section: competitors -->
+## Comparable CLI Tool Patterns
+
+Tools that use SQLite as an application database (not just cache).
+
+| Pattern | Example Tools | How They Do It | Our Approach |
+|---------|---------------|----------------|--------------|
+| SQLite as app file format | Fossil SCM, Firefox, Android | Single DB file IS the application state. All data in tables. | Hybrid: markdown is human interface, SQLite is machine interface. DB is derived cache, not source of truth for human-facing data |
+| Git-backed + SQLite index | Jujutsu (jj), various IDEs | Git stores content, SQLite indexes it for fast queries | Similar: `.planning/` markdown in git, SQLite indexes parsed structures |
+| Structured cache with invalidation | Turborepo, Nx | Hash-based cache keys, structured task graph in memory/SQLite | Our git-hash invalidation follows this pattern exactly |
+| Session persistence for CLI | GitHub CLI (gh), AWS CLI | Store auth, preferences, history in config-dir SQLite/JSON | We extend to store planning state, metrics, invocation history |
+| Schema migrations in embedded DB | Django (with SQLite), Alembic, knex | Numbered migration files, `schema_version` table, transaction-wrapped | Same pattern, but simpler: single `schema_meta` table, JS migration functions, no ORM |
+
+### Key Insight from Comparable Tools
+
+The strongest pattern across successful CLI tools with SQLite backends is the **"derived index" model**: the canonical data lives in files (often in a git repo), and SQLite provides a fast queryable index over that data. This is exactly the hybrid markdown+SQLite architecture described in this research.
+
+Tools that make SQLite the SOLE source of truth (like Fossil) work well for their domain but require users to interact through the tool exclusively. Our users interact with markdown files directly (reading, editing, committing), so SQLite must be a derived layer, not the primary store — with the notable exception of pure machine data (session metrics, invocation logs, parse caches) where SQLite IS the primary store.
+
+## Sources
+
+- Node.js official documentation: `node:sqlite` API (v25.8.1, Stability 1.2 Release Candidate) — [HIGH confidence]
+- SQLite official documentation: "SQLite As An Application File Format" whitepaper — [HIGH confidence]
+- Existing codebase analysis: `src/lib/cache.js` (752 lines), `src/plugin/command-enricher.js` (340 lines), `src/plugin/project-state.js` (67 lines), 6 plugin parsers, `src/lib/decision-rules.js` (467 lines), `src/commands/init.js` memory store access (L1640-1770) — [HIGH confidence, direct source]
+- Ben Johnson / Fly.io: "All-In on Server-Side SQLite" (2022) — architecture patterns — [MEDIUM confidence, web article]
+- PROJECT.md v12.0 target features — [HIGH confidence, direct source]
 <!-- /section -->
 
 ---
-*CLI Command Routing Audit for: bGSD Plugin v11.4*
-*Researched: 2026-03-13*
-*Method: Static analysis of router.js (1337 lines), constants.js (1021 lines), commandDiscovery.js (584 lines), 24 command modules, 41 slash commands, 43 workflows*
+*Feature research for: SQLite-first data layer in CLI development tools*
+*Researched: 2026-03-14*

@@ -20,6 +20,11 @@ const {
   resolveCiGate,
   resolvePlanExistenceRoute,
   resolvePreviousCheckGate,
+  resolveModelSelection,
+  resolveVerificationRouting,
+  resolveResearchGate,
+  resolveMilestoneCompletion,
+  resolveCommitStrategy,
   evaluateDecisions,
 } = require('../src/lib/decision-rules');
 
@@ -215,9 +220,19 @@ describe('enricher-decisions: plan-existence-route fires with enrichment', () =>
     assert.strictEqual(result.value, 'needs-planning');
   });
 
-  it('returns needs-research when nothing exists', () => {
+  it('returns missing-context when nothing exists (no research, no context)', () => {
     const result = resolvePlanExistenceRoute({ plan_count: 0, has_research: false, has_context: false });
-    assert.strictEqual(result.value, 'needs-research');
+    assert.strictEqual(result.value, 'missing-context');
+  });
+
+  it('returns blocked-deps when plan_count > 0 and has_blockers', () => {
+    const result = resolvePlanExistenceRoute({ plan_count: 2, has_blockers: true });
+    assert.strictEqual(result.value, 'blocked-deps');
+  });
+
+  it('returns ready when plan_count > 0 and has_context', () => {
+    const result = resolvePlanExistenceRoute({ plan_count: 2, has_context: true });
+    assert.strictEqual(result.value, 'ready');
   });
 });
 
@@ -385,6 +400,109 @@ describe('enricher-decisions: CLI integration', () => {
     const parsed = JSON.parse(result.output.replace(/^\[bGSD\].*\n/, ''));
     assert.ok(parsed.rules, 'Should have rules array');
     assert.ok(parsed.rules.length >= 10, `Expected >= 10 rules, got ${parsed.rules.length}`);
+  });
+});
+
+// ─── Phase 122: New Rules Integration Tests ───────────────────────────────────
+
+describe('enricher-decisions: model-selection fires with agent_type + model_profile', () => {
+  it('returns { tier, model } when agent_type and model_profile provided', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: 'balanced' });
+    assert.ok(typeof result.value === 'object', 'value should be object');
+    assert.ok(typeof result.value.tier === 'string', 'value.tier should be string');
+    assert.ok(typeof result.value.model === 'string', 'value.model should be string');
+    assert.strictEqual(result.rule_id, 'model-selection');
+  });
+
+  it('appears in evaluateDecisions output when agent_type is present', () => {
+    const results = evaluateDecisions('bgsd-execute-phase', { agent_type: 'bgsd-executor', model_profile: 'balanced' });
+    assert.ok(results['model-selection'], 'model-selection should appear in results');
+    assert.ok(results['model-selection'].value.model, 'model-selection should have model in value');
+  });
+
+  it('appears in evaluateDecisions output when model_profile is present', () => {
+    const results = evaluateDecisions('bgsd-plan-phase', { agent_type: 'bgsd-planner', model_profile: 'quality' });
+    assert.ok(results['model-selection'], 'model-selection should appear in results');
+    assert.strictEqual(results['model-selection'].value.tier, 'quality');
+  });
+});
+
+describe('enricher-decisions: verification-routing fires with task_count + verifier_enabled', () => {
+  it('returns "light" for small plan', () => {
+    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
+    assert.strictEqual(result.value, 'light');
+    assert.strictEqual(result.rule_id, 'verification-routing');
+  });
+
+  it('returns "full" for large plan', () => {
+    const result = resolveVerificationRouting({ task_count: 5, files_modified_count: 10, verifier_enabled: true });
+    assert.strictEqual(result.value, 'full');
+  });
+
+  it('appears in evaluateDecisions output when verifier_enabled is present', () => {
+    const results = evaluateDecisions('bgsd-execute-phase', { verifier_enabled: true, task_count: 3, files_modified_count: 5 });
+    assert.ok(results['verification-routing'], 'verification-routing should appear in results');
+    assert.ok(['full', 'light', 'skip'].includes(results['verification-routing'].value),
+      `Expected valid routing value, got ${results['verification-routing'].value}`);
+  });
+});
+
+describe('enricher-decisions: research-gate fires with research_enabled', () => {
+  it('returns { run: false } when research disabled', () => {
+    const result = resolveResearchGate({ research_enabled: false });
+    assert.strictEqual(result.value.run, false);
+    assert.strictEqual(result.rule_id, 'research-gate');
+  });
+
+  it('returns { run: true, depth: "quick" } when research enabled and no context', () => {
+    const result = resolveResearchGate({ research_enabled: true, has_research: false, has_context: false });
+    assert.strictEqual(result.value.run, true);
+    assert.strictEqual(result.value.depth, 'quick');
+  });
+
+  it('appears in evaluateDecisions output when research_enabled is present', () => {
+    const results = evaluateDecisions('bgsd-research-phase', { research_enabled: true, has_research: false, has_context: false });
+    assert.ok(results['research-gate'], 'research-gate should appear in results');
+    assert.ok(typeof results['research-gate'].value.run === 'boolean', 'run should be boolean');
+  });
+});
+
+describe('enricher-decisions: milestone-completion fires with phases_total', () => {
+  it('returns complete when all phases done', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 5, phases_complete: 5, has_incomplete_plans: false });
+    assert.deepStrictEqual(result.value, { ready: true, action: 'complete' });
+    assert.strictEqual(result.rule_id, 'milestone-completion');
+  });
+
+  it('returns continue when several phases remaining', () => {
+    const result = resolveMilestoneCompletion({ phases_total: 10, phases_complete: 5, has_incomplete_plans: false });
+    assert.strictEqual(result.value.action, 'continue');
+  });
+
+  it('appears in evaluateDecisions output when phases_total is present', () => {
+    const results = evaluateDecisions('bgsd-progress', { phases_total: 6, phases_complete: 6, has_incomplete_plans: false });
+    assert.ok(results['milestone-completion'], 'milestone-completion should appear in results');
+    assert.ok(typeof results['milestone-completion'].value.ready === 'boolean', 'ready should be boolean');
+  });
+});
+
+describe('enricher-decisions: commit-strategy fires with plan_type', () => {
+  it('returns per-task for multi-task execute plan', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'execute', is_tdd: false });
+    assert.strictEqual(result.value.granularity, 'per-task');
+    assert.strictEqual(result.rule_id, 'commit-strategy');
+  });
+
+  it('returns per-phase for TDD plan', () => {
+    const result = resolveCommitStrategy({ task_count: 3, plan_type: 'tdd', is_tdd: true });
+    assert.strictEqual(result.value.granularity, 'per-phase');
+    assert.strictEqual(result.value.prefix, 'test');
+  });
+
+  it('appears in evaluateDecisions output when plan_type is present', () => {
+    const results = evaluateDecisions('bgsd-execute-phase', { plan_type: 'execute', task_count: 2, is_tdd: false });
+    assert.ok(results['commit-strategy'], 'commit-strategy should appear in results');
+    assert.ok(typeof results['commit-strategy'].value.granularity === 'string', 'granularity should be string');
   });
 });
 

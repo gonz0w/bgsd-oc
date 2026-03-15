@@ -1,188 +1,385 @@
 # Pitfalls Research
 
-**Domain:** Intent Archival System — integrating automated INTENT.md outcome/criteria archival into the milestone completion workflow
-**Researched:** 2026-03-13
-**Confidence:** HIGH (based on direct source code analysis of `src/commands/phase.js`, `src/commands/intent.js`, `src/lib/helpers.js`, `workflows/complete-milestone.md`, `workflows/new-milestone.md`)
+**Domain:** Adding structured SQLite tables to an existing Node.js CLI tool (node:sqlite Stability 1.2)
+**Researched:** 2026-03-14
+**Confidence:** HIGH (verified against official Node.js docs for v22.x and v25.x, existing codebase analysis)
 
 <!-- section: compact -->
 <pitfalls_compact>
+<!-- Compact view for planners. Keep under 25 lines. -->
+
 **Top pitfalls:**
-1. **Broken traceability after archival** — preserve outcome IDs in archived file and cross-reference from MILESTONES.md entry (Phase 1)
-2. **History section grows unbounded** — archive history entries along with outcomes, not just the active sections (Phase 1)
-3. **Partial archival on failure** — make INTENT.md archival atomic: snapshot before modification, restore on any error (Phase 1)
-4. **Drift validation breaks post-archival** — `cmdIntentDrift` and `cmdIntentTrace` scan by `phaseRange`; archived outcomes no longer match active plans (Phase 2)
-5. **`new-milestone` workflow expects stale outcomes** — Step 4.5 "Q2 — Outcomes review" asks about existing outcomes; if archival already removed them, the evolution questionnaire is empty (Phase 1)
+1. **node:sqlite API drift between Node versions** — pin minimum version, feature-detect new APIs like `createTagStore`/`prepare` options, wrap in try-catch (Schema design phase)
+2. **Schema migration in single-file deploy** — embed versioned migration array in code, use `PRAGMA user_version`, run on every db open (Schema design phase)
+3. **Map/SQLite behavioral divergence** — structured tables have NO Map equivalent; dual-backend only for cache layer, new tables are SQLite-only with graceful error on Node <22.5 (Schema design phase)
+4. **JSON-to-SQLite data loss from type coercion** — SQLite has 5 types; arrays/booleans/nested objects need explicit serialization strategy per column (Migration phase)
+5. **Stale parsed-data cache after markdown file edits** — git-hash invalidation alone is insufficient; combine mtime checks with content-hash for sub-second accuracy (Invalidation phase)
+6. **Database locking in concurrent CLI invocations** — WAL mode + busy timeout prevent SQLITE_BUSY crashes (Schema design phase)
+7. **Bundle size explosion from new table modules** — each structured table adds schema + queries + migration code; budget 50KB headroom (All phases)
 
-**Tech debt traps:** storing archived intents inline in INTENT.md instead of a separate file, skipping history archival, hardcoding archive paths instead of reusing `archiveDir` pattern
+**Tech debt traps:** schema-less TEXT blobs pretending to be structured, skipping foreign keys for speed, hardcoding column lists instead of using introspection, silencing all SQLite errors
 
-**Security risks:** none domain-specific (intent data is non-sensitive planning metadata)
+**Security risks:** SQL injection in dynamic column/table names, unvalidated user data in decision/lesson stores, db file permissions too open
 
 **"Looks done but isn't" checks:**
-- Intent archival: verify that `plan:intent trace` still works for archived milestone plans (needs to check archived intent file)
-- Intent archival: verify `getNextId()` doesn't collide with archived IDs when new milestone starts
-- Complete-milestone: verify INTENT archive file appears in git commit alongside ROADMAP/REQUIREMENTS archives
+- Schema migration: verify upgrade FROM every prior version, not just current-1
+- Map fallback: verify CLI still works fully on Node <22.5 (graceful degradation, not crash)
+- Cache invalidation: verify editing a markdown file immediately reflects in next CLI invocation
+- Memory store migration: verify sacred data (decisions, lessons) preserved with zero data loss
 </pitfalls_compact>
 <!-- /section -->
 
 <!-- section: critical_pitfalls -->
 ## Critical Pitfalls
 
-### Pitfall 1: Broken Traceability — Plans Reference Archived Outcome IDs
+### Pitfall 1: node:sqlite API Drift Between Node Versions
 
 **What goes wrong:**
-PLAN.md files have YAML frontmatter with `intent.outcome_ids: [DO-72, DO-73]` tracing to INTENT.md outcomes. When outcomes are archived (removed from INTENT.md), `cmdIntentTrace()` (line 1087-1259 of `intent.js`) can't find those outcomes in the active INTENT.md, reporting 0% coverage for archived plans. The `cmdIntentDrift()` function (line 1262+) would flag phantom "feature creep" because outcome references in plans point to IDs no longer in the active file.
+Code written against Node 25.x APIs (`createTagStore`, `prepare(sql, options)`, `database.limits`, `database.aggregate`, `enableDefensive`, `setAuthorizer`) breaks on Node 22.5–22.12 where these don't exist. The project already uses `createTagStore()` (added in v24.9.0) — but the current code wraps it in try-catch. As v12.0 adds more structured table code, the surface area for version-dependent APIs expands dramatically.
+
+Specific API gaps between v22.5 (minimum) and current Node versions:
+- `createTagStore()` — added v24.9.0, not available in v22.x at all
+- `database.prepare(sql, options)` — options parameter (readBigInts, returnArrays, etc.) added in v22.18.0+, not in v22.5
+- `database.aggregate()` — added v22.16.0, not in v22.5–v22.15
+- `database.isOpen` — added v22.15.0
+- `database.isTransaction` — added v22.16.0
+- `database.limits` — added v25.8.0 only
+- `database.enableDefensive()` — added v25.1.0 only
+- `defensive` constructor option — added v25.5.0 (default: true), absent in v22.x
+- `timeout` constructor option — added v22.16.0
+- `Statement.columns()` — added v22.16.0
+- `Statement.iterate()` — added v22.13.0
 
 **Why it happens:**
-The current intent trace/drift system assumes all valid outcome IDs live in INTENT.md. There's no concept of "retired but valid" IDs. The `validOutcomeIds` set at line 1349 of `intent.js` only contains current outcomes.
+Stability 1.2 (Release Candidate) means the API is "feature complete" but still evolving across minor releases. The jump from v22.5 to v22.22 alone added 15+ new methods. Developers test on their current Node version and don't realize features aren't available on the minimum supported version.
 
 **How to avoid:**
-1. Store archived INTENT data in `.planning/milestones/{version}-INTENT.md` (parallel to existing `-ROADMAP.md` and `-REQUIREMENTS.md` archive pattern)
-2. Modify `cmdIntentTrace()` and `getIntentDriftData()` to also load archived intent files when scanning plans whose `phaseRange` falls within an archived milestone
-3. Or: keep a `<retired_outcomes>` section in INTENT.md that trace/drift can reference without displaying as active
+1. Create a capability detection layer: `sqliteCapabilities()` returning `{ hasTagStore, hasAggregate, hasTimeout, hasIterate, hasPrepareOptions }` based on actual feature probing (not version parsing)
+2. All new structured table code must use only the v22.5 baseline API: `DatabaseSync`, `exec`, `prepare`, `StatementSync.get/all/run`
+3. Wrap optional features (tag store, iterate, aggregate) behind capability checks
+4. Add a CI matrix test running against Node 22.5 specifically (not just "latest")
+5. Document which node:sqlite APIs are "safe baseline" vs "enhanced" in a capabilities map
 
 **Warning signs:**
-- After archival, `plan:intent trace` reports 0% coverage
-- `plan:intent drift` shows high drift score despite no actual deviation
-- Plans in archived milestone directories have dangling outcome references
+- Tests pass on developer machine but fail on CI with older Node
+- `TypeError: db.createTagStore is not a function` in production
+- Statement options silently ignored (no error, but behavior differs)
+- Using `PRAGMA` features that require newer SQLite versions bundled with newer Node
 
 **Phase to address:**
-Phase 1 — Core implementation. This is the fundamental design decision that determines the archival strategy.
+Schema design phase (first phase) — establish the API baseline before any structured tables are written.
 
 ---
 
-### Pitfall 2: History Section Grows Without Bound
+### Pitfall 2: Schema Migration in Single-File Deploy
 
 **What goes wrong:**
-The current INTENT.md `<history>` section (lines 54-100 of current `.planning/INTENT.md`) already has 10 milestone entries tracking 44+ archived outcomes across v7.1 through v11.4. Each `intent update` call appends to history via the auto-logging at line 592-691 of `intent.js`. After 20+ milestones, the history section dominates INTENT.md, adding hundreds of lines that get injected into agent context windows via the plugin's `context-builder.js` (line 74-93), wasting tokens.
+The CLI deploys as a single CJS file via `deploy.sh`. There's no migration runner, no version tracking, no schema diff tooling. When structured tables change between versions (adding columns, changing types, adding indexes), the existing `cache.db` on the user's machine has the old schema. `CREATE TABLE IF NOT EXISTS` doesn't add new columns — it silently succeeds with the old schema, and new code expecting those columns gets `undefined` values or INSERT failures.
+
+Currently `cache.js` uses only `CREATE TABLE IF NOT EXISTS` with no versioning:
+```sql
+CREATE TABLE IF NOT EXISTS file_cache (key TEXT PRIMARY KEY, value TEXT, mtime REAL, ...)
+CREATE TABLE IF NOT EXISTS research_cache (key TEXT PRIMARY KEY, value TEXT, ...)
+```
+This works for the current simple cache tables but will fail catastrophically when structured tables need to evolve.
 
 **Why it happens:**
-History is append-only by design — the `generateIntentMd()` function (line 934-948 of `helpers.js`) writes all history entries sequentially. There's no pruning, archival, or truncation mechanism. The `<history>` tag is parsed as a flat list of milestone entries.
+Schema migration tools (knex, prisma, drizzle) assume a project directory with migration files. Single-file CLIs can't ship migration directories. Developers forget that `CREATE TABLE IF NOT EXISTS` is NOT a migration — it only handles table creation, not table modification.
 
 **How to avoid:**
-Archive history entries alongside outcomes during milestone completion:
-1. Move history entries for the completed milestone into the archive file (e.g., `{version}-INTENT.md`)
-2. Keep only the last 2-3 milestone history entries in the active INTENT.md for continuity
-3. Add a `--keep-history N` option to control retention depth
+1. Use `PRAGMA user_version` as the schema version tracker (integer, persisted in the .db file itself)
+2. Embed migrations as a versioned array in the code:
+   ```js
+   const MIGRATIONS = [
+     { version: 1, up: 'CREATE TABLE phases (...)' },
+     { version: 2, up: 'ALTER TABLE phases ADD COLUMN status TEXT DEFAULT "pending"' },
+     { version: 3, up: 'CREATE INDEX idx_phases_status ON phases (status)' },
+   ];
+   ```
+3. Run migrations inside a transaction on every database open:
+   ```js
+   const current = db.prepare('PRAGMA user_version').get().user_version;
+   for (const m of MIGRATIONS.filter(m => m.version > current)) {
+     db.exec(m.up);
+     db.exec(`PRAGMA user_version = ${m.version}`);
+   }
+   ```
+4. **CRITICAL**: SQLite does NOT support `ALTER TABLE DROP COLUMN` before SQLite 3.35.0 (Node 22 ships 3.45+, so safe). But SQLite does NOT support `ALTER TABLE MODIFY COLUMN` at all. Column type changes require create-new-table-copy-data-drop-old-rename pattern.
+5. Never delete migrations — the array is append-only
+6. Test migration FROM version 0 (fresh install) AND from every intermediate version
 
 **Warning signs:**
-- INTENT.md exceeds 200 lines (current is 102, already growing)
-- `plan:intent show` compact summary reports high change counts
-- Context builder injects large `<intent>` blocks
+- "table X has no column named Y" errors after deploy
+- Data silently missing because old schema doesn't have new columns
+- Users reporting "works on fresh install, breaks on upgrade"
+- Tests always use `:memory:` (fresh schema) and never test migration paths
 
 **Phase to address:**
-Phase 1 — must be part of the archival design, not retrofitted later.
+Schema design phase (first phase) — migration framework must exist before any tables are created.
 
 ---
 
-### Pitfall 3: Partial Archival on Failure — Inconsistent State
+### Pitfall 3: Map/SQLite Backend Divergence for Structured Data
 
 **What goes wrong:**
-The current `cmdMilestoneComplete()` (line 848-1241 of `phase.js`) performs multiple sequential operations: archive ROADMAP, archive REQUIREMENTS, update MILESTONES.md, update STATE.md, move phase directories, reorganize ROADMAP, generate DOCS, create git tag, and commit. If any step fails (e.g., git tag already exists, disk write error), the subsequent steps still proceed via `try/catch` with `debugLog`. Adding intent archival as another step introduces another failure point. If intent archival succeeds but the git commit fails, INTENT.md is modified but not committed, leaving the working tree dirty.
+The existing `CacheEngine` has clean dual-backend parity: `MapBackend` and `SQLiteBackend` expose identical `get/set/invalidate/clear` interfaces. This works because the cache is a simple key-value store. But v12.0's structured tables (phases, plans, tasks, requirements, decisions) need SQL queries: `SELECT * FROM tasks WHERE plan_id = ? AND status = 'pending'`, `JOIN` across tables, aggregate queries. There is no way to maintain a Map-based equivalent for relational queries without reimplementing a query engine.
 
 **Why it happens:**
-`cmdMilestoneComplete()` uses a "best-effort" pattern — each step is independently try/caught and logged, not transactional. This is intentional for resilience (line 992: `debugLog('milestone.complete', 'readdir failed', e)`) but means partial completion is possible.
+Developers assume the dual-backend pattern extends to all new SQLite usage. They try to build a Map-based "fallback" for structured queries, which either: (a) becomes a full in-memory database reimplementation, or (b) silently returns different results than the SQLite path, or (c) gets abandoned halfway, leaving broken code paths.
 
 **How to avoid:**
-1. **Snapshot before modify:** Read INTENT.md into memory before any archival writes. If any step fails, restore the snapshot.
-2. **Archive first, modify last:** Write the archive file (`{version}-INTENT.md`) before modifying the active INTENT.md. The archive file is additive (no data loss risk).
-3. **Add intent files to the existing commit file list:** At line 1193-1200, the `commitFiles` array lists files to `git add`. Add `.planning/INTENT.md` and `.planning/milestones/{version}-INTENT.md` to this list.
+1. **Accept that structured tables are SQLite-only.** The Map fallback exists for the file cache (backward compatibility). New structured data tables do NOT need a Map equivalent.
+2. On Node <22.5: structured table features return graceful errors (`{ error: 'requires Node 22.5+', fallback: true }`) and the CLI falls back to the current markdown-parsing behavior.
+3. The cache layer (`CacheEngine`) keeps its dual-backend for file/research caching.
+4. New structured data gets its own module (e.g., `src/lib/data-store.js`) that requires SQLite directly and fails fast if unavailable.
+5. Document the architecture split clearly:
+   - **Cache layer** (cache.js): dual-backend, backward compatible
+   - **Data layer** (data-store.js): SQLite-only, graceful degradation to markdown parsing
 
 **Warning signs:**
-- After `milestone complete`, `git status` shows unstaged changes to INTENT.md
-- Archive file exists but active INTENT.md still has old outcomes
-- Active INTENT.md was cleared but archive file wasn't written
+- A `MapBackend` class growing methods like `queryByPlanId()` or `joinPhasesAndTasks()`
+- Test files with `if (backend === 'map') skip()` scattered everywhere
+- "TODO: implement map fallback" comments accumulating
+- Different test suites for Map vs SQLite paths
 
 **Phase to address:**
-Phase 1 — core implementation must follow the existing resilience pattern.
+Schema design phase — architectural decision must be made before any structured table code is written. Document in KEY DECISIONS.
 
 ---
 
-### Pitfall 4: ID Collision After Archival Reset
+### Pitfall 4: JSON-to-SQLite Data Loss from Type Coercion
 
 **What goes wrong:**
-When outcomes DO-72 through DO-78 are archived and INTENT.md is reset for the new milestone, `getNextId()` (line 726-738 of `intent.js`) scans only the current `data.outcomes` array to find the max ID number. If the new milestone starts with an empty outcomes list, `getNextId([], 'DO')` returns `DO-01`, potentially colliding with historically-used IDs. Plans referencing `DO-01` from milestone v1.0 could be confused with a new `DO-01` from milestone v12.0.
+The memory stores (decisions.json, lessons.json, trajectories.json, bookmarks.json) contain nested JSON with arrays, booleans, objects, and mixed types. SQLite has 5 types: NULL, INTEGER, REAL, TEXT, BLOB. When migrating:
+- JavaScript `true`/`false` → SQLite INTEGER 1/0 (but reading back gives `1`/`0`, not `true`/`false`)
+- JavaScript arrays → must be JSON.stringify'd into TEXT (but what about querying array contents?)
+- JavaScript `undefined` → SQLite NULL (but JSON.parse of NULL is not `undefined`)
+- JavaScript objects → TEXT via JSON.stringify (nested querying impossible without JSON1 extension)
+- JavaScript Date strings → TEXT (sortable only if ISO 8601 format)
+- Large integers → may exceed JavaScript `Number.MAX_SAFE_INTEGER` (SQLite INTEGER is 64-bit)
+
+Example from existing `decisions.json`:
+```json
+{
+  "decision": "Use node:sqlite over better-sqlite3",
+  "rationale": "Preserves single-file deploy",
+  "tags": ["architecture", "dependency"],
+  "confidence": "high",
+  "timestamp": "2026-03-10T..."
+}
+```
+The `tags` array needs a design decision: store as JSON TEXT, or normalize into a junction table?
 
 **Why it happens:**
-`getNextId()` has no awareness of historical ID usage — it only looks at the current items array (line 729-737). The function finds max, increments, and returns. This works when IDs accumulate monotonically but breaks when the list is periodically cleared.
+JSON is schemaless and JavaScript is dynamically typed. Developers map JSON fields directly to SQLite columns without thinking about round-trip fidelity. The data "looks right" on write but comes back wrong on read.
 
 **How to avoid:**
-1. **Continue sequence across milestones:** Never reset ID counters. After archiving DO-72 through DO-78, the next outcome should be DO-79, not DO-01. Modify `getNextId()` to also scan archived intent files, or store a `last_id` counter in config.json.
-2. **Milestone-prefixed IDs:** Change format to `DO-{milestone}-{num}` (e.g., `DO-11.4-01`). This is a larger change and may break existing regex patterns.
-3. **Simplest:** When archiving, don't remove outcomes from the `data` structure used by `getNextId()` — instead mark them with a status field and filter them from display/trace.
+1. Define explicit type mapping for every column before migration:
+   - Scalars (string, number) → native SQLite types
+   - Booleans → INTEGER with explicit `=== 1` on read
+   - Arrays → JSON TEXT with `json_each()` for queries (SQLite JSON1 is built-in)
+   - Objects → JSON TEXT with `json_extract()` for queries
+   - Dates → TEXT in ISO 8601 (lexicographic sort works)
+2. Write round-trip tests: `JSON → SQLite → JSON === original` for every store
+3. Use `STRICT` tables where possible to catch type mismatches at write time
+4. Consider a `_raw_json TEXT` column alongside structured columns for lossless storage during transition
+5. **Sacred data protection**: decisions.json and lessons.json are marked "sacred" — migration MUST be reversible. Keep JSON files as backup until verified.
 
 **Warning signs:**
-- `plan:intent validate` reports duplicate IDs across milestones
-- `plan:intent trace` maps a new plan to an archived outcome with the same ID
-- ID gaps or resets visible in history entries
+- `typeof value === 'boolean'` checks failing after SQLite read
+- Array fields returning as strings `"[\"a\",\"b\"]"` instead of arrays
+- Tests comparing objects failing on `undefined` vs `null`
+- Date sorting producing wrong order
 
 **Phase to address:**
-Phase 1 — ID continuity must be a design constraint before implementing archival.
+Schema design phase (type mapping) + Migration phase (round-trip verification).
 
 ---
 
-### Pitfall 5: `new-milestone` Workflow Assumes Active Outcomes Exist
+### Pitfall 5: Stale Cache After Markdown File Edits
 
 **What goes wrong:**
-The `new-milestone.md` workflow Step 4.5 "Q2 — Outcomes review" (line 76-80) iterates over existing outcomes asking "which are now complete, which still apply, and are there new ones?" If milestone completion already archived all outcomes, this review step finds nothing to iterate. The workflow becomes: "Looking at your desired outcomes... (none found)." The guided evolution questionnaire loses its value.
+v12.0's core promise is "parsed roadmap, plan metadata, phase mappings survive between CLI invocations with git-hash invalidation." But git-hash invalidation has a fatal gap: **edits that haven't been committed yet.** User edits STATE.md or a PLAN.md file → runs a CLI command → gets stale data from SQLite because the git hash hasn't changed. The existing `file_cache` uses `mtime` comparison (line 148-149 of cache.js), but the new structured tables will parse and store derived data (task counts, completion status, phase mappings) that don't map 1:1 to a single file's mtime.
+
+Additionally, the plugin parsers (state.js, roadmap.js, plan.js) each have their own `new Map()` caches that are per-process (lines 13 in each parser file). These Map caches and the SQLite cache can disagree if one is invalidated but not the other.
 
 **Why it happens:**
-The `new-milestone` and `complete-milestone` workflows are separate, sequential operations. Currently, `complete-milestone` archives ROADMAP and REQUIREMENTS but leaves INTENT.md untouched. The `new-milestone` workflow (Step 4.5) handles intent evolution interactively. If automated intent archival runs during `complete-milestone`, it preempts the interactive evolution step in `new-milestone`.
+Git-hash invalidation is elegant for committed state but blind to working-directory changes. Developers assume "git hash changed = data changed" when in reality the edit lifecycle is: edit file → CLI reads stale cache → user confused → commits → cache invalidates → next read correct. This means every edit has a stale window.
 
 **How to avoid:**
-1. **Archive timing matters:** Intent archival should happen during `new-milestone` Step 4.5, not during `complete-milestone`. The sequence should be: `complete-milestone` snapshots INTENT.md to archive → `new-milestone` Step 4.5 reviews outcomes, marks completed, adds new → then INTENT.md is written with only active outcomes.
-2. **Alternative:** If archival happens during `complete-milestone`, the `new-milestone` workflow must be updated to load the archived intent file for the evolution questionnaire.
-3. **Recommended:** Follow the existing pattern — `complete-milestone` creates the archive file as a snapshot, `new-milestone` cleans up the active INTENT.md during evolution.
+1. **Two-level invalidation**: git-hash for cross-session staleness + file mtime for within-session staleness
+2. For derived data (parsed phases, task status), store the source file's mtime AND content hash alongside the parsed result
+3. On read: check source file mtime first (fast fs.statSync), only query SQLite if mtime matches
+4. The plugin file-watcher already detects file changes — hook it into SQLite invalidation for specific tables
+5. Consider a `source_files TEXT` column in each structured table storing the JSON array of files that contributed to that row, with their mtimes
+6. **Invalidation cascade**: changing ROADMAP.md invalidates phases table, which cascades to plans, which cascades to tasks
 
 **Warning signs:**
-- After `complete-milestone` + `new-milestone`, INTENT.md has no history of what was delivered
-- User is never asked about completed vs ongoing outcomes
-- New milestone starts with blank intent instead of evolved intent
+- Users reporting "I edited the file but the command shows old data"
+- Inconsistency between `cat .planning/STATE.md` and `bgsd-tools state:show`
+- Tests passing because they always start fresh but production having stale reads
+- Plugin system prompt showing different data than CLI commands
 
 **Phase to address:**
-Phase 1 — workflow integration design. This is a sequencing decision, not a code complexity issue.
+Invalidation strategy phase — after schema design but before any structured tables store derived data.
 
 ---
 
-### Pitfall 6: Plugin Context Builder Serves Stale Intent Data
+### Pitfall 6: Database Locking Under Concurrent Invocations
 
 **What goes wrong:**
-The plugin's `context-builder.js` (line 81-93) builds a `<sacred>` block from intent data, including `intent.objective` and up to 3 key outcomes. The `parseIntent` plugin parser (`src/plugin/parsers/intent.js`, line 16-40) caches parsed intent per-CWD with no TTL. After archival modifies INTENT.md, the cached intent data still reflects pre-archival state until the cache is invalidated. The `.planning/` file watcher (mentioned in v9.2 accomplishments) should catch this, but only if it fires before the next context injection.
+The CLI tool may be invoked concurrently: multiple terminal tabs, plugin hooks (idle-validator, file-watcher, stuck-detector), and manual CLI calls running simultaneously. SQLite's default journal mode uses exclusive locks — one writer blocks all readers. Without WAL mode and busy timeout, concurrent invocations get `SQLITE_BUSY` errors that manifest as mysterious "database is locked" crashes.
+
+The current `cache.js` constructor doesn't set WAL mode or busy timeout:
+```js
+this.db = new DatabaseSync(this.dbPath);
+this._initSchema();
+```
 
 **Why it happens:**
-Module-level cache at line 12-13 of `src/plugin/parsers/intent.js` stores parsed intent as frozen objects. The `invalidateIntent()` function (line 73) exists but must be explicitly called. The milestone complete CLI command doesn't import or call plugin-layer invalidation.
+SQLite is often described as "serverless" — developers assume it handles concurrency like a server database. In reality, default SQLite is single-writer with file-level locking. CLI tools seem "single process" until you consider: editor plugin background hooks, multiple terminal sessions, git hooks, etc.
 
 **How to avoid:**
-1. The file watcher already invalidates on `.planning/` changes (v9.2 feature) — verify this covers INTENT.md modifications made by CLI commands run via `execSync`.
-2. After writing INTENT.md in the archival step, call `invalidateFileCache(intentPath)` (the helpers.js cache) — the plugin cache invalidation should follow via the file watcher.
-3. Add INTENT.md to the `cmdMilestoneComplete` cache invalidation list alongside STATE.md (line 942-943, 964 of `phase.js`).
+1. Enable WAL mode immediately after opening: `this.db.exec('PRAGMA journal_mode=WAL')`
+2. Set busy timeout (available since v22.16.0 as constructor option, use PRAGMA for v22.5):
+   `this.db.exec('PRAGMA busy_timeout=5000')` — 5 seconds
+3. Wrap all multi-statement operations in explicit transactions:
+   ```js
+   db.exec('BEGIN');
+   try { /* operations */ db.exec('COMMIT'); }
+   catch (e) { db.exec('ROLLBACK'); throw e; }
+   ```
+4. Use `INSERT OR REPLACE` (already done in cache.js) rather than SELECT-then-INSERT patterns
+5. Keep transactions short — parse data in JavaScript, then do a single batch INSERT
+6. Test concurrent access explicitly: spawn 10 CLI processes simultaneously, verify no SQLITE_BUSY
 
 **Warning signs:**
-- After milestone completion, system prompt still shows old objective/outcomes
-- `plan:intent show` returns different data than what context builder injects
-- Agent makes decisions based on completed-milestone outcomes instead of new ones
+- "database is locked" errors appearing sporadically
+- Plugin hooks failing silently (caught by try-catch)
+- Data corruption when editing files while CLI is running
+- Tests never failing because they run serially
 
 **Phase to address:**
-Phase 2 — integration testing. Core archival (Phase 1) should use the existing `invalidateFileCache()` pattern.
+Schema design phase — WAL mode and busy timeout must be set before any new tables are created. This is a prerequisite, not an afterthought.
 
 ---
 
-### Pitfall 7: Advisory Guardrails Block Legitimate INTENT.md Modifications
+### Pitfall 7: Test Suite Regression from SQLite Dependency
 
 **What goes wrong:**
-The `advisory-guardrails.js` (line 109) lists INTENT.md as a file whose modifications should be suggested through specific commands: `'/bgsd-new-project'` and `'/bgsd-new-milestone'`. If intent archival modifies INTENT.md during `complete-milestone` (which isn't in the allowlist), the guardrail would flag it as an unexpected modification, potentially confusing the agent.
+The existing 1008 tests don't test SQLite paths — there are zero test files for cache.js. When v12.0 adds structured tables that many commands depend on, the test suite faces several risks:
+1. Tests that worked with markdown parsing now depend on SQLite initialization
+2. Tests running on CI with Node <22.5 crash instead of using fallback paths
+3. `:memory:` databases in tests don't exercise migration paths
+4. Parallel test execution causes database file contention
+5. Test isolation breaks — one test's SQLite writes affect another test
 
 **Why it happens:**
-The guardrail was designed when INTENT.md was only modified during project creation and milestone start. Adding a third modification point (milestone completion) isn't covered by the current allowlist.
+The existing test suite tests CLI commands via `execFileSync` against fixture files. SQLite adds a stateful dependency that persists between test runs (the .db file). Developers add SQLite code to existing commands without updating the test strategy.
 
 **How to avoid:**
-Add `/bgsd-complete-milestone` to the INTENT.md guardrail allowlist in `advisory-guardrails.js` line 109.
+1. **Every test file that touches SQLite must use `:memory:` databases** — never shared file-backed databases
+2. Create a test helper: `createTestDb()` that returns an in-memory DatabaseSync with schema applied
+3. Add explicit test categories: `--sqlite` flag to run SQLite-specific tests, default tests must pass without SQLite
+4. Add a CI job running with `BGSD_CACHE_FORCE_MAP=1` to verify fallback paths
+5. Migration tests must use temp file databases (not `:memory:`) to test the file-backed migration path
+6. Test both "fresh install" (no db) and "upgrade" (existing db with old schema) scenarios
+7. Aim for the new SQLite-specific tests to be isolated — don't modify existing passing tests
 
 **Warning signs:**
-- Agent receives advisory warning during milestone completion about INTENT.md being modified outside expected commands
-- Warning is benign but adds noise to milestone completion output
+- Test suite suddenly takes 3x longer (database I/O)
+- Flaky tests that pass individually but fail in parallel
+- `SQLITE_BUSY` errors in test output
+- Tests leaking `.db` files in the test directory
 
 **Phase to address:**
-Phase 1 — trivial fix, include in the archival implementation.
+Schema design phase (test strategy) + every subsequent phase (test discipline).
+
+---
+
+### Pitfall 8: Sacred Data Loss During Memory Store Migration
+
+**What goes wrong:**
+decisions.json, lessons.json, and trajectories.json are marked as "sacred" — they're protected from compaction and represent accumulated project intelligence. Migrating this data to SQLite tables creates a one-way door: if the migration has bugs (wrong encoding, missing fields, truncated entries), the sacred data is corrupted with no recovery path. The current `memory.js` module explicitly protects these stores from compaction (line 9 of memory.js: `const SACRED_STORES = ['decisions', 'lessons', 'trajectories']`).
+
+**Why it happens:**
+Developers treat data migration as a one-shot operation: read JSON, write SQLite, delete JSON. They don't account for: partial failures (migration crashes halfway), encoding issues (Unicode in decision text), or field evolution (old entries have different shapes than new entries). Sacred data accumulated over months of project work is irreplaceable.
+
+**How to avoid:**
+1. **Never delete JSON files during migration.** Keep them as backup indefinitely.
+2. Migration runs in two phases:
+   - Phase A: Copy JSON → SQLite (additive only, JSON untouched)
+   - Phase B: Verify SQLite content matches JSON exactly (round-trip test)
+   - Only after Phase B passes does the system start reading from SQLite
+3. Add a `migration_status` table tracking: `{ store, json_count, sqlite_count, verified_at, json_hash }`
+4. On every startup, if JSON file mtime > last migration time, re-sync (handles manual JSON edits)
+5. Provide a `memory:export --format=json` command that can reconstruct JSON from SQLite at any time
+6. Schema must handle variable entry shapes — old entries may lack fields added in later versions
+
+**Warning signs:**
+- JSON file deleted before verification
+- Sacred store counts differ between JSON and SQLite
+- Migration has no rollback path
+- Tests use synthetic data instead of real memory store fixtures
+
+**Phase to address:**
+Memory store migration phase — this is a dedicated phase because sacred data is irreplaceable.
+
+---
+
+### Pitfall 9: Enricher Duplication Fix Creating New Duplication
+
+**What goes wrong:**
+v12.0 targets "fix duplication (3x listSummaryFiles, 2x parsePlans)" in the enricher by pre-computing data from SQLite. But the fix can create a new form of duplication: SQLite tables storing data that's ALSO being parsed from markdown on every invocation. If the enricher reads from SQLite but other code paths still parse markdown directly, the system has two sources of truth that can disagree. The plugin parsers (state.js, roadmap.js, plan.js) each have their own Map caches — adding SQLite as a third caching layer creates three potential sources of disagreement.
+
+**Why it happens:**
+Incremental migration means both paths (markdown parsing and SQLite query) coexist for a period. Developers fix the enricher to use SQLite but forget that 15 other code paths still call `parseRoadmap()`, `parseState()`, `parsePlan()` directly. The enricher shows SQLite data, the CLI shows parsed markdown data, and they disagree.
+
+**How to avoid:**
+1. Define a clear data flow direction: **Markdown → Parser → SQLite → Consumers**
+2. Parsers become the ONLY writers to SQLite structured tables
+3. All consumers (enricher, CLI commands, plugin) read from SQLite, never parse markdown directly
+4. Phase the migration by data type, not by consumer:
+   - Phase A: phases table (roadmap data)
+   - Phase B: plans/tasks tables (plan data)
+   - Phase C: session state table (STATE.md data)
+5. For each data type, migrate ALL consumers at once — no mixed reading
+6. The plugin parsers' Map caches should be replaced by SQLite reads (not layered on top)
+
+**Warning signs:**
+- Different commands showing different completion percentages
+- Plugin system prompt disagreeing with `bgsd-tools state:show`
+- "Fixed in enricher but not in CLI" bugs
+- Three cache layers: parser Map → CacheEngine Map/SQLite → structured tables SQLite
+
+**Phase to address:**
+Enricher acceleration phase — but the architecture decision must happen in schema design phase.
+
+---
+
+### Pitfall 10: Bundle Size Explosion
+
+**What goes wrong:**
+Each structured table needs: schema definition, migration SQL, query functions, type mapping, validation, and tests. The current bundle is 837KB against a 1550KB budget. Adding 6-8 new structured tables with their query layers can easily add 50-100KB to the bundle. If the data layer module is not carefully structured, it becomes the largest source file in the bundle (like `helpers.js` or `verify.js` today).
+
+**Why it happens:**
+SQL queries are verbose strings. Each table needs CRUD operations, each with multiple query variants (by id, by status, by parent, bulk insert, etc.). Developers write one module per table, each with inline SQL, creating many similar modules. The minifier can't compress SQL strings well.
+
+**How to avoid:**
+1. Use a shared query builder pattern — not an ORM, but helper functions that construct SQL from table metadata
+2. Keep all SQL in a single `schema.js` module — colocated SQL is easier to minify and deduplicate
+3. Monitor bundle size after every phase: `npm run build` already reports per-module sizes
+4. Set a per-phase bundle budget: +30KB max per phase, never exceed 1000KB total
+5. Reuse existing patterns: the current `db.prepare(SQL).run(params)` pattern is already compact
+
+**Warning signs:**
+- Build warnings about bundle size approaching budget
+- New modules appearing in the >50KB warning list
+- SQL strings duplicated across modules
+- Data layer becoming larger than the entire commands directory
+
+**Phase to address:**
+All phases — monitor continuously. Set bundle size check in build.cjs.
 <!-- /section -->
 
 <!-- section: tech_debt -->
@@ -192,24 +389,27 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Store archived intents inline in INTENT.md (e.g., `<archived_outcomes>` section) | No new files, simpler implementation | INTENT.md grows without bound, token waste in context injection, violates the separate-archive-file pattern used by ROADMAP and REQUIREMENTS | Never — breaks the established `.planning/milestones/{version}-FILE.md` pattern |
-| Skip archiving the `<history>` section | Simpler archival logic (only outcomes/criteria) | History becomes a permanent append-only log that inflates INTENT.md across milestones; defeats the purpose of "keeping planning clean and fast" | Never — history archival is part of the user's stated goal |
-| Reset outcome IDs to DO-01 after archival | Cleaner-looking IDs for new milestones | ID collision risk across milestone boundaries; breaks traceability if anyone references historical IDs | Never — monotonic IDs are a correctness requirement |
-| Hardcode archive filename pattern instead of reusing `archiveDir` variable | Faster to implement | Diverges from `phase.js` pattern (line 857); archive directory could change; breaks if milestones dir is renamed | Never — reuse the existing `archiveDir` pattern at line 857 of `phase.js` |
-| Archive only during `complete-milestone`, not during `new-milestone` | Single integration point | Preempts the interactive evolution questionnaire in `new-milestone` Step 4.5; user never reviews what was completed vs what carries forward | Only if `new-milestone` workflow is updated to load archived intent for review |
+| Store everything as JSON TEXT blobs in SQLite | Fast migration, no schema design needed | Can't query individual fields, can't index, can't enforce constraints — just a slower JSON file | Never for structured data; OK for truly opaque blobs (e.g., raw research results) |
+| Skip foreign keys between tables | Simpler schema, fewer migration headaches | Orphaned rows accumulate, data integrity degrades silently, queries return partial results | Only during initial development with plan to enable before shipping |
+| Use `db.exec()` for all writes (no prepared statements) | Simpler code, no statement lifecycle management | SQL injection risk with dynamic values, no parameter binding, no statement caching | Never for user-supplied or variable data |
+| Hardcode column lists in INSERT/SELECT | Works today, easy to understand | Every schema change requires updating multiple code locations | Only if you have a test that verifies columns match schema |
+| Silence all SQLite errors with empty catch blocks | CLI never crashes, matches current cache.js pattern | Data silently lost, bugs invisible, corruption undetected | Only for cache layer (already established pattern); never for structured data |
+| Test only with `:memory:` databases | Fast tests, no file cleanup needed | Migration paths never tested, file locking never tested, WAL mode behavior different | OK for unit tests; integration tests must use file-backed db |
+| `CREATE TABLE IF NOT EXISTS` as migration strategy | Simple, no version tracking needed | Can never add columns, change types, add constraints, or create indexes after initial deploy | Only for the initial v12.0 release if you're confident the schema won't change (it will) |
 
 ## Integration Gotchas
 
-Common mistakes when connecting the archival system to existing components.
+Common mistakes when connecting SQLite structured tables to existing systems.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `cmdMilestoneComplete()` in `phase.js` | Adding intent archival after the git commit step (line 1193-1212), so the archive isn't committed | Insert intent archival before the commit step; add both files to the `commitFiles` array at line 1193 |
-| `generateIntentMd()` in `helpers.js` | Calling it with stale `data` that still includes archived outcomes (passing old parsed data back) | Re-parse after removing archived outcomes; or build new data object from scratch for the post-archival INTENT.md |
-| `cmdIntentTrace()` in `intent.js` | Not updating `validOutcomeIds` set to include archived outcomes from milestone files | Add a fallback: if `phaseRange` for a plan falls within an archived milestone, load that milestone's intent archive for validation |
-| `new-milestone.md` workflow | Not updating Step 4.5 to handle the case where outcomes were already archived | Add conditional: "If archived intents exist for previous milestone, load them for review before evolving" |
-| Plugin `parseIntent` parser | Not invalidating cache after archival modifies INTENT.md | Call `invalidateIntent()` from `src/plugin/parsers/intent.js` after writing INTENT.md in the archival step, or rely on the file watcher (verify it catches CLI-driven writes) |
-| Test suite (`intent.test.js` or similar) | Not testing the archive→new-milestone→trace round-trip | Add integration test: create intent → complete milestone → verify archive file → start new milestone → verify trace works for both archived and new outcomes |
+| Plugin parsers (state.js, roadmap.js, plan.js) | Layering SQLite reads ON TOP of existing Map caches, creating 3 cache layers | Replace Map caches with SQLite reads; one source of truth |
+| Enricher (command-enricher.js) | Fixing duplication by adding SQLite reads alongside existing `parsePlans()` calls | Route ALL enricher data through SQLite; remove direct parser calls |
+| Memory stores (memory.js) | Migrating JSON→SQLite and deleting JSON files | Keep JSON as backup; add migration_status tracking; verify before switching read path |
+| Build pipeline (build.cjs) | Not validating new SQLite-dependent code in smoke test | Add `BGSD_CACHE_FORCE_MAP=1` smoke test variant |
+| File watcher (file-watcher.js) | Not invalidating SQLite structured tables when source markdown changes | Hook file-watcher events to table-specific invalidation |
+| Decision rules (decision-rules.js) | Querying SQLite for every decision evaluation (12 rules × N invocations) | Pre-load decision inputs during enrichment phase, query SQLite once per invocation |
+| esbuild bundler | `node:sqlite` in external array already — but new data layer modules may import patterns that esbuild doesn't tree-shake | Verify metafile analysis shows expected module sizes; avoid circular imports in data layer |
 <!-- /section -->
 
 <!-- section: performance -->
@@ -219,9 +419,26 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Scanning all milestone archive files during `intent trace` | `plan:intent trace` becomes slow as milestone count grows | Only scan archived intents when the plan's `phaseRange` falls within that milestone; cache results per-session | >20 milestones with 50+ outcomes each |
-| Loading full archived INTENT.md files for ID validation in `getNextId()` | Outcome add operation reads N archived files to find max ID | Store `last_outcome_id`, `last_criteria_id` counters in `config.json` or INTENT.md metadata; single read, no scanning | >30 milestones |
-| History section parse time in `parseIntentMd()` | The regex-based history parser (line 775-807 of `helpers.js`) processes every line; large histories slow parsing | Archive history during milestone completion; keep ≤3 milestone entries in active INTENT.md | >500 history lines (approximately 15+ milestones without archival) |
+| Running migrations on every CLI invocation | Startup time increases 50-200ms even when no migration needed | Check `PRAGMA user_version` first (single fast read), skip if current; cache version check result for process lifetime | Always — even a no-op `BEGIN; COMMIT` adds measurable latency |
+| Parsing ALL markdown files into SQLite on first run | 10+ second startup on large projects (50+ plans, 20+ phases) | Lazy population: parse on demand, cache aggressively; background pre-population via plugin idle hooks | Projects with >20 plans across >5 phases |
+| SELECT N+1 queries (fetch phases, then for each phase fetch plans, then for each plan fetch tasks) | CLI command goes from 50ms to 500ms+ as project grows | Use JOINs or batch queries; pre-compute common aggregations in summary views | Projects with >30 tasks across >5 plans |
+| JSON.parse on every SQLite TEXT read | CPU spike when reading many rows with JSON columns | Parse lazily (only when field accessed); cache parsed results; consider storing frequently-queried fields as native SQLite columns alongside JSON blob | Tables with >100 rows with JSON columns |
+| No indexes on query columns | Queries degrade from instant to noticeable at scale | Add indexes for: status columns, foreign keys, timestamp columns used in ORDER BY | Tables with >500 rows (not a concern initially but matters for decisions/lessons over time) |
+| Opening database connection per CLI command | 10-30ms overhead per invocation for WAL mode sync + schema check | Module-level singleton pattern (current cache.js already does this); consider connection pooling for plugin | Every invocation — this is cumulative and noticeable |
+<!-- /section -->
+
+<!-- section: security -->
+## Security Mistakes
+
+Domain-specific security issues beyond general web security.
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Dynamic table/column names from user input | SQL injection even with prepared statements (parameterization doesn't protect identifiers) | Whitelist table/column names; never interpolate user input into SQL identifiers |
+| Database file with 0644 permissions | Other users on shared machines can read project decisions, lessons, trajectories — may contain sensitive project context | Create with `0600` permissions (owner read/write only); verify after creation |
+| Storing unvalidated markdown in SQLite TEXT | Injection into generated STATE.md or SUMMARY.md views — malicious content in decisions could corrupt planning documents | Sanitize on write to SQLite, not just on read-back; validate against expected shapes |
+| WAL file (.db-wal) and shared memory file (.db-shm) left behind | These contain recent writes in plaintext; `deploy.sh` or cleanup scripts might miss them | Include `*.db-wal` and `*.db-shm` in cleanup operations; `PRAGMA wal_checkpoint(TRUNCATE)` before backup/deploy |
+| Sensitive data in SQLite without encryption | CLI db stored in `~/.config/oc/bgsd-oc/cache.db` — not encrypted, accessible to any process running as the user | Acceptable for this use case (planning metadata, not secrets); document that sensitive data should not be stored in decisions/lessons |
 <!-- /section -->
 
 <!-- section: ux -->
@@ -231,10 +448,11 @@ Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Silently archiving outcomes without confirmation | User doesn't know what was archived or where it went; feels like data loss | Show summary: "Archived 7 outcomes (DO-72 through DO-78) to `.planning/milestones/v11.4-INTENT.md`" — match existing milestone complete output pattern |
-| Archiving outcomes that are still relevant to the next milestone | User has to manually re-add outcomes they wanted to carry forward | During archival, distinguish "completed" outcomes from "ongoing" ones; only archive completed outcomes |
-| No way to recover archived intents | If archival was premature, user has to manually reconstruct from the archive file | Provide `plan:intent restore --from v11.4` command, or at minimum document the archive file location in the completion output |
-| Archive file location not discoverable | User can't find historical intents | List archive file in the `milestone complete` output alongside ROADMAP/REQUIREMENTS archives; add to MILESTONES.md entry |
+| Silent fallback to markdown parsing when SQLite is unavailable | User doesn't know they're getting degraded performance; can't diagnose slow commands | Log once per session: "SQLite unavailable (Node <22.5), using markdown parsing (slower)" |
+| Migration runs on first command, blocking the user | `bgsd-tools state:show` takes 5s instead of 50ms on first run after upgrade | Show progress: "Migrating planning data to SQLite (one-time, ~3s)..." |
+| Schema corruption requires manual db deletion | User gets cryptic SQLite errors, has to find and delete cache.db manually | Add `cache:reset` command that safely recreates the database; auto-detect corruption and offer repair |
+| Different data freshness between CLI and plugin | Plugin shows stale data, CLI shows current data (or vice versa) | Unified invalidation: both CLI and plugin read from same SQLite; file-watcher invalidates for both |
+| Error messages expose SQLite internals | "SQLITE_CONSTRAINT: UNIQUE constraint failed: phases.number" is meaningless to users | Catch SQLite errors, translate to user-friendly messages: "Phase 3 already exists. Use --force to replace." |
 <!-- /section -->
 
 <!-- section: looks_done -->
@@ -242,14 +460,16 @@ Common user experience mistakes in this domain.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Intent archival:** Often missing `<history>` section archival — verify that history entries for the completed milestone are moved to the archive file, not just outcomes and criteria
-- [ ] **Intent archival:** Often missing ID continuity — verify that `getNextId()` produces IDs that don't collide with any historically-used ID after archival resets the active outcomes list
-- [ ] **Milestone complete output:** Often missing the intent archive file in the result JSON — verify `result.archived` object (line 1222-1228 of `phase.js`) includes `intent: true/false`
-- [ ] **Git commit scope:** Often missing INTENT.md in the commit — verify `.planning/INTENT.md` and `.planning/milestones/{version}-INTENT.md` are both in the `commitFiles` array
-- [ ] **Plugin invalidation:** Often missing cache clear — verify `invalidateFileCache(intentPath)` is called after INTENT.md is rewritten
-- [ ] **Guardrail update:** Often missing allowlist entry — verify `advisory-guardrails.js` line 109 includes the milestone complete command
-- [ ] **Drift validation post-archival:** Often missing validation — run `plan:intent drift` after archival and verify score is 0 (no false positives from archived outcomes)
-- [ ] **New-milestone workflow update:** Often missing conditional logic — verify Step 4.5 handles the case where previous milestone's outcomes were already archived
+- [ ] **Schema migration:** Often missing upgrade tests FROM prior versions — verify migration works from v0 (fresh) AND from each intermediate version, not just latest-1
+- [ ] **Map fallback:** Often missing end-to-end test on Node <22.5 — verify `BGSD_CACHE_FORCE_MAP=1 node bin/bgsd-tools.cjs state:show` produces correct output
+- [ ] **Cache invalidation:** Often missing "edit file then immediately query" test — verify modifying STATE.md and immediately running a CLI command reflects the edit
+- [ ] **Sacred data migration:** Often missing round-trip verification — verify `JSON.parse(sqlite_row.value)` deep-equals original JSON for EVERY entry, including edge cases (Unicode, empty arrays, null fields)
+- [ ] **Concurrent access:** Often missing multi-process test — verify spawning 5 simultaneous CLI invocations produces no SQLITE_BUSY errors
+- [ ] **Bundle size:** Often missing post-migration size check — verify `npm run build` stays under 1000KB after all data layer code is added
+- [ ] **Plugin integration:** Often missing system prompt consistency check — verify plugin's `buildSystemPrompt()` and CLI's `init:context` agree on current phase/plan/status
+- [ ] **Error recovery:** Often missing corruption handling — verify deleting cache.db and running any command triggers clean recreation, not a crash
+- [ ] **Deploy pipeline:** Often missing `deploy.sh` update — verify deployment copies no extra files and handles db-less installations
+- [ ] **Existing tests:** Often missing regression check — verify all 1008 existing tests still pass after adding SQLite dependencies (especially with `BGSD_CACHE_FORCE_MAP=1`)
 <!-- /section -->
 
 <!-- section: recovery -->
@@ -259,13 +479,16 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Broken traceability (plans reference archived IDs) | LOW | Load archived intent file, reconstruct `validOutcomeIds` set by merging active + archived IDs; or modify trace to auto-fallback to milestone archives |
-| History grew unbounded | LOW | One-time script: parse INTENT.md, split history by milestone, write older entries to archive files, keep last 3 in active |
-| Partial archival left inconsistent state | LOW | Check `git status` for unstaged INTENT.md changes; if archive file exists and active file is stale, re-run the archival step manually |
-| ID collision after reset | MEDIUM | Audit all plans' `intent.outcome_ids` frontmatter; rename colliding IDs in the newer milestone; update `getNextId()` to check archives |
-| `new-milestone` skipped evolution because outcomes were already archived | LOW | Run `plan:intent show` on the archive file, manually re-add any ongoing outcomes via `plan:intent update outcomes --add "..." --reason "Carried forward from vX.Y"` |
-| Plugin serves stale intent data | LOW | Restart the host editor session (clears module-level cache); or call `invalidateIntent()` via plugin API |
-| Advisory guardrail blocks archival | LOW | Add `/bgsd-complete-milestone` to allowlist in `advisory-guardrails.js`; redeploy |
+| Schema migration breaks | MEDIUM | Delete cache.db, let CLI recreate from scratch (data re-parsed from markdown). If sacred data in SQLite only: restore from JSON backup files |
+| Data loss during memory migration | HIGH if JSON deleted, LOW if JSON preserved | If JSON backup exists: re-run migration from JSON. If not: attempt SQLite `.dump` recovery, manual data reconstruction from git history |
+| API drift between Node versions | LOW | Feature-detect at runtime, fall back to baseline API. If new API was required: pin minimum Node version higher |
+| Stale cache causing wrong behavior | LOW | `cache:clear` or delete cache.db. Fix: add mtime check to the affected table's read path |
+| Database locking errors | LOW | Enable WAL mode + busy timeout. If db is corrupted from locking: delete and recreate |
+| Bundle size over budget | MEDIUM | Audit per-module sizes via build-analysis.json, identify largest SQL modules, extract shared patterns, consider lazy loading |
+| Test suite regression | MEDIUM | Bisect: run with `BGSD_CACHE_FORCE_MAP=1` to isolate SQLite-specific failures. Fix data layer or add proper mocking |
+| Sacred data corruption in SQLite | HIGH | Restore from JSON backup. If no backup: extract from git history of `.planning/memory/*.json` files. Prevention: never delete JSON backups |
+| Enricher data disagreement | LOW | Clear all caches, restart plugin. Fix: ensure single data flow direction (markdown → SQLite → consumers) |
+| Concurrent access corruption | MEDIUM | `PRAGMA integrity_check` on the database. If corrupted: delete and recreate. Prevention: WAL mode + busy timeout + explicit transactions |
 
 ## Pitfall-to-Phase Mapping
 
@@ -273,29 +496,28 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Broken traceability | Phase 1 (archival design) | `plan:intent trace` returns valid coverage after archival for both active and archived milestone plans |
-| History unbounded growth | Phase 1 (archive history with outcomes) | INTENT.md `<history>` section has ≤3 milestone entries after archival |
-| Partial archival failure | Phase 1 (snapshot-before-modify) | Simulate failure mid-archival; verify INTENT.md is restored to pre-archival state |
-| ID collision | Phase 1 (monotonic ID design) | After archival + new milestone, `getNextId()` returns DO-79 (not DO-01) |
-| `new-milestone` workflow gap | Phase 1 (workflow update) | Complete milestone → start new milestone → verify evolution questionnaire references archived outcomes |
-| Plugin stale cache | Phase 2 (integration test) | Modify INTENT.md via CLI → verify plugin context builder reflects changes within 1 second |
-| Advisory guardrail | Phase 1 (allowlist update) | Complete milestone with intent archival → no advisory warnings about INTENT.md |
+| API drift between Node versions | Schema design (first phase) | CI matrix includes Node 22.5; capability detection tested |
+| Schema migration in single-file deploy | Schema design (first phase) | Migration test from v0 and each intermediate version passes |
+| Map/SQLite backend divergence | Schema design (first phase) | Architecture documented; no Map fallback code for structured tables |
+| JSON-to-SQLite type coercion | Schema design + Migration | Round-trip tests pass for every data type; STRICT tables used |
+| Stale cache after markdown edits | Invalidation strategy | Edit-then-read test passes within same second |
+| Database locking | Schema design (first phase) | WAL mode verified; concurrent 5-process test passes |
+| Test suite regression | Every phase | 1008+ tests pass after each phase; `BGSD_CACHE_FORCE_MAP=1` CI job green |
+| Sacred data loss | Memory store migration | JSON backups preserved; migration_status verified; round-trip equality confirmed |
+| Enricher duplication | Enricher acceleration | No duplicate parsing calls; all consumers read from SQLite |
+| Bundle size explosion | Every phase | Build stays under 1000KB; per-phase budget of +30KB enforced |
 <!-- /section -->
 
 <!-- section: sources -->
 ## Sources
 
-- `src/commands/phase.js` lines 848-1241 — `cmdMilestoneComplete()` implementation (direct code analysis)
-- `src/commands/intent.js` lines 1-1260 — all intent CRUD and trace/drift commands (direct code analysis)
-- `src/lib/helpers.js` lines 655-999 — `parseIntentMd()`, `generateIntentMd()`, `parsePlanIntent()` (direct code analysis)
-- `workflows/complete-milestone.md` — milestone completion workflow (direct file analysis)
-- `workflows/new-milestone.md` lines 40-119 — intent evolution during milestone start (direct file analysis)
-- `src/plugin/context-builder.js` lines 74-93, 237-353 — sacred block and intent context injection (direct code analysis)
-- `src/plugin/parsers/intent.js` — plugin-layer intent parser with module-level caching (direct code analysis)
-- `src/plugin/advisory-guardrails.js` line 109 — INTENT.md modification guardrail (direct code analysis)
-- `.planning/INTENT.md` — current intent state showing 10 history entries across 7 milestones (direct file analysis)
-- `.planning/milestones/` — archive directory pattern with 53 existing files across 18 milestones (directory listing)
+- **Node.js v22.x SQLite docs** (Stability 1.1): https://nodejs.org/docs/latest-v22.x/api/sqlite.html — baseline API, active development
+- **Node.js v25.x SQLite docs** (Stability 1.2): https://nodejs.org/api/sqlite.html — release candidate, shows API additions (`createTagStore`, `defensive`, `limits`, `aggregate`, `setAuthorizer`)
+- **Existing codebase analysis**: `src/lib/cache.js` (752 lines), `src/commands/memory.js` (378 lines), plugin parsers, build.cjs, parity-check.js
+- **SQLite documentation**: https://www.sqlite.org/pragma.html — PRAGMA user_version for schema versioning, PRAGMA journal_mode for WAL
+- **SQLite ALTER TABLE limitations**: https://www.sqlite.org/lang_altertable.html — no MODIFY COLUMN, DROP COLUMN only in SQLite 3.35+
+- **PROJECT.md**: v12.0 milestone goals, existing architecture decisions, constraints
 
 ---
-*Pitfalls research for: Intent Archival System (v11.4 Housekeeping)*
-*Researched: 2026-03-13*
+*Pitfalls research for: Adding structured SQLite tables to bgsd-tools CLI (v12.0)*
+*Researched: 2026-03-14*

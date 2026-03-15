@@ -331,8 +331,23 @@ function resolveModelInternal(cwd, agentType) {
     return override === 'opus' ? 'inherit' : override;
   }
 
-  // Fall back to profile lookup
   const profile = config.model_profile || 'balanced';
+
+  // Try model-selection decision rule first (SQLite-backed, Phase 122)
+  try {
+    const { resolveModelSelection } = require('./decision-rules');
+    const { getDb } = require('./db');
+    const db = getDb(cwd);
+    const result = resolveModelSelection({ agent_type: agentType, model_profile: profile, db });
+    if (result && result.value && result.value.model) {
+      const model = result.value.model;
+      return model === 'opus' ? 'inherit' : model;
+    }
+  } catch {
+    // Fall through to static lookup
+  }
+
+  // Static fallback
   const agentModels = MODEL_PROFILES[agentType];
   if (!agentModels) return 'sonnet';
   const resolved = agentModels[profile] || agentModels['balanced'] || 'sonnet';

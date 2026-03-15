@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
+const { getDb } = require('../lib/db');
+const { PlanningCache } = require('../lib/planning-cache');
 const { banner, sectionHeader, progressBar, formatTable, summaryLine, actionHint, color, SYMBOLS, colorByPercent } = require('../lib/format');
 const { loadConfig } = require('../lib/config');
 const { safeReadFile, cachedReadFile, findPhaseInternal, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree } = require('../lib/helpers');
@@ -1635,6 +1637,17 @@ function cmdInitMemory(cwd, args, raw) {
   const maxChars = compact ? 4000 : 8000;
   const trimmed = [];
 
+  // Trigger memory store migration on first access
+  try {
+    const db = getDb(cwd);
+    if (db.backend === 'sqlite') {
+      const cache = new PlanningCache(db);
+      cache.migrateMemoryStores(cwd);
+    }
+  } catch (e) {
+    debugLog('init.memory', 'memory migration failed', e);
+  }
+
   // 1. Position — parse STATE.md
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   const stateContent = safeReadFile(statePath);
@@ -1656,63 +1669,101 @@ function cmdInitMemory(cwd, args, raw) {
 
   // 2. Bookmark — read from memory store
   let bookmark = null;
-  const bookmarksPath = path.join(cwd, '.planning', 'memory', 'bookmarks.json');
-  const bookmarksContent = safeReadFile(bookmarksPath);
-  if (bookmarksContent) {
-    try {
-      const bookmarks = JSON.parse(bookmarksContent);
-      if (Array.isArray(bookmarks) && bookmarks.length > 0) {
-        bookmark = bookmarks[0];
-        // Drift warning: check if git HEAD changed since bookmark's git_head
-        if (bookmark.git_head && phaseFilter && String(bookmark.phase) === String(phaseFilter)) {
-          try {
-            const headResult = execGit(cwd, ['rev-parse', 'HEAD']);
-            if (headResult.exitCode === 0 && headResult.stdout !== bookmark.git_head) {
-              // Check if relevant files changed
-              const diffResult = execGit(cwd, ['diff', '--name-only', bookmark.git_head, 'HEAD']);
-              if (diffResult.exitCode === 0 && diffResult.stdout) {
-                const changedFiles = diffResult.stdout.split('\n').filter(Boolean);
-                const relevantChanges = changedFiles.filter(f =>
-                  (bookmark.last_file && f === bookmark.last_file) ||
-                  f.startsWith('.planning/')
-                );
-                if (relevantChanges.length > 0) {
-                  bookmark.drift_warning = `${relevantChanges.length} relevant file(s) changed since bookmark`;
-                } else {
-                  bookmark.drift_warning = null;
-                }
-              } else {
-                bookmark.drift_warning = null;
-              }
+
+  // Try SQLite-first bookmark read
+  try {
+    const db = getDb(cwd);
+    const cache = new PlanningCache(db);
+    const sqlBookmark = cache.getBookmarkTop(cwd);
+    if (sqlBookmark) {
+      bookmark = sqlBookmark;
+    }
+  } catch (e) {
+    debugLog('init.memory', 'SQLite bookmark read failed', e);
+  }
+
+  // Fall back to JSON read if bookmark is still null
+  if (!bookmark) {
+    const bookmarksPath = path.join(cwd, '.planning', 'memory', 'bookmarks.json');
+    const bookmarksContent = safeReadFile(bookmarksPath);
+    if (bookmarksContent) {
+      try {
+        const bookmarks = JSON.parse(bookmarksContent);
+        if (Array.isArray(bookmarks) && bookmarks.length > 0) {
+          bookmark = bookmarks[0];
+        }
+      } catch (e) { debugLog('init.memory', 'parse bookmarks failed', e); }
+    }
+  }
+
+  // Drift warning: check if git HEAD changed since bookmark's git_head
+  if (bookmark) {
+    if (bookmark.git_head && phaseFilter && String(bookmark.phase) === String(phaseFilter)) {
+      try {
+        const headResult = execGit(cwd, ['rev-parse', 'HEAD']);
+        if (headResult.exitCode === 0 && headResult.stdout !== bookmark.git_head) {
+          // Check if relevant files changed
+          const diffResult = execGit(cwd, ['diff', '--name-only', bookmark.git_head, 'HEAD']);
+          if (diffResult.exitCode === 0 && diffResult.stdout) {
+            const changedFiles = diffResult.stdout.split('\n').filter(Boolean);
+            const relevantChanges = changedFiles.filter(f =>
+              (bookmark.last_file && f === bookmark.last_file) ||
+              f.startsWith('.planning/')
+            );
+            if (relevantChanges.length > 0) {
+              bookmark.drift_warning = `${relevantChanges.length} relevant file(s) changed since bookmark`;
             } else {
               bookmark.drift_warning = null;
             }
-          } catch (e) {
-            debugLog('init.memory', 'git drift check failed', e);
+          } else {
             bookmark.drift_warning = null;
           }
         } else {
           bookmark.drift_warning = null;
         }
+      } catch (e) {
+        debugLog('init.memory', 'git drift check failed', e);
+        bookmark.drift_warning = null;
       }
-    } catch (e) { debugLog('init.memory', 'parse bookmarks failed', e); }
+    } else {
+      bookmark.drift_warning = null;
+    }
   }
 
   // 3. Decisions — read from memory store
   let decisions = [];
-  const decisionsPath = path.join(cwd, '.planning', 'memory', 'decisions.json');
-  const decisionsContent = safeReadFile(decisionsPath);
-  if (decisionsContent) {
-    try {
-      let all = JSON.parse(decisionsContent);
-      if (Array.isArray(all)) {
-        if (phaseFilter) {
-          all = all.filter(d => d.phase && String(d.phase) === String(phaseFilter));
+
+  // Try SQLite-first decisions read
+  try {
+    const db = getDb(cwd);
+    const cache = new PlanningCache(db);
+    const sqlResult = cache.searchMemory(cwd, 'decisions', null, {
+      phase: phaseFilter,
+      limit: compact ? 5 : 10,
+    });
+    if (sqlResult && sqlResult.entries.length > 0) {
+      decisions = sqlResult.entries.reverse(); // Most recent first
+    }
+  } catch (e) {
+    debugLog('init.memory', 'SQLite decision read failed', e);
+  }
+
+  // Fall back to JSON if decisions is still empty
+  if (decisions.length === 0) {
+    const decisionsPath = path.join(cwd, '.planning', 'memory', 'decisions.json');
+    const decisionsContent = safeReadFile(decisionsPath);
+    if (decisionsContent) {
+      try {
+        let all = JSON.parse(decisionsContent);
+        if (Array.isArray(all)) {
+          if (phaseFilter) {
+            all = all.filter(d => d.phase && String(d.phase) === String(phaseFilter));
+          }
+          const limit = compact ? 5 : 10;
+          decisions = all.slice(-limit).reverse();
         }
-        const limit = compact ? 5 : 10;
-        decisions = all.slice(-limit).reverse();
-      }
-    } catch (e) { debugLog('init.memory', 'parse decisions failed', e); }
+      } catch (e) { debugLog('init.memory', 'parse decisions failed', e); }
+    }
   }
 
   // 4. Blockers/Todos — parse STATE.md sections
@@ -1739,18 +1790,37 @@ function cmdInitMemory(cwd, args, raw) {
 
   // 5. Lessons — read from memory store
   let lessons = [];
-  const lessonsPath = path.join(cwd, '.planning', 'memory', 'lessons.json');
-  const lessonsContent = safeReadFile(lessonsPath);
-  if (lessonsContent) {
-    try {
-      let all = JSON.parse(lessonsContent);
-      if (Array.isArray(all)) {
-        if (phaseFilter) {
-          all = all.filter(l => l.phase && String(l.phase) === String(phaseFilter));
+
+  // Try SQLite-first lessons read
+  try {
+    const db = getDb(cwd);
+    const cache = new PlanningCache(db);
+    const sqlResult = cache.searchMemory(cwd, 'lessons', null, {
+      phase: phaseFilter,
+      limit: 5,
+    });
+    if (sqlResult && sqlResult.entries.length > 0) {
+      lessons = sqlResult.entries;
+    }
+  } catch (e) {
+    debugLog('init.memory', 'SQLite lessons read failed', e);
+  }
+
+  // Fall back to JSON if lessons is still empty
+  if (lessons.length === 0) {
+    const lessonsPath = path.join(cwd, '.planning', 'memory', 'lessons.json');
+    const lessonsContent = safeReadFile(lessonsPath);
+    if (lessonsContent) {
+      try {
+        let all = JSON.parse(lessonsContent);
+        if (Array.isArray(all)) {
+          if (phaseFilter) {
+            all = all.filter(l => l.phase && String(l.phase) === String(phaseFilter));
+          }
+          lessons = all.slice(-5);
         }
-        lessons = all.slice(-5);
-      }
-    } catch (e) { debugLog('init.memory', 'parse lessons failed', e); }
+      } catch (e) { debugLog('init.memory', 'parse lessons failed', e); }
+    }
   }
 
   // 6. Codebase knowledge — based on workflow

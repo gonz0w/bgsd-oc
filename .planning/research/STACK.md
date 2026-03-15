@@ -1,251 +1,540 @@
-# Stack Research — Test Suite Failure Analysis
+# Stack Research — SQLite-First Data Layer
 
-**Domain:** Test infrastructure stabilization for bGSD CLI plugin
-**Researched:** 2026-03-13
-**Confidence:** HIGH (all findings verified via live test runs and source inspection)
+**Domain:** Structured SQLite schema management, migrations, and query patterns for zero-dependency Node.js CLI
+**Researched:** 2026-03-14
+**Confidence:** HIGH (node:sqlite API verified via official Node.js docs v25.8.1, existing codebase patterns inspected)
 
 <!-- section: compact -->
 <stack_compact>
 <!-- Compact view for planners. Keep under 25 lines. -->
 
-**Test infrastructure:** 1014 tests, 21 suites, node:test runner, execSync-based CLI invocation
+**Core stack:** No new dependencies. Everything built on existing `node:sqlite` (DatabaseSync) already in `src/lib/cache.js`.
 
-**Root cause:** Bun runtime banner (console.log to stdout) poisons JSON output parsed by tests
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| node:sqlite (DatabaseSync) | Structured tables, prepared statements, transactions | Node 22.5+ (Stability 1.2 RC) |
+| SQLTagStore (createTagStore) | Cached prepared statements via tagged template literals | Node 24.9+ (fallback: db.prepare()) |
+| PRAGMA user_version | Schema version tracking for migrations | SQLite built-in |
 
-**Failure breakdown:**
+**Key patterns:** Version-gated migrations via `PRAGMA user_version`, inline SQL schema strings (no migration files), `db.exec()` for DDL, tagged templates for DML, `INSERT OR REPLACE` for upserts, `JSON_EXTRACT()` for structured data in TEXT columns, `BEGIN IMMEDIATE` transactions for batch writes.
 
-| Category | Failures | Fix |
-|----------|----------|-----|
-| Banner: `[bGSD] Running with Bun v...` | 551 | Suppress banner in non-TTY/JSON mode |
-| Banner: `[bGSD] Falling back to Node.js` | 40 | Same fix (remove fallback banner entirely) |
-| Missing `src/lib/profiler` module | 3 | Remove/skip stale tests referencing deleted module |
-| Plugin parser edge cases | 7 | Test isolation fix (ROADMAP.md.backup, live project assumptions) |
-| Env/infra/misc edge cases | 6 | Individual fixes (baselines dir, config-migrate, context-budget) |
-| **Total** | **607** | |
+**Avoid:** ORMs (knex, drizzle, sequelize — adds dependencies), better-sqlite3 (duplicates built-in), migration file systems (overkill for single-file deploy), WAL mode (unnecessary for single-process CLI), async SQLite APIs (CLI is synchronous).
 
-**Minimal fix:** Guard `showRuntimeBanner()` in `src/router.js` to skip when `_gsdOutputMode === 'json'` or `!process.stdout.isTTY`. One line change, 589 tests fixed.
-
-**Avoid:** Changing test helpers (runGsdTools), adding env vars to test scripts, using stderr for banner
+**Install:** No installation needed — zero new dependencies.
 </stack_compact>
 <!-- /section -->
 
 <!-- section: recommended_stack -->
-## Root Cause Analysis
+## Recommended Stack
 
-### Primary Failure: Bun Runtime Banner (591 of 607 failures)
+### Core Technologies
 
-**Source file:** `src/router.js` lines 50-70, 170-176
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| node:sqlite DatabaseSync | Node 22.5+ | Synchronous SQLite database access | Already in use for cache.js. Zero-dependency, built into Node.js, synchronous API matches CLI architecture. Stability 1.2 (Release Candidate) as of v25.7.0. |
+| SQLTagStore (createTagStore) | Node 24.9+ | LRU-cached prepared statements via tagged template literals | Already used in cache.js for statement caching. Automatic parameterization prevents SQL injection. Cache reuses parsed SQL across invocations within a process. |
+| PRAGMA user_version | SQLite built-in | Integer schema version number stored in database header | No tables needed. Atomic read/write. Survives database copy. Zero overhead. Standard pattern for embedded SQLite migrations. |
+| STRICT tables | SQLite 3.37+ (2021-11) | Type enforcement on columns | Catches type errors at write time rather than silently coercing. Node.js bundles SQLite 3.45+ so STRICT is always available. |
+| JSON1 extension | SQLite built-in | JSON_EXTRACT, JSON_SET for structured TEXT columns | Available by default in Node.js SQLite. Enables querying into JSON blobs stored in TEXT columns without full schema decomposition. |
 
-**Mechanism:** When `bin/bgsd-tools.cjs` starts up, the router module:
-1. Detects Bun availability via `detectBun()` in `src/lib/cli-tools/bun-runtime.js`
-2. Since Bun 1.3.10 is installed on this system, `_runtimeDetected.available = true`
-3. On line 173: `const showBanner = isVerbose || (_runtimeDetected && _runtimeDetected.available);`
-4. Banner always shows when Bun is present, regardless of output mode
-5. `showRuntimeBanner()` uses `console.log()` which writes to stdout
-6. Tests call CLI via `execSync` (piped stdout) and `JSON.parse()` the output
-7. Output becomes `[bGSD] Running with Bun v1.3.10\n{"key":"value",...}` — invalid JSON
+### Supporting Patterns (No Libraries)
 
-**Two banner variants cause failures:**
+| Pattern | Purpose | When to Use |
+|---------|---------|-------------|
+| `BEGIN IMMEDIATE...COMMIT` wrapping | Batch write transactions | When inserting/updating multiple rows (e.g., populating all phases from ROADMAP.md parse). 10-100x faster than individual writes. |
+| `INSERT OR REPLACE INTO` | Upsert pattern | When refreshing parsed data — re-parse overwrites stale rows. Simpler than INSERT...ON CONFLICT UPDATE for full-row replacement. |
+| `INSERT...ON CONFLICT DO UPDATE SET` | Selective upsert | When only some columns should update (e.g., updating task status without touching task definition). |
+| `CREATE INDEX IF NOT EXISTS` | Idempotent index creation | Always. Run alongside table creation so indexes exist from first use. |
+| `statement.iterate()` | Memory-efficient row iteration | When processing large result sets (available since Node 23.4/22.13). Falls back to `.all()` on older Node. |
+| Named parameters (`$name`, `:name`) | Readable parameterized queries | For complex queries with many parameters. `allowBareNamedParameters` is `true` by default. |
 
-| Banner Text | Condition | Failures |
-|-------------|-----------|----------|
-| `[bGSD] Running with Bun v1.3.10` | Bun detected, not forced via config | 551 |
-| `[bGSD] Falling back to Node.js` | `BGSD_RUNTIME=node` or config `runtime=node` | 40 |
+### Development Tools
 
-**Verification:** Setting `BGSD_RUNTIME=node BGSD_RUNTIME_DETECTED=true` before test run changes results from 407 pass / 607 fail → 996 pass / 18 fail. This confirms 589 failures are exclusively caused by the banner.
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `PRAGMA table_info(tableName)` | Schema introspection | Verify table structure in tests. Returns column name, type, notnull, default, pk. |
+| `PRAGMA user_version` | Migration version check | `db.prepare('PRAGMA user_version').get()` returns `{user_version: N}`. Set with `db.exec('PRAGMA user_version = N')`. |
+| `PRAGMA integrity_check` | Database health verification | Use in `bgsd-health` command. Returns `[{integrity_check: 'ok'}]` when healthy. |
+| `.columns()` method | Statement column metadata | New in Node 23.11/22.16. Introspect column names, types, origin tables for debugging. |
 
-**Why it wasn't caught earlier:** The banner was added in v9.2 (CLI Tool Integrations & Runtime Modernization). At that time, Bun may not have been installed on the dev machine, or tests were run without Bun present. The banner only triggers when Bun is actually detected on the system.
+## Installation
 
-### Fix Strategy
+```bash
+# No installation needed — zero new dependencies
+# All capabilities come from node:sqlite (built into Node.js 22.5+)
+# Existing fallback to Map backend (cache.js) covers Node < 22.5
+```
+<!-- /section -->
 
-**Option A (RECOMMENDED): Guard banner on output mode** — 1 line change in `src/router.js`
+<!-- section: architecture_patterns -->
+## Schema Management Pattern
+
+### Version-Gated Inline Migrations
+
+The recommended pattern for single-file CLI tools is **version-gated inline migrations** using `PRAGMA user_version`. No migration files, no migration table, no timestamp tracking.
 
 ```javascript
-// Current (line 173):
-const showBanner = isVerbose || (_runtimeDetected && _runtimeDetected.available);
+// Schema versions — each version is an idempotent migration function
+const SCHEMA_VERSION = 3;
 
-// Fixed:
-const showBanner = process.stdout.isTTY
-  && (isVerbose || (_runtimeDetected && _runtimeDetected.available));
+const MIGRATIONS = {
+  // Version 1: Initial structured tables
+  1: (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS phases (
+        number TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'incomplete',
+        goal TEXT,
+        plan_count INTEGER DEFAULT 0,
+        depends_on TEXT,
+        milestone_version TEXT,
+        git_hash TEXT,
+        updated_at REAL NOT NULL
+      ) STRICT
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_phases_status ON phases(status)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_phases_milestone ON phases(milestone_version)`);
+    // ... more tables
+  },
+
+  // Version 2: Add memory store tables
+  2: (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS decisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        phase TEXT,
+        timestamp TEXT NOT NULL,
+        context TEXT
+      ) STRICT
+    `);
+    // ... more tables
+  },
+
+  // Version 3: Add session state
+  3: (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS session_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at REAL NOT NULL
+      ) STRICT
+    `);
+  },
+};
+
+function migrateDatabase(db) {
+  const { user_version: currentVersion } = db.prepare('PRAGMA user_version').get();
+
+  if (currentVersion >= SCHEMA_VERSION) return; // Already up to date
+
+  // Run all migrations from current+1 to target
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    for (let v = currentVersion + 1; v <= SCHEMA_VERSION; v++) {
+      if (MIGRATIONS[v]) {
+        MIGRATIONS[v](db);
+      }
+    }
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
 ```
 
-This suppresses the banner in piped/JSON mode (which is what tests use) while preserving it for interactive TTY use. It follows the existing output mode pattern used throughout the codebase (`global._gsdOutputMode` defaults to `'json'` when `!process.stdout.isTTY`).
+**Why this pattern:**
+- **No migration files to deploy** — migrations are code, bundled into the single CJS file
+- **Idempotent** — `CREATE TABLE IF NOT EXISTS` means re-running is safe
+- **Transactional** — entire migration is atomic; partial failure rolls back
+- **Forward-only** — no downgrade migrations (CLI deploys forward; rollback = re-deploy previous version)
+- **Version-gated** — each migration only runs once via `user_version` tracking
+- **Zero dependencies** — uses only SQLite built-ins
 
-**Option B: Use stderr for banner** — Changes `console.log` → `console.error` in `showRuntimeBanner()`. Works but pollutes stderr in piped workflows where stderr carries error information. Not recommended.
+### Key Constraints for This Project
 
-**Option C: Strip banner in test helper** — Modify `runGsdTools()` in `tests/helpers.cjs` to strip lines starting with `[bGSD]` before JSON.parse. Hack — masks the real bug instead of fixing it.
+1. **Migrations must be inline code** — no `.sql` files (single-file deploy via esbuild)
+2. **Migrations run at database open** — lazy migration on first access, transparent to callers
+3. **Existing `file_cache` and `research_cache` tables are untouched** — new tables coexist
+4. **`CREATE TABLE IF NOT EXISTS` on every migration** — safe re-execution after crashes
+5. **No `ALTER TABLE` for column renames** — SQLite doesn't support it well; create new table + copy instead
 
-**Option D: Set env vars in test scripts** — Add `BGSD_RUNTIME_DETECTED=true` to `package.json` test scripts. Workaround — doesn't fix the underlying issue for any consumer that pipes output.
+## Query Builder Pattern
 
-### Secondary Failures (18 remaining after banner fix)
+### No ORM, No Query Builder Library — Tagged Template Literals
 
-**Evidence:** With banner suppressed (`BGSD_RUNTIME=node BGSD_RUNTIME_DETECTED=true`), 18 tests still fail across 5 suites.
+The `node:sqlite` `SQLTagStore` (createTagStore) IS the query builder. Tagged templates provide:
+- Automatic parameterization (SQL injection prevention)
+- Statement caching (prepared statement reuse)
+- Clean readable syntax
+
+```javascript
+// EXISTING pattern from cache.js — already proven in production
+const sql = db.createTagStore();
+
+// Simple queries
+const phase = sql.get`SELECT * FROM phases WHERE number = ${phaseNum}`;
+const tasks = sql.all`SELECT * FROM tasks WHERE plan_id = ${planId} ORDER BY position`;
+
+// Inserts
+sql.run`INSERT OR REPLACE INTO phases (number, name, status, updated_at)
+        VALUES (${num}, ${name}, ${status}, ${Date.now()})`;
+
+// Complex queries with multiple params
+const filtered = sql.all`
+  SELECT t.*, p.name as plan_name
+  FROM tasks t
+  JOIN plans p ON t.plan_id = p.id
+  WHERE t.status = ${status}
+  AND p.phase_number = ${phaseNum}
+  ORDER BY t.position
+`;
+```
+
+**Fallback for Node < 24.9 (no createTagStore):**
+
+```javascript
+// Use db.prepare() directly — same API, no caching
+const phase = db.prepare('SELECT * FROM phases WHERE number = ?').get(phaseNum);
+const tasks = db.prepare('SELECT * FROM tasks WHERE plan_id = ? ORDER BY position').all(planId);
+```
+
+### Dynamic Query Building Without an ORM
+
+For queries with optional filters (common in CLI commands), use SQL string concatenation with parameterized values:
+
+```javascript
+function queryTasks(db, filters = {}) {
+  const conditions = ['1=1']; // Always-true base
+  const params = [];
+
+  if (filters.phase) {
+    conditions.push('phase_number = ?');
+    params.push(filters.phase);
+  }
+  if (filters.status) {
+    conditions.push('status = ?');
+    params.push(filters.status);
+  }
+  if (filters.planId) {
+    conditions.push('plan_id = ?');
+    params.push(filters.planId);
+  }
+
+  const sql = `SELECT * FROM tasks WHERE ${conditions.join(' AND ')} ORDER BY position`;
+  return db.prepare(sql).all(...params);
+}
+```
+
+**Note:** Dynamic queries can't use `createTagStore` because the SQL string varies. Use `db.prepare()` for dynamic queries. This is fine — dynamic queries are infrequent (CLI commands) while hot-path queries (enricher, context builder) use fixed SQL via tag store.
+
+## Database Architecture
+
+### Separate Database Files vs Single Database
+
+**Recommendation: Extend the existing `cache.db` file.**
+
+Rationale:
+- Existing `cache.db` already lives at `~/.config/oc/bgsd-oc/cache.db`
+- Adding tables to the same file avoids managing multiple database connections
+- Single `DatabaseSync` instance means single statement cache
+- cache.js `SQLiteBackend` already handles directory creation and fallback
+- Planning data tables simply coexist with `file_cache` and `research_cache`
+
+**Alternative considered:** Separate `planning.db` per-project (in `.planning/`).
+- Pro: Project-portable, git-ignorable, no cross-project pollution
+- Con: Requires second DatabaseSync instance, doubles connection overhead
+- **Verdict:** Use per-project database in `.planning/.cache/bgsd.db` for structured planning data. Keep `cache.db` for global file/research cache. Planning data is project-scoped by nature.
+
+**Revised recommendation: Two database files, clear separation.**
+
+| Database | Location | Content | Lifetime |
+|----------|----------|---------|----------|
+| `cache.db` | `~/.config/oc/bgsd-oc/cache.db` | file_cache, research_cache | Global, ephemeral |
+| `bgsd.db` | `.planning/.cache/bgsd.db` | phases, plans, tasks, decisions, session_state, memory stores | Per-project, derived from markdown |
+
+This separation is better because:
+- Planning data is project-specific (parsed from `.planning/` markdown files)
+- Global cache is cross-project (file content by path)
+- Deleting `.planning/` cleanly removes all project data including derived SQLite
+- `.planning/.cache/` is already gitignored
+- Different invalidation strategies: cache = mtime-based, planning = git-hash-based
+
+## Git-Hash Invalidation
+
+### Detecting When Parsed Data Is Stale
+
+Planning data in SQLite is derived from markdown files. When markdown changes (via git or manual edit), SQLite data must be refreshed.
+
+```javascript
+// Store source hash alongside parsed data
+const HASH_TABLE = `
+  CREATE TABLE IF NOT EXISTS source_hashes (
+    file_path TEXT PRIMARY KEY,
+    content_hash TEXT NOT NULL,
+    parsed_at REAL NOT NULL
+  ) STRICT
+`;
+
+function isStale(db, filePath, currentContent) {
+  const hash = require('crypto').createHash('md5')
+    .update(currentContent).digest('hex');
+  const row = db.prepare(
+    'SELECT content_hash FROM source_hashes WHERE file_path = ?'
+  ).get(filePath);
+  return !row || row.content_hash !== hash;
+}
+
+function markFresh(db, filePath, currentContent) {
+  const hash = require('crypto').createHash('md5')
+    .update(currentContent).digest('hex');
+  db.prepare(
+    'INSERT OR REPLACE INTO source_hashes (file_path, content_hash, parsed_at) VALUES (?, ?, ?)'
+  ).run(filePath, hash, Date.now());
+}
+```
+
+**Alternative: git commit hash.** Store the last git HEAD hash. If HEAD changes, invalidate everything. Simpler but coarser — any commit invalidates all data, even unrelated files.
+
+**Recommendation:** Per-file content hashing for surgical invalidation. MD5 is fine (not security-sensitive, just change detection). Crypto is already a Node built-in used in the project.
+<!-- /section -->
+
+<!-- section: performance -->
+## Performance Considerations
+
+### Transaction Batching
+
+**Critical for write performance.** SQLite without explicit transactions wraps each statement in its own transaction. For N inserts, that's N filesystem syncs.
+
+```javascript
+// BAD: 50 inserts = 50 transactions = 50 fsync calls (~500ms)
+for (const phase of phases) {
+  db.prepare('INSERT INTO phases ...').run(phase.number, phase.name);
+}
+
+// GOOD: 1 transaction = 1 fsync call (~5ms)
+db.exec('BEGIN IMMEDIATE');
+try {
+  for (const phase of phases) {
+    db.prepare('INSERT INTO phases ...').run(phase.number, phase.name);
+  }
+  db.exec('COMMIT');
+} catch (e) {
+  db.exec('ROLLBACK');
+  throw e;
+}
+```
+
+**Use `BEGIN IMMEDIATE` (not `BEGIN`).** IMMEDIATE acquires a RESERVED lock immediately, preventing deadlocks when another connection tries to write. For a single-process CLI this is technically unnecessary but costs nothing and is defensive.
+
+### WAL Mode: Not Recommended
+
+WAL (Write-Ahead Logging) mode benefits concurrent readers/writers. This CLI tool is:
+- Single-process (no concurrent access)
+- Short-lived (CLI invocation < 5s)
+- Single-threaded (synchronous DatabaseSync)
+
+WAL adds complexity (WAL + SHM sidecar files) with no benefit. Keep the default `journal_mode=DELETE`.
+
+**Exception:** If the plugin (long-running process in the host editor) and the CLI tool need to access the same database simultaneously, WAL would be needed. But the recommendation is separate databases (plugin uses cache.db, CLI uses project-scoped bgsd.db), so this doesn't apply.
+
+### Indexing Strategy
+
+**Index columns used in WHERE, JOIN, and ORDER BY clauses.** For planning data:
+
+```sql
+-- Phases: queried by number (PK), status, milestone
+CREATE INDEX IF NOT EXISTS idx_phases_status ON phases(status);
+CREATE INDEX IF NOT EXISTS idx_phases_milestone ON phases(milestone_version);
+
+-- Plans: queried by phase, status
+CREATE INDEX IF NOT EXISTS idx_plans_phase ON plans(phase_number);
+CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
+
+-- Tasks: queried by plan, status, position ordering
+CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_plan_position ON tasks(plan_id, position);
+
+-- Decisions: queried by phase, searched by text
+CREATE INDEX IF NOT EXISTS idx_decisions_phase ON decisions(phase);
+
+-- Session state: queried by key (PK — no additional index needed)
+```
+
+**Don't over-index.** Each index slows writes. For a dataset of <1000 rows total (typical planning project), full table scans are sub-millisecond anyway. Index only the columns that appear in hot-path WHERE clauses.
+
+### Statement Caching Strategy
+
+**Reuse the existing `createTagStore()` pattern** from cache.js. For the new structured database:
+
+```javascript
+class StructuredDB {
+  constructor(dbPath) {
+    const { DatabaseSync } = require('node:sqlite');
+    this.db = new DatabaseSync(dbPath);
+    this._migrate();
+
+    // Create tag store for hot-path queries
+    try {
+      this.sql = this.db.createTagStore();
+    } catch {
+      this.sql = null; // Fallback: use db.prepare() directly
+    }
+  }
+
+  getPhase(number) {
+    if (this.sql) {
+      return this.sql.get`SELECT * FROM phases WHERE number = ${number}`;
+    }
+    return this.db.prepare('SELECT * FROM phases WHERE number = ?').get(number);
+  }
+}
+```
+
+### Read Performance: Queries vs File Parsing
+
+Expected improvement from SQLite over re-parsing markdown on every invocation:
+
+| Operation | Current (md parse) | SQLite query | Speedup |
+|-----------|-------------------|--------------|---------|
+| Get current phase | Read + regex ROADMAP.md (~50KB) | `SELECT * FROM phases WHERE number = ?` | ~10-50x |
+| List all tasks for plan | Read + XML parse PLAN.md (~5KB) | `SELECT * FROM tasks WHERE plan_id = ?` | ~5-20x |
+| Get session state | Read + regex STATE.md (~2KB) | `SELECT * FROM session_state WHERE key = ?` | ~3-10x |
+| List all decisions | Read + JSON.parse decisions.json | `SELECT * FROM decisions ORDER BY timestamp` | ~2-5x (similar) |
+| Get enricher context | 3x listSummaryFiles + 2x parsePlans | Pre-computed queries | ~5-30x (eliminates duplication) |
+
+Largest win: eliminating the 3x `listSummaryFiles` and 2x `parsePlans` duplication in the enricher hot path.
 <!-- /section -->
 
 <!-- section: alternatives -->
-## Failure Categorization: Residual 18 Tests
+## Alternatives Considered
 
-### Category 1: Missing `src/lib/profiler` Module (3 tests in `infra`)
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| node:sqlite DatabaseSync | better-sqlite3 | Never for this project — adds npm dependency, duplicates built-in capability |
+| PRAGMA user_version migrations | knex migrations | Projects with multiple databases, team migrations, rollback needs |
+| Tagged template literals (SQLTagStore) | kysely query builder | Projects needing type-safe SQL composition with TypeScript |
+| Inline migration functions | .sql migration files | Projects deployed via package manager where file structure is preserved |
+| Per-file content hashing | git pre-commit hooks | Projects where only committed changes matter (not WIP edits) |
+| BEGIN IMMEDIATE transactions | WAL mode | Multi-process concurrent database access |
 
-**Tests:**
-- `profiler disabled by default` — tries `require('./src/lib/profiler')` via `node -e`
-- `profiler baseline JSON structure` — expects `.planning/baselines` directory from profiler
-- Related assertion failures
+## What NOT to Use
 
-**Root cause:** The profiler module was likely removed, renamed, or bundled into the CLI during a previous milestone. Tests still reference `./src/lib/profiler` as a standalone module, but it no longer exists at that path.
-
-**Fix:** Either update tests to use the bundled CLI command (`node bin/bgsd-tools.cjs measure:profile`) or remove these stale tests if the profiler is no longer a standalone module.
-
-**Effort:** ~15 min
-
-### Category 2: Plugin Parser Tests (7 tests in `plugin`)
-
-**Tests:**
-- `parseRoadmap handles various milestone formats` — ENOENT on `.planning/ROADMAP.md.backup`
-- `parseState handles extra unknown fields gracefully`
-- `bgsd_status returns structured data from live project`
-- `bgsd_plan no-args returns phases array`
-- `bgsd_plan with phase number returns phase details`
-- `bgsd_plan with invalid phase returns validation_error`
-- `bgsd_plan validates valid and invalid input`
-
-**Root causes:**
-1. ROADMAP.md.backup rename failure: Test creates a backup of the real project's ROADMAP.md but fails to restore it (test isolation issue — modifies live project files)
-2. Plugin tool tests (bgsd_status, bgsd_plan): These test LLM-callable tools that read the live `.planning/` directory. Failures stem from assumptions about the current project state (phase numbers, structure) that may have changed
-
-**Fix:** Improve test isolation — use temp directories instead of modifying the live project. For plugin tool tests, create fixture project state.
-
-**Effort:** ~30 min
-
-### Category 3: Infrastructure Edge Cases (3 tests in `infra`)
-
-**Tests:**
-- `process exit handler is registered for temp file cleanup`
-- `_tmpFiles tracking is wired into output pipeline`
-- `outputJSON() function should push tmpPath to _tmpFiles`
-
-**Root cause:** Tests check for `_tmpFiles` array and `process.on('exit')` registration in the bundle source. Pattern may have changed during a refactor.
-
-**Fix:** Update assertions to match current bundle implementation.
-
-**Effort:** ~15 min
-
-### Category 4: Config Migration (2 tests — 1 `integration`, 1 `infra`)
-
-**Tests:**
-- `already-complete config returns empty migrated_keys`
-- `idempotent on modern config`
-
-**Root cause:** Config migration logic assumes certain config structure that has evolved. Modern configs may have fields that the migration check doesn't recognize as "already migrated."
-
-**Fix:** Update test expectations or config migration detection logic.
-
-**Effort:** ~15 min
-
-### Category 5: Env & Misc (3 tests — 1 `env`, 1 `misc`, 1 `infra`)
-
-**Tests:**
-- `env scan does NOT write manifest when .planning/ does not exist`
-- `context-budget <path> works with file arg`
-- Plus cascading suite failure
-
-**Root cause:** Various individual issues — env manifest write guard, context-budget file path handling.
-
-**Fix:** Individual investigation needed per test.
-
-**Effort:** ~20 min
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| better-sqlite3 | Adds native dependency, breaks single-file deploy, duplicates node:sqlite | node:sqlite DatabaseSync (built-in) |
+| knex / drizzle / sequelize | Adds dependency, ORM overhead, overkill for ~10 tables | Raw SQL via db.prepare() and SQLTagStore |
+| TypeORM / Prisma | Massive dependencies, async-only, schema file management | Raw SQL (tables are simple, queries are straightforward) |
+| Migration file directories | Single-file deploy can't include .sql files | Inline migration functions gated by PRAGMA user_version |
+| WAL journal mode | Creates WAL + SHM sidecar files, unnecessary for single-process CLI | Default DELETE journal mode |
+| FTS5 (full-text search) | Over-engineering for <1000 rows of planning data | LIKE queries or application-level search |
+| ATTACH DATABASE | Complexity of cross-database joins, locking coordination | Separate DatabaseSync instances when needed |
+| Async node:sqlite (if added) | CLI is synchronous by design, async adds complexity | DatabaseSync (synchronous) |
 <!-- /section -->
 
 <!-- section: patterns -->
-## Fix Strategy by Wave
+## Stack Patterns by Variant
 
-**Wave 1: Banner suppression (589 tests fixed, ~10 min)**
-- Single change in `src/router.js` line 173
-- Guard `showBanner` on `process.stdout.isTTY`
-- No behavioral change for interactive users
-- Rebuild with `npm run build`
+**If adding tables to existing cache.db (simplest):**
+- Extend `SQLiteBackend._initSchema()` in cache.js
+- Add migration logic to existing constructor
+- Pro: Single connection, existing fallback, minimal code change
+- Con: Global database has project-specific data; cleanup is harder
 
-**Wave 2: Stale profiler tests (3 tests, ~15 min)**
-- Remove or update tests referencing `./src/lib/profiler`
-- Check if profiler functionality moved to `measure:profile` CLI command
+**If using per-project database (recommended):**
+- New `src/lib/db.js` module alongside cache.js
+- Separate DatabaseSync instance opening `.planning/.cache/bgsd.db`
+- Pro: Clean project isolation, gitignored, portable
+- Con: Second database connection (negligible overhead for CLI lifetime)
 
-**Wave 3: Plugin test isolation (7 tests, ~30 min)**
-- Fix ROADMAP.md backup/restore in test
-- Create fixture-based tests for plugin tools instead of testing against live project
+**If data needs to be shared between plugin and CLI:**
+- Plugin reads from project-scoped bgsd.db via `parseState(cwd)` pattern
+- CLI writes to bgsd.db during operations
+- Both use `timeout` option (added Node 24.0/22.16) for busy-wait
+- Consider WAL mode ONLY if both access simultaneously
 
-**Wave 4: Infra assertions + config migration (5 tests, ~30 min)**
-- Update `_tmpFiles` assertions to match current implementation
-- Update config migration test expectations
-
-**Wave 5: Individual edge cases (3 tests, ~20 min)**
-- Fix env manifest guard test
-- Fix context-budget file arg handling
-- Verify cascading fixes
-
-**Total estimated effort:** ~1.5-2 hours for all 607 → 0 failures
+**If Node version < 22.5 (Map fallback):**
+- Existing MapBackend pattern from cache.js applies
+- Structured data falls back to current behavior (parse markdown every time)
+- No SQLite tables created, no migration runs
+- Feature-gate: `if (db) { queryFromSQLite() } else { parseFromMarkdown() }`
 <!-- /section -->
 
 <!-- section: compatibility -->
-## Test Infrastructure Details
+## Version Compatibility
 
-### Current Configuration
+| Feature | Minimum Node | Notes |
+|---------|-------------|-------|
+| DatabaseSync basic (prepare, exec, get, run, all) | 22.5.0 | Core API, available since introduction |
+| statement.iterate() | 22.13.0 / 23.4.0 | Memory-efficient iteration, fallback to .all() |
+| createTagStore() (SQLTagStore) | 24.9.0 | Statement caching via tagged templates. Fallback: db.prepare() |
+| enableForeignKeyConstraints option | 22.5.0 | Enabled by default. Use for referential integrity. |
+| database.isTransaction | 22.16.0 / 24.0.0 | Check if inside transaction. Useful for nested transaction guard. |
+| timeout option (busy timeout) | 22.16.0 / 24.0.0 | Millisecond busy-wait for locked databases |
+| database.isOpen | 22.15.0 / 23.11.0 | Check if connection is open |
+| Symbol.dispose | 22.15.0 / 23.11.0 | Automatic cleanup with `using` keyword |
+| statement.columns() | 22.16.0 / 23.11.0 | Column metadata introspection |
+| STRICT tables | SQLite 3.37.0+ | Always available (Node bundles 3.45+) |
+| JSON1 (JSON_EXTRACT, etc.) | SQLite 3.9.0+ | Always available (Node bundles 3.45+) |
+| PRAGMA user_version | All SQLite versions | Always available |
 
-| Component | Value | Notes |
-|-----------|-------|-------|
-| Test runner | `node:test` | Built-in, no dependencies |
-| Execution | `execSync` via `runGsdTools()` | Pipes stdout, parses JSON |
-| Concurrency | `--test-concurrency=8` | Parallel suite execution |
-| Force exit | `--test-force-exit` | Prevents hanging on unclosed handles |
-| Node version | v25.7.0 | Running on current system |
-| Bun version | 1.3.10 | Installed, detected by runtime module |
-| Total tests | 1014 | Across 21 test suites |
+### Critical Compatibility Note
 
-### Per-Suite Failure Summary (before fix)
+The project's minimum Node version is 22.5+ (set in PROJECT.md constraints). The `package.json` still says `>=18` but that's stale. For the structured data layer:
 
-| Suite | Pass | Fail | Cause |
-|-------|------|------|-------|
-| decisions | 85 | 0 | Clean |
-| enricher-decisions | 46 | 0 | Clean |
-| summary-generate | 20 | 0 | Clean |
-| plugin-advisory-guardrails | 27 | 0 | Clean |
-| misc | 7 | 103 | Banner (103) |
-| codebase | 55 | 67 | Banner (67) |
-| env | 5 | 51 | Banner (50) + 1 edge case |
-| verify | 4 | 53 | Banner (53) |
-| state | 2 | 41 | Banner (41) |
-| plan | 9 | 40 | Banner (40) |
-| intent | 12 | 39 | Banner (39) |
-| trajectory | 28 | 39 | Banner (39) |
-| memory | 7 | 34 | Banner (34) |
-| infra | 34 | 31 | Banner (22) + profiler (3) + tmpFiles (3) + config (2) + misc (1) |
-| worktree | 6 | 30 | Banner (30) |
-| agent | 23 | 19 | Banner (19) |
-| init | 1 | 20 | Banner (20) |
-| integration | 2 | 14 | Banner (13) + config (1) |
-| orchestration | 0 | 11 | Banner (11) |
-| contracts | 0 | 8 | Banner (8) |
-| plugin | 34 | 7 | Parser/tool isolation (7) |
+- **Must work on Node 22.5+** — all DatabaseSync core APIs available
+- **createTagStore() requires Node 24.9+** — use feature detection with fallback to db.prepare()
+- **Cache.js already implements this fallback pattern** — reuse it
 
-### After Banner Fix (projected)
+```javascript
+// Pattern from existing cache.js — proven in production
+try {
+  this.sql = this.db.createTagStore();
+} catch {
+  this.sql = null;
+}
 
-| Suite | Pass | Fail | Remaining Issues |
-|-------|------|------|------------------|
-| 16 suites | all | 0 | Fully green |
-| infra | 59 | 6 | profiler, tmpFiles, config |
-| plugin | 34 | 7 | parser isolation, tool tests |
-| env | 55 | 1 | manifest guard |
-| integration | 15 | 1 | config migration |
-| misc | 109 | 1 | context-budget |
+// Usage with fallback
+getPhase(number) {
+  return this.sql
+    ? this.sql.get`SELECT * FROM phases WHERE number = ${number}`
+    : this.db.prepare('SELECT * FROM phases WHERE number = ?').get(number);
+}
+```
+
+## Type Conversion Reference
+
+From official Node.js docs (verified v25.8.1):
+
+| SQLite Type | JavaScript Write | JavaScript Read |
+|-------------|-----------------|-----------------|
+| NULL | null | null |
+| INTEGER | number or bigint | number (or bigint if readBigInts=true) |
+| REAL | number | number |
+| TEXT | string | string |
+| BLOB | TypedArray or DataView | Uint8Array |
+
+**Implications for planning data:**
+- Use INTEGER for counts, positions, timestamps (as epoch ms)
+- Use TEXT for names, descriptions, JSON blobs, ISO dates
+- Use REAL for floating-point metrics only
+- Boolean columns: store as INTEGER (0/1), read as number
+- Arrays/objects: serialize to TEXT via JSON.stringify, query via JSON_EXTRACT()
+- **Do NOT use BLOB** — all planning data is text-representable
 
 ## Sources
 
-- **Live test run:** `node --test --test-force-exit --test-concurrency=8 tests/*.test.cjs` — 1014 tests, 407 pass, 607 fail
-- **Banner suppression test:** `BGSD_RUNTIME=node BGSD_RUNTIME_DETECTED=true` prefix — 996 pass, 18 fail
-- **Source inspection:** `src/router.js` lines 16-70, 170-176 — banner generation logic
-- **Source inspection:** `src/lib/cli-tools/bun-runtime.js` — Bun detection module (608 lines)
-- **Source inspection:** `tests/helpers.cjs` — `runGsdTools()` helper using `execSync` with piped stdio + `JSON.parse`
-- **Per-suite isolation:** Individual test file runs with/without env variable suppression
+- [Node.js v25.8.1 SQLite documentation](https://nodejs.org/api/sqlite.html) — Full API reference, verified all features and version availability (HIGH confidence)
+- `src/lib/cache.js` source inspection — Existing DatabaseSync usage, SQLTagStore pattern, MapBackend fallback (HIGH confidence)
+- `src/plugin/parsers/*.js` source inspection — Current markdown parsing patterns that SQLite queries will replace (HIGH confidence)
+- `src/commands/memory.js` source inspection — Current JSON file-based memory stores (decisions, lessons, trajectories, bookmarks) to migrate (HIGH confidence)
+- `.planning/PROJECT.md` — Milestone goals, constraints, architecture decisions (HIGH confidence)
+- SQLite documentation (sqlite.org) — PRAGMA user_version, STRICT tables, JSON1 extension, transaction behavior (HIGH confidence, stable API)
 
 ---
-*Stack research for: bGSD v11.4 test suite stabilization*
-*Researched: 2026-03-13*
+*Stack research for: SQLite-First Data Layer (v12.0 milestone)*
+*Researched: 2026-03-14*

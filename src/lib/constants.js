@@ -4,6 +4,7 @@ const VALID_TRAJECTORY_SCOPES = ['task', 'plan', 'phase'];
 
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
+/** @deprecated Phase 122: Use model-selection decision rule backed by SQLite model_profiles table instead */
 const MODEL_PROFILES = {
   'bgsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet' },
   'bgsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },

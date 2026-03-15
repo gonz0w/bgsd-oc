@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { output, error, debugLog } = require('../lib/output');
+const { getDb } = require('../lib/db');
+const { PlanningCache } = require('../lib/planning-cache');
 
 // ─── Memory Commands ─────────────────────────────────────────────────────────
 
@@ -124,6 +126,15 @@ function cmdMemoryWrite(cwd, options, raw) {
   // Write back
   fs.writeFileSync(filePath, JSON.stringify(entries, null, 2), 'utf-8');
 
+  // Dual-write to SQLite (best-effort — warn on failure, don't roll back JSON)
+  try {
+    const db = getDb(cwd);
+    const cache = new PlanningCache(db);
+    cache.writeMemoryEntry(cwd, store, entry);
+  } catch (e) {
+    debugLog('memory.write', 'SQLite dual-write failed', e);
+  }
+
   const result = { written: true, store, entry_count: entries.length };
 
   // Warn if store exceeds compaction threshold (not for sacred stores)
@@ -159,6 +170,29 @@ function cmdMemoryRead(cwd, options, raw) {
   }
 
   const total = entries.length;
+
+  // SQL-first search when query is present
+  if (query) {
+    try {
+      const db = getDb(cwd);
+      const cache = new PlanningCache(db);
+      // Trigger auto-migration if tables are empty
+      cache.migrateMemoryStores(cwd);
+      const sqlResult = cache.searchMemory(cwd, store, query, {
+        phase: phase || null,
+        category: (store === 'trajectories') ? category : null,
+        limit: limit ? parseInt(limit, 10) : null,
+      });
+      if (sqlResult && sqlResult.entries.length > 0) {
+        // SQL search succeeded — use its results; total reflects JSON store size for consistency
+        output({ entries: sqlResult.entries, count: sqlResult.entries.length, store, total, source: 'sql' });
+        return;
+      }
+      // SQL returned empty — fall through to JSON-based search
+    } catch (e) {
+      debugLog('memory.read', 'SQL search failed, falling back to JSON', e);
+    }
+  }
 
   // Filter by phase
   if (phase) {
@@ -206,7 +240,7 @@ function cmdMemoryRead(cwd, options, raw) {
     entries = entries.slice(0, parseInt(limit, 10));
   }
 
-  output({ entries, count: entries.length, store, total });
+  output({ entries, count: entries.length, store, total, source: 'json' });
 }
 
 /**

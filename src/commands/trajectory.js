@@ -6,6 +6,18 @@ const { output, error, debugLog } = require('../lib/output');
 const { execGit, diffSummary } = require('../lib/git');
 const { banner, formatTable, summaryLine, actionHint, color, SYMBOLS, relativeTime } = require('../lib/format');
 const { VALID_TRAJECTORY_SCOPES } = require('../lib/constants');
+const { getDb } = require('../lib/db');
+const { PlanningCache } = require('../lib/planning-cache');
+
+function _dualWriteTrajectory(cwd, entry) {
+  try {
+    const db = getDb(cwd);
+    const cache = new PlanningCache(db);
+    cache.writeMemoryEntry(cwd, 'trajectories', entry);
+  } catch (e) {
+    debugLog('trajectory', 'SQLite dual-write failed', e);
+  }
+}
 
 // ─── Scope Validation ────────────────────────────────────────────────────────
 
@@ -169,6 +181,7 @@ function cmdTrajectoryCheckpoint(cwd, args, raw) {
   entries.push(entry);
   fs.mkdirSync(memDir, { recursive: true });
   fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), 'utf-8');
+  _dualWriteTrajectory(cwd, entry);
 
   // ─── Output ─────────────────────────────────────────────────────────────
   output({
@@ -484,6 +497,7 @@ function cmdTrajectoryPivot(cwd, args, raw) {
   // Step 6 — Write journal and output
   fs.mkdirSync(memDir, { recursive: true });
   fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), 'utf-8');
+  _dualWriteTrajectory(cwd, abandonedEntry);
 
   output({
     pivoted: true,
@@ -798,6 +812,7 @@ function cmdTrajectoryChoose(cwd, args, raw) {
   entries.push(journalEntry);
   fs.mkdirSync(memDir, { recursive: true });
   fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), 'utf-8');
+  _dualWriteTrajectory(cwd, journalEntry);
 
   // Output
   output({

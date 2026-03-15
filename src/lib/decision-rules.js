@@ -184,16 +184,39 @@ function resolveCiGate(state) {
 /**
  * Phase has plans / needs planning routing.
  * Determines whether a phase is ready for execution or needs planning first.
+ *
+ * Extended in Phase 122: added deps_complete, has_blockers inputs and
+ * 'ready', 'blocked-deps', 'missing-context' return values.
+ * Backward compatible — old callers without new inputs get old behavior.
  */
 function resolvePlanExistenceRoute(state) {
   const {
     plan_count = 0,
     has_research = false,
     has_context = false,
+    deps_complete,
+    has_blockers,
   } = state || {};
 
   if (plan_count > 0) {
+    // New: blocked by explicit blockers or incomplete deps
+    if (has_blockers) {
+      return { value: 'blocked-deps', confidence: 'HIGH', rule_id: 'plan-existence-route' };
+    }
+    if (deps_complete === false) {
+      return { value: 'blocked-deps', confidence: 'HIGH', rule_id: 'plan-existence-route' };
+    }
+    // New: ready when plans exist AND context is available
+    if (has_context) {
+      return { value: 'ready', confidence: 'HIGH', rule_id: 'plan-existence-route' };
+    }
+    // Backward compat: has plans but no context info supplied by caller
     return { value: 'has-plans', confidence: 'HIGH', rule_id: 'plan-existence-route' };
+  }
+
+  // New: missing-context before needs-research when neither context nor research present
+  if (!has_context && !has_research) {
+    return { value: 'missing-context', confidence: 'HIGH', rule_id: 'plan-existence-route' };
   }
   if (has_research || has_context) {
     return { value: 'needs-planning', confidence: 'HIGH', rule_id: 'plan-existence-route' };
@@ -287,6 +310,166 @@ function resolveDebugHandlerRoute(state) {
   return { value: 'manual', confidence: 'MEDIUM', rule_id: 'debug-handler-route' };
 }
 
+// ─── Phase 122: New Decision Functions ───────────────────────────────────────
+
+/**
+ * Model selection — picks the concrete model string for a given agent + tier.
+ * Reads from SQLite model_profiles table if a db handle is available in state,
+ * falls back to static MODEL_PROFILES from constants.js.
+ *
+ * Category: configuration
+ */
+function resolveModelSelection(state) {
+  const {
+    agent_type,
+    model_profile = 'balanced',
+    db,
+  } = state || {};
+
+  // Try SQLite-backed lookup first
+  if (db && agent_type) {
+    try {
+      // Lazy require to avoid circular deps at module load
+      const { PlanningCache } = require('./planning-cache');
+      const cache = new PlanningCache(db);
+      const profile = cache.getModelProfile(process.cwd(), agent_type);
+      if (profile) {
+        // Override model takes precedence over tier
+        if (profile.override_model) {
+          return { value: { tier: model_profile, model: profile.override_model }, confidence: 'HIGH', rule_id: 'model-selection' };
+        }
+        const tierKey = model_profile + '_model';
+        if (profile[tierKey]) {
+          return { value: { tier: model_profile, model: profile[tierKey] }, confidence: 'HIGH', rule_id: 'model-selection' };
+        }
+      }
+    } catch {
+      // Fall through to static lookup
+    }
+  }
+
+  // Static fallback from constants.js
+  const { MODEL_PROFILES } = require('./constants');
+  if (agent_type && MODEL_PROFILES[agent_type]) {
+    const agentProfile = MODEL_PROFILES[agent_type];
+    const model = agentProfile[model_profile] || agentProfile.balanced || 'sonnet';
+    return { value: { tier: model_profile, model }, confidence: 'HIGH', rule_id: 'model-selection' };
+  }
+
+  // Ultimate fallback
+  return { value: { tier: model_profile, model: 'sonnet' }, confidence: 'HIGH', rule_id: 'model-selection' };
+}
+
+/**
+ * Verification routing — determines full, light, or skip based on plan complexity.
+ *
+ * Category: workflow-routing
+ */
+function resolveVerificationRouting(state) {
+  const {
+    task_count = 0,
+    files_modified_count = 0,
+    has_test_command = true,
+    verifier_enabled = true,
+  } = state || {};
+
+  if (!verifier_enabled) {
+    return { value: 'skip', confidence: 'HIGH', rule_id: 'verification-routing' };
+  }
+  if (task_count <= 2 && files_modified_count <= 4) {
+    return { value: 'light', confidence: 'HIGH', rule_id: 'verification-routing' };
+  }
+  return { value: 'full', confidence: 'HIGH', rule_id: 'verification-routing' };
+}
+
+/**
+ * Research gate — determines if research should run and at what depth.
+ *
+ * Category: workflow-routing
+ */
+function resolveResearchGate(state) {
+  const {
+    research_enabled = true,
+    has_research = false,
+    has_context = false,
+    phase_has_external_deps = false,
+  } = state || {};
+
+  if (!research_enabled) {
+    return { value: { run: false, depth: null }, confidence: 'HIGH', rule_id: 'research-gate' };
+  }
+  if (has_research) {
+    return { value: { run: false, depth: null }, confidence: 'HIGH', rule_id: 'research-gate' };
+  }
+  if (phase_has_external_deps) {
+    return { value: { run: true, depth: 'deep' }, confidence: 'HIGH', rule_id: 'research-gate' };
+  }
+  if (!has_context) {
+    return { value: { run: true, depth: 'quick' }, confidence: 'HIGH', rule_id: 'research-gate' };
+  }
+  return { value: { run: false, depth: null }, confidence: 'HIGH', rule_id: 'research-gate' };
+}
+
+/**
+ * Milestone completion readiness check.
+ *
+ * Category: state-assessment
+ */
+function resolveMilestoneCompletion(state) {
+  const {
+    phases_total = 0,
+    phases_complete = 0,
+    has_incomplete_plans = false,
+    milestone_name,
+  } = state || {};
+
+  if (phases_complete === phases_total && !has_incomplete_plans) {
+    return { value: { ready: true, action: 'complete' }, confidence: 'HIGH', rule_id: 'milestone-completion' };
+  }
+  if (phases_complete === phases_total - 1) {
+    return { value: { ready: false, action: 'finish-last-phase' }, confidence: 'HIGH', rule_id: 'milestone-completion' };
+  }
+  return { value: { ready: false, action: 'continue' }, confidence: 'HIGH', rule_id: 'milestone-completion' };
+}
+
+/**
+ * Commit strategy — determines granularity and prefix for commits.
+ *
+ * Category: execution-mode
+ */
+function resolveCommitStrategy(state) {
+  const {
+    task_count = 0,
+    plan_type = '',
+    files_modified_count = 0,
+    is_tdd = false,
+  } = state || {};
+
+  // Granularity
+  let granularity;
+  if (is_tdd) {
+    granularity = 'per-phase'; // TDD commits at red/green/refactor
+  } else if (task_count <= 1) {
+    granularity = 'per-plan';
+  } else {
+    granularity = 'per-task';
+  }
+
+  // Prefix
+  let prefix;
+  let confidence = 'HIGH';
+  if (plan_type === 'tdd') {
+    prefix = 'test';
+  } else if (files_modified_count === 0) {
+    prefix = 'docs';
+  } else {
+    prefix = 'feat';
+    confidence = 'MEDIUM'; // Inferred from file patterns — less certain
+  }
+
+  return { value: { granularity, prefix }, confidence, rule_id: 'commit-strategy' };
+}
+
 // ─── Rule Registry ───────────────────────────────────────────────────────────
 
 const DECISION_REGISTRY = [
@@ -364,8 +547,8 @@ const DECISION_REGISTRY = [
     id: 'plan-existence-route',
     name: 'Plan Existence Route',
     category: 'workflow-routing',
-    description: 'Determines if a phase has plans or needs planning/research',
-    inputs: ['plan_count', 'has_research', 'has_context'],
+    description: 'Determines if a phase has plans or needs planning/research (extended: blocked-deps, ready, missing-context)',
+    inputs: ['plan_count', 'has_research', 'has_context', 'deps_complete', 'has_blockers'],
     outputs: ['routing_advice'],
     confidence_range: ['HIGH'],
     resolve: resolvePlanExistenceRoute,
@@ -409,6 +592,58 @@ const DECISION_REGISTRY = [
     outputs: ['action_string'],
     confidence_range: ['MEDIUM'],
     resolve: resolveDebugHandlerRoute,
+  },
+
+  // Phase 122: New rules
+  {
+    id: 'model-selection',
+    name: 'Model Selection',
+    category: 'configuration',
+    description: 'Resolves concrete model string for an agent type and tier, SQLite-backed with static fallback',
+    inputs: ['agent_type', 'model_profile', 'db'],
+    outputs: ['{ tier, model }'],
+    confidence_range: ['HIGH'],
+    resolve: resolveModelSelection,
+  },
+  {
+    id: 'verification-routing',
+    name: 'Verification Routing',
+    category: 'workflow-routing',
+    description: 'Determines full, light, or skip verification based on plan complexity',
+    inputs: ['task_count', 'files_modified_count', 'has_test_command', 'verifier_enabled'],
+    outputs: ['full|light|skip'],
+    confidence_range: ['HIGH'],
+    resolve: resolveVerificationRouting,
+  },
+  {
+    id: 'research-gate',
+    name: 'Research Gate',
+    category: 'workflow-routing',
+    description: 'Determines if research should run and at what depth (deep/quick)',
+    inputs: ['research_enabled', 'has_research', 'has_context', 'phase_has_external_deps'],
+    outputs: ['{ run, depth }'],
+    confidence_range: ['HIGH'],
+    resolve: resolveResearchGate,
+  },
+  {
+    id: 'milestone-completion',
+    name: 'Milestone Completion Check',
+    category: 'state-assessment',
+    description: 'Determines milestone completion readiness and next action',
+    inputs: ['phases_total', 'phases_complete', 'has_incomplete_plans', 'milestone_name'],
+    outputs: ['{ ready, action }'],
+    confidence_range: ['HIGH'],
+    resolve: resolveMilestoneCompletion,
+  },
+  {
+    id: 'commit-strategy',
+    name: 'Commit Strategy',
+    category: 'execution-mode',
+    description: 'Determines commit granularity (per-task/per-plan/per-phase) and prefix (feat/test/docs)',
+    inputs: ['task_count', 'plan_type', 'files_modified_count', 'is_tdd'],
+    outputs: ['{ granularity, prefix }'],
+    confidence_range: ['HIGH', 'MEDIUM'],
+    resolve: resolveCommitStrategy,
   },
 ];
 
@@ -461,6 +696,12 @@ module.exports = {
   resolveAutoAdvance,
   resolvePhaseArgParse,
   resolveDebugHandlerRoute,
+  // Phase 122: New decision functions
+  resolveModelSelection,
+  resolveVerificationRouting,
+  resolveResearchGate,
+  resolveMilestoneCompletion,
+  resolveCommitStrategy,
   // Registry and aggregator
   DECISION_REGISTRY,
   evaluateDecisions,

@@ -2,3 +2,6 @@ env-manifest.json
 .cache/
 baselines/*.json
 !baselines/performance.json
+.cache.db
+.cache.db-wal
+.cache.db-shm

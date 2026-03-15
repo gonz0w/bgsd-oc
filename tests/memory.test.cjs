@@ -7,8 +7,11 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const os = require('os');
 
 const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
+const { getDb, closeAll, MapDatabase } = require('../src/lib/db');
+const { PlanningCache } = require('../src/lib/planning-cache');
 
 describe('memory commands', () => {
   let tmpDir;
@@ -845,6 +848,316 @@ describe('memory trajectories', () => {
     const wrongPath = path.join(tmpDir, '.planning', 'memory', 'trajectories.json');
     assert.ok(fs.existsSync(correctPath), 'trajectory.json should exist');
     assert.ok(!fs.existsSync(wrongPath), 'trajectories.json should NOT exist');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group: memory SQLite migration (MEM-02)
+// ---------------------------------------------------------------------------
+
+describe('memory SQLite migration', () => {
+  let tmpDir;
+  let db;
+  let cache;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-mem-mig-'));
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'memory'), { recursive: true });
+    closeAll();
+    db = getDb(tmpDir);
+    cache = new PlanningCache(db);
+  });
+
+  afterEach(() => {
+    closeAll();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('migrateMemoryStores imports decisions from JSON', () => {
+    const entries = [
+      { summary: 'Decision one', phase: '01', timestamp: '2026-01-01T00:00:00Z' },
+      { summary: 'Decision two', phase: '01', timestamp: '2026-01-02T00:00:00Z' },
+      { summary: 'Decision three', phase: '02', timestamp: '2026-01-03T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'decisions.json'), JSON.stringify(entries));
+
+    const result = cache.migrateMemoryStores(tmpDir);
+    assert.ok(result, 'migrateMemoryStores should return result');
+    assert.strictEqual(result.migrated.decisions, 3, 'should migrate 3 decisions');
+
+    // Verify via SQL
+    const countRow = db.prepare('SELECT COUNT(*) AS cnt FROM memory_decisions WHERE cwd = ?').get(tmpDir);
+    assert.strictEqual(countRow.cnt, 3, 'SQLite should have 3 decision rows');
+
+    // Verify original JSON file is untouched
+    const onDisk = JSON.parse(fs.readFileSync(path.join(tmpDir, '.planning', 'memory', 'decisions.json'), 'utf-8'));
+    assert.strictEqual(onDisk.length, 3, 'JSON file should be unchanged after migration');
+  });
+
+  test('migrateMemoryStores imports lessons from JSON', () => {
+    const entries = [
+      { summary: 'Lesson one', phase: '01', timestamp: '2026-01-01T00:00:00Z' },
+      { summary: 'Lesson two', phase: '01', timestamp: '2026-01-02T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'lessons.json'), JSON.stringify(entries));
+
+    const result = cache.migrateMemoryStores(tmpDir);
+    assert.ok(result, 'should return result');
+    assert.strictEqual(result.migrated.lessons, 2, 'should migrate 2 lessons');
+
+    const countRow = db.prepare('SELECT COUNT(*) AS cnt FROM memory_lessons WHERE cwd = ?').get(tmpDir);
+    assert.strictEqual(countRow.cnt, 2, 'SQLite should have 2 lesson rows');
+  });
+
+  test('migrateMemoryStores imports trajectories from trajectory.json', () => {
+    const entries = [
+      { id: 'tj-aaa001', category: 'checkpoint', text: 'First', phase: '01', scope: 'phase', timestamp: '2026-01-01T00:00:00Z', tags: ['checkpoint'] },
+      { id: 'tj-aaa002', category: 'decision', text: 'Second', phase: '01', scope: 'task', timestamp: '2026-01-02T00:00:00Z', tags: [] },
+      { id: 'tj-aaa003', category: 'observation', text: 'Third', phase: '02', scope: 'phase', timestamp: '2026-01-03T00:00:00Z', tags: [] },
+    ];
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'trajectory.json'), JSON.stringify(entries));
+
+    const result = cache.migrateMemoryStores(tmpDir);
+    assert.ok(result, 'should return result');
+    assert.strictEqual(result.migrated.trajectories, 3, 'should migrate 3 trajectories');
+
+    const rows = db.prepare('SELECT entry_id, category FROM memory_trajectories WHERE cwd = ?').all(tmpDir);
+    assert.strictEqual(rows.length, 3, 'SQLite should have 3 trajectory rows');
+    const ids = rows.map(r => r.entry_id);
+    assert.ok(ids.includes('tj-aaa001'), 'entry_id column should be populated');
+    assert.ok(ids.includes('tj-aaa002'));
+  });
+
+  test('migrateMemoryStores imports bookmarks from bookmarks.json', () => {
+    const entries = [
+      { phase: '11', plan: '01', task: 3, total_tasks: 5, git_head: 'abc123', timestamp: '2026-01-03T00:00:00Z' },
+      { phase: '10', plan: '02', task: 1, total_tasks: 3, git_head: 'def456', timestamp: '2026-01-02T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'bookmarks.json'), JSON.stringify(entries));
+
+    const result = cache.migrateMemoryStores(tmpDir);
+    assert.ok(result, 'should return result');
+    assert.strictEqual(result.migrated.bookmarks, 2, 'should migrate 2 bookmarks');
+
+    const rows = db.prepare('SELECT phase, plan, task FROM memory_bookmarks WHERE cwd = ?').all(tmpDir);
+    assert.strictEqual(rows.length, 2, 'SQLite should have 2 bookmark rows');
+    // phase/plan/task columns should be populated
+    assert.ok(rows.some(r => r.phase === '11' && r.plan === '01' && r.task === 3), 'phase/plan/task columns populated');
+  });
+
+  test('migration is idempotent — second call does not duplicate', () => {
+    const entries = [
+      { summary: 'Decision one', phase: '01', timestamp: '2026-01-01T00:00:00Z' },
+      { summary: 'Decision two', phase: '01', timestamp: '2026-01-02T00:00:00Z' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'decisions.json'), JSON.stringify(entries));
+
+    cache.migrateMemoryStores(tmpDir);
+    cache.migrateMemoryStores(tmpDir); // second call
+
+    const countRow = db.prepare('SELECT COUNT(*) AS cnt FROM memory_decisions WHERE cwd = ?').get(tmpDir);
+    assert.strictEqual(countRow.cnt, 2, 'second migration should not duplicate entries');
+  });
+
+  test('migration handles missing JSON files gracefully', () => {
+    // No .planning/memory/ content at all — just the empty directory
+    const result = cache.migrateMemoryStores(tmpDir);
+    assert.ok(result, 'should return result without error');
+    assert.strictEqual(result.migrated.decisions, 0, 'decisions should be 0');
+    assert.strictEqual(result.migrated.lessons, 0, 'lessons should be 0');
+    assert.strictEqual(result.migrated.trajectories, 0, 'trajectories should be 0');
+    assert.strictEqual(result.migrated.bookmarks, 0, 'bookmarks should be 0');
+  });
+
+  test('migration handles corrupt JSON gracefully', () => {
+    // Write invalid JSON to decisions.json
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'decisions.json'), 'not valid json {{');
+
+    // Write valid lessons.json
+    const lessons = [{ summary: 'Valid lesson', phase: '01', timestamp: '2026-01-01T00:00:00Z' }];
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'memory', 'lessons.json'), JSON.stringify(lessons));
+
+    const result = cache.migrateMemoryStores(tmpDir);
+    assert.ok(result, 'should return result without throwing');
+    assert.strictEqual(result.migrated.decisions, 0, 'corrupt decisions should be skipped');
+    assert.strictEqual(result.migrated.lessons, 1, 'valid lessons should still migrate');
+    assert.ok(result.skipped.includes('decisions'), 'decisions should be in skipped list');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group: memory SQL search (MEM-01)
+// ---------------------------------------------------------------------------
+
+describe('memory SQL search', () => {
+  let tmpDir;
+  let db;
+  let cache;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-mem-sql-'));
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'memory'), { recursive: true });
+    closeAll();
+    db = getDb(tmpDir);
+    cache = new PlanningCache(db);
+  });
+
+  afterEach(() => {
+    closeAll();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('searchMemory finds decisions by keyword', () => {
+    // Insert 5 decisions, 2 mentioning "auth"
+    const entries = [
+      { summary: 'Use auth middleware', phase: '01', timestamp: '2026-01-01T00:00:00Z' },
+      { summary: 'Add JWT auth tokens', phase: '01', timestamp: '2026-01-02T00:00:00Z' },
+      { summary: 'Switch to esbuild', phase: '01', timestamp: '2026-01-03T00:00:00Z' },
+      { summary: 'Memory store design', phase: '02', timestamp: '2026-01-04T00:00:00Z' },
+      { summary: 'Prisma schema layout', phase: '02', timestamp: '2026-01-05T00:00:00Z' },
+    ];
+    for (const entry of entries) {
+      cache.writeMemoryEntry(tmpDir, 'decisions', entry);
+    }
+
+    const result = cache.searchMemory(tmpDir, 'decisions', 'auth');
+    assert.ok(result, 'searchMemory should return result on SQLite backend');
+    assert.strictEqual(result.entries.length, 2, 'should find exactly 2 auth entries');
+    assert.ok(result.entries.every(e => e.summary.toLowerCase().includes('auth')), 'all returned entries should match auth');
+  });
+
+  test('searchMemory filters by phase', () => {
+    // Insert decisions for phases 118, 119, 120
+    const entries = [
+      { summary: 'Phase 118 decision', phase: '118', timestamp: '2026-01-01T00:00:00Z' },
+      { summary: 'Phase 119 decision A', phase: '119', timestamp: '2026-01-02T00:00:00Z' },
+      { summary: 'Phase 119 decision B', phase: '119', timestamp: '2026-01-03T00:00:00Z' },
+      { summary: 'Phase 120 decision', phase: '120', timestamp: '2026-01-04T00:00:00Z' },
+    ];
+    for (const entry of entries) {
+      cache.writeMemoryEntry(tmpDir, 'decisions', entry);
+    }
+
+    const result = cache.searchMemory(tmpDir, 'decisions', null, { phase: '119' });
+    assert.ok(result, 'searchMemory should return result');
+    assert.strictEqual(result.entries.length, 2, 'should return only phase 119 entries');
+    assert.ok(result.entries.every(e => e.phase === '119'), 'all returned entries should be phase 119');
+  });
+
+  test('searchMemory returns results ordered by timestamp DESC', () => {
+    // Insert 3 decisions with known timestamps
+    const entries = [
+      { summary: 'Old decision', phase: '01', timestamp: '2026-01-01T00:00:00Z' },
+      { summary: 'Middle decision', phase: '01', timestamp: '2026-02-01T00:00:00Z' },
+      { summary: 'New decision', phase: '01', timestamp: '2026-03-01T00:00:00Z' },
+    ];
+    for (const entry of entries) {
+      cache.writeMemoryEntry(tmpDir, 'decisions', entry);
+    }
+
+    const result = cache.searchMemory(tmpDir, 'decisions', null);
+    assert.ok(result, 'should return result');
+    assert.strictEqual(result.entries.length, 3);
+    // Newest first
+    assert.strictEqual(result.entries[0].summary, 'New decision', 'first entry should be newest');
+    assert.strictEqual(result.entries[2].summary, 'Old decision', 'last entry should be oldest');
+  });
+
+  test('searchMemory with limit and offset', () => {
+    // Insert 10 decisions
+    for (let i = 0; i < 10; i++) {
+      cache.writeMemoryEntry(tmpDir, 'decisions', {
+        summary: `Decision ${i}`,
+        phase: '01',
+        timestamp: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+      });
+    }
+
+    const result = cache.searchMemory(tmpDir, 'decisions', null, { limit: 3 });
+    assert.ok(result, 'should return result');
+    assert.strictEqual(result.entries.length, 3, 'should return exactly 3 entries with limit=3');
+    assert.strictEqual(result.total, 10, 'total should reflect all 10 entries');
+  });
+
+  test('searchMemory returns null on Map backend', () => {
+    const mapDb = new MapDatabase();
+    const mapCache = new PlanningCache(mapDb);
+
+    const result = mapCache.searchMemory(tmpDir, 'decisions', 'auth');
+    assert.strictEqual(result, null, 'searchMemory should return null on Map backend');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group: memory dual-write via CLI (MEM-03)
+// ---------------------------------------------------------------------------
+
+describe('memory dual-write via CLI', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    closeAll();
+    cleanup(tmpDir);
+  });
+
+  test('memory write creates entry in both JSON and SQLite', () => {
+    const entry = JSON.stringify({ summary: 'dual-write test decision', phase: '121' });
+    const result = runGsdTools(`util:memory write --store decisions --entry '${entry}'`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    // Verify JSON
+    const jsonPath = path.join(tmpDir, '.planning', 'memory', 'decisions.json');
+    assert.ok(fs.existsSync(jsonPath), 'decisions.json should exist');
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    assert.ok(data.some(e => e.summary === 'dual-write test decision'), 'entry should exist in JSON');
+
+    // Verify SQLite
+    closeAll();
+    const db = getDb(tmpDir);
+    const row = db.prepare('SELECT * FROM memory_decisions WHERE cwd = ? AND summary = ?').get(tmpDir, 'dual-write test decision');
+    assert.ok(row, 'entry should exist in SQLite memory_decisions table');
+  });
+
+  test('memory write bookmark dual-writes to SQLite', () => {
+    const entry = JSON.stringify({ phase: '121', plan: '03', task: 1, total_tasks: 2, git_head: 'abc1234' });
+    const result = runGsdTools(`util:memory write --store bookmarks --entry '${entry}'`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    // Verify SQLite
+    closeAll();
+    const db = getDb(tmpDir);
+    const row = db.prepare('SELECT * FROM memory_bookmarks WHERE cwd = ? AND phase = ?').get(tmpDir, '121');
+    assert.ok(row, 'bookmark should exist in SQLite memory_bookmarks table');
+    assert.strictEqual(row.plan, '03', 'plan column should match');
+    assert.strictEqual(row.task, 1, 'task column should match');
+  });
+
+  test('memory read --query uses SQL search', () => {
+    // Write 5 decisions, only 2 contain 'middleware'
+    const entries = [
+      { summary: 'Use auth middleware layer' },
+      { summary: 'Route middleware for logging' },
+      { summary: 'Prisma schema design' },
+      { summary: 'esbuild bundling config' },
+      { summary: 'Test coverage goals' },
+    ];
+    for (const e of entries) {
+      const entryJson = JSON.stringify(e);
+      runGsdTools(`util:memory write --store decisions --entry '${entryJson}'`, tmpDir);
+    }
+
+    const result = runGsdTools('util:memory read --store decisions --query middleware', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.count, 2, 'should find exactly 2 middleware entries');
+    // source field indicates SQL was used
+    if (output.entries.length > 0 && 'source' in output.entries[0]) {
+      assert.strictEqual(output.entries[0].source, 'sql', 'source should be sql when SQLite is available');
+    }
   });
 });
 

@@ -1,6 +1,7 @@
 import { getProjectState } from './project-state.js';
 import { parsePlans } from './parsers/index.js';
 import { evaluateDecisions } from '../lib/decision-rules.js';
+import { getDb, PlanningCache } from './lib/db-cache.js';
 import { readdirSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -34,6 +35,11 @@ export function enrichCommand(input, output, cwd) {
   // Only intercept /bgsd-* commands
   if (!command.startsWith('bgsd-')) return;
 
+  // ENR-03: Record start time for enrichment duration measurement
+  const _t0 = (typeof performance !== 'undefined' && performance.now)
+    ? performance.now()
+    : Date.now();
+
   const resolvedCwd = cwd || process.cwd();
 
   let projectState;
@@ -63,7 +69,7 @@ export function enrichCommand(input, output, cwd) {
     return;
   }
 
-  const { state, config, roadmap, currentPhase, currentMilestone } = projectState;
+  const { state, config, roadmap, currentPhase, currentMilestone, plans: statePlans, phaseDir: statePhaseDir } = projectState;
 
   // Build enrichment object (init-equivalent JSON)
   const enrichment = {
@@ -90,6 +96,38 @@ export function enrichCommand(input, output, cwd) {
   // Resolve effective phase number (explicit arg or current from STATE.md)
   let effectivePhaseNum = phaseNum;
 
+  // ── Single parsePlans / listSummaryFiles allocation ────────────────────────
+  // `plans` is populated at most once per invocation. All downstream logic
+  // references this cached result — no second parsePlans call anywhere.
+  // `summaryFiles` is populated at most once — all three former call sites
+  // now reference this cached result.
+  let plans = null;          // parsed plan objects for the effective phase
+  let summaryFiles = null;   // SUMMARY filenames in the phase dir
+
+  /**
+   * Ensure plans are loaded exactly once for the given phase number.
+   * Reuses the `plans` variable via closure — call this instead of
+   * calling parsePlans directly.
+   */
+  const ensurePlans = (num) => {
+    if (!plans && num) {
+      plans = parsePlans(num, resolvedCwd);
+    }
+    return plans;
+  };
+
+  /**
+   * Ensure summaryFiles are loaded exactly once for the phase dir.
+   * Reuses the `summaryFiles` variable via closure — call this instead of
+   * calling listSummaryFiles directly.
+   */
+  const ensureSummaryFiles = (phaseDirFull) => {
+    if (summaryFiles === null) {
+      summaryFiles = listSummaryFiles(phaseDirFull);
+    }
+    return summaryFiles;
+  };
+
   if (phaseNum) {
     // Phase-specific enrichment
     const phaseDir = resolvePhaseDir(phaseNum, resolvedCwd);
@@ -107,21 +145,41 @@ export function enrichCommand(input, output, cwd) {
         }
       }
 
-      // Get plans for this phase
+      // Try SQLite-first path for plan/summary data
+      let sqlUsedInPhaseArg = false;
       try {
-        const plans = parsePlans(phaseNum, resolvedCwd);
-        if (plans && plans.length > 0) {
-          enrichment.plans = plans.map(p => p.path ? p.path.split('/').pop() : null).filter(Boolean);
+        const db = getDb(resolvedCwd);
+        const cache = new PlanningCache(db);
+        const sqlResult = cache.getSummaryCount(phaseNum, resolvedCwd);
+        const incompleteSql = cache.getIncompletePlans(phaseNum, resolvedCwd);
 
-          // Find incomplete plans (no matching SUMMARY)
-          const phaseDirFull = join(resolvedCwd, phaseDir);
-          const summaryFiles = listSummaryFiles(phaseDirFull);
-          enrichment.incomplete_plans = enrichment.plans.filter(planFile => {
-            const summaryFile = planFile.replace('-PLAN.md', '-SUMMARY.md');
-            return !summaryFiles.includes(summaryFile);
-          });
+        if (sqlResult !== null && incompleteSql !== null) {
+          // Warm SQLite cache — use SQL results directly, skip parsePlans + listSummaryFiles
+          const planRows = cache.getPlansForPhase(String(phaseNum), resolvedCwd);
+          if (planRows && planRows.length > 0) {
+            enrichment.plans = planRows.map(p => p.path ? p.path.split('/').pop() : null).filter(Boolean);
+          }
+          enrichment.incomplete_plans = incompleteSql;
+          summaryFiles = sqlResult.summaryFiles;
+          sqlUsedInPhaseArg = true;
         }
-      } catch { /* skip plan enumeration on failure */ }
+      } catch { /* fall through to parsePlans */ }
+
+      if (!sqlUsedInPhaseArg) {
+        // Cold cache / Map backend — use parsePlans (single call via ensurePlans)
+        try {
+          const p = ensurePlans(phaseNum);
+          if (p && p.length > 0) {
+            enrichment.plans = p.map(pl => pl.path ? pl.path.split('/').pop() : null).filter(Boolean);
+            const phaseDirFull = join(resolvedCwd, phaseDir);
+            const sf = ensureSummaryFiles(phaseDirFull);
+            enrichment.incomplete_plans = enrichment.plans.filter(planFile => {
+              const summaryFile = planFile.replace('-PLAN.md', '-SUMMARY.md');
+              return !sf.includes(summaryFile);
+            });
+          }
+        } catch { /* skip plan enumeration on failure */ }
+      }
     }
   } else if (state && state.phase) {
     // No explicit phase arg — use current phase from STATE.md
@@ -135,9 +193,18 @@ export function enrichCommand(input, output, cwd) {
         enrichment.phase_name = currentPhase.name;
       }
 
-      const phaseDir = resolvePhaseDir(curPhaseNum, resolvedCwd);
-      if (phaseDir) {
-        enrichment.phase_dir = phaseDir;
+      // Use phaseDir from ProjectState facade (already resolved in getProjectState)
+      // This avoids a redundant resolvePhaseDir call (which would readdirSync) for
+      // the current phase. Fall back to resolvePhaseDir only if not available.
+      const resolvedPhaseDir = statePhaseDir || resolvePhaseDir(curPhaseNum, resolvedCwd);
+      if (resolvedPhaseDir) {
+        enrichment.phase_dir = resolvedPhaseDir;
+      }
+
+      // Reuse plans from projectState (already parsed in getProjectState)
+      // This avoids a redundant parsePlans call for the current phase.
+      if (statePlans && statePlans.length > 0) {
+        plans = statePlans;
       }
     }
   }
@@ -149,35 +216,50 @@ export function enrichCommand(input, output, cwd) {
   try {
     if (enrichment.phase_dir) {
       const phaseDirFull = join(resolvedCwd, enrichment.phase_dir);
+
       if (!enrichment.plans) {
-        // Plan enumeration may not have run in the else-if branch
-        const plans = parsePlans(effectivePhaseNum, resolvedCwd);
-        if (plans && plans.length > 0) {
-          enrichment.plans = plans.map(p => p.path ? p.path.split('/').pop() : null).filter(Boolean);
-          const summaryFiles = listSummaryFiles(phaseDirFull);
-          enrichment.incomplete_plans = enrichment.plans.filter(planFile => {
-            const summaryFile = planFile.replace('-PLAN.md', '-SUMMARY.md');
-            return !summaryFiles.includes(summaryFile);
-          });
+        // Plan enumeration may not have run yet (else-if / current phase branch)
+        // Try SQLite-first, then fall back to ensurePlans (at most one parsePlans call)
+        let sqlUsed = false;
+        try {
+          const db = getDb(resolvedCwd);
+          const cache = new PlanningCache(db);
+          const sqlResult = cache.getSummaryCount(effectivePhaseNum, resolvedCwd);
+          const incompleteSql = cache.getIncompletePlans(effectivePhaseNum, resolvedCwd);
+
+          if (sqlResult !== null && incompleteSql !== null) {
+            const planRows = cache.getPlansForPhase(String(effectivePhaseNum), resolvedCwd);
+            if (planRows && planRows.length > 0) {
+              enrichment.plans = planRows.map(p => p.path ? p.path.split('/').pop() : null).filter(Boolean);
+            }
+            enrichment.incomplete_plans = incompleteSql;
+            summaryFiles = sqlResult.summaryFiles;
+            sqlUsed = true;
+          }
+        } catch { /* fall through */ }
+
+        if (!sqlUsed) {
+          // Cold cache — use plans from projectState or parse once via ensurePlans
+          const p = ensurePlans(effectivePhaseNum);
+          if (p && p.length > 0) {
+            enrichment.plans = p.map(pl => pl.path ? pl.path.split('/').pop() : null).filter(Boolean);
+            const sf = ensureSummaryFiles(phaseDirFull);
+            enrichment.incomplete_plans = enrichment.plans.filter(planFile => {
+              const summaryFile = planFile.replace('-PLAN.md', '-SUMMARY.md');
+              return !sf.includes(summaryFile);
+            });
+          }
         }
       }
+
       enrichment.plan_count = enrichment.plans ? enrichment.plans.length : 0;
-      const summaryFiles = listSummaryFiles(phaseDirFull);
-      enrichment.summary_count = summaryFiles.length;
+
+      // Ensure summaryFiles are loaded (no-op if already populated above)
+      const sf = ensureSummaryFiles(phaseDirFull);
+      enrichment.summary_count = sf.length;
 
       // UAT gap count: scan for *-UAT.md with "status: diagnosed"
-      try {
-        const allFiles = readdirSync(phaseDirFull);
-        const uatFiles = allFiles.filter(f => f.endsWith('-UAT.md'));
-        let uatGapCount = 0;
-        for (const uf of uatFiles) {
-          try {
-            const content = readFileSync(join(phaseDirFull, uf), 'utf-8');
-            if (content.includes('status: diagnosed')) uatGapCount++;
-          } catch { /* skip unreadable UAT files */ }
-        }
-        enrichment.uat_gap_count = uatGapCount;
-      } catch { enrichment.uat_gap_count = 0; }
+      enrichment.uat_gap_count = countDiagnosedUatGaps(phaseDirFull);
     }
   } catch { /* plan/summary count derivation failed */ }
 
@@ -191,13 +273,14 @@ export function enrichCommand(input, output, cwd) {
   } catch { /* file existence check failed */ }
 
   // Task types for execution-pattern rule (from first incomplete plan)
+  // Reuses already-loaded `plans` variable via ensurePlans — no additional
+  // parsePlans call (ensurePlans is a no-op if plans already set).
   try {
     if (enrichment.incomplete_plans && enrichment.incomplete_plans.length > 0 && effectivePhaseNum) {
-      const plans = parsePlans(effectivePhaseNum, resolvedCwd);
-      if (plans && plans.length > 0) {
-        // Find the first incomplete plan by matching filenames
+      const p = ensurePlans(effectivePhaseNum);
+      if (p && p.length > 0) {
         const firstIncompleteName = enrichment.incomplete_plans[0];
-        const incompletePlan = plans.find(p => p.path && p.path.endsWith(firstIncompleteName));
+        const incompletePlan = p.find(pl => pl.path && pl.path.endsWith(firstIncompleteName));
         if (incompletePlan && incompletePlan.tasks) {
           enrichment.task_types = incompletePlan.tasks.map(t => t.type).filter(Boolean);
         }
@@ -225,13 +308,15 @@ export function enrichCommand(input, output, cwd) {
   } catch { enrichment.highest_phase = null; }
 
   // Previous summary checks (for previous-check-gate rule)
+  // Reuses cached summaryFiles via ensureSummaryFiles — no additional
+  // listSummaryFiles call (ensureSummaryFiles is a no-op if already loaded).
   try {
     if (enrichment.phase_dir) {
       const phaseDirFull = join(resolvedCwd, enrichment.phase_dir);
-      const summaryFiles = listSummaryFiles(phaseDirFull);
-      enrichment.has_previous_summary = summaryFiles.length > 0;
-      if (summaryFiles.length > 0) {
-        const lastSummary = summaryFiles.sort().pop();
+      const sf = ensureSummaryFiles(phaseDirFull);
+      enrichment.has_previous_summary = sf.length > 0;
+      if (sf.length > 0) {
+        const lastSummary = [...sf].sort().pop();
         const content = readFileSync(join(phaseDirFull, lastSummary), 'utf-8');
         enrichment.has_unresolved_issues = content.includes('unresolved') || content.includes('Unresolved');
         enrichment.has_blockers = content.includes('blocker') || content.includes('Blocker');
@@ -248,6 +333,125 @@ export function enrichCommand(input, output, cwd) {
     enrichment.has_test_command = Boolean(config && config.test_command);
   } catch { /* CI config check failed */ }
 
+  // ─── Phase 122: Inputs for new/expanded decision rules ────────────────────
+  // model-selection (DEC-01): agent_type derived from command name
+  try {
+    const COMMAND_TO_AGENT = {
+      'bgsd-execute-phase':    'bgsd-executor',
+      'bgsd-execute-plan':     'bgsd-executor',
+      'bgsd-quick':            'bgsd-executor',
+      'bgsd-quick-task':       'bgsd-executor',
+      'bgsd-plan-phase':       'bgsd-planner',
+      'bgsd-discuss-phase':    'bgsd-planner',
+      'bgsd-research-phase':   'bgsd-phase-researcher',
+      'bgsd-verify-work':      'bgsd-verifier',
+      'bgsd-audit-milestone':  'bgsd-verifier',
+      'bgsd-github-ci':        'bgsd-verifier',
+      'bgsd-map-codebase':     'bgsd-codebase-mapper',
+      'bgsd-debug':            'bgsd-debugger',
+    };
+    const agentType = COMMAND_TO_AGENT[command] || null;
+    if (agentType) {
+      enrichment.agent_type = agentType;
+    }
+    enrichment.model_profile = config ? (config.model_profile || 'balanced') : 'balanced';
+    // db handle passed to model-selection rule for SQLite-backed lookup
+    try {
+      enrichment.db = getDb(resolvedCwd);
+    } catch { /* db unavailable — rule falls back to static */ }
+  } catch { /* model-selection inputs failed */ }
+
+  // verification-routing (DEC-02): files_modified_count from first incomplete plan frontmatter
+  try {
+    if (enrichment.incomplete_plans && enrichment.incomplete_plans.length > 0 && effectivePhaseNum) {
+      const p = ensurePlans(effectivePhaseNum);
+      if (p && p.length > 0) {
+        const firstIncompleteName = enrichment.incomplete_plans[0];
+        const incompletePlan = p.find(pl => pl.path && pl.path.endsWith(firstIncompleteName));
+        if (incompletePlan && incompletePlan.frontmatter) {
+          const filesModified = incompletePlan.frontmatter.files_modified;
+          if (Array.isArray(filesModified)) {
+            enrichment.files_modified_count = filesModified.length;
+          }
+        }
+        // task_count from first incomplete plan task count
+        if (incompletePlan && incompletePlan.tasks) {
+          enrichment.task_count = incompletePlan.tasks.length;
+        }
+      }
+    }
+    // verifier_enabled already set above from config
+  } catch { /* verification-routing inputs failed */ }
+
+  // research-gate (DEC-03): phase_has_external_deps heuristic
+  try {
+    if (enrichment.phase_goal) {
+      const goal = enrichment.phase_goal.toLowerCase();
+      enrichment.phase_has_external_deps = /api|external|integration|webhook|oauth|stripe|github/.test(goal);
+    } else {
+      enrichment.phase_has_external_deps = false;
+    }
+    // research_enabled already set above from config
+  } catch { /* research-gate inputs failed */ }
+
+  // plan-existence-route expansion (DEC-04): deps_complete
+  try {
+    if (enrichment.incomplete_plans && enrichment.incomplete_plans.length > 0 && effectivePhaseNum) {
+      const p = ensurePlans(effectivePhaseNum);
+      if (p && p.length > 0) {
+        const firstIncompleteName = enrichment.incomplete_plans[0];
+        const incompletePlan = p.find(pl => pl.path && pl.path.endsWith(firstIncompleteName));
+        if (incompletePlan && incompletePlan.frontmatter && incompletePlan.frontmatter.depends_on) {
+          const deps = incompletePlan.frontmatter.depends_on;
+          if (Array.isArray(deps) && deps.length > 0 && roadmap) {
+            // Check if all depends_on phases are complete (have summaries)
+            let allComplete = true;
+            for (const dep of deps) {
+              const depNum = parseFloat(String(dep).replace(/[^0-9.]/g, ''));
+              if (!isNaN(depNum)) {
+                const depPhase = roadmap.getPhase ? roadmap.getPhase(depNum) : null;
+                if (depPhase && depPhase.status !== 'complete') {
+                  allComplete = false;
+                  break;
+                }
+              }
+            }
+            enrichment.deps_complete = allComplete;
+          } else {
+            enrichment.deps_complete = true; // no deps → complete
+          }
+        } else {
+          enrichment.deps_complete = true; // no depends_on field
+        }
+      }
+    }
+  } catch { /* deps_complete check failed */ }
+
+  // milestone-completion (DEC-05): phases_total, phases_complete
+  try {
+    if (roadmap && roadmap.phases && roadmap.phases.length > 0) {
+      enrichment.phases_total = roadmap.phases.length;
+      enrichment.phases_complete = roadmap.phases.filter(p => p.status === 'complete').length;
+      // milestone_name already set above
+    }
+  } catch { /* milestone-completion inputs failed */ }
+
+  // commit-strategy (DEC-06): plan_type, is_tdd, task_count
+  try {
+    if (enrichment.incomplete_plans && enrichment.incomplete_plans.length > 0 && effectivePhaseNum) {
+      const p = ensurePlans(effectivePhaseNum);
+      if (p && p.length > 0) {
+        const firstIncompleteName = enrichment.incomplete_plans[0];
+        const incompletePlan = p.find(pl => pl.path && pl.path.endsWith(firstIncompleteName));
+        if (incompletePlan && incompletePlan.frontmatter) {
+          const planType = incompletePlan.frontmatter.type || 'execute';
+          enrichment.plan_type = planType;
+          enrichment.is_tdd = planType === 'tdd';
+        }
+      }
+    }
+  } catch { /* commit-strategy inputs failed */ }
+
   // In-process decision evaluation (ENGINE-02: no subprocess overhead)
   try {
     const decisions = evaluateDecisions(command, enrichment);
@@ -255,6 +459,18 @@ export function enrichCommand(input, output, cwd) {
       enrichment.decisions = decisions;
     }
   } catch { /* decision evaluation failure is non-fatal */ }
+
+  // ENR-03: Record elapsed enrichment time (underscore prefix = internal/debug field)
+  const _elapsed = (typeof performance !== 'undefined' && performance.now)
+    ? performance.now() - _t0
+    : Date.now() - _t0;
+  enrichment._enrichment_ms = parseFloat(_elapsed.toFixed(3));
+
+  // Debug logging when BGSD_DEBUG is set or NODE_ENV === 'development'
+  if (process.env.BGSD_DEBUG || process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.error(`[bgsd-enricher] ${command} enriched in ${_elapsed.toFixed(1)}ms`);
+  }
 
   // Prepend enrichment as <bgsd-context> XML block
   if (output.parts) {
@@ -324,6 +540,29 @@ function listSummaryFiles(phaseDir) {
   } catch {
     return [];
   }
+}
+
+/**
+ * Count UAT files with "status: diagnosed" in a phase directory.
+ * Delegates directory read to avoid direct readdirSync in enrichCommand body.
+ *
+ * @param {string} phaseDir - Full path to phase directory
+ * @returns {number} Count of diagnosed UAT gaps
+ */
+function countDiagnosedUatGaps(phaseDir) {
+  try {
+    if (!existsSync(phaseDir)) return 0;
+    const allFiles = readdirSync(phaseDir);
+    const uatFiles = allFiles.filter(f => f.endsWith('-UAT.md'));
+    let count = 0;
+    for (const uf of uatFiles) {
+      try {
+        const content = readFileSync(join(phaseDir, uf), 'utf-8');
+        if (content.includes('status: diagnosed')) count++;
+      } catch { /* skip unreadable UAT files */ }
+    }
+    return count;
+  } catch { return 0; }
 }
 
 /**

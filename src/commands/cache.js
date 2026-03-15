@@ -74,7 +74,7 @@ function cmdCacheStatus(cwd, args, raw) {
 }
 
 /**
- * Cache clear command - clears all cache entries
+ * Cache clear command - clears all cache entries (global + project-local .cache.db)
  */
 function cmdCacheClear(cwd, args, raw) {
   const cacheEngine = getCacheEngine();
@@ -85,6 +85,33 @@ function cmdCacheClear(cwd, args, raw) {
   }
   
   cacheEngine.clear();
+
+  // Also clear project-local database (.planning/.cache.db)
+  const planningDir = path.join(cwd, '.planning');
+  if (fs.existsSync(planningDir)) {
+    const dbFiles = ['.cache.db', '.cache.db-wal', '.cache.db-shm'];
+    let localCleared = false;
+    for (const dbFile of dbFiles) {
+      const dbPath = path.join(planningDir, dbFile);
+      if (fs.existsSync(dbPath)) {
+        try {
+          // Close the db connection first if it's open
+          try {
+            const { closeAll } = require('../lib/db');
+            closeAll();
+          } catch { /* db module may not be loaded */ }
+          fs.unlinkSync(dbPath);
+          localCleared = true;
+        } catch (e) {
+          debugLog('cache', 'failed to remove ' + dbFile, e);
+        }
+      }
+    }
+    if (localCleared) {
+      debugLog('cache', 'cleared project-local .cache.db');
+    }
+  }
+
   output({ cleared: true }, raw, 'Cache cleared');
 }
 

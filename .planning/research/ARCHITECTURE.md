@@ -1,455 +1,849 @@
-# Architecture Research — Planning Artifact Quality Audit
+# Architecture Research — SQLite-First Data Layer Integration
 
-**Domain:** Planning artifact formatting, stale references, and structural cleanup  
-**Researched:** 2026-03-13  
+**Domain:** SQLite structured tables integration with existing parser/cache/enricher architecture  
+**Researched:** 2026-03-14  
 **Confidence:** HIGH  
-**Research mode:** Ecosystem — What inconsistencies exist and how to fix them
+**Research mode:** Ecosystem — How structured SQLite tables integrate with existing architecture
 
 ---
 
 <!-- section: compact -->
 <architecture_compact>
 
-**Architecture:** Four planning artifacts (MILESTONES.md, PROJECT.md, STATE.md, config.json) with accumulated formatting debt across 18 milestones
+**Architecture:** Dual-store layered data access — markdown files remain authority, SQLite serves as structured query cache with git-hash invalidation, parsers gain SQLite-backed persistence via new `DataStore` class sitting between parsers and the existing `CacheEngine`.
 
-**Issue summary:**
+**Major components:**
 
-| File | Issues Found | Severity |
-|------|-------------|----------|
-| MILESTONES.md | 11 issues | 3 formatting, 3 structural, 5 missing |
-| PROJECT.md | 14 issues | 4 formatting, 6 stale, 4 structural |
-| STATE.md | 2 issues | 2 stale |
-| config.json | 1 issue | 1 stale |
-| INTENT.md | 2 issues | 2 formatting |
+| Component | Responsibility |
+|-----------|----------------|
+| DataStore (NEW) | Unified SQLite access layer — schema management, migrations, structured CRUD, git-hash invalidation |
+| StructuredParsers (MODIFIED) | Parsers write structured rows to DataStore after parsing markdown, read from DataStore when cache is valid |
+| QueryAPI (NEW) | SQL query functions replacing subprocess calls — get tasks by status, count plans, filter decisions |
+| EnricherV2 (MODIFIED) | Enricher reads pre-computed data from DataStore instead of re-parsing files, eliminating 3x listSummaryFiles |
+| MemoryMigrator (NEW) | One-time migration of .planning/memory/*.json into SQLite tables |
+| FileWatcher (MODIFIED) | On change, invalidates DataStore entries (not just parser Map caches) |
 
-**Key patterns:** Non-chronological ordering, missing checkmarks, orphaned HTML tags, stale numeric claims, missing milestone entries
+**Key patterns:** Write-through cache (parse → persist to SQLite), git-hash staleness detection, schema versioning with forward-only migrations, Map L1 → SQLite L2 → markdown L3 data hierarchy
 
-**Anti-patterns:** Mixing `--` and `—` for dashes, inconsistent archive references, keeping struck-through items in active lists
+**Anti-patterns:** SQLite as source of truth (markdown is always authority), bypassing DataStore to query db directly, schema changes without migration, dropping Map fallback on Node <22.5
 
-**Fix priority:** Formatting fixes first (safe, mechanical), then stale data updates (need verification), then structural changes (highest impact)
+**Scaling priority:** Enricher hot-path latency — currently re-parses files on every /bgsd-* command invocation; SQLite-backed cache eliminates file I/O on warm starts
+
 </architecture_compact>
 <!-- /section -->
 
 ---
 
 <!-- section: standard_architecture -->
-## Issue Catalog
+## System Overview
 
-### MILESTONES.md — 11 Issues
+### Current Architecture (Before v12.0)
 
-#### FORMATTING (3 issues)
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      Plugin Layer (ESM)                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ context-     │  │ command-     │  │ tools/               │   │
+│  │ builder.js   │  │ enricher.js  │  │ bgsd-{status,plan,   │   │
+│  │              │  │              │  │  progress,context}   │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
+│         │                 │                      │              │
+│         └─────────────────┼──────────────────────┘              │
+│                           │                                     │
+│                    ┌──────▼──────┐                               │
+│                    │ project-    │                               │
+│                    │ state.js    │  ← Unified facade             │
+│                    └──────┬──────┘                               │
+│         ┌─────────────────┼───────────────────────┐             │
+│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐             │
+│  │ state.js    │  │ roadmap.js  │  │ plan.js     │  ← 6 parsers│
+│  │ (Map cache) │  │ (Map cache) │  │ (Map cache) │  each with  │
+│  └─────────────┘  └─────────────┘  └─────────────┘  own Map()  │
+│                                                                 │
+│  ┌────────────────┐   ┌─────────────────────┐                   │
+│  │ file-watcher   │──→│ invalidateAll()     │                   │
+│  │ (fs.watch)     │   │ clears all Maps     │                   │
+│  └────────────────┘   └─────────────────────┘                   │
+├──────────────────────────────────────────────────────────────────┤
+│                       CLI Layer (CJS)                           │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
+│  │ cache.js     │   │ memory.js    │   │ decision-    │        │
+│  │ CacheEngine  │   │ JSON files   │   │ rules.js     │        │
+│  │ (SQLite|Map) │   │ (.planning/  │   │ (pure fns)   │        │
+│  │ 2 tables:    │   │  memory/)    │   │ 12 rules     │        │
+│  │ file_cache,  │   │              │   │              │        │
+│  │ research_    │   │              │   │              │        │
+│  │   cache      │   │              │   │              │        │
+│  └──────────────┘   └──────────────┘   └──────────────┘        │
+├──────────────────────────────────────────────────────────────────┤
+│                    Filesystem (.planning/)                       │
+│  STATE.md  ROADMAP.md  config.json  INTENT.md  PROJECT.md       │
+│  phases/*/PLAN.md  memory/*.json  REQUIREMENTS.md               │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-**F-01: Missing ✅ checkmark on v10.0**  
-- **File:** MILESTONES.md:108  
-- **Current:** `## v10.0 Agent Intelligence & UX (Shipped: 2026-03-11)`  
-- **Expected:** `## ✅ v10.0 Agent Intelligence & UX (Shipped: 2026-03-11)`  
-- **Fix:** Add `✅ ` prefix to match all other shipped milestones  
-- **Effort:** 1 line edit
+### Target Architecture (After v12.0)
 
-**F-02: Inconsistent "What's next" command references**  
-- **File:** MILESTONES.md:152, 178, 204  
-- **Current:** Lines 152, 178, 204 reference `/gsd-new-milestone` (old pre-rebrand command name)  
-- **Expected:** `/bgsd-new-milestone` (current command name)  
-- **Other entries:** Lines 22, 47, 73, 99, 123, 380 correctly use `/bgsd milestone new` or `/bgsd-new-milestone`  
-- **Fix:** Replace 3 stale `/gsd-new-milestone` references with `/bgsd-new-milestone`  
-- **Effort:** 3 line edits
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      Plugin Layer (ESM)                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ context-     │  │ command-     │  │ tools/               │   │
+│  │ builder.js   │  │ enricher.js  │  │ bgsd-{status,plan,   │   │
+│  │              │  │ (V2: reads   │  │  progress,context,   │   │
+│  │              │  │  from store) │  │  validate}           │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
+│         │                 │                      │              │
+│         └─────────────────┼──────────────────────┘              │
+│                           │                                     │
+│                    ┌──────▼──────┐                               │
+│                    │ project-    │                               │
+│                    │ state.js    │  ← Enhanced facade            │
+│                    │ (reads from │     delegates to DataStore    │
+│                    │  DataStore) │                               │
+│                    └──────┬──────┘                               │
+│         ┌─────────────────┼───────────────────────┐             │
+│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐             │
+│  │ state.js    │  │ roadmap.js  │  │ plan.js     │  ← Parsers  │
+│  │ Map L1 +    │  │ Map L1 +    │  │ Map L1 +    │  persist to │
+│  │ DataStore L2│  │ DataStore L2│  │ DataStore L2│  DataStore   │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│                                                                 │
+│  ┌────────────────┐   ┌─────────────────────────┐               │
+│  │ file-watcher   │──→│ invalidateAll() +       │               │
+│  │ (fs.watch)     │   │ dataStore.invalidate()  │               │
+│  └────────────────┘   └─────────────────────────┘               │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                  DataStore (NEW)                          │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │   │
+│  │  │ phases   │  │ plans    │  │ tasks    │  │ reqs    │  │   │
+│  │  │ table    │  │ table    │  │ table    │  │ table   │  │   │
+│  │  ├──────────┤  ├──────────┤  ├──────────┤  ├─────────┤  │   │
+│  │  │decisions │  │ sessions │  │ memory_  │  │ meta    │  │   │
+│  │  │ table    │  │ table    │  │ tables   │  │ table   │  │   │
+│  │  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │   │
+│  └──────────────────────────────────────────────────────────┘   │
+├──────────────────────────────────────────────────────────────────┤
+│                       CLI Layer (CJS)                           │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
+│  │ cache.js     │   │ memory.js    │   │ decision-    │        │
+│  │ CacheEngine  │   │ (V2: reads/  │   │ rules.js     │        │
+│  │ (unchanged)  │   │  writes via  │   │ (V2: new     │        │
+│  │ file_cache + │   │  DataStore)  │   │  SQLite-fed  │        │
+│  │ research_    │   │              │   │  rules)      │        │
+│  │   cache      │   │              │   │              │        │
+│  └──────────────┘   └──────────────┘   └──────────────┘        │
+├──────────────────────────────────────────────────────────────────┤
+│                    Filesystem (.planning/)                       │
+│  STATE.md  ROADMAP.md  config.json  INTENT.md  PROJECT.md       │
+│  phases/*/PLAN.md  memory/*.json  REQUIREMENTS.md               │
+│  (AUTHORITY — always the source of truth for content)           │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-**F-03: Inconsistent "What's next" dash format**  
-- **File:** MILESTONES.md:380  
-- **Current:** `Ready for next milestone -- /bgsd-new-milestone` (double hyphen)  
-- **Expected:** `Ready for next milestone — /bgsd-new-milestone` (em dash, matching other entries)  
-- **Fix:** Replace `--` with `—`  
-- **Effort:** 1 line edit
+### Component Responsibilities
 
-#### STRUCTURAL (3 issues)
-
-**S-01: Non-chronological ordering**  
-- **File:** MILESTONES.md (entire file)  
-- **Current order:** v9.3, v9.2, v8.3, v8.2, v10.0, _blank line_, v7.1, v7.0, v6.0, v5.0, v4.0, v3.0, v2.0, v1.1, v1.0, v11.3  
-- **Expected order (newest-first):** v11.3, v10.0, v9.3, v9.2, v8.3, v8.2, v7.1, v7.0, v6.0, v5.0, v4.0, v3.0, v2.0, v1.1, v1.0  
-- **Problems:**  
-  - v11.3 is at the bottom (should be at top as most recent shipped)  
-  - v10.0 is sandwiched between v8.2 and v7.1  
-  - Blank line 132-133 between v10.0 and v7.1 (spurious)  
-- **Fix:** Reorder all entries newest-first by ship date  
-- **Effort:** Block move, ~15 minutes
-
-**S-02: v9.2 entry describes wrong milestone**  
-- **File:** MILESTONES.md:31-53  
-- **Current heading:** `v9.2 CLI Tool Integrations & Runtime Modernization (Shipped: 2026-03-10)`  
-- **Current body text:** "Deep plugin integration with always-on context injection, native LLM tools, event-driven state synchronization, and advisory guardrails" — this is v9.0's description, not v9.2  
-- **Current archive references:** Points to `v9.0-ROADMAP.md`, `v9.0-REQUIREMENTS.md`, `v9.0-DOCS.md` — wrong version prefix  
-- **Evidence:** The v9.2 heading says "CLI Tool Integrations" but the description matches v9.0 "Embedded Plugin Experience"  
-- **Fix:** Replace body text with actual v9.2 content (from PROJECT.md lines 70-78: tool detection, ripgrep/fd/jq, yq/bat/gh, Bun runtime). Fix archive references to `v9.2-*`  
-- **Effort:** Rewrite 1 entry, ~10 minutes
-
-**S-03: Missing `v9.2-DOCS.md` archive**  
-- **File:** MILESTONES.md:50 (references `v9.0-DOCS.md`) and filesystem  
-- **Current:** Archive entry references `v9.0-DOCS.md` (which is v9.0's docs file)  
-- **Actual archives on disk:** `v9.2-REQUIREMENTS.md`, `v9.2-ROADMAP.md` exist; `v9.2-DOCS.md` does NOT exist  
-- **Fix:** Either create `v9.2-DOCS.md` from git history, or remove the DOCS archive line if none was generated  
-- **Effort:** 5 minutes
-
-#### MISSING ENTRIES (5 issues)
-
-**M-01: v8.0 Performance & Agent Architecture — missing from MILESTONES.md**  
-- **Evidence:** Archives exist (`v8.0-ROADMAP.md`, `v8.0-REQUIREMENTS.md`, `v8.0-DOCS.md`, `v8.0-phases`). PROJECT.md references it (line 5). Requirements section references it (lines 188-194)  
-- **Fix:** Add v8.0 entry between v8.2 and v7.1  
-- **Effort:** Write 1 new entry, ~10 minutes
-
-**M-02: v8.1 RAG-Powered Research — missing from MILESTONES.md**  
-- **Evidence:** Archives exist (`v8.1-ROADMAP.md`, `v8.1-REQUIREMENTS.md`, `v8.1-phases`). PROJECT.md line 5 references v8.1  
-- **Fix:** Add v8.1 entry between v8.2 and v8.0  
-- **Effort:** Write 1 new entry, ~10 minutes
-
-**M-03: v9.1 Performance Acceleration — missing from MILESTONES.md**  
-- **Evidence:** Archives exist (`v9.1-ROADMAP.md`, `v9.1-REQUIREMENTS.md`, `v9.1-DOCS.md`). PROJECT.md lines 80-89 describe it. No `v9.1-phases` directory exists  
-- **Fix:** Add v9.1 entry between v9.2 and v9.0  
-- **Effort:** Write 1 new entry, ~10 minutes
-
-**M-04: v11.0 Natural Interface & Insights — missing from MILESTONES.md**  
-- **Evidence:** Archives exist (`v11.0-ROADMAP.md`, `v11.0-REQUIREMENTS.md`, `v11.0-DOCS.md`, `v11.0-phases`). PROJECT.md lines 54-65 describe it  
-- **Fix:** Add v11.0 entry between v11.3 and v10.0  
-- **Effort:** Write 1 new entry, ~10 minutes
-
-**M-05: v11.1 and v11.2 — missing from MILESTONES.md**  
-- **Evidence:** v11.1 archives exist (`v11.1-ROADMAP.md`, `v11.1-REQUIREMENTS.md`, `v11.1-DOCS.md`, `v11.1-phases`). v11.2 has no archives at all but is referenced in INTENT.md history (line 93). INTENT.md history references v11.1 (line 76) and v11.2 (line 93)  
-- **Fix:** Add v11.1 entry. For v11.2, determine if it shipped (check git history) or was folded into another milestone. If shipped, add entry; if not, note in v11.1 or remove INTENT.md reference  
-- **Effort:** Write 1-2 new entries, ~15 minutes
-
----
-
-### PROJECT.md — 14 Issues
-
-#### FORMATTING (4 issues)
-
-**F-04: Orphaned `</details>` tag**  
-- **File:** PROJECT.md:68  
-- **Current:** Line 68 has a standalone `</details>` that doesn't close any `<details>` block  
-- **Context:** Line 65 closes the v11.0 block. Line 67 is blank. Line 68 is the orphan. Line 70 opens a new v9.2 block  
-- **Fix:** Delete line 68  
-- **Effort:** 1 line delete
-
-**F-05: Broken table rows in Key Decisions**  
-- **File:** PROJECT.md:268-270  
-- **Current:** Three rows are missing the `Outcome` column (only 2 cells instead of 3):
-  ```
-  | Trajectory exploration over worktrees | Sequential exploration sufficient; worktrees disk-expensive |
-  | Automatic pivot without human signal | Human-in-the-loop is a core GSD principle |
-  | Trajectory analytics | Deferred to future milestone |
-  ```
-- **Expected:** All rows should have 3 columns: `| Decision | Rationale | Outcome |`  
-- **Fix:** Add outcome column. These appear to be "deferred" decisions — add `Deferred` or `N/A — declined` as outcome  
-- **Effort:** 3 line edits
-
-**F-06: Key Decisions table has no visual separation between categories**  
-- **File:** PROJECT.md:267-270  
-- **Current:** Lines 267-270 are "declined/deferred" decisions mixed inline with "accepted" decisions above them (lines 243-266) with no separator  
-- **Fix:** Add a section header or separator comment between accepted and declined decisions  
-- **Effort:** 1 line addition
-
-**F-07: v9.2 Previous section has wrong milestone name in heading**  
-- **File:** PROJECT.md:71  
-- **Current:** `Previous: v9.2 CLI Tool Integrations & Runtime Modernization`  
-- **Note:** This heading is correct per PROJECT.md line 5 context. But MILESTONES.md's body text for v9.2 describes v9.0. One of them is wrong — verify against `v9.2-ROADMAP.md` to determine which  
-- **Fix:** Verify and align both files to match the actual v9.2 roadmap  
-- **Effort:** Cross-reference, ~5 minutes
-
-#### STALE DATA (6 issues)
-
-**D-01: Module count "53 src/ modules" is stale**  
-- **File:** PROJECT.md:5, 221, 224  
-- **Current:** "53 src/ modules" and "53 modules"  
-- **Actual:** 119 JS files total in `src/`. `src/lib/` has 35 files, `src/commands/` has 24 files. Total varies depending on counting subdirectories  
-- **Fix:** Update to actual counts. Line 224 says "35 modules" for lib (correct) and "23 modules" for commands (actual: 24)  
-- **Effort:** 3 line edits after accurate count
-
-**D-02: "34-module split" decision reference is stale**  
-- **File:** PROJECT.md:246  
-- **Current:** `34-module split (18 lib + 14 commands + router + index)`  
-- **Actual:** 35 lib + 24 commands + router + index = 61+  
-- **Fix:** Update to current counts  
-- **Effort:** 1 line edit
-
-**D-03: "1014 tests (414 passing)" is confusing**  
-- **File:** PROJECT.md:221  
-- **Current:** `1014 tests (414 passing)`  
-- **Note:** 1014 total with only 414 passing means 600 failures. This is accurate per the known tech debt note (line 228) but the parenthetical format implies "414 out of 1014" which is unusual. Most entries elsewhere say "X tests passing (Y failures)"  
-- **Fix:** Reformat to `1014 tests (600 failing — Bun runtime banner issue)` or `414 tests passing, 600 failing` for clarity  
-- **Effort:** 1 line edit
-
-**D-04: "45 workflows" count is wrong**  
-- **File:** PROJECT.md:226  
-- **Current:** `45 workflows`  
-- **Actual:** 44 workflow files in `workflows/`  
-- **Fix:** Update to 44  
-- **Effort:** 1 line edit
-
-**D-05: Struck-through out-of-scope item still listed**  
-- **File:** PROJECT.md:211  
-- **Current:** `~~SQLite codebase index~~ — Reconsidered for v8.0 as read cache layer`  
-- **Note:** This was reconsidered, implemented in v8.0 (SQLite caching), and shipped. It's no longer out of scope — it's delivered. Having a struck-through item with a note about reconsidering is confusing cruft  
-- **Fix:** Remove the line entirely. The SQLite caching is documented as a delivered feature in Requirements line 188  
-- **Effort:** 1 line delete
-
-**D-06: Node.js constraint says "18+" but Context section says "22.5"**  
-- **File:** PROJECT.md:235 vs 223  
-- **Current constraint (line 235):** `Node.js 18+: Minimum version (for fetch, node:test)`  
-- **Current context (line 223):** `Node.js >= 22.5 (required for node:sqlite caching)`  
-- **package.json engines:** `"node": ">=18"`  
-- **Note:** Both are technically true — 18 is the floor, 22.5 enables sqlite. But the constraint doesn't mention the 22.5 preference  
-- **Fix:** Update constraint to note both: "Node.js 18+ minimum (22.5+ recommended for `node:sqlite` caching)"  
-- **Effort:** 1 line edit
-
-#### STRUCTURAL (4 issues)
-
-**R-01: "See REQUIREMENTS.md" reference to non-existent file**  
-- **File:** PROJECT.md:203  
-- **Current:** `See .planning/REQUIREMENTS.md for v11.4 requirements.`  
-- **Actual:** `.planning/REQUIREMENTS.md` does not exist. INTENT.md has the v11.4 outcomes  
-- **Fix:** Either create REQUIREMENTS.md as part of milestone setup, or change reference to INTENT.md  
-- **Effort:** 1 line edit or file creation
-
-**R-02: Previous milestones in `<details>` blocks skip v11.1, v11.2**  
-- **File:** PROJECT.md:27-123  
-- **Current sequence:** v11.3, v10.0, v11.0, v9.2, v9.1, v9.0, v8.3, v1.0-v8.2  
-- **Missing:** v11.1, v11.2 (if they shipped)  
-- **Also wrong:** Non-chronological order (v11.0 appears after v10.0)  
-- **Fix:** Add missing entries, reorder chronologically  
-- **Effort:** ~15 minutes
-
-**R-03: Key Decisions table is growing unbounded**  
-- **File:** PROJECT.md:239-279  
-- **Current:** 37 decisions spanning v1.0 through v11.3. Table is 40 lines long  
-- **Recommendation:** Archive decisions from early milestones (v1.0-v7.1) into a collapsed `<details>` block. Keep only decisions from the last 3-4 milestones as active  
-- **Effort:** ~10 minutes
-
-**R-04: Requirements section lists 45 individual validated requirements**  
-- **File:** PROJECT.md:128-199  
-- **Current:** 45 checkmarked requirements with version tags  
-- **Recommendation:** This section is 71 lines and growing. Consider archiving v1.0-v8.0 requirements into a collapsed `<details>` block, keeping only recent (v8.2+) requirements visible  
-- **Effort:** ~10 minutes
-
----
-
-### STATE.md — 2 Issues
-
-**D-07: "211 plans completed" may be stale**  
-- **File:** STATE.md:28  
-- **Current:** `Total plans completed: 211 (v1.0-v11.3)`  
-- **Note:** This should be verified against actual milestone data. The MILESTONES.md entries that include plan counts sum to: 14+10+13+10+13+14+12+12+15+11+14+12+15+35+11+12+9 = 242 plans. However, not all milestones are listed in MILESTONES.md (5 are missing)  
-- **Fix:** Recalculate from MILESTONES.md after all entries are added  
-- **Effort:** 5 minutes after MILESTONES.md is fixed
-
-**D-08: v11.3 execution notes reference "4 phases (110-113)"**  
-- **File:** STATE.md:19  
-- **Note:** This is accurate for v11.3. However, the previous milestone notes are only from v11.3 — earlier session context has been compacted away. This is fine for session continuity but creates an incomplete historical record  
-- **Fix:** No action needed — this is by design  
-- **Effort:** 0
-
----
-
-### config.json — 1 Issue
-
-**D-09: Bun version "1.3.10" may be stale**  
-- **File:** config.json:3  
-- **Current:** `"detected": "1.3.10"`  
-- **Note:** This was auto-detected at some point and persisted. If Bun has been updated on this system, the config is stale  
-- **Fix:** Re-run Bun detection or remove the cached version (it's re-detected on startup)  
-- **Effort:** 1 field edit or delete
-
----
-
-### INTENT.md — 2 Issues
-
-**F-08: History entries not in chronological order**  
-- **File:** INTENT.md:55-101  
-- **Current order:** v11.4 (2026-03-13), v9.2 (2026-03-13), v11.1 (2026-03-11), v10.0 (2026-03-10), v9.3 (2026-03-10), v9.0 (2026-03-09), v8.3 (2026-03-08), v11.2 (2026-03-12), v8.2 (2026-03-06), v7.1 (2026-03-02)  
-- **Problems:** v9.2 at line 71 is dated 2026-03-13 but is between v11.4 and v11.1. v11.2 at line 93 is dated 2026-03-12 but appears after v8.3 (2026-03-08)  
-- **Fix:** Reorder by date descending (newest first): v11.4, v11.2, v11.1, v10.0, v9.3, v9.2, v9.0, v8.3, v8.2, v7.1  
-- **Effort:** Block reorder, ~5 minutes
-
-**F-09: "v9.2" label on INTENT.md history entry is likely wrong**  
-- **File:** INTENT.md:71  
-- **Current:** `### v9.2 — 2026-03-13` with content about "LLM offloading" — that's v11.3 scope, not v9.2  
-- **Note:** The date 2026-03-13 and content about "LLM offloading audit" match v11.3. This label appears to be a copy-paste error  
-- **Fix:** Relabel to `### v11.3 — 2026-03-13` or merge with the v11.4 entry above it  
-- **Effort:** 1 line edit
+| Component | Current | After v12.0 | Change Type |
+|-----------|---------|-------------|-------------|
+| `src/lib/cache.js` CacheEngine | SQLite file_cache + research_cache with Map fallback | **Unchanged** — continues as file content cache | None |
+| `src/plugin/parsers/*.js` (6 parsers) | Read markdown → Map cache → frozen objects | Read markdown → Map L1 + DataStore L2 write-through | Modified |
+| `src/plugin/project-state.js` | Composes 6 parsers into frozen facade | Adds DataStore read path — skips parsers when cache valid | Modified |
+| `src/plugin/command-enricher.js` | Calls parsePlans 3x, listSummaryFiles 3x | Reads pre-computed counts from DataStore | Modified |
+| `src/plugin/file-watcher.js` | fs.watch → invalidateAll() (Map caches) | Also invalidates DataStore entries for changed files | Modified |
+| `src/commands/memory.js` | Read/write JSON files in .planning/memory/ | Dual-write: JSON files + DataStore tables | Modified |
+| `src/lib/decision-rules.js` | 12 pure rules consuming enrichment state | 18-20 rules, new ones consuming SQLite-backed state | Modified |
+| **DataStore (NEW)** | N/A | Unified SQLite access: schema, migrations, CRUD, queries | New |
+| **QueryAPI (NEW)** | N/A | SQL query functions for workflows (count, filter, aggregate) | New |
+| **MemoryMigrator (NEW)** | N/A | One-time JSON → SQLite migration for memory stores | New |
 
 <!-- /section -->
 
 ---
 
 <!-- section: patterns -->
-## Fix Prioritization
+## Architectural Patterns
 
-### Wave 1: Safe Mechanical Fixes (est. 30 min)
+### Pattern 1: Write-Through Structured Cache
 
-All formatting — no judgment needed, no data verification required.
+**What:** When a parser reads and parses a markdown file, it simultaneously writes the structured data as rows into SQLite. On subsequent reads, if the SQLite cache is valid (git-hash matches), the parser returns data from SQLite without re-reading the file.
 
-| ID | File | Fix | Lines |
-|----|------|-----|-------|
-| F-01 | MILESTONES.md:108 | Add `✅` to v10.0 heading | 1 |
-| F-02 | MILESTONES.md:152,178,204 | Replace `/gsd-new-milestone` → `/bgsd-new-milestone` | 3 |
-| F-03 | MILESTONES.md:380 | Replace `--` → `—` | 1 |
-| F-04 | PROJECT.md:68 | Delete orphaned `</details>` | 1 |
-| F-05 | PROJECT.md:268-270 | Add missing `Outcome` column to 3 table rows | 3 |
-| F-08 | INTENT.md:55-101 | Reorder history entries chronologically | Block move |
-| F-09 | INTENT.md:71 | Relabel `v9.2` → `v11.3` | 1 |
+**When to use:** Every parser (state, roadmap, plan, config, project, intent).
 
-### Wave 2: Stale Data Updates (est. 20 min)
+**Trade-offs:**
+- Pro: Cross-invocation persistence — CLI exits and re-enters without re-parsing
+- Pro: SQL queries replace file-scanning (e.g., "count plans in phase 73")
+- Con: Schema must stay backward-compatible as markdown formats evolve
+- Con: Two code paths (parse-and-store vs read-from-store) need testing
 
-Require counting/verification against filesystem.
+**Data flow:**
 
-| ID | File | Fix | Lines |
-|----|------|-----|-------|
-| D-01 | PROJECT.md:5,221,224 | Update module counts to actuals | 3 |
-| D-02 | PROJECT.md:246 | Update "34-module" decision text | 1 |
-| D-03 | PROJECT.md:221 | Clarify test count format | 1 |
-| D-04 | PROJECT.md:226 | Fix workflow count 45→44 | 1 |
-| D-05 | PROJECT.md:211 | Remove struck-through SQLite item | 1 |
-| D-06 | PROJECT.md:235 | Update Node.js constraint to mention 22.5 | 1 |
-| D-09 | config.json:3 | Re-detect or remove stale Bun version | 1 |
+```
+Request for state data
+        │
+        ▼
+    Map L1 hit? ──yes──→ Return frozen object
+        │ no
+        ▼
+    DataStore L2 hit? ──yes──→ Validate git-hash
+        │ no                       │
+        ▼                    valid? ──yes──→ Hydrate, cache in Map L1, return
+    Read file from disk            │ no
+        │                          ▼
+        ▼                    Invalidate L2 entry
+    Parse markdown                 │
+        │                          │
+        ▼                          │
+    Store in Map L1 ◄──────────────┘
+        │
+        ▼
+    Write to DataStore L2
+        │
+        ▼
+    Return frozen object
+```
 
-### Wave 3: Structural Fixes (est. 60 min)
+**Example:**
 
-Require writing new content or reorganizing sections.
+```javascript
+// In src/plugin/parsers/state.js (modified)
+export function parseState(cwd) {
+  const resolvedCwd = cwd || process.cwd();
 
-| ID | File | Fix | Lines |
-|----|------|-----|-------|
-| S-01 | MILESTONES.md | Reorder all entries chronologically | Block moves |
-| S-02 | MILESTONES.md:31-53 | Rewrite v9.2 entry with correct content | ~25 lines |
-| S-03 | MILESTONES.md:50 | Fix/remove v9.2-DOCS.md archive ref | 1 |
-| M-01–M-05 | MILESTONES.md | Add 6 missing milestone entries | ~150 lines |
-| R-01 | PROJECT.md:203 | Fix REQUIREMENTS.md reference | 1 |
-| R-02 | PROJECT.md:27-123 | Add missing milestones, reorder `<details>` | ~20 lines |
-| R-03 | PROJECT.md:239-279 | Archive old decisions into `<details>` | ~10 lines |
-| R-04 | PROJECT.md:128-199 | Archive old requirements into `<details>` | ~10 lines |
-| D-07 | STATE.md:28 | Recalculate plan total after MILESTONES.md fix | 1 |
+  // L1: Map cache (in-process, same as today)
+  if (_cache.has(resolvedCwd)) {
+    return _cache.get(resolvedCwd);
+  }
+
+  // L2: DataStore (cross-invocation persistence)
+  const store = getDataStore();
+  if (store) {
+    const cached = store.getState(resolvedCwd);
+    if (cached && store.isValid(resolvedCwd, 'STATE.md')) {
+      _cache.set(resolvedCwd, cached);
+      return cached;
+    }
+  }
+
+  // L3: Parse from filesystem (current logic)
+  const raw = readFileSync(join(resolvedCwd, '.planning', 'STATE.md'), 'utf-8');
+  const result = Object.freeze({ /* ... parsed fields ... */ });
+
+  // Write-through to both caches
+  _cache.set(resolvedCwd, result);
+  if (store) {
+    store.setState(resolvedCwd, result);
+  }
+
+  return result;
+}
+```
+
+### Pattern 2: Git-Hash Staleness Detection
+
+**What:** Instead of checking file mtime (which the current CacheEngine already does for file_cache), structured cache entries store the git commit hash at write time. On read, compare current HEAD hash with stored hash. If different, the cache may be stale — re-validate via mtime or content hash.
+
+**When to use:** DataStore entries for parsed planning data.
+
+**Trade-offs:**
+- Pro: More reliable than mtime alone — mtime can be reset by git checkout/rebase
+- Pro: A single git hash check covers all files (one `git rev-parse HEAD` per invocation)
+- Con: Requires a git call on startup (execSync ~5ms)
+- Con: Uncommitted changes aren't captured by git hash — need file hash fallback
+
+**Implementation:**
+
+```javascript
+// In DataStore
+_meta table: { key TEXT PRIMARY KEY, value TEXT }
+
+// On startup: store current git hash
+const currentHash = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+this._setMeta('git_hash', currentHash);
+
+// On cache read: compare
+isValid(cwd, filename) {
+  const storedHash = this._getMeta('git_hash');
+  if (storedHash !== this._currentHash) {
+    // Git state changed — check file-level staleness
+    const filePath = join(cwd, '.planning', filename);
+    const currentMtime = statSync(filePath).mtimeMs;
+    const storedMtime = this._getFileMtime(cwd, filename);
+    return currentMtime === storedMtime;
+  }
+  return true; // Same git hash = same files
+}
+```
+
+**Decision:** Use a **hybrid approach**: git-hash for bulk invalidation (new commit = re-check everything), plus per-file mtime for fine-grained staleness within the same commit. This handles both `git checkout` scenarios and live editing.
+
+### Pattern 3: Dual-Store Authority (Markdown + SQLite)
+
+**What:** Markdown files remain the source of truth for all planning data. SQLite is a derived cache that can always be regenerated from markdown. This means:
+1. Writes go to markdown first, then SQLite
+2. On conflict, markdown wins
+3. If SQLite is corrupted/deleted, everything rebuilds from markdown
+4. STATE.md continues to be human-readable and git-tracked
+
+**When to use:** ALL structured data operations.
+
+**Trade-offs:**
+- Pro: Git history, human readability, and AI agent compatibility preserved
+- Pro: SQLite corruption is recoverable (just delete cache.db and re-parse)
+- Pro: No migration risk — existing .planning/ directories work unchanged
+- Con: Two representations to keep in sync (mitigated by write-through pattern)
+- Con: Some queries need to parse markdown for data not in the schema
+
+**Rules:**
+1. **Never modify markdown via SQLite** — always read/write markdown with existing patterns
+2. **SQLite is disposable** — `rm cache.db` is always safe
+3. **Schema additions are append-only** — never rename/remove columns in place
+4. **Markdown is the backup** — if DataStore returns null, fall through to file parsing
+
+### Pattern 4: Schema Versioning with Forward-Only Migrations
+
+**What:** A `_schema_version` meta key tracks the current schema version. On DataStore initialization, if the stored version is lower than the code's expected version, migration functions run sequentially. Migrations only add tables/columns — never drop or rename.
+
+**When to use:** Every schema change across versions.
+
+**Implementation:**
+
+```javascript
+const SCHEMA_VERSION = 3; // Bump on every schema change
+
+class DataStore {
+  _migrate() {
+    const current = this._getSchemaVersion();
+
+    if (current < 1) {
+      this.db.exec(`
+        CREATE TABLE phases (...)
+        CREATE TABLE plans (...)
+        CREATE TABLE tasks (...)
+      `);
+    }
+    if (current < 2) {
+      this.db.exec(`
+        CREATE TABLE decisions (...)
+        CREATE TABLE lessons (...)
+      `);
+    }
+    if (current < 3) {
+      this.db.exec(`
+        ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER
+      `);
+    }
+
+    this._setSchemaVersion(SCHEMA_VERSION);
+  }
+}
+```
+
+**Trade-offs:**
+- Pro: Always forward-compatible — old databases upgrade automatically
+- Pro: No data loss — append-only schema changes
+- Con: Cannot remove dead columns/tables without a major version bump
+- Con: Migration chain grows over time (acceptable for a CLI tool)
+
+### Pattern 5: MapBackend Fallback Preservation
+
+**What:** The existing Map fallback for Node <22.5 must be preserved for all new functionality. DataStore operations are gated behind `getDataStore()` which returns null when SQLite is unavailable. All callers use `if (store) { ... }` guards.
+
+**When to use:** Every DataStore consumer.
+
+**Example:**
+
+```javascript
+// Safe pattern — used everywhere
+const store = getDataStore();
+if (store) {
+  const cached = store.getPhases(cwd);
+  if (cached) return cached;
+}
+// Fall through to existing Map-based path
+```
+
+**Trade-offs:**
+- Pro: Zero-regression on older Node versions
+- Pro: Map path remains the tested, proven code path
+- Con: Two code paths to maintain and test
+- Con: Map-only users don't get cross-invocation persistence (acceptable — they don't today either)
 
 <!-- /section -->
 
 ---
 
 <!-- section: data_flow -->
-## Archive Integrity Audit
+## Data Flow
 
-### Archive Reference vs. Filesystem Cross-Check
+### Current Enricher Flow (Before v12.0)
 
-| Milestone | ROADMAP | REQUIREMENTS | DOCS | Phases Dir | In MILESTONES.md | Notes |
-|-----------|---------|-------------|------|-----------|-----------------|-------|
-| v1.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v1.1 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v2.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v3.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v4.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v5.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v6.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v7.0 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v7.1 | ✅ | ✅ | ❌ | ✅ | ✅ | No DOCS — pre-DOCS era |
-| v8.0 | ✅ | ✅ | ✅ | ✅ | ❌ MISSING | Not in MILESTONES.md |
-| v8.1 | ✅ | ✅ | ❌ | ✅ | ❌ MISSING | Not in MILESTONES.md, no DOCS |
-| v8.2 | ✅ | ✅ | ✅ | ✅ | ✅ | OK |
-| v8.3 | ✅ | ✅ | ✅ | ✅ | ✅ | OK |
-| v9.0 | ✅ | ✅ | ✅ | ✅ | ✅ via v9.2 entry* | v9.2 entry has v9.0 content* |
-| v9.1 | ✅ | ✅ | ✅ | ❌ | ❌ MISSING | No phases dir, not in MILESTONES.md |
-| v9.2 | ✅ | ✅ | ❌ | ❌ | ✅ but wrong content* | v9.2 entry describes v9.0 |
-| v9.3 | ✅ | ✅ | ✅ | ✅ | ✅ | OK |
-| v10.0 | ✅ | ✅ | ✅ | ✅ | ✅ (missing ✅) | Missing checkmark |
-| v11.0 | ✅ | ✅ | ✅ | ✅ | ❌ MISSING | Not in MILESTONES.md |
-| v11.1 | ✅ | ✅ | ✅ | ✅ | ❌ MISSING | Not in MILESTONES.md |
-| v11.2 | ❌ | ❌ | ❌ | ❌ | ❌ MISSING | No archives at all, only INTENT ref |
-| v11.3 | ✅ | ✅ | ✅ | ✅ | ✅ | OK, but at bottom of file |
+```
+/bgsd-* command invoked
+    │
+    ▼
+enrichCommand() called
+    │
+    ├──→ getProjectState()
+    │       ├──→ parseState()      → readFileSync STATE.md → Map cache
+    │       ├──→ parseRoadmap()    → readFileSync ROADMAP.md → Map cache
+    │       ├──→ parseConfig()     → readFileSync config.json → Map cache
+    │       ├──→ parseProject()    → readFileSync PROJECT.md → Map cache
+    │       ├──→ parseIntent()     → readFileSync INTENT.md → Map cache
+    │       └──→ parsePlans()      → readdirSync + readFileSync *-PLAN.md → Map cache
+    │
+    ├──→ parsePlans() AGAIN (for plan_count derivation)  ← DUPLICATION
+    │
+    ├──→ listSummaryFiles() x3                           ← DUPLICATION
+    │       └──→ readdirSync + filter 3 times
+    │
+    ├──→ evaluateDecisions()
+    │       └──→ 12 pure rules on enrichment object
+    │
+    └──→ Serialize to <bgsd-context> JSON
+```
 
-**\*Critical finding:** The v9.2 MILESTONES.md entry (lines 31-53) contains v9.0's description and archive references. The actual v9.2 content (CLI tool integrations) appears only in PROJECT.md.
+**Problem:** On a cold start (first invocation after cache clear), the enricher:
+- Reads 6 markdown files from disk
+- Calls `parsePlans()` 3 times (once in getProjectState, twice in enricher)
+- Calls `listSummaryFiles()` 3 times (scanning phase directory each time)
+- All results are Map-cached but only for this process invocation
+
+### Target Enricher Flow (After v12.0)
+
+```
+/bgsd-* command invoked
+    │
+    ▼
+enrichCommand() called
+    │
+    ├──→ getProjectState()
+    │       │
+    │       ├──→ DataStore.isValid(cwd)?
+    │       │       │
+    │       │     yes → Return pre-built enrichment from DataStore
+    │       │       │     (single row read, ~0.1ms)
+    │       │       │
+    │       │      no → Parse all files (existing logic)
+    │       │             │
+    │       │             ├──→ Write structured rows to DataStore
+    │       │             └──→ Pre-compute enrichment fields
+    │       │                   ├──→ plan_count, summary_count  (SQL COUNT)
+    │       │                   ├──→ incomplete_plans            (SQL query)
+    │       │                   ├──→ task_types                  (SQL query)
+    │       │                   └──→ Store pre-computed enrichment
+    │       │
+    │       └──→ Return frozen project state
+    │
+    ├──→ evaluateDecisions()  ← Same pure functions, richer inputs
+    │
+    └──→ Serialize to <bgsd-context> JSON
+```
+
+**Improvement:** On warm starts (DataStore cache valid):
+- Zero file I/O — all data from SQLite
+- Zero duplication — plan_count and summary_count are pre-computed
+- Single validation check (git-hash + mtime) instead of 6 file reads
+- Enrichment result is pre-computed and cached as a JSON blob
+
+### Memory Store Data Flow (Migration)
+
+```
+BEFORE:                              AFTER:
+.planning/memory/                    .planning/memory/
+  decisions.json ──read/write──→       decisions.json ──read────→ (authority)
+  lessons.json   ──read/write──→       lessons.json   ──read────→ (authority)
+  trajectory.json──read/write──→       trajectory.json──read────→ (authority)
+  bookmarks.json ──read/write──→       bookmarks.json ──read────→ (authority)
+
+                                     DataStore (SQLite):
+                                       decisions ──────→ indexed, queryable
+                                       lessons ────────→ indexed, queryable
+                                       trajectories ──→ indexed, queryable
+                                       bookmarks ─────→ indexed, queryable
+
+Write path:
+  1. Write to JSON file (existing behavior, preserves git tracking)
+  2. Write to DataStore table (for query acceleration)
+
+Read path (queries):
+  1. Check DataStore first (SQL WHERE/ORDER BY/LIMIT)
+  2. Fall back to JSON file read + in-memory filter (existing behavior)
+
+Migration (one-time):
+  On first DataStore init, scan .planning/memory/*.json
+  Import all entries into corresponding SQLite tables
+  Store migration timestamp in _meta table
+```
+
+### File Watcher Integration
+
+```
+File change detected by fs.watch
+    │
+    ▼
+Debounce (200ms, existing)
+    │
+    ▼
+Filter out self-writes (existing)
+    │
+    ▼
+invalidateAll(cwd)        ← Existing: clears all Map caches
+    │
+    ▼
+dataStore.invalidateFile(  ← NEW: marks DataStore entries stale
+  cwd, changedFilename     
+)
+    │
+    ▼
+Next enricher call will:
+  - Miss Map L1 (cleared)
+  - Miss DataStore L2 (marked stale)
+  - Re-parse from filesystem
+  - Re-populate both caches
+```
+
+<!-- /section -->
+
+---
+
+<!-- section: scaling -->
+## Schema Design
+
+### Structured Tables
+
+```sql
+-- Meta table for schema version and git hash tracking
+CREATE TABLE IF NOT EXISTS _meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- Phases extracted from ROADMAP.md
+CREATE TABLE IF NOT EXISTS phases (
+  cwd          TEXT NOT NULL,
+  number       TEXT NOT NULL,       -- "73", "73.1"
+  name         TEXT NOT NULL,
+  status       TEXT NOT NULL,       -- 'complete', 'incomplete'
+  goal         TEXT,
+  plan_count   INTEGER DEFAULT 0,
+  depends_on   TEXT,                -- JSON array of phase numbers
+  git_hash     TEXT NOT NULL,       -- git hash when cached
+  file_mtime   REAL NOT NULL,       -- ROADMAP.md mtime when cached
+  PRIMARY KEY (cwd, number)
+);
+
+-- Plans extracted from PLAN.md files
+CREATE TABLE IF NOT EXISTS plans (
+  cwd          TEXT NOT NULL,
+  phase_number TEXT NOT NULL,
+  plan_number  TEXT NOT NULL,       -- "01", "02"
+  path         TEXT NOT NULL,       -- relative path to PLAN.md
+  objective    TEXT,
+  task_count   INTEGER DEFAULT 0,
+  has_summary  INTEGER DEFAULT 0,   -- 1 if matching SUMMARY.md exists
+  frontmatter  TEXT,                -- JSON blob of frontmatter
+  git_hash     TEXT NOT NULL,
+  file_mtime   REAL NOT NULL,
+  PRIMARY KEY (cwd, phase_number, plan_number)
+);
+
+-- Tasks extracted from PLAN.md <task> elements
+CREATE TABLE IF NOT EXISTS tasks (
+  cwd          TEXT NOT NULL,
+  phase_number TEXT NOT NULL,
+  plan_number  TEXT NOT NULL,
+  task_number  INTEGER NOT NULL,    -- 1-indexed
+  name         TEXT,
+  type         TEXT DEFAULT 'auto', -- 'auto', 'checkpoint:decision', etc.
+  files        TEXT,                -- JSON array
+  action       TEXT,
+  verify       TEXT,
+  done         TEXT,
+  status       TEXT DEFAULT 'pending', -- 'pending', 'complete'
+  PRIMARY KEY (cwd, phase_number, plan_number, task_number),
+  FOREIGN KEY (cwd, phase_number, plan_number) REFERENCES plans(cwd, phase_number, plan_number)
+);
+
+-- Requirements from REQUIREMENTS.md
+CREATE TABLE IF NOT EXISTS requirements (
+  cwd          TEXT NOT NULL,
+  req_id       TEXT NOT NULL,       -- "TEST-01", "CMD-03"
+  text         TEXT NOT NULL,
+  status       TEXT NOT NULL,       -- 'validated', 'active', 'oos'
+  phase        TEXT,                -- phase number if mapped
+  plan         TEXT,                -- plan number if mapped
+  git_hash     TEXT NOT NULL,
+  PRIMARY KEY (cwd, req_id)
+);
+
+-- Decisions from memory store + STATE.md
+CREATE TABLE IF NOT EXISTS decisions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  cwd          TEXT NOT NULL,
+  phase        TEXT,
+  text         TEXT NOT NULL,
+  timestamp    TEXT NOT NULL,       -- ISO 8601
+  source       TEXT NOT NULL        -- 'state.md', 'memory'
+);
+CREATE INDEX IF NOT EXISTS idx_decisions_cwd ON decisions(cwd);
+CREATE INDEX IF NOT EXISTS idx_decisions_phase ON decisions(cwd, phase);
+
+-- Lessons from memory store
+CREATE TABLE IF NOT EXISTS lessons (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  cwd          TEXT NOT NULL,
+  phase        TEXT,
+  text         TEXT NOT NULL,
+  timestamp    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lessons_cwd ON lessons(cwd);
+
+-- Trajectories from memory store
+CREATE TABLE IF NOT EXISTS trajectories (
+  id           TEXT NOT NULL,       -- "tj-abc123" format
+  cwd          TEXT NOT NULL,
+  category     TEXT NOT NULL,       -- 'decision', 'observation', etc.
+  text         TEXT NOT NULL,
+  phase        TEXT,
+  confidence   TEXT,                -- 'high', 'medium', 'low'
+  tags         TEXT,                -- JSON array
+  references   TEXT,                -- JSON array
+  timestamp    TEXT NOT NULL,
+  PRIMARY KEY (id, cwd)
+);
+CREATE INDEX IF NOT EXISTS idx_traj_cwd ON trajectories(cwd);
+CREATE INDEX IF NOT EXISTS idx_traj_category ON trajectories(cwd, category);
+
+-- Session state (replacing parts of STATE.md for machine access)
+CREATE TABLE IF NOT EXISTS session_state (
+  cwd          TEXT PRIMARY KEY,
+  phase        TEXT,
+  current_plan TEXT,
+  progress     INTEGER,
+  status       TEXT,
+  last_activity TEXT,
+  git_hash     TEXT NOT NULL,
+  updated_at   TEXT NOT NULL        -- ISO 8601
+);
+
+-- Pre-computed enrichment cache
+CREATE TABLE IF NOT EXISTS enrichment_cache (
+  cwd          TEXT PRIMARY KEY,
+  data         TEXT NOT NULL,       -- Full JSON enrichment blob
+  git_hash     TEXT NOT NULL,
+  computed_at  TEXT NOT NULL
+);
+```
+
+### Schema Sizing
+
+| Table | Expected Rows (per project) | Growth Rate |
+|-------|---------------------------|-------------|
+| _meta | 3-5 | Static |
+| phases | 5-20 | Per milestone |
+| plans | 10-50 | Per phase |
+| tasks | 50-200 | Per plan |
+| requirements | 20-100 | Per milestone |
+| decisions | 50-500 | Per session |
+| lessons | 20-200 | Per milestone |
+| trajectories | 20-200 | Per session |
+| session_state | 1 | Static |
+| enrichment_cache | 1 | Static |
+
+Total: Under 2000 rows for a mature project. SQLite handles this trivially.
 
 <!-- /section -->
 
 ---
 
 <!-- section: anti_patterns -->
-## Anti-Patterns Found
+## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Append-Only MILESTONES.md
+### Anti-Pattern 1: SQLite as Source of Truth
 
-**What happened:** New milestones were appended at the bottom or inserted at random positions rather than maintained in chronological order.  
-**Why it's wrong:** Makes it impossible to scan the file top-to-bottom and understand project history.  
-**Do this instead:** Always insert new milestone entries at the top (newest-first) during milestone wrapup. Add to the wrapup workflow as an explicit step.
+**What people do:** Write data to SQLite first and generate markdown from it.  
+**Why it's wrong:** Markdown files are git-tracked, human-readable, and consumed by AI agents. Making SQLite authoritative means git diffs become meaningless and .planning/ directories become useless without the SQLite database.  
+**Do this instead:** Always write markdown first, then update SQLite as a derived cache. If SQLite is deleted, everything should rebuild transparently.
 
-### Anti-Pattern 2: Copy-Paste Milestone Entries
+### Anti-Pattern 2: Direct Database Access from Multiple Modules
 
-**What happened:** v9.2 entry was created by copying v9.0's entry and only updating the heading, not the body.  
-**Why it's wrong:** Creates inaccurate historical records.  
-**Do this instead:** Generate milestone entries from archived ROADMAP data during wrapup. The `summary:generate` command (v11.3) could be extended to produce MILESTONES.md entries.
+**What people do:** Import DatabaseSync in every module and run raw SQL.  
+**Why it's wrong:** Schema coupling spreads across the codebase, making migrations impossible and SQL injection likely.  
+**Do this instead:** ALL database access goes through DataStore class methods. No raw SQL outside DataStore. The existing CacheEngine pattern (encapsulated backend) is the model.
 
-### Anti-Pattern 3: Keeping Resolved Items in Active Sections
+### Anti-Pattern 3: Eager Table Population on Startup
 
-**What happened:** Struck-through out-of-scope items (line 211), stale module counts, and 37 accumulated decisions pollute active planning sections.  
-**Why it's wrong:** Every token spent reading resolved/stale content is wasted. Adds noise for both humans and AI agents.  
-**Do this instead:** Archive resolved items into `<details>` blocks or into separate files. Keep active sections lean — only current/actionable content visible.
+**What people do:** Parse every markdown file and populate every table on first CLI invocation.  
+**Why it's wrong:** Most CLI commands need only 1-2 tables worth of data. Parsing all files to populate all tables adds 100-500ms startup cost that most invocations don't benefit from.  
+**Do this instead:** Lazy population — tables are populated when first queried. Use the existing parser call chain: when `parseState()` is called, it populates the `session_state` table. When `parsePlans()` is called, it populates `plans` and `tasks` tables.
 
-### Anti-Pattern 4: Missing Milestone Entries
+### Anti-Pattern 4: Breaking the Map Fallback Path
 
-**What happened:** 6 milestones (v8.0, v8.1, v9.1, v11.0, v11.1, v11.2) were shipped but never added to MILESTONES.md.  
-**Why it's wrong:** MILESTONES.md is supposed to be the authoritative history. Missing entries break traceability.  
-**Do this instead:** Make MILESTONES.md entry creation a required step in the milestone wrapup workflow — not optional, not "do it later."
+**What people do:** Make SQLite a hard dependency and remove Map-based caching.  
+**Why it's wrong:** Map fallback exists because `node:sqlite` is Stability 1.2 (Release Candidate). Removing it breaks backward compatibility with Node <22.5 and removes the safety net if SQLite has bugs.  
+**Do this instead:** Every DataStore consumer uses `if (store) { ... }` guards. The Map-based path remains the default path. DataStore is a performance accelerator, not a requirement.
+
+### Anti-Pattern 5: Storing Raw Markdown in SQLite
+
+**What people do:** Store the entire ROADMAP.md content as a TEXT blob in SQLite and re-parse it from there.  
+**Why it's wrong:** This is what the existing `file_cache` table already does. Structured tables should store *parsed, queryable data* — not raw file content. Having both raw blobs and structured rows creates confusion about which to read.  
+**Do this instead:** Structured tables store extracted fields only (name, status, count). The `file_cache` table in CacheEngine already handles raw content caching. Don't duplicate it.
+
+### Anti-Pattern 6: Schema Migrations That Drop Data
+
+**What people do:** `DROP TABLE IF EXISTS phases; CREATE TABLE phases (...)` on version bump.  
+**Why it's wrong:** Destroys cached data unnecessarily. Since markdown is the authority, the data would be re-parsed, but this causes a cold-start performance hit on every upgrade.  
+**Do this instead:** Forward-only migrations: `ALTER TABLE ... ADD COLUMN`, `CREATE TABLE IF NOT EXISTS`. Never DROP in normal operation.
 
 <!-- /section -->
 
 ---
 
 <!-- section: integration -->
-## Recommendations for Execution
+## Integration Points
 
-### Phase Structure Recommendation
+### New vs. Modified Components
 
-This is purely non-behavioral cleanup — no code changes, no test changes. It can be done in a single phase with 2-3 plans:
+| Component | Type | Files | Dependencies |
+|-----------|------|-------|-------------|
+| DataStore | **NEW** | `src/lib/datastore.js` | `node:sqlite` (optional), `src/lib/cache.js` (for db path pattern) |
+| QueryAPI | **NEW** | `src/lib/query.js` | DataStore |
+| MemoryMigrator | **NEW** | `src/lib/memory-migrator.js` | DataStore, `src/commands/memory.js` (for store paths) |
+| state.js parser | MODIFIED | `src/plugin/parsers/state.js` | DataStore (optional) |
+| roadmap.js parser | MODIFIED | `src/plugin/parsers/roadmap.js` | DataStore (optional) |
+| plan.js parser | MODIFIED | `src/plugin/parsers/plan.js` | DataStore (optional) |
+| project-state.js | MODIFIED | `src/plugin/project-state.js` | DataStore (optional) |
+| command-enricher.js | MODIFIED | `src/plugin/command-enricher.js` | DataStore (via project-state) |
+| file-watcher.js | MODIFIED | `src/plugin/file-watcher.js` | DataStore (for invalidation) |
+| memory.js | MODIFIED | `src/commands/memory.js` | DataStore (dual-write) |
+| decision-rules.js | MODIFIED | `src/lib/decision-rules.js` | New rules consuming DataStore queries |
+| parsers/index.js | MODIFIED | `src/plugin/parsers/index.js` | DataStore (invalidateAll extension) |
 
-**Plan 1: Mechanical Fixes (Wave 1 + Wave 2)**  
-- All formatting fixes (F-01 through F-09)  
-- All stale data updates (D-01 through D-09)  
-- ~15 issues, ~50 minutes, fully autonomous
+### Internal Boundaries
 
-**Plan 2: MILESTONES.md Structural Overhaul (Wave 3 core)**  
-- Reorder entries chronologically  
-- Fix v9.2 entry content  
-- Add 5-6 missing milestone entries (reconstruct from archived ROADMAPs)  
-- ~60 minutes, mostly autonomous (may need v11.2 status clarification)
+| Boundary | Communication | Direction | Notes |
+|----------|---------------|-----------|-------|
+| Parsers → DataStore | Direct method calls | Write-through | Parsers call `store.setPhases()`, `store.setPlans()`, etc. |
+| ProjectState → DataStore | Direct method calls | Read | `getProjectState()` checks DataStore before calling parsers |
+| Enricher → ProjectState | Existing facade | Read | No change — enricher still calls getProjectState() |
+| FileWatcher → DataStore | Method call on invalidation | Write | `dataStore.invalidateFile(cwd, filename)` |
+| Memory.js → DataStore | Dual-write | Write | After JSON file write, also write to DataStore table |
+| QueryAPI → DataStore | Direct method calls | Read | Exposes high-level query functions for CLI commands |
+| CacheEngine → DataStore | **None** | Isolated | CacheEngine keeps its own db connection and tables (file_cache, research_cache). DataStore manages a separate database or separate tables in the same database |
 
-**Plan 3: PROJECT.md Streamlining (Wave 3 optional)**  
-- Archive old decisions into `<details>` block  
-- Archive old requirements into `<details>` block  
-- Reorder `<details>` milestone sections chronologically  
-- Fix REQUIREMENTS.md reference  
-- ~30 minutes, fully autonomous
+### Database Location Decision
 
-### Verification Criteria
+**Option A: Separate database file** — DataStore uses `~/.config/oc/bgsd-oc/data.db`, CacheEngine keeps `cache.db`.  
+**Option B: Same database file** — DataStore adds tables to the existing `cache.db`.
 
-After all fixes:
-- [ ] Every heading in MILESTONES.md has `✅` prefix and `(Shipped: YYYY-MM-DD)` suffix  
-- [ ] MILESTONES.md entries are ordered newest-first with no gaps  
-- [ ] Every milestone with archived files has a matching MILESTONES.md entry  
-- [ ] All archive paths in MILESTONES.md point to files that exist  
-- [ ] PROJECT.md has no orphaned HTML tags (paired `<details>`/`</details>`)  
-- [ ] All numeric claims in PROJECT.md Context section match filesystem reality  
-- [ ] Out-of-scope section has no struck-through or delivered items  
-- [ ] Key Decisions table has consistent 3-column format  
-- [ ] INTENT.md history is ordered chronologically (newest-first)  
+**Recommendation: Option B (same database)**. Reasons:
+1. Single SQLite connection — no overhead from opening two databases
+2. DataStore can reuse CacheEngine's DatabaseSync instance via constructor injection
+3. Schema versioning via `_meta` table doesn't conflict with CacheEngine's tables
+4. Single backup/delete path for troubleshooting
 
----
+**However**, DataStore and CacheEngine must remain architecturally separate classes. DataStore does NOT inherit from or compose CacheEngine. They share a database connection, not an API.
+
+### Project-Local vs. Global Database
+
+The existing CacheEngine stores its database globally (`~/.config/oc/bgsd-oc/cache.db`) — shared across all projects. This is correct for file content caching.
+
+For structured planning data, **project-local storage** is required because:
+- Phase/plan/task data is project-specific
+- Memory stores are per-project (.planning/memory/)
+- Git-hash invalidation is per-repository
+
+**Decision:** DataStore uses the project's `.planning/.cache.db` file (gitignored). This keeps structured data co-located with the project it describes. The CacheEngine's global `cache.db` continues unchanged for file content caching.
+
+```
+~/.config/oc/bgsd-oc/cache.db      ← CacheEngine (global file cache)
+/project/.planning/.cache.db        ← DataStore (project-specific structured data)
+```
+
+Add `.cache.db` to `.planning/.gitignore` (or the project's `.gitignore`).
+
+## Build Order (Dependency-Aware)
+
+The components have a strict dependency chain. Build in this order:
+
+### Wave 1: Foundation (no downstream dependents yet)
+
+| # | Component | Depends On | Enables |
+|---|-----------|------------|---------|
+| 1 | **DataStore class** | node:sqlite (existing) | Everything else |
+| 2 | **Schema + migrations** | DataStore | Table consumers |
+| 3 | **Git-hash invalidation** | DataStore, git.js | Cache validity checks |
+
+DataStore must be built first — it's the foundation all other components depend on. Include Map fallback (return null from `getDataStore()` when SQLite unavailable).
+
+### Wave 2: Parser Integration (depends on Wave 1)
+
+| # | Component | Depends On | Enables |
+|---|-----------|------------|---------|
+| 4 | **Parser write-through** (state, roadmap, plan) | DataStore | Structured cache population |
+| 5 | **project-state.js enhancement** | Parser write-through | DataStore read path |
+| 6 | **parsers/index.js invalidation** | DataStore | File watcher integration |
+| 7 | **file-watcher.js extension** | DataStore, parsers/index.js | Change-driven invalidation |
+
+Parsers can be modified independently (state.js, roadmap.js, plan.js are independent of each other). The index.js and file-watcher changes depend on at least one parser being done.
+
+### Wave 3: Enricher Acceleration (depends on Wave 2)
+
+| # | Component | Depends On | Enables |
+|---|-----------|------------|---------|
+| 8 | **Enricher V2** — read from DataStore | project-state enhanced, DataStore | Eliminates 3x duplication |
+| 9 | **enrichment_cache table** | Enricher V2, DataStore | Pre-computed enrichment |
+
+This is the highest-impact change — eliminates the 3x listSummaryFiles and 2x parsePlans duplication in command-enricher.js.
+
+### Wave 4: Memory Migration (independent, can parallel with Wave 2-3)
+
+| # | Component | Depends On | Enables |
+|---|-----------|------------|---------|
+| 10 | **Memory tables schema** | DataStore | Memory store queries |
+| 11 | **MemoryMigrator** | Memory tables, memory.js | One-time JSON import |
+| 12 | **memory.js dual-write** | Memory tables, MemoryMigrator | Ongoing sync |
+| 13 | **QueryAPI for memory** | Memory tables | CLI query commands |
+
+Memory migration is largely independent of parser integration. The main dependency is DataStore existing.
+
+### Wave 5: Decision Rules Expansion (depends on Wave 2-3)
+
+| # | Component | Depends On | Enables |
+|---|-----------|------------|---------|
+| 14 | **New decision rules** (6-8 rules) | DataStore queries, enricher V2 | Richer workflow routing |
+| 15 | **Enricher decision integration** | New rules, enricher V2 | Pre-computed decisions |
+
+New rules consume SQLite-backed state (e.g., "has this phase been attempted before?", "what's the average task completion rate?").
+
+### Wave 6: Session State (depends on Wave 2)
+
+| # | Component | Depends On | Enables |
+|---|-----------|------------|---------|
+| 16 | **session_state table population** | DataStore, state parser | Cross-invocation session |
+| 17 | **STATE.md as generated view** | session_state, state parser | Reduced STATE.md manipulation |
+
+This is the most architecturally aggressive change — making STATE.md a generated output rather than the primary store for session state. It should be last because it changes the authority model for session data.
 
 ## Sources
 
-1. **MILESTONES.md** — 388 lines, 15 milestone entries examined  
-2. **PROJECT.md** — 282 lines, all sections examined  
-3. **STATE.md** — 52 lines, all sections examined  
-4. **config.json** — 8 lines, all keys examined  
-5. **INTENT.md** — 102 lines, history section examined  
-6. **Filesystem** — `ls .planning/milestones/` for archive cross-reference (71 files, 21 version prefixes)  
-7. **Filesystem** — `ls src/lib/`, `ls src/commands/`, `ls commands/`, `ls workflows/` for count verification  
+1. **src/lib/cache.js** — Existing CacheEngine with SQLiteBackend and MapBackend (752 lines, reviewed in full)
+2. **src/plugin/parsers/*.js** — 6 in-process parsers with Map caches (state: 101 lines, roadmap: 220 lines, plan: 258 lines, config: 155 lines)
+3. **src/plugin/command-enricher.js** — Command enrichment with 3x duplication identified (340 lines)
+4. **src/plugin/project-state.js** — Unified facade composing 6 parsers (67 lines)
+5. **src/plugin/file-watcher.js** — fs.watch with invalidateAll() integration (202 lines)
+6. **src/commands/memory.js** — JSON file-based memory stores (378 lines)
+7. **src/lib/decision-rules.js** — 12 pure decision functions with registry (467 lines)
+8. **src/plugin/context-builder.js** — System prompt and compaction context builders (387 lines)
+9. **src/plugin/tools/bgsd-progress.js** — STATE.md mutation with file locking (324 lines)
+10. **Node.js v25.8.1 SQLite documentation** — Stability 1.2 Release Candidate, DatabaseSync API, SQLTagStore, Session/Changeset support
+11. **PROJECT.md** — v12.0 milestone context, architecture constraints, key decisions (293 lines)
 
 ---
 
-*Architecture research for: Planning Artifact Quality Audit*  
-*Researched: 2026-03-13*  
-*Confidence: HIGH — All findings verified against filesystem*
+*Architecture research for: SQLite-First Data Layer Integration*  
+*Researched: 2026-03-14*  
+*Confidence: HIGH — All findings verified against source code and Node.js documentation*
+
+<!-- /section -->

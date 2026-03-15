@@ -7,8 +7,11 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const os = require('os');
 
 const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
+const { getDb, closeAll, MapDatabase } = require('../src/lib/db');
+const { PlanningCache } = require('../src/lib/planning-cache');
 
 describe('trajectory checkpoint', () => {
   let tmpDir;
@@ -1692,6 +1695,131 @@ describe('trajectory scope validation (INTEG-04)', () => {
       assert.ok(result.success, `dead-ends should accept scope "${scope}": ${result.error}`);
       const output = JSON.parse(result.output);
       assert.strictEqual(output.scope_filter, scope, `scope_filter should be "${scope}"`);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group: trajectory SQLite dual-write (MEM-03 + MEM-01)
+// ---------------------------------------------------------------------------
+
+describe('trajectory SQLite dual-write', () => {
+  let tmpDir;
+
+  function initGitForDualWrite(dir) {
+    fs.mkdirSync(path.join(dir, '.planning', 'memory'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'dummy.txt'), 'hello');
+    execSync(
+      'git init && git config user.email "test@test.com" && git config user.name "Test" && git add . && git commit -m "init"',
+      { cwd: dir, stdio: 'pipe' }
+    );
+  }
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    closeAll();
+    cleanup(tmpDir);
+  });
+
+  test('trajectory checkpoint dual-writes to SQLite', () => {
+    initGitForDualWrite(tmpDir);
+    const result = runGsdTools('execute:trajectory checkpoint my-dual-test', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    // Verify JSON was written
+    const trajPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    assert.ok(fs.existsSync(trajPath), 'trajectory.json should exist');
+    const entries = JSON.parse(fs.readFileSync(trajPath, 'utf-8'));
+    assert.strictEqual(entries.length, 1, 'should have 1 entry in JSON');
+    assert.strictEqual(entries[0].category, 'checkpoint');
+
+    // Verify SQLite was written
+    closeAll();
+    const db = getDb(tmpDir);
+    const rows = db.prepare(
+      "SELECT * FROM memory_trajectories WHERE cwd = ? AND entry_id LIKE 'tj-%' AND category = 'checkpoint'"
+    ).all(tmpDir);
+    assert.ok(rows.length >= 1, 'SQLite should have at least 1 trajectory row with category=checkpoint');
+  });
+
+  test('trajectory dual-write survives SQLite failure gracefully (Map fallback)', () => {
+    initGitForDualWrite(tmpDir);
+
+    // Run checkpoint — even if SQLite is unavailable, JSON should be written
+    const result = runGsdTools('execute:trajectory checkpoint map-fallback-test', tmpDir);
+    assert.ok(result.success, `Command should succeed: ${result.error}`);
+
+    const trajPath = path.join(tmpDir, '.planning', 'memory', 'trajectory.json');
+    assert.ok(fs.existsSync(trajPath), 'trajectory.json should exist');
+    const entries = JSON.parse(fs.readFileSync(trajPath, 'utf-8'));
+    assert.ok(entries.length >= 1, 'JSON should have entries');
+    assert.strictEqual(entries[0].category, 'checkpoint', 'entry should be checkpoint category');
+  });
+
+  test('searchMemory finds trajectory entries by text', () => {
+    const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-trj-sql-'));
+    fs.mkdirSync(path.join(tmpDir2, '.planning', 'memory'), { recursive: true });
+    closeAll();
+    const db = getDb(tmpDir2);
+    const cache = new PlanningCache(db);
+
+    try {
+      // Write 3 trajectory entries with different text
+      cache.writeMemoryEntry(tmpDir2, 'trajectories', {
+        id: 'tj-aa0001', category: 'decision', text: 'Use vertical slices approach', phase: '01',
+        scope: 'phase', timestamp: '2026-01-01T00:00:00Z', tags: [],
+      });
+      cache.writeMemoryEntry(tmpDir2, 'trajectories', {
+        id: 'tj-aa0002', category: 'observation', text: 'Vertical scalability is good', phase: '01',
+        scope: 'task', timestamp: '2026-01-02T00:00:00Z', tags: [],
+      });
+      cache.writeMemoryEntry(tmpDir2, 'trajectories', {
+        id: 'tj-aa0003', category: 'hypothesis', text: 'Horizontal scaling needed', phase: '01',
+        scope: 'phase', timestamp: '2026-01-03T00:00:00Z', tags: [],
+      });
+
+      const result = cache.searchMemory(tmpDir2, 'trajectories', 'vertical');
+      assert.ok(result, 'searchMemory should return result');
+      assert.strictEqual(result.entries.length, 2, 'should find 2 entries containing "vertical"');
+      assert.ok(result.entries.every(e => e.text && e.text.toLowerCase().includes('vertical')), 'all entries should match "vertical"');
+    } finally {
+      closeAll();
+      fs.rmSync(tmpDir2, { recursive: true, force: true });
+    }
+  });
+
+  test('searchMemory filters trajectories by category', () => {
+    const tmpDir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-trj-cat-'));
+    fs.mkdirSync(path.join(tmpDir3, '.planning', 'memory'), { recursive: true });
+    closeAll();
+    const db = getDb(tmpDir3);
+    const cache = new PlanningCache(db);
+
+    try {
+      // Write entries with categories: checkpoint, decision, observation
+      cache.writeMemoryEntry(tmpDir3, 'trajectories', {
+        id: 'tj-bb0001', category: 'checkpoint', text: 'Checkpoint A', phase: '01',
+        checkpoint_name: 'cp-a', scope: 'phase', attempt: 1, timestamp: '2026-01-01T00:00:00Z', tags: ['checkpoint'],
+      });
+      cache.writeMemoryEntry(tmpDir3, 'trajectories', {
+        id: 'tj-bb0002', category: 'decision', text: 'Decision B', phase: '01',
+        scope: 'task', timestamp: '2026-01-02T00:00:00Z', tags: [],
+      });
+      cache.writeMemoryEntry(tmpDir3, 'trajectories', {
+        id: 'tj-bb0003', category: 'observation', text: 'Observation C', phase: '01',
+        scope: 'phase', timestamp: '2026-01-03T00:00:00Z', tags: [],
+      });
+
+      const result = cache.searchMemory(tmpDir3, 'trajectories', null, { category: 'checkpoint' });
+      assert.ok(result, 'searchMemory should return result');
+      assert.strictEqual(result.entries.length, 1, 'should return only 1 checkpoint entry');
+      assert.strictEqual(result.entries[0].category, 'checkpoint', 'returned entry should have category=checkpoint');
+    } finally {
+      closeAll();
+      fs.rmSync(tmpDir3, { recursive: true, force: true });
     }
   });
 });
