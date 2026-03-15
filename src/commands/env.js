@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
-const { searchRipgrep, transformJson } = require('../lib/cli-tools');
+const { searchRipgrep, transformJson, parseYAML } = require('../lib/cli-tools');
 
 // --- Language Manifest Patterns -----------------------------------------------
 
@@ -542,26 +542,28 @@ function detectInfraServices(rootDir) {
     const filePath = path.join(rootDir, file);
     try {
       if (fs.existsSync(filePath)) {
-        // Try ripgrep first for faster extraction of service lines
+        const content = fs.readFileSync(filePath, 'utf-8');
+
+        // Ripgrep pre-filter: if no image/build lines, skip this file entirely
         const rgResult = searchRipgrep('image:|build:', { paths: [filePath] });
-        if (rgResult.success && !rgResult.usedFallback && Array.isArray(rgResult.result) && rgResult.result.length > 0) {
-          // Ripgrep found image/build lines — now parse the file to get service names
-          // (ripgrep gives us context that this file has services, but we still need to
-          // parse the services: block for service names since ripgrep returns image/build lines not service name lines)
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const servicesMatch = content.match(/^services:\s*\n((?:[ \t]+\S.*\n?)*)/m);
-          if (servicesMatch) {
-            const serviceLines = servicesMatch[1].split('\n');
-            for (const line of serviceLines) {
-              const match = line.match(/^[ \t]{2}(\w[\w-]*):/);
-              if (match) {
-                dockerServices.push(match[1]);
-              }
-            }
+        const hasServices = !rgResult.success || rgResult.usedFallback ||
+          (Array.isArray(rgResult.result) && rgResult.result.length > 0);
+        if (!hasServices) continue;
+
+        // Try yq-backed structured parse first
+        let foundViaYq = false;
+        const parsed = parseYAML(content);
+        if (parsed.success && parsed.result && parsed.result.services &&
+            typeof parsed.result.services === 'object') {
+          const names = Object.keys(parsed.result.services);
+          if (names.length > 0) {
+            dockerServices.push(...names);
+            foundViaYq = true;
           }
-        } else {
-          // Fallback: full file read (ripgrep unavailable or no image/build matches)
-          const content = fs.readFileSync(filePath, 'utf-8');
+        }
+
+        // Regex fallback if yq parse failed or returned no services
+        if (!foundViaYq) {
           const servicesMatch = content.match(/^services:\s*\n((?:[ \t]+\S.*\n?)*)/m);
           if (servicesMatch) {
             const serviceLines = servicesMatch[1].split('\n');
@@ -651,14 +653,23 @@ function detectMonorepo(rootDir) {
     const pnpmWsPath = path.join(rootDir, 'pnpm-workspace.yaml');
     if (fs.existsSync(pnpmWsPath)) {
       const content = fs.readFileSync(pnpmWsPath, 'utf-8');
-      const members = [];
-      const packagesMatch = content.match(/packages:\s*\n((?:\s*-\s*.+\n?)*)/);
-      if (packagesMatch) {
-        for (const line of packagesMatch[1].split('\n')) {
-          const m = line.match(/^\s*-\s*['"]?(.+?)['"]?\s*$/);
-          if (m) members.push(m[1]);
+      let members = [];
+
+      // Try yq-backed structured parse first
+      const parsed = parseYAML(content);
+      if (parsed.success && parsed.result && Array.isArray(parsed.result.packages)) {
+        members = parsed.result.packages;
+      } else {
+        // Regex fallback if yq parse failed or returned no packages
+        const packagesMatch = content.match(/packages:\s*\n((?:\s*-\s*.+\n?)*)/);
+        if (packagesMatch) {
+          for (const line of packagesMatch[1].split('\n')) {
+            const m = line.match(/^\s*-\s*['"]?(.+?)['"]?\s*$/);
+            if (m) members.push(m[1]);
+          }
         }
       }
+
       return { type: 'pnpm-workspaces', members };
     }
   } catch {

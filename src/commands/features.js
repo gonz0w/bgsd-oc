@@ -15,6 +15,8 @@ const { estimateTokens, estimateJsonTokens, checkBudget } = require('../lib/cont
 const { readIntel } = require('../lib/codebase-intel');
 const { getTransitiveDependents, buildDependencyGraph } = require('../lib/deps');
 const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS, progressBar, colorByPercent } = require('../lib/format');
+const { catWithHighlight } = require('../lib/cli-tools');
+const { isToolEnabled } = require('../lib/cli-tools/fallback');
 
 function cmdSessionDiff(cwd, raw) {
   // Get last activity from STATE.md
@@ -64,7 +66,32 @@ function cmdSessionDiff(cwd, raw) {
   const state = filesChanged.filter(f => f.includes('STATE'));
   const roadmap = filesChanged.filter(f => f.includes('ROADMAP'));
 
-  output({
+  // bat-enhanced diff display (silent fallback when bat unavailable/disabled)
+  let diff_highlighted = undefined;
+  if (isToolEnabled('bat')) {
+    const os = require('os');
+    const crypto = require('crypto');
+    let tempFile = null;
+    try {
+      const diffResult = execGit(cwd, ['diff', '--stat', `--since=${since}`, '--', '.planning/']);
+      if (diffResult.exitCode === 0 && diffResult.stdout && diffResult.stdout.trim()) {
+        tempFile = path.join(os.tmpdir(), `bgsd-session-diff-${crypto.randomBytes(8).toString('hex')}.diff`);
+        fs.writeFileSync(tempFile, diffResult.stdout, { encoding: 'utf8', mode: 0o600 });
+        const highlighted = catWithHighlight(tempFile, { language: 'diff', style: 'numbers,grid', color: 'auto' });
+        if (highlighted.success) {
+          diff_highlighted = highlighted.result;
+        }
+      }
+    } catch {
+      // Silent fallback — bat display is enhancement only
+    } finally {
+      if (tempFile) {
+        try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  const result = {
     since,
     commit_count: changes.length,
     commits: changes.slice(0, 20),
@@ -75,7 +102,10 @@ function cmdSessionDiff(cwd, raw) {
       state_updates: state.length,
       roadmap_updates: roadmap.length,
     },
-  }, raw);
+  };
+  if (diff_highlighted !== undefined) result.diff_highlighted = diff_highlighted;
+
+  output(result, raw);
 }
 
 function cmdContextBudget(cwd, planPath, raw) {
@@ -771,7 +801,36 @@ function cmdRollbackInfo(cwd, planId, raw) {
     }
   }
 
-  output({
+  // bat-enhanced diff display for rollback info (silent fallback when bat unavailable/disabled)
+  let diff_highlighted = undefined;
+  if (isToolEnabled('bat') && commitDetails.length > 0) {
+    const os = require('os');
+    const crypto = require('crypto');
+    let tempFile = null;
+    try {
+      // Build a diff summary string from commit details
+      const diffLines = commitDetails.map(c => {
+        const fileList = c.files.map(f => `  M ${f}`).join('\n');
+        return `commit ${c.sha} — ${c.subject}\n${fileList}`;
+      }).join('\n\n');
+      if (diffLines.trim()) {
+        tempFile = path.join(os.tmpdir(), `bgsd-rollback-diff-${crypto.randomBytes(8).toString('hex')}.diff`);
+        fs.writeFileSync(tempFile, diffLines, { encoding: 'utf8', mode: 0o600 });
+        const highlighted = catWithHighlight(tempFile, { language: 'diff', style: 'numbers,grid' });
+        if (highlighted.success) {
+          diff_highlighted = highlighted.result;
+        }
+      }
+    } catch {
+      // Silent fallback — bat display is enhancement only
+    } finally {
+      if (tempFile) {
+        try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  const result = {
     found: true,
     plan_id: planId,
     summary_path: summaryPath,
@@ -781,7 +840,10 @@ function cmdRollbackInfo(cwd, planId, raw) {
       ? `git revert --no-commit ${allCommits.map(c => c.slice(0, 7)).join(' ')} && git commit -m "rollback: revert plan ${planId}"`
       : null,
     warning: 'Review the commits above before running rollback. This creates a revert commit (non-destructive).',
-  }, raw);
+  };
+  if (diff_highlighted !== undefined) result.diff_highlighted = diff_highlighted;
+
+  output(result, raw);
 }
 
 /**
