@@ -1,9 +1,9 @@
-# Research Summary: SQLite-First Data Layer for v12.1
+# Project Research Summary
 
-**Project:** bgsd-oc v12.0 — SQLite-First Data Layer  
-**Domain:** Node.js CLI development tool with structured planning data persistence  
-**Researched:** 2026-03-14  
-**Confidence:** HIGH (Node.js official docs, SQLite official docs, 2500+ lines of source code analysis)
+**Project:** bGSD Plugin v13.0 — Closed-Loop Agent Evolution
+**Domain:** Node.js CLI plugin — agent lifecycle management, lesson-driven improvement, skill ecosystem integration
+**Researched:** 2026-03-15
+**Confidence:** HIGH (official OC docs verified live, agentskills.io spec verified live, codebase analyzed directly)
 
 <!-- section: compact -->
 <compact_summary>
@@ -11,442 +11,247 @@
      Keep it under 30 lines. Synthesizes all 4 research areas.
      Full sections below are loaded on-demand via extract-sections. -->
 
-**Summary:** Structured SQLite tables (phases, plans, tasks, decisions, sessions) will accelerate the CLI by eliminating 3x file re-parsing and 2x duplication in the enricher, while preserving markdown as the authority format. Zero new npm dependencies — uses node:sqlite (built-in, Stability 1.2). Architecture is "derived cache" (markdown → SQLite), not "source of truth" (SQLite → markdown), ensuring markdown remains the human interface and git-tracked backup.
+**Summary:** v13.0 adds five closed-loop evolution capabilities to the existing bGSD v12.x Node.js CLI plugin: per-project agent overrides (OC-native `.opencode/agents/`), lesson-driven improvement suggestions (`lessons:analyze`), agentskills.io-format skill discovery (filesystem-only — no HTTP API exists), deviation recovery auto-capture (Rule 1 code bugs only), and enhanced research quality scoring (structured profile, not a single aggregate number). Zero new runtime dependencies — all features use existing Node.js 22.5+ built-ins and extend existing src/ modules. Two critical corrections from research: the prior assumption of `.planning/agents/` for overrides is wrong (OC does not load that path), and agentskills.io has no REST API (skills are a filesystem format).
 
-**Recommended stack:** 
-- `node:sqlite DatabaseSync` (Node 22.5+) for synchronous database access
-- `SQLTagStore` (Node 24.9+) for statement caching via tagged templates; fallback to `db.prepare()`
-- `PRAGMA user_version` + embedded migration functions for forward-only schema versioning
-- Per-project database at `.planning/.cache.db` (gitignored) for structured planning data
-- `STRICT` tables for type enforcement; JSON1 extension for structured TEXT columns
+**Recommended stack:** OC native `.opencode/agents/` resolution (no bgsd-tools detection needed), `node:fs` cpSync for skill install, regex-based Markdown extraction for lesson parsing (no LLM), existing `cmdMemoryWrite` SQLite lessons store (dual-write, stable API), `node:child_process` execFileSync + curl for GitHub skill index browse
 
-**Architecture:** Write-through structured cache — markdown files remain authority, parsers write parsed data to SQLite after every successful parse, enricher and CLI commands read from SQLite on warm starts (git-hash invalidation checks), fall back to markdown parsing on cache miss or stale detection. Three-tier caching: Map L1 (per-process), SQLite L2 (cross-invocation), Markdown L3 (authority). Database location: `~/.config/oc/bgsd-oc/cache.db` for CacheEngine (existing), `.planning/.cache.db` for DataStore (new).
+**Architecture:** Additive brownfield integration — 4 new src/ modules (2 libs + 2 command files), 4 modified commands, 3 modified workflows, 2 new directory conventions (`.opencode/agents/`, `.agents/skills/`); no new storage schema; no new npm dependencies
 
 **Top pitfalls:**
-1. **node:sqlite API drift** — `createTagStore()` (v24.9+), `prepare(options)` (v22.18+), `aggregate()` (v22.16+) not in v22.5. Requires feature detection + fallback. Add Node 22.5 to CI test matrix.
-2. **Schema migration in single-file deploy** — `CREATE TABLE IF NOT EXISTS` doesn't add columns. Use `PRAGMA user_version` + embedded migration functions. Test upgrade FROM every intermediate version.
-3. **Stale cache after markdown edits** — git-hash invalidation misses uncommitted changes. Combine git-hash + file mtime + content hash for sub-second accuracy. Hook file-watcher to SQLite invalidation.
-4. **Map/SQLite backend divergence** — structured tables have NO Map equivalent. Accept SQLite-only with graceful degradation on Node <22.5 (return null, fall back to markdown parsing).
-5. **JSON-to-SQLite data loss** — boolean/array/object fields require explicit serialization strategy. Use `STRICT` tables, JSON1 extension, round-trip tests for every data type.
-6. **Database locking under concurrent CLI invocations** — WAL mode + busy timeout (5 second) required. Set `PRAGMA journal_mode=WAL` and `PRAGMA busy_timeout=5000` on first database open.
-7. **Sacred data loss in memory migration** — decisions.json, lessons.json irreplaceable. Dual-write (JSON + SQLite), preserve JSON as backup, verify round-trip before switching read path.
+1. **`.planning/agents/` is a dead path** — OC only loads `.opencode/agents/`; use the correct dir or all local overrides are silently ignored
+2. **12% of public skills are malicious** — show full content diff + security scan + human confirmation before writing ANY skill file
+3. **Lesson analysis on free-form text yields >40% false positives** — migrate to structured schema first; grandfather existing lesson as `Type: environment`
+4. **Deviation capture over-triggers on Rule 3 (environmental) failures** — capture only Rule 1 (code bug) recoveries with a detectable behavioral change
+5. **`autonomousRecoverles` typo in `autoRecovery.js` line 188** — fix before building any capture telemetry (metric never increments as-is)
 
 **Suggested phases:**
-1. **Schema Design & Foundation** — DataStore class, schema versioning, API capability detection, Map fallback, WAL+timeout setup. Addresses pitfalls 1, 2, 6. Delivers: reusable DataStore infrastructure, clear data layer boundaries.
-2. **Parser Integration & Cache Population** — Modify 6 parsers to write-through to SQLite, implement git-hash+mtime invalidation, update project-state.js read path. Addresses pitfall 3, 5. Delivers: warm-start performance, eliminated re-parsing.
-3. **Enricher Acceleration** — Replace 3x `listSummaryFiles()` / 2x `parsePlans()` duplication with pre-computed enrichment from SQLite. Delivers: 5-30x faster enricher on warm starts, eliminate code duplication.
-4. **Memory Store Migration** — Schema for decisions/lessons/trajectories/bookmarks tables, one-time JSON→SQLite import, dual-write path, migration verification. Addresses pitfall 7. Delivers: queryable decision history, cross-entity SQL joins.
-5. **Query Acceleration & New Rules** — Query API layer, new SQL-backed decision rules (6-8 rules consuming DataStore directly), enrichment decision integration. Delivers: richer workflow routing, data-driven decisions.
-6. **Session State Persistence** — session_state table, STATE.md as generated view, cross-invocation metrics. Delivers: accumulated project context, velocity metrics, stuck detection.
+1. **Foundation & Agent Overrides** — `.opencode/agents/` convention, CLI lifecycle commands, YAML validation, content sanitization; prerequisite for all automation that writes agent files
+2. **Lesson Schema & Analysis Pipeline** — structured lesson format migration + `lessons:analyze/suggest/capture/list` CLI + `util:memory` pagination; critical-path dependency for deviation capture
+3. **Skill Discovery & Security** — filesystem-based `skills:list/install/validate/remove`, 41-pattern security scan, human-confirm gate, `new-milestone.md` Step 8.5
+4. **Deviation Capture** — Rule-1-only auto-capture hook in `execute-phase.md`; requires Phase 2 complete
+5. **Enhanced Research Workflow** — `research:score` structured quality profile, `computeWebSourceQualityScore()`; independent of Phases 1-4
 
-**Confidence:** HIGH (Node.js v25.8.1 docs verified, STACK/FEATURES/ARCHITECTURE/PITFALLS research completed, 2500+ lines of source code reviewed) | **Gaps:** WAL mode behavior under extreme concurrency not tested; bundle size impact estimate ±10KB
-
+**Confidence:** HIGH across all 4 research areas | **Gaps:** LobeHub `@lobehub/market-cli` rate-limit fallback behavior under load not validated; OC `mode:` forced-to-subagent behavior needs per-project verification (MEDIUM confidence source)
 </compact_summary>
 <!-- /section -->
 
 <!-- section: executive_summary -->
 ## Executive Summary
 
-The v12.0 milestone proposes a "SQLite-first" data layer to eliminate the existing enricher bottleneck (3x `listSummaryFiles()`, 2x `parsePlans()` duplication) and provide persistent structured access to planning data across CLI invocations. Node.js v22.5+ includes `node:sqlite` (DatabaseSync), a built-in synchronous SQLite binding with zero external dependencies. Research across STACK, FEATURES, ARCHITECTURE, and PITFALLS confirms this is the correct architectural pattern used by successful CLI tools (Fossil, Jujutsu, GitHub CLI) — structured SQLite cache over git-backed markdown files.
+bGSD v13.0 closes the agent evolution loop: execution failures become lessons, lessons drive agent improvement suggestions, and improved agents are applied via project-local overrides that OC resolves natively. Research confirms this can be built with zero new npm dependencies — all five capabilities use Node.js 22.5+ built-ins already required by the project. The architecture is purely additive: 4 new source modules, 4 modified commands, 3 modified workflows.
 
-**Key finding:** The critical success factor is clarity about authority and responsibility. Markdown files ARE the single source of truth for human-facing planning data (users read ROADMAP.md, edit STATE.md, commit PLAN.md to git). SQLite is a "derived index" — a queryable structured cache built from markdown, fully regenerable if deleted, never written directly. This hybrid model preserves git workflows, human readability, and AI agent compatibility while achieving 5-30x performance improvements on warm starts.
+The two most consequential discoveries from research: (1) OC natively resolves per-project agents from `.opencode/agents/` — the project's prior assumption of `.planning/agents/` was incorrect and would have silently broken all local overrides. (2) agentskills.io is a specification site with no HTTP API — skill discovery is a filesystem operation, not a registry query. Both corrections fundamentally reshape the implementation and prevent two significant architectural mistakes before they are built.
 
-**Recommended approach:** Implement in 6 phases, starting with the foundation (DataStore class, schema versioning, API capability detection) and progressing through parser integration, enricher acceleration, memory store migration, query expansion, and finally session state persistence. The first three phases (foundation + parser integration + enricher acceleration) deliver the core value proposition and can be shipped as v12.0. Phases 4-6 add optional query acceleration and persistence features for v12.0 Phase 3+ or v13 depending on schedule.
-
-**Primary risk:** node:sqlite is Stability 1.2 (Release Candidate) — the API evolves across minor Node versions. Between v22.5 (minimum supported) and v25.8 (current), 15+ new methods were added. Mitigation: feature-detect all APIs at runtime, maintain fallback paths for Node <22.5, test against Node 22.5 specifically in CI.
-
----
+The primary risk is the skill ecosystem's verified 12% malicious content rate on public registries. Security-first architecture is non-negotiable: every skill installation path must route through a human-visible content diff, a 41-pattern security scan, and an explicit confirmation gate before any file is written. The lesson improvement pipeline carries a secondary risk — lesson analysis on free-form text produces >40% false positive suggestions, making structured schema migration the mandatory Phase 2 prerequisite, not an afterthought.
+<!-- /section -->
 
 <!-- section: key_findings -->
 ## Key Findings
 
-### Stack Additions
+### Recommended Stack
 
-**Core dependencies:** Zero new npm packages. Everything is built on `node:sqlite` (DatabaseSync, part of Node.js core since v22.5 and bundled as part of the runtime, Stability 1.2 Release Candidate). Existing `src/lib/cache.js` already uses DatabaseSync for the file_cache and research_cache tables; the new structured data layer extends this pattern.
+Zero new runtime dependencies required. All five features are implementable using existing Node.js 22.5+ built-ins already required by the project. OC's native `.opencode/agents/` resolution handles agent override loading — bgsd-tools.cjs only manages the file lifecycle, not the loading mechanism. agentskills.io has no REST API; skill discovery is pure filesystem scanning of standard paths.
 
-**Minimum Node version:** 22.5.0 for DatabaseSync baseline. Optional feature enhancements available in newer versions:
-- `createTagStore()` for statement caching: v24.9.0+
-- `database.prepare(options)` for query options: v22.18.0+
-- `database.aggregate()` for aggregate functions: v22.16.0+
-- `timeout` constructor option for busy-wait: v22.16.0+
+**Core technologies:**
+- **OC `.opencode/agents/` directory**: Per-project agent override — OC natively resolves project-local agents (project beats global, same-filename wins); no bgsd-tools detection needed
+- **`node:fs` cpSync + mkdirSync**: Skill install from local dir or git clone output; synchronous, zero-dep, atomic
+- **`node:child_process` execFileSync + curl**: Fetch GitHub skill index for browse (pattern already used throughout codebase); avoids `node:https` complexity
+- **Existing `memory.js` lessons store**: Deviation capture via `cmdMemoryWrite(cwd, {store: 'lessons', entry})` — SQLite dual-write already in place, stable API
+- **Regex-based Markdown parser**: Lesson extraction from structured `lessons.md` (headings + bold labels) — no LLM, no deps; `**Preventive Rules:**` bullet points map directly to agent instruction additions
 
-**Version strategy:** Feature-detect all Node 22.16+ APIs. Fall back gracefully to v22.5 core API (DatabaseSync, prepare, exec, get, run, all). Existing cache.js pattern of "try createTagStore, catch fallback to prepare()" is the model.
+**What NOT to use:**
+- npm packages for HTTP (axios, node-fetch) — breaks single-file esbuild deploy
+- LLM API calls in bgsd-tools.cjs — CLI must be deterministic
+- agentskills.io HTTP API — 404 on all endpoints; does not exist
+- Vector embeddings / RAG — out of scope per PROJECT.md
+- `.planning/agents/` as the override dir — OC does not load this path
 
-**Key patterns:**
-- **Version-gated inline migrations** — no migration files; embed as JavaScript functions gated by `PRAGMA user_version`, run on every db open, fully transactional
-- **SQLTagStore query builder** — tagged template literals with automatic parameterization and statement caching (when available, v24.9+)
-- **Write-through cache** — parsers write to SQLite after parsing markdown
-- **Per-project database location** — `.planning/.cache.db` (gitignored), not global
-- **Git-hash + mtime invalidation** — git hash for bulk staleness (new commit), file mtime for sub-second accuracy (live edits)
-- **WAL mode + busy timeout** — prevent SQLITE_BUSY under concurrent CLI invocations
+### Expected Features
 
-**Avoid:** ORMs (knex, drizzle, sequelize), better-sqlite3 (adds native dependency), migration file systems (incompatible with single-file deploy), async SQLite APIs (CLI is synchronous by design).
+**Must have — v13.0 launch (P1):**
+- **Project-local agent override** (`.opencode/agents/`) — CLI lifecycle commands: `agent:list-local`, `agent:override`, `agent:sync`; YAML frontmatter validation required before any file write; content sanitization layer against system-prompt mangling
+- **Structured lesson schema** — migrate `lessons.md` to typed entries with explicit `Type:` field (`workflow | agent-behavior | tooling | environment`); grandfather existing free-form lesson as `Type: environment`; foundational prerequisite for all lesson features
+- **`lessons:analyze/suggest/capture/list` CLI** — parse structured lessons, group by recurrence, generate per-agent improvement suggestions; always advisory, never auto-apply; threshold: ≥2 supporting lessons before surfacing
+- **Deviation auto-capture** — hook in `execute-phase.md` after 3-failure Rule-1 (code bug) recovery succeeds; calls `lessons:capture`; non-blocking (`2>/dev/null || true`); never captures Rule 3 (environmental)
+- **Skill discovery + install** — filesystem scan of 4 standard paths; `skills:list/install/validate/remove` CLI; security scan (41 dangerous patterns); human-confirm gate with content diff; `skill-audit.json` log; `new-milestone.md` Step 8.5
 
-### Feature Table Stakes
+**Should have — v13.x (P2):**
+- Workflow improvement hooks — advisory "capture as lesson?" prompts in `verify-work.md` and `complete-milestone.md`
+- Research quality scoring — structured profile (`source_count`, `high_confidence_pct`, `oldest_source_days`, `has_official_docs`, `flagged_gaps[]`); NOT a single A-F score
+- Multi-source synthesis with conflict detection — explicit "Source A says X, Source B says Y" surfacing
 
-**Must have (v12.0 core):**
-- Structured planning tables (phases, plans, tasks) — eliminates re-parsing ROADMAP.md and PLAN.md files on every invocation
-- Git-hash invalidation with file mtime fallback — SQLite rows keyed by source file hash + mtime; stale on commit or on-disk edit
-- Session state in SQLite — current position, metrics, accumulated context stored in `session_state` table; STATE.md becomes generated view
-- Schema versioning with migrations — forward-only migration runner, no data loss on upgrade
-- Enricher deduplication — pre-compute plan_count, summary_count, incomplete_plans counts; eliminate 3x `listSummaryFiles()` and 2x `parsePlans()` calls
-- Backward-compatible fallback — Map fallback for Node <22.5, graceful feature-gating
+**Defer — v14+ (P3):**
+- Skill publishing to agentskills.io / LobeHub marketplace
+- Lesson → GitHub PR workflow for agent file suggestions
+- Cross-registry skill discovery (LobeHub + skills.sh + agentskills.io simultaneously)
 
-**Should have (v12.0 Phase 3+):**
-- Memory store migration — decisions.json, lessons.json, trajectories.json, bookmarks.json into SQLite with dual-write path and sacred data protection
-- Cross-entity SQL queries — "show all decisions that mention phase 73" via JOINs (enables `/bgsd-search-decisions` enhancement)
-- Query-based decision inputs — new decision rules consume SQL queries directly instead of enricher-derived JSON
-- New deterministic rules — 6-8 rules leveraging SQLite-backed state for richer workflow routing
-
-**Defer to v13:**
-- FTS5 full-text search — when decision/lesson volumes exceed 1000 entries
-- Materialized enrichment views with triggers — when enrichment query measured as bottleneck
-- WAL-mode read replicas — when parallel agent execution is attempted
-- SQLite session/changeset tracking — when undo/redo or audit trail needed
-- Per-project database option — when config-dir approach proves limiting
-
-**Key dependency chain:** Schema versioning → planning tables → enricher acceleration → memory migration → query expansion → session persistence. Each phase enables the next.
+**Confirmed non-features (anti-features):**
+- Auto-apply agent file patches from lesson suggestions (violates human-in-the-loop; supply-chain risk)
+- New agent role for "lesson reviewer" (PROJECT.md hard cap: 9 agent roles)
+- Merge-based agent override (additive merge causes "rule soup"; use file-shadowing model per OC)
 
 ### Architecture Approach
 
-**Dual-store model:** Markdown files (ROADMAP.md, PLAN.md, STATE.md, REQUIREMENTS.md) are the authority, human-readable, git-tracked. SQLite structured tables are derived, queryable, fully regenerable. Writes always go to markdown first (via existing parsers and STATE.md writers), then to SQLite as write-through. Reads check SQLite first (fast), fall back to markdown parsing on cache miss or stale detection.
+Additive brownfield integration. New capabilities bolt onto existing `src/lib/` + `src/commands/` extension points without modifying core data paths, storage schema, or existing agent/skill files. The existing `memory_lessons` SQLite table and `session_decisions` table cover all new storage needs — no schema migration required. `plugin.js` is unchanged; it picks up new `init.js` enricher fields automatically.
 
-**Data flow layers:**
-1. **L1: In-process Map cache** — Per-invocation, same as today
-2. **L2: SQLite structured tables** — Cross-invocation persistence with git-hash + mtime invalidation
-3. **L3: Markdown filesystem** — Authority source, always correct
+**Major components — new files:**
+1. **`src/lib/lessons.js`** (NEW) — `parseLessonsFile()`, `parseLessonsStore()`, `analyzePatterns()`, `suggestImprovements()`, `formatSuggestions()`; pure analysis logic, no side effects
+2. **`src/commands/lessons.js`** (NEW) — `lessons:analyze`, `lessons:suggest`, `lessons:capture`, `lessons:list` CLI commands
+3. **`src/lib/skills-hub.js`** (NEW) — `discoverLocalSkills()`, `installSkillFromDir()`, `installSkillFromGit()`, `validateSkillDir()`; static-analysis-only validation (never `require()` skill scripts — CJS/ESM boundary)
+4. **`src/commands/skills.js`** (NEW) — `skills:list`, `skills:install`, `skills:validate`, `skills:remove` CLI commands
 
-**Major components:**
-- **DataStore class** — Unified SQLite access layer; schema management, migrations, structured CRUD operations, query API
-- **Modified Parsers** — state.js, roadmap.js, plan.js, config.js, project.js, intent.js write to DataStore after parsing markdown
-- **Enhanced project-state.js** — Adds DataStore read path; reads from SQLite when cache valid, otherwise calls parsers
-- **EnricherV2** — Reads pre-computed enrichment from DataStore; eliminates `parsePlans()` and `listSummaryFiles()` duplication
-- **Modified file-watcher.js** — Invalidates DataStore entries alongside Map caches on file change
-- **QueryAPI** — SQL query functions for CLI commands (count, filter, aggregate)
-- **MemoryMigrator** — One-time JSON→SQLite import for decisions, lessons, trajectories, bookmarks with sacred data protection
+**Major components — modified files:**
+5. **`src/commands/agent.js`** — extend `scanAgents()` for `.opencode/agents/` with scope annotation; `cmdAgentOverride()`, `cmdAgentSync()`
+6. **`src/commands/research.js`** — `computeWebSourceQualityScore()`, `cmdResearchScore()` returning structured profile
+7. **`src/commands/init.js`** — add `local_agent_overrides` + `installed_skills` fields to bgsd-context enricher
+8. **`src/lib/context.js`** — new enricher fields in `AGENT_MANIFESTS` optional fields (no behavioral changes)
+9. **`src/index.js`** — add `lessons:*` and `skills:*` namespace routing
+10. **Workflows** — `new-milestone.md` Step 8.5 (skill discovery) + Step 8 quality scoring; `execute-phase.md` deviation capture; `verify-work.md` lessons:suggest surface
 
-**Schema design:** 
-- `_meta` table for schema version and git hash tracking
-- `phases`, `plans`, `tasks` tables for planning data
-- `requirements` table for requirement traceability
-- `decisions`, `lessons`, `trajectories`, `bookmarks` tables for memory stores (replaces JSON files)
-- `session_state` table for current position and metrics
-- `enrichment_cache` table for pre-computed enrichment JSON blob
-- All tables have source file mtime + git hash for invalidation
+**Build order (8 waves):** libs (lessons.js, skills-hub.js) → commands (lessons.js, skills.js) → modified commands (agent.js, research.js) → enricher (context.js, init.js) → router (index.js) → tests → workflow text → build+deploy
 
-### Critical Pitfalls & Mitigations
+**New directory conventions:**
+- `.opencode/agents/` — per-project agent overrides (OC native; project beats global)
+- `.agents/skills/` — project-local skills (agentskills.io cross-client convention)
 
-**1. node:sqlite API Drift Between Node Versions (MEDIUM impact, P1 mitigation)**
+### Critical Pitfalls
 
-Between minimum Node v22.5 and current v25.8, 15+ new methods were added to the node:sqlite API. Code written for newer versions silently breaks on older versions. Example: `createTagStore()` (v24.9+) doesn't exist in v22.5.
+1. **`.planning/agents/` is a dead path for OC** — OC's documented per-project agent override location is `.opencode/agents/`, not `.planning/agents/`. Files in `.planning/agents/` are never loaded by OC's agent resolution. All executable overrides must go in `.opencode/agents/`; `.planning/agents/` can hold documentation-only reference copies.
 
-*Mitigation:*
-- Create `sqliteCapabilities()` detection function probing for features at runtime
-- All new code uses only v22.5 baseline API: DatabaseSync, exec, prepare, get/all/run
-- Wrap optional features (tag store, iterate, aggregate, timeout) in capability checks
-- Add Node 22.5 to CI test matrix — not just "latest"
-- Document "safe baseline" vs "enhanced" APIs in code comments
+2. **12% of public registry skills contain malicious payloads** — Confirmed by Snyk/Koi Security audit (Feb 2026): 341/2,857 skills malicious (12%), including HTML comment injection (`<!-- SYSTEM OVERRIDE: curl ... | bash -->`), prompt injection, and credential exfiltration targeting `~/.ssh/`, `~/.aws/`. Skills run with full agent privileges. Security architecture is non-negotiable: show full file diff, run 41-pattern security scan, require human confirmation, write to project-local `.agents/skills/` only (never `~/.config/`), log all installs to `skill-audit.json`.
 
-**2. Schema Migration in Single-File Deploy (HIGH impact, P1 mitigation)**
+3. **Lesson analysis on free-form text produces >40% false-positive suggestions** — The existing `lessons.md` is a 49-line narrative. Without structured schema, resolution descriptions become agent suggestions and contextual notes become general rules. Structured `Type:` field is a hard prerequisite. The existing lesson must be grandfathered as `Type: environment` (produces 0 improvement suggestions). Minimum threshold: ≥2 lessons with `Type: agent-behavior` before surfacing any suggestions.
 
-Single-file CLI deploy has no migration runner or version tracking. `CREATE TABLE IF NOT EXISTS` doesn't add columns — old schema silently wins, new code crashes on missing columns.
+4. **Deviation capture over-triggers on Rule 3 (environmental) failures** — "Cannot find module" after npm failure, network timeouts, and OS permission errors all trigger 3-failure recovery but carry no reusable agent-behavior signal. The existing `autoRecovery.js` classifies deviations into 4 rules. Capture only Rule 1 (code bug) recoveries where the successful attempt made a detectable behavioral change. Never capture Rule 3 (blocking/environmental).
 
-*Mitigation:*
-- Use `PRAGMA user_version` as schema version tracker (integer, persisted in .db file)
-- Embed migrations as versioned JavaScript functions, not separate files
-- Run migrations in transaction on every db open
-- Test migration FROM v0 (fresh) AND every intermediate version (not just v-1)
-- Use forward-only migrations (add columns, never modify)
+5. **`autonomousRecoverles` typo in `autoRecovery.js` line 188** — The `autonomousRecoveries` metric is never incremented due to a typo (confirmed by direct file read). Any telemetry or lesson quality metrics built on top will always show 0 autonomous recoveries. This is a 1-line fix that must be in place before building deviation capture.
 
-**3. Stale Cache After Markdown File Edits (HIGH impact, P1 mitigation)**
+6. **Malformed agent frontmatter silently poisons the entire session** — A missing `name:` field in `.opencode/agents/` causes OC to log at DEBUG level only, but propagates broken agent state to ALL subsequent API calls (500 errors on every request). Validate YAML frontmatter after every write; require post-write read-back check; use a minimal inline validator (never regex-parse YAML — multiline strings and quoted colons break naive parsers).
 
-Git-hash invalidation misses uncommitted changes. User edits STATE.md → CLI reads stale SQLite data because git hash hasn't changed. Sub-second staleness is unacceptable.
+7. **System-prompt mangling propagates into generated agent files** — The existing lesson documents that OC's auth plugin globally rewrites the editor name throughout system prompts. Generated agent override files containing paths or descriptions with the literal editor name will have those strings mangled. Sanitize all generated agent content before writing; use generic terms (`host editor config`, `$BGSD_HOME` pattern).
 
-*Mitigation:*
-- Combine git-hash (bulk invalidation) + file mtime (fine-grained) + content hash (detect reverts)
-- Store mtime alongside parsed data; check mtime on every read (fast fs.statSync)
-- Hook file-watcher to mark specific table entries stale (not blanket invalidation)
-- Cascade invalidation: edit ROADMAP.md → invalidate phases → invalidate plans → invalidate tasks
+8. **Research quality score must be a structured profile, not a single number** — Aggregating source count, freshness, and confidence into one A-F grade introduces positional bias, verbosity bias, and dimension conflation (confirmed in arXiv 2025 LLM-as-judge research). Report structured profile: `{ source_count, high_confidence_pct, oldest_source_days, has_official_docs, flagged_gaps[] }`. Never gate plan creation on a quality score — use gaps list instead.
 
-**4. Map/SQLite Backend Divergence for Structured Data (MEDIUM impact, P1 mitigation)**
+9. **New file-scan commands break 200+ snapshot tests** — Agent scan, lesson analysis, and skill discovery commands can inadvertently read from the real project's `.planning/` directory, producing non-deterministic test output. All v13.0 feature tests must use `createTempProject()` with fixed fixtures — no exceptions. Mock all network calls in tests.
 
-Existing dual-backend pattern (MapBackend + SQLiteBackend for file_cache) doesn't extend to relational queries. SQL JOINs, aggregates, filters have no Map equivalent without reimplementing a query engine.
-
-*Mitigation:*
-- Accept structured tables are **SQLite-only**
-- File cache layer keeps dual-backend for backward compatibility
-- New data layer is separate module requiring SQLite, fails gracefully on Node <22.5
-- Graceful degradation: on Node <22.5, structured features return error, CLI falls back to markdown parsing
-- Document architecture split clearly in key decisions
-
-**5. JSON-to-SQLite Data Loss from Type Coercion (MEDIUM impact, P2 mitigation)**
-
-Memory stores have arrays, booleans, objects. SQLite has 5 types. Round-trip JSON → SQLite → JSON can lose fidelity: `true` → 1 → not `true`, arrays → strings, nested objects → query-unable TEXT.
-
-*Mitigation:*
-- Define explicit type mapping per column BEFORE migration
-- Use STRICT tables to catch type mismatches at write time
-- Round-trip test: `original === JSON.parse(sqliteRow.jsonField)` for every data type
-- Use JSON1 extension for querying into TEXT JSON blobs
-- Consider `_raw_json TEXT` backup column during transition
-- Sacred data: never delete JSON backups during migration
-
-**6. Database Locking Under Concurrent CLI Invocations (MEDIUM impact, P1 mitigation)**
-
-CLI may run concurrently (multiple terminals, plugin hooks, editor idle-detectors). Default SQLite uses exclusive locks — writer blocks readers, causing `SQLITE_BUSY` crashes.
-
-*Mitigation:*
-- Enable WAL mode immediately: `PRAGMA journal_mode=WAL`
-- Set busy timeout: `PRAGMA busy_timeout=5000` (5 seconds)
-- Explicit transactions wrapping multi-statement operations
-- Use `INSERT OR REPLACE` (already done in cache.js)
-- Keep transactions short (parse in JS, single batch INSERT)
-- Test concurrent access: spawn 10 CLI processes simultaneously, verify no SQLITE_BUSY
-
-**7. Sacred Data Loss in Memory Store Migration (HIGH impact, P2 mitigation)**
-
-decisions.json, lessons.json, trajectories.json are marked sacred (protected from compaction). Bugs in JSON→SQLite migration corrupt irreplaceable project intelligence.
-
-*Mitigation:*
-- Dual-write phase: write to both JSON (primary) and SQLite (secondary) for one milestone
-- Never delete JSON files during migration — keep as permanent backup
-- Migration verification: compare JSON count === SQLite count, round-trip every entry
-- Add `migration_status` table tracking: JSON count, SQLite count, verification timestamp
-- Test with real sacred data fixtures, not synthetic data
-- Provide rollback command: `memory:export --format=json` to reconstruct JSON from SQLite
-
----
+10. **CJS/ESM boundary blocks skill validation via execution** — `bgsd-tools.cjs` is CJS-only. Skill helper scripts may be ESM-native. Attempting to `require()` them during validation fails with `require() of ES Module`. Skill validation must be static-analysis-only — scan file content for dangerous patterns, never execute or import skill helpers.
+<!-- /section -->
 
 <!-- section: roadmap_implications -->
 ## Implications for Roadmap
 
-Based on research, structured SQLite data layer breaks into 6 natural phases with clear dependencies and independent milestone boundaries. All 6 can ship in v12.0 (depending on schedule) or phases 4-6 can defer to v12.1/v13 without architectural rework.
+Based on research, suggested phase structure:
 
-### Phase 1: Schema Design & Foundation
-**Rationale:** Must establish the DataStore infrastructure, schema versioning, and API capability detection before any structured tables are created. Cannot proceed without this foundation.
+### Phase 1: Foundation & Agent Overrides
+**Rationale:** Getting the override directory correct (`.opencode/agents/` not `.planning/agents/`) and establishing YAML validation is prerequisite before any downstream automation writes agent files. The content sanitization layer (preventing system-prompt mangling in generated agent content) must also be established here — before the lesson-driven improvement pipeline starts producing agent files.
+**Delivers:** `agent:list-local`, `agent:override`, `agent:sync` CLI commands; YAML frontmatter validator (inline, no regex); content sanitization layer; bgsd-context enricher `local_agent_overrides` field; override precedence documentation; `util:agents:validate` command
+**Addresses:** FEATURES.md table-stakes "project-local agent override"; FEATURES.md file-shadowing competitor analysis
+**Avoids:** PITFALLS.md #1 (`.planning/agents/` dead path), #2 (system-prompt mangling in generated files), #6 (malformed frontmatter → session 500 errors), #9 (override precedence confusion)
 
-**Delivers:**
-- DataStore class with schema management, migrations, CRUD layer
-- PRAGMA user_version versioning system with embedded migration functions
-- API capability detection (`createTagStore`, `aggregate`, `iterate`, `timeout` options)
-- Node 22.5 minimum version gating with fallback to Map on Node <22.5
-- WAL mode + busy timeout configuration
-- Per-project `.planning/.cache.db` location decision and gitignore setup
+### Phase 2: Lesson Schema & Analysis Pipeline
+**Rationale:** Structured lesson format is the critical-path dependency for deviation capture (Phase 4), workflow improvement hooks, and improvement suggestions. Building the analysis engine on free-form text locks in >40% false-positive behavior. The `util:memory` pagination additions must happen before the first automated write — once automated writes start, lessons grow to 100+ entries quickly.
+**Delivers:** Structured lesson schema with `Type:` field; grandfather migration of existing 49-line lesson as `Type: environment`; `lessons:analyze`, `lessons:suggest`, `lessons:capture`, `lessons:list` CLI; `util:memory` pagination (`--limit`, `--since`, `--type`); `lessons:compact` deduplication; cap of 3 auto-captures per milestone
+**Uses:** Regex Markdown extraction (STACK.md pattern for `**Preventive Rules:**` section); existing `cmdMemoryWrite` API (no new storage)
+**Avoids:** PITFALLS.md #3 (false-positive suggestions), #7 (lesson store growth without pagination)
 
-**Addresses:**
-- FEATURES: Table stakes for "schema versioning with migrations"
-- PITFALLS: Avoids API drift (1), schema migration (2), locking (6)
+### Phase 3: Skill Discovery & Security
+**Rationale:** Security-first architecture must be established before any skill installation is wired to workflows. The 12% malicious rate means the human-confirmation gate is load-bearing, not optional. agentskills.io has no HTTP API — discovery is pure filesystem scanning plus GitHub browse link.
+**Delivers:** `skills:list`, `skills:install`, `skills:validate`, `skills:remove` CLI; 41-pattern security content scanner; human-confirm gate with full content diff; `skill-audit.json` audit log; `new-milestone.md` Step 8.5 (optional skill discovery between research and requirements); bgsd-context enricher `installed_skills` field
+**Uses:** `node:fs` cpSync for install (STACK.md); static-analysis-only validation (never `require()` skill scripts — CJS/ESM boundary per PITFALLS.md #10); GitHub raw URL for browsing
+**Avoids:** PITFALLS.md #4 (12% malicious skill rate), #10 (CJS/ESM boundary)
 
-**Success criteria:**
-- [ ] DataStore class instantiates with feature detection
-- [ ] Migrations run from v0 → current, idempotent on re-run
-- [ ] Node 22.5 test passes with fallback paths
-- [ ] WAL mode enabled, busy timeout 5 seconds set
-- [ ] Database location is `.planning/.cache.db`, not global
+### Phase 4: Deviation Capture
+**Rationale:** Depends on Phase 2 (`lessons:capture` must exist). The Rule-1-only filter and `autonomousRecoverles` typo fix both need to be in place. Building this last among the core phases ensures the filtering logic is stable before automated writes begin.
+**Delivers:** Deviation capture hook in `execute-phase.md` execute_waves step; Rule-1-only filter (`deviation_rule === 1` AND behavioral change detected); `autonomousRecoverles` → `autonomousRecoveries` typo fix in `autoRecovery.js`; 3-per-milestone capture cap; `capture_threshold` property in lesson schema; non-blocking via `2>/dev/null || true`
+**Implements:** ARCHITECTURE.md Capability 4 integration map; FEATURES.md deviation auto-capture differentiator
+**Avoids:** PITFALLS.md #5 (over-triggering on Rule 3 environmental failures), PITFALLS.md typo blocking telemetry
 
-**Research flags:** None — well-documented, established patterns
-
-### Phase 2: Parser Integration & Cache Population
-**Rationale:** Wire the 6 parsers (state, roadmap, plan, config, project, intent) to write-through to SQLite after parsing markdown. Implement git-hash + mtime invalidation. Update project-state.js read path to check DataStore before calling parsers. Foundation is required first; independent of enricher/memory work.
-
-**Delivers:**
-- Write-through integration: all 6 parsers write structured rows to SQLite after successful parse
-- Three-tier caching: Map L1 (per-process) → SQLite L2 (cross-invocation) → Markdown L3 (authority)
-- Git-hash + mtime invalidation with cascade logic (edit ROADMAP → invalidate all plans/tasks)
-- Enhanced project-state.js facade that reads from DataStore on warm starts
-- Updated file-watcher.js to invalidate DataStore alongside Map caches
-
-**Addresses:**
-- FEATURES: Planning data tables, git-hash invalidation, incremental parse-and-store
-- ARCHITECTURE: Write-through cache pattern, git-hash staleness detection pattern
-- PITFALLS: Avoids stale cache (3), divergence (4), duplication (9)
-
-**Success criteria:**
-- [ ] ROADMAP.md parse → phases table populated
-- [ ] PLAN.md parse → plans + tasks tables populated
-- [ ] Git-hash + mtime stored with every row
-- [ ] Edit markdown file → next CLI invocation reflects edit (sub-second accuracy)
-- [ ] project-state.js reads from SQLite on cache hit
-- [ ] File watcher invalidates DataStore entries
-- [ ] `bgsd-tools state:show` on warm start is 10x faster than markdown parse
-
-**Research flags:** Cache invalidation strategy under live editing — verify file-watcher integration
-
-### Phase 3: Enricher Acceleration
-**Rationale:** Fix the core performance bottleneck: enricher calls `parsePlans()` 3 times and `listSummaryFiles()` 3 times per invocation. With structured tables populated in Phase 2, replace with pre-computed SQL queries. Highest user value per engineering effort.
-
-**Delivers:**
-- Enrichment cache: pre-computed enrichment JSON blob (plan_count, summary_count, incomplete_plans, task_types, etc.)
-- Enricher V2: replaces file-scanning with single enrichment_cache SQL query
-- Eliminates 3x duplication in command-enricher.js
-- Warm-start enrichment is now ~0.1ms (SQL query) vs ~100-500ms (file scanning)
-
-**Addresses:**
-- FEATURES: Enricher deduplication (table stakes), pre-computed materialized data
-- ARCHITECTURE: Enricher acceleration data flow pattern
-- PITFALLS: Avoids duplication (9)
-
-**Success criteria:**
-- [ ] enrichment_cache table has all enricher fields
-- [ ] Pre-computed on every parser write (write-through)
-- [ ] Enricher reads single row instead of calling parsePlans/listSummaryFiles
-- [ ] Warm-start enricher is 5-10x faster (measured with `time bgsd-tools state:show`)
-- [ ] No code duplication — listSummaryFiles call count reduced from 3 to 0
-- [ ] Plugin system prompt and CLI commands agree on enrichment values
-
-**Research flags:** Enrichment query performance-profile on projects with 20+ plans
-
-### Phase 4: Memory Store Migration
-**Rationale:** decisions.json, lessons.json, trajectories.json are currently separate JSON files, difficult to query, not indexed. With DataStore schema in place, migrate to SQLite tables with sacred data protection and dual-write path. Independent of phases 1-3 (can parallelize) but must complete before Phase 5 (query rules).
-
-**Delivers:**
-- `decisions`, `lessons`, `trajectories`, `bookmarks` SQLite tables with proper schema
-- MemoryMigrator: one-time JSON→SQLite import preserving sacred flags and all fields
-- Dual-write path: memory.js writes to both JSON (authority) and SQLite (index) until v13
-- Migration status tracking: verify JSON count === SQLite count, confirm round-trip fidelity
-- JSON files preserved as permanent backup (never deleted)
-
-**Addresses:**
-- FEATURES: Memory store migration, sacred data protection (via table stakes list)
-- ARCHITECTURE: Memory store data flow pattern
-- PITFALLS: Avoids sacred data loss (7), JSON-to-SQLite type loss (5)
-
-**Success criteria:**
-- [ ] decisions.json → decisions table (all entries, all fields)
-- [ ] lessons.json → lessons table with sacred flag protection
-- [ ] trajectories.json → trajectories table with tagging/references preserved
-- [ ] bookmarks.json → bookmarks table
-- [ ] Round-trip test: every entry JSON → SQLite → JSON with deep equality
-- [ ] JSON files still exist, migration_status shows verified_at timestamp
-- [ ] Dual-write: new decisions written to both JSON and SQLite
-
-**Research flags:** Type coercion edge cases (Unicode in decisions, nested arrays in trajectories) — verify during implementation
-
-### Phase 5: Query Acceleration & New Deterministic Rules
-**Rationale:** With structured tables and memory stores in SQLite, implement QueryAPI (high-level query functions) and 6-8 new decision rules that consume SQL directly. Requires phases 1-4 complete. Enables richer workflow routing.
-
-**Delivers:**
-- QueryAPI: reusable SQL query functions (`getDecisionsByPhase`, `countTasksByStatus`, `searchLessons`, etc.)
-- New decision rules (6-8): phase attempt history, task completion rates, stuck detection, memory-based routing
-- Decision rule integration in enricher: pre-computed decision inputs from SQLite
-- Backward compatibility: old rules unchanged, new rules optional
-
-**Addresses:**
-- FEATURES: Cross-entity SQL queries, query-based decision inputs, new deterministic decisions
-- ARCHITECTURE: Data flow integration with decision rules
-
-**Success criteria:**
-- [ ] QueryAPI module with 6-10 reusable query functions
-- [ ] New decision rules added to decision-rules.js registry
-- [ ] Enricher pre-loads decision inputs from DataStore (no per-rule query)
-- [ ] New rules tested with synthetic and real data
-- [ ] 1008+ existing tests still pass; new test coverage for query functions
-
-**Research flags:** None — standard implementation pattern
-
-### Phase 6: Session State Persistence
-**Rationale:** Currently STATE.md is the human-written authority. Phase 6 makes SQLite session_state the machine authority (position, metrics, accumulated context), with STATE.md becoming a generated view. Most architecturally aggressive change; should be last. Enables cross-invocation metrics, stuck detection, resume intelligence.
-
-**Delivers:**
-- session_state table: phase, plan, status, progress, last_activity, metrics JSON
-- STATE.md generation: derived from session_state + decisions + lessons (markdown view)
-- Invocation log: track command, duration, changed files, outcome
-- Velocity metrics: task completion rate, phase duration, session count
-- Context preservation: accumulated state across invocations without manual editing
-
-**Addresses:**
-- FEATURES: Session state persistence, atomic multi-file updates, session continuity
-- ARCHITECTURE: Session state persistence pattern
-
-**Success criteria:**
-- [ ] session_state table populated from STATE.md on first read
-- [ ] STATE.md writer generates from session_state on every state change
-- [ ] Invocation log tracks each CLI command with timing
-- [ ] Velocity metrics computed from invocation log
-- [ ] User workflows unchanged — STATE.md still visible and committable
-
-**Research flags:** Generated STATE.md format — ensure it's human-readable and git-diff friendly
+### Phase 5: Enhanced Research Workflow
+**Rationale:** Fully independent of Phases 1-4. Only dependency is the existing `research.js` command and research-patterns skill — both present in v12.x. Best shipped after validating the core loop, giving real research data to calibrate quality thresholds.
+**Delivers:** `research:score` CLI command returning structured quality profile (not A-F); `computeWebSourceQualityScore()` in `research.js`; quality summary surfaced in `new-milestone.md` Step 8 after researchers complete (flags any file with LOW confidence for re-research); `research:gaps` gap-list command
+**Uses:** Structured profile output per PITFALLS.md #6; DRACO benchmark dimensions (Accuracy + Completeness + Objectivity from STACK.md)
+**Avoids:** PITFALLS.md #6 (quality score collapses to vibes when dimensions overlap)
 
 ### Phase Ordering Rationale
 
-1. **Foundation first** — DataStore, versioning, API detection must exist before any structured tables
-2. **Parser integration before enricher** — Enricher acceleration requires populated tables, requires parser integration
-3. **Enricher before memory migration** — Enricher fixed first (core value), memory migration can parallelize or follow
-4. **Memory before query expansion** — Query rules need both planning tables (Phase 2) and memory tables (Phase 4)
-5. **Session state last** — Most architecturally invasive; depends on all tables being stable
+- **Phase 1 first:** OC path correction and YAML validation are prerequisites before any automation writes agent files. Security baseline for generated content must exist first.
+- **Phase 2 second:** Structured lesson schema is the critical-path dependency for Phase 4 (deviation capture). `util:memory` pagination must be in before first automated write. Lesson analysis false-positive prevention requires schema before engine.
+- **Phase 3 independent of Phase 2:** Skill discovery and the lesson pipeline are decoupled. Security architecture (human-confirm gate) is independently critical regardless of lesson status.
+- **Phase 4 after Phase 2:** `lessons:capture` (Phase 2) must exist. Rule-1 filter API (`autoRecovery.js`) needs to be verified against stable schema. Typo fix (Phase 4) should happen before capture telemetry is built.
+- **Phase 5 anytime:** Research scoring has no dependencies on Phases 1-4. Can parallelize with any other phase or ship last.
 
-### Research Flags by Phase
+### Research Flags
 
-- **Phase 1:** None — well-documented, established patterns
-- **Phase 2:** Cache invalidation behavior under live editing — verify file-watcher integration
-- **Phase 3:** Enrichment query performance on large projects (20+ plans) — profile before shipping
-- **Phase 4:** Type coercion edge cases (Unicode, nested arrays) — test with real sacred data
-- **Phase 5:** None — standard implementation
-- **Phase 6:** STATE.md generated format — ensure human-readable and git-friendly
+Phases needing deeper research during planning:
+- **Phase 3:** LobeHub `@lobehub/market-cli` rate-limit handling and auth flow not fully validated — test graceful-fallback behavior (not-installed, rate-limited, network-unavailable) before wiring to workflow; design as advisory-only to prevent blocking
+- **Phase 4:** `src/lib/recovery/autoRecovery.js` Rule 1 vs Rule 3 classification API — confirm the exact interface for reading deviation rule type at the capture hook point before implementing the filter
 
-### Phases Likely to Need Deeper Planning (vs Research)
+Phases with standard patterns (research-phase likely skippable):
+- **Phase 1:** OC agent resolution fully documented (HIGH confidence, verified live); YAML validation is well-trodden; override file format is identical to global agents
+- **Phase 2:** Markdown regex extraction confirmed against existing `lessons.md` structure; `cmdMemoryWrite` API stable; lesson schema design is research-grounded
+- **Phase 5:** Research quality dimensions documented (DRACO benchmark); implementation is a straight additive extension of existing `research.js`
 
-- **Phase 2:** Invalidation cascade logic — may need schema changes if dependencies complex
-- **Phase 3:** Enrichment computation hooks — may need integration points in parser write paths
-- **Phase 4:** Memory store dual-write coordination — may need careful sequencing with legacy path
+### Research Flags — Per Phase
 
-### Phases with Standard Patterns (Skip Research-Phase)
-
-- **Phase 1:** DataStore + schema versioning — proven by database tools (Django, SQLite itself)
-- **Phase 5:** Decision rule addition — incremental, standard pattern
-- **Phase 6:** Generated view pattern — proven by build tools and version control
-
----
+| Phase | Research Needed? | Flag | How to Handle |
+|-------|-----------------|------|---------------|
+| 1: Agent Overrides | No | — | Well-documented; pattern matches existing global agents |
+| 2: Lesson Schema | No | — | Schema design complete; `cmdMemoryWrite` API stable |
+| 3: Skill Discovery | Yes | LobeHub rate-limit fallback | Test before workflow wiring; advisory-only design |
+| 4: Deviation Capture | Yes | `autoRecovery.js` Rule API | Review file before implementing filter |
+| 5: Research Workflow | No | — | Additive extension; DRACO dimensions confirmed |
+<!-- /section -->
 
 <!-- section: confidence -->
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Node.js v25.8.1 SQLite API fully documented and verified; existing cache.js uses DatabaseSync successfully; zero new npm dependencies |
-| Features | HIGH | Existing codebase analysis (6 parsers, enricher, memory stores) confirms feature requirements; prioritization matches user pain points (enricher duplication) |
-| Architecture | HIGH | Dual-store (markdown + SQLite) pattern used by Fossil, Jujutsu, GitHub CLI; write-through cache proven in cache.js; git-hash invalidation tested in existing research_cache |
-| Pitfalls | HIGH | Each pitfall traced to specific code location (cache.js WAL gap, enricher duplication, migrations) or SQLite documentation limitation; recovery strategies documented |
+| Stack | HIGH | OC docs verified live 2026-03-15; agentskills.io spec verified live; existing codebase (agent.js 577 lines, memory.js 412 lines, context.js 494 lines) read directly; all zero-dep claims validated against Node.js 22.5+ built-ins already in use |
+| Features | HIGH | Official docs verified for all 5 feature areas; competitor analysis cross-referenced (Cursor, Roo Code, OC); priority matrix grounded in confirmed research, not assumptions; MVP/P1/P2/P3 boundaries clearly motivated |
+| Architecture | HIGH | Primary sources: OC official docs + direct codebase analysis of execute-phase.md (497 lines), new-milestone.md (441 lines), autoRecovery.js (typo confirmed at line 188); integration maps verified against existing command routing |
+| Pitfalls | HIGH | OC issues #22843 + #32732 confirmed; PurpleBox/Snyk 12% malicious rate confirmed; autoRecovery.js typo verified by direct file read; false-positive rate for free-form lesson analysis from arXiv 2025 research; test isolation patterns verified from existing test suite |
 
-**Overall confidence:** HIGH — All findings verified against Node.js official documentation, SQLite documentation, existing codebase analysis (2500+ lines reviewed).
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Bundle size impact:** Estimate is +50KB for data layer; actual impact unknown until code written. Mitigation: monitor per-phase, enforce +30KB per phase limit.
-- **WAL mode under extreme concurrency:** Only theoretical analysis; 5-process concurrent test needed during implementation.
-- **Enrichment query performance on 50+ plan projects:** Current enrichment query simple; scaling unknown. Mitigation: performance profiling in Phase 3.
-- **Memory store sacred data round-trip fidelity:** Type coercion edge cases (Unicode, nested arrays, large integers) not tested. Mitigation: comprehensive test suite in Phase 4.
-
-### Unresolved Questions
-
-- **Per-project database permission:** Should `.planning/.cache.db` have restricted permissions (0600)? Depends on file sensitivity. Recommendation: 0600 (user-only) for consistency with security practices.
-- **STATE.md migration path:** When Phase 6 makes SQLite the source of truth, existing STATE.md files need one-time import. Mechanism? Recommendation: automatic on first Phase 6 invocation, with backup preservation.
-
----
+- **LobeHub `@lobehub/market-cli` rate limiting under load** (MEDIUM confidence): The 5-requests/30-minute rate limit is documented, but graceful-fallback behavior under first-install conditions is not validated. Mitigation during Phase 3: design skill discovery as advisory-only (show install command if CLI missing, retry guidance if rate-limited, skip with notice if network unavailable); never make it blocking.
+- **OC `mode:` forced-to-subagent behavior** (MEDIUM confidence — third-party issue tracker, not official OC docs): Referenced in oh-my-openagent issue #1032. If confirmed, local overrides cannot set `mode: primary`. Mitigation during Phase 1: explicitly test `mode:` behavior in local override files; document confirmed precedence chain.
+- **`autoRecovery.js` Rule 1 vs Rule 3 API surface** (MEDIUM confidence): The 4-rule taxonomy is confirmed (Rule 1=bugs, Rule 2=missing-critical, Rule 3=blocking, Rule 4=architectural). The exact API to read `deviation_rule` at the capture hook point in `execute-phase.md` needs direct file review during Phase 4 planning.
+<!-- /section -->
 
 <!-- section: sources -->
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- **Node.js v25.8.1 SQLite Documentation** — Complete API reference, verified all features and version availability. https://nodejs.org/api/sqlite.html
-- **Node.js v22.x SQLite Documentation** — Baseline minimum version feature set. https://nodejs.org/docs/latest-v22.x/api/sqlite.html
-- **src/lib/cache.js** — Existing DatabaseSync + SQLTagStore + MapBackend implementation (752 lines, reviewed in full). Pattern provides fallback model, API usage patterns.
-- **src/plugin/command-enricher.js** — Duplication root cause (340 lines): 3x `listSummaryFiles()` + 2x `parsePlans()` calls identified.
-- **src/plugin/parsers/*.js** — 6 parsers with Map caches (state: 101 lines, roadmap: 220 lines, plan: 258 lines, config: 155 lines, project: 67 lines, intent: 89 lines). Write-through integration points identified.
-- **src/commands/memory.js** — Memory store schema and sacred data protection (378 lines). Schema design input.
-- **PROJECT.md** — v12.0 milestone context, constraints, architecture decisions.
-- **SQLite Documentation** — PRAGMA user_version for schema versioning, PRAGMA journal_mode for WAL, ALTER TABLE limitations. https://www.sqlite.org/
+- https://opencode.ai/docs/agents/ — per-project agent directory `.opencode/agents/` confirmed; file-shadowing model confirmed (2026-03-15)
+- https://opencode.ai/docs/skills/ — skill discovery paths confirmed; cross-client conventions (`.agents/skills/`, `~/.agents/skills/`)
+- https://agentskills.io/specification — SKILL.md format confirmed; no REST API confirmed; filesystem-based discovery model
+- https://agentskills.io/client-implementation/adding-skills-support.md — discovery/install patterns; progressive 3-tier loading
+- `/mnt/raid/DEV/bgsd-oc/src/commands/agent.js` — existing agent scanning API (577 lines, read directly)
+- `/mnt/raid/DEV/bgsd-oc/src/lib/context.js` — AGENT_MANIFESTS + scopeContextForAgent API (494 lines, read directly)
+- `/mnt/raid/DEV/bgsd-oc/src/commands/memory.js` — `cmdMemoryWrite` stable API; lessons store (412 lines, read directly)
+- `/mnt/raid/DEV/bgsd-oc/src/lib/recovery/autoRecovery.js` — typo at line 188 (`autonomousRecoverles`) confirmed by direct read
+- `/mnt/raid/DEV/bgsd-oc/lessons.md` — existing lesson structure observed; 49-line free-form entry confirmed
+- https://research.perplexity.ai/articles/evaluating-deep-research-performance-in-the-wild — DRACO benchmark (Accuracy + Completeness + Objectivity dimensions)
 
 ### Secondary (MEDIUM confidence)
+- https://www.prplbx.com/blog/agent-skills-supply-chain — PurpleBox Security Feb 2026: 341/2,857 malicious skills (12%); Snyk ToxicSkills anatomy; HTML comment injection patterns
+- https://github.com/anthropics/claude-code/issues/22843 — malformed frontmatter → 500 errors (DEBUG-only log confirmed, propagates to all API calls)
+- https://github.com/anthropics/claude-code/issues/32732 — tool-call model param overrides frontmatter model; tool-call params > frontmatter > defaults precedence chain
+- https://lobehub.com/skills/openclaw-skills-self-improving-agent-1-0-1 — OpenClaw self-improvement skill comparison; manual vs auto-capture tradeoffs
+- https://spec-weave.com/docs/skills/verified/verified-skills — 41 dangerous pattern categories; 3-tier certification model
+- https://arxiv.org/html/2506.22316v2 — positional bias + verbosity bias in LLM-as-judge scoring (2025)
+- OC binary strings inspection — `EXTERNAL_DIRS = [".claude", ".agents"]` pattern confirmed (MEDIUM — binary, not docs)
 
-- **Existing decision-rules.js** — 12 rules, registry pattern (467 lines). Input for new rule design.
-- **Existing file-watcher.js** — fs.watch integration pattern (202 lines). Input for DataStore invalidation integration.
-- **Ben Johnson / Fly.io: "All-In on Server-Side SQLite" (2022)** — Architecture patterns for CLI tools using SQLite. https://fly.io/blog/all-in-on-sqlite/
+### Tertiary (LOW confidence — validate during implementation)
+- https://github.com/code-yeongyu/oh-my-openagent/issues/1032 — `mode:` forced to subagent (third-party issue, not official OC docs)
+- https://medium.com/@anishkarthik.a/the-invisible-supply-chain-attack-how-toxicskills-are-hijacking-ai-agents-63d0c0697146 — HTML comment injection, base64 obfuscation patterns in malicious skills
+- Memory Engineering for AI Agents (Medium 2026) — lesson store growth failure modes; 100+ entry context overflow patterns
+- LLM Action Item Extraction Research (Alibaba/Forgent 2025-2026) — 30-50% false-positive rate on free-form text without structural markers
 
 ---
-
-*Research completed: 2026-03-14*  
-*Synthesized by: Research Synthesizer Agent*  
-*Ready for roadmap: YES*
-<!-- /section -->
+*Research completed: 2026-03-15*
+*Synthesized by: Research Synthesizer Agent*
+*Ready for roadmap: yes*
