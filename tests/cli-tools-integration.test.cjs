@@ -739,7 +739,8 @@ describe('Graceful degradation — TOOL-DEGR-01', () => {
     fs.mkdirSync(planningDir, { recursive: true });
     fs.writeFileSync(
       path.join(planningDir, 'config.json'),
-      JSON.stringify({ tools: { ripgrep: false } })
+      JSON.stringify({ tools: { ripgrep: false } }),
+      { mode: 0o600 }
     );
 
     // Change cwd temporarily to test dir so loadConfig finds the config
