@@ -436,8 +436,11 @@ function parseGitHubUrl(source) {
   const [owner, repo] = parts;
   if (!owner || !repo) return null;
 
-  // Basic validation: only alphanumeric, hyphens, underscores, dots
-  const validName = /^[a-zA-Z0-9._-]+$/;
+  // Reject relative path segments — these are local paths, not GitHub owners
+  if (owner === '.' || owner === '..') return null;
+
+  // Basic validation: only alphanumeric, hyphens, underscores, dots; must start with alphanumeric
+  const validName = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
   if (!validName.test(owner) || !validName.test(repo)) return null;
 
   return { owner, repo };
@@ -516,13 +519,61 @@ async function downloadFiles(files) {
   return results;
 }
 
+// ─── Local Path Detection ─────────────────────────────────────────────────────
+
+/**
+ * Detect if source is a local filesystem path.
+ * Returns the resolved absolute path, or null if it's not a local path.
+ */
+function parseLocalPath(source, cwd) {
+  if (!source || typeof source !== 'string') return null;
+  const s = source.trim();
+  // Local paths start with ./, ../, /, or ~ (home-relative)
+  if (s.startsWith('./') || s.startsWith('../') || s.startsWith('/') || s.startsWith('~')) {
+    const resolved = s.startsWith('~')
+      ? path.join(os.homedir(), s.slice(1))
+      : path.resolve(cwd, s);
+    return resolved;
+  }
+  return null;
+}
+
+/**
+ * Collect all files from a local directory recursively.
+ * Returns array of { path (relative), content, size }.
+ */
+function collectLocalFiles(localDir, baseDir) {
+  const base = baseDir || localDir;
+  const results = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(localDir, { withFileTypes: true });
+  } catch (e) {
+    return results;
+  }
+  for (const entry of entries) {
+    const fullPath = path.join(localDir, entry.name);
+    const relPath = path.relative(base, fullPath);
+    if (entry.isDirectory()) {
+      results.push(...collectLocalFiles(fullPath, base));
+    } else {
+      try {
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        const size = Buffer.byteLength(content, 'utf-8');
+        results.push({ path: relPath, content, size });
+      } catch (_) { /* skip unreadable files */ }
+    }
+  }
+  return results;
+}
+
 // ─── skills:install ───────────────────────────────────────────────────────────
 
 /**
- * Install a skill from a GitHub repository.
+ * Install a skill from a GitHub repository or local directory.
  *
- * Without --confirm: fetch, scan, display results, output confirmation prompt.
- * With --confirm:    re-fetch, verify scan, write files, log audit.
+ * Without --confirm: fetch/read, scan, display results, output confirmation prompt.
+ * With --confirm:    re-fetch/read, verify scan, write files, log audit.
  *
  * Dangerous scan verdict is a hard block — files are never written.
  * Warn verdict is surfaced in the confirmation prompt.
@@ -531,49 +582,85 @@ async function cmdSkillsInstall(cwd, options, raw) {
   const { source, confirm, verbose } = options || {};
 
   if (!source) {
-    error('Usage: skills install --source <github-url>');
+    error('Usage: skills install --source <github-url-or-local-path>');
     return;
   }
 
-  // 1. Parse GitHub URL
-  const parsed = parseGitHubUrl(source);
-  if (!parsed) {
-    error(`Invalid GitHub URL: ${source}\nExpected format: owner/repo, github.com/owner/repo, or https://github.com/owner/repo`);
-    return;
-  }
-  const { owner, repo } = parsed;
-  const name = repo;
+  // 1a. Detect local path vs GitHub URL
+  const localPath = parseLocalPath(source, cwd);
 
-  // 2. Check for existing skill installation
+  let name;
+  let downloadedFiles;
+  let sourceLabel = source;
+
+  if (localPath) {
+    // ── Local directory install ──────────────────────────────────────────────
+    if (!fs.existsSync(localPath)) {
+      error(`Local path not found: ${localPath}`);
+      return;
+    }
+    if (!fs.statSync(localPath).isDirectory()) {
+      error(`Local path must be a directory: ${localPath}`);
+      return;
+    }
+
+    name = path.basename(localPath);
+    sourceLabel = localPath;
+
+    // Verify SKILL.md exists in local dir root
+    if (!fs.existsSync(path.join(localPath, 'SKILL.md'))) {
+      error(`Invalid skill: no SKILL.md found in ${localPath}`);
+      return;
+    }
+
+    // Collect files from local directory
+    downloadedFiles = collectLocalFiles(localPath);
+    if (downloadedFiles.length === 0) {
+      error(`No files found in local skill directory: ${localPath}`);
+      return;
+    }
+
+  } else {
+    // ── GitHub URL install ───────────────────────────────────────────────────
+    // 1b. Parse GitHub URL
+    const parsed = parseGitHubUrl(source);
+    if (!parsed) {
+      error(`Invalid source: ${source}\nExpected a GitHub URL (owner/repo, github.com/owner/repo, https://github.com/owner/repo)\nor a local path (./path/to/skill, /absolute/path)`);
+      return;
+    }
+    const { owner, repo } = parsed;
+    name = repo;
+
+    // 3. Fetch repo contents
+    let fileList;
+    try {
+      fileList = await fetchGitHubContents(owner, repo);
+    } catch (e) {
+      error(e.message);
+      return;
+    }
+
+    // 4. Verify SKILL.md exists in repo root
+    const hasSkillMd = fileList.some(f => f.path === 'SKILL.md' || f.name === 'SKILL.md' && !f.path.includes('/'));
+    if (!hasSkillMd) {
+      error(`Invalid skill: no SKILL.md found in repository root of ${owner}/${repo}`);
+      return;
+    }
+
+    // 5. Download all files
+    try {
+      downloadedFiles = await downloadFiles(fileList);
+    } catch (e) {
+      error(e.message);
+      return;
+    }
+  }
+
+  // 2. Check for existing skill installation (applies to both local and GitHub)
   const skillsDir = path.join(cwd, '.agents', 'skills');
   const skillDestDir = path.join(skillsDir, name);
   if (fs.existsSync(skillDestDir)) {
     error(`Skill '${name}' already installed. Run skills:remove first.`);
-    return;
-  }
-
-  // 3. Fetch repo contents
-  let fileList;
-  try {
-    fileList = await fetchGitHubContents(owner, repo);
-  } catch (e) {
-    error(e.message);
-    return;
-  }
-
-  // 4. Verify SKILL.md exists in repo root
-  const hasSkillMd = fileList.some(f => f.path === 'SKILL.md' || f.name === 'SKILL.md' && !f.path.includes('/'));
-  if (!hasSkillMd) {
-    error(`Invalid skill: no SKILL.md found in repository root of ${owner}/${repo}`);
-    return;
-  }
-
-  // 5. Download all files
-  let downloadedFiles;
-  try {
-    downloadedFiles = await downloadFiles(fileList);
-  } catch (e) {
-    error(e.message);
     return;
   }
 
@@ -602,7 +689,7 @@ async function cmdSkillsInstall(cwd, options, raw) {
     // Log blocked attempt
     logAuditEntry(cwd, {
       action: 'blocked',
-      source,
+      source: sourceLabel,
       name,
       outcome: 'blocked',
       scan_verdict: {
@@ -656,7 +743,7 @@ async function cmdSkillsInstall(cwd, options, raw) {
       output({
         action: 'confirm',
         name,
-        source,
+        source: sourceLabel,
         files: downloadedFiles.map(f => ({ path: f.path, size: f.size })),
         scan: scanResult,
         prompt: confirmPrompt,
@@ -708,7 +795,7 @@ async function cmdSkillsInstall(cwd, options, raw) {
   // Log successful install
   logAuditEntry(cwd, {
     action: 'install',
-    source,
+    source: sourceLabel,
     name,
     outcome: 'installed',
     scan_verdict: {
