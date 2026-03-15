@@ -231,6 +231,40 @@ Display key findings from SUMMARY.md:
 **Watch Out For:** [from SUMMARY.md]
 ```
 
+**Research Quality Profile:**
+
+For each research file in `.planning/research/`:
+
+```bash
+SCORE=$(node $BGSD_HOME/bin/bgsd-tools.cjs research:score "$RESEARCH_FILE")
+```
+
+Display profile summary for each file:
+```
+  {filename}: confidence={confidence_level}, sources={source_count}, high_pct={high_confidence_pct}%, age={oldest_source_days}d, official_docs={has_official_docs}
+```
+
+If any file has `confidence_level: "LOW"`:
+
+```
+  LOW confidence: {filename} — {flagged_gaps count matching HIGH or MEDIUM severity} gaps detected
+  Gaps (HIGH/MEDIUM only):
+  - {gap.gap} ({gap.severity}) — {gap.suggestion}
+  
+  Re-research this file? (y/N)
+```
+
+Filter: only show gaps where `severity` is `HIGH` or `MEDIUM` — suppress `LOW` severity gaps.
+
+If conflicts detected (`conflicts.length > 0`):
+```
+  Conflicts detected in {filename}:
+  - "{claim}" — {source_a} vs {source_b}
+```
+
+If user chooses "yes" for re-research: re-spawn researcher for that dimension with gap context.
+If "no" (default): continue — non-blocking.
+
 **If "Skip research":** Continue to Step 9.
 
 ## 8.5. Skill Discovery (Optional)
