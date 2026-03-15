@@ -16,10 +16,11 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
 ## Phases
 
 - [✓] **Phase 124: Tool Detection & Infrastructure** (2/2 plans complete) - Unified tool capability detection with caching and cross-platform support
-- [ ] **Phase 125: Core Tools Integration** - ripgrep, fd, jq integration with graceful degradation
+- [x] **Phase 125: Core Tools Integration** - ripgrep, fd, jq integration with graceful degradation (completed 2026-03-15)
 - [ ] **Phase 126: Extended Tools** - yq, bat, GitHub CLI integration for enhanced workflows
 - [ ] **Phase 127: Agent Routing Enhancement** - Tool-aware agent routing with decision functions
 - [ ] **Phase 128: Agent Collaboration** - Enhanced handoffs, multi-phase sequencing, shared patterns
+- [ ] **Phase 124: Tool Detection & Infrastructure**
 
 ---
 
@@ -62,7 +63,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
   5. All 3 tools integrated with execFileSync array args (zero shell injection vulnerabilities)
 
 **Plans:**
-  - Plan 01 (Wave 1): Config toggles (tools_ripgrep/fd/jq) + config-aware fallback + ripgrep integration into conventions.js, deps.js, env.js
+  3/3 plans complete
   - Plan 02 (Wave 2): fd integration into discovery adapter + jq integration into JSON processing + health check tool status
   - Plan 03 (Wave 3): Integration test suite (30+ tests) validating all tools with CLI and fallback paths
 
@@ -130,7 +131,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 124. Tool Detection & Infrastructure | 2/2 | ✅ Complete | 2026-03-15 |
-| 125. Core Tools Integration | 0/3 | Planning Complete | — |
+| 125. Core Tools Integration | 0/3 | Complete    | 2026-03-15 |
 | 126. Extended Tools | 0/2 | Planned | — |
 | 127. Agent Routing Enhancement | 0/2 | Planned | — |
 | 128. Agent Collaboration | 0/2 | Planned | — |
