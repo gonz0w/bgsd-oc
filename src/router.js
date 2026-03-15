@@ -1377,8 +1377,23 @@ Examples:
           lazyLessons().cmdLessonsList(cwd, parseLessonsOptions(restArgs), raw);
         } else if (subcommand === 'migrate') {
           lazyLessons().cmdLessonsMigrate(cwd, {}, raw);
+        } else if (subcommand === 'analyze') {
+          const agentIdx = restArgs.indexOf('--agent');
+          lazyLessons().cmdLessonsAnalyze(cwd, {
+            agent: agentIdx !== -1 ? restArgs[agentIdx + 1] : null,
+          }, raw);
+        } else if (subcommand === 'suggest') {
+          const agentIdx = restArgs.indexOf('--agent');
+          lazyLessons().cmdLessonsSuggest(cwd, {
+            agent: agentIdx !== -1 ? restArgs[agentIdx + 1] : null,
+          }, raw);
+        } else if (subcommand === 'compact') {
+          const thresholdIdx = restArgs.indexOf('--threshold');
+          lazyLessons().cmdLessonsCompact(cwd, {
+            threshold: thresholdIdx !== -1 ? restArgs[thresholdIdx + 1] : undefined,
+          }, raw);
         } else {
-          error(`Unknown lessons subcommand: ${subcommand}. Available: capture, list, migrate`);
+          error(`Unknown lessons subcommand: ${subcommand}. Available: capture, list, migrate, analyze, suggest, compact`);
         }
         break;
       }

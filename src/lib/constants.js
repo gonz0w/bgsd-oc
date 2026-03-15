@@ -1555,6 +1555,60 @@ Output: { migrated, sources, entry_count }
 
 Examples:
   bgsd-tools lessons:migrate`,
+
+  'lessons:analyze': `Usage: bgsd-tools lessons:analyze [--agent <name>]
+
+Analyze recurrent patterns in the lesson store, grouped by affected agent and type.
+Only shows groups with ≥2 supporting lessons (noise filter).
+
+Options:
+  --agent <name>    Filter results to a specific agent (e.g., bgsd-executor)
+
+Output: { groups, group_count, total_lessons_analyzed, filter }
+
+Each group contains:
+  - agent, pattern_type, count, severity_distribution
+  - common_root_causes, lessons (id, title, date, severity)
+
+Examples:
+  bgsd-tools lessons:analyze
+  bgsd-tools lessons:analyze --agent bgsd-executor`,
+
+  'lessons:suggest': `Usage: bgsd-tools lessons:suggest [--agent <name>]
+
+Generate structured improvement suggestions from lesson patterns.
+Excludes type:environment entries (migrated free-form lessons).
+Only generates suggestions for groups with ≥2 supporting lessons.
+Advisory only — never auto-applied.
+
+Options:
+  --agent <name>    Filter suggestions to a specific agent
+
+Output: { suggestions, suggestion_count, advisory_note, filter }
+
+Each suggestion contains:
+  - agent, suggestion_type (behavioral|workflow|tooling|general)
+  - summary, supporting_lessons (count + ids), severity, prevention_rules
+
+Examples:
+  bgsd-tools lessons:suggest
+  bgsd-tools lessons:suggest --agent bgsd-executor`,
+
+  'lessons:compact': `Usage: bgsd-tools lessons:compact [--threshold <N>]
+
+Deduplicate the lesson store by normalized root_cause when entry count exceeds threshold.
+Groups entries with identical root causes, keeps the latest entry per group.
+Merges unique prevention rules and preserves highest severity across the group.
+
+Options:
+  --threshold <N>   Compaction threshold (default: 100). If count < threshold, no-op.
+
+Output when below threshold: { compacted: false, reason, count, threshold }
+Output when compacted:       { compacted: true, before, after, removed, groups_merged }
+
+Examples:
+  bgsd-tools lessons:compact
+  bgsd-tools lessons:compact --threshold 50`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };

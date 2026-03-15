@@ -318,6 +318,308 @@ function cmdLessonsList(cwd, options, raw) {
   });
 }
 
+// ─── Severity ordering ────────────────────────────────────────────────────────
+
+const SEVERITY_ORDER = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+
+// ─── Analyze ──────────────────────────────────────────────────────────────────
+
+/**
+ * Analyze recurrent patterns across lessons, grouped by affected agent + type.
+ * Only shows groups with ≥2 supporting lessons (LESSON-04).
+ * Options: agent (filter to specific agent)
+ */
+function cmdLessonsAnalyze(cwd, options, raw) {
+  const { agent } = options;
+
+  const entries = readLessonsStore(cwd);
+
+  // Build per-agent groups: { agentName: { type: [entries] } }
+  const agentTypeMap = {};
+  for (const entry of entries) {
+    const agents = Array.isArray(entry.affected_agents)
+      ? entry.affected_agents
+      : (typeof entry.affected_agents === 'string' && entry.affected_agents.trim()
+          ? entry.affected_agents.split(',').map(s => s.trim()).filter(Boolean)
+          : []);
+
+    for (const agentName of agents) {
+      if (!agentTypeMap[agentName]) agentTypeMap[agentName] = {};
+      const type = entry.type || 'unknown';
+      if (!agentTypeMap[agentName][type]) agentTypeMap[agentName][type] = [];
+      agentTypeMap[agentName][type].push(entry);
+    }
+  }
+
+  // Build groups with ≥2 lessons
+  const groups = [];
+  for (const [agentName, typeMap] of Object.entries(agentTypeMap)) {
+    // Apply --agent filter
+    if (agent && agentName !== agent) continue;
+
+    for (const [type, typeEntries] of Object.entries(typeMap)) {
+      if (typeEntries.length < 2) continue;
+
+      // Severity distribution
+      const severityDist = {};
+      for (const e of typeEntries) {
+        const sev = e.severity || 'UNKNOWN';
+        severityDist[sev] = (severityDist[sev] || 0) + 1;
+      }
+
+      // Deduplicated root causes
+      const rootCauses = [];
+      const seen = new Set();
+      for (const e of typeEntries) {
+        if (e.root_cause && !seen.has(e.root_cause)) {
+          seen.add(e.root_cause);
+          rootCauses.push(e.root_cause);
+        }
+      }
+
+      groups.push({
+        agent: agentName,
+        pattern_type: type,
+        count: typeEntries.length,
+        severity_distribution: severityDist,
+        common_root_causes: rootCauses,
+        lessons: typeEntries.map(e => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          severity: e.severity,
+        })),
+      });
+    }
+  }
+
+  // Sort by count descending
+  groups.sort((a, b) => b.count - a.count);
+
+  output({
+    groups,
+    group_count: groups.length,
+    total_lessons_analyzed: entries.length,
+    filter: agent ? { agent } : null,
+  });
+}
+
+// ─── Suggest ──────────────────────────────────────────────────────────────────
+
+/**
+ * Map lesson type to suggestion_type.
+ */
+function getSuggestionType(type) {
+  if (type === 'agent-behavior') return 'behavioral';
+  if (type === 'workflow') return 'workflow';
+  if (type === 'tooling') return 'tooling';
+  return 'general';
+}
+
+/**
+ * Generate structured improvement suggestions from lesson patterns.
+ * Excludes type:environment entries (LESSON-02 sentinel).
+ * Only groups with ≥2 lessons (LESSON-05).
+ * Options: agent (filter to specific agent)
+ */
+function cmdLessonsSuggest(cwd, options, raw) {
+  const { agent } = options;
+
+  const allEntries = readLessonsStore(cwd);
+
+  // Exclude type:environment (migrated free-form lessons)
+  const entries = allEntries.filter(e => e.type !== 'environment');
+
+  // Build per-agent groups: { agentName: { type: [entries] } }
+  const agentTypeMap = {};
+  for (const entry of entries) {
+    const agents = Array.isArray(entry.affected_agents)
+      ? entry.affected_agents
+      : (typeof entry.affected_agents === 'string' && entry.affected_agents.trim()
+          ? entry.affected_agents.split(',').map(s => s.trim()).filter(Boolean)
+          : []);
+
+    for (const agentName of agents) {
+      if (!agentTypeMap[agentName]) agentTypeMap[agentName] = {};
+      const type = entry.type || 'unknown';
+      if (!agentTypeMap[agentName][type]) agentTypeMap[agentName][type] = [];
+      agentTypeMap[agentName][type].push(entry);
+    }
+  }
+
+  const suggestions = [];
+
+  for (const [agentName, typeMap] of Object.entries(agentTypeMap)) {
+    // Apply --agent filter
+    if (agent && agentName !== agent) continue;
+
+    for (const [type, typeEntries] of Object.entries(typeMap)) {
+      if (typeEntries.length < 2) continue;
+
+      // Deduplicated prevention rules
+      const preventionRules = [];
+      const seenRules = new Set();
+      for (const e of typeEntries) {
+        if (e.prevention_rule && !seenRules.has(e.prevention_rule)) {
+          seenRules.add(e.prevention_rule);
+          preventionRules.push(e.prevention_rule);
+        }
+      }
+
+      // Deduplicated root causes
+      const rootCauses = [];
+      const seenCauses = new Set();
+      for (const e of typeEntries) {
+        if (e.root_cause && !seenCauses.has(e.root_cause)) {
+          seenCauses.add(e.root_cause);
+          rootCauses.push(e.root_cause);
+        }
+      }
+
+      // Highest severity in group
+      let highestSev = 'LOW';
+      for (const e of typeEntries) {
+        const sev = e.severity || 'LOW';
+        if ((SEVERITY_ORDER[sev] || 0) > (SEVERITY_ORDER[highestSev] || 0)) {
+          highestSev = sev;
+        }
+      }
+
+      // Synthesize summary
+      const rootCausePattern = rootCauses.slice(0, 2).join('; ');
+      const preventionSummary = preventionRules.slice(0, 2).join('; ');
+      const summary = `Agent ${agentName} repeatedly encounters: ${rootCausePattern}. Consider: ${preventionSummary}`;
+
+      suggestions.push({
+        agent: agentName,
+        suggestion_type: getSuggestionType(type),
+        summary,
+        supporting_lessons: {
+          count: typeEntries.length,
+          ids: typeEntries.map(e => e.id).filter(Boolean),
+        },
+        severity: highestSev,
+        prevention_rules: preventionRules,
+      });
+    }
+  }
+
+  // Sort: severity descending, then supporting lesson count descending
+  suggestions.sort((a, b) => {
+    const sevDiff = (SEVERITY_ORDER[b.severity] || 0) - (SEVERITY_ORDER[a.severity] || 0);
+    if (sevDiff !== 0) return sevDiff;
+    return b.supporting_lessons.count - a.supporting_lessons.count;
+  });
+
+  output({
+    suggestions,
+    suggestion_count: suggestions.length,
+    advisory_note: 'These are suggestions only — review and apply manually',
+    filter: agent ? { agent } : null,
+  });
+}
+
+// ─── Compact ──────────────────────────────────────────────────────────────────
+
+/**
+ * Deduplicate lessons store by normalized root_cause when above threshold.
+ * Options: threshold (default 100)
+ */
+function cmdLessonsCompact(cwd, options, raw) {
+  const threshold = options.threshold !== undefined ? parseInt(options.threshold, 10) : 100;
+
+  const entries = readLessonsStore(cwd);
+  const count = entries.length;
+
+  if (count < threshold) {
+    output({
+      compacted: false,
+      reason: 'Below threshold',
+      count,
+      threshold,
+    });
+    return;
+  }
+
+  // Group by normalized root_cause
+  const rootCauseGroups = {};
+  for (const entry of entries) {
+    const key = (entry.root_cause || '').toLowerCase().trim();
+    if (!rootCauseGroups[key]) rootCauseGroups[key] = [];
+    rootCauseGroups[key].push(entry);
+  }
+
+  const result = [];
+  let groupsMerged = 0;
+
+  for (const [key, group] of Object.entries(rootCauseGroups)) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+
+    groupsMerged++;
+
+    // Keep entry with latest date
+    const sorted = group.slice().sort((a, b) => {
+      const da = a.date || '';
+      const db = b.date || '';
+      return db.localeCompare(da);
+    });
+    const kept = Object.assign({}, sorted[0]);
+
+    // Merge unique prevention rules
+    const seenRules = new Set();
+    const mergedRules = [];
+    for (const e of group) {
+      const rule = e.prevention_rule || '';
+      if (rule && !seenRules.has(rule)) {
+        seenRules.add(rule);
+        mergedRules.push(rule);
+      }
+    }
+    if (mergedRules.length > 1) {
+      kept.prevention_rule = mergedRules.join(' | ');
+    }
+
+    // Preserve highest severity
+    let highestSev = kept.severity || 'LOW';
+    for (const e of group) {
+      const sev = e.severity || 'LOW';
+      if ((SEVERITY_ORDER[sev] || 0) > (SEVERITY_ORDER[highestSev] || 0)) {
+        highestSev = sev;
+      }
+    }
+    kept.severity = highestSev;
+
+    // Record compaction metadata
+    kept.compacted_from = group.length;
+
+    result.push(kept);
+  }
+
+  writeLessonsStore(cwd, result);
+
+  // Clear and rewrite SQLite entries if available (best-effort)
+  try {
+    const db = getDb(cwd);
+    const cache = new PlanningCache(db);
+    for (const entry of result) {
+      cache.writeMemoryEntry(cwd, 'lessons', entry);
+    }
+  } catch (e) {
+    debugLog('lessons.compact', 'SQLite rewrite failed (non-blocking)', e);
+  }
+
+  output({
+    compacted: true,
+    before: count,
+    after: result.length,
+    removed: count - result.length,
+    groups_merged: groupsMerged,
+  });
+}
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -326,4 +628,7 @@ module.exports = {
   cmdLessonsCapture,
   cmdLessonsMigrate,
   cmdLessonsList,
+  cmdLessonsAnalyze,
+  cmdLessonsSuggest,
+  cmdLessonsCompact,
 };
