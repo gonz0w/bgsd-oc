@@ -106,7 +106,9 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
   4. New decision function `resolveJsonTransformMode()` recommends jq vs JavaScript based on JSON complexity and tool availability
   5. Plan decomposition heuristics account for tool availability (e.g., tasks are smaller when tools available, larger when fallback required)
 
-**Plans:** TBD
+**Plans:**
+  - Plan 01 (Wave 1): tool_availability enrichment + 3 resolve functions (resolveFileDiscoveryMode, resolveSearchMode, resolveJsonTransformMode) + workflow guidance
+  - Plan 02 (Wave 2): Contract tests for decision functions + enricher integration tests
 
 ---
 
