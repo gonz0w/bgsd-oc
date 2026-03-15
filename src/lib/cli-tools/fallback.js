@@ -7,31 +7,37 @@
 
 const { detectTool } = require('./detector.js');
 const { getInstallGuidance } = require('./install-guidance.js');
+const { loadConfig } = require('../config');
 
 /**
- * Wrap a CLI operation with fallback to Node.js implementation
+ * Check if a tool is enabled in config AND available on the system.
+ * If config explicitly sets tools_<name> to false, returns false regardless of detection.
+ * Falls through to detectTool() when config is not set or doesn't exist.
  * 
- * @param {string} toolName - Name of the CLI tool to check
- * @param {Function} cliFn - Function to execute if CLI tool is available
- * @param {Function} nodeJsFallback - Function to execute if CLI tool is unavailable
- * @returns {object} - Operation result with success, usedFallback, guidance, result, error
- * 
- * @example
- * const result = withToolFallback(
- *   'ripgrep',
- *   () => execFileSync('rg', ['pattern', path]),
- *   () => fallbackGrep(pattern, path)
- * );
- * 
- * if (result.usedFallback) {
- *   console.log('Note: Using Node.js fallback. ' + result.guidance.installCommand);
- * }
+ * @param {string} toolName - Name of the tool (e.g., 'ripgrep', 'fd', 'jq')
+ * @returns {boolean} - True if tool is enabled in config and available on system
  */
-function withToolFallback(toolName, cliFn, nodeJsFallback) {
+function isToolEnabled(toolName) {
+  try {
+    const config = loadConfig(process.cwd());
+    const configKey = `tools_${toolName}`;
+    if (config[configKey] === false) {
+      return false;
+    }
+  } catch {
+    // Config may not exist (no .planning/ directory) — fall through to detection
+  }
+  // Config doesn't explicitly disable it — check actual detection
   const toolResult = detectTool(toolName);
+  return toolResult.available;
+}
+
+function withToolFallback(toolName, cliFn, nodeJsFallback) {
+  // Check config toggle first — if explicitly disabled, skip to fallback
+  const enabled = isToolEnabled(toolName);
   
-  // Check if tool is available
-  if (toolResult.available) {
+  // Check if tool is available (also respects config via isToolEnabled)
+  if (enabled) {
     try {
       const result = cliFn();
       return {
@@ -102,5 +108,6 @@ function getToolGuidance(toolName) {
 module.exports = {
   withToolFallback,
   isToolAvailable,
+  isToolEnabled,
   getToolGuidance
 };

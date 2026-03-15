@@ -101,9 +101,11 @@ function searchRipgrep(pattern, options = {}) {
       
       // Use basic pattern matching fallback
       for (const path of Array.isArray(paths) ? paths : [paths]) {
-        const { globSync } = require('glob');
-        const files = globSync('**/*', { 
+        const fg = require('fast-glob');
+        const files = fg.sync('**/*', { 
           cwd: path,
+          onlyFiles: true,
+          dot: true,
           ignore: ['node_modules/**', '.git/**']
         });
         

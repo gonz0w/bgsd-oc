@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
+const { searchRipgrep } = require('../lib/cli-tools');
 
 // --- Language Manifest Patterns -----------------------------------------------
 
@@ -541,16 +542,34 @@ function detectInfraServices(rootDir) {
     const filePath = path.join(rootDir, file);
     try {
       if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        // Simple YAML parsing: find services: section and extract top-level keys
-        const servicesMatch = content.match(/^services:\s*\n((?:[ \t]+\S.*\n?)*)/m);
-        if (servicesMatch) {
-          // Each service is an indented key followed by colon
-          const serviceLines = servicesMatch[1].split('\n');
-          for (const line of serviceLines) {
-            const match = line.match(/^[ \t]{2}(\w[\w-]*):/);
-            if (match) {
-              dockerServices.push(match[1]);
+        // Try ripgrep first for faster extraction of service lines
+        const rgResult = searchRipgrep('image:|build:', { paths: [filePath] });
+        if (rgResult.success && !rgResult.usedFallback && Array.isArray(rgResult.result) && rgResult.result.length > 0) {
+          // Ripgrep found image/build lines — now parse the file to get service names
+          // (ripgrep gives us context that this file has services, but we still need to
+          // parse the services: block for service names since ripgrep returns image/build lines not service name lines)
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const servicesMatch = content.match(/^services:\s*\n((?:[ \t]+\S.*\n?)*)/m);
+          if (servicesMatch) {
+            const serviceLines = servicesMatch[1].split('\n');
+            for (const line of serviceLines) {
+              const match = line.match(/^[ \t]{2}(\w[\w-]*):/);
+              if (match) {
+                dockerServices.push(match[1]);
+              }
+            }
+          }
+        } else {
+          // Fallback: full file read (ripgrep unavailable or no image/build matches)
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const servicesMatch = content.match(/^services:\s*\n((?:[ \t]+\S.*\n?)*)/m);
+          if (servicesMatch) {
+            const serviceLines = servicesMatch[1].split('\n');
+            for (const line of serviceLines) {
+              const match = line.match(/^[ \t]{2}(\w[\w-]*):/);
+              if (match) {
+                dockerServices.push(match[1]);
+              }
             }
           }
         }

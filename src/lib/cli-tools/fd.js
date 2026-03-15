@@ -68,8 +68,8 @@ function findFiles(pattern, options = {}) {
       return files;
     },
     () => {
-      // Node.js fallback - basic glob implementation
-      const { globSync } = require('glob');
+      // Node.js fallback - basic glob implementation using fast-glob
+      const fg = require('fast-glob');
       const path = require('path');
       
       let globPattern = pattern;
@@ -77,32 +77,22 @@ function findFiles(pattern, options = {}) {
       // Convert fd pattern to glob pattern
       if (extension) {
         globPattern = `**/*.${extension}`;
-      } else if (!pattern.includes('*') && !pattern.includes('.')) {
-        globPattern = `**/${pattern}*`;
+      } else if (!pattern || (!pattern.includes('*') && !pattern.includes('.'))) {
+        globPattern = '**/*';
       }
       
-      const files = globSync(globPattern, {
+      const fgOptions = {
+        dot: true,
         ignore: ['node_modules/**', '.git/**'],
-        absolute: absolutePath
-      });
+        absolute: absolutePath,
+        onlyFiles: type !== 'd',
+        onlyDirectories: type === 'd',
+        suppressErrors: true,
+      };
+      if (maxDepth !== null) fgOptions.deep = maxDepth;
       
-      // Filter by type if specified
-      let results = files;
-      if (type === 'f') {
-        results = files.filter(f => {
-          try {
-            return require('fs').statSync(f).isFile();
-          } catch { return false; }
-        });
-      } else if (type === 'd') {
-        results = files.filter(f => {
-          try {
-            return require('fs').statSync(f).isDirectory();
-          } catch { return false; }
-        });
-      }
-      
-      return results;
+      const files = fg.sync(globPattern, fgOptions);
+      return files;
     }
   );
 }

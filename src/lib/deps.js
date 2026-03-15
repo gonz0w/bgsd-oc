@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { debugLog } = require('./output');
 const { readIntel } = require('./codebase-intel');
+const { searchRipgrep } = require('./cli-tools');
 
 // ─── Import Parsers ──────────────────────────────────────────────────────────
 // Each parser takes file content (string) and returns an array of raw import
@@ -491,6 +492,17 @@ function buildDependencyGraph(intel) {
     try {
       // Read file content from disk
       const absPath = path.resolve(filePath);
+      // Ripgrep pre-filter: quickly check if file has any import/require patterns
+      // If ripgrep is available and finds no matches, skip the full file read
+      const preFilter = searchRipgrep('^(import |from |require\\(|use |using |package )', { paths: [absPath], maxCount: 1 });
+      if (preFilter.success && !preFilter.usedFallback) {
+        // ripgrep ran successfully — if no matches found, skip this file
+        if (!Array.isArray(preFilter.result) || preFilter.result.length === 0) {
+          debugLog('deps.buildGraph', `rg pre-filter: no imports in ${filePath}, skipping`);
+          continue;
+        }
+      }
+      // Either ripgrep fell back or found matches — read full file content
       content = fs.readFileSync(absPath, 'utf8');
     } catch (e) {
       debugLog('deps.buildGraph', `read error: ${filePath}: ${e.message}`);

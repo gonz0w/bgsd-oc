@@ -12,7 +12,7 @@ const { parseYAML, transformYAML, YAMLtoJSON, transformWithPreset: transformYAML
 const { catWithHighlight, getFileTheme, listThemes, getLanguage, getStylePresets, STYLE_PRESETS, isBatAvailable } = require('./bat.js');
 const { listPRs, getPR, listIssues, getIssue, getRepoInfo, isGhAvailable, checkAuth } = require('./gh.js');
 const { detectTool, getToolStatus, clearCache, TOOLS } = require('./detector.js');
-const { withToolFallback, isToolAvailable, getToolGuidance } = require('./fallback.js');
+const { withToolFallback, isToolAvailable, isToolEnabled, getToolGuidance } = require('./fallback.js');
 const { getInstallGuidance } = require('./install-guidance.js');
 
 /**
@@ -171,6 +171,7 @@ module.exports = {
   // fallback exports
   withToolFallback,
   isToolAvailable,
+  isToolEnabled,
   getToolGuidance,
   
   // install guidance

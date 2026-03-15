@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { LANGUAGE_MAP } = require('./codebase-intel');
+const { searchRipgrep } = require('./cli-tools');
 
 // ─── Naming Pattern Classifiers ──────────────────────────────────────────────
 
@@ -355,11 +356,25 @@ const FRAMEWORK_DETECTORS = [
       if (routerFiles.length > 0) {
         let routeEvidence = [];
         let hasPipeThrough = false;
-        for (const rf of routerFiles) {
-          const content = safeReadFile(path.join(cwd, rf));
-          if (/pipe_through/.test(content)) hasPipeThrough = true;
-          if (/\b(get|post|put|delete|patch)\s/.test(content)) {
-            routeEvidence.push(rf);
+        const routerPaths = routerFiles.map(f => path.join(cwd, f));
+        const rgResult = searchRipgrep('pipe_through|\\b(get|post|put|delete|patch)\\s', { paths: routerPaths });
+        if (rgResult.success && !rgResult.usedFallback && Array.isArray(rgResult.result)) {
+          // Use ripgrep results
+          for (const match of rgResult.result) {
+            const relPath = path.relative(cwd, match.path).split(path.sep).join('/');
+            if (/pipe_through/.test(match.line)) hasPipeThrough = true;
+            if (/\b(get|post|put|delete|patch)\s/.test(match.line) && !routeEvidence.includes(relPath)) {
+              routeEvidence.push(relPath);
+            }
+          }
+        } else {
+          // Fallback: file-by-file read
+          for (const rf of routerFiles) {
+            const content = safeReadFile(path.join(cwd, rf));
+            if (/pipe_through/.test(content)) hasPipeThrough = true;
+            if (/\b(get|post|put|delete|patch)\s/.test(content)) {
+              routeEvidence.push(rf);
+            }
           }
         }
         if (routeEvidence.length > 0) {
@@ -378,10 +393,22 @@ const FRAMEWORK_DETECTORS = [
       // 2. Ecto schemas — files containing `use Ecto.Schema`
       const schemaFiles = filePaths.filter(f => f.endsWith('.ex') || f.endsWith('.exs'));
       const ectoSchemaFiles = [];
-      for (const sf of schemaFiles) {
-        const content = safeReadFile(path.join(cwd, sf));
-        if (/use Ecto\.Schema/.test(content)) {
-          ectoSchemaFiles.push(sf);
+      if (schemaFiles.length > 0) {
+        const schemaPaths = schemaFiles.map(f => path.join(cwd, f));
+        const ectoRgResult = searchRipgrep('use Ecto\\.Schema', { paths: schemaPaths, maxCount: 1 });
+        if (ectoRgResult.success && !ectoRgResult.usedFallback && Array.isArray(ectoRgResult.result)) {
+          for (const match of ectoRgResult.result) {
+            const relPath = path.relative(cwd, match.path).split(path.sep).join('/');
+            if (!ectoSchemaFiles.includes(relPath)) ectoSchemaFiles.push(relPath);
+          }
+        } else {
+          // Fallback: file-by-file read
+          for (const sf of schemaFiles) {
+            const content = safeReadFile(path.join(cwd, sf));
+            if (/use Ecto\.Schema/.test(content)) {
+              ectoSchemaFiles.push(sf);
+            }
+          }
         }
       }
       if (ectoSchemaFiles.length > 0) {
@@ -396,10 +423,22 @@ const FRAMEWORK_DETECTORS = [
 
       // 3. Plugs — files with `use Plug` or `import Plug.Conn`
       const plugFiles = [];
-      for (const sf of schemaFiles) {
-        const content = safeReadFile(path.join(cwd, sf));
-        if (/use Plug\b/.test(content) || /import Plug\.Conn/.test(content)) {
-          plugFiles.push(sf);
+      if (schemaFiles.length > 0) {
+        const plugPaths = schemaFiles.map(f => path.join(cwd, f));
+        const plugRgResult = searchRipgrep('use Plug\\b|import Plug\\.Conn', { paths: plugPaths, maxCount: 1 });
+        if (plugRgResult.success && !plugRgResult.usedFallback && Array.isArray(plugRgResult.result)) {
+          for (const match of plugRgResult.result) {
+            const relPath = path.relative(cwd, match.path).split(path.sep).join('/');
+            if (!plugFiles.includes(relPath)) plugFiles.push(relPath);
+          }
+        } else {
+          // Fallback: file-by-file read
+          for (const sf of schemaFiles) {
+            const content = safeReadFile(path.join(cwd, sf));
+            if (/use Plug\b/.test(content) || /import Plug\.Conn/.test(content)) {
+              plugFiles.push(sf);
+            }
+          }
         }
       }
       if (plugFiles.length > 0) {
