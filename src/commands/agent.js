@@ -559,6 +559,238 @@ function escapeRegex(str) {
 }
 
 /**
+ * Validate YAML frontmatter in an agent file content
+ * Returns { valid: true, name } on success or { valid: false, error, line } on failure
+ */
+function validateAgentFrontmatter(content) {
+  if (!content || typeof content !== 'string') {
+    return { valid: false, error: 'No YAML frontmatter found (missing --- delimiters)', line: 1 };
+  }
+  
+  // Check for opening and closing --- delimiters
+  if (!content.startsWith('---\n')) {
+    return { valid: false, error: 'No YAML frontmatter found (missing --- delimiters)', line: 1 };
+  }
+  
+  const closingDelim = content.indexOf('\n---', 4);
+  if (closingDelim === -1) {
+    return { valid: false, error: 'No YAML frontmatter found (missing --- delimiters)', line: 1 };
+  }
+  
+  // Try to parse using extractFrontmatter
+  let parsed;
+  try {
+    parsed = extractFrontmatter(content);
+  } catch (e) {
+    // Find approximate line number from error if available
+    const lineNum = e.mark ? e.mark.line + 1 : null;
+    return { valid: false, error: 'Malformed YAML frontmatter', line: lineNum };
+  }
+  
+  // extractFrontmatter returns {} on parse failure (no throw), check if we got anything
+  if (!parsed || typeof parsed !== 'object') {
+    return { valid: false, error: 'Malformed YAML frontmatter', line: null };
+  }
+  
+  // Check for required name field
+  if (!parsed.name || typeof parsed.name !== 'string' || parsed.name.trim() === '') {
+    return { valid: false, error: 'Missing required "name" field in YAML frontmatter', line: null };
+  }
+  
+  return { valid: true, name: parsed.name };
+}
+
+/**
+ * Sanitize agent file content
+ * - Replaces editor name variants in non-path contexts with generic terms
+ * - Strips structural injection markers
+ * Returns the sanitized content string
+ */
+function sanitizeAgentContent(content) {
+  if (!content || typeof content !== 'string') return content;
+  
+  let result = content;
+  
+  // Strip structural injection markers (full lines containing these markers)
+  // Remove lines with <system>...</system> or standalone <system>/<system> tags
+  result = result.replace(/^.*<\/?system>.*$/gm, '');
+  // Remove lines with [INST] and [/INST] markers
+  result = result.replace(/^.*\[\/?(INST)\].*$/gm, '');
+  // Remove triple-backtick system blocks: ```system ... ```
+  result = result.replace(/^```system\b[\s\S]*?^```/gm, '');
+  
+  // Replace editor name variants in non-path contexts:
+  // Target 'opencode' preceded by space or start-of-line, followed by space or end-of-line
+  // But NOT when preceded by `/` or `.` (path-like contexts)
+  // Pattern: (^|(?<=[^/.]))opencode(?=[^/a-zA-Z0-9_-]|$)
+  // Using a simpler approach: replace \bOpenCode\b and \bopencode\b when not preceded by . or /
+  result = result.replace(/(?<![./])(?<!\w)(opencode)(?![/a-zA-Z0-9_-])/gi, (match) => {
+    return 'OC';
+  });
+  // Also handle "OpenCode" as a product name (e.g. "Use OpenCode")
+  result = result.replace(/(?<![./])(?<!\w)(OpenCode)(?![/a-zA-Z0-9_-])/g, 'OC');
+  
+  // Clean up any empty lines left by marker removal (collapse 3+ newlines to 2)
+  result = result.replace(/\n{3,}/g, '\n\n');
+  
+  return result;
+}
+
+/**
+ * Generate a unified diff between two text strings
+ * Pure JS implementation, zero external dependencies
+ * Returns unified diff string with --- / +++ headers and @@ hunks
+ */
+function generateUnifiedDiff(textA, textB, labelA, labelB) {
+  if (textA === textB) return '';
+  
+  const linesA = textA.split('\n');
+  const linesB = textB.split('\n');
+  
+  // Remove trailing empty element from split if text ends with \n
+  if (linesA[linesA.length - 1] === '') linesA.pop();
+  if (linesB[linesB.length - 1] === '') linesB.pop();
+  
+  const m = linesA.length;
+  const n = linesB.length;
+  
+  // Compute LCS using standard O(mn) DP
+  // dp[i][j] = LCS length for linesA[0..i-1] and linesB[0..j-1]
+  const dp = new Array(m + 1);
+  for (let i = 0; i <= m; i++) {
+    dp[i] = new Array(n + 1).fill(0);
+  }
+  
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (linesA[i - 1] === linesB[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  
+  // Backtrack to produce edit script
+  // Result: array of {type: 'common'|'remove'|'add', lineA, lineB, text}
+  const edits = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && linesA[i - 1] === linesB[j - 1]) {
+      edits.unshift({ type: 'common', lineA: i, lineB: j, text: linesA[i - 1] });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      edits.unshift({ type: 'add', lineA: i, lineB: j, text: linesB[j - 1] });
+      j--;
+    } else {
+      edits.unshift({ type: 'remove', lineA: i, lineB: j, text: linesA[i - 1] });
+      i--;
+    }
+  }
+  
+  // Group into hunks with 3 lines of context
+  const CONTEXT = 3;
+  const hunks = [];
+  let currentHunk = null;
+  
+  for (let k = 0; k < edits.length; k++) {
+    const edit = edits[k];
+    const isChange = edit.type !== 'common';
+    
+    if (isChange) {
+      // Start a new hunk if needed, or extend current
+      if (!currentHunk) {
+        // Include up to CONTEXT lines before this change
+        const startIdx = Math.max(0, k - CONTEXT);
+        currentHunk = {
+          startA: edits[startIdx] ? edits[startIdx].lineA : 1,
+          startB: edits[startIdx] ? edits[startIdx].lineB : 1,
+          lines: []
+        };
+        // Add context lines before the change
+        for (let c = startIdx; c < k; c++) {
+          currentHunk.lines.push(' ' + edits[c].text);
+        }
+      }
+      currentHunk.lines.push((edit.type === 'add' ? '+' : '-') + edit.text);
+    } else if (currentHunk) {
+      // Common line while in a hunk — add as context
+      currentHunk.lines.push(' ' + edit.text);
+      
+      // Check if next change is within CONTEXT lines
+      let nextChangeIdx = -1;
+      for (let c = k + 1; c < edits.length && c <= k + CONTEXT * 2; c++) {
+        if (edits[c].type !== 'common') {
+          nextChangeIdx = c;
+          break;
+        }
+      }
+      
+      if (nextChangeIdx === -1 || nextChangeIdx > k + CONTEXT) {
+        // No nearby change, close the hunk (trim trailing context to CONTEXT lines)
+        const contextAdded = currentHunk.lines.filter(l => l.startsWith(' ')).length;
+        // Trim to at most CONTEXT trailing context lines
+        let trailingContext = 0;
+        let trimIdx = currentHunk.lines.length - 1;
+        while (trimIdx >= 0 && currentHunk.lines[trimIdx].startsWith(' ')) {
+          trailingContext++;
+          trimIdx--;
+        }
+        if (trailingContext > CONTEXT) {
+          currentHunk.lines.splice(trimIdx + 1 + CONTEXT);
+        }
+        hunks.push(currentHunk);
+        currentHunk = null;
+      }
+    }
+  }
+  if (currentHunk) {
+    // Trim trailing context
+    let trimIdx = currentHunk.lines.length - 1;
+    let trailingContext = 0;
+    while (trimIdx >= 0 && currentHunk.lines[trimIdx].startsWith(' ')) {
+      trailingContext++;
+      trimIdx--;
+    }
+    if (trailingContext > CONTEXT) {
+      currentHunk.lines.splice(trimIdx + 1 + CONTEXT);
+    }
+    hunks.push(currentHunk);
+  }
+  
+  if (hunks.length === 0) return '';
+  
+  // Build the diff output
+  const output = [];
+  output.push('--- ' + labelA);
+  output.push('+++ ' + labelB);
+  
+  for (const hunk of hunks) {
+    // Calculate proper line counts for the hunk header
+    const countA = hunk.lines.filter(l => l.startsWith(' ') || l.startsWith('-')).length;
+    const countB = hunk.lines.filter(l => l.startsWith(' ') || l.startsWith('+')).length;
+    
+    // Calculate startA and startB from the first non-context line
+    let hunkStartA = hunk.startA;
+    let hunkStartB = hunk.startB;
+    
+    // Adjust startA/startB for context lines at beginning of hunk
+    const leadingContext = [];
+    for (const line of hunk.lines) {
+      if (line.startsWith(' ')) leadingContext.push(line);
+      else break;
+    }
+    hunkStartA = Math.max(1, hunk.startA - leadingContext.length);
+    hunkStartB = Math.max(1, hunk.startB - leadingContext.length);
+    
+    output.push(`@@ -${hunkStartA},${countA} +${hunkStartB},${countB} @@`);
+    output.push(...hunk.lines);
+  }
+  
+  return output.join('\n') + '\n';
+}
+
+/**
  * List all agents
  */
 function cmdAgentList(cwd, raw) {
@@ -574,4 +806,8 @@ module.exports = {
   cmdAgentValidateContracts,
   // Exported for testing
   parseRaciMatrix,
+  // Phase 129: Foundation utilities
+  validateAgentFrontmatter,
+  sanitizeAgentContent,
+  generateUnifiedDiff,
 };
