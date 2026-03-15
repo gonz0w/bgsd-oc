@@ -61,7 +61,10 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
   4. CLI never crashes when tools unavailable; workflows complete with clear messages ("ripgrep not installed, using slower regex search")
   5. All 3 tools integrated with execFileSync array args (zero shell injection vulnerabilities)
 
-**Plans:** TBD
+**Plans:**
+  - Plan 01 (Wave 1): Config toggles (tools_ripgrep/fd/jq) + config-aware fallback + ripgrep integration into conventions.js, deps.js, env.js
+  - Plan 02 (Wave 2): fd integration into discovery adapter + jq integration into JSON processing + health check tool status
+  - Plan 03 (Wave 3): Integration test suite (30+ tests) validating all tools with CLI and fallback paths
 
 ---
 
@@ -127,7 +130,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 124. Tool Detection & Infrastructure | 2/2 | ✅ Complete | 2026-03-15 |
-| 125. Core Tools Integration | 0/3 | Planned | — |
+| 125. Core Tools Integration | 0/3 | Planning Complete | — |
 | 126. Extended Tools | 0/2 | Planned | — |
 | 127. Agent Routing Enhancement | 0/2 | Planned | — |
 | 128. Agent Collaboration | 0/2 | Planned | — |
