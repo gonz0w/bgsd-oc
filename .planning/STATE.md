@@ -10,12 +10,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v12.1 Tool Integration & Agent Enhancement
-**Phase:** 126 (Plan 01 complete)
-**Current Plan:** Plan 01 complete — ready for Plan 02 or next phase
-**Status:** Plan 01 complete
+**Phase:** 126 (Plan 01 & Plan 02 complete)
+**Current Plan:** Plan 02 complete — Phase 126 complete
+**Status:** Phase 126 complete
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 97% (Phase 126 Plan 01 complete)
+Progress: [██████████] 100% (Phase 126 complete, 2 of 2 plans)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [██████████] 97% (Phase 126 Plan 01 complete)
 - v12.1 Phase 124 Plan 01: 3 min, 2 tasks, 3 files (1241 tests - all pass)
 - v12.1 Phase 124 Plan 02: 7 min, 2 tasks, 1 file (67 tests added - 1350 total)
 - v12.1 Phase 126 Plan 01: 15 min, 2 tasks, 9 files (1398 tests - all pass)
+- v12.1 Phase 126 Plan 02: 19 min, 2 tasks, 4 files (1398 tests - all pass)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -58,7 +59,6 @@ Progress: [██████████] 97% (Phase 126 Plan 01 complete)
 | 126 | Extended Tools | yq, bat, GitHub CLI integration | TOOL-04, TOOL-05, TOOL-06 |
 | 127 | Agent Routing Enhancement | Tool-aware routing with decision functions | AGENT-01 |
 | 128 | Agent Collaboration | Inter-agent handoffs & multi-phase sequencing | AGENT-02, AGENT-03 |
-
 ### Key Decisions
 
 - [v12.1]: Tool detection centralized in Phase 124 to avoid duplication across 6 tools
@@ -68,6 +68,8 @@ Progress: [██████████] 97% (Phase 126 Plan 01 complete)
 - [v12.1]: 25%+ context reduction target via capability-aware filtering
 - [0126-01]: cmdRollbackInfo lives in features.js not misc.js — plan description had wrong file, implementation correct
 - [0126-01]: bat enhancement pattern: isToolEnabled check → temp file → catWithHighlight → finally cleanup → additive result field
+- [0126-02]: isGhUsable() uses exact version match (major.minor.patch) — only 2.88.0 blocked, 2.88.1+ allowed; BLOCKED_VERSIONS array for extensibility
+- [0126-02]: detect:gh-preflight kept internal (no COMMAND_HELP) — workflow-facing tool for GitHub CI pre-flight validation
 
 ### Completed Work
 
@@ -90,6 +92,12 @@ Progress: [██████████] 97% (Phase 126 Plan 01 complete)
   - bat-enhanced diff display in cmdSessionDiff and cmdRollbackInfo (silent fallback, additive diff_highlighted)
   - All 1398 tests passing
 
+- [✓] Phase 126 Plan 02: gh CLI Version Blocklist and Pre-flight Validation (TOOL-06)
+  - isGhUsable() with BLOCKED_VERSIONS array (exact match 2.88.0 only)
+  - detect:gh-preflight CLI command: { usable, authenticated, version, errors }
+  - Error-and-stop behavior: blocked/missing gh → errors[], usable: false, no partial completion
+  - All 1398 tests passing
+
 ### Pending Work
 
 - Phase 127 planning (agent routing decision functions)
@@ -97,13 +105,12 @@ Progress: [██████████] 97% (Phase 126 Plan 01 complete)
 
 ### Blockers/Concerns
 
-None — Phase 126 Plan 01 complete, yq/bat/gh integration done.
+None — Phase 126 complete, yq/bat/gh integration fully done.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T13:33:22.865Z
-**This session:** 2026-03-15 (Phase 126 Plan 01 execution complete, 15 min total)
+**Last session:** 2026-03-15T13:35:19Z
+**This session:** 2026-03-15 (Phase 126 Plan 02 execution complete, 19 min total)
 **Next steps:** 
-1. Continue Phase 126 Plan 02+ if any planned
-2. Plan and execute Phase 127 (agent routing decision functions)
-3. Plan and execute Phase 128 (agent collaboration patterns)
+1. Plan and execute Phase 127 (agent routing decision functions)
+2. Plan and execute Phase 128 (agent collaboration patterns)
