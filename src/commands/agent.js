@@ -926,6 +926,105 @@ function cmdAgentOverride(cwd, raw, args) {
 }
 
 /**
+ * Synchronize a local override with the upstream global agent
+ * Flags: --accept (apply sync), --reject (exit silently)
+ * Silent exit when identical; error when no local override exists
+ */
+function cmdAgentSync(cwd, raw, args) {
+  const name = args && args[0];
+  if (!name || name.startsWith('--')) {
+    error('Usage: agent sync <name>');
+    process.exit(1);
+  }
+
+  // Normalize: strip .md extension if provided
+  const agentName = name.endsWith('.md') ? name.slice(0, -3) : name;
+
+  const { agentsDir } = resolveBgsdPaths();
+  const globalAgentPath = path.join(agentsDir, agentName + '.md');
+  const localDir = path.join(cwd, '.opencode', 'agents');
+  const localPath = path.join(localDir, agentName + '.md');
+
+  // Check local override exists
+  if (!fs.existsSync(localPath)) {
+    error(`No local override for "${agentName}". Create one with: agent override ${agentName}`);
+    process.exit(1);
+  }
+
+  // Check global agent exists
+  if (!fs.existsSync(globalAgentPath)) {
+    error(`Global agent "${agentName}" not found`);
+    process.exit(1);
+  }
+
+  // Read both files
+  const globalContent = fs.readFileSync(globalAgentPath, 'utf8');
+  const localContent = fs.readFileSync(localPath, 'utf8');
+
+  // Silent exit when identical
+  if (globalContent === localContent) {
+    if (raw) {
+      output({ agent: agentName, action: 'none', identical: true }, raw);
+    }
+    return;
+  }
+
+  // Generate unified diff
+  const diffStr = generateUnifiedDiff(globalContent, localContent, 'global', 'local');
+
+  // Count hunk sections (@@) in the diff
+  const hunkMatches = diffStr.match(/^@@/gm);
+  const hunkCount = hunkMatches ? hunkMatches.length : 0;
+
+  // Parse flags
+  const hasAccept = args.includes('--accept');
+  const hasReject = args.includes('--reject');
+
+  if (hasReject) {
+    // Silent exit on reject
+    if (raw) {
+      output({ agent: agentName, action: 'rejected' }, raw);
+    }
+    return;
+  }
+
+  if (hasAccept) {
+    // Apply sync: write sanitized global content to local path
+    let contentToWrite = globalContent;
+
+    // Validate and inject name: field if missing (same as override)
+    let validation = validateAgentFrontmatter(contentToWrite);
+    if (!validation.valid && validation.error && validation.error.includes('"name" field')) {
+      contentToWrite = injectNameField(contentToWrite, agentName);
+      validation = validateAgentFrontmatter(contentToWrite);
+    }
+
+    // Apply content sanitization before writing
+    contentToWrite = sanitizeAgentContent(contentToWrite);
+
+    fs.writeFileSync(localPath, contentToWrite, 'utf8');
+
+    if (raw) {
+      output({ agent: agentName, action: 'accepted', path: localPath }, raw);
+    } else {
+      console.log('Synced: ' + localPath);
+    }
+    return;
+  }
+
+  // Neither --accept nor --reject: show summary and prompt for action
+  if (raw) {
+    output({ agent: agentName, action: 'pending', sections_modified: hunkCount, diff: diffStr }, raw);
+  } else {
+    process.stdout.write(
+      hunkCount + ' section(s) modified in upstream. Diff:\n' + diffStr +
+      '\nAccept upstream changes? (accept/reject)\n' +
+      'Re-run with --accept to apply or --reject to skip.\n'
+    );
+  }
+}
+
+/**
  * Show unified diff between local override and global counterpart
  */
 function cmdAgentDiff(cwd, raw, args) {
@@ -1072,6 +1171,7 @@ module.exports = {
   cmdAgentValidateContracts,
   cmdAgentOverride,
   cmdAgentDiff,
+  cmdAgentSync,
   // Exported for testing
   parseRaciMatrix,
   findClosestAgent,
