@@ -489,6 +489,41 @@ export function enrichCommand(input, output, cwd) {
     enrichment.local_agent_overrides = [];
   }
 
+  // SKILL-09: Expose installed skills in bgsd-context
+  try {
+    const skillsDir = join(resolvedCwd, '.agents', 'skills');
+    if (existsSync(skillsDir)) {
+      const skillEntries = readdirSync(skillsDir, { withFileTypes: true })
+        .filter(d => d.isDirectory());
+      const skills = [];
+      for (const entry of skillEntries) {
+        const skillMdPath = join(skillsDir, entry.name, 'SKILL.md');
+        if (existsSync(skillMdPath)) {
+          // Extract description from SKILL.md — first ## Purpose section or description frontmatter
+          let description = '';
+          try {
+            const content = readFileSync(skillMdPath, 'utf8');
+            // Try frontmatter description first
+            const descMatch = content.match(/^description:\s*(.+)$/m);
+            if (descMatch) {
+              description = descMatch[1].trim().replace(/^["']|["']$/g, '');
+            } else {
+              // Fall back to first line after ## Purpose
+              const purposeMatch = content.match(/## Purpose\s*\n+(.+)/);
+              if (purposeMatch) description = purposeMatch[1].trim();
+            }
+          } catch { /* ignore read errors */ }
+          skills.push({ name: entry.name, description });
+        }
+      }
+      enrichment.installed_skills = skills;
+    } else {
+      enrichment.installed_skills = [];
+    }
+  } catch {
+    enrichment.installed_skills = [];
+  }
+
   // Phase 128: Handoff tool context (derived from tool_availability)
   try {
     const ta = enrichment.tool_availability || {};

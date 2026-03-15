@@ -233,6 +233,36 @@ Display key findings from SUMMARY.md:
 
 **If "Skip research":** Continue to Step 9.
 
+## 8.5. Skill Discovery (Optional)
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ bGSD ► SKILL DISCOVERY (Optional)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Check installed skills:
+```bash
+SKILLS=$(node $BGSD_HOME/bin/bgsd-tools.cjs skills:list)
+```
+
+Display current skills and browse link:
+
+```
+Current project skills: [from skills:list output]
+Browse available skills: https://agentskills.io
+
+Would you like to install any skills before defining requirements? (y/N)
+```
+
+**If "Install skills":**
+- User provides GitHub URL(s)
+- For each: `node $BGSD_HOME/bin/bgsd-tools.cjs skills:install --source <url>`
+- Security scan runs automatically — dangerous findings block, warn findings prompt confirmation
+- Continue to Step 9 after all installs complete
+
+**If "Skip" (default):** Continue to Step 9.
+
 ## 9. Define Requirements
 
 ```
