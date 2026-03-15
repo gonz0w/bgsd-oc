@@ -10,12 +10,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v12.1 Tool Integration & Agent Enhancement
-**Phase:** 126 (Plan 01 & Plan 02 complete)
-**Current Plan:** Plan 02 complete — Phase 126 complete
+**Phase:** 126 (All 3 plans complete)
+**Current Plan:** Plan 03 complete — Phase 126 complete
 **Status:** Phase 126 complete
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 100% (Phase 126 complete, 2 of 2 plans)
+Progress: [██████████] 100% (Phase 126 complete, 3 of 3 plans)
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ Progress: [██████████] 100% (Phase 126 complete, 2 of 2 plan
 - v12.1 Phase 124 Plan 02: 7 min, 2 tasks, 1 file (67 tests added - 1350 total)
 - v12.1 Phase 126 Plan 01: 15 min, 2 tasks, 9 files (1398 tests - all pass)
 - v12.1 Phase 126 Plan 02: 19 min, 2 tasks, 4 files (1398 tests - all pass)
+- v12.1 Phase 126 Plan 03: 4 min, 2 tasks, 1 file (1427 tests - all pass, 48 new)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -70,6 +71,8 @@ Progress: [██████████] 100% (Phase 126 complete, 2 of 2 plan
 - [0126-01]: bat enhancement pattern: isToolEnabled check → temp file → catWithHighlight → finally cleanup → additive result field
 - [0126-02]: isGhUsable() uses exact version match (major.minor.patch) — only 2.88.0 blocked, 2.88.1+ allowed; BLOCKED_VERSIONS array for extensibility
 - [0126-02]: detect:gh-preflight kept internal (no COMMAND_HELP) — workflow-facing tool for GitHub CI pre-flight validation
+- [0126-03]: withToolFallback catches gh fallback throws — tests verify success:false result, not thrown exceptions (error-and-stop behavior preserved)
+- [0126-03]: Version blocklist logic tested by extracting parseVersion + BLOCKED_VERSIONS criteria (no gh binary needed — machine-independent)
 
 ### Completed Work
 
@@ -98,6 +101,16 @@ Progress: [██████████] 100% (Phase 126 complete, 2 of 2 plan
   - Error-and-stop behavior: blocked/missing gh → errors[], usable: false, no partial completion
   - All 1398 tests passing
 
+- [✓] Phase 126 Plan 03: Extended Tools Integration Tests (TOOL-04, TOOL-05, TOOL-06 verification)
+  - 48 new integration tests in cli-tools-integration.test.cjs
+  - Config toggles verified for all 6 tools (yq, bat, gh, ripgrep, fd, jq)
+  - yq parseYAML/transformYAML/YAMLtoJSON/isYqAvailable integration tests
+  - bat catWithHighlight/getLanguage/getStylePresets/isBatAvailable integration tests
+  - gh version blocklist logic tests (2.88.0 blocked, 2.88.1/2.87.0 allowed)
+  - detect:gh-preflight output shape tests
+  - Error-and-stop behavior confirmed
+  - All 1427 tests passing (96 integration tests)
+
 ### Pending Work
 
 - Phase 127 planning (agent routing decision functions)
@@ -109,8 +122,8 @@ None — Phase 126 complete, yq/bat/gh integration fully done.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T13:35:19Z
-**This session:** 2026-03-15 (Phase 126 Plan 02 execution complete, 19 min total)
+**Last session:** 2026-03-15T13:44:24Z
+**This session:** 2026-03-15 (Phase 126 Plan 03 execution complete, 4 min total — Phase 126 fully complete)
 **Next steps:** 
 1. Plan and execute Phase 127 (agent routing decision functions)
 2. Plan and execute Phase 128 (agent collaboration patterns)
