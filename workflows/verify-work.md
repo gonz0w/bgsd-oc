@@ -77,6 +77,24 @@ Present summary table. If intent-based tests were included: report intent outcom
 If issues > 0 → diagnose_issues. If issues == 0 → suggest next phase.
 </step>
 
+<step name="surface_lesson_suggestions">
+After verification completes, surface any lesson-based improvement suggestions (advisory only):
+
+```bash
+node {bgsd-tools-path} lessons suggest 2>/dev/null || true
+```
+
+If suggestions are returned, display them as an informational advisory:
+- "Based on {N} lessons from this project, here are improvement suggestions:"
+- List each suggestion briefly (agent, summary, supporting lesson count)
+- Note: "These are advisory only — no action required."
+
+If no suggestions (empty list or command unavailable): skip silently.
+Do not display "no suggestions found" — silence is correct when no patterns qualify.
+
+This step is non-blocking: `2>/dev/null || true` ensures lesson command failures never block verification.
+</step>
+
 <step name="diagnose_issues">
 Spawn parallel debug agents for each issue. Collect root causes. Update UAT.md. Proceed to plan_gap_closure.
 </step>

@@ -195,6 +195,24 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "chore: compl
 ```
 </step>
 
+<step name="surface_lesson_suggestions">
+At milestone wrapup, surface lesson-based improvement suggestions for the next milestone:
+
+```bash
+node {bgsd-tools-path} lessons suggest 2>/dev/null || true
+```
+
+If suggestions are returned, display as informational:
+- "Milestone learning summary — {N} improvement suggestions from accumulated lessons:"
+- List suggestions with agent and severity
+- Note: "Review these before starting the next milestone."
+
+If no suggestions (empty list or command unavailable): skip silently.
+Do not display "no suggestions found" — silence is correct when no patterns qualify.
+
+This step is non-blocking: `2>/dev/null || true` ensures lesson command failures never block milestone completion.
+</step>
+
 <step name="offer_next">
 Present: milestone complete, what shipped, archived files, tag.
 Next: `/bgsd-new-milestone` (after `/clear`).
