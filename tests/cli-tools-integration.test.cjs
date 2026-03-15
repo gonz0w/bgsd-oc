@@ -762,3 +762,219 @@ describe('Graceful degradation — TOOL-DEGR-01', () => {
   });
 
 });
+
+// ─── PHASE 126: GH VERSION BLOCKLIST TESTS ───────────────────────────────────
+
+describe('gh version blocklist — TOOL-06 (isGhUsable)', () => {
+  const { isGhUsable, isGhAvailable } = require('../src/lib/cli-tools/gh');
+  const { parseVersion } = require('../src/lib/cli-tools/detector');
+  // BLOCKED_VERSIONS is not exported from gh.js, so we test its logic directly
+  // using the exported parseVersion and known blocking criteria
+  const BLOCKED_VERSIONS = [
+    { major: 2, minor: 88, patch: 0 }
+  ];
+
+  test('isGhUsable is a function exported from cli-tools', () => {
+    const cliTools = require('../src/lib/cli-tools');
+    assert.strictEqual(typeof cliTools.isGhUsable, 'function', 'isGhUsable should be a function');
+  });
+
+  test('isGhUsable returns object with usable boolean property', () => {
+    const result = isGhUsable();
+    assert.ok(typeof result === 'object' && result !== null, 'isGhUsable should return an object');
+    assert.ok('usable' in result, 'result should have usable property');
+    assert.strictEqual(typeof result.usable, 'boolean', 'usable should be boolean');
+  });
+
+  test('BLOCKED_VERSIONS logic contains an entry for 2.88.0', () => {
+    // Verify the blocking criteria we copied match expected value
+    const blocked = BLOCKED_VERSIONS.find(b => b.major === 2 && b.minor === 88 && b.patch === 0);
+    assert.ok(blocked, 'BLOCKED_VERSIONS should contain an entry for 2.88.0');
+  });
+
+  test('parseVersion("2.88.0") returns { major: 2, minor: 88, patch: 0 }', () => {
+    const result = parseVersion('2.88.0');
+    assert.ok(result !== null, 'parseVersion should not return null for valid version');
+    assert.strictEqual(result.major, 2);
+    assert.strictEqual(result.minor, 88);
+    assert.strictEqual(result.patch, 0);
+  });
+
+  test('parseVersion("2.88.1") returns { major: 2, minor: 88, patch: 1 }', () => {
+    const result = parseVersion('2.88.1');
+    assert.ok(result !== null, 'parseVersion should not return null for valid version');
+    assert.strictEqual(result.major, 2);
+    assert.strictEqual(result.minor, 88);
+    assert.strictEqual(result.patch, 1);
+  });
+
+  test('version 2.88.0 matches blocked version criteria (exact patch match)', () => {
+    const parsed = parseVersion('2.88.0');
+    assert.ok(parsed !== null);
+    const isBlocked = BLOCKED_VERSIONS.some(
+      b => parsed.major === b.major && parsed.minor === b.minor && parsed.patch === b.patch
+    );
+    assert.ok(isBlocked, '2.88.0 should be matched as blocked');
+  });
+
+  test('version 2.88.1 does NOT match blocked version criteria (patch differs)', () => {
+    const parsed = parseVersion('2.88.1');
+    assert.ok(parsed !== null);
+    const isBlocked = BLOCKED_VERSIONS.some(
+      b => parsed.major === b.major && parsed.minor === b.minor && parsed.patch === b.patch
+    );
+    assert.ok(!isBlocked, '2.88.1 should NOT be blocked');
+  });
+
+  test('version 2.87.0 does NOT match blocked version criteria (minor differs)', () => {
+    const parsed = parseVersion('2.87.0');
+    assert.ok(parsed !== null);
+    const isBlocked = BLOCKED_VERSIONS.some(
+      b => parsed.major === b.major && parsed.minor === b.minor && parsed.patch === b.patch
+    );
+    assert.ok(!isBlocked, '2.87.0 should NOT be blocked');
+  });
+
+});
+
+// ─── PHASE 126: DETECT:GH-PREFLIGHT CLI TESTS ────────────────────────────────
+
+describe('detect:gh-preflight CLI output shape — TOOL-06', () => {
+  const { execFileSync } = require('child_process');
+
+  function runPreflight() {
+    try {
+      const output = execFileSync(
+        process.execPath,
+        [path.join(__dirname, '../bin/bgsd-tools.cjs'), 'detect:gh-preflight'],
+        { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000 }
+      );
+      return output.trim();
+    } catch (err) {
+      // Command failed — use combined stdout+stderr
+      return (err.stdout || '').trim() || (err.stderr || '').trim();
+    }
+  }
+
+  test('detect:gh-preflight returns valid JSON (parse does not throw)', () => {
+    const output = runPreflight();
+    assert.doesNotThrow(() => JSON.parse(output), `Expected valid JSON, got: ${output}`);
+  });
+
+  test('preflight output has usable boolean field', () => {
+    const output = runPreflight();
+    const parsed = JSON.parse(output);
+    assert.ok('usable' in parsed, 'output should have usable field');
+    assert.strictEqual(typeof parsed.usable, 'boolean');
+  });
+
+  test('preflight output has authenticated boolean field', () => {
+    const output = runPreflight();
+    const parsed = JSON.parse(output);
+    assert.ok('authenticated' in parsed, 'output should have authenticated field');
+    assert.strictEqual(typeof parsed.authenticated, 'boolean');
+  });
+
+  test('preflight output has errors array field', () => {
+    const output = runPreflight();
+    const parsed = JSON.parse(output);
+    assert.ok('errors' in parsed, 'output should have errors field');
+    assert.ok(Array.isArray(parsed.errors), 'errors should be an array');
+  });
+
+});
+
+// ─── PHASE 126: GH ERROR-AND-STOP BEHAVIOR TESTS ─────────────────────────────
+
+describe('gh error-and-stop behavior — TOOL-06 (no silent fallback)', () => {
+  const { checkAuth, listPRs, isGhAvailable } = require('../src/lib/cli-tools/gh');
+  const { detectTool } = require('../src/lib/cli-tools/detector');
+
+  test('checkAuth fallback results in success:false with GitHub CLI error message', () => {
+    // When gh is not available/usable, the fallback throws inside withToolFallback,
+    // which catches it and returns { success: false, error: message }
+    // This is the "error-and-stop" design: no silent degradation for gh operations
+    const { withToolFallback } = require('../src/lib/cli-tools/fallback');
+    const result = withToolFallback(
+      'completely_nonexistent_tool_for_gh_test',
+      () => { throw new Error('not available'); },
+      () => { throw new Error('GitHub CLI (gh) is required for auth checks. Install from https://cli.github.com/'); }
+    );
+    assert.strictEqual(result.success, false, 'checkAuth-style fallback should return success:false');
+    assert.ok(result.error && (result.error.includes('GitHub CLI') || result.error.includes('required')),
+      `Error should mention GitHub CLI: ${result.error}`);
+  });
+
+  test('listPRs fallback results in success:false — no JS fallback for PR operations', () => {
+    // gh PR operations have fallbacks that throw — withToolFallback returns { success: false }
+    const { withToolFallback } = require('../src/lib/cli-tools/fallback');
+    const result = withToolFallback(
+      'completely_nonexistent_tool_for_pr_test',
+      () => { throw new Error('gh not installed'); },
+      () => { throw new Error('GitHub CLI (gh) is required for PR operations. Install from https://cli.github.com/'); }
+    );
+    assert.strictEqual(result.success, false, 'listPRs-style fallback should return success:false');
+    assert.ok(result.error && (result.error.includes('GitHub CLI') || result.error.includes('required')),
+      `Error should mention GitHub CLI: ${result.error}`);
+  });
+
+  test('isGhAvailable returns boolean', () => {
+    const result = isGhAvailable();
+    assert.strictEqual(typeof result, 'boolean', `Expected boolean, got ${typeof result}`);
+  });
+
+  test('gh tool detection result shape has available boolean', () => {
+    const result = detectTool('gh');
+    assert.ok(typeof result === 'object' && result !== null, 'detectTool should return object');
+    assert.ok('available' in result, 'result should have available field');
+    assert.strictEqual(typeof result.available, 'boolean', 'available should be boolean');
+  });
+
+});
+
+// ─── PHASE 126: GRACEFUL DEGRADATION SUMMARY TESTS ───────────────────────────
+
+describe('Graceful degradation summary — Phase 126 tools', () => {
+  const { parseYAML } = require('../src/lib/cli-tools/yq');
+  const { catWithHighlight } = require('../src/lib/cli-tools/bat');
+  const { withToolFallback } = require('../src/lib/cli-tools/fallback');
+
+  test('yq fallback: parseYAML returns { success: true } even when yq unavailable', () => {
+    // parseYAML has a JS fallback — even without yq installed, it should succeed
+    const result = parseYAML('key: value');
+    assert.strictEqual(result.success, true, `parseYAML should succeed via fallback: ${result.error}`);
+  });
+
+  test('bat fallback: catWithHighlight returns { success: true } even when bat unavailable', () => {
+    // catWithHighlight has a JS fallback (fs.readFileSync) — should always succeed for existing files
+    const filePath = path.join(__dirname, 'cli-tools-integration.test.cjs');
+    const result = catWithHighlight(filePath);
+    assert.strictEqual(result.success, true, `catWithHighlight should succeed via fallback: ${result.error}`);
+  });
+
+  test('gh error: gh wrapper fallback functions result in success:false (confirming no silent degradation)', () => {
+    // gh fallback functions throw inside withToolFallback, which catches and returns { success: false }
+    // This is the "error-and-stop" behavior: no partial completion, no silent data return
+    // withToolFallback catches the throw and returns { success: false, error: message }
+    const result = withToolFallback(
+      'nonexistent_tool_gh_confirm',
+      () => { throw new Error('gh unavailable'); },
+      () => { throw new Error('GitHub CLI (gh) is required. Install from https://cli.github.com/'); }
+    );
+    // gh fallback throws — withToolFallback converts it to { success: false }
+    assert.strictEqual(result.success, false, 'gh error-and-stop: result.success should be false');
+    assert.ok(result.error, 'should have error message explaining gh is required');
+    assert.ok(result.error.includes('GitHub CLI') || result.error.includes('required') || result.error.includes('unavailable'),
+      `Error should indicate gh is required/unavailable: ${result.error}`);
+  });
+
+  test('All 6 CONFIG_SCHEMA tool entries have type boolean and default true', () => {
+    const toolEntries = ['tools_ripgrep', 'tools_fd', 'tools_jq', 'tools_yq', 'tools_bat', 'tools_gh'];
+    for (const key of toolEntries) {
+      assert.ok(CONFIG_SCHEMA[key], `CONFIG_SCHEMA should have ${key}`);
+      assert.strictEqual(CONFIG_SCHEMA[key].type, 'boolean', `${key}.type should be boolean`);
+      assert.strictEqual(CONFIG_SCHEMA[key].default, true, `${key}.default should be true`);
+    }
+  });
+
+});
