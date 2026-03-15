@@ -49,10 +49,10 @@ class MapBackend {
 }
 
 // ---------------------------------------------------------------------------
-// Schema SQL (version 4 — planning tables + memory stores + model_profiles)
+// Schema SQL (version 5 — planning tables + memory stores + model_profiles + session state)
 // ---------------------------------------------------------------------------
 
-const SCHEMA_V4_SQL = `
+const SCHEMA_V5_SQL = `
   CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT);
   CREATE TABLE IF NOT EXISTS file_cache (
     file_path TEXT PRIMARY KEY,
@@ -186,6 +186,78 @@ const SCHEMA_V4_SQL = `
     PRIMARY KEY (agent_type, cwd)
   );
   CREATE INDEX IF NOT EXISTS idx_model_profiles_cwd ON model_profiles(cwd);
+  CREATE TABLE IF NOT EXISTS session_state (
+    cwd            TEXT PRIMARY KEY,
+    phase_number   TEXT,
+    phase_name     TEXT,
+    total_phases   INTEGER,
+    current_plan   TEXT,
+    status         TEXT,
+    last_activity  TEXT,
+    progress       INTEGER,
+    milestone      TEXT,
+    data_json      TEXT
+  );
+  CREATE TABLE IF NOT EXISTS session_metrics (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    milestone   TEXT,
+    phase       TEXT,
+    plan        TEXT,
+    duration    TEXT,
+    tasks       INTEGER,
+    files       INTEGER,
+    test_count  INTEGER,
+    timestamp   TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_metrics_cwd ON session_metrics(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_metrics_phase ON session_metrics(phase);
+  CREATE TABLE IF NOT EXISTS session_decisions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    milestone   TEXT,
+    phase       TEXT,
+    summary     TEXT,
+    rationale   TEXT,
+    timestamp   TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_decisions_cwd ON session_decisions(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_decisions_phase ON session_decisions(phase);
+  CREATE TABLE IF NOT EXISTS session_todos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    text        TEXT NOT NULL,
+    priority    TEXT,
+    category    TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    created_at  TEXT,
+    completed_at TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_todos_cwd ON session_todos(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_todos_status ON session_todos(status);
+  CREATE TABLE IF NOT EXISTS session_blockers (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd            TEXT NOT NULL,
+    text           TEXT NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'open',
+    created_at     TEXT,
+    resolved_at    TEXT,
+    resolution     TEXT,
+    linked_decision_id INTEGER,
+    data_json      TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_blockers_cwd ON session_blockers(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_blockers_status ON session_blockers(status);
+  CREATE TABLE IF NOT EXISTS session_continuity (
+    cwd          TEXT PRIMARY KEY,
+    last_session TEXT,
+    stopped_at   TEXT,
+    next_step    TEXT,
+    data_json    TEXT
+  );
 `;
 
 // ---------------------------------------------------------------------------
@@ -224,13 +296,13 @@ class SQLiteBackend {
       version = row ? row.user_version : 0;
     } catch {}
 
-    if (version >= 4) return;
+    if (version >= 5) return;
 
     try {
       this._db.exec('BEGIN');
-      this._db.exec(SCHEMA_V4_SQL);
+      this._db.exec(SCHEMA_V5_SQL);
       this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + new Date().toISOString() + "')");
-      this._db.exec('PRAGMA user_version = 4');
+      this._db.exec('PRAGMA user_version = 5');
       this._db.exec('COMMIT');
     } catch {
       try { this._db.exec('ROLLBACK'); } catch {}
@@ -244,9 +316,9 @@ class SQLiteBackend {
         this._db = new _DatabaseSync(this._dbPath);
         this._db.exec('PRAGMA journal_mode = WAL');
         this._db.exec('BEGIN');
-        this._db.exec(SCHEMA_V4_SQL);
+        this._db.exec(SCHEMA_V5_SQL);
         this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + new Date().toISOString() + "')");
-        this._db.exec('PRAGMA user_version = 4');
+        this._db.exec('PRAGMA user_version = 5');
         this._db.exec('COMMIT');
       } catch {
         this._degraded = true;

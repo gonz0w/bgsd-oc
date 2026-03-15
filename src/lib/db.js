@@ -279,6 +279,95 @@ const MIGRATIONS = [
       );
     }
   },
+
+  // Version 5: Phase 123 — session state tables for STATE.md persistence
+  function migration_v5(rawDb) {
+    rawDb.exec(`
+      -- Current position (one row per cwd)
+      CREATE TABLE IF NOT EXISTS session_state (
+        cwd            TEXT PRIMARY KEY,
+        phase_number   TEXT,
+        phase_name     TEXT,
+        total_phases   INTEGER,
+        current_plan   TEXT,
+        status         TEXT,
+        last_activity  TEXT,
+        progress       INTEGER,
+        milestone      TEXT,
+        data_json      TEXT
+      );
+
+      -- Performance metrics (append-only)
+      CREATE TABLE IF NOT EXISTS session_metrics (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd         TEXT NOT NULL,
+        milestone   TEXT,
+        phase       TEXT,
+        plan        TEXT,
+        duration    TEXT,
+        tasks       INTEGER,
+        files       INTEGER,
+        test_count  INTEGER,
+        timestamp   TEXT,
+        data_json   TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_metrics_cwd ON session_metrics(cwd);
+      CREATE INDEX IF NOT EXISTS idx_session_metrics_phase ON session_metrics(phase);
+
+      -- Individual decisions (append-only, one per row)
+      CREATE TABLE IF NOT EXISTS session_decisions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd         TEXT NOT NULL,
+        milestone   TEXT,
+        phase       TEXT,
+        summary     TEXT,
+        rationale   TEXT,
+        timestamp   TEXT,
+        data_json   TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_decisions_cwd ON session_decisions(cwd);
+      CREATE INDEX IF NOT EXISTS idx_session_decisions_phase ON session_decisions(phase);
+
+      -- Todos with extended metadata
+      CREATE TABLE IF NOT EXISTS session_todos (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd         TEXT NOT NULL,
+        text        TEXT NOT NULL,
+        priority    TEXT,
+        category    TEXT,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        created_at  TEXT,
+        completed_at TEXT,
+        data_json   TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_todos_cwd ON session_todos(cwd);
+      CREATE INDEX IF NOT EXISTS idx_session_todos_status ON session_todos(status);
+
+      -- Blockers with lifecycle tracking
+      CREATE TABLE IF NOT EXISTS session_blockers (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        cwd            TEXT NOT NULL,
+        text           TEXT NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'open',
+        created_at     TEXT,
+        resolved_at    TEXT,
+        resolution     TEXT,
+        linked_decision_id INTEGER,
+        data_json      TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_blockers_cwd ON session_blockers(cwd);
+      CREATE INDEX IF NOT EXISTS idx_session_blockers_status ON session_blockers(status);
+
+      -- Session continuity (one row per cwd)
+      CREATE TABLE IF NOT EXISTS session_continuity (
+        cwd          TEXT PRIMARY KEY,
+        last_session TEXT,
+        stopped_at   TEXT,
+        next_step    TEXT,
+        data_json    TEXT
+      );
+    `);
+  },
 ];
 
 // ---------------------------------------------------------------------------

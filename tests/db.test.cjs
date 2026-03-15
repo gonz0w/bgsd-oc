@@ -161,9 +161,9 @@ describe('Group 3: SQLiteDatabase backend (FND-01)', () => {
     assert.ok(fs.existsSync(dbPath), '.planning/.cache.db should exist on disk after getDb()');
   });
 
-  it('getSchemaVersion() returns 4 after all migrations', () => {
+  it('getSchemaVersion() returns 5 after all migrations', () => {
     const version = db.getSchemaVersion();
-    assert.strictEqual(version, 4, 'Schema version should be 4 after V1+V2+V3+V4 migrations');
+    assert.strictEqual(version, 5, 'Schema version should be 5 after V1+V2+V3+V4+V5 migrations');
   });
 
   it('_meta table exists with created_at entry', () => {
@@ -300,12 +300,12 @@ describe('Group 6: Schema migration (FND-02)', () => {
     }
   });
 
-  it('fresh DB starts at version 0 before getDb(), version 4 after all migrations', () => {
-    // We verify indirectly: a fresh .planning/ dir, calling getDb() results in version 4
+  it('fresh DB starts at version 0 before getDb(), version 5 after all migrations', () => {
+    // We verify indirectly: a fresh .planning/ dir, calling getDb() results in version 5
     tempDir = makeTempDir('bgsd-migration-');
     fs.mkdirSync(path.join(tempDir, '.planning'), { recursive: true });
     const db = getDb(tempDir);
-    assert.strictEqual(db.getSchemaVersion(), 4, 'Schema should be version 4 after all migrations');
+    assert.strictEqual(db.getSchemaVersion(), 5, 'Schema should be version 5 after all migrations');
   });
 
   it('_meta table has created_at entry from V1 migration', () => {
@@ -318,18 +318,18 @@ describe('Group 6: Schema migration (FND-02)', () => {
     assert.match(row.value, /^\d{4}-\d{2}-\d{2}T/, 'created_at should be an ISO timestamp');
   });
 
-  it('calling getDb() again on same DB is idempotent — version stays at 4', () => {
+  it('calling getDb() again on same DB is idempotent — version stays at 5', () => {
     tempDir = makeTempDir('bgsd-idempotent-');
     fs.mkdirSync(path.join(tempDir, '.planning'), { recursive: true });
 
     // First call
     const db1 = getDb(tempDir);
-    assert.strictEqual(db1.getSchemaVersion(), 4);
+    assert.strictEqual(db1.getSchemaVersion(), 5);
 
     // Second call — same instance (singleton)
     const db2 = getDb(tempDir);
     assert.strictEqual(db1, db2, 'Should be same instance');
-    assert.strictEqual(db2.getSchemaVersion(), 4, 'Version should still be 4 (migrations not re-run)');
+    assert.strictEqual(db2.getSchemaVersion(), 5, 'Version should still be 5 (migrations not re-run)');
   });
 });
 
@@ -372,7 +372,7 @@ describe('Group 7: Migration failure → delete-and-rebuild', () => {
 
     // If SQLite rebuild succeeded, verify schema version
     if (db.backend === 'sqlite') {
-      assert.strictEqual(db.getSchemaVersion(), 4, 'Rebuilt DB should have schema version 4');
+      assert.strictEqual(db.getSchemaVersion(), 5, 'Rebuilt DB should have schema version 5');
       const metaRow = db.prepare("SELECT * FROM _meta WHERE key = 'created_at'").get();
       assert.ok(metaRow !== undefined, 'Rebuilt DB should have _meta.created_at');
     }
