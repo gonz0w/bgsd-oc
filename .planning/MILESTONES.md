@@ -526,3 +526,85 @@
 **Archives:**
 - `.planning/milestones/v1.0-ROADMAP.md`
 - `.planning/milestones/v1.0-REQUIREMENTS.md`
+
+## v12.0 SQLite-First Data Layer (Shipped: 2026-03-15)
+
+**Phases completed:** 35 phases, 77 plans, 6 tasks
+
+**Key accomplishments:**
+- isTTY banner guard eliminates 576 JSON parse failures, dead profiler tests removed — 990/998 tests now pass
+- Test suite fully stabilized — zero failures, 1008 tests passing across 21 test files
+- SQLite database abstraction in src/lib/db.js — WAL mode, PRAGMA user_version migrations, Map fallback, and silent delete-and-rebuild recovery
+- Eager SQLite db init wired into every bGSD CLI command at startup; cache:clear extended to sweep .planning/.cache.db and WAL/SHM companions
+- 52-test suite in tests/db.test.cjs covering all FND-01/FND-04 requirements — WAL mode, migrations, Map fallback, corruption recovery, and interface parity
+- SQLite planning tables schema (MIGRATIONS[1] → version 2) plus PlanningCache class with mtime invalidation, storeRoadmap/storePlan write-through, and getPhases/getPlan/getRequirements queries
+- SQLite-first caching wired into roadmap/plan parsers via ESM db-cache.js adapter — cache hits, write-through, mtime invalidation, and eager startup check all integrated
+- 71-test suite covering PlanningCache schema migration (7 tables), mtime invalidation lifecycle, TBL-01 through TBL-04 store/query round-trips, and MapDatabase fallback — plus clearForCwd() added to planning-cache.js
+- Zero-redundancy enricher: parsePlans and listSummaryFiles called exactly once per invocation via lazy closures, with SQLite-first data paths serving plan/summary counts from SQL on warm cache
+- Timing instrumentation (_enrichment_ms) + background cache warm-up in plugin init + 29-test enricher.test.cjs verifying <50ms warm-cache enrichment and output shape invariance
+- SQLite memory store schema (v3) with 4 memory_* tables plus PlanningCache migration/search/write/clear/bookmark methods
+- Dual-write to SQLite on all memory/trajectory writes plus SQL-first search in cmdMemoryRead and SQLite-first reads in cmdInitMemory
+- 19 new tests covering SQLite migration (7), SQL LIKE search (5), dual-write CLI (3), and trajectory dual-write (4) — full MEM-01/02/03 coverage
+- SQLite model_profiles table with auto-seeded defaults, 5 new decision functions (model-selection, verification-routing, research-gate, milestone-completion, commit-strategy), and expanded plan-existence-route with 3 new return values
+- Enricher wired to populate all 6 decision rule inputs, model consumers migrated to decision-rule path, 61 new tests covering all new rules with contract + edge case + integration coverage
+- Schema v5 with 6 session state SQLite tables and full PlanningCache CRUD API for position tracking, metrics, decisions, todos, blockers, and continuity
+- SQL-first writes for all cmdState* commands via PlanningCache + mtime-based re-import of manual STATE.md edits
+- SQLite-first parseState() with getDecisions/getTodos/getBlockers/getMetrics query methods + 33-test session state suite covering schema, CRUD, migration, round-trip, re-import, and Map fallback
+- ASCII visualization modules for progress bars, milestone completion, and quality scores
+- Unified visualization API with end-to-end verification of ASCII output
+- ASCII burndown chart visualization with ideal vs actual progress tracking
+- Velocity sparkline visualization for session trend display
+- Terminal dashboard with keyboard navigation for project metrics overview
+- Milestone summary report module with on-demand CLI access
+- Velocity metrics computation module with CLI access
+- Mapped all 14 command groups and identified clarification prompt locations in NL modules
+- Added bypass flags to NL modules enabling direct command routing without clarification prompts
+- Verified all commands route correctly and success criteria are met
+- Help-command alignment validation and exact-match override for deterministic command execution
+- Confidence threshold (60%) auto-executes commands, context boosts matching phase, user choice learning improves future suggestions
+- Verified all 77 commands route correctly with 60% confidence threshold, context boost, and --exact override for zero-friction goal
+- Command confusion suggestions with 90% confidence threshold, --defaults flag for smart defaults bypass, and enhanced error messages with actionable suggestions
+- Removed verify:orphans command and performance profiler from bundle, reducing size by 14.5KB
+- Inventory of all exports and imports in src/ using AST analysis, with protected API allowlist
+- Identified 1 potentially unused export (BgsdPlugin), verified used in tests, no safe removals
+- Static analysis confirms no unreachable code in bGSD plugin - codebase is clean
+- Confirmed codebase has no dead code - cleanup phase verified clean state
+- Automated jscpd duplicate code detection on src/ with 70% threshold - found 40+ duplicate blocks across lib/, commands/, plugin/
+- Analyzed duplicate patterns from plan 01 - decided to skip all consolidations based on clarity-over-DRY principle
+- Verified test suite, build, and CLI commands - all working (pre-existing test failures noted)
+- Implemented verify:handoff and verify:agents CLI commands for agent handoff validation
+- Removed orphaned ci.js module, dead execute:profile route, and deduplicated standalone runtime/measure commands
+- Command validator synchronized with router — audit namespace added, 5 stale subcommand lists corrected
+- Added 32 COMMAND_HELP entries for util, verify, and cache routes - all routed commands now respond to --help
+- Cleaned MILESTONES.md with 21 milestone entries in chronological order with consistent formatting
+- Fixed PROJECT.md HTML structure, updated counts from 53→52 modules and 1014→1008 tests, removed strikethrough items from out-of-scope list
+- Added CLI artifact validation as build gate, archived resolved Node.js version constraint
+- INTENT.md automatic archival during milestone completion — completed outcomes archived to per-milestone files, active file stays lean with only current objective and pending outcomes
+- Adapter-backed bgsd_plan validation now runs on valibot by default with zod fallback flags and parity-tested output contracts.
+- Migrated remaining plugin tools to adapter validation with cross-engine contract parity tests and recorded a 34.48% faster VALD-01 modern validation run versus legacy fallback.
+- Closed Phase 77 validation gaps by fixture-stabilizing `bgsd_context` fallback parity tests, adding explicit adapter-mediated fallback evidence for `bgsd_progress`, and revalidating full regression gates.
+- Discovery now runs through a dual-path adapter that supports fast-glob traversal and in-process ignore matching while preserving legacy output contracts by default.
+- Discovery hot paths now default to optimized in-process traversal, eliminating per-entry git check-ignore subprocess overhead with 8 behavioral tests proving activation.
+- Parity fixture matrix proves legacy-vs-optimized source-dir equivalence across 15 edge-case fixtures with benchmark evidence and diagnoseParity() for mismatch triage.
+- V8 compile-cache wrapper with BGSD_COMPILE_CACHE guard, runtime detection, and 10% benchmark improvement
+- Created bin/bgsd wrapper script to apply --experimental-code-cache flag, achieving RUNT-01 warm-start speedup
+- Fixed bin/bgsd wrapper to skip compile-cache flag on Node 22+, eliminating 58% startup regression
+- SQLite statement caching using createTagStore() with env var guard reduces p50 latency by ~43%
+- Added unified optimization flags registry in CONFIG_SCHEMA with env var support and settings display command
+- Backward compatibility test coverage for .planning/ artifact parsers ensures graceful handling of legacy formats
+- Created generalized parity-check utility and bgsd-tools command to validate dependency-backed optimizations
+- Enhanced format.js with CLI color control flags, Spinner class, and nested ProgressTracker
+- Created error.js module with structured error classes and formatted output with recovery suggestions
+- Created debug.js module with trace, context dump, and state inspection utilities
+- Integrated format.js, error.js, and debug.js into main CLI with working color and debug flags
+- Enhanced planner skills with dependency detection, task sizing feedback loop, and parallelization analysis
+- Added CLI commands for dependency analysis, scope estimation, and parallelization warnings
+- Added execution intelligence modules for autonomous deviation recovery, complexity-based checkpoint decisions, and stuck/loop pattern detection
+- Structured handoff context transfer, shared context registry, and contract verification for multi-agent collaboration
+- Implemented CLI contextual help with command history, autocomplete hints, and examples
+- Reduced bundle size by ~50% through minification and tree-shaking
+- Intent classification and parameter extraction modules with 31 phrase command registry
+- Fuzzy matching resolver with disambiguation and contextual help fallback
+
+---
+

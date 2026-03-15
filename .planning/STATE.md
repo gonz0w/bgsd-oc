@@ -11,7 +11,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-14)
 
 **Phase:** 123 of 123 (Session State) — IN PROGRESS
 **Current Plan:** Not started
-**Status:** Milestone complete
+**Status:** v12.0 milestone complete
 **Last Activity:** 2026-03-15
 
 Progress: [██████████] 100%
