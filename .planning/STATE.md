@@ -10,19 +10,19 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v12.1 Tool Integration & Agent Enhancement
-**Phase:** 124 (Plan 01 complete, Plan 02 pending)
-**Current Plan:** Plan 02
-**Status:** Phase 124 execution in progress
-**Last Activity:** 2026-03-15 03:13 UTC — Plan 01 complete
+**Phase:** 124 (Plan 01 & Plan 02 complete)
+**Current Plan:** Plan 02 (completed)
+**Status:** Phase 124 complete
+**Last Activity:** 2026-03-15 03:25 UTC — Plan 02 complete
 
-Progress: [█████░░░░░] 28% (Plan 01 of 124 complete)
+Progress: [██████████] 100% (Phase 124 complete, 2 of 2 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 237 (v12.0 Phase 123 Plan 03)
-- Average duration: ~15 min/plan
-- Total execution time: ~40 hours
+- Total plans completed: 239 (v12.1 Phase 124 Plan 02)
+- Average duration: ~14 min/plan (improving with better tooling)
+- Total execution time: ~41.5 hours
 
 **Recent Trend:**
 - v12.0 Phase 120 Plan 01: 20 min, 2 tasks, 4 files (1108 tests)
@@ -36,6 +36,7 @@ Progress: [█████░░░░░] 28% (Plan 01 of 124 complete)
 - v12.0 Phase 123 Plan 02: 30 min, 2 tasks, 3 files (1250 tests)
 - v12.0 Phase 123 Plan 03: 9 min, 2 tasks, 4 files (1283 tests)
 - v12.1 Phase 124 Plan 01: 3 min, 2 tasks, 3 files (1241 tests - all pass)
+- v12.1 Phase 124 Plan 02: 7 min, 2 tasks, 1 file (67 tests added - 1350 total)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -75,23 +76,29 @@ Progress: [█████░░░░░] 28% (Plan 01 of 124 complete)
   - Semver version comparison
   - detect:tools JSON command
 
+- [✓] Phase 124 Plan 02: Tool Detection Test Suite (TOOL-DET-01 verification)
+  - 67 comprehensive unit tests covering detector, guidance, fallback, CLI
+  - File cache testing with temp directory isolation
+  - Version parsing for all 6 tool formats
+  - CLI output format validation
+  - All 1350 tests passing (1283 baseline + 67 new)
+
 ### Pending Work
 
-- Phase 124 Plan 02 (tool detection verification/testing)
-- Phase 125 planning (core tool integrations)
+- Phase 125 planning (core tool integrations with ripgrep, fd, jq)
 - Phase 126 planning (extended tool integrations)
 - Phase 127 planning (agent routing decision functions)
 - Phase 128 planning (inter-agent collaboration patterns)
 
 ### Blockers/Concerns
 
-None — Phase 124 Plan 01 complete, infrastructure ready for dependent phases.
+None — Phase 124 complete, infrastructure fully tested and ready for phases 125–127.
 
 ## Session Continuity
 
 **Last session:** 2026-03-15T03:02:20.937Z
-**This session:** 2026-03-15 (Phase 124 Plan 01 execution)
+**This session:** 2026-03-15 (Phase 124 execution complete, 10 min total)
 **Next steps:** 
-1. Execute Phase 124 Plan 02
-2. Phases 125–127 planning (parallel)
-3. Execute Phase 125 (core tool integrations with ripgrep, fd, jq)
+1. Phases 125–127 planning (parallel)
+2. Execute Phase 125 (core tool integrations with ripgrep, fd, jq)
+3. Execute Phase 126 (extended tools: yq, bat, gh)
