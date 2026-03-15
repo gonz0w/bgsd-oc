@@ -1,0 +1,112 @@
+{
+  "mode": "interactive",
+  "depth": "standard",
+  "model_profile": "balanced",
+  "commit_docs": true,
+  "search_gitignored": false,
+  "runtime": "auto",
+  "brave_search": false,
+
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "auto_advance": false,
+    "ci_gate": false,
+    "rag": true,
+    "rag_timeout": 30
+  },
+
+  "gates": {
+    "confirm_project": true,
+    "confirm_phases": true,
+    "confirm_roadmap": true,
+    "confirm_breakdown": true,
+    "confirm_plan": true,
+    "execute_next_plan": true,
+    "issues_review": true,
+    "confirm_transition": true
+  },
+
+  "safety": {
+    "always_confirm_destructive": true,
+    "always_confirm_external_services": true
+  },
+
+  "git": {
+    "branching_strategy": "none",
+    "phase_branch_template": "bgsd/phase-{phase}-{slug}",
+    "milestone_branch_template": "bgsd/{milestone}-{slug}"
+  },
+
+  "parallelization": {
+    "enabled": true,
+    "plan_level": true,
+    "task_level": false,
+    "skip_checkpoints": true,
+    "max_concurrent_agents": 3,
+    "min_plans_for_parallel": 2
+  },
+
+  "worktree": {
+    "enabled": false,
+    "base_path": "/tmp/bgsd-worktrees",
+    "sync_files": [".env", ".env.local", ".planning/config.json"],
+    "setup_hooks": [],
+    "max_concurrent": 3
+  },
+
+  "test_gate": true,
+  "test_commands": {},
+  "context_window": 200000,
+  "context_target_percent": 50,
+
+  "model_profiles": {},
+
+  "staleness_threshold": 2,
+
+  "idle_validation": {
+    "enabled": true,
+    "cooldown_seconds": 5,
+    "staleness_threshold_hours": 2
+  },
+
+  "notifications": {
+    "enabled": true,
+    "os_notifications": true,
+    "dnd_mode": false,
+    "rate_limit_per_minute": 5,
+    "sound": false
+  },
+
+  "stuck_detection": {
+    "error_threshold": 3,
+    "spinning_threshold": 5
+  },
+
+  "file_watcher": {
+    "debounce_ms": 200,
+    "max_watched_paths": 500
+  },
+
+  "advisory_guardrails": {
+    "enabled": true,
+    "conventions": true,
+    "planning_protection": true,
+    "test_suggestions": true,
+    "convention_confidence_threshold": 70,
+    "dedup_threshold": 3,
+    "test_debounce_ms": 500
+  },
+
+  "optimization": {
+    "valibot": true,
+    "discovery": "optimized",
+    "compile_cache": false,
+    "sqlite_cache": true
+  },
+
+  "ytdlp_path": "",
+  "nlm_path": "",
+  "mcp_config_path": ""
+}

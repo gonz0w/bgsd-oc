@@ -5415,6 +5415,27 @@ var require_decision_rules = __commonJS({
         outputs: ["jq|javascript"],
         confidence_range: ["HIGH"],
         resolve: resolveJsonTransformMode
+      },
+      // Phase 128: Agent collaboration decision functions
+      {
+        id: "agent-capability-level",
+        name: "Agent Capability Level",
+        category: "state-assessment",
+        description: "Scores agent capability based on available tool count",
+        inputs: ["tool_availability"],
+        outputs: ["HIGH|MEDIUM|LOW"],
+        confidence_range: ["HIGH"],
+        resolve: resolveAgentCapabilityLevel
+      },
+      {
+        id: "phase-dependencies",
+        name: "Phase Dependency Sequencing",
+        category: "workflow-routing",
+        description: "Sequences phases accounting for dependencies and tool capabilities",
+        inputs: ["phases", "tool_availability"],
+        outputs: ["{ ordered_phases, warnings }"],
+        confidence_range: ["HIGH", "MEDIUM"],
+        resolve: resolvePhaseDependencies
       }
     ];
     function resolveFileDiscoveryMode(state) {
@@ -5446,6 +5467,105 @@ var require_decision_rules = __commonJS({
         return { value: "jq", confidence: "HIGH", rule_id: "json-transform-mode" };
       }
       return { value: "javascript", confidence: "HIGH", rule_id: "json-transform-mode" };
+    }
+    function resolveAgentCapabilityLevel(state) {
+      const { tool_availability = {} } = state || {};
+      const tools = ["ripgrep", "fd", "jq", "yq", "bat", "gh"];
+      const count = tools.filter((t) => tool_availability[t] === true).length;
+      if (count >= 5) {
+        return { value: "HIGH", confidence: "HIGH", rule_id: "agent-capability-level" };
+      }
+      if (count >= 2) {
+        return { value: "MEDIUM", confidence: "HIGH", rule_id: "agent-capability-level" };
+      }
+      return {
+        value: "LOW",
+        confidence: "HIGH",
+        rule_id: "agent-capability-level",
+        metadata: { warning: "Low tool availability \u2014 agent proceeding with limited capabilities" }
+      };
+    }
+    function resolvePhaseDependencies(state) {
+      const rawPhases = (state || {}).phases;
+      const phases = Array.isArray(rawPhases) ? rawPhases : [];
+      const { tool_availability = {} } = state || {};
+      if (!phases.length) {
+        return { value: { ordered_phases: [], warnings: [] }, confidence: "HIGH", rule_id: "phase-dependencies" };
+      }
+      const warnings = [];
+      const depMap = {};
+      const allNumbers = [];
+      for (const phase of phases) {
+        const num = phase.number;
+        allNumbers.push(num);
+        depMap[num] = Array.isArray(phase.depends_on) ? phase.depends_on : [];
+      }
+      const inDegree = {};
+      const adjList = {};
+      for (const num of allNumbers) {
+        inDegree[num] = inDegree[num] || 0;
+        adjList[num] = adjList[num] || [];
+      }
+      for (const num of allNumbers) {
+        for (const dep of depMap[num]) {
+          inDegree[num] = (inDegree[num] || 0) + 1;
+          if (!adjList[dep]) adjList[dep] = [];
+          adjList[dep].push(num);
+        }
+      }
+      const queue = allNumbers.filter((n) => inDegree[n] === 0);
+      function sortByToolReadiness(nums) {
+        return [...nums].sort((a, b) => {
+          const phaseA = phases.find((p) => p.number === a) || {};
+          const phaseB = phases.find((p) => p.number === b) || {};
+          const reqA = Array.isArray(phaseA.tool_requirements) ? phaseA.tool_requirements : [];
+          const reqB = Array.isArray(phaseB.tool_requirements) ? phaseB.tool_requirements : [];
+          const nameA = String(phaseA.name || phaseA.number || "").toLowerCase();
+          const nameB = String(phaseB.name || phaseB.number || "").toLowerCase();
+          const isDiscoveryA = /discovery|detect|scan/.test(nameA);
+          const isDiscoveryB = /discovery|detect|scan/.test(nameB);
+          const isAnalysisA = /analysis|transform|complex/.test(nameA);
+          const isAnalysisB = /analysis|transform|complex/.test(nameB);
+          if (isDiscoveryA && isAnalysisB) return -1;
+          if (isDiscoveryB && isAnalysisA) return 1;
+          const readyA = reqA.filter((t) => tool_availability[t] === true).length;
+          const readyB = reqB.filter((t) => tool_availability[t] === true).length;
+          if (readyA !== readyB) return readyB - readyA;
+          return 0;
+        });
+      }
+      const sorted = sortByToolReadiness(queue);
+      const result = [];
+      const visited = /* @__PURE__ */ new Set();
+      while (sorted.length > 0) {
+        const num = sorted.shift();
+        if (visited.has(num)) continue;
+        visited.add(num);
+        result.push(num);
+        const phase = phases.find((p) => p.number === num) || {};
+        const reqs = Array.isArray(phase.tool_requirements) ? phase.tool_requirements : [];
+        const missingTools = reqs.filter((t) => tool_availability[t] !== true);
+        if (missingTools.length > 0) {
+          warnings.push("Phase " + num + " has suboptimal tool readiness (missing: " + missingTools.join(", ") + ")");
+        }
+        const readyNext = [];
+        for (const dependent of adjList[num] || []) {
+          inDegree[dependent]--;
+          if (inDegree[dependent] === 0) {
+            readyNext.push(dependent);
+          }
+        }
+        const sortedNext = sortByToolReadiness(readyNext);
+        sorted.unshift(...sortedNext);
+      }
+      for (const num of allNumbers) {
+        if (!visited.has(num)) {
+          result.push(num);
+          warnings.push("Phase " + num + " may be part of a dependency cycle");
+        }
+      }
+      const confidence = warnings.length > 0 ? "MEDIUM" : "HIGH";
+      return { value: { ordered_phases: result, warnings }, confidence, rule_id: "phase-dependencies" };
     }
     function evaluateDecisions2(command, state) {
       if (!state || typeof state !== "object") return {};
@@ -5487,6 +5607,9 @@ var require_decision_rules = __commonJS({
       resolveFileDiscoveryMode,
       resolveSearchMode,
       resolveJsonTransformMode,
+      // Phase 128: Agent collaboration decision functions
+      resolveAgentCapabilityLevel,
+      resolvePhaseDependencies,
       // Registry and aggregator
       DECISION_REGISTRY,
       evaluateDecisions: evaluateDecisions2
@@ -6421,6 +6544,22 @@ function enrichCommand(input, output, cwd) {
     enrichment.tool_availability = toolAvailability;
   } catch {
     enrichment.tool_availability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
+  }
+  try {
+    const ta = enrichment.tool_availability || {};
+    const availableTools = Object.entries(ta).filter(([, available]) => available === true).map(([name]) => name);
+    const toolCount = availableTools.length;
+    let capabilityLevel = "MEDIUM";
+    if (toolCount >= 5) capabilityLevel = "HIGH";
+    else if (toolCount <= 1) capabilityLevel = "LOW";
+    enrichment.handoff_tool_context = {
+      available_tools: availableTools,
+      // tool names only — no descriptions/schemas per CONTEXT.md
+      tool_count: toolCount,
+      capability_level: capabilityLevel
+    };
+  } catch {
+    enrichment.handoff_tool_context = { available_tools: [], tool_count: 0, capability_level: "LOW" };
   }
   try {
     const decisions = (0, import_decision_rules.evaluateDecisions)(command, enrichment);

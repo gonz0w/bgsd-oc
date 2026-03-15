@@ -1929,7 +1929,8 @@
         "src/lib/ast.js"
       ],
       "src/commands/env.js": [
-        "src/lib/output.js"
+        "src/lib/output.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/commands/features.js": [
         "src/lib/output.js",
@@ -1944,6 +1945,8 @@
         "src/lib/codebase-intel.js",
         "src/lib/deps.js",
         "src/lib/format.js",
+        "src/lib/cli-tools/index.js",
+        "src/lib/cli-tools/fallback.js",
         "src/commands/misc.js",
         "src/commands/init.js"
       ],
@@ -2021,7 +2024,9 @@
       "src/commands/tools.js": [
         "src/lib/cli-tools/detector.js",
         "src/lib/cli-tools/install-guidance.js",
-        "src/lib/output.js"
+        "src/lib/cli-tools/jq.js",
+        "src/lib/output.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/commands/trajectory.js": [
         "src/lib/output.js",
@@ -2035,6 +2040,7 @@
         "src/lib/frontmatter.js",
         "src/lib/git.js",
         "src/lib/format.js",
+        "src/lib/cli-tools/index.js",
         "src/lib/config.js"
       ],
       "src/commands/worktree.js": [
@@ -2051,7 +2057,8 @@
         "src/lib/output.js",
         "src/lib/git.js",
         "src/lib/helpers.js",
-        "src/lib/adapters/discovery.js"
+        "src/lib/adapters/discovery.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/lib/config.js": [
         "src/lib/constants.js",
@@ -2065,11 +2072,13 @@
         "src/lib/ast.js"
       ],
       "src/lib/conventions.js": [
-        "src/lib/codebase-intel.js"
+        "src/lib/codebase-intel.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/lib/deps.js": [
         "src/lib/output.js",
-        "src/lib/codebase-intel.js"
+        "src/lib/codebase-intel.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/lib/git.js": [
         "src/lib/output.js"
@@ -2155,20 +2164,24 @@
       ],
       "src/lib/adapters/discovery.js": [
         "src/lib/output.js",
-        "src/lib/git.js"
+        "src/lib/git.js",
+        "src/lib/cli-tools/fd.js",
+        "src/lib/cli-tools/fallback.js"
       ],
       "src/lib/cli-tools/bat.js": [
         "src/lib/cli-tools/fallback.js"
       ],
       "src/lib/cli-tools/fallback.js": [
         "src/lib/cli-tools/detector.js",
-        "src/lib/cli-tools/install-guidance.js"
+        "src/lib/cli-tools/install-guidance.js",
+        "src/lib/config.js"
       ],
       "src/lib/cli-tools/fd.js": [
         "src/lib/cli-tools/fallback.js"
       ],
       "src/lib/cli-tools/gh.js": [
-        "src/lib/cli-tools/fallback.js"
+        "src/lib/cli-tools/fallback.js",
+        "src/lib/cli-tools/detector.js"
       ],
       "src/lib/cli-tools/index.js": [
         "src/lib/cli-tools/ripgrep.js",
@@ -2323,7 +2336,8 @@
         "src/commands/state.js",
         "src/commands/verify.js",
         "src/commands/worktree.js",
-        "src/lib/helpers.js"
+        "src/lib/helpers.js",
+        "src/lib/cli-tools/fallback.js"
       ],
       "src/commands/state.js": [
         "src/router.js"
@@ -2505,9 +2519,29 @@
         "src/commands/codebase.js",
         "src/lib/context.js"
       ],
+      "src/lib/cli-tools/index.js": [
+        "src/commands/env.js",
+        "src/commands/features.js",
+        "src/commands/tools.js",
+        "src/commands/verify.js",
+        "src/lib/codebase-intel.js",
+        "src/lib/conventions.js",
+        "src/lib/deps.js"
+      ],
       "src/lib/regex-cache.js": [
         "src/commands/features.js",
         "src/lib/helpers.js"
+      ],
+      "src/lib/cli-tools/fallback.js": [
+        "src/commands/features.js",
+        "src/lib/adapters/discovery.js",
+        "src/lib/cli-tools/bat.js",
+        "src/lib/cli-tools/fd.js",
+        "src/lib/cli-tools/gh.js",
+        "src/lib/cli-tools/index.js",
+        "src/lib/cli-tools/jq.js",
+        "src/lib/cli-tools/ripgrep.js",
+        "src/lib/cli-tools/yq.js"
       ],
       "src/lib/utils/parity-check.js": [
         "src/commands/misc.js"
@@ -2521,8 +2555,13 @@
       "src/lib/cli-tools/detector.js": [
         "src/commands/tools.js",
         "src/lib/cli-tools/fallback.js",
+        "src/lib/cli-tools/gh.js",
         "src/lib/cli-tools/index.js",
         "src/lib/cli-tools/ripgrep.js"
+      ],
+      "src/lib/cli-tools/jq.js": [
+        "src/commands/tools.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/plugin/logger.js": [
         "src/plugin/advisory-guardrails.js",
@@ -2617,22 +2656,11 @@
         "src/plugin/project-state.js",
         "src/plugin/parsers/index.js"
       ],
-      "src/lib/cli-tools/fallback.js": [
-        "src/lib/cli-tools/bat.js",
-        "src/lib/cli-tools/fd.js",
-        "src/lib/cli-tools/gh.js",
-        "src/lib/cli-tools/index.js",
-        "src/lib/cli-tools/jq.js",
-        "src/lib/cli-tools/ripgrep.js",
-        "src/lib/cli-tools/yq.js"
+      "src/lib/cli-tools/fd.js": [
+        "src/lib/adapters/discovery.js",
+        "src/lib/cli-tools/index.js"
       ],
       "src/lib/cli-tools/ripgrep.js": [
-        "src/lib/cli-tools/index.js"
-      ],
-      "src/lib/cli-tools/fd.js": [
-        "src/lib/cli-tools/index.js"
-      ],
-      "src/lib/cli-tools/jq.js": [
         "src/lib/cli-tools/index.js"
       ],
       "src/lib/cli-tools/yq.js": [
@@ -2668,13 +2696,13 @@
     },
     "stats": {
       "total_files_parsed": 112,
-      "total_edges": 271,
+      "total_edges": 284,
       "languages_parsed": [
         "javascript"
       ],
       "parse_errors": 2
     },
-    "built_at": "2026-03-15T01:54:24.258Z"
+    "built_at": "2026-03-15T15:54:34.152Z"
   },
   "conventions": {
     "naming": {
