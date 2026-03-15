@@ -349,6 +349,52 @@ function cmdSkillsList(cwd, options, raw) {
   }
 }
 
+// ─── skills:validate ─────────────────────────────────────────────────────────
+
+/**
+ * Validate (re-scan) an installed skill and report full findings.
+ * Options:
+ *   name     — required skill name to validate
+ *   verbose  — if true, show matched code snippets per finding
+ */
+function cmdSkillsValidate(cwd, options, raw) {
+  const { name, verbose } = options || {};
+
+  if (!name) {
+    error('Usage: skills validate --name <skill-name>');
+    return;
+  }
+
+  const skillDir = path.join(cwd, '.agents', 'skills', name);
+
+  // Check skill directory exists
+  if (!fs.existsSync(skillDir)) {
+    error(`Skill not found: ${name}`);
+    return;
+  }
+
+  // Check SKILL.md is present
+  const skillMdPath = path.join(skillDir, 'SKILL.md');
+  if (!fs.existsSync(skillMdPath)) {
+    error(`Invalid skill: missing SKILL.md`);
+    return;
+  }
+
+  // Run full 41-pattern security scan
+  const scanResult = scanSkillFiles(skillDir);
+
+  if (raw) {
+    output({ name, path: skillDir, scan: scanResult }, raw);
+    return;
+  }
+
+  // TTY output: header + formatted scan results
+  console.log(`Validating skill: ${name}`);
+  console.log(`Path: ${skillDir}`);
+  console.log('');
+  console.log(formatScanResults(scanResult, verbose || false));
+}
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -356,4 +402,5 @@ module.exports = {
   scanSkillFiles,
   formatScanResults,
   cmdSkillsList,
+  cmdSkillsValidate,
 };
