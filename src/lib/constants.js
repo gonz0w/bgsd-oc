@@ -1609,6 +1609,66 @@ Output when compacted:       { compacted: true, before, after, removed, groups_m
 Examples:
   bgsd-tools lessons:compact
   bgsd-tools lessons:compact --threshold 50`,
+
+  'skills:list': `Usage: bgsd-tools skills:list
+
+List all installed project-local skills with their descriptions and scan status.
+
+Skills are stored in .agents/skills/<name>/SKILL.md within the project.
+
+Output: Array of { name, description, scan_status } or "No skills installed."
+
+Examples:
+  bgsd-tools skills:list`,
+
+  'skills:install': `Usage: bgsd-tools skills:install --source <github-url> [--confirm]
+         bgsd-tools skills:install <owner/repo> [--confirm]
+
+Install a skill from a GitHub repository with mandatory 41-pattern security scan.
+
+The install pipeline:
+  1. Fetch repository contents via GitHub API (no git clone required)
+  2. Verify SKILL.md exists in repo root (required)
+  3. Run 41-pattern security scan across all files
+  4. DANGEROUS findings: hard block — install is refused, no override
+  5. WARN findings: show count, prompt confirmation (or use --confirm to auto-accept)
+  6. Write skill to .agents/skills/<name>/ on confirmation
+  7. Log to .agents/skill-audit.json
+
+Options:
+  --source <url>   GitHub URL (https://github.com/owner/repo or owner/repo)
+  --confirm        Auto-accept warn-level findings without interactive prompt
+
+Examples:
+  bgsd-tools skills:install --source owner/my-skill
+  bgsd-tools skills:install https://github.com/owner/my-skill --confirm`,
+
+  'skills:validate': `Usage: bgsd-tools skills:validate --name <skill-name> [--verbose]
+
+Re-scan an installed skill against the 41-pattern security scanner.
+Useful after manual edits or to verify an existing skill's safety.
+
+Options:
+  --name <name>   Name of the installed skill to validate
+  --verbose       Show full matched code snippets for each finding
+
+Output: Scan report with severity-first grouping (dangerous > warn > info), category
+checklist (✓/✗ per category), count summary, and overall verdict.
+
+Examples:
+  bgsd-tools skills:validate --name my-skill
+  bgsd-tools skills:validate --name my-skill --verbose`,
+
+  'skills:remove': `Usage: bgsd-tools skills:remove --name <skill-name>
+
+Remove an installed project-local skill. Deletes the skill directory from
+.agents/skills/<name>/ and logs the removal to .agents/skill-audit.json.
+
+Options:
+  --name <name>   Name of the installed skill to remove
+
+Examples:
+  bgsd-tools skills:remove --name my-skill`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };

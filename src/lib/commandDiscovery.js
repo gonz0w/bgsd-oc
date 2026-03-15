@@ -30,7 +30,11 @@ const COMMAND_ALIASES = {
   'd:l': 'decisions:list',
   'd:i': 'decisions:inspect',
   'd:e': 'decisions:evaluate',
-  'd:s': 'decisions:savings'
+  'd:s': 'decisions:savings',
+  's:l': 'skills:list',
+  's:i': 'skills:install',
+  's:v': 'skills:validate',
+  's:r': 'skills:remove'
 };
 
 const COMMAND_CATEGORIES = {
@@ -57,6 +61,85 @@ const COMMAND_CATEGORIES = {
   lessons: {
     name: 'Lessons',
     commands: ['lessons:capture', 'lessons:list', 'lessons:migrate']
+  },
+  skills: {
+    name: 'Skills',
+    commands: ['skills:list', 'skills:install', 'skills:validate', 'skills:remove']
+  }
+};
+
+const COMMAND_TREE = {
+  'init': {
+    'execute-phase': null,
+    'plan-phase': null,
+    'new-project': null,
+    'new-milestone': null,
+    'quick': null,
+    'resume': null,
+    'verify-work': null
+  },
+  'plan': {
+    'intent': null,
+    'requirements': null,
+    'roadmap': null,
+    'phases': null,
+    'find-phase': null,
+    'milestone': null,
+    'phase': null
+  },
+  'execute': {
+    'commit': null,
+    'rollback-info': null,
+    'session-diff': null,
+    'session-summary': null,
+    'velocity': null,
+    'worktree': null,
+    'tdd': null,
+    'test-run': null,
+    'trajectory': null
+  },
+  'verify': {
+    'state': null,
+    'verify': null,
+    'assertions': null,
+    'search-decisions': null,
+    'search-lessons': null,
+    'review': null,
+    'context-budget': null,
+    'token-budget': null
+  },
+  'util': {
+    'config-get': null,
+    'config-set': null,
+    'env': null,
+    'memory': null,
+    'cache': null,
+    'agent': null,
+    'codebase': null
+  },
+  'research': {
+    'capabilities': null,
+    'collect': null,
+    'yt-search': null,
+    'yt-transcript': null,
+    'nlm-create': null,
+    'nlm-add-source': null,
+    'nlm-ask': null,
+    'nlm-report': null
+  },
+  'lessons': {
+    'capture': null,
+    'list': null,
+    'migrate': null,
+    'analyze': null,
+    'suggest': null,
+    'compact': null
+  },
+  'skills': {
+    'list': null,
+    'install': null,
+    'validate': null,
+    'remove': null
   }
 };
 
@@ -488,6 +571,12 @@ function validateCommandRegistry() {
       'list': null,
       'migrate': null
     },
+    'skills': {
+      'list': null,
+      'install': null,
+      'validate': null,
+      'remove': null
+    },
     'audit': {
       'scan': null
     },
@@ -610,6 +699,7 @@ function validateCommandRegistry() {
 }
 
 module.exports = {
+  COMMAND_TREE,
   getAutocompleteHints,
   getCommandAliases,
   expandAlias,

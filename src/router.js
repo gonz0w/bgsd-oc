@@ -110,6 +110,7 @@ function lazyAudit() { return _modules.audit || (_modules.audit = require('./com
 function lazyDecisions() { return _modules.decisions || (_modules.decisions = require('./commands/decisions')); }
 function lazyDb() { return _modules.db || (_modules.db = require('./lib/db')); }
 function lazyLessons() { return _modules.lessons || (_modules.lessons = require('./commands/lessons')); }
+function lazySkills() { return _modules.skills || (_modules.skills = require('./commands/skills')); }
 
 
 async function main() {
@@ -252,7 +253,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -1398,6 +1399,41 @@ Examples:
         break;
       }
 
+      // skills namespace
+      case 'skills': {
+        function parseSkillsOptions(args) {
+          const opts = {};
+          for (let i = 0; i < args.length; i++) {
+            if (args[i] === '--source' && args[i + 1]) { opts.source = args[++i]; }
+            else if (args[i] === '--name' && args[i + 1]) { opts.name = args[++i]; }
+            else if (args[i] === '--confirm') { opts.confirm = true; }
+            else if (args[i] === '--verbose') { opts.verbose = true; }
+            else if (!args[i].startsWith('-')) { opts.positional = opts.positional || args[i]; }
+          }
+          return opts;
+        }
+
+        if (subCmd === 'list') {
+          lazySkills().cmdSkillsList(cwd, parseSkillsOptions(restArgs), raw);
+        } else if (subCmd === 'install') {
+          // source can be positional or --source
+          const opts = parseSkillsOptions(restArgs);
+          if (!opts.source && opts.positional) opts.source = opts.positional;
+          await lazySkills().cmdSkillsInstall(cwd, opts, raw);
+        } else if (subCmd === 'validate') {
+          const opts = parseSkillsOptions(restArgs);
+          if (!opts.name && opts.positional) opts.name = opts.positional;
+          lazySkills().cmdSkillsValidate(cwd, opts, raw);
+        } else if (subCmd === 'remove') {
+          const opts = parseSkillsOptions(restArgs);
+          if (!opts.name && opts.positional) opts.name = opts.positional;
+          lazySkills().cmdSkillsRemove(cwd, opts, raw);
+        } else {
+          error('Unknown skills subcommand: ' + subCmd + '. Available: list, install, validate, remove');
+        }
+        break;
+      }
+
        // detect namespace
        case 'detect': {
          if (subCmd === 'tools') {
@@ -1412,13 +1448,13 @@ Examples:
 
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons, skills`);
     }
     return; // Exit after handling namespaced command
   }
 
   // No command matched any namespace — unknown
-  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, lessons`);
+  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, lessons, skills`);
 }
 
 // Track command execution in history (Phase 97: UX Polish)

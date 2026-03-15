@@ -101,6 +101,15 @@ const COMMAND_CATEGORIES = {
       'lessons:list',
       'lessons:migrate'
     ]
+  },
+  'Skills': {
+    description: 'Browse, install, and manage project-local skills',
+    commands: [
+      'skills:list',
+      'skills:install',
+      'skills:validate',
+      'skills:remove'
+    ]
   }
 };
 
@@ -191,7 +200,12 @@ const COMMAND_BRIEF = {
 
   'lessons:capture': 'Capture a structured lesson entry with schema validation',
   'lessons:list': 'List lessons with --type/--severity/--since/--limit/--query filters',
-  'lessons:migrate': 'Migrate free-form lessons.md to structured format'
+  'lessons:migrate': 'Migrate free-form lessons.md to structured format',
+
+  'skills:list': 'List installed project-local skills with scan status',
+  'skills:install': 'Install a skill from GitHub with security scan and confirmation',
+  'skills:validate': 'Re-scan an installed skill against 41-pattern security scanner',
+  'skills:remove': 'Remove an installed project-local skill'
 };
 
 const COMMAND_RELATED = {
@@ -255,7 +269,12 @@ const COMMAND_RELATED = {
 
   'lessons:capture': ['lessons:list', 'util:memory'],
   'lessons:list': ['lessons:capture', 'lessons:migrate', 'util:memory'],
-  'lessons:migrate': ['lessons:list', 'lessons:capture']
+  'lessons:migrate': ['lessons:list', 'lessons:capture'],
+
+  'skills:list': ['skills:install', 'skills:validate'],
+  'skills:install': ['skills:list', 'skills:remove', 'skills:validate'],
+  'skills:validate': ['skills:list', 'skills:remove'],
+  'skills:remove': ['skills:list', 'skills:install']
 };
 
 const NATURAL_LANGUAGE_ALIASES = {
@@ -334,7 +353,10 @@ const NATURAL_LANGUAGE_ALIASES = {
   'question': 'research:nlm-ask',
   'report': 'research:nlm-report',
   'milestone': 'milestone:summary',
-  'summary': 'milestone:summary'
+  'summary': 'milestone:summary',
+  'skills': 'skills:list',
+  'install skill': 'skills:install',
+  'remove skill': 'skills:remove'
 };
 
 function getAllCommandsByCategory() {
