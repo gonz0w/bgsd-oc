@@ -11,8 +11,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Milestone:** v13.0 Closed-Loop Agent Evolution
 **Phase:** Phase 132 of 133 (Deviation Recovery Auto-Capture)
-**Current Plan:** Plan 02 complete (Phase 132 complete)
-**Status:** Phase 132 complete — all plans done, ready for Phase 133 (Enhanced Research Workflow)
+**Current Plan:** Not started
+**Status:** Ready to plan
 **Last Activity:** 2026-03-15
 
 Progress: [██████████] 100%
