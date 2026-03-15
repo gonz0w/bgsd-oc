@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Milestone:** v13.0 Closed-Loop Agent Evolution
 **Phase:** Phase 129 of 133 (Foundation & Agent Overrides)
-**Current Plan:** —
-**Status:** Ready to plan
-**Last Activity:** 2026-03-15 — Roadmap created for v13.0 (5 phases, 33 requirements, 100% coverage)
+**Current Plan:** Plan 01 complete (Plan 02 next)
+**Status:** In progress
+**Last Activity:** 2026-03-15 — Completed Phase 129 Plan 01 (foundation utilities + agent:list-local)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -31,6 +31,7 @@ Progress: [░░░░░░░░░░] 0%
 - v12.1 Phase 128 Plan 01: 12 min, 2 tasks, 4 files (1503 tests)
 - v12.1 Phase 128 Plan 02: 14 min, 2 tasks, 2 files (1503 tests)
 - v12.1 Phase 128 Plan 03: 5 min, 2 tasks, 2 files (1565 tests)
+- v13.0 Phase 129 Plan 01: 11 min, 2 tasks, 3 files (foundation utilities + list-local)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -62,18 +63,20 @@ Progress: [░░░░░░░░░░] 0%
 - [v13.0 roadmap]: Phase 133 independent — research scoring has no dependency on Phases 129–132
 - [v13.0 roadmap]: DEVCAP-01 typo fix included in Phase 132 (fix before building capture telemetry on top)
 - [v13.0 roadmap]: Skill install writes to `.agents/skills/` only — never `~/.config`; 41-pattern security scan is mandatory, not optional
+- [Phase 129 Plan 01]: LCS DP for generateUnifiedDiff — O(mn) is acceptable for agent files (<500 lines), avoids external diff library dependency
+- [Phase 129 Plan 01]: sanitizeAgentContent uses regex lookbehind to exclude path contexts (.opencode/agents/) from editor name replacement
 
 ### Pending Work
 
-Phase 129 — ready to plan. Run `/bgsd-plan-phase` to create execution plans.
+Phase 129 Plan 01 complete. Execute Plan 02 (agent:override command) next.
 
 ### Blockers/Concerns
 
-None — requirements defined, roadmap complete, research HIGH confidence.
+None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T17:18:52.677Z
-**This session:** 2026-03-15 — v13.0 roadmap created (5 phases, 33 requirements)
+**Last session:** 2026-03-15T17:58:21.402Z
+**This session:** 2026-03-15 — Completed Phase 129 Plan 01 (foundation utilities + agent:list-local)
 **Next steps:**
-1. Run `/bgsd-plan-phase 129` to create execution plans for Foundation & Agent Overrides
+1. Execute Phase 129 Plan 02 (agent:override command implementation)

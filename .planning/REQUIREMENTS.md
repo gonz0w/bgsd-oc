@@ -83,12 +83,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LOCAL-01 | Phase 129 | pending |
+| LOCAL-01 | Phase 129 | Complete |
 | LOCAL-02 | Phase 129 | pending |
 | LOCAL-03 | Phase 129 | pending |
 | LOCAL-04 | Phase 129 | pending |
-| LOCAL-05 | Phase 129 | pending |
-| LOCAL-06 | Phase 129 | pending |
+| LOCAL-05 | Phase 129 | Complete |
+| LOCAL-06 | Phase 129 | Complete |
 | LOCAL-07 | Phase 129 | pending |
 | LESSON-01 | Phase 130 | pending |
 | LESSON-02 | Phase 130 | pending |
