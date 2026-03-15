@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Milestone:** v13.0 Closed-Loop Agent Evolution
 **Phase:** Phase 129 of 133 (Foundation & Agent Overrides)
-**Current Plan:** Plan 01 complete (Plan 02 next)
+**Current Plan:** Plan 02 complete (Plan 03 next)
 **Status:** In progress
-**Last Activity:** 2026-03-15 — Completed Phase 129 Plan 01 (foundation utilities + agent:list-local)
+**Last Activity:** 2026-03-15 — Completed Phase 129 Plan 02 (agent:override + agent:diff commands)
 
-Progress: [██████████] 97%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [██████████] 97%
 - v12.1 Phase 128 Plan 02: 14 min, 2 tasks, 2 files (1503 tests)
 - v12.1 Phase 128 Plan 03: 5 min, 2 tasks, 2 files (1565 tests)
 - v13.0 Phase 129 Plan 01: 11 min, 2 tasks, 3 files (foundation utilities + list-local)
+- v13.0 Phase 129 Plan 02: 11 min, 2 tasks, 3 files (agent:override + agent:diff commands)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -65,10 +66,12 @@ Progress: [██████████] 97%
 - [v13.0 roadmap]: Skill install writes to `.agents/skills/` only — never `~/.config`; 41-pattern security scan is mandatory, not optional
 - [Phase 129 Plan 01]: LCS DP for generateUnifiedDiff — O(mn) is acceptable for agent files (<500 lines), avoids external diff library dependency
 - [Phase 129 Plan 01]: sanitizeAgentContent uses regex lookbehind to exclude path contexts (.opencode/agents/) from editor name replacement
+- [Phase 129 Plan 02]: findClosestAgent scores by prefix length (not agent name length) — bgsd-exector correctly maps to bgsd-executor via 9-char prefix match
+- [Phase 129 Plan 02]: injectNameField adds name: as first frontmatter field; all global agents lack name: field so all overrides show a persistent diff at the name: line
 
 ### Pending Work
 
-Phase 129 Plan 01 complete. Execute Plan 02 (agent:override command) next.
+Phase 129 Plan 02 complete. Execute Plan 03 (agent:sync command) next.
 
 ### Blockers/Concerns
 
@@ -76,7 +79,7 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T17:58:21.402Z
-**This session:** 2026-03-15 — Completed Phase 129 Plan 01 (foundation utilities + agent:list-local)
+**Last session:** 2026-03-15T18:13:10.356Z
+**This session:** 2026-03-15 — Completed Phase 129 Plan 02 (agent:override + agent:diff commands)
 **Next steps:**
-1. Execute Phase 129 Plan 02 (agent:override command implementation)
+1. Execute Phase 129 Plan 03 (agent:sync command implementation)

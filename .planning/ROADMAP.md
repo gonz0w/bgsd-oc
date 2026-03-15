@@ -33,7 +33,7 @@
   3. User can run `agent:diff <name>` to view a line-level diff between the local override and its global counterpart
   4. User can run `agent:sync <name>` to see incoming upstream changes and accept or reject them
   5. bgsd-context `local_agent_overrides` field lists which agents have project-local versions, and any generated agent content is sanitized against system-prompt mangling
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 ### Phase 130: Lesson Schema & Analysis Pipeline
 **Goal**: Users can capture, list, analyze, and get improvement suggestions from structured lessons — with migration of existing free-form lessons and workflow hooks that surface suggestions after verify-work and milestone completion
@@ -87,7 +87,7 @@ Phases execute in order: 129 → 130 → 131 (parallel with 130) → 132 (after 
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 129. Foundation & Agent Overrides | 1/3 | In Progress|  | - |
+| 129. Foundation & Agent Overrides | 2/3 | In Progress|  | - |
 | 130. Lesson Schema & Analysis Pipeline | v13.0 | 0/TBD | Not started | - |
 | 131. Skill Discovery & Security | v13.0 | 0/TBD | Not started | - |
 | 132. Deviation Recovery Auto-Capture | v13.0 | 0/TBD | Not started | - |
