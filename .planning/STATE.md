@@ -1,18 +1,18 @@
-# v12.1 Project State: Tool Integration & Agent Enhancement
+# Project State: Post-v12.1
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v12.1 Tool Integration & Agent Enhancement — roadmap created
+**Current focus:** v12.1 complete — ready for next milestone
 
 ## Current Position
 
-**Milestone:** v12.1 Tool Integration & Agent Enhancement
-**Phase:** 128 (Plans 01-03 complete)
-**Current Plan:** Not started
-**Status:** v12.1 milestone complete
+**Milestone:** TBD (v12.1 archived 2026-03-15)
+**Phase:** —
+**Current Plan:** —
+**Status:** Ready for new milestone
 **Last Activity:** 2026-03-15
 
 Progress: [██████████] 100% (Phase 128 complete, 3 of 3 plans)
@@ -168,7 +168,6 @@ None — Phase 128 fully complete. AGENT-02 and AGENT-03 requirements satisfied 
 ## Session Continuity
 
 **Last session:** 2026-03-15T16:06:33.570Z
-**This session:** 2026-03-15 (Phase 128 Plan 03 execution complete — 2 tasks, 5 min, 1565 tests passing)
+**This session:** 2026-03-15 (v12.1 milestone complete — archived, MILESTONES.md updated, PROJECT.md evolved, git tag v12.1 created)
 **Next steps:** 
-1. Phase 128 complete — run verify-work to confirm all Phase 128 success criteria
-2. Plan next milestone or advance to next phase
+1. Run `/bgsd-new-milestone` after `/clear` to start v13.0

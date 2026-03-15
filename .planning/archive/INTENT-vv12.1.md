@@ -78,4 +78,3 @@ The data layer should be invisible to users — workflows feel faster, decisions
 (See `.planning/archive/INTENT-vv12.0.md` for full history)
 </history>
 <!-- Highest outcome ID: DO-90 -->
-<!-- Highest outcome ID: OUT-0 -->

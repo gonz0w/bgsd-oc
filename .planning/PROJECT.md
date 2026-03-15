@@ -10,20 +10,21 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Current milestone:** v12.1 Tool Integration & Agent Enhancement (2026-03-15 → TBD)
+**Current milestone:** TBD (v12.1 complete as of 2026-03-15)
 
-**Goal:** Integrate modern CLI tools (ripgrep, fd, jq, yq, bat, gh) into core workflows with smarter agent routing, better inter-agent collaboration, and enhanced decision functions for multi-phase coordination.
+**Last shipped:** v12.1 Tool Integration & Agent Enhancement (2026-03-15)
 
-**Target features:**
-- Unified tool capability detection and graceful degradation
-- ripgrep, fd, jq integration for fast search/discovery/transformation
-- Enhanced agent routing based on task complexity and skill availability
-- Better agent handoff patterns and shared context
-- New decision functions for multi-phase sequencing and tool selection
+<details>
+<summary>Previous: v12.1 Tool Integration & Agent Enhancement (shipped 2026-03-15)</summary>
 
----
+- Unified tool detection (`detect.js`) with 5-min file cache, cross-platform PATH, semver comparison, `detect:tools` + `detect:gh-preflight` JSON APIs
+- 6 CLI tools (ripgrep, fd, jq, yq, bat, gh) integrated with graceful Node.js fallbacks throughout; zero crashes when tools absent
+- 5 new decision functions in DECISION_REGISTRY: `resolveFileDiscoveryMode`, `resolveSearchMode`, `resolveJsonTransformMode`, `resolveAgentCapabilityLevel`, `resolvePhaseDependencies`
+- `tool_availability` injected into bgsd-context; silent capability-aware context filtering in `scopeContextForAgent`
+- 9 agent pair handoff contracts with rich/minimal tool context split; `handoff_tool_context` in enricher output
+- 285 new tests (1565 total, all passing); 11/11 requirements delivered
 
-**Last shipped:** v12.0 SQLite-First Data Layer (2026-03-15)
+</details>
 
 <details>
 <summary>Previous: v12.0 SQLite-First Data Layer (shipped 2026-03-15)</summary>
@@ -226,13 +227,15 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 - ✓ 6 new deterministic decision functions consuming SQLite-backed state — v12.0
 - ✓ Session state in SQLite with STATE.md as generated view — v12.0
 
+- ✓ Unified tool detection with file-based caching, cross-platform PATH, semver comparison, install guidance — v12.1
+- ✓ 6 CLI tool integrations (ripgrep, fd, jq, yq, bat, gh) with graceful Node.js fallbacks — v12.1
+- ✓ 5 new decision functions: resolveFileDiscoveryMode, resolveSearchMode, resolveJsonTransformMode, resolveAgentCapabilityLevel, resolvePhaseDependencies — v12.1
+- ✓ tool_availability in bgsd-context enrichment and silent capability-aware context filtering — v12.1
+- ✓ 9 agent pair handoff contracts with rich/minimal tool context split and handoff_tool_context enricher field — v12.1
+
 ### Active
 
-**v12.1 (in progress):**
-- Tool integration with modern CLI tools (ripgrep, fd, jq, etc.)
-- Enhanced agent routing and decision functions
-- Better inter-agent collaboration patterns
-- See REQUIREMENTS.md for full list (coming)
+(No active requirements — v12.1 complete. Define v13.0 requirements in next milestone.)
 
 ### Out of Scope
 
@@ -249,7 +252,7 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ## Context
 
-Shipped v1.0 through v12.0. 1280 tests (all passing), 52 src/ modules, ~871KB bundle, esbuild bundler.
+Shipped v1.0 through v12.1. 1565 tests (all passing), 52 src/ modules, ~871KB bundle, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
@@ -314,6 +317,13 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 | SQL-first dual-write for state mutations | Write to SQLite first, then regex-update STATE.md to preserve format | Good — backward-compatible with existing tests |
 | JSON canonical, SQLite best-effort for sacred data | Failures in SQLite log but never roll back JSON writes | Good — zero-risk migration |
 | ESM-native db-cache.js alongside CJS db.js | esbuild __require wrapper fails in native ESM; separate ESM module | Good — plugin works in both CJS and ESM contexts |
+| Single detect.js for all 6 tools | Centralized detection avoids duplicating caching/install-guidance 6x | Good — unified API, one place to extend |
+| File-based tool cache (.planning/.cache/tools.json) | Avoids child_process in ESM plugin; readable in git | Good — ESM-safe, git-trackable |
+| 5 tool routing decision functions | Cover file discovery, search, JSON transform, agent capability, phase deps | Good — all HIGH confidence, all in DECISION_REGISTRY |
+| resolveAgentCapabilityLevel thresholds: 5-6=HIGH, 2-4=MEDIUM, 0-1=LOW | Linear scale; only LOW triggers warning metadata | Good — matches observed tool count distribution |
+| resolvePhaseDependencies uses Kahn topological sort | Standard algorithm; declared depends_on always wins | Good — deterministic, extensible |
+| Rich vs minimal handoff tool context | Critical pairs (planner→executor, researcher→planner) get full context; 7 others get count+level | Good — reduces noise for non-critical pairs |
+| scopeContextForAgent strips silently | Agents never know what was removed; filtering is a system concern | Good — no agent behavior changes |
 
 ---
 
@@ -321,4 +331,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-15 after v12.0 milestone completion*
+*Last updated: 2026-03-15 after v12.1 milestone completion*
