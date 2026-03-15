@@ -16,7 +16,7 @@
 ## Phases
 
 - [x] **Phase 129: Foundation & Agent Overrides** - Local agent override lifecycle with YAML validation and content sanitization (completed 2026-03-15)
-- [ ] **Phase 130: Lesson Schema & Analysis Pipeline** - Structured lesson format, analysis engine, and workflow improvement hooks
+- [x] **Phase 130: Lesson Schema & Analysis Pipeline** - Structured lesson format, analysis engine, and workflow improvement hooks (completed 2026-03-15)
 - [ ] **Phase 131: Skill Discovery & Security** - Security-first skill install/manage lifecycle with 41-pattern scanner and agentskills.io discovery
 - [ ] **Phase 132: Deviation Recovery Auto-Capture** - Rule-1-only auto-capture hook wired into execute-phase with typo fix
 - [ ] **Phase 133: Enhanced Research Workflow** - Structured research quality profile and gap surfacing
@@ -45,7 +45,7 @@
   3. User can run `lessons:list --type agent-behavior --severity HIGH` and get filtered results with pagination via `--limit` and `--since`
   4. User can run `lessons:analyze` and see recurrent patterns grouped by affected agent (only groups with ≥2 supporting lessons are shown)
   5. verify-work and complete-milestone workflows surface `lessons:suggest` advisory (non-blocking, informational) after phase/milestone completes; `lessons:compact` deduplicates when store exceeds 100 entries
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ### Phase 131: Skill Discovery & Security
 **Goal**: Users can browse, install, validate, and remove project-local skills with a mandatory security scan and human confirmation gate before any file is written — plus bgsd-context exposing installed skills
@@ -88,7 +88,7 @@ Phases execute in order: 129 → 130 → 131 (parallel with 130) → 132 (after 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 129. Foundation & Agent Overrides | 3/3 | Complete    | 2026-03-15 | - |
-| 130. Lesson Schema & Analysis Pipeline | 1/2 | In Progress|  | - |
+| 130. Lesson Schema & Analysis Pipeline | 2/2 | Complete   | 2026-03-15 | - |
 | 131. Skill Discovery & Security | v13.0 | 0/TBD | Not started | - |
 | 132. Deviation Recovery Auto-Capture | v13.0 | 0/TBD | Not started | - |
 | 133. Enhanced Research Workflow | v13.0 | 0/TBD | Not started | - |

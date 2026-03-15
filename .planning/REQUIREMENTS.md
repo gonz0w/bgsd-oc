@@ -93,12 +93,12 @@
 | LESSON-01 | Phase 130 | Complete |
 | LESSON-02 | Phase 130 | Complete |
 | LESSON-03 | Phase 130 | Complete |
-| LESSON-04 | Phase 130 | pending |
-| LESSON-05 | Phase 130 | pending |
+| LESSON-04 | Phase 130 | Complete |
+| LESSON-05 | Phase 130 | Complete |
 | LESSON-06 | Phase 130 | Complete |
-| LESSON-07 | Phase 130 | pending |
-| LESSON-08 | Phase 130 | pending |
-| LESSON-09 | Phase 130 | pending |
+| LESSON-07 | Phase 130 | Complete |
+| LESSON-08 | Phase 130 | Complete |
+| LESSON-09 | Phase 130 | Complete |
 | SKILL-01 | Phase 131 | pending |
 | SKILL-02 | Phase 131 | pending |
 | SKILL-03 | Phase 131 | pending |
