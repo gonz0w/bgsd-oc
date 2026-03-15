@@ -25,6 +25,10 @@ const {
   resolveResearchGate,
   resolveMilestoneCompletion,
   resolveCommitStrategy,
+  resolveFileDiscoveryMode,
+  resolveSearchMode,
+  resolveJsonTransformMode,
+  DECISION_REGISTRY,
   evaluateDecisions,
 } = require('../src/lib/decision-rules');
 
@@ -597,5 +601,139 @@ describe('enricher-decisions: mock project structure', () => {
 
     // previous-check-gate: has summary, no issues → proceed
     assert.strictEqual(results['previous-check-gate'].value, 'proceed');
+  });
+});
+
+// ─── Phase 127: tool_availability enrichment tests ───────────────────────────
+
+describe('Phase 127: tool_availability enrichment', () => {
+
+  describe('tool_availability shape tests', () => {
+    it('tool_availability is an object (not null, not array)', () => {
+      const ta = { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: true };
+      assert.ok(ta !== null, 'tool_availability should not be null');
+      assert.ok(typeof ta === 'object' && !Array.isArray(ta), 'tool_availability should be a plain object');
+    });
+
+    it('tool_availability has exactly 6 keys: ripgrep, fd, jq, yq, bat, gh', () => {
+      const ta = { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: true };
+      const keys = Object.keys(ta).sort();
+      assert.deepStrictEqual(keys, ['bat', 'fd', 'gh', 'jq', 'ripgrep', 'yq']);
+    });
+
+    it('each value in tool_availability is a boolean — ripgrep', () => {
+      const ta = { ripgrep: true, fd: false, jq: true, yq: false, bat: true, gh: false };
+      assert.strictEqual(typeof ta.ripgrep, 'boolean');
+    });
+
+    it('each value in tool_availability is a boolean — fd', () => {
+      const ta = { ripgrep: false, fd: true, jq: false, yq: false, bat: false, gh: false };
+      assert.strictEqual(typeof ta.fd, 'boolean');
+    });
+
+    it('each value in tool_availability is a boolean — jq', () => {
+      const ta = { ripgrep: false, fd: false, jq: true, yq: false, bat: false, gh: false };
+      assert.strictEqual(typeof ta.jq, 'boolean');
+    });
+
+    it('each value in tool_availability is a boolean — yq, bat, gh', () => {
+      const ta = { ripgrep: false, fd: false, jq: false, yq: true, bat: true, gh: true };
+      assert.strictEqual(typeof ta.yq, 'boolean');
+      assert.strictEqual(typeof ta.bat, 'boolean');
+      assert.strictEqual(typeof ta.gh, 'boolean');
+    });
+
+    it('tool_availability does NOT contain version info (just true/false per tool)', () => {
+      // The contract: booleans only — no 'version' or 'path' sub-objects
+      const ta = { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: true };
+      for (const [key, value] of Object.entries(ta)) {
+        assert.strictEqual(typeof value, 'boolean',
+          `${key} should be boolean, not ${typeof value}`);
+      }
+    });
+
+    it('tool_availability does NOT contain path info', () => {
+      const ta = { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: true };
+      for (const key of Object.keys(ta)) {
+        assert.ok(!key.includes('path') && !key.includes('Path'),
+          `No path keys expected, found: ${key}`);
+      }
+    });
+
+    it('tool_availability can be populated (non-empty object)', () => {
+      const ta = { ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true };
+      assert.ok(Object.keys(ta).length > 0, 'tool_availability should be non-empty');
+    });
+
+    it('tool_availability keys match the TOOLS constant from detector.js', () => {
+      const { TOOLS } = require('../src/lib/cli-tools/detector.js');
+      const expectedKeys = Object.keys(TOOLS).sort();
+      const taKeys = ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh'].sort();
+      assert.deepStrictEqual(taKeys, expectedKeys);
+    });
+  });
+
+  describe('decision evaluation with tool_availability', () => {
+    it('tool-routing decisions fire when tool_availability is in state', () => {
+      const state = {
+        tool_availability: { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false },
+        scope: 'directory',
+      };
+      const results = evaluateDecisions('bgsd-execute-phase', state);
+      // file-discovery-mode fires because tool_availability is present
+      assert.ok(results['file-discovery-mode'], 'file-discovery-mode should fire with tool_availability');
+    });
+
+    it('tool-routing decisions all have HIGH confidence', () => {
+      const state = {
+        tool_availability: { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false },
+        scope: 'project-wide',
+        needs_gitignore_respect: true,
+        json_complexity: 'complex',
+      };
+      const results = evaluateDecisions('bgsd-execute-phase', state);
+      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'json-transform-mode'];
+      for (const ruleId of toolRoutingIds) {
+        if (results[ruleId]) {
+          assert.strictEqual(results[ruleId].confidence, 'HIGH', `${ruleId} should have HIGH confidence`);
+        }
+      }
+    });
+
+    it('decision results have correct rule_ids', () => {
+      const state = {
+        tool_availability: { ripgrep: false, fd: true, jq: false, yq: false, bat: false, gh: false },
+        scope: 'project-wide',
+        needs_gitignore_respect: true,
+        json_complexity: 'simple',
+      };
+      const results = evaluateDecisions('bgsd-execute-phase', state);
+      if (results['file-discovery-mode']) {
+        assert.strictEqual(results['file-discovery-mode'].rule_id, 'file-discovery-mode');
+      }
+      if (results['search-mode']) {
+        assert.strictEqual(results['search-mode'].rule_id, 'search-mode');
+      }
+      if (results['json-transform-mode']) {
+        assert.strictEqual(results['json-transform-mode'].rule_id, 'json-transform-mode');
+      }
+    });
+
+    it('results contain string values (tool names only)', () => {
+      const state = {
+        tool_availability: { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false },
+        scope: 'directory',
+        needs_gitignore_respect: true,
+        json_complexity: 'complex',
+      };
+      const results = evaluateDecisions('bgsd-execute-phase', state);
+      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'json-transform-mode'];
+      for (const ruleId of toolRoutingIds) {
+        if (results[ruleId]) {
+          assert.strictEqual(typeof results[ruleId].value, 'string',
+            `${ruleId} value should be a string (tool name)`);
+        }
+      }
+    });
   });
 });

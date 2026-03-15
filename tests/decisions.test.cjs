@@ -25,6 +25,9 @@ const {
   resolveResearchGate,
   resolveMilestoneCompletion,
   resolveCommitStrategy,
+  resolveFileDiscoveryMode,
+  resolveSearchMode,
+  resolveJsonTransformMode,
   DECISION_REGISTRY,
   evaluateDecisions,
 } = require('../src/lib/decision-rules');
@@ -813,6 +816,12 @@ describe('decisions: every registered rule returns valid contract', () => {
           state[input] = '42';
         } else if (input === 'return_type') {
           state[input] = 'fix';
+        } else if (input === 'tool_availability') {
+          state[input] = { ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true };
+        } else if (input === 'scope') {
+          state[input] = 'directory';
+        } else if (input === 'json_complexity') {
+          state[input] = 'complex';
         } else {
           state[input] = 'test';
         }
@@ -827,4 +836,296 @@ describe('decisions: every registered rule returns valid contract', () => {
         `${rule.id}: rule_id mismatch — got '${result.rule_id}'`);
     });
   }
+});
+
+// ─── Phase 127: Tool routing decision function tests ──────────────────────────
+
+describe('Phase 127: Tool routing decision functions', () => {
+
+  // ─── resolveFileDiscoveryMode ───────────────────────────────────────────────
+
+  describe('resolveFileDiscoveryMode', () => {
+    it('single-file scope with all tools available returns node', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'single-file', tool_availability: { fd: true, ripgrep: true } });
+      assert.strictEqual(result.value, 'node');
+      assert.strictEqual(result.confidence, 'HIGH');
+      assert.strictEqual(result.rule_id, 'file-discovery-mode');
+    });
+
+    it('single-file scope with no tools returns node', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'single-file', tool_availability: { fd: false } });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('directory scope with fd available returns fd', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'directory', tool_availability: { fd: true } });
+      assert.strictEqual(result.value, 'fd');
+      assert.strictEqual(result.confidence, 'HIGH');
+      assert.strictEqual(result.rule_id, 'file-discovery-mode');
+    });
+
+    it('directory scope with fd unavailable returns node', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'directory', tool_availability: { fd: false } });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('project-wide scope with fd available returns fd', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'project-wide', tool_availability: { fd: true } });
+      assert.strictEqual(result.value, 'fd');
+      assert.strictEqual(result.confidence, 'HIGH');
+    });
+
+    it('project-wide scope with fd unavailable returns node', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'project-wide', tool_availability: { fd: false } });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('missing scope defaults to node (no tool needed)', () => {
+      const result = resolveFileDiscoveryMode({ tool_availability: { fd: true } });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('missing tool_availability defaults gracefully to node', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'directory' });
+      assert.strictEqual(result.value, 'node');
+      assert.strictEqual(result.rule_id, 'file-discovery-mode');
+    });
+
+    it('all results have HIGH confidence', () => {
+      const cases = [
+        { scope: 'single-file', tool_availability: { fd: true } },
+        { scope: 'directory', tool_availability: { fd: true } },
+        { scope: 'project-wide', tool_availability: { fd: false } },
+      ];
+      for (const state of cases) {
+        const result = resolveFileDiscoveryMode(state);
+        assert.strictEqual(result.confidence, 'HIGH', `Expected HIGH for ${JSON.stringify(state)}`);
+      }
+    });
+
+    it('return value is always a string (tool name only)', () => {
+      const result = resolveFileDiscoveryMode({ scope: 'directory', tool_availability: { fd: true } });
+      assert.strictEqual(typeof result.value, 'string');
+    });
+
+    it('handles null state gracefully', () => {
+      const result = resolveFileDiscoveryMode(null);
+      assert.strictEqual(result.value, 'node');
+      assert.strictEqual(result.rule_id, 'file-discovery-mode');
+    });
+
+    it('handles undefined state gracefully', () => {
+      const result = resolveFileDiscoveryMode(undefined);
+      assert.strictEqual(result.value, 'node');
+    });
+  });
+
+  // ─── resolveSearchMode ─────────────────────────────────────────────────────
+
+  describe('resolveSearchMode', () => {
+    it('ripgrep available returns ripgrep regardless of gitignore flag', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: true, fd: true }, needs_gitignore_respect: true });
+      assert.strictEqual(result.value, 'ripgrep');
+      assert.strictEqual(result.confidence, 'HIGH');
+      assert.strictEqual(result.rule_id, 'search-mode');
+    });
+
+    it('ripgrep available with gitignore false still returns ripgrep (highest priority)', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: true }, needs_gitignore_respect: false });
+      assert.strictEqual(result.value, 'ripgrep');
+    });
+
+    it('ripgrep unavailable, fd available, needs_gitignore_respect true returns fd', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: false, fd: true }, needs_gitignore_respect: true });
+      assert.strictEqual(result.value, 'fd');
+      assert.strictEqual(result.confidence, 'HIGH');
+      assert.strictEqual(result.rule_id, 'search-mode');
+    });
+
+    it('ripgrep unavailable, fd available, needs_gitignore_respect false returns node', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: false, fd: true }, needs_gitignore_respect: false });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('all tools unavailable returns node', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: false, fd: false } });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('only fd available, no gitignore need returns node', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: false, fd: true }, needs_gitignore_respect: false });
+      assert.strictEqual(result.value, 'node');
+    });
+
+    it('default needs_gitignore_respect (true) when not specified — ripgrep if available', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: true } });
+      assert.strictEqual(result.value, 'ripgrep');
+    });
+
+    it('default needs_gitignore_respect (true) with no ripgrep, fd available returns fd', () => {
+      const result = resolveSearchMode({ tool_availability: { ripgrep: false, fd: true } });
+      assert.strictEqual(result.value, 'fd');
+    });
+
+    it('missing tool_availability returns node', () => {
+      const result = resolveSearchMode({});
+      assert.strictEqual(result.value, 'node');
+      assert.strictEqual(result.rule_id, 'search-mode');
+    });
+
+    it('all results have HIGH confidence', () => {
+      const cases = [
+        { tool_availability: { ripgrep: true } },
+        { tool_availability: { ripgrep: false, fd: true }, needs_gitignore_respect: true },
+        { tool_availability: { ripgrep: false, fd: false } },
+      ];
+      for (const state of cases) {
+        assert.strictEqual(resolveSearchMode(state).confidence, 'HIGH');
+      }
+    });
+
+    it('fallback chain is ripgrep -> fd -> node', () => {
+      // ripgrep wins over fd
+      assert.strictEqual(
+        resolveSearchMode({ tool_availability: { ripgrep: true, fd: true }, needs_gitignore_respect: true }).value,
+        'ripgrep'
+      );
+      // fd wins over node when gitignore needed
+      assert.strictEqual(
+        resolveSearchMode({ tool_availability: { ripgrep: false, fd: true }, needs_gitignore_respect: true }).value,
+        'fd'
+      );
+      // node is final fallback
+      assert.strictEqual(
+        resolveSearchMode({ tool_availability: { ripgrep: false, fd: false } }).value,
+        'node'
+      );
+    });
+
+    it('handles null state gracefully', () => {
+      const result = resolveSearchMode(null);
+      assert.strictEqual(result.value, 'node');
+    });
+  });
+
+  // ─── resolveJsonTransformMode ──────────────────────────────────────────────
+
+  describe('resolveJsonTransformMode', () => {
+    it('simple complexity with jq available returns javascript', () => {
+      const result = resolveJsonTransformMode({ json_complexity: 'simple', tool_availability: { jq: true } });
+      assert.strictEqual(result.value, 'javascript');
+      assert.strictEqual(result.confidence, 'HIGH');
+      assert.strictEqual(result.rule_id, 'json-transform-mode');
+    });
+
+    it('simple complexity without jq returns javascript', () => {
+      const result = resolveJsonTransformMode({ json_complexity: 'simple', tool_availability: { jq: false } });
+      assert.strictEqual(result.value, 'javascript');
+    });
+
+    it('complex complexity with jq available returns jq', () => {
+      const result = resolveJsonTransformMode({ json_complexity: 'complex', tool_availability: { jq: true } });
+      assert.strictEqual(result.value, 'jq');
+      assert.strictEqual(result.confidence, 'HIGH');
+      assert.strictEqual(result.rule_id, 'json-transform-mode');
+    });
+
+    it('complex complexity with jq unavailable returns javascript', () => {
+      const result = resolveJsonTransformMode({ json_complexity: 'complex', tool_availability: { jq: false } });
+      assert.strictEqual(result.value, 'javascript');
+    });
+
+    it('missing json_complexity defaults to javascript', () => {
+      const result = resolveJsonTransformMode({ tool_availability: { jq: true } });
+      assert.strictEqual(result.value, 'javascript');
+    });
+
+    it('missing tool_availability returns javascript', () => {
+      const result = resolveJsonTransformMode({ json_complexity: 'complex' });
+      assert.strictEqual(result.value, 'javascript');
+      assert.strictEqual(result.rule_id, 'json-transform-mode');
+    });
+
+    it('always uses javascript for simple ops (tool irrelevant)', () => {
+      assert.strictEqual(
+        resolveJsonTransformMode({ json_complexity: 'simple', tool_availability: { jq: true } }).value,
+        'javascript'
+      );
+      assert.strictEqual(
+        resolveJsonTransformMode({ json_complexity: 'simple', tool_availability: { jq: false } }).value,
+        'javascript'
+      );
+    });
+
+    it('all results have HIGH confidence', () => {
+      const cases = [
+        { json_complexity: 'simple', tool_availability: { jq: true } },
+        { json_complexity: 'complex', tool_availability: { jq: true } },
+        { json_complexity: 'complex', tool_availability: { jq: false } },
+      ];
+      for (const state of cases) {
+        assert.strictEqual(resolveJsonTransformMode(state).confidence, 'HIGH');
+      }
+    });
+
+    it('handles null state gracefully', () => {
+      const result = resolveJsonTransformMode(null);
+      assert.strictEqual(result.value, 'javascript');
+    });
+
+    it('handles undefined state gracefully', () => {
+      const result = resolveJsonTransformMode(undefined);
+      assert.strictEqual(result.value, 'javascript');
+    });
+  });
+
+  // ─── DECISION_REGISTRY integration ─────────────────────────────────────────
+
+  describe('DECISION_REGISTRY integration', () => {
+    it('all three tool-routing rules appear in DECISION_REGISTRY', () => {
+      const toolRoutingRules = DECISION_REGISTRY.filter(r => r.category === 'tool-routing');
+      assert.strictEqual(toolRoutingRules.length, 3, `Expected 3 tool-routing rules, got ${toolRoutingRules.length}`);
+      const ids = toolRoutingRules.map(r => r.id);
+      assert.ok(ids.includes('file-discovery-mode'), 'file-discovery-mode should be in registry');
+      assert.ok(ids.includes('search-mode'), 'search-mode should be in registry');
+      assert.ok(ids.includes('json-transform-mode'), 'json-transform-mode should be in registry');
+    });
+
+    it('each registry entry has required fields: id, name, category, inputs, outputs, confidence_range, resolve', () => {
+      const toolRoutingRules = DECISION_REGISTRY.filter(r => r.category === 'tool-routing');
+      for (const rule of toolRoutingRules) {
+        assert.ok(typeof rule.id === 'string', `${rule.id}: id should be string`);
+        assert.ok(typeof rule.name === 'string', `${rule.id}: name should be string`);
+        assert.strictEqual(rule.category, 'tool-routing', `${rule.id}: category should be tool-routing`);
+        assert.ok(Array.isArray(rule.inputs), `${rule.id}: inputs should be array`);
+        assert.ok(Array.isArray(rule.outputs), `${rule.id}: outputs should be array`);
+        assert.ok(Array.isArray(rule.confidence_range), `${rule.id}: confidence_range should be array`);
+        assert.strictEqual(typeof rule.resolve, 'function', `${rule.id}: resolve should be function`);
+      }
+    });
+
+    it('evaluateDecisions includes file-discovery-mode when tool_availability and scope present', () => {
+      const results = evaluateDecisions('bgsd-execute-phase', {
+        tool_availability: { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false },
+        scope: 'project-wide',
+      });
+      assert.ok(results['file-discovery-mode'], 'file-discovery-mode should fire');
+      assert.strictEqual(results['file-discovery-mode'].value, 'fd');
+    });
+
+    it('evaluateDecisions returns results for all three rules when all inputs present', () => {
+      const results = evaluateDecisions('bgsd-execute-phase', {
+        tool_availability: { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false },
+        scope: 'project-wide',
+        needs_gitignore_respect: true,
+        json_complexity: 'complex',
+      });
+      assert.ok(results['file-discovery-mode'], 'file-discovery-mode should fire');
+      assert.ok(results['search-mode'], 'search-mode should fire');
+      assert.ok(results['json-transform-mode'], 'json-transform-mode should fire');
+      assert.strictEqual(results['file-discovery-mode'].value, 'fd');
+      assert.strictEqual(results['search-mode'].value, 'ripgrep');
+      assert.strictEqual(results['json-transform-mode'].value, 'jq');
+    });
+  });
 });
