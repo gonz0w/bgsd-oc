@@ -7,6 +7,7 @@ const { safeReadFile, cachedReadFile, findPhaseInternal, normalizePhaseName, par
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, colorByPercent, progressBar, box } = require('../lib/format');
+const { getToolStatus } = require('../lib/cli-tools');
 
 function cmdVerifyPlanStructure(cwd, filePath, raw) {
   if (!filePath) { error('file path required'); }
@@ -661,6 +662,32 @@ function cmdValidateHealth(cwd, options, raw) {
   const repairableCount = errors.filter(e => e.repairable).length +
                          warnings.filter(w => w.repairable).length;
 
+  // Tool availability section
+  const toolAvailability = [];
+  try {
+    const toolStatus = getToolStatus();
+    const TOOL_PROJECT_URLS = {
+      ripgrep: 'https://github.com/BurntSushi/ripgrep',
+      fd: 'https://github.com/sharkdp/fd',
+      jq: 'https://jqlang.github.io/jq/',
+      yq: 'https://github.com/mikefarah/yq',
+      bat: 'https://github.com/sharkdp/bat',
+      gh: 'https://cli.github.com/'
+    };
+    for (const [name, info] of Object.entries(toolStatus)) {
+      const entry = { name, available: info.available };
+      if (info.available) {
+        if (info.version) entry.version = info.version.split('\n')[0];
+        if (info.path) entry.path = info.path;
+      } else {
+        entry.project_url = TOOL_PROJECT_URLS[name] || null;
+      }
+      toolAvailability.push(entry);
+    }
+  } catch {
+    // Tool status is advisory — never block health check
+  }
+
   output({
     status,
     errors,
@@ -668,6 +695,7 @@ function cmdValidateHealth(cwd, options, raw) {
     info,
     repairable_count: repairableCount,
     repairs_performed: repairActions.length > 0 ? repairActions : undefined,
+    tool_availability: toolAvailability.length > 0 ? toolAvailability : undefined,
   }, raw);
 }
 

@@ -6,6 +6,8 @@ const fg = require('fast-glob');
 const ignore = require('ignore');
 const { debugLog } = require('../output');
 const { execGit } = require('../git');
+const { findFiles: fdFindFiles } = require('../cli-tools/fd');
+const { isToolEnabled } = require('../cli-tools/fallback');
 
 const DEFAULT_MODE = process.env.BGSD_DISCOVERY_MODE === 'legacy' ? 'legacy' : 'optimized';
 
@@ -194,7 +196,107 @@ function runWithShadowCompare(kind, args, options, legacyFn, optimizedFn) {
   return primaryResult;
 }
 
+/**
+ * Use fd for source directory detection.
+ * Gets top-level directories via fd and filters through known source dirs logic.
+ * fd respects .gitignore natively — no need for ignore matcher.
+ * @param {string} cwd - Project root
+ * @returns {string[]} Source directory names
+ */
+function fdGetSourceDirs(cwd) {
+  try {
+    const fdResult = fdFindFiles('', { type: 'd', maxDepth: 1 });
+    if (!fdResult.success || fdResult.usedFallback || !Array.isArray(fdResult.result)) {
+      return null; // Signal to caller to fall through
+    }
+    const sourceDirs = [];
+    const topLevelDirs = fdResult.result
+      .map(p => normalizeRelativePath(p))
+      .filter(p => p && !p.includes('/'));
+
+    // Check for source files at root level
+    const rootFdResult = fdFindFiles('', { type: 'f', maxDepth: 1 });
+    if (rootFdResult.success && !rootFdResult.usedFallback && Array.isArray(rootFdResult.result)) {
+      const hasRootSource = rootFdResult.result.some(f => {
+        const ext = path.extname(f);
+        return LANGUAGE_MAP[ext] !== undefined;
+      });
+      if (hasRootSource) sourceDirs.push('.');
+    }
+
+    for (const name of topLevelDirs) {
+      if (SKIP_DIRS.has(name)) continue;
+      if (name.startsWith('.')) continue;
+      if (KNOWN_SOURCE_DIRS.has(name)) {
+        sourceDirs.push(name);
+        continue;
+      }
+      // Check for source files inside this dir via fd
+      const innerResult = fdFindFiles('', { type: 'f', maxDepth: 1 });
+      if (innerResult.success && !innerResult.usedFallback && Array.isArray(innerResult.result)) {
+        const hasSource = innerResult.result.some(f => {
+          const ext = path.extname(path.basename(f));
+          return LANGUAGE_MAP[ext] !== undefined;
+        });
+        if (hasSource) sourceDirs.push(name);
+      }
+    }
+
+    if (sourceDirs.length === 0) sourceDirs.push('.');
+    return sourceDirs;
+  } catch {
+    return null; // Signal to caller to fall through
+  }
+}
+
+/**
+ * Use fd for source file discovery.
+ * fd respects .gitignore natively — significantly faster than fast-glob on large codebases.
+ * @param {string} cwd - Project root
+ * @param {string[]} sourceDirs - Source directories to search
+ * @returns {string[]|null} File list or null to signal fallback
+ */
+function fdWalkSourceFiles(cwd, sourceDirs) {
+  try {
+    const uniqueDirs = [...new Set(sourceDirs || [])];
+    if (uniqueDirs.length === 0) return [];
+
+    const files = [];
+    for (const dir of uniqueDirs) {
+      const searchDir = dir === '.' || dir === './' ? cwd : path.join(cwd, dir);
+      // Exclude skip dirs via fd's exclude flag (call once per dir, exclude each skip dir)
+      const excludes = [...SKIP_DIRS];
+      const fdOptions = { type: 'f', exclude: excludes, absolutePath: true };
+      const fdResult = fdFindFiles('', { ...fdOptions, hidden: false });
+      if (!fdResult.success || fdResult.usedFallback) {
+        return null; // Fall through to fast-glob
+      }
+      for (const absPath of (fdResult.result || [])) {
+        const ext = path.extname(absPath);
+        if (BINARY_EXTENSIONS.has(ext)) continue;
+        const relPath = normalizeRelativePath(path.relative(cwd, absPath));
+        if (relPath) files.push(fromPosix(relPath));
+      }
+    }
+    return files;
+  } catch {
+    return null; // Signal to caller to fall through
+  }
+}
+
 function getSourceDirs(cwd, options) {
+  // Try fd acceleration first if enabled
+  if (isToolEnabled('fd')) {
+    try {
+      const fdDirs = fdGetSourceDirs(cwd);
+      if (fdDirs !== null) {
+        debugLog('discovery.sourceDirs', `fd mode: ${fdDirs.length} dirs`);
+        return fdDirs;
+      }
+    } catch {
+      // Fall through to existing modes
+    }
+  }
   return runWithShadowCompare('source_dirs', [cwd], options, legacyGetSourceDirs, optimizedGetSourceDirs);
 }
 
@@ -311,6 +413,18 @@ function optimizedGetSourceDirs(cwd) {
 }
 
 function walkSourceFiles(cwd, sourceDirs, skipDirs, options) {
+  // Try fd acceleration first if enabled
+  if (isToolEnabled('fd')) {
+    try {
+      const fdFiles = fdWalkSourceFiles(cwd, sourceDirs);
+      if (fdFiles !== null) {
+        debugLog('discovery.walkFiles', `fd mode: ${fdFiles.length} files`);
+        return fdFiles;
+      }
+    } catch {
+      // Fall through to existing modes
+    }
+  }
   return runWithShadowCompare('source_files', [cwd, sourceDirs, skipDirs], options, legacyWalkSourceFiles, optimizedWalkSourceFiles);
 }
 

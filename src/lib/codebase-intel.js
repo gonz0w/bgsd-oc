@@ -12,6 +12,7 @@ const {
   getSourceDirs: adapterGetSourceDirs,
   walkSourceFiles: adapterWalkSourceFiles,
 } = require('./adapters/discovery');
+const { transformJson } = require('./cli-tools');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -375,6 +376,14 @@ function readIntel(cwd) {
   if (!content) return null;
 
   try {
+    // For large intel files, use jq to quickly get file count before full parse
+    // This is an optimization — the full JSON.parse still provides the actual data
+    if (content.length > 100 * 1024) {
+      const jqResult = transformJson(content, '.files | keys | length', { raw: true });
+      if (jqResult.success && !jqResult.usedFallback) {
+        debugLog('codebase.readIntel', `large intel: jq reports ${jqResult.result} files`);
+      }
+    }
     return JSON.parse(content);
   } catch (e) {
     debugLog('codebase.readIntel', 'JSON parse failed', e);

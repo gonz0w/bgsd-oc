@@ -1,7 +1,8 @@
 'use strict';
 
 const { getToolStatus, TOOLS } = require('../lib/cli-tools/detector');
-const { getInstallCommand } = require('../lib/cli-tools/install-guidance');
+const { getInstallCommand, getInstallGuidance } = require('../lib/cli-tools/install-guidance');
+const { transformJson } = require('../lib/cli-tools/jq');
 const { output } = require('../lib/output');
 
 /**
@@ -47,13 +48,24 @@ function cmdToolsStatus(cwd, raw) {
     }
   }
   
+  // Use jq to extract available tool names as a summary (with JS fallback)
+  const statusArray = [...available, ...unavailable].map(t => ({ name: t.name, available: t.available }));
+  let availableSummary;
+  const jqResult = transformJson(statusArray, '[.[] | select(.available == true) | .name]', { compact: true });
+  if (jqResult.success) {
+    try { availableSummary = JSON.parse(jqResult.result); } catch { availableSummary = available.map(t => t.name); }
+  } else {
+    availableSummary = available.map(t => t.name);
+  }
+
   const result = {
     available: available.map(t => ({ name: t.name, path: t.path, version: t.version })),
     unavailable: unavailable.map(t => ({ name: t.name, installCommand: getInstallGuidance(t.name)?.installCommand })),
     summary: {
       total: Object.keys(status).length,
       availableCount: available.length,
-      unavailableCount: unavailable.length
+      unavailableCount: unavailable.length,
+      available_summary: availableSummary
     }
   };
   

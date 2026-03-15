@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
-const { searchRipgrep } = require('../lib/cli-tools');
+const { searchRipgrep, transformJson } = require('../lib/cli-tools');
 
 // --- Language Manifest Patterns -----------------------------------------------
 
@@ -591,10 +591,31 @@ function detectMcpServers(rootDir) {
   try {
     const mcpPath = path.join(rootDir, '.mcp.json');
     if (fs.existsSync(mcpPath)) {
-      const content = JSON.parse(fs.readFileSync(mcpPath, 'utf-8'));
-      if (content.mcpServers && typeof content.mcpServers === 'object') {
-        for (const name of Object.keys(content.mcpServers)) {
-          servers.push(name);
+      const rawContent = fs.readFileSync(mcpPath, 'utf-8');
+      // Use jq for server name extraction (with JS fallback)
+      const jqResult = transformJson(rawContent, '.mcpServers | keys', { compact: true });
+      if (jqResult.success && jqResult.result) {
+        try {
+          const names = JSON.parse(jqResult.result);
+          if (Array.isArray(names)) {
+            servers.push(...names);
+          }
+        } catch {
+          // jq returned unparseable — fall through to manual parse
+          const content = JSON.parse(rawContent);
+          if (content.mcpServers && typeof content.mcpServers === 'object') {
+            for (const name of Object.keys(content.mcpServers)) {
+              servers.push(name);
+            }
+          }
+        }
+      } else {
+        // jq not available — use manual parse
+        const content = JSON.parse(rawContent);
+        if (content.mcpServers && typeof content.mcpServers === 'object') {
+          for (const name of Object.keys(content.mcpServers)) {
+            servers.push(name);
+          }
         }
       }
     }
