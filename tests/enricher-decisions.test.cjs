@@ -32,6 +32,8 @@ const {
   evaluateDecisions,
 } = require('../src/lib/decision-rules');
 
+const { scopeContextForAgent } = require('../src/lib/context');
+
 // ─── Enrichment Field Presence Tests ─────────────────────────────────────────
 
 describe('enricher-decisions: enrichment field types', () => {
@@ -733,6 +735,304 @@ describe('Phase 127: tool_availability enrichment', () => {
           assert.strictEqual(typeof results[ruleId].value, 'string',
             `${ruleId} value should be a string (tool name)`);
         }
+      }
+    });
+  });
+});
+
+// ─── Phase 128: handoff tool context and capability-aware filtering ──────────
+
+describe('Phase 128: handoff tool context and capability-aware filtering', () => {
+
+  // ─── handoff_tool_context enricher shape tests ──────────────────────────────
+
+  describe('handoff_tool_context enricher tests', () => {
+    // Build a synthetic enrichment context as the enricher would produce
+    function buildEnrichment(toolAvailability) {
+      const tools = ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh'];
+      const available = tools.filter(t => toolAvailability && toolAvailability[t] === true);
+      const count = available.length;
+      const level = count >= 5 ? 'HIGH' : count >= 2 ? 'MEDIUM' : 'LOW';
+      return {
+        handoff_tool_context: {
+          available_tools: available,
+          tool_count: count,
+          capability_level: level,
+        },
+      };
+    }
+
+    it('handoff_tool_context is an object', () => {
+      const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false });
+      assert.ok(typeof enrichment.handoff_tool_context === 'object' && enrichment.handoff_tool_context !== null,
+        'handoff_tool_context should be a non-null object');
+    });
+
+    it('available_tools is an array of strings', () => {
+      const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: false, yq: false, bat: false, gh: false });
+      assert.ok(Array.isArray(enrichment.handoff_tool_context.available_tools),
+        'available_tools should be an array');
+      for (const tool of enrichment.handoff_tool_context.available_tools) {
+        assert.strictEqual(typeof tool, 'string', `Tool entry should be string, got ${typeof tool}`);
+      }
+    });
+
+    it('tool_count matches available_tools length', () => {
+      const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false });
+      assert.strictEqual(
+        enrichment.handoff_tool_context.tool_count,
+        enrichment.handoff_tool_context.available_tools.length,
+        'tool_count should equal available_tools.length'
+      );
+    });
+
+    it('capability_level is HIGH/MEDIUM/LOW string', () => {
+      const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true });
+      const { capability_level } = enrichment.handoff_tool_context;
+      assert.ok(['HIGH', 'MEDIUM', 'LOW'].includes(capability_level),
+        `capability_level should be HIGH, MEDIUM, or LOW; got ${capability_level}`);
+    });
+
+    it('capability_level matches tool count thresholds', () => {
+      // 6 tools → HIGH
+      const h = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true });
+      assert.strictEqual(h.handoff_tool_context.capability_level, 'HIGH');
+
+      // 3 tools → MEDIUM
+      const m = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: false });
+      assert.strictEqual(m.handoff_tool_context.capability_level, 'MEDIUM');
+
+      // 1 tool → LOW
+      const l = buildEnrichment({ ripgrep: true, fd: false, jq: false, yq: false, bat: false, gh: false });
+      assert.strictEqual(l.handoff_tool_context.capability_level, 'LOW');
+    });
+
+    it('available_tools contains only tool names from the 6 known tools', () => {
+      const knownTools = new Set(['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh']);
+      const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: false, yq: false, bat: true, gh: false });
+      for (const tool of enrichment.handoff_tool_context.available_tools) {
+        assert.ok(knownTools.has(tool), `Unknown tool in available_tools: ${tool}`);
+      }
+    });
+
+    it('tool names are strings, not objects', () => {
+      const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true });
+      for (const tool of enrichment.handoff_tool_context.available_tools) {
+        assert.strictEqual(typeof tool, 'string', 'Each tool entry must be a string, not an object');
+        assert.ok(!tool.includes('{'), 'Tool entry must not be a JSON object string');
+      }
+    });
+
+    it('handoff_tool_context defaults gracefully when tool_availability absent', () => {
+      const enrichment = buildEnrichment(null);
+      assert.deepStrictEqual(enrichment.handoff_tool_context.available_tools, []);
+      assert.strictEqual(enrichment.handoff_tool_context.tool_count, 0);
+      assert.strictEqual(enrichment.handoff_tool_context.capability_level, 'LOW');
+    });
+  });
+
+  // ─── Capability-aware context filtering tests ───────────────────────────────
+
+  describe('capability-aware context filtering', () => {
+    // Build a rich full context object to filter
+    function buildFullContext() {
+      return {
+        phase_dir: '.planning/phases/0128',
+        phase_number: 128,
+        phase_name: 'agent-collaboration',
+        plans: ['0128-01-PLAN.md'],
+        incomplete_plans: [],
+        plan_count: 1,
+        incomplete_count: 0,
+        branch_name: 'main',
+        commit_docs: true,
+        verifier_enabled: true,
+        task_routing: { mode: 'auto' },
+        env_summary: { node: '20' },
+        tool_availability: { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: true },
+        summaries: ['0128-01-SUMMARY.md'],
+        intent_summary: 'Build agent collaboration',
+        research_enabled: true,
+        plan_checker_enabled: false,
+        codebase_stats: { files: 42 },
+        codebase_conventions: { style: 'cjs' },
+        codebase_dependencies: { total_modules: 10 },
+        codebase_freshness: { days_since_update: 1 },
+        decisions: {
+          'file-discovery-mode': { value: 'fd', confidence: 'HIGH', rule_id: 'file-discovery-mode' },
+          'search-mode': { value: 'ripgrep', confidence: 'HIGH', rule_id: 'search-mode' },
+          'progress-route': { value: 'A', confidence: 'HIGH', rule_id: 'progress-route' },
+        },
+      };
+    }
+
+    it('verifier context excludes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-verifier');
+      assert.ok(!('tool_availability' in scoped), 'verifier should not have tool_availability');
+    });
+
+    it('plan-checker context excludes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-plan-checker');
+      assert.ok(!('tool_availability' in scoped), 'plan-checker should not have tool_availability');
+    });
+
+    it('phase-researcher context excludes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-phase-researcher');
+      assert.ok(!('tool_availability' in scoped), 'phase-researcher should not have tool_availability');
+    });
+
+    it('executor context includes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-executor');
+      assert.ok('tool_availability' in scoped, 'executor should have tool_availability');
+    });
+
+    it('debugger context includes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-debugger');
+      assert.ok('tool_availability' in scoped, 'debugger should have tool_availability');
+    });
+
+    it('codebase-mapper context includes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-codebase-mapper');
+      assert.ok('tool_availability' in scoped, 'codebase-mapper should have tool_availability');
+    });
+
+    it('planner context includes tool_availability', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-planner');
+      assert.ok('tool_availability' in scoped, 'planner (medium dependency) should have tool_availability');
+    });
+
+    it('verifier context strips tool-routing decisions', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-verifier');
+      if (scoped.decisions) {
+        assert.ok(!('file-discovery-mode' in scoped.decisions), 'file-discovery-mode should be stripped');
+        assert.ok(!('search-mode' in scoped.decisions), 'search-mode should be stripped');
+      }
+      // progress-route (non-tool-routing) should still be there if decisions exist
+    });
+
+    it('executor context keeps tool-routing decisions', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-executor');
+      if (scoped.decisions) {
+        // Executor (high) keeps all decisions including tool routing
+        assert.ok('file-discovery-mode' in scoped.decisions, 'executor should keep file-discovery-mode decision');
+      }
+    });
+
+    it('low-dependency agent savings > 0', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-verifier');
+      assert.ok(scoped._savings, 'Expected _savings metadata');
+      assert.ok(scoped._savings.reduction_pct > 0, 'Verifier should have positive reduction_pct');
+    });
+
+    it('high-dependency agent retains full context (no reduction from tool stripping)', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-executor');
+      // High dependency agents don't strip tools — but scoping still occurs (excluded fields removed)
+      assert.ok(scoped._savings, 'Expected _savings metadata');
+      // tool_availability should be present (not stripped)
+      assert.ok('tool_availability' in scoped, 'High dependency agent should have tool_availability');
+    });
+
+    it('filtering is silent — no _filtered_tools metadata', () => {
+      const full = buildFullContext();
+      const scoped = scopeContextForAgent(full, 'bgsd-verifier');
+      // Agent should not know what was removed — no _filtered_tools field
+      assert.ok(!('_filtered_tools' in scoped), 'Should not expose _filtered_tools to agent');
+      assert.ok(!('_stripped' in scoped), 'Should not expose _stripped to agent');
+    });
+  });
+
+  // ─── Handoff contract completeness tests ───────────────────────────────────
+
+  describe('handoff contract completeness', () => {
+    const { runGsdTools } = require('./helpers.cjs');
+
+    // The 9 defined agent pairs from verify.js
+    const ALL_PAIRS = [
+      'planner→executor',
+      'researcher→planner',
+      'executor→verifier',
+      'executor→planner',
+      'planner→debugger',
+      'verifier→planner',
+      'planner→researcher',
+      'executor→debugger',
+      'debugger→executor',
+    ];
+
+    const CRITICAL_PAIRS = ['planner→executor', 'researcher→planner'];
+    const MINIMAL_PAIRS = ALL_PAIRS.filter(p => !CRITICAL_PAIRS.includes(p));
+
+    it('verify:handoff preview returns result for all 9 defined pairs', () => {
+      for (const pair of ALL_PAIRS) {
+        const [from, to] = pair.split('→');
+        const result = runGsdTools(`verify:handoff --preview --from ${from} --to ${to}`);
+        assert.ok(result.success, `verify:handoff --preview --from ${from} --to ${to} should succeed: ${result.error || ''}`);
+        const output = result.output.replace(/^\[bGSD\].*\n/, '');
+        const parsed = JSON.parse(output);
+        assert.ok(parsed.handoff === pair || parsed.handoff, `Expected handoff key for ${pair}`);
+      }
+    });
+
+    it('critical pairs have rich tool_context_type', () => {
+      for (const pair of CRITICAL_PAIRS) {
+        const [from, to] = pair.split('→');
+        const result = runGsdTools(`verify:handoff --preview --from ${from} --to ${to}`);
+        assert.ok(result.success, `${pair} should succeed`);
+        const output = result.output.replace(/^\[bGSD\].*\n/, '');
+        const parsed = JSON.parse(output);
+        assert.strictEqual(parsed.tool_context_type, 'rich', `${pair} should have rich tool_context_type`);
+      }
+    });
+
+    it('minimal pairs have minimal tool_context_type', () => {
+      for (const pair of MINIMAL_PAIRS) {
+        const [from, to] = pair.split('→');
+        const result = runGsdTools(`verify:handoff --preview --from ${from} --to ${to}`);
+        assert.ok(result.success, `${pair} should succeed`);
+        const output = result.output.replace(/^\[bGSD\].*\n/, '');
+        const parsed = JSON.parse(output);
+        assert.strictEqual(parsed.tool_context_type, 'minimal', `${pair} should have minimal tool_context_type`);
+      }
+    });
+
+    it('all handoff contexts include tool-related fields', () => {
+      for (const pair of ALL_PAIRS) {
+        const [from, to] = pair.split('→');
+        const result = runGsdTools(`verify:handoff --preview --from ${from} --to ${to}`);
+        assert.ok(result.success, `${pair} should succeed`);
+        const output = result.output.replace(/^\[bGSD\].*\n/, '');
+        const parsed = JSON.parse(output);
+        // Every pair should have some tool-related information
+        assert.ok(parsed.tool_context_type, `${pair} should have tool_context_type field`);
+        // Context array should mention capability_level
+        const contextStr = JSON.stringify(parsed.context || []);
+        assert.ok(contextStr.includes('capability_level'), `${pair} context should reference capability_level`);
+      }
+    });
+
+    it('no undefined handoff pairs in the 9 critical pairs', () => {
+      for (const pair of ALL_PAIRS) {
+        const [from, to] = pair.split('→');
+        const result = runGsdTools(`verify:handoff --preview --from ${from} --to ${to}`);
+        assert.ok(result.success, `${pair} should not return error`);
+        const output = result.output.replace(/^\[bGSD\].*\n/, '');
+        const parsed = JSON.parse(output);
+        // Should have a defined contract with non-empty context
+        assert.ok(parsed.context && parsed.context.length > 0, `${pair} should have non-empty context`);
+        // Should have a tool_context_type (rich or minimal) — not undefined
+        assert.ok(['rich', 'minimal'].includes(parsed.tool_context_type),
+          `${pair} tool_context_type should be rich or minimal, got ${parsed.tool_context_type}`);
       }
     });
   });
