@@ -10,12 +10,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v13.0 Closed-Loop Agent Evolution
-**Phase:** Phase 131 of 133 (Skill Discovery & Security)
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** Phase 132 of 133 (Deviation Recovery Auto-Capture)
+**Current Plan:** Plan 01 complete
+**Status:** Plan 01 complete, ready for Plan 02 or next phase
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 100%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [██████████] 100%
 - v13.0 Phase 131 Plan 01: 12 min, 2 tasks, 1 file (security scanner + skills:list + skills:validate)
 - v13.0 Phase 131 Plan 02: 12 min, 2 tasks, 1 file (skills:install + skills:remove + audit logging)
 - v13.0 Phase 131 Plan 03: 6 min, 2 tasks, 6 files (router wiring + enricher installed_skills + new-milestone Step 8.5)
+- v13.0 Phase 132 Plan 01: 8 min, 2 tasks, 9 files (autonomousRecoveries typo fix + lessons:deviation-capture with Rule-1 filter + 3-cap)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -61,6 +62,7 @@ Progress: [██████████] 100%
 | 131 | Skill Discovery & Security | Security-first skill lifecycle + agentskills.io discovery | SKILL-01 through SKILL-09 |
 | 132 | Deviation Recovery Auto-Capture | Rule-1-only auto-capture in execute-phase | DEVCAP-01 through DEVCAP-04 |
 | 133 | Enhanced Research Workflow | Structured quality profile + conflict detection | RESEARCH-01 through RESEARCH-04 |
+
 ### Key Decisions
 
 - [v13.0 roadmap]: Phase 129 first — OC path correction (`.opencode/agents/` not `.planning/agents/`) and YAML validation must precede any automation writing agent files
@@ -89,10 +91,13 @@ Progress: [██████████] 100%
 - [Phase 131 Plan 02]: logAuditEntry is synchronous — simplifies error handling, audit writes are non-critical and fast
 - [Phase 131 Plan 03]: skills:install uses await in router — cmdSkillsInstall is async (GitHub API fetch), main() is already async so await is safe
 - [Phase 131 Plan 03]: COMMAND_TREE added as new export from commandDiscovery.js — not previously present, created full tree covering all namespaces (additive, backward-compatible)
+- [Phase 132 Plan 01]: deviation-recovery added as 5th type in LESSON_SCHEMA.type_values — reuses existing validateLesson() pipeline without schema changes
+- [Phase 132 Plan 01]: lessons:deviation-capture uses Rule-1-only parseInt filter — silently skips Rules 2, 3, 4 per DEVCAP-01
+- [Phase 132 Plan 01]: cmdDeviationCapture wrapped in try/catch — all errors swallowed and debugLogged, never blocks execution per DEVCAP-04
 
 ### Pending Work
 
-Phase 130 complete. Phase 131 Plans 01–03 complete (security scanner + full skills CLI + router wiring + enricher installed_skills + new-milestone Step 8.5). Phase 131 Plan 04 remains. Phases 132 (Deviation Auto-Capture) and 133 (Enhanced Research) also remain.
+Phase 130 complete. Phase 131 Plans 01–03 complete (security scanner + full skills CLI + router wiring + enricher installed_skills + new-milestone Step 8.5). Phase 131 Plan 04 remains. Phase 132 Plan 01 complete (autonomousRecoveries typo fix + lessons:deviation-capture CLI). Phase 132 Plan 02 (if any) and Phase 133 (Enhanced Research) remain.
 
 ### Blockers/Concerns
 
@@ -100,7 +105,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T21:02:57.811Z
-**This session:** 2026-03-15 — Completed Phase 131 Plan 03 (router wiring + enricher installed_skills + new-milestone Step 8.5)
+**Last session:** 2026-03-15T22:21:39.693Z
+**This session:** 2026-03-15 — Completed Phase 132 Plan 01 (autonomousRecoveries typo fix + lessons:deviation-capture CLI with Rule-1 filter and 3-per-milestone cap)
 **Next steps:**
-1. Execute Phase 131 Plan 04 (final verification and integration testing)
+1. Execute Phase 132 Plan 02 if it exists, or proceed to Phase 133 (Enhanced Research Workflow)
+2. Phase 131 Plan 04 (final verification) may also be executed

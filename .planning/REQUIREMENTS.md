@@ -108,10 +108,10 @@
 | SKILL-07 | Phase 131 | Complete |
 | SKILL-08 | Phase 131 | Complete |
 | SKILL-09 | Phase 131 | Complete |
-| DEVCAP-01 | Phase 132 | pending |
-| DEVCAP-02 | Phase 132 | pending |
-| DEVCAP-03 | Phase 132 | pending |
-| DEVCAP-04 | Phase 132 | pending |
+| DEVCAP-01 | Phase 132 | Complete |
+| DEVCAP-02 | Phase 132 | Complete |
+| DEVCAP-03 | Phase 132 | Complete |
+| DEVCAP-04 | Phase 132 | Complete |
 | RESEARCH-01 | Phase 133 | pending |
 | RESEARCH-02 | Phase 133 | pending |
 | RESEARCH-03 | Phase 133 | pending |
