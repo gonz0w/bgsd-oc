@@ -3498,7 +3498,14 @@ var require_constants = __commonJS({
       optimization_valibot: { type: "boolean", default: true, description: "Use valibot for schema validation", aliases: [], nested: { section: "optimization", field: "valibot" }, env: "BGSD_DEP_VALIBOT" },
       optimization_discovery: { type: "string", default: "optimized", description: "File discovery mode", aliases: [], nested: { section: "optimization", field: "discovery" }, env: "BGSD_DISCOVERY_MODE", values: ["optimized", "legacy"] },
       optimization_compile_cache: { type: "boolean", default: false, description: "Enable Node.js compile-cache", aliases: [], nested: { section: "optimization", field: "compile_cache" }, env: "BGSD_COMPILE_CACHE" },
-      optimization_sqlite_cache: { type: "boolean", default: true, description: "SQLite statement caching", aliases: [], nested: { section: "optimization", field: "sqlite_cache" }, env: "BGSD_SQLITE_STATEMENT_CACHE" }
+      optimization_sqlite_cache: { type: "boolean", default: true, description: "SQLite statement caching", aliases: [], nested: { section: "optimization", field: "sqlite_cache" }, env: "BGSD_SQLITE_STATEMENT_CACHE" },
+      // ─── CLI Tool Toggles ───
+      tools_ripgrep: { type: "boolean", default: true, description: "Enable ripgrep for content search", aliases: [], nested: { section: "tools", field: "ripgrep" } },
+      tools_fd: { type: "boolean", default: true, description: "Enable fd for file discovery", aliases: [], nested: { section: "tools", field: "fd" } },
+      tools_jq: { type: "boolean", default: true, description: "Enable jq for JSON transformation", aliases: [], nested: { section: "tools", field: "jq" } },
+      tools_yq: { type: "boolean", default: true, description: "Enable yq for YAML transformation", aliases: [], nested: { section: "tools", field: "yq" } },
+      tools_bat: { type: "boolean", default: true, description: "Enable bat for syntax highlighting", aliases: [], nested: { section: "tools", field: "bat" } },
+      tools_gh: { type: "boolean", default: true, description: "Enable gh for GitHub operations", aliases: [], nested: { section: "tools", field: "gh" } }
     };
     var COMMAND_HELP = {
       "util:codebase context": `Usage: bgsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
@@ -5377,8 +5384,69 @@ var require_decision_rules = __commonJS({
         outputs: ["{ granularity, prefix }"],
         confidence_range: ["HIGH", "MEDIUM"],
         resolve: resolveCommitStrategy
+      },
+      // Phase 127: Tool routing decision functions
+      {
+        id: "file-discovery-mode",
+        name: "File Discovery Mode",
+        category: "tool-routing",
+        description: "Recommends file discovery tool (fd vs node) based on tool availability and task scope",
+        inputs: ["tool_availability", "scope"],
+        outputs: ["fd|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveFileDiscoveryMode
+      },
+      {
+        id: "search-mode",
+        name: "Search Mode",
+        category: "tool-routing",
+        description: "Recommends search tool (ripgrep vs fd vs node) based on tool availability and .gitignore requirements",
+        inputs: ["tool_availability", "needs_gitignore_respect"],
+        outputs: ["ripgrep|fd|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveSearchMode
+      },
+      {
+        id: "json-transform-mode",
+        name: "JSON Transform Mode",
+        category: "tool-routing",
+        description: "Recommends JSON transformation tool (jq vs javascript) based on complexity and tool availability",
+        inputs: ["tool_availability", "json_complexity"],
+        outputs: ["jq|javascript"],
+        confidence_range: ["HIGH"],
+        resolve: resolveJsonTransformMode
       }
     ];
+    function resolveFileDiscoveryMode(state) {
+      const { tool_availability = {}, scope } = state || {};
+      if (!scope || scope === "single-file") {
+        return { value: "node", confidence: "HIGH", rule_id: "file-discovery-mode" };
+      }
+      if ((scope === "directory" || scope === "project-wide") && tool_availability.fd === true) {
+        return { value: "fd", confidence: "HIGH", rule_id: "file-discovery-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "file-discovery-mode" };
+    }
+    function resolveSearchMode(state) {
+      const { tool_availability = {}, needs_gitignore_respect = true } = state || {};
+      if (tool_availability.ripgrep === true) {
+        return { value: "ripgrep", confidence: "HIGH", rule_id: "search-mode" };
+      }
+      if (tool_availability.fd === true && needs_gitignore_respect) {
+        return { value: "fd", confidence: "HIGH", rule_id: "search-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "search-mode" };
+    }
+    function resolveJsonTransformMode(state) {
+      const { tool_availability = {}, json_complexity } = state || {};
+      if (!json_complexity || json_complexity === "simple") {
+        return { value: "javascript", confidence: "HIGH", rule_id: "json-transform-mode" };
+      }
+      if (json_complexity === "complex" && tool_availability.jq === true) {
+        return { value: "jq", confidence: "HIGH", rule_id: "json-transform-mode" };
+      }
+      return { value: "javascript", confidence: "HIGH", rule_id: "json-transform-mode" };
+    }
     function evaluateDecisions2(command, state) {
       if (!state || typeof state !== "object") return {};
       const results = {};
@@ -5415,6 +5483,10 @@ var require_decision_rules = __commonJS({
       resolveResearchGate,
       resolveMilestoneCompletion,
       resolveCommitStrategy,
+      // Phase 127: Tool routing decision functions
+      resolveFileDiscoveryMode,
+      resolveSearchMode,
+      resolveJsonTransformMode,
       // Registry and aggregator
       DECISION_REGISTRY,
       evaluateDecisions: evaluateDecisions2
@@ -6330,6 +6402,25 @@ function enrichCommand(input, output, cwd) {
       }
     }
   } catch {
+  }
+  try {
+    const CACHE_TTL_MS = 5 * 60 * 1e3;
+    const cacheFilePath = join11(resolvedCwd, ".planning", ".cache", "tools.json");
+    let toolAvailability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
+    if (existsSync3(cacheFilePath)) {
+      try {
+        const cacheData = JSON.parse(readFileSync7(cacheFilePath, "utf-8"));
+        if (cacheData && cacheData.timestamp && Date.now() - cacheData.timestamp < CACHE_TTL_MS && cacheData.results) {
+          for (const toolName of ["ripgrep", "fd", "jq", "yq", "bat", "gh"]) {
+            toolAvailability[toolName] = Boolean(cacheData.results[toolName] && cacheData.results[toolName].available);
+          }
+        }
+      } catch {
+      }
+    }
+    enrichment.tool_availability = toolAvailability;
+  } catch {
+    enrichment.tool_availability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
   }
   try {
     const decisions = (0, import_decision_rules.evaluateDecisions)(command, enrichment);

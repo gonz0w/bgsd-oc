@@ -158,6 +158,15 @@ PHASE COMPLETE → done. GAPS/FAILED → stop chain, display for manual review.
 
 Otherwise: offer_next.
 
+## Tool-Aware Planning Guidance
+
+When `tool_availability` is present in bgsd-context:
+- **All tools available:** Tasks can assume fast file discovery and search — standard task sizing applies
+- **Some tools missing:** Same task count and granularity — tasks describe goals ("search for X"), executors resolve tool choice at runtime via resolve functions
+- **No change to plan structure:** Task decomposition is tool-agnostic. Tool selection is an executor concern, not a planner concern. Do not add extra tasks or increase estimates based on tool absence.
+
+This guidance implements the AGENT-01 principle: abstract tool choice away from plans.
+
 </process>
 
 <offer_next>

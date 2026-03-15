@@ -645,7 +645,115 @@ const DECISION_REGISTRY = [
     confidence_range: ['HIGH', 'MEDIUM'],
     resolve: resolveCommitStrategy,
   },
+
+  // Phase 127: Tool routing decision functions
+  {
+    id: 'file-discovery-mode',
+    name: 'File Discovery Mode',
+    category: 'tool-routing',
+    description: 'Recommends file discovery tool (fd vs node) based on tool availability and task scope',
+    inputs: ['tool_availability', 'scope'],
+    outputs: ['fd|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveFileDiscoveryMode,
+  },
+  {
+    id: 'search-mode',
+    name: 'Search Mode',
+    category: 'tool-routing',
+    description: 'Recommends search tool (ripgrep vs fd vs node) based on tool availability and .gitignore requirements',
+    inputs: ['tool_availability', 'needs_gitignore_respect'],
+    outputs: ['ripgrep|fd|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveSearchMode,
+  },
+  {
+    id: 'json-transform-mode',
+    name: 'JSON Transform Mode',
+    category: 'tool-routing',
+    description: 'Recommends JSON transformation tool (jq vs javascript) based on complexity and tool availability',
+    inputs: ['tool_availability', 'json_complexity'],
+    outputs: ['jq|javascript'],
+    confidence_range: ['HIGH'],
+    resolve: resolveJsonTransformMode,
+  },
 ];
+
+// ─── Phase 127: Tool routing decision functions ───────────────────────────────
+
+/**
+ * File discovery mode selection.
+ * Recommends ripgrep vs Node.js vs fd based on tool availability and task scope.
+ *
+ * @param {object} state - { tool_availability: {ripgrep, fd, jq, yq, bat, gh}, scope: 'single-file'|'directory'|'project-wide' }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveFileDiscoveryMode(state) {
+  const { tool_availability = {}, scope } = state || {};
+
+  // Single-file operations need no discovery tool
+  if (!scope || scope === 'single-file') {
+    return { value: 'node', confidence: 'HIGH', rule_id: 'file-discovery-mode' };
+  }
+
+  // For directory or project-wide scope, prefer fd when available
+  if ((scope === 'directory' || scope === 'project-wide') && tool_availability.fd === true) {
+    return { value: 'fd', confidence: 'HIGH', rule_id: 'file-discovery-mode' };
+  }
+
+  // Fallback: Node.js fs
+  return { value: 'node', confidence: 'HIGH', rule_id: 'file-discovery-mode' };
+}
+
+/**
+ * Search mode selection.
+ * Recommends ripgrep vs fd vs Node.js based on tool availability and .gitignore requirements.
+ * Fallback chain: ripgrep -> fd (when gitignore needed) -> node
+ *
+ * @param {object} state - { tool_availability: object, needs_gitignore_respect: boolean }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveSearchMode(state) {
+  const { tool_availability = {}, needs_gitignore_respect = true } = state || {};
+
+  // ripgrep is the fastest and respects .gitignore by default
+  if (tool_availability.ripgrep === true) {
+    return { value: 'ripgrep', confidence: 'HIGH', rule_id: 'search-mode' };
+  }
+
+  // fd respects .gitignore — use when gitignore respect is needed
+  if (tool_availability.fd === true && needs_gitignore_respect) {
+    return { value: 'fd', confidence: 'HIGH', rule_id: 'search-mode' };
+  }
+
+  // Fallback: Node.js (does NOT respect .gitignore automatically)
+  return { value: 'node', confidence: 'HIGH', rule_id: 'search-mode' };
+}
+
+/**
+ * JSON transform mode selection.
+ * Recommends jq vs JavaScript based on JSON complexity and tool availability.
+ * Fallback chain: jq (for complex) -> javascript; always javascript for simple
+ *
+ * @param {object} state - { tool_availability: object, json_complexity: 'simple'|'complex' }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveJsonTransformMode(state) {
+  const { tool_availability = {}, json_complexity } = state || {};
+
+  // Simple operations (parse/stringify) don't need jq
+  if (!json_complexity || json_complexity === 'simple') {
+    return { value: 'javascript', confidence: 'HIGH', rule_id: 'json-transform-mode' };
+  }
+
+  // Complex JSON operations: prefer jq when available
+  if (json_complexity === 'complex' && tool_availability.jq === true) {
+    return { value: 'jq', confidence: 'HIGH', rule_id: 'json-transform-mode' };
+  }
+
+  // Fallback: JavaScript
+  return { value: 'javascript', confidence: 'HIGH', rule_id: 'json-transform-mode' };
+}
 
 // ─── Aggregator ──────────────────────────────────────────────────────────────
 
@@ -702,6 +810,10 @@ module.exports = {
   resolveResearchGate,
   resolveMilestoneCompletion,
   resolveCommitStrategy,
+  // Phase 127: Tool routing decision functions
+  resolveFileDiscoveryMode,
+  resolveSearchMode,
+  resolveJsonTransformMode,
   // Registry and aggregator
   DECISION_REGISTRY,
   evaluateDecisions,
