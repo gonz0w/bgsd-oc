@@ -96,7 +96,55 @@ function cmdDetectTools(cwd, raw) {
   output(result, raw);
 }
 
+/**
+ * Pre-flight validation for GitHub CI workflow.
+ * Checks gh availability (with version blocklist), then authentication.
+ * Returns structured JSON for the workflow to consume before spawning the CI agent.
+ *
+ * Per CONTEXT.md: error-and-stop behavior — when gh is unavailable/blocked,
+ * returns errors array with clear message and usable: false. No partial completion.
+ *
+ * @param {string} cwd - Current working directory
+ * @param {boolean} raw - Output raw JSON
+ */
+function cmdGhPreflight(cwd, raw) {
+  const { isGhUsable, checkAuth } = require('../lib/cli-tools');
+
+  const result = {
+    usable: false,
+    authenticated: false,
+    version: null,
+    errors: []
+  };
+
+  // Step 1: Check gh availability and version (includes blocklist check)
+  const ghCheck = isGhUsable();
+  if (!ghCheck.usable) {
+    result.errors.push(ghCheck.message);
+    output(result, raw);
+    return;
+  }
+
+  result.usable = true;
+  result.version = ghCheck.version;
+
+  // Step 2: Check authentication
+  try {
+    const authResult = checkAuth();
+    if (authResult.success && authResult.result && authResult.result.authenticated) {
+      result.authenticated = true;
+    } else {
+      result.errors.push('Not authenticated to GitHub. Run: gh auth login');
+    }
+  } catch (e) {
+    result.errors.push('Auth check failed: ' + (e.message || String(e)));
+  }
+
+  output(result, raw);
+}
+
 module.exports = {
   cmdToolsStatus,
-  cmdDetectTools
+  cmdDetectTools,
+  cmdGhPreflight
 };

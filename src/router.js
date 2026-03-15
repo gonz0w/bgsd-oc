@@ -1332,15 +1332,17 @@ Examples:
         break;
       }
 
-      // detect namespace
-      case 'detect': {
-        if (subCmd === 'tools') {
-          lazyTools().cmdDetectTools(cwd, raw);
-        } else {
-          error('Unknown detect subcommand. Available: tools');
-        }
-        break;
-      }
+       // detect namespace
+       case 'detect': {
+         if (subCmd === 'tools') {
+           lazyTools().cmdDetectTools(cwd, raw);
+         } else if (subCmd === 'gh-preflight') {
+           lazyTools().cmdGhPreflight(cwd, raw);
+         } else {
+           error('Unknown detect subcommand. Available: tools, gh-preflight');
+         }
+         break;
+       }
 
       // Unknown namespace
       default:
