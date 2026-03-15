@@ -10,12 +10,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v12.1 Tool Integration & Agent Enhancement
-**Phase:** 128 (Plans 01-02 complete)
-**Current Plan:** 02 (complete)
+**Phase:** 128 (Plans 01-03 complete)
+**Current Plan:** 03 (complete)
 **Status:** In progress
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 99% (Phase 128 in progress, 2 of ? plans)
+Progress: [██████████] 100% (Phase 128 complete, 3 of 3 plans)
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [██████████] 99% (Phase 128 in progress, 2 of ? pl
 - v12.1 Phase 127 Plan 02: ~10 min, 2 tasks, 2 files (1501 tests - all pass, 55 new)
 - v12.1 Phase 128 Plan 01: 12 min, 2 tasks, 4 files (1503 tests - all pass)
 - v12.1 Phase 128 Plan 02: 14 min, 2 tasks, 2 files (1503 tests - all pass)
+- v12.1 Phase 128 Plan 03: 5 min, 2 tasks, 2 files (1565 tests - all pass, 114 new)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -84,6 +85,7 @@ Progress: [██████████] 99% (Phase 128 in progress, 2 of ? pl
 - [0128-02]: Critical handoff pairs (planner→executor, researcher→planner) get rich tool context; 7 other pairs get minimal — receiving agents only adjust strategy for critical pairs
 - [0128-02]: handoff_tool_context capability level duplicated inline in enricher (avoids circular dep on decision-rules.js)
 - [0128-02]: Handoff preview uses --tools flag for tool_names_available (no live enrichment needed for preview)
+- [0128-03]: verify:handoff requires --preview flag for CLI contract tests (bare verify:handoff errors with "Unknown handoff subcommand")
 
 ### Completed Work
 
@@ -149,18 +151,24 @@ Progress: [██████████] 99% (Phase 128 in progress, 2 of ? pl
   - handoff_tool_context field added to enricher output (available_tools, tool_count, capability_level)
   - All 1503 tests passing
 
+- [✓] Phase 128 Plan 03: Contract Tests for Agent Collaboration Functions (AGENT-02, AGENT-03 verification)
+  - 89 new tests in decisions.test.cjs (resolveAgentCapabilityLevel 15, resolvePhaseDependencies 18, DECISION_REGISTRY 4 + existing Phase 127 tests)
+  - 25 new tests in enricher-decisions.test.cjs (handoff_tool_context shape 8, capability filtering 12, handoff completeness 5)
+  - All 1565 tests passing (114 new tests, exceeds ~62 target)
+  - All Phase 128 success criteria SC-1 through SC-5 validated by tests
+
 ### Pending Work
 
-- Phase 128 Plan 03 (if planned) — AGENT-03 multi-phase coordination sequencing, or Phase 128 complete
+None — Phase 128 complete (all 3 plans executed).
 
 ### Blockers/Concerns
 
-None — Phase 128 Plans 01-02 complete. AGENT-02 requirement fully satisfied.
+None — Phase 128 fully complete. AGENT-02 and AGENT-03 requirements satisfied with test coverage.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T15:37:50Z
-**This session:** 2026-03-15 (Phase 128 Plan 02 execution complete — 2 tasks, 14 min, 1503 tests passing)
+**Last session:** 2026-03-15T15:49:18Z
+**This session:** 2026-03-15 (Phase 128 Plan 03 execution complete — 2 tasks, 5 min, 1565 tests passing)
 **Next steps:** 
-1. Check if Phase 128 has Plan 03 (AGENT-03 multi-phase sequencing)
-2. Run verify-work if Phase 128 is complete
+1. Phase 128 complete — run verify-work to confirm all Phase 128 success criteria
+2. Plan next milestone or advance to next phase
