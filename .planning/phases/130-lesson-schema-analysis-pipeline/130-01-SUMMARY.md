@@ -81,7 +81,7 @@ Each task was committed atomically:
 1. **Task 1: Create src/commands/lessons.js with schema, capture, migrate, and list commands** - `27b5793` (feat)
 2. **Task 2: Register lessons namespace in router + enhance memory read filters + add help text** - `b95047d` (feat)
 
-**Plan metadata:** `(pending)`
+**Plan metadata:** `8a5c83d` (docs: complete plan)
 
 ## Files Created/Modified
 
