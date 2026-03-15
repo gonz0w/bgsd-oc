@@ -272,6 +272,7 @@ const COMMAND_RELATED = {
   'lessons:capture': ['lessons:list', 'util:memory'],
   'lessons:list': ['lessons:capture', 'lessons:migrate', 'util:memory'],
   'lessons:migrate': ['lessons:list', 'lessons:capture'],
+  'lessons:deviation-capture': ['lessons:capture', 'lessons:list'],
 
   'skills:list': ['skills:install', 'skills:validate'],
   'skills:install': ['skills:list', 'skills:remove', 'skills:validate'],

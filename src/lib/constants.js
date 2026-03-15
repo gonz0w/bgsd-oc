@@ -1594,6 +1594,22 @@ Examples:
   bgsd-tools lessons:suggest
   bgsd-tools lessons:suggest --agent bgsd-executor`,
 
+  'lessons:deviation-capture': `Usage: bgsd-tools lessons:deviation-capture --rule <number> --failure-count <number> --behavioral-change <text> --agent <name>
+
+Captures a deviation recovery pattern as a structured lesson entry.
+Only Rule 1 (code bug) recoveries are captured — all other rules are silently filtered.
+Capped at 3 entries per milestone to prevent noise.
+
+Options:
+  --rule               Deviation rule number (1=bug, 2=missing, 3=blocking, 4=architectural)
+  --failure-count      Number of failed attempts before successful recovery
+  --behavioral-change  Description of what behavioral change fixed the issue
+  --agent              Name of the agent that performed the recovery
+
+Examples:
+  bgsd-tools lessons:deviation-capture --rule 1 --failure-count 2 --behavioral-change "Added null check before property access" --agent bgsd-executor
+  bgsd-tools lessons:deviation-capture --rule 3 --failure-count 1 --behavioral-change "Reinstalled deps" --agent bgsd-executor  # → silently filtered (Rule 3)`,
+
   'lessons:compact': `Usage: bgsd-tools lessons:compact [--threshold <N>]
 
 Deduplicate the lesson store by normalized root_cause when entry count exceeds threshold.
