@@ -2,9 +2,96 @@
 
 **Last updated:** 2026-03-15
 
+## Milestones
+
+- ✅ **v12.1 Tool Integration & Agent Enhancement** — Phases 124–128 (shipped 2026-03-15)
+- 🚧 **v13.0 Closed-Loop Agent Evolution** — Phases 129–133 (in progress)
+
 ## Active Phases
 
-*(No active phases — v12.1 complete. Start next milestone with `/bgsd-new-milestone`.)*
+### 🚧 v13.0 Closed-Loop Agent Evolution (In Progress)
+
+**Milestone Goal:** Enable agents and skills to improve continuously from project experience — local agent overrides, lesson-driven improvement suggestions, agentskills.io discovery, and enhanced research workflows.
+
+## Phases
+
+- [ ] **Phase 129: Foundation & Agent Overrides** - Local agent override lifecycle with YAML validation and content sanitization
+- [ ] **Phase 130: Lesson Schema & Analysis Pipeline** - Structured lesson format, analysis engine, and workflow improvement hooks
+- [ ] **Phase 131: Skill Discovery & Security** - Security-first skill install/manage lifecycle with 41-pattern scanner and agentskills.io discovery
+- [ ] **Phase 132: Deviation Recovery Auto-Capture** - Rule-1-only auto-capture hook wired into execute-phase with typo fix
+- [ ] **Phase 133: Enhanced Research Workflow** - Structured research quality profile and gap surfacing
+
+## Phase Details
+
+### Phase 129: Foundation & Agent Overrides
+**Goal**: Users can manage project-local agent overrides — creating, viewing diffs, syncing with globals — with YAML validation and content sanitization preventing silent failure
+**Depends on**: Nothing (first phase)
+**Requirements**: LOCAL-01, LOCAL-02, LOCAL-03, LOCAL-04, LOCAL-05, LOCAL-06, LOCAL-07
+**Success Criteria** (what must be TRUE):
+  1. User can run `agent:list-local` and see both global and project-local agents with scope annotations (global / local-override)
+  2. User can run `agent:override <name>` to create a project-local copy in `.opencode/agents/` — missing `name:` field hard-errors before writing
+  3. User can run `agent:diff <name>` to view a line-level diff between the local override and its global counterpart
+  4. User can run `agent:sync <name>` to see incoming upstream changes and accept or reject them
+  5. bgsd-context `local_agent_overrides` field lists which agents have project-local versions, and any generated agent content is sanitized against system-prompt mangling
+**Plans**: TBD
+
+### Phase 130: Lesson Schema & Analysis Pipeline
+**Goal**: Users can capture, list, analyze, and get improvement suggestions from structured lessons — with migration of existing free-form lessons and workflow hooks that surface suggestions after verify-work and milestone completion
+**Depends on**: Phase 129
+**Requirements**: LESSON-01, LESSON-02, LESSON-03, LESSON-04, LESSON-05, LESSON-06, LESSON-07, LESSON-08, LESSON-09
+**Success Criteria** (what must be TRUE):
+  1. User can run `lessons:capture` with required fields (Date, Title, Severity, Type, Root Cause, Prevention Rule, Affected Agents) and the entry is stored correctly
+  2. Existing free-form `lessons.md` entry is grandfathered as `Type: environment` and produces 0 improvement suggestions
+  3. User can run `lessons:list --type agent-behavior --severity HIGH` and get filtered results with pagination via `--limit` and `--since`
+  4. User can run `lessons:analyze` and see recurrent patterns grouped by affected agent (only groups with ≥2 supporting lessons are shown)
+  5. verify-work and complete-milestone workflows surface `lessons:suggest` advisory (non-blocking, informational) after phase/milestone completes; `lessons:compact` deduplicates when store exceeds 100 entries
+**Plans**: TBD
+
+### Phase 131: Skill Discovery & Security
+**Goal**: Users can browse, install, validate, and remove project-local skills with a mandatory security scan and human confirmation gate before any file is written — plus bgsd-context exposing installed skills
+**Depends on**: Nothing (independent of Phase 130)
+**Requirements**: SKILL-01, SKILL-02, SKILL-03, SKILL-04, SKILL-05, SKILL-06, SKILL-07, SKILL-08, SKILL-09
+**Success Criteria** (what must be TRUE):
+  1. User can run `skills:list` and see all skills installed in `.agents/skills/` with name and source
+  2. User can run `skills:install <github-url>` — the system runs a 41-pattern security scan; dangerous findings block install; policy/warn findings require explicit human confirmation; full content diff shown before any file is written
+  3. All install attempts (including blocked/rejected) appear in `.agents/skill-audit.json` with timestamp, source, scan verdict, and outcome
+  4. User can run `skills:validate <name>` to re-scan an installed skill; user can run `skills:remove <name>` to delete it
+  5. `new-milestone.md` Step 8.5 prompts optional skill discovery; bgsd-context `installed_skills` field lists installed skill names
+**Plans**: TBD
+
+### Phase 132: Deviation Recovery Auto-Capture
+**Goal**: Winning recovery patterns from Rule-1 (code bug) failures are automatically captured as structured lesson entries in execute-phase — capped at 3 per milestone, non-blocking, never triggered by environmental failures
+**Depends on**: Phase 130
+**Requirements**: DEVCAP-01, DEVCAP-02, DEVCAP-03, DEVCAP-04
+**Success Criteria** (what must be TRUE):
+  1. `autoRecovery.js` typo `autonomousRecoverles` is fixed to `autonomousRecoveries` and deviation telemetry increments correctly
+  2. After a Rule-1 deviation recovery succeeds in execute-phase, a structured lesson entry is auto-captured non-blocking (`2>/dev/null || true`) — Rule-3 environmental failures never trigger capture
+  3. Auto-capture stops silently after 3 entries per milestone; captured entries include deviation rule type, failure count before success, behavioral change that succeeded, and affected agent
+**Plans**: TBD
+
+### Phase 133: Enhanced Research Workflow
+**Goal**: `research:score` returns a structured quality profile instead of a single grade, new-milestone.md surfaces it with LOW-confidence flags, `research:gaps` extracts gap lists, and multi-source conflicts are explicitly surfaced
+**Depends on**: Nothing (independent of Phases 129–132)
+**Requirements**: RESEARCH-01, RESEARCH-02, RESEARCH-03, RESEARCH-04
+**Success Criteria** (what must be TRUE):
+  1. `research:score <file>` returns a structured JSON profile: `{ source_count, high_confidence_pct, oldest_source_days, has_official_docs, flagged_gaps[] }` — not a single A-F grade
+  2. `new-milestone.md` research completion step displays the quality profile and flags any file with LOW confidence for optional re-research (non-blocking)
+  3. `research:gaps <file>` returns the `flagged_gaps[]` array as a formatted list
+  4. `research:score` detects and surfaces multi-source conflicts as `conflicts: [{claim, source_a, source_b}]` when two or more sources disagree on a fact
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in order: 129 → 130 → 131 (parallel with 130) → 132 (after 130) → 133 (any order)
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 129. Foundation & Agent Overrides | v13.0 | 0/TBD | Not started | - |
+| 130. Lesson Schema & Analysis Pipeline | v13.0 | 0/TBD | Not started | - |
+| 131. Skill Discovery & Security | v13.0 | 0/TBD | Not started | - |
+| 132. Deviation Recovery Auto-Capture | v13.0 | 0/TBD | Not started | - |
+| 133. Enhanced Research Workflow | v13.0 | 0/TBD | Not started | - |
 
 ---
 

@@ -83,36 +83,36 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LOCAL-01 | TBD | pending |
-| LOCAL-02 | TBD | pending |
-| LOCAL-03 | TBD | pending |
-| LOCAL-04 | TBD | pending |
-| LOCAL-05 | TBD | pending |
-| LOCAL-06 | TBD | pending |
-| LOCAL-07 | TBD | pending |
-| LESSON-01 | TBD | pending |
-| LESSON-02 | TBD | pending |
-| LESSON-03 | TBD | pending |
-| LESSON-04 | TBD | pending |
-| LESSON-05 | TBD | pending |
-| LESSON-06 | TBD | pending |
-| LESSON-07 | TBD | pending |
-| LESSON-08 | TBD | pending |
-| LESSON-09 | TBD | pending |
-| SKILL-01 | TBD | pending |
-| SKILL-02 | TBD | pending |
-| SKILL-03 | TBD | pending |
-| SKILL-04 | TBD | pending |
-| SKILL-05 | TBD | pending |
-| SKILL-06 | TBD | pending |
-| SKILL-07 | TBD | pending |
-| SKILL-08 | TBD | pending |
-| SKILL-09 | TBD | pending |
-| DEVCAP-01 | TBD | pending |
-| DEVCAP-02 | TBD | pending |
-| DEVCAP-03 | TBD | pending |
-| DEVCAP-04 | TBD | pending |
-| RESEARCH-01 | TBD | pending |
-| RESEARCH-02 | TBD | pending |
-| RESEARCH-03 | TBD | pending |
-| RESEARCH-04 | TBD | pending |
+| LOCAL-01 | Phase 129 | pending |
+| LOCAL-02 | Phase 129 | pending |
+| LOCAL-03 | Phase 129 | pending |
+| LOCAL-04 | Phase 129 | pending |
+| LOCAL-05 | Phase 129 | pending |
+| LOCAL-06 | Phase 129 | pending |
+| LOCAL-07 | Phase 129 | pending |
+| LESSON-01 | Phase 130 | pending |
+| LESSON-02 | Phase 130 | pending |
+| LESSON-03 | Phase 130 | pending |
+| LESSON-04 | Phase 130 | pending |
+| LESSON-05 | Phase 130 | pending |
+| LESSON-06 | Phase 130 | pending |
+| LESSON-07 | Phase 130 | pending |
+| LESSON-08 | Phase 130 | pending |
+| LESSON-09 | Phase 130 | pending |
+| SKILL-01 | Phase 131 | pending |
+| SKILL-02 | Phase 131 | pending |
+| SKILL-03 | Phase 131 | pending |
+| SKILL-04 | Phase 131 | pending |
+| SKILL-05 | Phase 131 | pending |
+| SKILL-06 | Phase 131 | pending |
+| SKILL-07 | Phase 131 | pending |
+| SKILL-08 | Phase 131 | pending |
+| SKILL-09 | Phase 131 | pending |
+| DEVCAP-01 | Phase 132 | pending |
+| DEVCAP-02 | Phase 132 | pending |
+| DEVCAP-03 | Phase 132 | pending |
+| DEVCAP-04 | Phase 132 | pending |
+| RESEARCH-01 | Phase 133 | pending |
+| RESEARCH-02 | Phase 133 | pending |
+| RESEARCH-03 | Phase 133 | pending |
+| RESEARCH-04 | Phase 133 | pending |
