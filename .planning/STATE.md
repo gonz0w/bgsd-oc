@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Milestone:** v13.0 Closed-Loop Agent Evolution
 **Phase:** Phase 131 of 133 (Skill Discovery & Security)
-**Current Plan:** Plan 02 complete
-**Status:** Plans 03–04 remaining
+**Current Plan:** Plan 03 complete
+**Status:** Plan 04 remaining
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [██████████] 99%
 - v13.0 Phase 130 Plan 02: 8 min, 2 tasks, 6 files (lessons:analyze + suggest + compact + workflow hooks)
 - v13.0 Phase 131 Plan 01: 12 min, 2 tasks, 1 file (security scanner + skills:list + skills:validate)
 - v13.0 Phase 131 Plan 02: 12 min, 2 tasks, 1 file (skills:install + skills:remove + audit logging)
+- v13.0 Phase 131 Plan 03: 6 min, 2 tasks, 6 files (router wiring + enricher installed_skills + new-milestone Step 8.5)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -60,7 +61,6 @@ Progress: [██████████] 99%
 | 131 | Skill Discovery & Security | Security-first skill lifecycle + agentskills.io discovery | SKILL-01 through SKILL-09 |
 | 132 | Deviation Recovery Auto-Capture | Rule-1-only auto-capture in execute-phase | DEVCAP-01 through DEVCAP-04 |
 | 133 | Enhanced Research Workflow | Structured quality profile + conflict detection | RESEARCH-01 through RESEARCH-04 |
-
 ### Key Decisions
 
 - [v13.0 roadmap]: Phase 129 first — OC path correction (`.opencode/agents/` not `.planning/agents/`) and YAML validation must precede any automation writing agent files
@@ -87,10 +87,12 @@ Progress: [██████████] 99%
 - [Phase 131 Plan 02]: Dangerous verdict is hard block: no force/override option in cmdSkillsInstall — files never reach dest dir on dangerous findings
 - [Phase 131 Plan 02]: --confirm pattern mirrors agent:sync --accept/--reject; without --confirm, outputs confirmation data for calling agent to handle Y/N
 - [Phase 131 Plan 02]: logAuditEntry is synchronous — simplifies error handling, audit writes are non-critical and fast
+- [Phase 131 Plan 03]: skills:install uses await in router — cmdSkillsInstall is async (GitHub API fetch), main() is already async so await is safe
+- [Phase 131 Plan 03]: COMMAND_TREE added as new export from commandDiscovery.js — not previously present, created full tree covering all namespaces (additive, backward-compatible)
 
 ### Pending Work
 
-Phase 130 complete. Phase 131 Plans 01–02 complete (security scanner + skills:list + skills:validate + skills:install + skills:remove + audit logging). Phase 131 Plans 03–04 remain (router wiring, bgsd-context). Phases 132 (Deviation Auto-Capture) and 133 (Enhanced Research) also remain.
+Phase 130 complete. Phase 131 Plans 01–03 complete (security scanner + full skills CLI + router wiring + enricher installed_skills + new-milestone Step 8.5). Phase 131 Plan 04 remains. Phases 132 (Deviation Auto-Capture) and 133 (Enhanced Research) also remain.
 
 ### Blockers/Concerns
 
@@ -98,8 +100,7 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T20:52:40.524Z
-**This session:** 2026-03-15 — Completed Phase 131 Plan 02 (skills:install + skills:remove + logAuditEntry in src/commands/skills.js)
+**Last session:** 2026-03-15T21:02:57.811Z
+**This session:** 2026-03-15 — Completed Phase 131 Plan 03 (router wiring + enricher installed_skills + new-milestone Step 8.5)
 **Next steps:**
-1. Execute Phase 131 Plan 03 (router wiring for skills commands)
-2. Execute Phase 131 Plan 04 (bgsd-context installed_skills)
+1. Execute Phase 131 Plan 04 (final verification and integration testing)
