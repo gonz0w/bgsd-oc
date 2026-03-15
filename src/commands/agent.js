@@ -914,8 +914,9 @@ function cmdAgentOverride(cwd, raw, args) {
   // Create local agents directory silently if it doesn't exist
   fs.mkdirSync(localDir, { recursive: true });
   
-  // Write the local override
-  fs.writeFileSync(localPath, content, 'utf8');
+  // Write the local override (exclusive write — existsSync guard is above)
+  const fd = fs.openSync(localPath, 'wx');
+  try { fs.writeSync(fd, content, 0, 'utf8'); } finally { fs.closeSync(fd); }
   
   // Output: just the file path created
   if (raw) {
@@ -1002,7 +1003,15 @@ function cmdAgentSync(cwd, raw, args) {
     // Apply content sanitization before writing
     contentToWrite = sanitizeAgentContent(contentToWrite);
 
-    fs.writeFileSync(localPath, contentToWrite, 'utf8');
+    // Overwrite the local override with synced content (not TOCTOU — read above confirms existence)
+    const buf = Buffer.from(contentToWrite, 'utf8');
+    const fdSync = fs.openSync(localPath, 'r+');
+    try {
+      fs.ftruncateSync(fdSync, 0);
+      fs.writeSync(fdSync, buf, 0, buf.length, 0);
+    } finally {
+      fs.closeSync(fdSync);
+    }
 
     if (raw) {
       output({ agent: agentName, action: 'accepted', path: localPath }, raw);

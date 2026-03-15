@@ -664,14 +664,21 @@ async function cmdSkillsInstall(cwd, options, raw) {
     return;
   }
 
-  // 6. Write to temp directory for scanning
-  const tempDir = path.join(os.tmpdir(), `bgsd-skill-${name}-${Date.now()}`);
+  // 6. Write to temp directory for scanning (unique dir via mkdtempSync — no TOCTOU)
+  let tempDir;
   try {
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `bgsd-skill-${name}-`));
+  } catch (e) {
+    error(`Failed to create temp directory for scanning: ${e.message}`);
+    return;
+  }
+  try {
     for (const file of downloadedFiles) {
       const destPath = path.join(tempDir, file.path);
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.writeFileSync(destPath, file.content, 'utf-8');
+      // Exclusive write within our exclusively-created temp dir
+      const fd = fs.openSync(destPath, 'wx');
+      try { fs.writeSync(fd, file.content, 0, 'utf8'); } finally { fs.closeSync(fd); }
     }
   } catch (e) {
     // Clean up temp on error
