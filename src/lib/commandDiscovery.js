@@ -56,7 +56,7 @@ const COMMAND_CATEGORIES = {
   },
   research: {
     name: 'Research',
-    commands: ['research:capabilities', 'research:collect', 'research:yt-search', 'research:nlm-create']
+    commands: ['research:capabilities', 'research:collect', 'research:yt-search', 'research:nlm-create', 'research:score', 'research:gaps']
   },
   lessons: {
     name: 'Lessons',
@@ -125,7 +125,9 @@ const COMMAND_TREE = {
     'nlm-create': null,
     'nlm-add-source': null,
     'nlm-ask': null,
-    'nlm-report': null
+    'nlm-report': null,
+    'score': null,
+    'gaps': null
   },
   'lessons': {
     'capture': null,
@@ -351,7 +353,8 @@ function getAllCommands() {
       'util:websearch', 'util:history-digest', 'util:trace-requirement', 'util:codebase', 'util:cache',
       'util:agent', 'util:git',
       'research:capabilities', 'research:collect', 'research:yt-search', 'research:yt-transcript',
-      'research:nlm-create', 'research:nlm-add-source', 'research:nlm-ask', 'research:nlm-report'
+      'research:nlm-create', 'research:nlm-add-source', 'research:nlm-ask', 'research:nlm-report',
+      'research:score', 'research:gaps'
     ];
   }
 }
@@ -565,7 +568,9 @@ function validateCommandRegistry() {
       'nlm-create': null,
       'nlm-add-source': null,
       'nlm-ask': null,
-      'nlm-report': null
+      'nlm-report': null,
+      'score': null,
+      'gaps': null
     },
     'lessons': {
       'capture': null,
@@ -599,7 +604,8 @@ function validateCommandRegistry() {
   const spaceFormatCommands = [
     'research capabilities', 'research collect', 'research collect --resume',
     'research nlm-add-source', 'research nlm-ask', 'research nlm-create',
-    'research nlm-report', 'research yt-search', 'research yt-transcript'
+    'research nlm-report', 'research yt-search', 'research yt-transcript',
+    'research score', 'research gaps'
   ];
   
   // Known format differences - commands in help use combined subcommand names

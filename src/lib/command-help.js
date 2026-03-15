@@ -57,7 +57,9 @@ const COMMAND_CATEGORIES = {
       'research:collect',
       'research:nlm-create',
       'research:nlm-ask',
-      'research:nlm-report'
+      'research:nlm-report',
+      'research:score',
+      'research:gaps'
     ]
   },
   'Analysis': {
@@ -170,6 +172,8 @@ const COMMAND_BRIEF = {
   'research:nlm-ask': 'Ask NotebookLM question',
   'research:nlm-report': 'Generate NotebookLM report',
   'research:nlm-add-source': 'Add source to notebook',
+  'research:score': 'Score research quality',
+  'research:gaps': 'List research gaps',
   
   'util:config-get': 'Get configuration value',
   'util:config-set': 'Set configuration value',
@@ -250,6 +254,8 @@ const COMMAND_RELATED = {
   'research:nlm-create': ['research:nlm-ask', 'research:nlm-report'],
   'research:nlm-ask': ['research:nlm-create', 'research:nlm-report'],
   'research:nlm-report': ['research:nlm-create', 'research:nlm-ask'],
+  'research:score': ['research:gaps', 'research:capabilities'],
+  'research:gaps': ['research:score', 'research:capabilities'],
   
   'util:config-get': ['util:config-set', 'util:env'],
   'util:config-set': ['util:config-get', 'util:env'],
@@ -355,6 +361,9 @@ const NATURAL_LANGUAGE_ALIASES = {
   'ask': 'research:nlm-ask',
   'question': 'research:nlm-ask',
   'report': 'research:nlm-report',
+  'score': 'research:score',
+  'gaps': 'research:gaps',
+  'quality': 'research:score',
   'milestone': 'milestone:summary',
   'summary': 'milestone:summary',
   'skills': 'skills:list',
