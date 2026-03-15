@@ -87,7 +87,7 @@ Phases execute in order: 129 → 130 → 131 (parallel with 130) → 132 (after 
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 129. Foundation & Agent Overrides | 3/3 | Complete   | 2026-03-15 | - |
+| 129. Foundation & Agent Overrides | 3/3 | Complete    | 2026-03-15 | - |
 | 130. Lesson Schema & Analysis Pipeline | v13.0 | 0/TBD | Not started | - |
 | 131. Skill Discovery & Security | v13.0 | 0/TBD | Not started | - |
 | 132. Deviation Recovery Auto-Capture | v13.0 | 0/TBD | Not started | - |
