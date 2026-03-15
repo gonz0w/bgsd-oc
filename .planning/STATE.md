@@ -10,12 +10,12 @@ See: `.planning/PROJECT.md` (updated 2026-03-15)
 ## Current Position
 
 **Milestone:** v12.1 Tool Integration & Agent Enhancement
-**Phase:** 128 (Plan 01 of ? complete)
-**Current Plan:** 01 (complete)
+**Phase:** 128 (Plans 01-02 complete)
+**Current Plan:** 02 (complete)
 **Status:** In progress
 **Last Activity:** 2026-03-15
 
-Progress: [██████████] 97% (Phase 127 complete, 2 of 2 plans)
+Progress: [██████████] 99% (Phase 128 in progress, 2 of ? plans)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [██████████] 97% (Phase 127 complete, 2 of 2 plans
 - v12.1 Phase 127 Plan 01: ~15 min, 2 tasks, 2 files (1446 tests - all pass)
 - v12.1 Phase 127 Plan 02: ~10 min, 2 tasks, 2 files (1501 tests - all pass, 55 new)
 - v12.1 Phase 128 Plan 01: 12 min, 2 tasks, 4 files (1503 tests - all pass)
+- v12.1 Phase 128 Plan 02: 14 min, 2 tasks, 2 files (1503 tests - all pass)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -80,6 +81,9 @@ Progress: [██████████] 97% (Phase 127 complete, 2 of 2 plans
 - [0128-01]: resolveAgentCapabilityLevel: 5-6 tools=HIGH, 2-4=MEDIUM, 0-1=LOW — only LOW triggers warning metadata
 - [0128-01]: resolvePhaseDependencies uses Kahn topological sort; declared depends_on always wins, tool availability breaks ties
 - [0128-01]: Silent capability filtering in scopeContextForAgent — tool_dependency_level drives context stripping, agents don't know what was removed
+- [0128-02]: Critical handoff pairs (planner→executor, researcher→planner) get rich tool context; 7 other pairs get minimal — receiving agents only adjust strategy for critical pairs
+- [0128-02]: handoff_tool_context capability level duplicated inline in enricher (avoids circular dep on decision-rules.js)
+- [0128-02]: Handoff preview uses --tools flag for tool_names_available (no live enrichment needed for preview)
 
 ### Completed Work
 
@@ -138,18 +142,25 @@ Progress: [██████████] 97% (Phase 127 complete, 2 of 2 plans
   - scopeContextForAgent: silent capability filtering (strips tool context for low-dependency agents)
   - All 1503 tests passing
 
+- [✓] Phase 128 Plan 02: Agent Handoff Contracts + Enricher Tool Context (AGENT-02)
+  - 9 agent pair handoff contracts in verify.js (up from 2) with tool_context_type rich/minimal split
+  - Critical pairs (planner→executor, researcher→planner) have tool_context_type 'rich'
+  - 7 other pairs have tool_context_type 'minimal' (tool_count + capability_level)
+  - handoff_tool_context field added to enricher output (available_tools, tool_count, capability_level)
+  - All 1503 tests passing
+
 ### Pending Work
 
-- Phase 128 Plan 02 (if planned) or Phase 128 complete
+- Phase 128 Plan 03 (if planned) — AGENT-03 multi-phase coordination sequencing, or Phase 128 complete
 
 ### Blockers/Concerns
 
-None — Phase 128 Plan 01 complete, decision functions and capability filtering implemented.
+None — Phase 128 Plans 01-02 complete. AGENT-02 requirement fully satisfied.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15T15:36:18.719Z
-**This session:** 2026-03-15 (Phase 128 Plan 01 execution complete — 2 tasks, 12 min, 1503 tests passing)
+**Last session:** 2026-03-15T15:37:50Z
+**This session:** 2026-03-15 (Phase 128 Plan 02 execution complete — 2 tasks, 14 min, 1503 tests passing)
 **Next steps:** 
-1. Check if Phase 128 has additional plans to execute
+1. Check if Phase 128 has Plan 03 (AGENT-03 multi-phase sequencing)
 2. Run verify-work if Phase 128 is complete

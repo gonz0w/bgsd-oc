@@ -128,7 +128,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
   5. Agent context efficiency improved: capability-aware filtering reduces context size by 25%+ for tool-independent tasks
 
 **Plans:**
-  1/3 plans executed
+  2/3 plans executed
   - Plan 02 (Wave 1): Handoff contracts for all 9 agent pairs with tool context + enricher handoff data
   - Plan 03 (Wave 2): Contract tests for decision functions + enricher/handoff/filtering integration tests
 
@@ -142,7 +142,7 @@ v12.1 focuses on integrating modern CLI tools (ripgrep, fd, jq, yq, bat, gh) int
 | 125. Core Tools Integration | 0/3 | Complete    | 2026-03-15 |
 | 126. Extended Tools | 1/3 | Complete    | 2026-03-15 |
 | 127. Agent Routing Enhancement | 0/2 | Complete    | 2026-03-15 |
-| 128. Agent Collaboration | 1/3 | In Progress|  |
+| 128. Agent Collaboration | 2/3 | In Progress|  |
 
 **Total:** 2/12 plans complete · 17% progress
 
