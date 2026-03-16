@@ -1,7 +1,8 @@
 /**
- * bgsd-tools workflow:baseline and workflow:compare tests
+ * bgsd-tools workflow:baseline, workflow:compare, and workflow:verify-structure tests
  *
  * Unit tests for structural fingerprint extraction and compare logic.
+ * Unit tests for verify-structure comparison logic.
  * Integration tests for CLI commands via runGsdTools.
  */
 
@@ -12,7 +13,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 
-const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
+const { TOOLS_PATH, runGsdTools, runGsdToolsFull, createTempProject, cleanup } = require('./helpers.cjs');
 
 // ─── Unit: extractStructuralFingerprint ─────────────────────────────────────
 
@@ -402,5 +403,381 @@ describe('workflow:compare (integration)', () => {
     assert.ok(typeof data.snapshot_b === 'string', 'snapshot_b should be a string');
     assert.ok(typeof data.date_a === 'string', 'date_a should be a string');
     assert.ok(typeof data.date_b === 'string', 'date_b should be a string');
+  });
+});
+
+// ─── Unit: verify-structure comparison logic ─────────────────────────────────
+
+describe('workflow:verify-structure (unit)', () => {
+  /**
+   * Tests use the CLI via execSync with BGSD_PLUGIN_DIR set to a temp directory.
+   * This avoids interfering with the test runner's stdout while still validating
+   * the comparison logic end-to-end.
+   */
+  const { execSync } = require('child_process');
+
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'baselines'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'workflows'), { recursive: true });
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  function makeBaseline(workflows, timestamp) {
+    return {
+      version: 1,
+      timestamp: timestamp || new Date().toISOString(),
+      workflow_count: workflows.length,
+      total_tokens: 0,
+      workflows,
+    };
+  }
+
+  function writeBaseline(name, baseline) {
+    const filePath = path.join(tmpDir, '.planning', 'baselines', name);
+    fs.writeFileSync(filePath, JSON.stringify(baseline, null, 2), 'utf-8');
+    return filePath;
+  }
+
+  function writeWorkflow(name, content) {
+    fs.writeFileSync(path.join(tmpDir, 'workflows', name), content, 'utf-8');
+  }
+
+  function runVerify(baselinePath) {
+    try {
+      const stdout = execSync(
+        `BGSD_PLUGIN_DIR="${tmpDir}" node "${TOOLS_PATH}" workflow:verify-structure "${baselinePath}" --raw`,
+        { cwd: tmpDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      return { success: true, exitCode: 0, data: JSON.parse(stdout.trim()) };
+    } catch (err) {
+      const stdout = (err.stdout || '').trim();
+      return {
+        success: false,
+        exitCode: err.status || 1,
+        data: stdout ? JSON.parse(stdout) : null,
+      };
+    }
+  }
+
+  test('all elements preserved → all pass', () => {
+    writeWorkflow('test.md', `
+Task("foo") does something.
+\`\`\`bash
+bgsd-tools workflow:baseline
+\`\`\`
+<!-- section: executor -->
+<question>What is your name?</question>
+<step name="load">Load the file</step>
+`);
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: ['Task("foo")'],
+        cli_commands: ['bgsd-tools workflow:baseline'],
+        section_markers: ['executor'],
+        question_blocks: ['<question>What is your name?</question>'],
+        xml_tags: ['step'],
+      },
+    }]));
+
+    const { data, exitCode } = runVerify(bPath);
+    assert.strictEqual(exitCode, 0, 'exit code should be 0 when all pass');
+    assert.strictEqual(data.summary.passed, 1, 'should have 1 passed');
+    assert.strictEqual(data.summary.failed, 0, 'should have 0 failed');
+    assert.strictEqual(data.results[0].status, 'pass');
+    assert.strictEqual(data.results[0].missing.length, 0);
+  });
+
+  test('one Task() call removed → fail with correct missing entry', () => {
+    writeWorkflow('test.md', 'Just some text without any task calls.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: ['Task("foo")'],
+        cli_commands: [],
+        section_markers: [],
+        question_blocks: [],
+        xml_tags: [],
+      },
+    }]));
+
+    const { data, exitCode } = runVerify(bPath);
+    assert.strictEqual(exitCode, 1, 'exit code should be 1 when regression detected');
+    assert.strictEqual(data.summary.failed, 1, 'should have 1 failed');
+    const result = data.results[0];
+    assert.strictEqual(result.status, 'fail');
+    assert.ok(result.missing.some(m => m.type === 'task_call' && m.value === 'Task("foo")'),
+      'should report missing task_call Task("foo")');
+  });
+
+  test('one CLI command removed → fail', () => {
+    writeWorkflow('test.md', 'No CLI commands here.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: [],
+        cli_commands: ['bgsd-tools workflow:compare'],
+        section_markers: [],
+        question_blocks: [],
+        xml_tags: [],
+      },
+    }]));
+
+    const { data } = runVerify(bPath);
+    assert.strictEqual(data.summary.failed, 1);
+    assert.ok(data.results[0].missing.some(m => m.type === 'cli_command' && m.value === 'bgsd-tools workflow:compare'),
+      'should report missing cli_command');
+  });
+
+  test('section marker removed → fail', () => {
+    writeWorkflow('test.md', 'No section markers here.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: [],
+        cli_commands: [],
+        section_markers: ['executor'],
+        question_blocks: [],
+        xml_tags: [],
+      },
+    }]));
+
+    const { data } = runVerify(bPath);
+    assert.strictEqual(data.summary.failed, 1);
+    assert.ok(data.results[0].missing.some(m => m.type === 'section_marker' && m.value === 'executor'),
+      'should report missing section_marker');
+  });
+
+  test('question block removed → fail', () => {
+    writeWorkflow('test.md', 'No question blocks here.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: [],
+        cli_commands: [],
+        section_markers: [],
+        question_blocks: ['<question>What is your name?</question>'],
+        xml_tags: [],
+      },
+    }]));
+
+    const { data } = runVerify(bPath);
+    assert.strictEqual(data.summary.failed, 1);
+    assert.ok(data.results[0].missing.some(m => m.type === 'question_block'),
+      'should report missing question_block');
+  });
+
+  test('new elements added (not in baseline) → still pass', () => {
+    // Workflow now has MORE Task() calls than baseline — additions are fine
+    writeWorkflow('test.md', `
+Task("original") does original thing.
+Task("new") does new thing.
+`);
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: ['Task("original")'],
+        cli_commands: [],
+        section_markers: [],
+        question_blocks: [],
+        xml_tags: [],
+      },
+    }]));
+
+    const { data, exitCode } = runVerify(bPath);
+    assert.strictEqual(exitCode, 0, 'exit code should be 0 when only additions');
+    assert.strictEqual(data.summary.passed, 1, 'should pass when additions only');
+    assert.strictEqual(data.summary.failed, 0);
+    assert.strictEqual(data.results[0].status, 'pass');
+  });
+
+  test('workflow removed entirely → fail with removed:true', () => {
+    // No file written for 'missing.md' — it doesn't exist in workflows/
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'missing.md',
+      total_tokens: 100,
+      structure: {
+        task_calls: ['Task("foo")'],
+        cli_commands: [],
+        section_markers: [],
+        question_blocks: [],
+        xml_tags: [],
+      },
+    }]));
+
+    const { data, exitCode } = runVerify(bPath);
+    assert.strictEqual(exitCode, 1, 'exit code should be 1 when workflow removed');
+    assert.strictEqual(data.summary.failed, 1, 'removed workflow should be a failure');
+    const result = data.results[0];
+    assert.strictEqual(result.status, 'fail');
+    assert.strictEqual(result.removed, true, 'should have removed:true flag');
+  });
+
+  test('workflow added (not in baseline) → not a regression (pass)', () => {
+    // extra.md exists in workflows/ but isn't in the baseline — should be ignored
+    writeWorkflow('extra.md', 'Task("extra") new workflow.');
+    writeWorkflow('existing.md', 'Task("existing") kept workflow.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'existing.md',
+      total_tokens: 100,
+      structure: { task_calls: ['Task("existing")'], cli_commands: [], section_markers: [], question_blocks: [], xml_tags: [] },
+    }]));
+
+    const { data, exitCode } = runVerify(bPath);
+    // Only baseline workflows are checked; extra.md should not appear in results
+    assert.strictEqual(exitCode, 0, 'exit code should be 0 — new workflow is not a regression');
+    assert.strictEqual(data.results.length, 1, 'only baseline workflows checked');
+    assert.strictEqual(data.results[0].name, 'existing.md');
+    assert.strictEqual(data.results[0].status, 'pass');
+    assert.strictEqual(data.summary.failed, 0, 'new workflow is not a failure');
+  });
+
+  test('empty baseline structural elements → all pass', () => {
+    writeWorkflow('test.md', 'Task("something") with content.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'test.md',
+      total_tokens: 100,
+      structure: { task_calls: [], cli_commands: [], section_markers: [], question_blocks: [], xml_tags: [] },
+    }]));
+
+    const { data } = runVerify(bPath);
+    assert.strictEqual(data.summary.passed, 1, 'empty baseline structure should always pass');
+    assert.strictEqual(data.summary.failed, 0);
+  });
+
+  test('workflow with no structural elements → pass', () => {
+    writeWorkflow('plain.md', 'Just plain markdown text with no special elements.');
+    const bPath = writeBaseline('workflow-baseline-test.json', makeBaseline([{
+      name: 'plain.md',
+      total_tokens: 50,
+      structure: { task_calls: [], cli_commands: [], section_markers: [], question_blocks: [], xml_tags: [] },
+    }]));
+
+    const { data } = runVerify(bPath);
+    assert.strictEqual(data.summary.passed, 1);
+    assert.strictEqual(data.results[0].status, 'pass');
+  });
+});
+
+// ─── Integration: workflow:verify-structure ───────────────────────────────────
+
+describe('workflow:verify-structure (integration)', () => {
+  test('verify-structure --raw with valid baseline → JSON output with summary', () => {
+    // Create a baseline (without --raw to avoid @file: temp file issue)
+    const baselineResult = runGsdTools('workflow:baseline');
+    assert.ok(baselineResult.success, `workflow:baseline failed: ${baselineResult.error}`);
+
+    // Now verify against the most recent saved baseline
+    const result = runGsdTools('workflow:verify-structure --raw');
+    assert.ok(result.success, `workflow:verify-structure failed: ${result.error}`);
+
+    let data;
+    try {
+      data = JSON.parse(result.output);
+    } catch (e) {
+      assert.fail(`Output is not valid JSON: ${result.output.slice(0, 200)}`);
+    }
+
+    assert.ok(typeof data.baseline_file === 'string', 'baseline_file should be string');
+    assert.ok(typeof data.baseline_date === 'string', 'baseline_date should be string');
+    assert.ok(typeof data.verified_at === 'string', 'verified_at should be string');
+    assert.ok(data.summary && typeof data.summary === 'object', 'summary should be object');
+    assert.ok(typeof data.summary.total_workflows === 'number', 'summary.total_workflows should be number');
+    assert.ok(typeof data.summary.passed === 'number', 'summary.passed should be number');
+    assert.ok(typeof data.summary.failed === 'number', 'summary.failed should be number');
+    assert.ok(Array.isArray(data.results), 'results should be array');
+  });
+
+  test('verify-structure passes all workflows against fresh baseline', () => {
+    const baselineResult = runGsdTools('workflow:baseline');
+    assert.ok(baselineResult.success, `workflow:baseline failed: ${baselineResult.error}`);
+
+    const result = runGsdTools('workflow:verify-structure --raw');
+    assert.ok(result.success, `workflow:verify-structure failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.summary.failed, 0, `Expected 0 failures, got ${data.summary.failed}`);
+    assert.ok(data.summary.passed > 0, 'should have at least one passed workflow');
+  });
+
+  test('verify-structure with nonexistent baseline → error', () => {
+    const result = runGsdTools('workflow:verify-structure /nonexistent/baseline.json --raw');
+    assert.ok(!result.success, 'Should fail for nonexistent baseline path');
+  });
+
+  test('verify-structure exit code is 1 when regression detected', () => {
+    // Create a temp dir with a controlled workflows dir to simulate a regression
+    const tmpDir = createTempProject();
+    const { execSync } = require('child_process');
+    try {
+      fs.mkdirSync(path.join(tmpDir, '.planning', 'baselines'), { recursive: true });
+      fs.mkdirSync(path.join(tmpDir, 'workflows'), { recursive: true });
+
+      // Create baseline referencing a Task() call
+      const baseline = {
+        version: 1,
+        timestamp: new Date().toISOString(),
+        workflow_count: 1,
+        total_tokens: 100,
+        workflows: [{
+          name: 'sample.md',
+          workflow_tokens: 100,
+          ref_count: 0,
+          ref_tokens: 0,
+          total_tokens: 100,
+          structure: {
+            task_calls: ['Task("original")'],
+            cli_commands: [],
+            section_markers: [],
+            question_blocks: [],
+            xml_tags: [],
+          },
+        }],
+      };
+      const bFile = path.join(tmpDir, '.planning', 'baselines', 'workflow-baseline-test.json');
+      fs.writeFileSync(bFile, JSON.stringify(baseline, null, 2), 'utf-8');
+
+      // Write workflow WITHOUT the Task() call — regression!
+      fs.writeFileSync(path.join(tmpDir, 'workflows', 'sample.md'),
+        'No task calls here anymore.\n', 'utf-8');
+
+      // Run verify-structure with BGSD_PLUGIN_DIR pointing to tmpDir
+      let exitCode = 0;
+      let stdout = '';
+      try {
+        stdout = execSync(
+          `BGSD_PLUGIN_DIR="${tmpDir}" node "${TOOLS_PATH}" workflow:verify-structure "${bFile}" --raw`,
+          { cwd: tmpDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+        );
+      } catch (err) {
+        exitCode = err.status || 1;
+        stdout = (err.stdout || '').trim();
+      }
+
+      // Should exit with code 1 on regression
+      assert.strictEqual(exitCode, 1, 'exit code should be 1 when regression detected');
+
+      // JSON output should report the failure
+      if (stdout) {
+        const data = JSON.parse(stdout);
+        assert.ok(data.summary.failed > 0, `should report at least 1 failure, got: ${JSON.stringify(data.summary)}`);
+        assert.ok(data.results[0].missing.some(m => m.type === 'task_call'),
+          'should report missing task_call in results');
+      }
+    } finally {
+      cleanup(tmpDir);
+    }
   });
 });
