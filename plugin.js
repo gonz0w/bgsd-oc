@@ -4390,6 +4390,46 @@ Examples:
   bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
       "research:collect --resume": "Resume interrupted research session from last completed stage",
       "research collect --resume": "Resume interrupted research session from last completed stage",
+      "research:score": `Usage: bgsd-tools research:score <path>
+
+Score a RESEARCH.md file and return a structured quality profile.
+
+Arguments:
+  path    Path to a RESEARCH.md file (required)
+
+Analyzes source count, confidence breakdown, official docs presence, source age,
+flagged gaps, and multi-source conflicts. Writes cache to research-score.json
+in the same directory.
+
+Output: {
+  source_count: number,
+  high_confidence_pct: number,
+  oldest_source_days: number,
+  has_official_docs: boolean,
+  confidence_level: "HIGH" | "MEDIUM" | "LOW",
+  flagged_gaps: [{ gap, severity, suggestion }],
+  conflicts: [{ claim, source_a, source_b }]
+}
+
+Examples:
+  bgsd-tools research:score .planning/phases/0133-enhanced-research-workflow/0133-RESEARCH.md
+  bgsd-tools research:score .planning/research/STACK.md --raw`,
+      "research:gaps": `Usage: bgsd-tools research:gaps <path>
+
+Extract flagged gaps from a cached research quality profile.
+
+Arguments:
+  path    Path to a RESEARCH.md file (required \u2014 used to locate research-score.json cache)
+
+Note: Reads from research-score.json cache in the same directory as <path>.
+Run research:score first to generate the cache.
+
+Output: { flagged_gaps: [{ gap, severity, suggestion }] }
+Error: { error: "No cached score found. Run research:score first." }
+
+Examples:
+  bgsd-tools research:gaps .planning/phases/0133-enhanced-research-workflow/0133-RESEARCH.md
+  bgsd-tools research:gaps .planning/research/STACK.md --raw`,
       // audit namespace
       // decisions namespace
       "decisions:list": `Usage: bgsd-tools decisions:list

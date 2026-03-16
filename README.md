@@ -2,7 +2,7 @@
 
 A structured project lifecycle system for AI-assisted coding. Turns ad-hoc prompting into milestone-driven development with planning, execution, verification, and session memory.
 
-**762+ tests** | **Zero dependencies** | **41 slash commands** | **10 specialized agents**
+**1,500+ tests** | **Zero dependencies** | **41 slash commands** | **10 specialized agents**
 
 ---
 
@@ -40,12 +40,19 @@ Each command handles orchestration, agent spawning, and state management automat
 - **Wave-Based Parallel Execution** — Plans organized into dependency waves; independent plans run concurrently.
 - **TDD Execution Engine** — Orchestrator-enforced RED/GREEN/REFACTOR gates with anti-pattern detection.
 - **Quality Gates** — Severity-classified findings, test gating, requirement verification, A-F scoring, intent drift detection, stuck/loop recovery.
+- **SQLite-First Data Layer** — Planning cache, memory stores, and session state backed by SQLite with write-through consistency and Map fallback for older Node versions.
+- **Decision Engine** — Deterministic decision functions replacing LLM calls for routing, classification, and gating decisions with confidence-scored outputs.
+- **CLI Tool Integration** — ripgrep, fd, jq, yq, bat, and GitHub CLI with auto-detection, 5-minute TTL caching, and graceful Node.js fallbacks.
+- **Skill System** — Install, validate, and manage community skills with a 41-pattern security scanner, audit logging, and GitHub fetch pipeline.
+- **Lesson Analysis Pipeline** — Structured lesson capture, pattern grouping via `lessons:analyze`, advisory suggestions, automatic compaction, and deviation auto-capture.
+- **Local Agent Overrides** — Customize agent behavior per-project with `agent:override`, diff against upstream, and selective sync.
+- **Research Quality Scoring** — `research:score` returns structured quality profiles, `research:gaps` extracts actionable gap lists, multi-source conflict detection.
 - **AST Intelligence** — JS/TS parsing, repo maps, per-function complexity metrics, dependency graphs with cycle detection.
-- **Session Memory** — Decisions, lessons, bookmarks, and trajectory journals persist across sessions and `/clear`.
+- **Session Memory** — Decisions, lessons, bookmarks, and trajectory journals persist across sessions and `/clear`. SQL-backed search and dual-write JSON backup.
 - **Git Integration** — Per-task atomic commits, session diffs, rollback info, TDD trailers, branch-per-phase strategies, automated GitHub CI pipeline.
 - **Context Efficiency** — Agent context manifests, compact serialization, task-scoped injection, bounded token budgets.
 - **Model Profiles** — Three tiers (quality/balanced/budget) controlling which model handles each agent role.
-- **RAG Research** — YouTube search, NotebookLM synthesis, multi-source orchestration with graceful degradation.
+- **Visualization** — Burndown charts, velocity sparklines, ASCII progress bars, quality score displays, and terminal dashboard.
 
 ---
 
@@ -53,7 +60,7 @@ Each command handles orchestration, agent spawning, and state management automat
 
 ```bash
 npm install && npm run build    # Install deps and build CLI
-npm test                        # Run full test suite (762+ tests)
+npm test                        # Run full test suite (1,500+ tests)
 ./deploy.sh                     # Deploy to live host editor config
 ```
 

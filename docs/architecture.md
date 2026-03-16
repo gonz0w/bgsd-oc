@@ -17,7 +17,7 @@ This means:
 - AI agents never parse markdown directly — they get clean JSON from gsd-tools
 - State changes are atomic — gsd-tools handles file writes and git commits
 - Workflows are portable — any LLM that follows markdown instructions can execute them
-- Testing is straightforward — 762 tests cover the deterministic layer
+- Testing is straightforward — 1,500+ tests cover the deterministic layer
 
 ---
 
@@ -107,6 +107,17 @@ src/
     codebase.js            # Codebase intelligence (incremental analysis, conventions)
     env.js                 # Environment detection (26 language patterns)
     mcp.js                 # MCP server operations
+    agent.js               # Local agent overrides (list-local, override, diff, sync)
+    skills.js              # Skill discovery & security (list, install, validate, remove)
+    lessons.js             # Lesson analysis pipeline (capture, analyze, suggest, compact)
+    research.js            # Research scoring (score, gaps)
+    decisions.js           # Decision engine (list, inspect, evaluate, savings)
+    audit.js               # Codebase audit framework
+    tools.js               # CLI tool integration (detect, status)
+    measure.js             # Measurement & metrics
+    runtime.js             # Runtime detection (Bun, Node)
+    milestone.js           # Milestone lifecycle operations
+    cache.js               # Cache management (warm, stats, clear)
   lib/
     config.js              # Config loading with caching, schema validation, migration
     constants.js           # COMMAND_HELP, CONFIG_SCHEMA, MODEL_PROFILES
@@ -125,14 +136,55 @@ src/
     profiler.js            # Performance profiling
     cache.js               # L1/L2 caching (Map + SQLite)
     regex-cache.js         # Compiled regex cache
+    db.js                  # SQLite DataStore (WAL mode, schema versioning, Map fallback)
+    decision-rules.js      # Deterministic decision functions with confidence scoring
+    debug.js               # Debug/trace utilities
+    error.js               # Structured error classes with recovery suggestions
+    wizard.js              # Interactive guided prompt wizards
     review/
       stage-review.js      # Two-stage review (spec+quality)
       severity.js          # BLOCKER/WARNING/INFO classification
     recovery/
       stuck-detector.js    # Stuck/loop detection + recovery
+      autoRecovery.js      # Autonomous deviation recovery with lesson capture
+    nl/                    # Natural language parsing (v11.0)
+      intent-classifier.js # Intent classification from free-text input
+      param-extractor.js   # Parameter extraction from natural language
+      fuzzy-resolver.js    # Fuzzy command matching with disambiguation
+      alias-registry.js    # Smart command aliases
+      (+ 6 more modules)
+    viz/                   # Visualization (v11.0)
+      dashboard.js         # Full-screen terminal dashboard
+      burndown.js          # ASCII burndown charts
+      sparkline.js         # Velocity sparkline rendering
+      progress.js          # Progress bar visualization
+      quality.js           # Quality score display
+      milestone.js         # Milestone completion visualization
+    cli-tools/             # External tool wrappers (v12.1)
+      detect.js            # Unified tool detection with 5-min cache
+      ripgrep.js           # ripgrep --json integration
+      fd.js                # fd --glob file discovery
+      jq.js                # JSON query integration
+      yq.js                # YAML processing
+      bat.js               # Syntax-highlighted file viewing
+      gh.js                # GitHub CLI wrapper
+      fallback.js          # Node.js fallback implementations
+      install-guidance.js  # Cross-platform install instructions
+      (+ 1 more module)
+  plugin/                  # Host editor plugin system
+    index.js               # Plugin entry point
+    project-state.js       # Project state provider
+    context-builder.js     # Context injection for workflows
+    tool-registry.js       # Tool registration and routing
+    token-budget.js        # Token budget enforcement
+    idle-validator.js      # Idle-time validation runner
+    stuck-detector.js      # Agent stuck detection
+    advisory-guardrails.js # Advisory safety guardrails
+    command-enricher.js    # Command context enrichment
+    (+ 8 more modules)
 ```
 
-**Build:** esbuild bundles all source into a single `bin/gsd-tools.cjs` file (~1058KB). Zero runtime dependencies in the built artifact.
+**Build:** esbuild bundles all source into a single `bin/gsd-tools.cjs` file. Zero runtime dependencies in the built artifact.
 
 **Lazy loading:** Command modules are loaded on demand via `lazyState`, `lazyRoadmap`, etc. — only the needed module is loaded per invocation.
 
@@ -386,14 +438,28 @@ VERIFICATION.md      -> pass / gaps_found / human_needed
 
 ---
 
-## Caching Layer
+## Data Layer
 
-Two-layer cache for hot-path file reads (v8.0):
+### SQLite-First Architecture (v12.0)
+
+bGSD uses SQLite as its primary data store via Node's built-in `node:sqlite` module (`DatabaseSync`). The database lives at `.planning/.cache.db` with WAL mode for concurrent access.
+
+**Three data tiers:**
+
+1. **Planning cache** — Phases, plans, requirements cached with write-through consistency. Invalidated by git-hash + mtime checks.
+2. **Memory stores** — Decisions, lessons, trajectories, bookmarks stored in SQLite with dual-write to JSON files (sacred data backup).
+3. **Session state** — Current execution state persisted in SQLite; STATE.md is a generated view.
+
+**Fallback:** Gracefully degrades to in-memory Map on Node <22.5. All SQLite features disabled silently — zero crashes, zero warnings.
+
+### File Caching Layer (v8.0)
+
+Two-layer cache for hot-path file reads:
 
 - **L1 (in-memory Map)** — Per-invocation cache. Instant hits for repeated reads within a single CLI call.
-- **L2 (SQLite via `node:sqlite`)** — Persistent cache across CLI invocations using Node's built-in `DatabaseSync`. Keyed by file path + mtime for automatic invalidation.
+- **L2 (SQLite)** — Persistent cache across CLI invocations. Keyed by file path + mtime for automatic invalidation.
 
-Falls back gracefully to Map-only on Node <22.5. Wired into `cachedReadFile()` for hot-path commands (phase, verify, misc). Explicit cache invalidation on all gsd-tools file writes ensures immediate consistency.
+Explicit cache invalidation on all gsd-tools file writes ensures immediate consistency.
 
 **Commands:**
 ```bash
@@ -401,6 +467,21 @@ gsd-tools cache warm          # Pre-populate cache with .planning/ files
 gsd-tools cache stats         # Cache hit/miss statistics
 gsd-tools cache clear         # Clear the SQLite cache
 ```
+
+### Decision Engine (v11.3)
+
+Deterministic decision functions that replace LLM calls for routing, classification, and gating decisions:
+
+```
+decision-rules.js
+  |
+  +-- 18+ pure functions (model selection, verification routing, research gate, ...)
+  +-- Confidence scoring: HIGH (auto-apply), MEDIUM (suggest), LOW (defer to LLM)
+  +-- Registry pattern: decisions list / decisions inspect <name> / decisions evaluate
+  +-- Consumed by 13 workflows via pre-computed decision blocks
+```
+
+This reduces LLM token usage by eliminating round-trips for decisions that can be made deterministically from project state.
 
 ---
 

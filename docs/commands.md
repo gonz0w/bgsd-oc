@@ -1104,6 +1104,71 @@ Enable profiling for any command: `GSD_PROFILE=1 node bin/gsd-tools.cjs <command
 gsd-tools agent-audit         # Validate RACI matrix, token budgets, agent manifests
 ```
 
+#### `decisions` — Decision Engine (v11.3)
+
+Query and debug the deterministic decision engine that replaces LLM calls.
+
+```bash
+gsd-tools decisions list                    # List all registered decision functions
+gsd-tools decisions inspect <name>          # Show decision function details and inputs
+gsd-tools decisions evaluate                # Run all decisions against current project state
+gsd-tools decisions savings                 # Per-workflow LLM step savings report
+```
+
+#### `summary` — Programmatic Summary Generation (v11.3)
+
+```bash
+gsd-tools summary generate <plan-path>     # Pre-build SUMMARY.md from git/plan data
+```
+
+#### `detect` — CLI Tool Detection (v12.1)
+
+```bash
+gsd-tools detect tools                     # Detect available CLI tools (ripgrep, fd, jq, yq, bat, gh)
+```
+
+#### `agent` — Local Agent Overrides (v13.0)
+
+Customize agent behavior per-project without modifying upstream agent definitions.
+
+```bash
+gsd-tools agent list-local                 # List project-local agent overrides
+gsd-tools agent override <agent-type>      # Create local override for an agent
+gsd-tools agent diff <agent-type>          # Diff local override against upstream
+gsd-tools agent sync <agent-type>          # Sync local override from upstream changes
+```
+
+#### `lessons` — Lesson Analysis Pipeline (v13.0)
+
+Structured lesson capture, analysis, and improvement suggestions from past executions.
+
+```bash
+gsd-tools lessons capture <text>           # Capture a structured lesson
+gsd-tools lessons list [--phase N]         # List lessons (optionally filtered by phase)
+gsd-tools lessons analyze                  # Group lessons by pattern, surface trends
+gsd-tools lessons suggest                  # Generate advisory improvement suggestions
+gsd-tools lessons compact                  # Deduplicate redundant lessons
+gsd-tools lessons deviation-capture        # Auto-capture Rule-1 deviation recoveries
+```
+
+#### `skills` — Skill Discovery & Security (v13.0)
+
+Install, validate, and manage community skills with security scanning.
+
+```bash
+gsd-tools skills list                      # List installed skills
+gsd-tools skills install <github-url>      # Install skill from GitHub (with security scan + confirmation)
+gsd-tools skills validate                  # Validate all installed skills against 41-pattern security scanner
+gsd-tools skills remove <name>             # Remove an installed skill
+```
+
+#### `research` — Research Quality Scoring (v13.0)
+
+```bash
+gsd-tools research score <file>            # Return structured quality profile for a research document
+gsd-tools research gaps <file>             # Extract actionable gap list from research document
+```
+
 ---
 
 ## Related Documentation

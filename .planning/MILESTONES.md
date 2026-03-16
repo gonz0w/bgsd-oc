@@ -661,3 +661,24 @@
 - Intent classification and parameter extraction modules with 31 phrase command registry
 - Fuzzy matching resolver with disambiguation and contextual help fallback
 
+
+## v13.0 Closed-Loop Agent Evolution (Shipped: 2026-03-16)
+
+**Phases completed:** 6 phases, 12 plans, 0 tasks
+
+**Key accomplishments:**
+- YAML validation, content sanitization, and LCS-based unified diff utilities plus agent:list-local scope/drift table command
+- agent:override copies global agent to .opencode/agents/ with name: field injection and YAML validation; agent:diff shows unified diff with silent exit when identical
+- agent:sync command with --accept/--reject flags for upstream sync, and local_agent_overrides array in bgsd-context enrichment
+- 41-pattern security scanner + skills:list + skills:validate in src/commands/skills.js with severity-first findings and hard block on dangerous patterns
+- GitHub API fetch + 41-pattern security gate + confirmation pipeline for skills:install, plus skills:remove and append-only audit logging in src/commands/skills.js
+- Full CLI routing for skills:list/install/validate/remove, bgsd-context installed_skills field, COMMAND_TREE in discovery, and Step 8.5 skill discovery in new-milestone workflow
+- Fixed autonomousRecoveries typo in autoRecovery.js + added lessons:deviation-capture CLI with Rule-1 filter, 3-per-milestone cap, and non-blocking error handling
+- Deviation auto-capture hook wired into execute-plan.md + complete help/discovery metadata for lessons:deviation-capture
+- RESEARCH.md quality profile engine: 7-field JSON scoring (source count, confidence, gaps, conflicts) with research-score.json cache and research:gaps convenience extractor
+- research:score and research:gaps wired into help, discovery, and keyword aliases; new-milestone.md Step 8 surfaces LOW-confidence files with HIGH/MEDIUM gap filter and non-blocking re-research prompt
+- Structured lesson capture with LESSON_SCHEMA validation, free-form migration to type:environment, filtered listing, and enhanced memory read for the lessons store
+- Lesson analysis pipeline with pattern detection (analyze), advisory suggestions (suggest), deduplication (compact), and non-blocking hooks in verify-work and complete-milestone
+
+---
+

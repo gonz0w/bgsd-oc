@@ -20,7 +20,15 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 | v8.0 | Performance & Architecture | 5 | ~10 | 3 days | 762 | 1058KB |
 | v9.2 | CLI Tool Integrations & Runtime Modernization | 4 | ~10 | 2 days | 762 | 1100KB |
 | v9.3 | Quality, Performance & Agent Sharpening | 5 | ~12 | 3 days | 762 | 1150KB |
-| **Total** | | **68** | **~154** | **~20 days** | | |
+| v10.0 | Agent Intelligence & UX | 7 | ~12 | 1 day | 762 | — |
+| v11.0 | Natural Interface & Insights | 5 | ~9 | 1 day | — | — |
+| v11.1 | Command Execution & Polish | 3 | ~7 | 1 day | — | — |
+| v11.2 | Code Cleanup | 4 | ~8 | 1 day | — | — |
+| v11.3 | LLM Offloading | 4 | 9 | 1 day | — | — |
+| v12.0 | SQLite-First Data Layer | 6 | 16 | 2 days | 1008 | — |
+| v12.1 | Tool Integration & Agent Enhancement | 5 | 13 | 1 day | 1398 | — |
+| v13.0 | Closed-Loop Agent Evolution | 5 | 12 | 1 day | 1504 | — |
+| **Total** | | **107** | **~242** | **~25 days** | | |
 
 ---
 
@@ -203,6 +211,246 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 
 ---
 
+## v13.0 Closed-Loop Agent Evolution
+
+**Shipped:** 2026-03-15 | **Phases:** 129-133 | **Plans:** 12
+**Tests:** 1,504 | **Velocity:** ~14 min/plan
+
+**Goal:** Close the agent improvement loop — let agents customize themselves per-project, learn from past executions, discover community skills, and auto-capture deviation recoveries.
+
+**What was delivered:**
+
+### Agent Overrides (Phase 129)
+- **Local agent lifecycle** — `agent:list-local`, `agent:override`, `agent:diff`, `agent:sync` commands for project-specific agent customization
+- **YAML validation** — Frontmatter validation and content sanitization against system-prompt mangling
+- **bgsd-context integration** — `local_agent_overrides` field injected into workflow context
+
+### Lesson Analysis Pipeline (Phase 130)
+- **Structured lesson schema** — Migration from free-form text to structured capture with category, severity, and tags
+- **Analysis commands** — `lessons:analyze` groups patterns across phases, `lessons:suggest` generates advisory improvements
+- **Workflow hooks** — Auto-invoked in verify-work and complete-milestone workflows
+- **Compaction** — `lessons:compact` deduplicates redundant lessons
+
+### Skill Discovery & Security (Phase 131)
+- **41-pattern security scanner** — Detects shell injection, eval, network access, filesystem traversal in skill files
+- **Install pipeline** — `skills:install` fetches from GitHub with content diff and human confirmation gate
+- **Audit logging** — Append-only `skill-audit.json` tracks all install/remove operations
+- **Full lifecycle** — `skills:list`, `skills:validate`, `skills:remove` commands
+- **New-milestone integration** — Step 8.5 discovers and suggests relevant skills
+
+### Deviation Auto-Capture (Phase 132)
+- **Rule-1 recovery capture** — Auto-captures autonomous recovery patterns as structured lessons
+- **3-per-milestone cap** — Prevents lesson flooding from repetitive deviations
+- **Workflow hook** — Integrated into execute-plan.md post-completion
+
+### Enhanced Research (Phase 133)
+- **Structured quality profiles** — `research:score` returns multi-dimensional quality assessment (not single grade)
+- **Gap surfacing** — `research:gaps` extracts actionable gap lists from research documents
+- **Multi-source conflict detection** — Flags contradictions across research sources
+- **New-milestone integration** — Research quality profile displayed after RESEARCH COMPLETE banner
+
+---
+
+## v12.1 Tool Integration & Agent Enhancement
+
+**Shipped:** 2026-03-15 | **Phases:** 124-128 | **Plans:** 13
+**Tests:** 1,398 | **Velocity:** ~14 min/plan
+
+**Goal:** Integrate external CLI tools for faster operations and enhance agent collaboration with tool-aware routing and structured handoff contracts.
+
+**What was delivered:**
+
+### Tool Detection (Phase 124)
+- **Unified detect.js** — Single detection module for 6 CLI tools (ripgrep, fd, jq, yq, bat, gh) with 5-minute file cache
+- **Cross-platform PATH resolution** — macOS, Linux, and Windows support with install guidance
+
+### Core Tools (Phase 125)
+- **ripgrep** — <100ms search on 10K+ file repos with `--json` structured output
+- **fd** — 20x faster file discovery with `--glob` pattern handling
+- **jq** — JSON query and transformation with streaming support
+- **Graceful fallbacks** — Node.js alternatives when tools unavailable
+
+### Extended Tools (Phase 126)
+- **yq** — YAML processing integration
+- **bat** — Syntax-highlighted file viewing
+- **gh** — GitHub CLI wrapper with 2.88.0 version blocklist
+- **Config toggles** — Per-tool enable/disable in config.json
+
+### Agent Routing (Phase 127)
+- **3 decision functions** — Tool-aware routing for search, file discovery, and data transformation
+- **tool_availability enricher** — Injects detected tool state into agent context
+
+### Agent Collaboration (Phase 128)
+- **Capability resolution** — `resolveAgentCapabilityLevel` scores agent effectiveness based on available tools
+- **Phase dependencies** — `resolvePhaseDependencies` determines execution ordering
+- **9 handoff contracts** — Structured input/output contracts for all agent-pair handoffs
+- **Context filtering** — Capability-aware context reduction (25%+ token savings)
+
+---
+
+## v12.0 SQLite-First Data Layer
+
+**Shipped:** 2026-03-15 | **Phases:** 118-123 | **Plans:** 16
+**Tests:** 1,008 | **Velocity:** ~15 min/plan
+
+**Goal:** Move bGSD's data layer from file-only to SQLite-first with write-through consistency, accelerated enrichment, and SQL-backed memory stores.
+
+**What was delivered:**
+
+### Foundation (Phase 118)
+- **DataStore class** — SQLite via `node:sqlite` DatabaseSync with WAL mode, busy timeout, and automatic schema versioning/migration
+- **Map fallback** — Graceful degradation to in-memory Map on Node <22.5
+
+### Planning Tables (Phase 119)
+- **Write-through cache** — Roadmap and plan parsers backed by SQLite with git-hash + mtime invalidation
+- **`.planning/.cache.db`** — Persistent planning cache database
+
+### Enricher Acceleration (Phase 120)
+- **Zero-redundancy enricher** — `parsePlans` and `listSummaryFiles` called exactly once per invocation
+- **<50ms warm cache** — Enricher runs under 50ms with warm SQLite cache
+
+### Memory Migration (Phase 121)
+- **Dual-write architecture** — Sacred data (decisions, lessons, trajectories, bookmarks) written to both SQLite and JSON
+- **SQL-backed search** — Full-text search across memory stores via SQL queries
+
+### Decision Rules (Phase 122)
+- **6 new decision functions** — Model selection, verification routing, research gate, phase readiness, milestone completion, commit strategy
+- **model_profiles table** — Decision rules consume SQLite state directly
+
+### Session State (Phase 123)
+- **SQLite session persistence** — Session state stored in database
+- **STATE.md as generated view** — STATE.md becomes a rendered output from SQLite state
+
+---
+
+## v11.3 LLM Offloading
+
+**Shipped:** 2026-03-13 | **Phases:** 110-113 | **Plans:** 9
+**Velocity:** ~15 min/plan
+
+**Goal:** Replace wasteful LLM calls with deterministic decision functions, and pre-build SUMMARY.md from git data so LLMs only fill judgment sections.
+
+**What was delivered:**
+
+### Audit Framework (Phase 110)
+- **Codebase scan** — Identified LLM-offloadable decisions across all workflows
+- **Inline replacements** — Direct substitution of LLM calls with deterministic logic
+
+### Decision Engine (Phase 111)
+- **decision-rules.js** — 12 pure decision functions with confidence scoring (HIGH/MEDIUM/LOW)
+- **Decision registry** — `decisions` CLI namespace with list/inspect/evaluate subcommands
+- **85 contract tests** — Full coverage of decision function behavior
+
+### Workflow Integration (Phase 112)
+- **13 workflows wired** — Decision consumption blocks with fallback logic in 13 workflows
+- **Savings report** — `decisions:savings` shows per-workflow LLM step reduction
+
+### Summary Generation (Phase 113)
+- **`summary:generate`** — Pre-builds SUMMARY.md from git history and plan metadata
+- **LLM fill** — LLM only writes judgment sections (50%+ reduction in summary generation cost)
+
+---
+
+## v11.2 Code Cleanup
+
+**Shipped:** 2026-03-12 | **Phases:** 106-109 | **Plans:** ~8
+
+**Goal:** Systematic codebase cleanup — remove dead code, consolidate duplicates, eliminate unused exports.
+
+**What was delivered:**
+- **Code audit** — Removed verify:orphans command and performance profiler (-14.5KB bundle reduction)
+- **AST-based inventory** — Export/import analysis across all modules; confirmed no dead code
+- **Duplicate detection** — jscpd-based analysis; decided clarity-over-DRY for remaining similarities
+- **New verification commands** — `verify:handoff` and `verify:agents` CLI commands
+- **Dead route removal** — Removed orphaned ci.js, dead routes, deduplicated standalone commands
+
+---
+
+## v11.1 Command Execution & Polish
+
+**Shipped:** 2026-03-12 | **Phases:** 103-105 | **Plans:** ~7
+
+**Goal:** Make slash commands execute immediately without clarification prompts, with smart defaults and clear error messages.
+
+**What was delivered:**
+- **Direct command routing** — Bypass flags for NL modules, commands execute without asking "did you mean?"
+- **60% confidence threshold** — All 77 command routes tested above threshold
+- **Smart defaults** — `--defaults` flag for zero-prompt execution, `--exact` for deterministic override
+- **Context boosting** — Phase-matching context boost and user choice learning
+- **Error clarity** — Command confusion suggestions with actionable error messages
+
+---
+
+## v11.0 Natural Interface & Insights
+
+**Shipped:** 2026-03-11 | **Phases:** 98-102 | **Plans:** ~9
+
+**Goal:** Add natural language parsing and visualization capabilities so users can type freely and see project state visually.
+
+**What was delivered:**
+
+### Natural Language (Phases 98-99)
+- **Intent classification** — 31-phrase command registry with parameter extraction
+- **Fuzzy resolver** — Disambiguation with contextual help fallback
+- **Multi-intent detection** — Handles compound requests ("plan and execute phase 3")
+- **Smart aliases** — Common phrases resolve to commands
+
+### Visualization (Phases 100-101)
+- **ASCII progress bars** — Phase and milestone progress display
+- **Quality score display** — Visual A-F grade rendering
+- **Burndown charts** — Ideal vs actual plan completion tracking
+- **Velocity sparklines** — Session trend visualization
+- **Terminal dashboard** — Full-screen dashboard with keyboard navigation
+
+### Reporting (Phase 102)
+- **Milestone summaries** — Aggregated completion reports
+- **Velocity computation** — Plans/day metrics with historical comparison
+
+---
+
+## v10.0 Agent Intelligence & UX
+
+**Shipped:** 2026-03-11 | **Phases:** 91-97 | **Plans:** ~12
+
+**Goal:** Make agents smarter — better planning decisions, execution recovery, verification intelligence, and interactive workflows with rich terminal output.
+
+**What was delivered:**
+
+### Rich TTY Output (Phase 91)
+- **Color-coded formatting** — Spinner, ProgressTracker, and branded output via format.js
+- **Structured errors** — Error classes with recovery suggestions (error.js)
+- **Debug utilities** — debug.js with trace, context-dump capabilities
+
+### Planning Intelligence (Phase 92)
+- **Dependency detection** — Automatic identification of task dependencies
+- **Task sizing** — Heuristic task complexity estimation
+- **Parallelization analysis** — Optimal wave assignment suggestions
+
+### Verification Intelligence (Phase 93)
+- **Regression detection** — Identifies regressions across plan executions
+- **Edge case suggestions** — Recommends untested edge cases
+- **Coverage analysis** — Tracks verification coverage across requirements
+
+### Execution Intelligence (Phase 94)
+- **Autonomous deviation recovery** — Self-corrects when execution drifts from plan
+- **Checkpoint decisions** — Automated checkpoint type selection
+- **Loop detection** — Enhanced stuck/loop identification with recovery strategies
+
+### Interactive Workflows (Phase 95)
+- **Guided prompts** — Wizard-style workflows for complex operations
+- **Abort handling** — Clean abort with state preservation
+
+### Multi-Agent Collaboration (Phase 96)
+- **Structured handoffs** — Typed context objects passed between agents
+- **Shared context registry** — Central registry for cross-agent context
+- **Contract verification** — Validates handoff contract compliance
+
+### UX Polish (Phase 97)
+- **Contextual help** — Autocomplete hints and command suggestions
+- **Bundle reduction** — Optimized output size
+
+---
+
 ## v6.0 UX & Developer Experience
 
 **Shipped:** 2026-02-27 | **Phases:** 30-36 | **Plans:** 11
@@ -319,9 +567,14 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 2026-03-01  v7.1 shipped
 2026-03-01  v8.0 started (Performance & Architecture)
 2026-03-03  v8.0 shipped
+2026-03-10  v9.2 shipped, v9.3 shipped
+2026-03-11  v10.0 shipped, v11.0 shipped
+2026-03-12  v11.1 shipped, v11.2 shipped
+2026-03-13  v11.3 shipped (LLM Offloading)
+2026-03-15  v12.0 shipped, v12.1 shipped, v13.0 shipped
 ```
 
-Total: 8 milestones shipped, 55 phases, ~122 plans, ~27 hours execution time across ~13 days.
+Total: 20 milestones shipped, 107 phases, ~242 plans, 1,504 tests across ~25 days.
 
 ---
 

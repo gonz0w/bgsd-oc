@@ -2,29 +2,29 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-three versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), and v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL).
+A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-four versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), and v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling).
 
 ## Core Value
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v13.0 Closed-Loop Agent Evolution
-
-**Goal:** Enable agents and skills to improve continuously from project experience — local agent overrides, lesson-driven improvement suggestions, agentskills.io discovery, and enhanced research workflows.
-
-**Target features:**
-- Project-local agent overrides (`.planning/agents/` silently replaces global agents per-project)
-- Lesson-driven agent improvement (lessons.md patterns → structured agent update suggestions)
-- Workflow hooks for improvement (verify-work + complete-milestone surface agent improvement opportunities)
-- Deviation recovery auto-capture (winning patterns after 3-failure recovery → lesson entry)
-- Skill discovery from agentskills.io (query user to install relevant skills during milestone workflows)
-- Enhanced research workflow (better multi-source synthesis, research quality scoring)
-
 ## Current State
 
-**Current milestone:** v13.0 Closed-Loop Agent Evolution (in progress)
+**Last shipped:** v13.0 Closed-Loop Agent Evolution (2026-03-15)
 
-**Last shipped:** v12.1 Tool Integration & Agent Enhancement (2026-03-15)
+<details>
+<summary>Previous: v13.0 Closed-Loop Agent Evolution (shipped 2026-03-15)</summary>
+
+- Project-local agent overrides (`agent:list-local`, `agent:override`, `agent:diff`, `agent:sync`) with YAML validation, content sanitization, and LCS-based unified diff
+- Structured lesson schema with `lessons:capture`, `lessons:list`, `lessons:analyze`, `lessons:suggest`, `lessons:compact` — migration of free-form lessons to `type:environment`
+- Security-first skill discovery: 41-pattern security scanner, GitHub fetch, confirmation gate, audit logging (`skills:install`, `skills:remove`, `skills:validate`, `skills:list`)
+- Deviation recovery auto-capture: Rule-1-only filter, 3-per-milestone cap, non-blocking `lessons:deviation-capture` wired into execute-phase
+- Enhanced research quality profiling: `research:score` with 7-field JSON profile, conflict detection, `research:gaps` extractor, new-milestone integration
+- Non-blocking workflow hooks: verify-work and complete-milestone surface `lessons:suggest` advisory
+- bgsd-context enrichment: `local_agent_overrides` and `installed_skills` fields added
+- 1587 tests (1586 passing); 33/33 requirements delivered across 5 categories
+
+</details>
 
 <details>
 <summary>Previous: v12.1 Tool Integration & Agent Enhancement (shipped 2026-03-15)</summary>
@@ -245,9 +245,17 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 - ✓ tool_availability in bgsd-context enrichment and silent capability-aware context filtering — v12.1
 - ✓ 9 agent pair handoff contracts with rich/minimal tool context split and handoff_tool_context enricher field — v12.1
 
+- ✓ Project-local agent overrides with YAML validation, content sanitization, LCS diff, and sync lifecycle — v13.0
+- ✓ Structured lesson schema with capture, migration, list, analyze, suggest, and compact commands — v13.0
+- ✓ Non-blocking workflow hooks surfacing lesson suggestions in verify-work and complete-milestone — v13.0
+- ✓ Security-first skill discovery with 41-pattern scanner, GitHub fetch, confirmation gate, and audit logging — v13.0
+- ✓ bgsd-context enrichment with local_agent_overrides and installed_skills fields — v13.0
+- ✓ Deviation recovery auto-capture with Rule-1 filter, 3-per-milestone cap, and non-blocking error handling — v13.0
+- ✓ Enhanced research quality profiling with 7-field JSON score, conflict detection, and gap extraction — v13.0
+
 ### Active
 
-(v13.0 requirements defined in .planning/REQUIREMENTS.md)
+(No active milestone — run `/bgsd-new-milestone` to start next)
 
 ### Out of Scope
 
@@ -264,7 +272,7 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ## Context
 
-Shipped v1.0 through v12.1. 1565 tests (all passing), 52 src/ modules, ~871KB bundle, esbuild bundler.
+Shipped v1.0 through v13.0. 1587 tests (1586 passing), 52 src/ modules, ~871KB bundle, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
@@ -336,6 +344,16 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 | resolvePhaseDependencies uses Kahn topological sort | Standard algorithm; declared depends_on always wins | Good — deterministic, extensible |
 | Rich vs minimal handoff tool context | Critical pairs (planner→executor, researcher→planner) get full context; 7 others get count+level | Good — reduces noise for non-critical pairs |
 | scopeContextForAgent strips silently | Agents never know what was removed; filtering is a system concern | Good — no agent behavior changes |
+| LCS DP for agent diff | O(mn) acceptable for agent files (<500 lines), avoids external diff library | Good — zero-dependency unified diff |
+| sanitizeAgentContent regex lookbehind | Excludes path contexts from editor name replacement | Good — preserves paths while sanitizing |
+| File-shadowing agent overrides only | OC native model; merge produces "rule soup" | Good — clean per-project overrides |
+| type:environment sentinel for migrated lessons | Downstream analysis excludes legacy entries by checking type | Good — clean separation of old/new |
+| Dangerous verdict is hard block | No force/override option for security scanner dangerous findings | Good — security is non-negotiable |
+| --confirm pattern for skill install | Matches agent:sync --accept/--reject; agent handles Y/N interaction | Good — CLI-compatible |
+| deviation-recovery as 5th lesson type | Reuses validateLesson() pipeline without schema changes | Good — additive, no breaking change |
+| Rule-1-only deviation capture filter | Silently skips Rules 2, 3, 4; dual-layer prevention in workflow+CLI | Good — no noise from environmental failures |
+| Composite negative-signal research scoring | 5 signals, >= 3 = LOW confidence | Good — nuanced quality assessment |
+| Cache-first research:score/gaps | research:score writes JSON, research:gaps reads it | Good — decoupled commands |
 
 ---
 
@@ -343,4 +361,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-15 after v13.0 milestone started*
+*Last updated: 2026-03-15 after v13.0 milestone completed*
