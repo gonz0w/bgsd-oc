@@ -72,7 +72,7 @@ Phases 134 → 135 (after 134) → 136 (parallel with 134–135) → 137 (after 
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 134. Measurement Infrastructure & Baseline | 2/2 | Complete   | 2026-03-16 | - |
+| 134. Measurement Infrastructure & Baseline | 2/2 | Complete    | 2026-03-16 | - |
 | 135. Workflow Compression & Section Markers | v14.0 | 0/TBD | Not started | - |
 | 136. Scaffold Infrastructure | v14.0 | 0/TBD | Not started | - |
 | 137. Section-Level Loading & Conditional Elision | v14.0 | 0/TBD | Not started | - |
