@@ -3,7 +3,7 @@
 **Updated:** 2026-03-15
 
 <objective>
-A high-performance, data-driven agent orchestration engine that manages and delivers high-quality software with continuously reducing token usage and improving performance.
+A high-performance agent orchestration engine that maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations.
 </objective>
 
 <users>
@@ -21,13 +21,20 @@ A high-performance, data-driven agent orchestration engine that manages and deli
 **DO-89:** Add decision functions for tool selection and multi-phase sequencing
 **DO-90:** Improve agent context efficiency through intelligent capability-based filtering
 
-### v13.0 — Closed-Loop Agent Evolution
+### v13.0 — Closed-Loop Agent Evolution (delivered)
 
 **DO-91:** Enable project-local agent overrides — projects can evolve their own agents without modifying global config
 **DO-92:** Create lesson-driven agent improvement — execution experience in lessons.md feeds structured suggestions to improve agents and skills
 **DO-93:** Integrate agentskills.io skill discovery — surface relevant skills during milestone workflows so agents grow their capabilities
 **DO-94:** Add workflow hooks for agent improvement — verify-work and complete-milestone surface improvement opportunities from patterns
 **DO-95:** Enhance research workflow — better multi-source synthesis and quality scoring for improved planning and execution
+
+### v14.0 — LLM Workload Reduction
+
+**DO-96:** Compress high-traffic workflows — top 10 workflows reduced by 40%+ tokens without losing behavioral logic
+**DO-97:** Pre-compute PLAN.md scaffolds — CLI generates task structure, file paths, and dependency data from roadmap; LLM fills only objectives and verification criteria
+**DO-98:** Pre-compute VERIFICATION.md scaffolds — CLI pre-fills success criteria, test results, and requirement status; LLM fills only judgment sections
+**DO-99:** Reduce per-invocation context load — workflows load only the sections relevant to their current step, not the full document
 </outcomes>
 
 <criteria>
@@ -39,13 +46,20 @@ A high-performance, data-driven agent orchestration engine that manages and deli
 **SC-69:** New decision functions for tool selection and phase sequencing with contract tests
 **SC-70:** Tool absence gracefully handled — workflows complete with degradation or clear guidance
 
-### v13.0 — Closed-Loop Agent Evolution
+### v13.0 — Closed-Loop Agent Evolution (achieved)
 
 **SC-71:** A project can override any global agent by placing a file in `.planning/agents/` — verified by enricher detection
 **SC-72:** Lessons from verify-work and complete-milestone generate structured agent improvement suggestions
 **SC-73:** Users can browse and install skills from agentskills.io during milestone initialization
 **SC-74:** Deviation recovery patterns auto-captured as lesson entries after 3-failure recovery cycles
 **SC-75:** Research workflow produces quality-scored output linking findings to planning decisions
+
+### v14.0 — LLM Workload Reduction
+
+**SC-76:** Top 10 workflows measured before/after with tokenx; average reduction >= 40%
+**SC-77:** `plan:generate` produces a PLAN.md scaffold with >= 60% of content pre-filled from CLI data
+**SC-78:** `verify:generate` produces a VERIFICATION.md scaffold with success criteria and test data pre-filled
+**SC-79:** Workflow compression preserves all behavioral logic — zero regressions in workflow execution
 </criteria>
 
 <constraints>
@@ -71,6 +85,14 @@ The data layer should be invisible to users — workflows feel faster, decisions
 </health>
 
 <history>
+### v14.0 — 2026-03-16
+- **Updated** objective: Sharpened from "data-driven" to "maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations"
+- **Archived** v13.0 outcomes (DO-91 through DO-95) — all delivered
+- **Archived** v13.0 criteria (SC-71 through SC-75) — all achieved
+- **Added** outcomes: DO-96 through DO-99 for workflow compression, scaffold generation, context reduction
+- **Added** criteria: SC-76 through SC-79 for v14.0 verification
+  - Reason: Milestone v14.0 initiated — LLM workload reduction, shifting admin work to CLI
+
 ### v13.0 — 2026-03-15
 - **Added** outcomes: DO-91 through DO-95 for closed-loop agent evolution
 - **Added** criteria: SC-71 through SC-75 for v13.0 verification
@@ -100,6 +122,5 @@ The data layer should be invisible to users — workflows feel faster, decisions
 
 (See `.planning/archive/INTENT-vv12.0.md` for full history)
 </history>
-<!-- Highest outcome ID: DO-95 -->
-<!-- Highest criteria ID: SC-75 -->
-<!-- Highest outcome ID: OUT-0 -->
+<!-- Highest outcome ID: DO-99 -->
+<!-- Highest criteria ID: SC-79 -->

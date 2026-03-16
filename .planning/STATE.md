@@ -5,17 +5,17 @@
 See: `.planning/PROJECT.md` (updated 2026-03-15)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Between milestones — v13.0 complete, ready for next milestone
+**Current focus:** v14.0 LLM Workload Reduction — workflow compression and scaffold generation
 
 ## Current Position
 
-**Milestone:** None (v13.0 Closed-Loop Agent Evolution completed 2026-03-15)
-**Phase:** N/A
-**Current Plan:** N/A
-**Status:** Between milestones
-**Last Activity:** 2026-03-15
+**Milestone:** v14.0 LLM Workload Reduction
+**Phase:** Not started (defining requirements)
+**Current Plan:** —
+**Status:** Defining requirements
+**Last Activity:** 2026-03-16 — Milestone v14.0 started
 
-Progress: [██████████] 100% (v13.0 complete)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -117,6 +117,8 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-03-15
-**This session:** 2026-03-15 — Completed v13.0 milestone archival (PROJECT.md evolved, ROADMAP/REQUIREMENTS archived, DOCS artifact created, git tag v13.0)
+**This session:** 2026-03-16 — Started v14.0 LLM Workload Reduction milestone
 **Next steps:**
-1. Run `/bgsd-new-milestone` to start the next milestone
+1. Define requirements
+2. Create roadmap
+3. Begin execution with `/bgsd-discuss-phase` or `/bgsd-plan-phase`
