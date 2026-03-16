@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-16)
 
 **Milestone:** v14.0 LLM Workload Reduction
 **Phase:** 134 — Measurement Infrastructure & Baseline
-**Current Plan:** 02
-**Status:** Executing
-**Last Activity:** 2026-03-16 — Executed Phase 134 Plan 01 (workflow:baseline + workflow:compare + 21 tests)
+**Current Plan:** 02 ✓ Complete
+**Status:** Phase Complete
+**Last Activity:** 2026-03-16 — Executed Phase 134 Plan 02 (workflow:verify-structure + 14 tests)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [█░░░░░░░░░] 10%
 - v13.0 Phase 133 Plan 01: 8 min, 2 tasks, 4 files (research:score + research:gaps command handlers)
 - v13.0 Phase 133 Plan 02: 8 min, 2 tasks, 5 files (help/discovery wiring + new-milestone.md quality profile)
 - v14.0 Phase 134 Plan 01: 7 min, 2 tasks, 7 files (workflow:baseline + workflow:compare + structural fingerprint + 21 tests)
+- v14.0 Phase 134 Plan 02: 12 min, 2 tasks, 4 files (workflow:verify-structure + regression detection + 14 tests)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -66,6 +67,8 @@ Progress: [█░░░░░░░░░] 10%
 - [134-01]: Reuse measureAllWorkflows() from features.js (exported it) rather than duplicating measurement code
 - [134-01]: Structural fingerprint stores arrays of matched strings (not just counts) for richer future diffing
 - [134-01]: Workflow baselines named workflow-baseline-{timestamp}.json to distinguish from old baseline-{timestamp}.json
+- [134-02]: CLI-based unit tests (execSync + BGSD_PLUGIN_DIR) for verify-structure — direct stdout capture interferes with node:test runner
+- [134-02]: Fixed __dirname path in workflow.js: path.resolve(dirname, '..') not '../..' (bundled binary has bin/ as dirname)
 
 ### Blockers/Concerns
 
@@ -74,8 +77,7 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-03-16
-**This session:** 2026-03-16 — Executed Phase 134 Plan 01 (workflow:baseline + workflow:compare + 21 tests)
+**This session:** 2026-03-16 — Executed Phase 134 Plan 02 (workflow:verify-structure + 14 tests). Phase 134 COMPLETE.
 **Next steps:**
-1. Execute Phase 134 Plan 02 (workflow:verify-structure — structural regression detection)
-2. After Phase 134 complete, begin Phase 135 (workflow compression)
-3. Phase 136 (scaffold infrastructure) can run in parallel with 134–135
+1. Begin Phase 135 (workflow compression — top 10 workflows compressed 40%+, section markers)
+2. Phase 136 (scaffold infrastructure) can run in parallel with 135 (different files)

@@ -16,7 +16,7 @@
 
 ## Phases
 
-- [ ] **Phase 134: Measurement Infrastructure & Baseline** - Token measurement tooling, structural contract tests, and compression regression detection
+- [x] **Phase 134: Measurement Infrastructure & Baseline** - Token measurement tooling, structural contract tests, and compression regression detection (completed 2026-03-16)
 - [ ] **Phase 135: Workflow Compression & Section Markers** - Top 10 workflows prose-tightened 40%+, section markers added, shared blocks extracted to skill references
 - [ ] **Phase 136: Scaffold Infrastructure** - Pre-computed PLAN.md and VERIFICATION.md scaffolds with data/judgment separation following summary:generate pattern
 - [ ] **Phase 137: Section-Level Loading & Conditional Elision** - Enricher loads workflow sections per-step instead of full file; conditional steps elided when decisions indicate they don't apply
@@ -31,7 +31,7 @@
   1. User can run `workflow:baseline` and receive a JSON snapshot containing per-workflow token counts for all 44 workflows
   2. User can run `workflow:compare <snapshot-a> <snapshot-b>` and see per-workflow token deltas with a total reduction percentage
   3. User can run `workflow:verify-structure` and confirm that all workflows preserve their Task() calls, CLI commands, section markers, and question blocks — regressions produce explicit failures
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ### Phase 135: Workflow Compression & Section Markers
 **Goal**: Top 10 highest-traffic workflows are prose-tightened with section markers for selective loading, and shared blocks repeated across 3+ workflows are extracted to skill references — all verified against the Phase 134 baseline
@@ -72,7 +72,7 @@ Phases 134 → 135 (after 134) → 136 (parallel with 134–135) → 137 (after 
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 134. Measurement Infrastructure & Baseline | 0/2 | Planned    |  | - |
+| 134. Measurement Infrastructure & Baseline | 2/2 | Complete   | 2026-03-16 | - |
 | 135. Workflow Compression & Section Markers | v14.0 | 0/TBD | Not started | - |
 | 136. Scaffold Infrastructure | v14.0 | 0/TBD | Not started | - |
 | 137. Section-Level Loading & Conditional Elision | v14.0 | 0/TBD | Not started | - |
