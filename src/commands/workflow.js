@@ -102,9 +102,10 @@ function cmdWorkflowBaseline(cwd, raw) {
   }
 
   // Detect plugin path to read workflow files for structural fingerprinting
+  // __dirname in the bundled binary is bin/, so go up one level to project root
   let pluginDir = process.env.BGSD_PLUGIN_DIR;
   if (!pluginDir) {
-    pluginDir = path.resolve(__dirname, '..', '..');
+    pluginDir = path.resolve(__dirname, '..');
   }
   const workflowsDir = path.join(pluginDir, 'workflows');
 
@@ -360,8 +361,209 @@ function cmdWorkflowCompare(cwd, args, raw) {
   output(result, raw);
 }
 
+// ─── workflow:verify-structure ────────────────────────────────────────────────
+
+/**
+ * Verify all workflows against a baseline snapshot to detect structural regressions.
+ * Compares Task() calls, CLI commands, section markers, question blocks, and XML tags.
+ *
+ * Usage:
+ *   workflow:verify-structure [baseline-path]
+ *   - If baseline-path given: use it as reference
+ *   - If omitted: use most recent workflow-baseline-*.json from .planning/baselines/
+ *   - If no baseline found: error with instruction to run workflow:baseline first
+ *
+ * Exit code: sets process.exitCode = 1 if any workflow fails (allows cleanup before exit).
+ *
+ * @param {string} cwd - Current working directory
+ * @param {string[]} args - Positional args [baseline-path?]
+ * @param {boolean} raw - JSON output mode
+ */
+function cmdWorkflowVerifyStructure(cwd, args, raw) {
+  const baselinesDir = path.join(cwd, '.planning', 'baselines');
+
+  // Resolve baseline file
+  let baselinePath;
+  if (args && args.length >= 1) {
+    const provided = args[0];
+    baselinePath = path.isAbsolute(provided) ? provided : path.join(cwd, provided);
+    if (!fs.existsSync(baselinePath)) {
+      error(`Baseline file not found: ${args[0]}`);
+    }
+  } else {
+    // Find most recent workflow-baseline-*.json
+    if (!fs.existsSync(baselinesDir)) {
+      error('No baseline found. Run `workflow:baseline` first.');
+    }
+    const files = fs.readdirSync(baselinesDir)
+      .filter(f => f.startsWith('workflow-baseline-') && f.endsWith('.json'))
+      .sort()
+      .reverse();
+    if (files.length === 0) {
+      error('No baseline found. Run `workflow:baseline` first.');
+    }
+    baselinePath = path.join(baselinesDir, files[0]);
+  }
+
+  // Load baseline
+  let baseline;
+  try {
+    baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf-8'));
+  } catch (e) {
+    error(`Invalid baseline file (${baselinePath}): ${e.message}`);
+  }
+
+  // Detect plugin path to read workflow files
+  // __dirname in the bundled binary is bin/, so go up one level to project root
+  let pluginDir = process.env.BGSD_PLUGIN_DIR;
+  if (!pluginDir) {
+    pluginDir = path.resolve(__dirname, '..');
+  }
+  const workflowsDir = path.join(pluginDir, 'workflows');
+
+  const verifiedAt = new Date().toISOString();
+  const results = [];
+  let passed = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const baselineWorkflow of (baseline.workflows || [])) {
+    const wfName = baselineWorkflow.name;
+    const baselineStructure = baselineWorkflow.structure || {};
+
+    // Check if current workflow file exists
+    const currentPath = path.join(workflowsDir, wfName);
+    if (!fs.existsSync(currentPath)) {
+      // Workflow removed entirely = failure
+      const allMissing = [];
+      for (const call of (baselineStructure.task_calls || [])) {
+        allMissing.push({ type: 'task_call', value: call });
+      }
+      for (const cmd of (baselineStructure.cli_commands || [])) {
+        allMissing.push({ type: 'cli_command', value: cmd });
+      }
+      for (const marker of (baselineStructure.section_markers || [])) {
+        allMissing.push({ type: 'section_marker', value: marker });
+      }
+      for (const qb of (baselineStructure.question_blocks || [])) {
+        allMissing.push({ type: 'question_block', value: qb });
+      }
+      for (const tag of (baselineStructure.xml_tags || [])) {
+        allMissing.push({ type: 'xml_tag', value: tag });
+      }
+      results.push({ name: wfName, status: 'fail', missing: allMissing, removed: true });
+      failed++;
+      continue;
+    }
+
+    // Read current content and extract fingerprint
+    let currentStructure;
+    try {
+      const content = fs.readFileSync(currentPath, 'utf-8');
+      currentStructure = extractStructuralFingerprint(content);
+    } catch (e) {
+      debugLog('workflow.verify-structure', `fingerprint failed for ${wfName}`, e);
+      results.push({ name: wfName, status: 'fail', missing: [{ type: 'read_error', value: e.message }] });
+      failed++;
+      continue;
+    }
+
+    // Compare each element category — any removal is a failure
+    const missing = [];
+
+    // Task() calls
+    for (const call of (baselineStructure.task_calls || [])) {
+      if (!(currentStructure.task_calls || []).includes(call)) {
+        missing.push({ type: 'task_call', value: call });
+      }
+    }
+
+    // CLI commands
+    for (const cmd of (baselineStructure.cli_commands || [])) {
+      if (!(currentStructure.cli_commands || []).includes(cmd)) {
+        missing.push({ type: 'cli_command', value: cmd });
+      }
+    }
+
+    // Section markers
+    for (const marker of (baselineStructure.section_markers || [])) {
+      if (!(currentStructure.section_markers || []).includes(marker)) {
+        missing.push({ type: 'section_marker', value: marker });
+      }
+    }
+
+    // Question blocks
+    for (const qb of (baselineStructure.question_blocks || [])) {
+      if (!(currentStructure.question_blocks || []).includes(qb)) {
+        missing.push({ type: 'question_block', value: qb });
+      }
+    }
+
+    // XML tags (stored as tag names — check each baseline tag still appears)
+    for (const tag of (baselineStructure.xml_tags || [])) {
+      if (!(currentStructure.xml_tags || []).includes(tag)) {
+        missing.push({ type: 'xml_tag', value: tag });
+      }
+    }
+
+    const status = missing.length === 0 ? 'pass' : 'fail';
+    results.push({ name: wfName, status, missing });
+    if (status === 'pass') {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+
+  // Build result object
+  const result = {
+    baseline_file: path.relative(cwd, baselinePath),
+    baseline_date: baseline.timestamp || 'unknown',
+    verified_at: verifiedAt,
+    summary: {
+      total_workflows: baseline.workflows ? baseline.workflows.length : 0,
+      passed,
+      failed,
+      skipped,
+    },
+    results,
+  };
+
+  // Print human-readable summary to stderr
+  const maxNameLen = Math.max(30, ...results.map(r => r.name.length));
+  const headerLine = `${'Workflow'.padEnd(maxNameLen)} | Status`;
+  const sepLine = '-'.repeat(maxNameLen) + '-+--------';
+  process.stderr.write('\n## Workflow Structure Verification\n\n');
+  process.stderr.write(`Baseline: ${result.baseline_file} (${result.baseline_date})\n`);
+  process.stderr.write(`Verified: ${verifiedAt}\n\n`);
+  process.stderr.write(headerLine + '\n');
+  process.stderr.write(sepLine + '\n');
+
+  for (const r of results) {
+    const name = r.name.padEnd(maxNameLen);
+    const statusLabel = r.status === 'pass' ? 'PASS   ' : 'FAIL   ';
+    process.stderr.write(`${name} | ${statusLabel}\n`);
+    if (r.status === 'fail' && r.missing.length > 0) {
+      for (const m of r.missing) {
+        process.stderr.write(`  MISSING [${m.type}]: ${m.value}\n`);
+      }
+    }
+  }
+
+  process.stderr.write(sepLine + '\n');
+  if (failed === 0) {
+    process.stderr.write(`\nPASS: ${passed}/${result.summary.total_workflows} workflows\n\n`);
+  } else {
+    process.stderr.write(`\nFAIL: ${failed} regressions detected in ${result.summary.total_workflows} workflows\n\n`);
+    process.exitCode = 1;
+  }
+
+  output(result, raw);
+}
+
 module.exports = {
   cmdWorkflowBaseline,
   cmdWorkflowCompare,
+  cmdWorkflowVerifyStructure,
   extractStructuralFingerprint,
 };
