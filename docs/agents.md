@@ -363,4 +363,44 @@ If an executor retries the same failed pattern more than 2 times:
 
 ---
 
+## Local Agent Overrides (v13.0)
+
+Agents can be customized per-project without modifying upstream definitions. Local overrides are stored in `.planning/agents/` and take precedence over the global agent definitions.
+
+### Commands
+
+```bash
+gsd-tools agent list-local              # List all project-local overrides
+gsd-tools agent override <agent-type>   # Create a local override (copies upstream as starting point)
+gsd-tools agent diff <agent-type>       # Show diff between local and upstream
+gsd-tools agent sync <agent-type>       # Pull upstream changes into local override
+```
+
+### How it works
+
+1. `agent:override` copies the upstream agent definition to `.planning/agents/<agent-type>.md`
+2. YAML frontmatter is validated; content is sanitized against system-prompt mangling
+3. The `bgsd-context` enricher injects `local_agent_overrides` into workflow context
+4. Workflows check for local overrides and use them when spawning agents
+
+This enables project-specific agent tuning (e.g., adding domain conventions to the executor, adjusting planner heuristics) while keeping upstream agents as the canonical source.
+
+---
+
+## Lesson-Driven Improvement (v13.0)
+
+Agents learn from past executions through a structured lesson pipeline:
+
+1. **Capture** — Lessons are captured during execution (via `lessons:capture`) or auto-captured from deviation recoveries
+2. **Analysis** — `lessons:analyze` groups lessons by pattern and surfaces trends across phases
+3. **Suggestions** — `lessons:suggest` generates advisory recommendations for agent behavior improvements
+4. **Compaction** — `lessons:compact` deduplicates redundant lessons to keep the store lean
+5. **Workflow hooks** — Lesson analysis runs automatically in verify-work and complete-milestone workflows
+
+### Deviation Auto-Capture
+
+When an executor autonomously recovers from a Rule-1 deviation (minor issue, auto-fixable), the recovery is automatically captured as a structured lesson. Capped at 3 per milestone to prevent flooding.
+
+---
+
 *For how agents communicate through planning documents, see [Planning System](planning-system.md). For model profile configuration, see [Configuration](configuration.md).*
