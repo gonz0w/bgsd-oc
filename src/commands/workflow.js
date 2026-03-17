@@ -50,12 +50,17 @@ function extractStructuralFingerprint(content) {
     cliCommandMatches.push(im[1].trim());
   }
 
-  // Section markers: <!-- section: ... -->
+  // Section markers: <!-- section: ... --> (with optional if="condition" attribute)
+  // Extract section name only — strip if= conditions to allow baseline comparison
+  // after adding conditional annotations (section names are stable, conditions are not).
   const sectionMarkerMatches = [];
   const sectionRe = /<!--\s*section:\s*(.+?)\s*-->/gi;
   let sm;
   while ((sm = sectionRe.exec(content)) !== null) {
-    sectionMarkerMatches.push(sm[1].trim());
+    // Strip trailing if="..." attribute to normalize section name
+    const rawName = sm[1].trim();
+    const normalizedName = rawName.replace(/\s+if="[^"]*"$/, '').trim();
+    sectionMarkerMatches.push(normalizedName);
   }
 
   // Question blocks: <question> ... </question>

@@ -90,8 +90,16 @@ Read PLAN.md — this IS the execution instructions. If plan references CONTEXT.
 <!-- section: execute -->
 <step name="execute">
 1. Read @context files
-2. Per task: `type="auto"` → implement, verify, commit. If `tdd="true"`: load <skill:tdd-execution section="executor" /> and follow RED→GREEN→REFACTOR cycle (`execute:tdd` CLI gates). `type="checkpoint:*"` → STOP, wait for user.
+2. Per task: `type="auto"` → implement, verify, commit. `type="checkpoint:*"` → STOP, wait for user.
+
+<!-- section: tdd_execution if="is_tdd" -->
+   If `tdd="true"`: load <skill:tdd-execution section="executor" /> and follow RED→GREEN→REFACTOR cycle (`execute:tdd` CLI gates).
+<!-- /section -->
+
+<!-- section: auto_test if="has_test_command" -->
 3. **Auto-test after edit:** Check config.json `test_commands` or package.json scripts.test. If found: `node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd auto-test --test-cmd "<cmd>"` after each logical file change. If fails: fix before continuing.
+<!-- /section -->
+
 4. Run `<verification>` checks
 5. Confirm `<success_criteria>` met
 6. Document deviations
@@ -138,7 +146,7 @@ DURATION="${DURATION_MIN} min"
 If plan has `user_setup:` frontmatter: create `{phase}-USER-SETUP.md` using template. Otherwise skip.
 </step>
 
-<!-- section: post_execution -->
+<!-- section: post_execution if="verifier_enabled" -->
 <step name="post_execution_review">
 Skip if: `gap_closure: true`, has checkpoints (Pattern B/C), review context unavailable, or bundle over budget.
 

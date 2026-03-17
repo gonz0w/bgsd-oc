@@ -221,7 +221,7 @@ After all waves, report:
 </step>
 <!-- /section -->
 
-<!-- section: ci_quality_gate -->
+<!-- section: ci_quality_gate if="ci_enabled" -->
 <step name="ci_quality_gate">
 <skill:ci-quality-gate scope="phase-${PHASE_NUMBER}" base_branch="${BASE_BRANCH:-main}" />
 </step>

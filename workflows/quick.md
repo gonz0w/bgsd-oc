@@ -100,7 +100,7 @@ Execute all tasks atomically. Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md. Do N
 Verify summary exists. `classifyHandoffIfNeeded` error → check summary + git log; if present, treat as success.
 <!-- /section -->
 
-<!-- section: ci_quality_gate -->
+<!-- section: ci_quality_gate if="ci_enabled" -->
 **Step 5.25: CI quality gate (optional)**
 
 ```bash
