@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-16)
 
 **Milestone:** v14.0 LLM Workload Reduction
 **Phase:** 137 — Section-Level Loading & Conditional Elision
-**Current Plan:** Plan 01 complete (1/2)
-**Status:** In progress — Plan 01 done, Plan 02 pending
+**Current Plan:** Plan 02 complete (2/2)
+**Status:** Complete — all plans done
 **Last Activity:** 2026-03-17
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [██████████] 99%
 - v14.0 Phase 136 Plan 02: 15 min, 2 tasks, 3 files (plan:generate command — roadmap pre-fill, data/judgment markers, idempotent merge)
 - v14.0 Phase 136 Plan 03: 5 min, 2 tasks, 2 files (verify:generate command — success criteria pre-fill, must-haves extraction; 31 integration tests; 1681 tests pass)
 - v14.0 Phase 137 Plan 01: 16 min, 5 tasks, 9 files (elideConditionalSections + enrichCommand wiring + if= annotations on TDD/auto-test/CI/post-execution + 28 tests; 1709 tests pass)
+- v14.0 Phase 137 Plan 02: 15 min, 3 tasks, 7 files (dangling reference check + workflow:savings cumulative table 42.3% avg + 14 structural regression tests; 49 elision tests; 1730 tests pass)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -95,6 +96,9 @@ Progress: [██████████] 99%
 - [137-01]: command.execute.before hook fires BEFORE @-reference resolution — output.parts starts empty; elision processes injected content only
 - [137-01]: Fail-open elision: missing enrichment key keeps section (safe default prevents accidental removal)
 - [137-01]: Section fingerprint normalization: strip if= attributes from section names for baseline comparison
+- [137-02]: workflow:savings uses hardcoded Phase 135 SUMMARY baselines — on-disk baselines all created post-compression during Plan 01 testing
+- [137-02]: Post-elision column in workflow:savings = worst-case (all conditions false) — strips all conditional sections from workflow files for maximum savings estimate
+- [137-02]: Dangling reference check is non-blocking — warnings in _elision debug field, BGSD_DEBUG logs, no enrichment failure
 
 ### Blockers/Concerns
 
@@ -102,8 +106,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-17T04:04:52.144Z
-**This session:** 2026-03-17 — Executed Phase 137 Plan 01 (conditional elision engine + workflow annotations). elideConditionalSections() implemented, 5 if= annotations added, 28 tests pass, 1709 total.
-**Stopped at:** Completed 137-01-PLAN.md
+**Last session:** 2026-03-17T04:58:15.200Z
+**This session:** 2026-03-17 — Executed Phase 137 Plan 02 (dangling reference check + workflow:savings + regression tests). 42.3% avg cumulative reduction confirmed. 49 elision tests, 1730 total pass.
+**Stopped at:** Completed 137-02-PLAN.md
 **Next steps:**
-1. Phase 137 Plan 02 — dangling reference check + cumulative savings measurement + regression tests
+1. Phase 137 complete — v14.0 milestone ready for audit/completion (`/bgsd-audit-milestone` or `/bgsd-complete-milestone`)
