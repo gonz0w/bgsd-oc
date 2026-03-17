@@ -1,132 +1,81 @@
+<!-- section: purpose -->
 <purpose>
-Initialize a new project: questioning → research (optional) → requirements → roadmap. One workflow from idea to ready-for-planning.
+Initialize a new project: questioning → research (optional) → requirements → roadmap. Idea to ready-for-planning in one workflow.
 </purpose>
+<!-- /section -->
 
-<required_reading>
-Read all execution_context files before starting.
-</required_reading>
-
+<!-- section: auto_mode -->
 <auto_mode>
-If `--auto` flag present:
-- Requires idea document (`@prd.md` or pasted text). Error if missing.
-- Skip brownfield mapping (assume greenfield)
-- Skip deep questioning (extract context from document)
-- YOLO mode implicit; ask depth/git/agents in Step 2a
-- Auto-approve requirements and roadmap
+If `--auto` flag: requires idea document, skip brownfield/questioning, YOLO implicit, auto-approve all.
 </auto_mode>
+<!-- /section -->
 
 <process>
 
+<!-- section: setup -->
 ## 1. Setup
 
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. New projects may not have `.planning/` yet, so `<bgsd-context>` may be absent or contain an error — this is expected. Proceed normally.
+<skill:bgsd-context-init />
 
-Parse `<bgsd-context>` JSON (if present) for: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `project_exists`, `needs_codebase_map`, `has_git`, `project_path`.
+Parse `<bgsd-context>` JSON for: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `project_exists`, `needs_codebase_map`, `has_git`, `project_path`.
 
-If `project_exists` true → error, use `/bgsd-progress`.
-If `has_git` false → `git init`.
+If `project_exists` true → error, use `/bgsd-progress`. If `has_git` false → `git init`.
+<!-- /section -->
 
+<!-- section: brownfield_check -->
 ## 2. Brownfield Offer
 
 **Auto mode:** Skip to Step 4.
 
-If `needs_codebase_map` true: ask "Map codebase first?" or "Skip mapping". If map → run `/bgsd-map-codebase`, exit. Otherwise continue.
+If `needs_codebase_map` true: offer "Map codebase?" or "Skip". If map → `/bgsd-map-codebase`, exit.
+<!-- /section -->
 
+<!-- section: auto_mode -->
 ## 2a. Auto Mode Config (auto only)
 
-YOLO implicit. Collect remaining settings in 2 rounds:
+YOLO implicit. 2 question rounds: **Core** (Depth, Execution, Git Tracking) then **Agents** (Research, Plan Check, Verifier, AI Models). Create config.json (`mode: "yolo"`, `auto_advance: true`), commit. Skip to Step 4.
+<!-- /section -->
 
-**Round 1 — Core (3 questions, no Mode):** Depth (Quick/Standard/Comprehensive), Execution (Parallel/Sequential), Git Tracking (Yes/No).
-
-**Round 2 — Agents (4 questions):** Research (Yes/No), Plan Check (Yes/No), Verifier (Yes/No), AI Models (Balanced/Quality/Budget).
-
-Create config.json with `mode: "yolo"`, `workflow.auto_advance: true`. Commit. Skip to Step 4.
-
+<!-- section: questioning -->
 ## 3. Deep Questioning
 
 **Auto mode:** Skip.
 
-Ask "What do you want to build?" → follow threads → probe motivations, edges, assumptions, specifics. Consult questioning.md techniques.
+Ask "What do you want to build?" → follow threads → probe motivations, edges, assumptions. Consult `questioning` skill. Loop until "Create PROJECT.md?" confirmed.
+<!-- /section -->
 
-When ready: ask "Create PROJECT.md?" or "Keep exploring". Loop until ready.
-
+<!-- section: write_project -->
 ## 4. Write PROJECT.md
 
 **Auto mode:** Synthesize from document, commit directly.
 
-Write `.planning/PROJECT.md` using templates/project.md. For greenfield: requirements as hypotheses (Active). For brownfield: infer Validated from codebase map. Include Key Decisions from questioning.
+Write `.planning/PROJECT.md` (templates/project.md). Greenfield: Active requirements as hypotheses. Brownfield: infer Validated from codebase map.
 
 ```bash
 mkdir -p .planning
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: initialize project" --files .planning/PROJECT.md
 ```
+<!-- /section -->
 
+<!-- section: capture_intent -->
 ## 4.5. Capture Project Intent
 
-**Auto mode:** Extract intent from the idea document — synthesize objective, desired outcomes (3-5), and success criteria (2-4) from the document's goals and requirements. Create INTENT.md directly without asking questions.
+**Auto mode:** Extract intent from idea document. Write INTENT.md directly.
 
-**Interactive mode:**
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► DEFINING INTENT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-Ask 4 guided questions to extract structured intent. Use PROJECT.md context to make questions specific to the user's project.
-
-**Q1 — Objective:** "In one sentence, what does this project do and why does it matter?"
-- Probe: "What problem does it solve? Who suffers without it?"
-- Maps to: `<objective>` section
-
-**Q2 — Desired Outcomes:** "What are the 3-5 most important things this project must achieve?"
-- Probe: "If this project succeeds, what's different? What can users do that they couldn't before?"
-- Prompt for prioritization: "Which of these are critical (P1), important (P2), or nice-to-have (P3)?"
-- Maps to: `<outcomes>` section (format: `DO-XX [PX]: description`)
-
-**Q3 — Success Criteria:** "How will you know this project is ready to ship?"
-- Probe: "What's the minimum bar? What tests would you run to prove it works?"
-- Maps to: `<criteria>` section (format: `SC-XX: measurable gate`)
-
-**Q4 — Constraints:** "Are there any hard limits — technical, business, or timeline?"
-- Probe: "Must-use technologies? Budget caps? Deadlines? Backward compatibility?"
-- Maps to: `<constraints>` section
-
-Also derive:
-- `<users>` from PROJECT.md target users / audience (already captured in deep questioning)
-- `<health>` metrics from success criteria where measurable numbers exist
-
-Write INTENT.md using `intent create` with the structured data from answers:
+**Interactive:** 4 guided questions (use PROJECT.md context): Q1 Objective → `<objective>`, Q2 Outcomes (P1/P2/P3) → `<outcomes>`, Q3 Criteria (measurable gates) → `<criteria>`, Q4 Constraints → `<constraints>`.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent create
-```
-
-Note: `intent create` reads from stdin when no arguments provided — pipe the structured intent data to it. Alternatively, write INTENT.md directly using the Write tool following the INTENT.md template format, then commit.
-
-```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: capture project intent" --files .planning/INTENT.md
 ```
+<!-- /section -->
 
-Present intent summary:
-```
-✓ Intent captured:
-  Objective: {truncated objective}
-  Outcomes: {count} ({P1 count}×P1, {P2 count}×P2, {P3 count}×P3)
-  Criteria: {count} success gates
-  Constraints: {count} limits
-```
-
+<!-- section: preferences -->
 ## 5. Workflow Preferences
 
 **Auto mode:** Skip (handled in 2a).
 
-Check `~/.gsd/defaults.json` — if exists, offer to use saved defaults (skip questions).
-
-**Round 1 — Core (4 questions):** Mode (YOLO/Interactive), Depth, Execution, Git Tracking.
-**Round 2 — Agents:** Research, Plan Check, Verifier, AI Models.
-
-Create config.json. If commit_docs=No: add `.planning/` to `.gitignore`.
+Check `~/.gsd/defaults.json`. **Round 1:** Mode, Depth, Execution, Git Tracking. **Round 2:** Research, Plan Check, Verifier, AI Models. Create config.json. If commit_docs=No: `.planning/` → `.gitignore`.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "chore: add project config" --files .planning/config.json
@@ -134,86 +83,36 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "chore: add p
 
 ## 5.5. Resolve Model Profile
 
-Use models from `<bgsd-context>`: `researcher_model`, `synthesizer_model`, `roadmapper_model`.
+Use `researcher_model`, `synthesizer_model`, `roadmapper_model` from `<bgsd-context>`.
+<!-- /section -->
 
+<!-- section: research -->
 ## 6. Research Decision
 
-**Auto mode:** Default "Research first".
+**Auto mode:** Default "Research first". Ask: "Research domain ecosystem?" → Yes/No.
 
-Ask: "Research domain ecosystem?" → Yes/No.
+**If yes:**
 
-**If yes:** Create `.planning/research/`, spawn 4 parallel researchers:
+<skill:research-pipeline context="new-project" />
 
-```
-Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
-Research: Stack dimension for [domain]. [greenfield|subsequent] context.
-Question: What's the standard 2025 stack for [domain]?
-Read: {project_path}
-Write to: .planning/research/STACK.md (use template research-project/STACK.md)
-", subagent_type="general", model="{researcher_model}", description="Stack research")
+**If no:** Continue to Step 7.
+<!-- /section -->
 
-Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
-Research: Features dimension for [domain]. [greenfield|subsequent] context.
-Question: What features do [domain] products have? Table stakes vs differentiating?
-Read: {project_path}
-Write to: .planning/research/FEATURES.md (use template research-project/FEATURES.md)
-", subagent_type="general", model="{researcher_model}", description="Features research")
-
-Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
-Research: Architecture dimension for [domain]. [greenfield|subsequent] context.
-Question: How are [domain] systems typically structured?
-Read: {project_path}
-Write to: .planning/research/ARCHITECTURE.md (use template research-project/ARCHITECTURE.md)
-", subagent_type="general", model="{researcher_model}", description="Architecture research")
-
-Task(prompt="Read __OPENCODE_CONFIG__/agents/bgsd-project-researcher.md for instructions.
-Research: Pitfalls dimension for [domain]. [greenfield|subsequent] context.
-Question: What do [domain] projects commonly get wrong?
-Read: {project_path}
-Write to: .planning/research/PITFALLS.md (use template research-project/PITFALLS.md)
-", subagent_type="general", model="{researcher_model}", description="Pitfalls research")
-```
-
-Then synthesize:
-
-```
-Task(prompt="Synthesize research into SUMMARY.md.
-Read: .planning/research/STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
-Write to: .planning/research/SUMMARY.md (use template research-project/SUMMARY.md)
-Commit after writing.
-", subagent_type="bgsd-roadmapper", model="{roadmapper_model}", description="Synthesize research")
-```
-
-Display key findings from SUMMARY.md.
-
-**If "Skip research":** Continue to Step 7.
-
+<!-- section: define_requirements -->
 ## 7. Define Requirements
 
-If INTENT.md exists: Read it and use desired outcomes to seed requirement categories. Each P1/P2 outcome should map to at least one requirement.
+Use INTENT.md outcomes to seed categories (P1/P2 → ≥1 requirement). Read PROJECT.md and research FEATURES.md.
 
-Read PROJECT.md core value, constraints, scope. If research exists: read FEATURES.md categories.
+**Auto mode:** All table stakes + document features. Generate and commit directly. **Interactive:** MultiSelect by category, capture additions, validate against Core Value, approve/loop.
 
-**Auto mode:** Include all table stakes + document-mentioned features. Skip category questions, additions question, approval gate. Generate and commit directly.
-
-**Interactive mode:**
-
-Present features by category with table stakes/differentiators. For each category: multiSelect which features are in v1.
-
-Ask "Any requirements research missed?" → capture additions.
-
-Validate against Core Value from PROJECT.md.
-
-Generate REQUIREMENTS.md: v1 requirements (checkboxes, REQ-IDs `[CATEGORY]-[NUMBER]`), v2 deferred, out of scope, traceability section.
-
-Requirements must be specific, testable, user-centric, and atomic.
-
-Present full list for confirmation. If "adjust" → loop.
+Generate REQUIREMENTS.md: v1 (checkboxes, `[CATEGORY]-[NUMBER]`), v2 deferred, out of scope, traceability. Requirements: specific, testable, user-centric, atomic.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: define v1 requirements" --files .planning/REQUIREMENTS.md
 ```
+<!-- /section -->
 
+<!-- section: create_roadmap -->
 ## 8. Create Roadmap
 
 ```
@@ -225,49 +124,38 @@ Task(prompt="
 - .planning/INTENT.md (if exists)
 - .planning/config.json
 </files_to_read>
-
-Create roadmap: derive phases from requirements, map every v1 requirement, derive 2-5 success criteria per phase, validate 100% coverage. Write ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability. Return ROADMAP CREATED with summary.
+Create roadmap: derive phases, map every v1 requirement, 2-5 success criteria per phase, 100% coverage. Write ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability. Return ROADMAP CREATED.
 ", subagent_type="bgsd-roadmapper", model="{roadmapper_model}", description="Create roadmap")
 ```
 
-If ROADMAP BLOCKED: resolve with user, re-spawn.
-
-If ROADMAP CREATED: present inline (phases table + details).
-- **Auto mode:** commit directly.
-- **Interactive:** ask approve/adjust/review. If adjust → re-spawn with feedback. Loop until approved.
+ROADMAP BLOCKED → resolve, re-spawn. ROADMAP CREATED → present phases table. Auto → commit. Interactive → approve/adjust loop.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create roadmap ([N] phases)" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md
 ```
+<!-- /section -->
 
+<!-- section: done -->
 ## 9. Done
 
-Present completion: project name, artifact locations, phase/requirement counts.
-
-**Auto mode:** Auto-advance → invoke `/bgsd-discuss-phase 1 --auto`.
-
-**Interactive:**
-```
-## ▶ Next Up
-**Phase 1: [Name]** — [Goal]
-/bgsd-discuss-phase 1
-```
+Present: project name, artifact locations, phase/requirement counts. **Auto:** `/bgsd-discuss-phase 1 --auto`. **Interactive:** Next Up block with `/bgsd-discuss-phase 1`.
+<!-- /section -->
 
 </process>
 
-<output>
-`.planning/PROJECT.md`, `config.json`, `INTENT.md`, `research/` (if selected), `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`
-</output>
+<output>`.planning/PROJECT.md`, `config.json`, `INTENT.md`, `research/` (if selected), `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`</output>
 
+<!-- section: success_criteria -->
 <success_criteria>
 - [ ] .planning/ created, git initialized
 - [ ] PROJECT.md captures full context → committed
 - [ ] config.json configured → committed
-- [ ] INTENT.md captures project intent (objective, outcomes, criteria) → committed
+- [ ] INTENT.md captures project intent → committed
 - [ ] Research completed if selected → committed
 - [ ] Requirements gathered and scoped → committed
 - [ ] ROADMAP.md with phases, mappings, criteria → committed
 - [ ] STATE.md initialized
 - [ ] User knows next step
 </success_criteria>
+<!-- /section -->
