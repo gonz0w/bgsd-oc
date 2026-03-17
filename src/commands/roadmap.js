@@ -72,6 +72,10 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
       ? criteriaMatch[1].trim().split('\n').map(line => line.replace(/^\s*\d+\.\s*/, '').trim()).filter(Boolean)
       : [];
 
+    // Extract TDD hint if present (recommended, required, or none/absent)
+    const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+
     output(
       {
         found: true,
@@ -79,6 +83,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
         phase_name: phaseName,
         goal,
         success_criteria,
+        tdd,
         section,
       },
       raw,
@@ -122,6 +127,10 @@ function cmdRoadmapAnalyze(cwd, raw) {
     const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
     const depends_on = dependsMatch ? dependsMatch[1].trim() : null;
 
+    // Extract TDD hint if present
+    const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+
     // Check completion on disk — use cached phase tree (single scan)
     const normalized = normalizePhaseName(phaseNum);
     let diskStatus = 'no_directory';
@@ -156,6 +165,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
       name: phaseName,
       goal,
       depends_on,
+      tdd,
       plan_count: planCount,
       summary_count: summaryCount,
       has_context: hasContext,

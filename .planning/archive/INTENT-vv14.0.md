@@ -1,6 +1,6 @@
 **Revision:** 23
 **Created:** 2026-02-25
-**Updated:** 2026-03-17
+**Updated:** 2026-03-15
 
 <objective>
 A high-performance agent orchestration engine that maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations.
@@ -29,7 +29,7 @@ A high-performance agent orchestration engine that maximizes LLM reasoning and c
 **DO-94:** Add workflow hooks for agent improvement — verify-work and complete-milestone surface improvement opportunities from patterns
 **DO-95:** Enhance research workflow — better multi-source synthesis and quality scoring for improved planning and execution
 
-### v14.0 — LLM Workload Reduction (delivered)
+### v14.0 — LLM Workload Reduction
 
 **DO-96:** Compress high-traffic workflows — top 10 workflows reduced by 40%+ tokens without losing behavioral logic
 **DO-97:** Pre-compute PLAN.md scaffolds — CLI generates task structure, file paths, and dependency data from roadmap; LLM fills only objectives and verification criteria
@@ -54,7 +54,7 @@ A high-performance agent orchestration engine that maximizes LLM reasoning and c
 **SC-74:** Deviation recovery patterns auto-captured as lesson entries after 3-failure recovery cycles
 **SC-75:** Research workflow produces quality-scored output linking findings to planning decisions
 
-### v14.0 — LLM Workload Reduction (achieved)
+### v14.0 — LLM Workload Reduction
 
 **SC-76:** Top 10 workflows measured before/after with tokenx; average reduction >= 40%
 **SC-77:** `plan:generate` produces a PLAN.md scaffold with >= 60% of content pre-filled from CLI data
@@ -85,11 +85,6 @@ The data layer should be invisible to users — workflows feel faster, decisions
 </health>
 
 <history>
-### v14.0 — 2026-03-17 (milestone complete)
-- **Marked delivered** v14.0 outcomes (DO-96 through DO-99) — all delivered
-- **Marked achieved** v14.0 criteria (SC-76 through SC-79) — all achieved
-  - Reason: Milestone v14.0 complete — 41.1% avg workflow compression, scaffold generation, conditional elision shipped
-
 ### v14.0 — 2026-03-16
 - **Updated** objective: Sharpened from "data-driven" to "maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations"
 - **Archived** v13.0 outcomes (DO-91 through DO-95) — all delivered
@@ -129,4 +124,3 @@ The data layer should be invisible to users — workflows feel faster, decisions
 </history>
 <!-- Highest outcome ID: DO-99 -->
 <!-- Highest criteria ID: SC-79 -->
-<!-- Highest outcome ID: OUT-0 -->

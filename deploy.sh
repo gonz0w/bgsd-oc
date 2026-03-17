@@ -148,10 +148,16 @@ echo "  Installed plugin: plugin/bgsd.js"
 # Resolve command/workflow placeholders to OpenCode config path.
 OPENCODE_CFG="$HOME/.config/opencode"
 echo "Substituting path placeholders..."
-find "$DEST" -name '*.md' -exec sed -i '' "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
-find "$CMD_DIR" -name 'bgsd-*.md' -exec sed -i '' "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
-find "$AGENT_DIR" -name 'bgsd-*.md' -exec sed -i '' "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
-find "$SKILL_DIR" -name '*.md' -exec sed -i '' "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} + 2>/dev/null || true
+# macOS sed requires -i '' (space + empty string); GNU/Linux sed requires -i'' (no space)
+if [[ "$OSTYPE" == darwin* ]]; then
+	SED_INPLACE=(sed -i '')
+else
+	SED_INPLACE=(sed -i)
+fi
+find "$DEST" -name '*.md' -exec "${SED_INPLACE[@]}" "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$CMD_DIR" -name 'bgsd-*.md' -exec "${SED_INPLACE[@]}" "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$AGENT_DIR" -name 'bgsd-*.md' -exec "${SED_INPLACE[@]}" "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} +
+find "$SKILL_DIR" -name '*.md' -exec "${SED_INPLACE[@]}" "s|__OPENCODE_CONFIG__|$OPENCODE_CFG|g" {} + 2>/dev/null || true
 echo "  Path placeholders resolved to: $OPENCODE_CFG"
 
 # Step 4: Smoke test deployed artifact

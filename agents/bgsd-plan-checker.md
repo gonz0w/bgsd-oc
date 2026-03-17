@@ -154,6 +154,30 @@ Check truths are user-observable, artifacts support truths, key_links connect ar
 
 Check locked decisions have implementing tasks, no tasks implement deferred ideas, discretion areas handled.
 
+## Dimension 8: TDD Compliance
+
+**Question:** Do plans respect the phase-level TDD hint from ROADMAP.md?
+
+**Process:**
+1. Extract `**TDD:**` field from the phase's ROADMAP.md section (via `plan:roadmap get-phase` — check the `tdd` field)
+2. If `tdd` is null/absent: skip this dimension entirely
+3. If `tdd` is `recommended`: check each plan with `type: execute` — if it covers business logic, validation, algorithms, data transformations, or API endpoints with defined I/O, emit a **warning** suggesting `type: tdd`
+4. If `tdd` is `required`: check each plan with `type: execute` — if it covers testable behavior (can you write `expect(fn(input)).toBe(output)` before writing `fn`?), emit a **blocker** requiring `type: tdd`
+
+**TDD-eligible signals** (any of these in a plan's tasks suggest TDD applies):
+- Task action describes input/output transformations
+- Task creates functions with defined contracts (parsing, validation, formatting)
+- Task implements API endpoints with request/response specs
+- Task implements state machines or workflow logic
+- Task files include both a source file and a test file
+
+**TDD-exempt signals** (skip TDD check for these):
+- Tasks are purely configuration or infrastructure
+- Tasks are UI layout/styling with no logic
+- Tasks are documentation or template changes
+- Tasks are glue code connecting existing components
+- Plan type is already `tdd`
+
 </verification_dimensions>
 
 <verification_process>
@@ -210,7 +234,13 @@ Thresholds: 2-3 tasks/plan good, 4 warning, 5+ blocker.
 
 Truths: user-observable, testable. Artifacts: map to truths. Key_links: connect artifacts.
 
-## Step 10: Determine Overall Status
+## Step 10: Check TDD Compliance
+
+Extract TDD hint from phase: `node $BGSD_HOME/bin/bgsd-tools.cjs plan:roadmap get-phase "$phase_number"` — check the `tdd` field.
+
+If `tdd` is non-null: for each plan, evaluate whether its tasks cover TDD-eligible work. If `tdd` is `required`, plans covering testable behavior without `type: tdd` are blockers. If `tdd` is `recommended`, they are warnings.
+
+## Step 11: Determine Overall Status
 
 **passed:** All checks pass. **issues_found:** Blockers or warnings found.
 
@@ -269,6 +299,7 @@ Plan verification complete when:
 - [ ] Scope assessed (within context budget)
 - [ ] must_haves derivation verified (user-observable truths)
 - [ ] Context compliance checked (if CONTEXT.md provided)
+- [ ] TDD compliance checked (if phase has TDD hint in ROADMAP.md)
 - [ ] Overall status determined (passed | issues_found)
 - [ ] Structured issues returned (if any found)
 - [ ] Result returned to orchestrator

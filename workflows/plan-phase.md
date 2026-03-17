@@ -32,7 +32,7 @@ No phase number → detect next unplanned. Phase not found → create dir from s
 ```bash
 PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase "${PHASE}")
 ```
-Extract `phase_number`, `phase_name`, `goal`.
+Extract `phase_number`, `phase_name`, `goal`, `tdd` (TDD hint: `recommended`, `required`, or null).
 
 ## 4. Load CONTEXT.md
 
@@ -106,6 +106,7 @@ Requirement IDs (MUST all appear in plans): {phase_req_ids}
 Read ./AGENTS.md and .agents/skills/ if they exist.
 If INTENT.md exists: derive plan objectives from desired outcomes (DO-XX). Each plan's objective should trace to at least one desired outcome. Include intent.outcome_ids in PLAN.md frontmatter.
 If ASSERTIONS.md exists: for each requirement this phase covers, find its assertions and use must-have assertions as source for must_haves.truths in PLAN.md frontmatter. If no assertions exist for a requirement, derive truths from requirement text + context.
+TDD hint for this phase: {tdd} (from ROADMAP.md **TDD:** field — 'recommended', 'required', or null). If non-null, actively evaluate TDD applicability for each plan per the planner's TDD hint instructions.
 
 Output: PLAN.md files with frontmatter, XML tasks, verification, must_haves.",
   subagent_type="general", model="{planner_model}", description="Plan Phase {phase}"
