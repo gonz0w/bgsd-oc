@@ -12,7 +12,23 @@ Read STATE.md and config.json before any operation.
 
 <!-- section: init_context -->
 <step name="init_context" priority="first">
-Parse `<bgsd-context>` JSON for: `executor_model`, `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summaries`, `incomplete_plans`. If `.planning/` missing: error.
+Parse `<bgsd-context>` JSON for: `executor_model`, `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summaries`, `incomplete_plans`, `file-discovery-mode` (from `decisions.file-discovery-mode.value`), `search-mode` (from `decisions.search-mode.value`), `tool_availability`, `capability_level` (from `handoff_tool_context.capability_level`). If `.planning/` missing: error.
+</step>
+<!-- /section -->
+
+<!-- section: tool_routing -->
+<step name="tool_aware_guidance">
+## Tool-Aware Execution Guidance
+
+**Pre-computed decision:** If `decisions.file-discovery-mode` exists in `<bgsd-context>`, use its `.value`:
+- `"fd"` → Executor agents should prefer `fd` for file discovery (e.g., `fd -e ts -e tsx`)
+- `"node"` → Executor agents should use Glob tool or `node bgsd-tools.cjs` for file discovery
+
+**Pre-computed decision:** If `decisions.search-mode` exists in `<bgsd-context>`, use its `.value`:
+- `"ripgrep"` → Executor agents should prefer `rg` for content search (e.g., `rg "pattern" --type ts`)
+- `"node"` → Executor agents should use Grep tool or node-based search
+
+Include the resolved tool guidance in the executor Task() prompt context as a brief "Preferred tools" line. Do not duplicate full tool_availability — agents receive their own bgsd-context injection with complete details. This guidance applies to the executor spawn prompts in Patterns A/B/C.
 </step>
 <!-- /section -->
 
