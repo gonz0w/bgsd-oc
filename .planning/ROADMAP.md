@@ -22,7 +22,7 @@ Make the tool detection infrastructure from v12.1 actionable — workflows and a
   3. map-codebase.md uses fd for file discovery and ripgrep for content search when available, falling back to node-based commands when absent
   4. Executor and debugger agent system prompts include tool-specific CLI commands that adapt based on tool_availability from bgsd-context
   5. github-ci.md uses detect:gh-preflight JSON output for authentication validation instead of raw `gh auth status`
-**Plans**: TBD
+**Plans**: 1/2 plans executed
 
 ### Phase 139: End-to-End Validation
 **Goal**: The full detection → enrichment → workflow behavior chain is validated end-to-end with automated tests
@@ -50,6 +50,6 @@ Phases execute in numeric order: 138 → 139 → 140
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 138. Workflow & Agent Tool Routing | 0/TBD | Not started | - |
+| 138. Workflow & Agent Tool Routing | 1/2 | In Progress|  |
 | 139. End-to-End Validation | 0/TBD | Not started | - |
 | 140. Infrastructure Pruning | 0/TBD | Not started | - |
