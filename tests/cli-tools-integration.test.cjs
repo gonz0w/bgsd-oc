@@ -979,3 +979,184 @@ describe('Graceful degradation summary — Phase 126 tools', () => {
   });
 
 });
+
+// ─── PHASE 139: E2E CHAIN B DECISION EVALUATION TESTS ────────────────────────
+
+describe('E2E: Chain B decision evaluation — TEST-01', () => {
+  const { execFileSync } = require('child_process');
+
+  /**
+   * Helper: evaluates a single decision rule via CLI with a given state object.
+   * Uses execFileSync to test the built artifact (bin/bgsd-tools.cjs).
+   */
+  function evaluateDecision(ruleId, stateObj) {
+    const output = execFileSync(
+      process.execPath,
+      [
+        path.join(__dirname, '../bin/bgsd-tools.cjs'),
+        'decisions:evaluate', ruleId,
+        '--state', JSON.stringify(stateObj),
+      ],
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000 }
+    );
+    return JSON.parse(output.trim());
+  }
+
+  test('file-discovery-mode: returns "fd" when fd is available for project-wide scope', () => {
+    const result = evaluateDecision('file-discovery-mode', {
+      tool_availability: { fd: true },
+      scope: 'project-wide',
+    });
+    assert.strictEqual(result.value, 'fd', `Expected "fd", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+    assert.strictEqual(result.rule_id, 'file-discovery-mode');
+  });
+
+  test('file-discovery-mode: returns "node" when fd is absent for project-wide scope', () => {
+    const result = evaluateDecision('file-discovery-mode', {
+      tool_availability: { fd: false },
+      scope: 'project-wide',
+    });
+    assert.strictEqual(result.value, 'node', `Expected "node", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+  });
+
+  test('file-discovery-mode: tools-present vs tools-absent values differ', () => {
+    const withTool = evaluateDecision('file-discovery-mode', {
+      tool_availability: { fd: true },
+      scope: 'project-wide',
+    });
+    const withoutTool = evaluateDecision('file-discovery-mode', {
+      tool_availability: { fd: false },
+      scope: 'project-wide',
+    });
+    assert.notStrictEqual(withTool.value, withoutTool.value,
+      `file-discovery-mode should return different values based on fd availability (got "${withTool.value}" vs "${withoutTool.value}")`);
+  });
+
+  test('search-mode: returns "ripgrep" when ripgrep is available', () => {
+    const result = evaluateDecision('search-mode', {
+      tool_availability: { ripgrep: true },
+      needs_gitignore_respect: true,
+    });
+    assert.strictEqual(result.value, 'ripgrep', `Expected "ripgrep", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+    assert.strictEqual(result.rule_id, 'search-mode');
+  });
+
+  test('search-mode: returns "node" when ripgrep is absent', () => {
+    const result = evaluateDecision('search-mode', {
+      tool_availability: { ripgrep: false },
+      needs_gitignore_respect: true,
+    });
+    assert.strictEqual(result.value, 'node', `Expected "node", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+  });
+
+  test('search-mode: tools-present vs tools-absent values differ', () => {
+    const withTool = evaluateDecision('search-mode', {
+      tool_availability: { ripgrep: true },
+      needs_gitignore_respect: true,
+    });
+    const withoutTool = evaluateDecision('search-mode', {
+      tool_availability: { ripgrep: false },
+      needs_gitignore_respect: true,
+    });
+    assert.notStrictEqual(withTool.value, withoutTool.value,
+      `search-mode should return different values based on ripgrep availability (got "${withTool.value}" vs "${withoutTool.value}")`);
+  });
+
+  test('json-transform-mode: returns "jq" when jq is available and complexity is complex', () => {
+    const result = evaluateDecision('json-transform-mode', {
+      tool_availability: { jq: true },
+      json_complexity: 'complex',
+    });
+    assert.strictEqual(result.value, 'jq', `Expected "jq", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+    assert.strictEqual(result.rule_id, 'json-transform-mode');
+  });
+
+  test('json-transform-mode: returns "javascript" when jq is absent for complex ops', () => {
+    const result = evaluateDecision('json-transform-mode', {
+      tool_availability: { jq: false },
+      json_complexity: 'complex',
+    });
+    assert.strictEqual(result.value, 'javascript', `Expected "javascript", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+  });
+
+  test('json-transform-mode: tools-present vs tools-absent values differ', () => {
+    const withTool = evaluateDecision('json-transform-mode', {
+      tool_availability: { jq: true },
+      json_complexity: 'complex',
+    });
+    const withoutTool = evaluateDecision('json-transform-mode', {
+      tool_availability: { jq: false },
+      json_complexity: 'complex',
+    });
+    assert.notStrictEqual(withTool.value, withoutTool.value,
+      `json-transform-mode should return different values based on jq availability (got "${withTool.value}" vs "${withoutTool.value}")`);
+  });
+
+  test('agent-capability-level: returns "HIGH" when all 6 tools are available', () => {
+    const result = evaluateDecision('agent-capability-level', {
+      tool_availability: { ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true },
+    });
+    assert.strictEqual(result.value, 'HIGH', `Expected "HIGH", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+    assert.strictEqual(result.rule_id, 'agent-capability-level');
+  });
+
+  test('agent-capability-level: returns "LOW" when no tools are available', () => {
+    const result = evaluateDecision('agent-capability-level', {
+      tool_availability: { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false },
+    });
+    assert.strictEqual(result.value, 'LOW', `Expected "LOW", got "${result.value}"`);
+    assert.ok('confidence' in result, 'result should have confidence field');
+    assert.ok('rule_id' in result, 'result should have rule_id field');
+  });
+
+  test('agent-capability-level: tools-present vs tools-absent values differ', () => {
+    const withTools = evaluateDecision('agent-capability-level', {
+      tool_availability: { ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true },
+    });
+    const withoutTools = evaluateDecision('agent-capability-level', {
+      tool_availability: { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false },
+    });
+    assert.notStrictEqual(withTools.value, withoutTools.value,
+      `agent-capability-level should return different values based on tool availability (got "${withTools.value}" vs "${withoutTools.value}")`);
+  });
+
+  test('decisions:list filters to exactly 4 Chain B rules by tool_availability input', () => {
+    const output = execFileSync(
+      process.execPath,
+      [path.join(__dirname, '../bin/bgsd-tools.cjs'), 'decisions:list'],
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000 }
+    );
+    const parsed = JSON.parse(output.trim());
+    assert.ok(Array.isArray(parsed.rules), 'decisions:list should return { rules: [] }');
+
+    // Filter Chain B rules: those whose inputs include 'tool_availability'
+    const chainBRules = parsed.rules.filter(r =>
+      Array.isArray(r.inputs) && r.inputs.includes('tool_availability')
+    );
+
+    // Expect the 4 core Chain B rules (may include phase-dependencies which also has tool_availability)
+    const chainBIds = chainBRules.map(r => r.id);
+    assert.ok(chainBIds.includes('file-discovery-mode'), `Chain B rules should include file-discovery-mode, got: ${chainBIds.join(', ')}`);
+    assert.ok(chainBIds.includes('search-mode'), `Chain B rules should include search-mode, got: ${chainBIds.join(', ')}`);
+    assert.ok(chainBIds.includes('json-transform-mode'), `Chain B rules should include json-transform-mode, got: ${chainBIds.join(', ')}`);
+    assert.ok(chainBIds.includes('agent-capability-level'), `Chain B rules should include agent-capability-level, got: ${chainBIds.join(', ')}`);
+
+    // Dynamic filter should find at least 4 rules
+    assert.ok(chainBRules.length >= 4, `Expected at least 4 Chain B rules with tool_availability in inputs, got ${chainBRules.length}`);
+  });
+
+});
