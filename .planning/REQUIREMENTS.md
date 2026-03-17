@@ -40,13 +40,13 @@
 
 | Requirement | Intent Outcome | Phase |
 |-------------|---------------|-------|
-| ROUTE-01 | DO-100 | TBD |
-| ROUTE-02 | DO-100 | TBD |
-| ROUTE-03 | DO-100 | TBD |
-| AGENT-01 | DO-101 | TBD |
-| AGENT-02 | DO-101 | TBD |
-| GH-01 | DO-102 | TBD |
-| TEST-01 | DO-103 | TBD |
-| TEST-02 | DO-103 | TBD |
-| PRUNE-01 | DO-104 | TBD |
-| PRUNE-02 | DO-104 | TBD |
+| ROUTE-01 | DO-100 | Phase 138 |
+| ROUTE-02 | DO-100 | Phase 138 |
+| ROUTE-03 | DO-100 | Phase 138 |
+| AGENT-01 | DO-101 | Phase 138 |
+| AGENT-02 | DO-101 | Phase 138 |
+| GH-01 | DO-102 | Phase 138 |
+| TEST-01 | DO-103 | Phase 139 |
+| TEST-02 | DO-103 | Phase 139 |
+| PRUNE-01 | DO-104 | Phase 140 |
+| PRUNE-02 | DO-104 | Phase 140 |
