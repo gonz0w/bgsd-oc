@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-16)
 
 **Milestone:** v14.0 LLM Workload Reduction
 **Phase:** 135 — Workflow Compression & Section Markers
-**Current Plan:** Plan 02 (1/5 complete)
+**Current Plan:** Plan 03 complete (3/5)
 **Status:** In Progress
 **Last Activity:** 2026-03-17
 
-Progress: [██████████] 95%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -73,6 +73,9 @@ Progress: [██████████] 95%
 - [135-01]: Baseline JSON gitignored (.planning/.gitignore: baselines/*.json) — snapshot exists on disk, not in git (intentional per project convention)
 - [135-01]: Parameterized CI gate skill with {{scope}}/{{base_branch}} to serve both execute-phase and quick workflows
 - [135-01]: bgsd-context-init skill has no placeholders — 2-paragraph preamble is identical across all 10 workflows
+- [135-03]: Research pipeline banner not duplicated in workflow — skill already contains the RESEARCHING banner block
+- [135-03]: TDD auto-test kept inline (compressed) in execute-plan rather than full skill reference — execute:tdd command stays visible
+- v14.0 Phase 135 Plan 03: 8 min, 2 tasks, 2 files (new-milestone 45% compression + execute-plan 40% compression, section markers, skill refs)
 
 ### Blockers/Concerns
 
@@ -80,8 +83,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-17T01:01:15Z
-**This session:** 2026-03-17 — Executed Phase 135 Plan 01 (pre-compression baseline + shared skill extraction). COMP-03 complete.
+**Last session:** 2026-03-17T01:15:00.331Z
+**This session:** 2026-03-17 — Executed Phase 135 Plan 03 (compress new-milestone + execute-plan). COMP-01, COMP-02, COMP-03 complete.
 **Next steps:**
-1. Continue Phase 135 Plans 02-05 (compress top 10 workflows, add section markers)
+1. Continue Phase 135 Plans 04-05 (compress remaining workflows in top-10 list)
 2. Phase 136 (scaffold infrastructure) can run in parallel with 135 (different files)
