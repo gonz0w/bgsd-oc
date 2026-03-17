@@ -10,14 +10,14 @@
 
 ### MEAS — Measurement Infrastructure
 
-- [ ] **MEAS-01:** User can run `workflow:baseline` to measure token counts for all 44 workflows, storing results as a JSON snapshot
-- [ ] **MEAS-02:** User can run `workflow:compare` to diff two snapshots showing per-workflow token delta and total reduction percentage
-- [ ] **MEAS-03:** User can run `workflow:verify-structure` to check that compressed workflows preserve all Task() calls, CLI commands, section markers, and question blocks
+- [x] **MEAS-01:** User can run `workflow:baseline` to measure token counts for all 44 workflows, storing results as a JSON snapshot
+- [x] **MEAS-02:** User can run `workflow:compare` to diff two snapshots showing per-workflow token delta and total reduction percentage
+- [x] **MEAS-03:** User can run `workflow:verify-structure` to check that compressed workflows preserve all Task() calls, CLI commands, section markers, and question blocks
 
 ### COMP — Workflow Compression
 
-- [ ] **COMP-01:** Top 10 workflows (discuss-phase, execute-phase, new-milestone, execute-plan, transition, new-project, audit-milestone, quick, resume-project, map-codebase) are prose-tightened with 40%+ average token reduction
-- [ ] **COMP-02:** All top 10 workflows have `<!-- section: step_name -->` markers at each major process step enabling selective extraction
+- [x] **COMP-01:** Top 10 workflows (discuss-phase, execute-phase, new-milestone, execute-plan, transition, new-project, audit-milestone, quick, resume-project, map-codebase) are prose-tightened with 40%+ average token reduction
+- [x] **COMP-02:** All top 10 workflows have `<!-- section: step_name -->` markers at each major process step enabling selective extraction
 - [x] **COMP-03:** Shared blocks repeated across 3+ workflows (deviation rules, commit protocol, checkpoint format) are extracted to skill references, reducing duplication
 - [ ] **COMP-04:** Workflow loading in command enricher supports section-level extraction — agent receives only the section(s) relevant to the current step instead of the full workflow
 
