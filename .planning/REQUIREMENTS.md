@@ -23,9 +23,9 @@
 
 ### SCAF — Scaffold Generation
 
-- [ ] **SCAF-01:** User can run `plan:generate` to produce a PLAN.md scaffold pre-filled with task structure, file paths, and dependency data from the roadmap phase definition
-- [ ] **SCAF-02:** User can run `verify:generate` to produce a VERIFICATION.md scaffold pre-filled with success criteria from ROADMAP.md, test results, and requirement completion status
-- [ ] **SCAF-03:** Scaffold sections are clearly marked as data (pre-filled) vs judgment (LLM-fills), following the summary:generate JUDGMENT_SECTIONS pattern
+- [x] **SCAF-01:** User can run `plan:generate` to produce a PLAN.md scaffold pre-filled with task structure, file paths, and dependency data from the roadmap phase definition
+- [x] **SCAF-02:** User can run `verify:generate` to produce a VERIFICATION.md scaffold pre-filled with success criteria from ROADMAP.md, test results, and requirement completion status
+- [x] **SCAF-03:** Scaffold sections are clearly marked as data (pre-filled) vs judgment (LLM-fills), following the summary:generate JUDGMENT_SECTIONS pattern
 - [ ] **SCAF-04:** Workflow steps that reference conditional features (TDD, auto-test, review, deviation-capture) are elided when bgsd-context decisions indicate they don't apply
 
 ---
@@ -51,7 +51,7 @@
 | COMP-02 | 135 | 02,03,04,05 | Complete |
 | COMP-03 | 135 | 01 | Complete |
 | COMP-04 | 137 | — | Pending |
-| SCAF-01 | 136 | — | Pending |
-| SCAF-02 | 136 | — | Pending |
-| SCAF-03 | 136 | — | Pending |
+| SCAF-01 | 136 | 02 | Complete |
+| SCAF-02 | 136 | 03 | Complete |
+| SCAF-03 | 136 | 01,02,03 | Complete |
 | SCAF-04 | 137 | — | Pending |

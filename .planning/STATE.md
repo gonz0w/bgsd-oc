@@ -10,9 +10,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-16)
 ## Current Position
 
 **Milestone:** v14.0 LLM Workload Reduction
-**Phase:** 135 — Workflow Compression & Section Markers
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 136 — Scaffold Infrastructure
+**Current Plan:** Complete (3/3)
+**Status:** Complete — ready for Phase 137
 **Last Activity:** 2026-03-17
 
 Progress: [██████████] 100%
@@ -41,6 +41,9 @@ Progress: [██████████] 100%
   - v14.0 Phase 135 Plan 03: 8 min, 2 tasks, 2 files (new-milestone 45% + execute-plan 40% compression, section markers, skill refs)
   - v14.0 Phase 135 Plan 04: 14 min, 3 tasks, 3 files (transition 42% + new-project 41% + resume-project 41% compression, section markers)
   - v14.0 Phase 135 Plan 05: 32 min, 3 tasks, 6 files (audit-milestone -41% + map-codebase -43% + quick -40% + transition further to -43%; 41.1% avg)
+- v14.0 Phase 136 Plan 01: 8 min, 2 tasks, 2 files (scaffold merge lib: DATA_MARKER, JUDGMENT_MARKER, parseMarkedSections, mergeScaffold; 28 unit tests)
+- v14.0 Phase 136 Plan 02: 15 min, 2 tasks, 3 files (plan:generate command — roadmap pre-fill, data/judgment markers, idempotent merge)
+- v14.0 Phase 136 Plan 03: 5 min, 2 tasks, 2 files (verify:generate command — success criteria pre-fill, must-haves extraction; 31 integration tests; 1681 tests pass)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -84,6 +87,10 @@ Progress: [██████████] 100%
 - [135-05]: Compressed transition.md in Plan 05 (was only 32% token reduction after Plan 04 despite 42% line reduction) — offer_next routes expressed as compact bullet routing
 - [135-05]: map-codebase 4 Task() calls kept as distinct code blocks rather than 1 template — structural fingerprint requires individual calls
 - [135-05]: Phase 135 final: 41.1% average token reduction across 10 workflows (threshold: 40%); all 1609 tests pass
+- [136-01]: scaffold.js uses Map (ordered) for parseMarkedSections() to preserve section order for document rebuilding
+- [136-02]: REQUIREMENTS.md format is **ID:** (colon inside bold markers) not **ID**: — regex must match `\*\*ID:\*\*` not `\*\*ID\*\*:`
+- [136-02]: Frontmatter values must be raw strings (not `"0050"`) to prevent idempotency failure where extractFrontmatter strips embedded quotes
+- [136-02]: marker count must use `/g` regex flag — `String.match(constant)` finds only first occurrence
 
 ### Blockers/Concerns
 
@@ -92,7 +99,6 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-03-17T03:08:15.714Z
-**This session:** 2026-03-17 — Executed Phase 135 Plan 05 (audit-milestone -41% + map-codebase -43% + quick -40% + transition -43%). Phase 135 COMPLETE. 41.1% avg. COMP-01, COMP-02, COMP-03 done.
+**This session:** 2026-03-17 — Executed Phase 136 (scaffold infrastructure). 3/3 plans complete. SCAF-01, SCAF-02, SCAF-03 done. 1681 tests pass.
 **Next steps:**
-1. Phase 136 (scaffold infrastructure) — can start immediately, different files
-2. Phase 137 (section-level loading) — depends on Phase 135 markers now installed
+1. Phase 137 (section-level loading) — depends on Phase 135 markers AND Phase 136 scaffolds, both now complete

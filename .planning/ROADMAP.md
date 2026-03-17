@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-03-16
+**Last updated:** 2026-03-17
 
 ## Milestones
 
@@ -18,7 +18,7 @@
 
 - [x] **Phase 134: Measurement Infrastructure & Baseline** - Token measurement tooling, structural contract tests, and compression regression detection (completed 2026-03-16)
 - [x] **Phase 135: Workflow Compression & Section Markers** - Top 10 workflows prose-tightened 40%+, section markers added, shared blocks extracted to skill references (completed 2026-03-17)
-- [ ] **Phase 136: Scaffold Infrastructure** - Pre-computed PLAN.md and VERIFICATION.md scaffolds with data/judgment separation following summary:generate pattern
+- [x] **Phase 136: Scaffold Infrastructure** - Pre-computed PLAN.md and VERIFICATION.md scaffolds with data/judgment separation following summary:generate pattern (completed 2026-03-17)
 - [ ] **Phase 137: Section-Level Loading & Conditional Elision** - Enricher loads workflow sections per-step instead of full file; conditional steps elided when decisions indicate they don't apply
 
 ## Phase Details
@@ -53,7 +53,7 @@
   2. User can run `verify:generate --phase <N>` and receive a VERIFICATION.md scaffold pre-filled with success criteria from ROADMAP.md, test result data, and requirement completion status
   3. Both scaffold types clearly mark each section as `<!-- data -->` (CLI pre-filled) or `<!-- judgment -->` (LLM fills), following the `summary:generate` JUDGMENT_SECTIONS pattern
   4. Scaffold generators are idempotent — re-running on an existing file preserves LLM-written judgment sections while refreshing data sections
-**Plans**: TBD
+**Plans**: 3/3 plans complete
 
 ### Phase 137: Section-Level Loading & Conditional Elision
 **Goal**: The enricher loads only the workflow section(s) relevant to the current step instead of the full workflow, and conditional features are elided when bgsd-context decisions indicate they don't apply — delivering per-invocation context savings
@@ -74,7 +74,7 @@ Phases 134 → 135 (after 134) → 136 (parallel with 134–135) → 137 (after 
 |-------|-----------|----------------|--------|-----------|
 | 134. Measurement Infrastructure & Baseline | 2/2 | Complete    | 2026-03-16 | - |
 | 135. Workflow Compression & Section Markers | 5/5 | Complete    | 2026-03-17 | - |
-| 136. Scaffold Infrastructure | v14.0 | 0/TBD | Not started | - |
+| 136. Scaffold Infrastructure | v14.0 | 3/3 | Complete | 2026-03-17 |
 | 137. Section-Level Loading & Conditional Elision | v14.0 | 0/TBD | Not started | - |
 
 ---
