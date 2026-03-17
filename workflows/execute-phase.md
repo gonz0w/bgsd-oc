@@ -28,7 +28,7 @@ CI_FLAG=""
 [[ "$PHASE_ARG" == *"--no-ci"* ]] && CI_FLAG="skip"
 ```
 
-Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`.
+Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`, `handoff_tool_context`, `capability_level` (from `handoff_tool_context.capability_level`).
 
 `phase_found` false or `plan_count` 0 → error. No STATE.md but `.planning/` exists → offer reconstruct. `parallelization` false → sequential.
 </step>
@@ -114,7 +114,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
   a. `execute:worktree create {plan_id}` for each plan. Fail → fall back to sequential.
   b. Inject codebase context (same as Mode B).
-  c. Spawn in worktree dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{worktree_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in worktree at {worktree_path}.</objective> ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
+  c. Spawn in worktree dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{worktree_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in worktree at {worktree_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
   d. Monitor: check `{worktree_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`.
   e. Wait. Separate successes/failures.
   f. Sequential merge (smallest first): `execute:worktree merge {plan_id}`. Run test if configured. Conflicts → "Resolve manually" / "Skip plan" / "Abort wave". Yolo: skip, log.
@@ -144,6 +144,8 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
       Load checkpoints.md sections 'types' and 'guidelines' via extract-sections if plan has autonomous: false.
       Load tdd.md only if plan type is 'tdd'.
       </execution_context>
+
+      Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection.
 
       <files_to_read>
       - {phase_dir}/{plan_file} (Plan)
