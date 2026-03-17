@@ -575,6 +575,50 @@ export function enrichCommand(input, output, cwd) {
       text: `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`,
     });
   }
+
+  // Conditional section elision: process any workflow content already in output.parts.
+  // Note: command.execute.before fires BEFORE @-reference resolution, so output.parts
+  // typically starts empty (the bgsd-context block we just prepended is output.parts[0]).
+  // This elision pass processes any parts added by OTHER hooks or future architectures
+  // where workflow content is injected directly. Skip index 0 (our bgsd-context block).
+  if (output.parts && output.parts.length > 1) {
+    let sectionsElided = 0;
+    const allElidedNames = [];
+    let totalTokensSaved = 0;
+
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (!part || typeof part.text !== 'string') continue;
+      if (!part.text.includes('<!-- section:') || !part.text.includes('if="')) continue;
+
+      const result = elideConditionalSections(part.text, enrichment);
+      if (result.sections_elided > 0) {
+        part.text = result.text;
+        sectionsElided += result.sections_elided;
+        allElidedNames.push(...result.elided_names);
+        totalTokensSaved += result.tokens_saved_estimate;
+      }
+    }
+
+    if (sectionsElided > 0) {
+      // Add elision stats as debug field in bgsd-context
+      enrichment._elision = {
+        sections_elided: sectionsElided,
+        elided_names: allElidedNames,
+        tokens_saved_estimate: totalTokensSaved,
+      };
+      // Update bgsd-context block with elision flag and stats
+      if (output.parts[0] && output.parts[0].text) {
+        enrichment.elision_applied = true;
+        output.parts[0].text = `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`;
+      }
+
+      if (process.env.BGSD_DEBUG) {
+        // eslint-disable-next-line no-console
+        console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(', ')}) ~${totalTokensSaved} tokens saved`);
+      }
+    }
+  }
 }
 
 /**

@@ -6873,6 +6873,39 @@ ${JSON.stringify(enrichment, null, 2)}
 </bgsd-context>`
     });
   }
+  if (output.parts && output.parts.length > 1) {
+    let sectionsElided = 0;
+    const allElidedNames = [];
+    let totalTokensSaved = 0;
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (!part || typeof part.text !== "string") continue;
+      if (!part.text.includes("<!-- section:") || !part.text.includes('if="')) continue;
+      const result = elideConditionalSections(part.text, enrichment);
+      if (result.sections_elided > 0) {
+        part.text = result.text;
+        sectionsElided += result.sections_elided;
+        allElidedNames.push(...result.elided_names);
+        totalTokensSaved += result.tokens_saved_estimate;
+      }
+    }
+    if (sectionsElided > 0) {
+      enrichment._elision = {
+        sections_elided: sectionsElided,
+        elided_names: allElidedNames,
+        tokens_saved_estimate: totalTokensSaved
+      };
+      if (output.parts[0] && output.parts[0].text) {
+        enrichment.elision_applied = true;
+        output.parts[0].text = `<bgsd-context>
+${JSON.stringify(enrichment, null, 2)}
+</bgsd-context>`;
+      }
+      if (process.env.BGSD_DEBUG) {
+        console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(", ")}) ~${totalTokensSaved} tokens saved`);
+      }
+    }
+  }
 }
 function detectPhaseArg(parts, commandStr) {
   if (parts && Array.isArray(parts)) {
