@@ -682,3 +682,23 @@
 
 ---
 
+
+## v14.0 LLM Workload Reduction (Shipped: 2026-03-17)
+
+**Phases completed:** 4 phases, 12 plans, 2 tasks
+
+**Key accomplishments:**
+- workflow:baseline and workflow:compare CLI commands with token measurement, structural fingerprinting (Task/CLI/section/question/XML), snapshot persistence, and 21-test coverage
+- Pre-compression baseline (44 workflows, 74230 tokens) + 3 new shared skills (ci-quality-gate, research-pipeline, bgsd-context-init) extracted from duplicate workflow content
+- discuss-phase.md and execute-phase.md compressed 42% each with section markers and skill references replacing inline init and CI gate blocks
+- Compressed new-milestone (505→275) and execute-plan (376→225) with section markers and 4 skill extractions
+- Compressed transition, new-project, resume-project 41-42% each with section markers; new-project research pipeline replaced with skill reference
+- audit-milestone (-41%), map-codebase (-43%), quick (-40%), transition (-43%) compressed with section markers; Phase 135 achieves 41.1% average token reduction across all 10 target workflows
+- Scaffold merge library with data/judgment separation and 28 unit tests
+- plan:generate command with roadmap pre-fill, data/judgment markers, idempotent merge, and 31 integration tests
+- verify:generate command with success criteria pre-fill, plan must-haves extraction, idempotent merge, and full idempotency verified
+- Conditional elision engine strips if=false workflow sections from output.parts; TDD, auto-test, CI gate, post-execution sections annotated in 3 workflows; 28 tests pass
+- Dangling reference check post-elision, workflow:savings cumulative table (42.3% avg reduction), 14 structural regression tests for execute-plan/execute-phase/verify-work; 49 elision tests pass
+
+---
+
