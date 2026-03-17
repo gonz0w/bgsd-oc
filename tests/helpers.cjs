@@ -10,6 +10,20 @@ const { execSync } = require('child_process');
 
 const TOOLS_PATH = path.join(__dirname, '..', 'bin', 'bgsd-tools.cjs');
 
+// Resolve @file: references in output (used by bgsd-tools for large JSON outputs)
+function resolveFileRef(output) {
+  const trimmed = (output || '').trim();
+  if (trimmed.startsWith('@file:')) {
+    const filePath = trimmed.slice('@file:'.length).trim();
+    try {
+      return fs.readFileSync(filePath, 'utf-8').trim();
+    } catch {
+      return trimmed; // return as-is if file can't be read
+    }
+  }
+  return trimmed;
+}
+
 // Helper to run bgsd-tools command
 function runGsdTools(args, cwd = process.cwd()) {
   try {
@@ -18,11 +32,11 @@ function runGsdTools(args, cwd = process.cwd()) {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return { success: true, output: result.trim() };
+    return { success: true, output: resolveFileRef(result) };
   } catch (err) {
     return {
       success: false,
-      output: err.stdout?.toString().trim() || '',
+      output: resolveFileRef(err.stdout?.toString()) || '',
       error: err.stderr?.toString().trim() || err.message,
     };
   }
@@ -36,11 +50,11 @@ function runGsdToolsFull(args, cwd = process.cwd()) {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return { success: true, stdout: stdout.trim(), stderr: '' };
+    return { success: true, stdout: resolveFileRef(stdout), stderr: '' };
   } catch (err) {
     return {
       success: err.status === 0,
-      stdout: (err.stdout || '').trim(),
+      stdout: resolveFileRef(err.stdout || ''),
       stderr: (err.stderr || '').trim(),
       exitCode: err.status,
     };

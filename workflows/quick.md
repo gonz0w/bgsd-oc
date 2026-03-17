@@ -1,49 +1,31 @@
 <purpose>
-Execute small ad-hoc tasks with bGSD guarantees (atomic commits, STATE.md tracking). Spawns planner + executor, tracks in `.planning/quick/`. With `--full`: adds plan-checking (max 2 iterations) and verification.
+Execute small ad-hoc tasks with bGSD guarantees. Spawns planner + executor, tracks in `.planning/quick/`. `--full` adds plan-checking (max 2 iterations) and verification.
 </purpose>
 
-<required_reading>
-Read all execution_context files before starting.
-</required_reading>
-
 <process>
-**Step 1: Parse arguments and get task description**
 
-Parse `$ARGUMENTS` for flags:
-- `--full` → `$FULL_MODE` (true/false)
-- `--ci` → force CI quality gate after execution
-- `--no-ci` → skip CI quality gate even if configured
+<!-- section: parse_args -->
+**Step 1: Parse arguments**
 
-Remaining text → `$DESCRIPTION`.
+| Flag | Effect |
+|------|--------|
+| `--full` | `$FULL_MODE=true` (enables plan-check + verify) |
+| `--ci` | Force CI gate |
+| `--no-ci` | Skip CI gate |
 
-If `$DESCRIPTION` empty, prompt:
-```
-question(header: "Quick Task", question: "What do you want to do?", followUp: null)
-```
-If still empty, re-prompt: "Please provide a task description."
+Remaining text → `$DESCRIPTION`. If empty, prompt. If still empty, re-prompt.
+If `$FULL_MODE`: banner `bGSD ► QUICK TASK (FULL MODE)`.
+<!-- /section -->
 
-If `$FULL_MODE`:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► QUICK TASK (FULL MODE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-◆ Plan checking + verification enabled
-```
-
----
-
+<!-- section: initialize -->
 **Step 2: Initialize**
 
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+<skill:bgsd-context-init />
 
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+Extract: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `quick_dir`, `roadmap_exists`. If `roadmap_exists` false: error.
+<!-- /section -->
 
-Parse `<bgsd-context>` JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
-
-**If `roadmap_exists` false:** Error — run `/bgsd-new-project` first.
-
----
-
+<!-- section: create_task_dir -->
 **Step 3: Create task directory**
 
 ```bash
@@ -52,290 +34,127 @@ mkdir -p "$QUICK_DIR"
 ```
 
 Report: `Creating quick task ${next_num}: ${DESCRIPTION} — Directory: ${QUICK_DIR}`
+<!-- /section -->
 
----
-
-**Step 4: Spawn planner (quick mode)**
+<!-- section: spawn_planner -->
+**Step 4: Spawn planner**
 
 ```
 Task(
-  prompt="
-<planning_context>
-**Mode:** ${FULL_MODE ? 'quick-full' : 'quick'}
-**Directory:** ${QUICK_DIR}
-**Description:** ${DESCRIPTION}
-
-<files_to_read>
-- .planning/STATE.md
-- ./AGENTS.md (if exists)
-</files_to_read>
-
-**Project skills:** Check .agents/skills/ (if exists) — read SKILL.md files
-</planning_context>
-
-<constraints>
-- SINGLE plan, 1-3 focused tasks, no research phase
-${FULL_MODE ? '- Target ~40% context, generate must_haves (truths, artifacts, key_links)' : '- Target ~30% context (simple, focused)'}
-${FULL_MODE ? '- Each task MUST have files, action, verify, done fields' : ''}
-</constraints>
-
-<output>
-Write plan to: ${QUICK_DIR}/${next_num}-PLAN.md
-Return: ## PLANNING COMPLETE with plan path
-</output>
-",
+  prompt="Mode: ${FULL_MODE?'quick-full':'quick'} | Dir: ${QUICK_DIR} | Task: ${DESCRIPTION}
+Read: .planning/STATE.md, AGENTS.md, .agents/skills/
+SINGLE plan, 1-3 tasks, no research. ${FULL_MODE?'~40% context, must_haves required (truths/artifacts/key_links). Each task: files/action/verify/done.':'~30% context.'}
+Write: ${QUICK_DIR}/${next_num}-PLAN.md | Return: ## PLANNING COMPLETE",
   subagent_type="bgsd-planner",
   model="{planner_model}",
   description="Quick plan: ${DESCRIPTION}"
 )
 ```
 
-Verify plan exists at `${QUICK_DIR}/${next_num}-PLAN.md`. If not found, error.
+Verify plan exists. If not found, error.
+<!-- /section -->
 
----
-
-**Step 4.5: Plan-checker loop (only when `$FULL_MODE`)**
+<!-- section: plan_checker -->
+**Step 4.5: Plan-checker (--full only)**
 
 Skip if NOT `$FULL_MODE`.
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► CHECKING PLAN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-◆ Spawning plan checker...
-```
-
-```
 Task(
-  prompt="
-<verification_context>
-**Mode:** quick-full
-**Task Description:** ${DESCRIPTION}
-
-<files_to_read>
-- ${QUICK_DIR}/${next_num}-PLAN.md
-</files_to_read>
-
-**Scope:** Quick task — skip ROADMAP phase goal checks.
-</verification_context>
-
-<check_dimensions>
-- Requirement coverage, task completeness (files/action/verify/done), key links real, scope sanity (1-3 tasks), must_haves traceable
-- Skip: context compliance, cross-plan deps, ROADMAP alignment
-</check_dimensions>
-
-<expected_output>
-## VERIFICATION PASSED or ## ISSUES FOUND (structured list)
-</expected_output>
-",
+  prompt="Check ${QUICK_DIR}/${next_num}-PLAN.md for task: ${DESCRIPTION}. Verify: coverage, files/action/verify/done, key links, 1-3 task scope, must_haves. Skip ROADMAP checks. Return ## VERIFICATION PASSED or ## ISSUES FOUND.",
   subagent_type="bgsd-plan-checker",
   model="{checker_model}",
   description="Check quick plan: ${DESCRIPTION}"
 )
 ```
 
-**Handle return:**
-- `## VERIFICATION PASSED` → proceed to Step 5
-- `## ISSUES FOUND` → revision loop (max 2 iterations)
-
-**Revision loop:** If iteration_count < 2, re-spawn planner with issues:
+- `## VERIFICATION PASSED` → Step 5
+- `## ISSUES FOUND` → revision loop (max 2):
 
 ```
 Task(
-  prompt="First, read __OPENCODE_CONFIG__/agents/bgsd-planner.md for your role.\n\n
-<revision_context>
-**Mode:** quick-full (revision)
-<files_to_read>
-- ${QUICK_DIR}/${next_num}-PLAN.md
-</files_to_read>
-**Checker issues:** ${structured_issues}
-</revision_context>
-Make targeted updates. Do NOT replan from scratch. Return what changed.",
+  prompt="Read __OPENCODE_CONFIG__/agents/bgsd-planner.md. Revise ${QUICK_DIR}/${next_num}-PLAN.md. Issues: ${structured_issues}. Targeted updates only, do NOT replan. Return what changed.",
   subagent_type="general",
   model="{planner_model}",
   description="Revise quick plan: ${DESCRIPTION}"
 )
 ```
 
-After revision → re-run checker, increment iteration_count. If >= 2: show remaining issues, offer: 1) Force proceed, 2) Abort.
+Re-run checker. If iteration_count >= 2: show issues, offer 1) Force proceed, 2) Abort.
+<!-- /section -->
 
----
-
+<!-- section: spawn_executor -->
 **Step 5: Spawn executor**
 
 ```
 Task(
-  prompt="
-Execute quick task ${next_num}.
-
-<files_to_read>
-- ${QUICK_DIR}/${next_num}-PLAN.md
-- .planning/STATE.md
-- ./AGENTS.md (if exists)
-- .agents/skills/ (if exists — list skills, read SKILL.md, follow relevant rules)
-</files_to_read>
-
-<constraints>
-- Execute all tasks, commit each atomically
-- Create summary at: ${QUICK_DIR}/${next_num}-SUMMARY.md
-- Do NOT update ROADMAP.md
-</constraints>
-",
+  prompt="Execute quick task ${next_num}: ${DESCRIPTION}
+Read: ${QUICK_DIR}/${next_num}-PLAN.md, .planning/STATE.md, AGENTS.md, .agents/skills/
+Execute all tasks atomically. Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md. Do NOT update ROADMAP.md.",
   subagent_type="bgsd-executor",
   model="{executor_model}",
   description="Execute: ${DESCRIPTION}"
 )
 ```
 
-Verify summary exists. If executor reports "failed" with `classifyHandoffIfNeeded` error — check summary file + git log; if present, treat as successful.
+Verify summary exists. `classifyHandoffIfNeeded` error → check summary + git log; if present, treat as success.
+<!-- /section -->
 
----
-
+<!-- section: ci_quality_gate if="ci_enabled" -->
 **Step 5.25: CI quality gate (optional)**
 
-Check if CI gate should run:
 ```bash
 CI_ENABLED=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.ci_gate 2>/dev/null || echo "false")
 ```
 
-Also run if `--ci` flag was passed in `$ARGUMENTS`. Skip if `--no-ci` flag present.
+Run if CI enabled or `--ci` flag. Skip if `--no-ci`.
 
-**If CI enabled:**
+<skill:ci-quality-gate scope="quick-${next_num}" base_branch="main" auto_merge="true" />
+<!-- /section -->
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► CI QUALITY GATE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-◆ Pushing branch, creating PR, running code scanning...
-```
+<!-- section: verification -->
+**Step 5.5: Verification (--full only)**
 
-```
-Task(
-  prompt="
-Run the GitHub CI quality gate.
-
-<ci_parameters>
-BRANCH_NAME: ci/quick-${next_num}
-BASE_BRANCH: main
-AUTO_MERGE: true
-SCOPE: quick-${next_num}
-</ci_parameters>
-
-<files_to_read>
-- .planning/STATE.md
-- ./AGENTS.md (if exists)
-</files_to_read>
-",
-  subagent_type="bgsd-github-ci",
-  model="{executor_model}",
-  description="GitHub CI: quick-${next_num}"
-)
-```
-
-**Handle CI result:**
-- `## CI COMPLETE` with `Status: merged` → continue to next step
-- `## CHECKPOINT REACHED` → present to user, wait for resolution
-
-**If CI disabled:** Skip silently.
-
----
-
-**Step 5.5: Verification (only when `$FULL_MODE`)**
-
-Skip if NOT `$FULL_MODE`.
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► VERIFYING RESULTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-◆ Spawning verifier...
-```
+Skip if NOT `$FULL_MODE`. Banner: `bGSD ► VERIFYING RESULTS`
 
 ```
 Task(
-  prompt="Verify quick task goal achievement.
-Task directory: ${QUICK_DIR}
-Task goal: ${DESCRIPTION}
-
-<files_to_read>
-- ${QUICK_DIR}/${next_num}-PLAN.md
-</files_to_read>
-
-Check must_haves against codebase. Create VERIFICATION.md at ${QUICK_DIR}/${next_num}-VERIFICATION.md.",
+  prompt="Verify quick task: ${DESCRIPTION}. Read: ${QUICK_DIR}/${next_num}-PLAN.md. Check must_haves vs codebase. Create: ${QUICK_DIR}/${next_num}-VERIFICATION.md.",
   subagent_type="bgsd-verifier",
   model="{verifier_model}",
   description="Verify: ${DESCRIPTION}"
 )
 ```
 
-Read verification status:
-```bash
-grep "^status:" "${QUICK_DIR}/${next_num}-VERIFICATION.md" | cut -d: -f2 | tr -d ' '
-```
+Check status: `grep "^status:" "${QUICK_DIR}/${next_num}-VERIFICATION.md" | cut -d: -f2 | tr -d ' '`
 
-| Status | Action |
-|--------|--------|
-| `passed` | `VERIFICATION_STATUS = "Verified"`, continue |
-| `human_needed` | Display items, `VERIFICATION_STATUS = "Needs Review"`, continue |
-| `gaps_found` | Display gaps, offer: 1) Re-run executor, 2) Accept. `VERIFICATION_STATUS = "Gaps"` |
+`passed`→Verified, continue | `human_needed`→display items, Needs Review, continue | `gaps_found`→show gaps, offer re-run or accept.
+<!-- /section -->
 
----
-
+<!-- section: update_state -->
 **Step 6: Update STATE.md**
 
-**6a.** Check for `### Quick Tasks Completed` section in STATE.md.
+Find/create `### Quick Tasks Completed` (after `### Blockers/Concerns`). Full mode: 6-col table (#+Desc+Date+Commit+Status+Dir); standard: 5-col. Match existing format. Append row. Update last activity.
+<!-- /section -->
 
-**6b.** If missing, insert after `### Blockers/Concerns`:
-
-Full mode table: `| # | Description | Date | Commit | Status | Directory |`
-Standard table: `| # | Description | Date | Commit | Directory |`
-
-If table exists, match its column format. If adding --full to project with existing headerless-Status table, add Status column.
-
-**6c.** Append row with `next_num`, `DESCRIPTION`, `date`, `commit_hash`, (optional `VERIFICATION_STATUS`), directory link.
-
-**6d.** Update last activity: `Last activity: ${date} - Completed quick task ${next_num}: ${DESCRIPTION}`
-
----
-
-**Step 7: Final commit and completion**
-
-Build file list: `${QUICK_DIR}/${next_num}-PLAN.md`, `${QUICK_DIR}/${next_num}-SUMMARY.md`, `.planning/STATE.md`, (if full mode: `${QUICK_DIR}/${next_num}-VERIFICATION.md`)
+<!-- section: final_commit -->
+**Step 7: Final commit**
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs(quick-${next_num}): ${DESCRIPTION}" --files ${file_list}
-commit_hash=$(git rev-parse --short HEAD)
 ```
 
-**If `$FULL_MODE`:**
-```
-bGSD > QUICK TASK COMPLETE (FULL MODE)
-Quick Task ${next_num}: ${DESCRIPTION}
-Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
-Verification: ${QUICK_DIR}/${next_num}-VERIFICATION.md (${VERIFICATION_STATUS})
-Commit: ${commit_hash}
-Ready for next task: /bgsd-quick-task
-```
+Files: PLAN.md + SUMMARY.md + STATE.md (+ full: VERIFICATION.md). Print completion banner.
+<!-- /section -->
 
-**If NOT `$FULL_MODE`:**
-```
-bGSD > QUICK TASK COMPLETE
-Quick Task ${next_num}: ${DESCRIPTION}
-Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
-Commit: ${commit_hash}
-Ready for next task: /bgsd-quick-task
-```
 </process>
 
+<!-- section: success_criteria -->
 <success_criteria>
-- [ ] ROADMAP.md validation passes
-- [ ] User provides task description
-- [ ] `--full` flag parsed when present
+- [ ] User provides task description; `--full` parsed
 - [ ] Directory created at `.planning/quick/NNN-slug/`
-- [ ] `${next_num}-PLAN.md` created by planner
-- [ ] (--full) Plan checker validates, revision loop capped at 2
-- [ ] `${next_num}-SUMMARY.md` created by executor
-- [ ] (--full) `${next_num}-VERIFICATION.md` created by verifier
-- [ ] STATE.md updated with quick task row
-- [ ] Artifacts committed
+- [ ] PLAN.md created by planner; (--full) checker validates (≤2 iterations)
+- [ ] SUMMARY.md created by executor; (--full) VERIFICATION.md created
+- [ ] STATE.md updated; artifacts committed
 </success_criteria>
+<!-- /section -->

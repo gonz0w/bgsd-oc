@@ -1,303 +1,115 @@
 <purpose>
-Orchestrate parallel codebase mapper agents to analyze codebase and produce structured documents in .planning/codebase/
-
-Each agent has fresh context, explores a specific focus area, and **writes documents directly**. The orchestrator only receives confirmation + line counts, then writes a summary.
-
-Output: .planning/codebase/ folder with 7 structured documents about the codebase state.
+Orchestrate 4 parallel codebase mapper agents (tech, arch, quality, concerns) to write 7 structured documents to .planning/codebase/. Agents write directly; orchestrator only receives confirmations and line counts.
 </purpose>
 
-<philosophy>
-Dedicated mapper agents: fresh context per domain, write directly (no transfer back), orchestrator only summarizes. Quality over length — include practical examples and actual file paths with backticks.
-</philosophy>
+<required_reading>
+Read all execution_context files before starting.
+</required_reading>
 
 <process>
 
-<step name="init_context" priority="first">
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
-
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+<!-- section: init_context -->
+<skill:bgsd-context-init />
 
 Extract from `<bgsd-context>` JSON: `mapper_model`, `commit_docs`, `codebase_dir`, `existing_maps`, `has_maps`, `codebase_dir_exists`.
-</step>
+<!-- /section -->
 
+<!-- section: check_existing -->
 <step name="check_existing">
-Check if .planning/codebase/ already exists using `has_maps` from init context.
+If `codebase_dir_exists` is true, run `ls -la .planning/codebase/` and offer:
 
-If `codebase_dir_exists` is true:
-```bash
-ls -la .planning/codebase/
-```
+| Choice | Action |
+|--------|--------|
+| Refresh | Delete .planning/codebase/, continue to create_structure |
+| Update | Ask which documents to update, continue to spawn_agents (filtered) |
+| Skip | Exit workflow |
 
-**If exists:**
-
-```
-.planning/codebase/ already exists with these documents:
-[List files found]
-
-What's next?
-1. Refresh - Delete existing and remap codebase
-2. Update - Keep existing, only update specific documents
-3. Skip - Use existing codebase map as-is
-```
-
-Wait for user response.
-
-If "Refresh": Delete .planning/codebase/, continue to create_structure
-If "Update": Ask which documents to update, continue to spawn_agents (filtered)
-If "Skip": Exit workflow
-
-**If doesn't exist:**
-Continue to create_structure.
+Wait for user response. If doesn't exist: continue to create_structure.
 </step>
+<!-- /section -->
 
+<!-- section: create_structure -->
 <step name="create_structure">
-Create .planning/codebase/ directory:
-
 ```bash
 mkdir -p .planning/codebase
 ```
 
-**Expected output files:**
-- STACK.md (from tech mapper)
-- INTEGRATIONS.md (from tech mapper)
-- ARCHITECTURE.md (from arch mapper)
-- STRUCTURE.md (from arch mapper)
-- CONVENTIONS.md (from quality mapper)
-- TESTING.md (from quality mapper)
-- CONCERNS.md (from concerns mapper)
-
-Continue to spawn_agents.
+Expected output: STACK.md, INTEGRATIONS.md (tech), ARCHITECTURE.md, STRUCTURE.md (arch), CONVENTIONS.md, TESTING.md (quality), CONCERNS.md (concerns).
 </step>
+<!-- /section -->
 
+<!-- section: spawn_agents -->
 <step name="spawn_agents">
-Spawn 4 parallel bgsd-codebase-mapper agents.
-
-Use Task tool with `subagent_type="bgsd-codebase-mapper"`, `model="{mapper_model}"`, and `run_in_background=true` for parallel execution.
-
-**CRITICAL:** Use the dedicated `bgsd-codebase-mapper` agent, NOT `Explore`. The mapper agent writes documents directly.
-
-**Agent 1: Tech Focus**
+Spawn 4 parallel `bgsd-codebase-mapper` agents (`run_in_background=true`, NOT `Explore`). Each prompt: "Focus: {focus}. Write {docs} to .planning/codebase/. Return confirmation only."
 
 ```
-Task(
-  subagent_type="bgsd-codebase-mapper",
-  model="{mapper_model}",
-  run_in_background=true,
-  description="Map codebase tech stack",
-  prompt="Focus: tech
-
-Analyze this codebase for technology stack and external integrations.
-
-Write these documents to .planning/codebase/:
-- STACK.md - Languages, runtime, frameworks, dependencies, configuration
-- INTEGRATIONS.md - External APIs, databases, auth providers, webhooks
-
-Explore thoroughly. Write documents directly using templates. Return confirmation only."
-)
+Task(subagent_type="bgsd-codebase-mapper", model="{mapper_model}", run_in_background=true,
+  description="Map tech", prompt="Focus: tech. Write STACK.md + INTEGRATIONS.md.")
+Task(subagent_type="bgsd-codebase-mapper", model="{mapper_model}", run_in_background=true,
+  description="Map arch", prompt="Focus: arch. Write ARCHITECTURE.md + STRUCTURE.md.")
+Task(subagent_type="bgsd-codebase-mapper", model="{mapper_model}", run_in_background=true,
+  description="Map quality", prompt="Focus: quality. Write CONVENTIONS.md + TESTING.md.")
+Task(subagent_type="bgsd-codebase-mapper", model="{mapper_model}", run_in_background=true,
+  description="Map concerns", prompt="Focus: concerns. Write CONCERNS.md.")
 ```
-
-**Agent 2: Architecture Focus**
-
-```
-Task(
-  subagent_type="bgsd-codebase-mapper",
-  model="{mapper_model}",
-  run_in_background=true,
-  description="Map codebase architecture",
-  prompt="Focus: arch
-
-Analyze this codebase architecture and directory structure.
-
-Write these documents to .planning/codebase/:
-- ARCHITECTURE.md - Pattern, layers, data flow, abstractions, entry points
-- STRUCTURE.md - Directory layout, key locations, naming conventions
-
-Explore thoroughly. Write documents directly using templates. Return confirmation only."
-)
-```
-
-**Agent 3: Quality Focus**
-
-```
-Task(
-  subagent_type="bgsd-codebase-mapper",
-  model="{mapper_model}",
-  run_in_background=true,
-  description="Map codebase conventions",
-  prompt="Focus: quality
-
-Analyze this codebase for coding conventions and testing patterns.
-
-Write these documents to .planning/codebase/:
-- CONVENTIONS.md - Code style, naming, patterns, error handling
-- TESTING.md - Framework, structure, mocking, coverage
-
-Explore thoroughly. Write documents directly using templates. Return confirmation only."
-)
-```
-
-**Agent 4: Concerns Focus**
-
-```
-Task(
-  subagent_type="bgsd-codebase-mapper",
-  model="{mapper_model}",
-  run_in_background=true,
-  description="Map codebase concerns",
-  prompt="Focus: concerns
-
-Analyze this codebase for technical debt, known issues, and areas of concern.
-
-Write this document to .planning/codebase/:
-- CONCERNS.md - Tech debt, bugs, security, performance, fragile areas
-
-Explore thoroughly. Write document directly using template. Return confirmation only."
-)
-```
-
-Continue to collect_confirmations.
 </step>
+<!-- /section -->
 
+<!-- section: collect_confirmations -->
 <step name="collect_confirmations">
-Wait for all 4 agents to complete.
-
-Read each agent's output file to collect confirmations.
-
-**Expected confirmation format from each agent:**
-```
-## Mapping Complete
-
-**Focus:** {focus}
-**Documents written:**
-- `.planning/codebase/{DOC1}.md` ({N} lines)
-- `.planning/codebase/{DOC2}.md` ({N} lines)
-
-Ready for orchestrator summary.
-```
-
-**What you receive:** Just file paths and line counts. NOT document contents.
-
-If any agent failed, note the failure and continue with successful documents.
-
-Continue to verify_output.
+Wait for all 4 agents. Collect file paths and line counts. Note any failures and continue.
 </step>
+<!-- /section -->
 
+<!-- section: verify_output -->
 <step name="verify_output">
-Verify all documents created successfully:
-
 ```bash
 ls -la .planning/codebase/
 wc -l .planning/codebase/*.md
 ```
 
-**Verification checklist:**
-- All 7 documents exist
-- No empty documents (each should have >20 lines)
-
-If any documents missing or empty, note which agents may have failed.
-
-Continue to scan_for_secrets.
+Verify: all 7 documents exist, none empty (>20 lines each). Note any missing.
 </step>
+<!-- /section -->
 
+<!-- section: scan_secrets -->
 <step name="scan_for_secrets">
-**CRITICAL SECURITY CHECK:** Scan output files for accidentally leaked secrets before committing.
-
-Run secret pattern detection:
+**CRITICAL SECURITY CHECK** before committing:
 
 ```bash
-# Check for common API key patterns in generated docs
 grep -E '(sk-[a-zA-Z0-9]{20,}|sk_live_[a-zA-Z0-9]+|sk_test_[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9_-]+|AKIA[A-Z0-9]{16}|xox[baprs]-[a-zA-Z0-9-]+|-----BEGIN.*PRIVATE KEY|eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.)' .planning/codebase/*.md 2>/dev/null && SECRETS_FOUND=true || SECRETS_FOUND=false
 ```
 
-**If SECRETS_FOUND=true:**
-
-```
-⚠️  SECURITY ALERT: Potential secrets detected in codebase documents!
-
-Found patterns that look like API keys or tokens in:
-[show grep output]
-
-This would expose credentials if committed.
-
-**Action required:**
-1. Review the flagged content above
-2. If these are real secrets, they must be removed before committing
-3. Consider adding sensitive files to the editor "Deny" permissions
-
-Pausing before commit. Reply "safe to proceed" if the flagged content is not actually sensitive, or edit the files first.
-```
-
-Wait for user confirmation before continuing to commit_codebase_map.
-
-**If SECRETS_FOUND=false:**
-
-Continue to commit_codebase_map.
+If `SECRETS_FOUND=true`: alert user, show matches, pause and wait for "safe to proceed" before committing.
 </step>
+<!-- /section -->
 
+<!-- section: commit -->
 <step name="commit_codebase_map">
-Commit the codebase map:
-
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: map existing codebase" --files .planning/codebase/*.md
 ```
-
-Continue to offer_next.
 </step>
+<!-- /section -->
 
+<!-- section: offer_next -->
 <step name="offer_next">
-Present completion summary and next steps.
+Print completion: list all 7 files with line counts (`wc -l .planning/codebase/*.md`).
 
-**Get line counts:**
-```bash
-wc -l .planning/codebase/*.md
-```
-
-**Output format:**
-
-```
-Codebase mapping complete.
-
-Created .planning/codebase/:
-- STACK.md ([N] lines) - Technologies and dependencies
-- ARCHITECTURE.md ([N] lines) - System design and patterns
-- STRUCTURE.md ([N] lines) - Directory layout and organization
-- CONVENTIONS.md ([N] lines) - Code style and patterns
-- TESTING.md ([N] lines) - Test structure and practices
-- INTEGRATIONS.md ([N] lines) - External services and APIs
-- CONCERNS.md ([N] lines) - Technical debt and issues
-
-
----
-
-## ▶ Next Up
-
-**Initialize project** — use codebase context for planning
-
-`/bgsd-new-project`
-
-<sub>`/clear` first → fresh context window</sub>
-
----
-
-**Also available:**
-- Re-run mapping: `/bgsd-map-codebase`
-- Review specific file: `cat .planning/codebase/STACK.md`
-- Edit any document before proceeding
-
----
-```
-
-End workflow.
+Next: `/bgsd-new-project` `<sub>/clear first</sub>` | Also: re-run `/bgsd-map-codebase`, review `cat .planning/codebase/STACK.md`
 </step>
+<!-- /section -->
 
 </process>
 
+<!-- section: success_criteria -->
 <success_criteria>
-- .planning/codebase/ directory created
-- 4 parallel bgsd-codebase-mapper agents spawned with run_in_background=true
-- Agents write documents directly (orchestrator doesn't receive document contents)
-- Read agent output files to collect confirmations
-- All 7 codebase documents exist
-- Clear completion summary with line counts
-- User offered clear next steps
+- [ ] .planning/codebase/ directory created
+- [ ] 4 parallel bgsd-codebase-mapper agents spawned with run_in_background=true
+- [ ] Agents write documents directly (orchestrator doesn't receive document contents)
+- [ ] All 7 codebase documents exist
+- [ ] Secret scan passes before commit
+- [ ] Clear completion summary with line counts
+- [ ] User offered clear next steps
 </success_criteria>
+<!-- /section -->

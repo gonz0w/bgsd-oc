@@ -1,119 +1,86 @@
 <purpose>
-Start new milestone for existing project. Load context → gather goals → update PROJECT.md/STATE.md → optional research → define requirements → spawn roadmapper → commit. Brownfield equivalent of new-project.
+Start new milestone for existing project. Load context → gather goals → update PROJECT.md/STATE.md → optional research → define requirements → spawn roadmapper → commit.
 </purpose>
 
 <required_reading>
 Read all execution_context files before starting.
 </required_reading>
 
+<skill:bgsd-context-init />
+
 <process>
 
+<!-- section: load_context -->
 ## 1. Load Context
 
 - Read PROJECT.md (existing project, validated requirements, decisions)
 - Read MILESTONES.md (what shipped previously)
 - Read STATE.md (pending todos, blockers)
 - Check for MILESTONE-CONTEXT.md (from /bgsd-discuss-milestone)
+<!-- /section -->
 
+<!-- section: gather_goals -->
 ## 2. Gather Milestone Goals
 
-**If MILESTONE-CONTEXT.md exists:**
-- Use features and scope from discuss-milestone
-- Present summary for confirmation
+**If MILESTONE-CONTEXT.md exists:** Use features/scope from discuss-milestone; present summary for confirmation.
 
-**If no context file:**
-- Present what shipped in last milestone
-- Ask: "What do you want to build next?"
-- Use question to explore features, priorities, constraints, scope
+**If no context file:** Present last milestone's shipped features. Ask: "What do you want to build next?" Use question() to explore features, priorities, constraints, scope.
+<!-- /section -->
 
+<!-- section: determine_version -->
 ## 3. Determine Milestone Version
 
-- Parse last version from MILESTONES.md
-- Suggest next version (v1.0 → v1.1, or v2.0 for major)
-- Confirm with user
+Parse last version from MILESTONES.md. Suggest next version (v1.0 → v1.1, or v2.0 for major). Confirm with user.
+<!-- /section -->
 
+<!-- section: update_project -->
 ## 4. Update PROJECT.md
 
 Add/update:
-
 ```markdown
 ## Current Milestone: v[X.Y] [Name]
 
-**Goal:** [One sentence describing milestone focus]
-
+**Goal:** [One sentence]
 **Target features:**
 - [Feature 1]
 - [Feature 2]
-- [Feature 3]
 ```
 
 Update Active requirements section and "Last updated" footer.
+<!-- /section -->
 
+<!-- section: review_intent -->
 ## 4.5. Review and Evolve Intent
 
-**If INTENT.md does NOT exist:**
-Follow the same questionnaire as new-project Step 4.5 — ask Q1-Q4 (Objective, Desired Outcomes, Success Criteria, Constraints), create INTENT.md, commit.
+**If INTENT.md does NOT exist:** Ask Q1-Q4 (Objective, Desired Outcomes, Success Criteria, Constraints), create INTENT.md, commit.
 
 **If INTENT.md exists:**
-
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  bGSD ► REVIEWING INTENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Display current intent summary (compact):
-
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent show
 ```
 
-Then ask guided questions about intent evolution:
-
-**Q1 — Objective check:** "Does the project objective still hold for this milestone, or has it shifted?"
-- If shifted: capture new objective, `intent update objective --value "..." --reason "..."`
-
-**Q2 — Outcomes review:** "Looking at your desired outcomes, which are now complete, which still apply, and are there new ones for this milestone?"
-- Present each outcome with its priority
-- For completed outcomes: "Mark as achieved or keep for ongoing tracking?"
-- For new outcomes: "What should this milestone accomplish that wasn't in scope before?"
-- Apply changes: `intent update outcomes --value "..." --reason "Milestone vX.Y: {explanation}"`
-
-**Q3 — Criteria evolution:** "Do your success criteria need updating for the new scope?"
-- If yes: `intent update criteria --value "..." --reason "..."`
-
-**Q4 — Constraints check:** "Any new constraints or relaxed ones?"
-- If yes: `intent update constraints --value "..." --reason "..."`
-
-All updates use the `--reason` flag to capture why the change was made, automatically logging to the `<history>` section.
+Ask Q1-Q4 about evolution: objective still valid? outcomes complete/new? criteria updated? constraints changed? Apply changes with `--reason` flag. Commit if changed.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: evolve intent for milestone v[X.Y]" --files .planning/INTENT.md
 ```
 
-Present evolution summary:
-```
-✓ Intent reviewed for v[X.Y]:
-  Changes: {N} modifications ({types summary})
-  Objective: {unchanged|updated}
-  Outcomes: {added N, modified N, removed N}
-```
+Present: `✓ Intent reviewed for v[X.Y]: {N} modifications` or `✓ Intent unchanged — carrying forward to v[X.Y]`
+<!-- /section -->
 
-If no changes: `✓ Intent unchanged — carrying forward to v[X.Y]`
-
+<!-- section: update_state -->
 ## 5. Update STATE.md
 
-```markdown
-## Current Position
+Set current position to: Phase not started, Status: Defining requirements. Keep Accumulated Context from previous milestone.
+<!-- /section -->
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: [today] — Milestone v[X.Y] started
-```
-
-Keep Accumulated Context section from previous milestone.
-
+<!-- section: cleanup_commit -->
 ## 6. Cleanup and Commit
 
 Delete MILESTONE-CONTEXT.md if exists (consumed).
@@ -121,152 +88,38 @@ Delete MILESTONE-CONTEXT.md if exists (consumed).
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: start milestone v[X.Y] [Name]" --files .planning/PROJECT.md .planning/STATE.md
 ```
+<!-- /section -->
 
+<!-- section: resolve_models -->
 ## 7. Load Context and Resolve Models
 
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
-
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
-
 Extract from `<bgsd-context>` JSON: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `research_enabled`, `current_milestone`, `project_exists`, `roadmap_exists`.
+<!-- /section -->
 
+<!-- section: research -->
 ## 8. Research Decision
 
 question: "Research the domain ecosystem for new features before defining requirements?"
 - "Research first (Recommended)" — Discover patterns, features, architecture for NEW capabilities
 - "Skip research" — Go straight to requirements
 
-**Persist choice to config** (so future `/bgsd-plan-phase` honors it):
-
 ```bash
-# If "Research first": persist true
-node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.research true
-
-# If "Skip research": persist false
-node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.research false
+# Persist choice
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.research true   # or false
 ```
 
 **If "Research first":**
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► RESEARCHING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-◆ Spawning 4 researchers in parallel...
-  → Stack, Features, Architecture, Pitfalls
-```
 
 ```bash
 mkdir -p .planning/research
 ```
 
-Spawn 4 parallel bgsd-project-researcher agents. Each uses this template with dimension-specific fields:
-
-**Common structure for all 4 researchers:**
-```
-Task(prompt="
-<research_type>Project Research — {DIMENSION} for [new features].</research_type>
-
-<milestone_context>
-SUBSEQUENT MILESTONE — Adding [target features] to existing app.
-{EXISTING_CONTEXT}
-Focus ONLY on what's needed for the NEW features.
-</milestone_context>
-
-<question>{QUESTION}</question>
-
-<files_to_read>
-- .planning/PROJECT.md (Project context)
-</files_to_read>
-
-<downstream_consumer>{CONSUMER}</downstream_consumer>
-
-<quality_gate>{GATES}</quality_gate>
-
-<output>
-Write to: .planning/research/{FILE}
-Use template: __OPENCODE_CONFIG__/bgsd-oc/templates/research-project/{FILE}
-</output>
-", subagent_type="bgsd-project-researcher", model="{researcher_model}", description="{DIMENSION} research")
-```
-
-**Dimension-specific fields:**
-
-| Field | Stack | Features | Architecture | Pitfalls |
-|-------|-------|----------|-------------|----------|
-| EXISTING_CONTEXT | Existing validated capabilities (DO NOT re-research): [from PROJECT.md] | Existing features (already built): [from PROJECT.md] | Existing architecture: [from PROJECT.md or codebase map] | Focus on common mistakes when ADDING these features to existing system |
-| QUESTION | What stack additions/changes are needed for [new features]? | How do [target features] typically work? Expected behavior? | How do [target features] integrate with existing architecture? | Common mistakes when adding [target features] to [domain]? |
-| CONSUMER | Specific libraries with versions for NEW capabilities, integration points, what NOT to add | Table stakes vs differentiators vs anti-features, complexity noted, dependencies on existing | Integration points, new components, data flow changes, suggested build order | Warning signs, prevention strategy, which phase should address it |
-| GATES | Versions current (verify with Context7), rationale explains WHY, integration considered | Categories clear, complexity noted, dependencies identified | Integration points identified, new vs modified explicit, build order considers deps | Pitfalls specific to adding these features, integration pitfalls covered, prevention actionable |
-| FILE | STACK.md | FEATURES.md | ARCHITECTURE.md | PITFALLS.md |
-
-After all 4 complete, spawn synthesizer:
-
-```
-Task(prompt="
-Synthesize research outputs into SUMMARY.md.
-
-<files_to_read>
-- .planning/research/STACK.md
-- .planning/research/FEATURES.md
-- .planning/research/ARCHITECTURE.md
-- .planning/research/PITFALLS.md
-</files_to_read>
-
-Write to: .planning/research/SUMMARY.md
-Use template: __OPENCODE_CONFIG__/bgsd-oc/templates/research-project/SUMMARY.md
-Commit after writing.
-", subagent_type="bgsd-roadmapper", model="{roadmapper_model}", description="Synthesize research")
-```
-
-Display key findings from SUMMARY.md:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► RESEARCH COMPLETE ✓
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**Stack additions:** [from SUMMARY.md]
-**Feature table stakes:** [from SUMMARY.md]
-**Watch Out For:** [from SUMMARY.md]
-```
-
-**Research Quality Profile:**
-
-For each research file in `.planning/research/`:
-
-```bash
-SCORE=$(node $BGSD_HOME/bin/bgsd-tools.cjs research:score "$RESEARCH_FILE")
-```
-
-Display profile summary for each file:
-```
-  {filename}: confidence={confidence_level}, sources={source_count}, high_pct={high_confidence_pct}%, age={oldest_source_days}d, official_docs={has_official_docs}
-```
-
-If any file has `confidence_level: "LOW"`:
-
-```
-  LOW confidence: {filename} — {flagged_gaps count matching HIGH or MEDIUM severity} gaps detected
-  Gaps (HIGH/MEDIUM only):
-  - {gap.gap} ({gap.severity}) — {gap.suggestion}
-  
-  Re-research this file? (y/N)
-```
-
-Filter: only show gaps where `severity` is `HIGH` or `MEDIUM` — suppress `LOW` severity gaps.
-
-If conflicts detected (`conflicts.length > 0`):
-```
-  Conflicts detected in {filename}:
-  - "{claim}" — {source_a} vs {source_b}
-```
-
-If user chooses "yes" for re-research: re-spawn researcher for that dimension with gap context.
-If "no" (default): continue — non-blocking.
+<skill:research-pipeline context="milestone" />
 
 **If "Skip research":** Continue to Step 9.
+<!-- /section -->
 
+<!-- section: skill_discovery -->
 ## 8.5. Skill Discovery (Optional)
 
 ```
@@ -275,28 +128,18 @@ If "no" (default): continue — non-blocking.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Check installed skills:
 ```bash
 SKILLS=$(node $BGSD_HOME/bin/bgsd-tools.cjs skills:list)
 ```
 
-Display current skills and browse link:
+Display current skills and `https://agentskills.io`. Ask: "Install any skills before defining requirements? (y/N)"
 
-```
-Current project skills: [from skills:list output]
-Browse available skills: https://agentskills.io
+**If yes:** User provides GitHub URL(s). `node $BGSD_HOME/bin/bgsd-tools.cjs skills:install --source <url>` — security scan runs automatically.
 
-Would you like to install any skills before defining requirements? (y/N)
-```
+**If no:** Continue to Step 9.
+<!-- /section -->
 
-**If "Install skills":**
-- User provides GitHub URL(s)
-- For each: `node $BGSD_HOME/bin/bgsd-tools.cjs skills:install --source <url>`
-- Security scan runs automatically — dangerous findings block, warn findings prompt confirmation
-- Continue to Step 9 after all installs complete
-
-**If "Skip" (default):** Continue to Step 9.
-
+<!-- section: define_requirements -->
 ## 9. Define Requirements
 
 ```
@@ -305,82 +148,36 @@ Would you like to install any skills before defining requirements? (y/N)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-If INTENT.md exists: Use desired outcomes (especially any newly added for this milestone) to guide requirement category selection. New outcomes should generate corresponding requirements.
+If INTENT.md exists: use desired outcomes (especially new ones) to guide category selection.
 
-Read PROJECT.md: core value, current milestone goals, validated requirements (what exists).
+Read PROJECT.md for core value, milestone goals, existing requirements. If research exists: read FEATURES.md, extract feature categories. If no research: gather requirements through conversation.
 
-**If research exists:** Read FEATURES.md, extract feature categories.
+**Scope each category** via question (multiSelect: true):
+- Present features by category with table stakes / differentiators
+- "None for this milestone" — defer entire category
 
-Present features by category:
-```
-## [Category 1]
-**Table stakes:** Feature A, Feature B
-**Differentiators:** Feature C, Feature D
-**Research notes:** [any relevant notes]
-```
+**Generate REQUIREMENTS.md:** Requirements grouped by category (checkboxes, REQ-IDs: `[CATEGORY]-[NUMBER]` format), Future Requirements, Out of Scope, Traceability.
 
-**If no research:** Gather requirements through conversation. Ask: "What are the main things users need to do with [new features]?" Clarify, probe for related capabilities, group into categories.
+**Quality criteria — good requirements are:** specific+testable, user-centric ("User can X"), atomic, independent.
 
-**Scope each category** via question (multiSelect: true, header max 12 chars):
-- "[Feature 1]" — [brief description]
-- "[Feature 2]" — [brief description]
-- "None for this milestone" — Defer entire category
+Present full list for confirmation. If "adjust": return to scoping.
 
-Track: Selected → this milestone. Unselected table stakes → future. Unselected differentiators → out of scope.
-
-**Identify gaps** via question:
-- "No, research covered it" — Proceed
-- "Yes, let me add some" — Capture additions
-
-**Generate REQUIREMENTS.md:**
-- v1 Requirements grouped by category (checkboxes, REQ-IDs)
-- Future Requirements (deferred)
-- Out of Scope (explicit exclusions with reasoning)
-- Traceability section (empty, filled by roadmap)
-
-**REQ-ID format:** `[CATEGORY]-[NUMBER]` (AUTH-01, NOTIF-02). Continue numbering from existing.
-
-**Requirement quality criteria:**
-
-Good requirements are:
-- **Specific and testable:** "User can reset password via email link" (not "Handle password reset")
-- **User-centric:** "User can X" (not "System does Y")
-- **Atomic:** One capability per requirement (not "User can login and manage profile")
-- **Independent:** Minimal dependencies on other requirements
-
-Present FULL requirements list for confirmation:
-
-```
-## Milestone v[X.Y] Requirements
-
-### [Category 1]
-- [ ] **CAT1-01**: User can do X
-- [ ] **CAT1-02**: User can do Y
-
-### [Category 2]
-- [ ] **CAT2-01**: User can do Z
-
-Does this capture what you're building? (yes / adjust)
-```
-
-If "adjust": Return to scoping.
-
-**Commit requirements:**
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: define milestone v[X.Y] requirements" --files .planning/REQUIREMENTS.md
 ```
+<!-- /section -->
 
+<!-- section: create_roadmap -->
 ## 10. Create Roadmap
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  bGSD ► CREATING ROADMAP
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 ◆ Spawning roadmapper...
 ```
 
-**Starting phase number:** Read MILESTONES.md for last phase number. Continue from there (v1.0 ended at phase 5 → v1.1 starts at phase 6).
+Read MILESTONES.md for last phase number (continue from there).
 
 ```
 Task(prompt="
@@ -404,56 +201,28 @@ Create roadmap for milestone v[X.Y]:
 5. Validate 100% coverage
 6. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability)
 7. Return ROADMAP CREATED with summary
-
-Write files first, then return.
 </instructions>
 ", subagent_type="bgsd-roadmapper", model="{roadmapper_model}", description="Create roadmap")
 ```
 
-**Handle return:**
-
 **If `## ROADMAP BLOCKED`:** Present blocker, work with user, re-spawn.
 
-**If `## ROADMAP CREATED`:** Read ROADMAP.md, present inline:
+**If `## ROADMAP CREATED`:** Present inline table + phase details. Ask approval via question:
+- "Approve" — commit and continue
+- "Adjust phases" — tell me what to change → re-spawn with revision context
+- "Review full file" — show raw ROADMAP.md, re-ask
 
-```
-## Proposed Roadmap
-
-**[N] phases** | **[X] requirements mapped** | All covered ✓
-
-| # | Phase | Goal | Requirements | Success Criteria |
-|---|-------|------|--------------|------------------|
-| [N] | [Name] | [Goal] | [REQ-IDs] | [count] |
-
-### Phase Details
-
-**Phase [N]: [Name]**
-Goal: [goal]
-Requirements: [REQ-IDs]
-Success criteria:
-1. [criterion]
-2. [criterion]
-```
-
-**Ask for approval** via question:
-- "Approve" — Commit and continue
-- "Adjust phases" — Tell me what to change
-- "Review full file" — Show raw ROADMAP.md
-
-**If "Adjust":** Get notes, re-spawn roadmapper with revision context, loop until approved.
-**If "Review":** Display raw ROADMAP.md, re-ask.
-
-**Validate roadmap parity** (before commit):
+**Validate before commit:**
 ```bash
 ROADMAP_CHECK=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null)
 ```
-If errors found: auto-repair adds missing checklist entries. If repair fails: warn user.
 
-**Commit roadmap** (after approval):
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create milestone v[X.Y] roadmap ([N] phases)" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md
 ```
+<!-- /section -->
 
+<!-- section: done -->
 ## 11. Done
 
 ```
@@ -483,9 +252,11 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create
 
 Also: `/bgsd-plan-phase [N]` — skip discussion, plan directly
 ```
+<!-- /section -->
 
 </process>
 
+<!-- section: success_criteria -->
 <success_criteria>
 - [ ] PROJECT.md updated with Current Milestone section
 - [ ] STATE.md reset for new milestone
@@ -498,8 +269,7 @@ Also: `/bgsd-plan-phase [N]` — skip discussion, plan directly
 - [ ] Roadmap files written immediately (not draft)
 - [ ] User feedback incorporated (if any)
 - [ ] ROADMAP.md phases continue from previous milestone
-- [ ] All commits made (if planning docs committed)
+- [ ] All commits made
 - [ ] User knows next step: `/bgsd-discuss-phase [N]`
-
-**Atomic commits:** Each phase commits its artifacts immediately.
 </success_criteria>
+<!-- /section -->

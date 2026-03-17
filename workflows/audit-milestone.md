@@ -1,5 +1,5 @@
 <purpose>
-Verify milestone achieved its definition of done by aggregating phase verifications, checking cross-phase integration, and assessing requirements coverage. Reads existing VERIFICATION.md files (phases already verified during execute-phase), aggregates tech debt and deferred gaps, then spawns integration checker for cross-phase wiring.
+Verify milestone achieved its definition of done by aggregating phase verifications, checking cross-phase integration, and assessing requirements coverage. Reads existing VERIFICATION.md files, aggregates tech debt and deferred gaps, then spawns integration checker for cross-phase wiring.
 </purpose>
 
 <required_reading>
@@ -8,294 +8,114 @@ Read all execution_context files before starting.
 
 <process>
 
-## 0. Initialize Milestone Context
-
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
-
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+<!-- section: initialize -->
+<skill:bgsd-context-init />
 
 Extract from `<bgsd-context>` JSON: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `commit_docs`.
 
-Resolve verifier model:
-
-**Pre-computed value:** If `verifier_model` or `checker_model` exists in `<bgsd-context>`, use it as `CHECKER_MODEL`. Skip subprocess call below.
-
-**Fallback** (if not available in context):
+Resolve verifier model — use `verifier_model`/`checker_model` from context if present. Fallback:
 ```bash
 CHECKER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-verifier)
 ```
+<!-- /section -->
 
+<!-- section: determine_scope -->
 ## 1. Determine Milestone Scope
 
 ```bash
-# Get phases in milestone (sorted numerically, handles decimals)
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phases list
 ```
 
-- Parse version from arguments or detect current from ROADMAP.md
-- Identify all phase directories in scope
-- Extract milestone definition of done from ROADMAP.md
-- Extract requirements mapped to this milestone from REQUIREMENTS.md
+Parse milestone version from arguments or detect from ROADMAP.md. Identify phase directories, milestone definition of done, and requirements mapped to this milestone.
+<!-- /section -->
 
+<!-- section: read_verifications -->
 ## 2. Read All Phase Verifications
 
-For each phase directory, read the VERIFICATION.md:
-
 ```bash
-# For each phase, use find-phase to resolve the directory (handles archived phases)
 PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:find-phase 01)
-# Extract directory from JSON, then read VERIFICATION.md from that directory
-# Repeat for each phase number from ROADMAP.md
 ```
 
-From each VERIFICATION.md, extract:
-- **Status:** passed | gaps_found
-- **Critical gaps:** (if any — these are blockers)
-- **Non-critical gaps:** tech debt, deferred items, warnings
-- **Anti-patterns found:** TODOs, stubs, placeholders
-- **Requirements coverage:** which requirements satisfied/blocked
+For each phase, read VERIFICATION.md and extract: Status (passed|gaps_found), critical gaps (blockers), non-critical gaps (tech debt/deferred), anti-patterns, requirements coverage. Missing VERIFICATION.md → flag as unverified phase (blocker).
+<!-- /section -->
 
-If a phase is missing VERIFICATION.md, flag it as "unverified phase" — this is a blocker.
-
+<!-- section: spawn_checker -->
 ## 3. Spawn Integration Checker
 
-With phase context collected:
-
-Extract `MILESTONE_REQ_IDS` from REQUIREMENTS.md traceability table — all REQ-IDs assigned to phases in this milestone.
+Extract `MILESTONE_REQ_IDS` from REQUIREMENTS.md traceability table.
 
 ```
 Task(
-  prompt="Check cross-phase integration and E2E flows.
-
-Phases: {phase_dirs}
-Phase exports: {from SUMMARYs}
-API routes: {routes created}
-
-Milestone Requirements:
-{MILESTONE_REQ_IDS — list each REQ-ID with description and assigned phase}
-
-MUST map each integration finding to affected requirement IDs where applicable.
-
-Verify cross-phase wiring and E2E user flows.",
+  prompt="Check cross-phase integration and E2E flows. Phases: {phase_dirs}. Phase exports: {from SUMMARYs}. API routes: {routes}. Milestone Requirements: {MILESTONE_REQ_IDS with description+phase}. Map each finding to affected REQ-IDs. Verify cross-phase wiring and E2E user flows.",
   subagent_type="bgsd-verifier",
   model="{verifier_model}"
 )
 ```
+<!-- /section -->
 
+<!-- section: collect_results -->
 ## 4. Collect Results
 
-Combine:
-- Phase-level gaps and tech debt (from step 2)
-- Integration checker's report (wiring gaps, broken flows)
+Combine: phase-level gaps/tech debt (step 2) + integration checker's report (wiring gaps, broken flows).
+<!-- /section -->
 
-## 5. Check Requirements Coverage (3-Source Cross-Reference)
+<!-- section: requirements_coverage -->
+## 5. Requirements Coverage (3-Source Cross-Reference)
 
-MUST cross-reference three independent sources for each requirement:
-
-### 5a. Parse REQUIREMENTS.md Traceability Table
-
-Extract all REQ-IDs mapped to milestone phases from the traceability table:
-- Requirement ID, description, assigned phase, current status, checked-off state (`[x]` vs `[ ]`)
-
-### 5b. Parse Phase VERIFICATION.md Requirements Tables
-
-For each phase's VERIFICATION.md, extract the expanded requirements table:
-- Requirement | Source Plan | Description | Status | Evidence
-- Map each entry back to its REQ-ID
-
-### 5c. Extract SUMMARY.md Frontmatter Cross-Check
-
-For each phase's SUMMARY.md, extract `requirements-completed` from YAML frontmatter:
+For each REQ-ID, cross-reference: (1) REQUIREMENTS.md traceability table (ID, phase, checkbox), (2) Phase VERIFICATION.md requirements table (status, evidence), (3) SUMMARY.md frontmatter `requirements-completed`:
 ```bash
 for summary in .planning/phases/*-*/*-SUMMARY.md; do
   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-extract "$summary" --fields requirements_completed | jq -r '.requirements_completed'
 done
 ```
 
-### 5d. Status Determination Matrix
+**Status matrix:** passed+listed+`[x]`→satisfied | passed+listed+`[ ]`→satisfied (update) | passed+missing→partial | gaps_found→unsatisfied | missing+listed→partial | missing+missing→unsatisfied.
 
-For each REQ-ID, determine status using all three sources:
+**FAIL gate:** Any `unsatisfied` → forces `gaps_found`. **Orphans** (in traceability, absent from all VERIFICATIONs) → `unsatisfied`.
+<!-- /section -->
 
-| VERIFICATION.md Status | SUMMARY Frontmatter | REQUIREMENTS.md | → Final Status |
-|------------------------|---------------------|-----------------|----------------|
-| passed                 | listed              | `[x]`           | **satisfied**  |
-| passed                 | listed              | `[ ]`           | **satisfied** (update checkbox) |
-| passed                 | missing             | any             | **partial** (verify manually) |
-| gaps_found             | any                 | any             | **unsatisfied** |
-| missing                | listed              | any             | **partial** (verification gap) |
-| missing                | missing             | any             | **unsatisfied** |
-
-### 5e. FAIL Gate and Orphan Detection
-
-**REQUIRED:** Any `unsatisfied` requirement MUST force `gaps_found` status on the milestone audit.
-
-**Orphan detection:** Requirements present in REQUIREMENTS.md traceability table but absent from ALL phase VERIFICATION.md files MUST be flagged as orphaned. Orphaned requirements are treated as `unsatisfied` — they were assigned but never verified by any phase.
-
+<!-- section: aggregate_report -->
 ## 6. Aggregate into v{version}-MILESTONE-AUDIT.md
 
-Create `.planning/v{version}-MILESTONE-AUDIT.md` with:
+YAML frontmatter fields: `milestone`, `audited`, `status` (passed|gaps_found|tech_debt), `scores` (requirements/phases/integration/flows as N/M), `gaps.requirements[]` (id, status, phase, claimed_by_plans, completed_by_plans, verification_status, evidence), `gaps.integration[]`, `gaps.flows[]`, `tech_debt[]` (phase + items list).
 
-```yaml
----
-milestone: {version}
-audited: {timestamp}
-status: passed | gaps_found | tech_debt
-scores:
-  requirements: N/M
-  phases: N/M
-  integration: N/M
-  flows: N/M
-gaps:  # Critical blockers
-  requirements:
-    - id: "{REQ-ID}"
-      status: "unsatisfied | partial | orphaned"
-      phase: "{assigned phase}"
-      claimed_by_plans: ["{plan files that reference this requirement}"]
-      completed_by_plans: ["{plan files whose SUMMARY marks it complete}"]
-      verification_status: "passed | gaps_found | missing | orphaned"
-      evidence: "{specific evidence or lack thereof}"
-  integration: [...]
-  flows: [...]
-tech_debt:  # Non-critical, deferred
-  - phase: 01-auth
-    items:
-      - "TODO: add rate limiting"
-      - "Warning: no password strength validation"
-  - phase: 03-dashboard
-    items:
-      - "Deferred: mobile responsive layout"
----
-```
+Plus full markdown report (requirements, phases, integration, tech debt tables).
+<!-- /section -->
 
-Plus full markdown report with tables for requirements, phases, integration, tech debt.
-
-**Status values:**
-- `passed` — all requirements met, no critical gaps, minimal tech debt
-- `gaps_found` — critical blockers exist
-- `tech_debt` — no blockers but accumulated deferred items need review
-
+<!-- section: present_results -->
 ## 7. Present Results
 
 Route by status (see `<offer_next>`).
+<!-- /section -->
 
 </process>
 
+<!-- section: offer_next -->
 <offer_next>
-Output this markdown directly (not as a code block). Route based on status:
+Output directly (not code block). Route:
 
----
+**passed:** `## ✓ Milestone {version} — Audit Passed` | Score: {N}/{M} | Report: .planning/v{version}-MILESTONE-AUDIT.md | Next: `/bgsd-complete-milestone {version}`
 
-**If passed:**
+**gaps_found:** `## ⚠ Milestone {version} — Gaps Found` | Score: {N}/{M} | List unsatisfied REQs, cross-phase issues, broken flows | Next: `/bgsd-plan-gaps`
 
-## ✓ Milestone {version} — Audit Passed
+**tech_debt:** `## ⚡ Milestone {version} — Tech Debt Review` | Score: {N}/{M} | Tech debt by phase | Options: A) `/bgsd-complete-milestone {version}` B) `/bgsd-plan-gaps`
 
-**Score:** {N}/{M} requirements satisfied
-**Report:** .planning/v{version}-MILESTONE-AUDIT.md
-
-All requirements covered. Cross-phase integration verified. E2E flows complete.
-
-───────────────────────────────────────────────────────────────
-
-## ▶ Next Up
-
-**Complete milestone** — archive and tag
-
-/bgsd-complete-milestone {version}
-
-<sub>/clear first → fresh context window</sub>
-
-───────────────────────────────────────────────────────────────
-
----
-
-**If gaps_found:**
-
-## ⚠ Milestone {version} — Gaps Found
-
-**Score:** {N}/{M} requirements satisfied
-**Report:** .planning/v{version}-MILESTONE-AUDIT.md
-
-### Unsatisfied Requirements
-
-{For each unsatisfied requirement:}
-- **{REQ-ID}: {description}** (Phase {X})
-  - {reason}
-
-### Cross-Phase Issues
-
-{For each integration gap:}
-- **{from} → {to}:** {issue}
-
-### Broken Flows
-
-{For each flow gap:}
-- **{flow name}:** breaks at {step}
-
-───────────────────────────────────────────────────────────────
-
-## ▶ Next Up
-
-**Plan gap closure** — create phases to complete milestone
-
-/bgsd-plan-gaps
-
-<sub>/clear first → fresh context window</sub>
-
-───────────────────────────────────────────────────────────────
-
-**Also available:**
-- cat .planning/v{version}-MILESTONE-AUDIT.md — see full report
-- /bgsd-complete-milestone {version} — proceed anyway (accept tech debt)
-
-───────────────────────────────────────────────────────────────
-
----
-
-**If tech_debt (no blockers but accumulated debt):**
-
-## ⚡ Milestone {version} — Tech Debt Review
-
-**Score:** {N}/{M} requirements satisfied
-**Report:** .planning/v{version}-MILESTONE-AUDIT.md
-
-All requirements met. No critical blockers. Accumulated tech debt needs review.
-
-### Tech Debt by Phase
-
-{For each phase with debt:}
-**Phase {X}: {name}**
-- {item 1}
-- {item 2}
-
-### Total: {N} items across {M} phases
-
-───────────────────────────────────────────────────────────────
-
-## ▶ Options
-
-**A. Complete milestone** — accept debt, track in backlog
-
-/bgsd-complete-milestone {version}
-
-**B. Plan cleanup phase** — address debt before completing
-
-/bgsd-plan-gaps
-
-<sub>/clear first → fresh context window</sub>
-
-───────────────────────────────────────────────────────────────
+All routes: `<sub>/clear first → fresh context window</sub>`
 </offer_next>
+<!-- /section -->
 
+<!-- section: success_criteria -->
 <success_criteria>
 - [ ] Milestone scope identified
 - [ ] All phase VERIFICATION.md files read
 - [ ] SUMMARY.md `requirements-completed` frontmatter extracted for each phase
 - [ ] REQUIREMENTS.md traceability table parsed for all milestone REQ-IDs
 - [ ] 3-source cross-reference completed (VERIFICATION + SUMMARY + traceability)
-- [ ] Orphaned requirements detected (in traceability but absent from all VERIFICATIONs)
+- [ ] Orphaned requirements detected
 - [ ] Tech debt and deferred gaps aggregated
 - [ ] Integration checker spawned with milestone requirement IDs
 - [ ] v{version}-MILESTONE-AUDIT.md created with structured requirement gap objects
 - [ ] FAIL gate enforced — any unsatisfied requirement forces gaps_found status
 - [ ] Results presented with actionable next steps
 </success_criteria>
+<!-- /section -->

@@ -23,7 +23,7 @@ export { parseIntent, invalidateIntent } from './parsers/intent.js';
 export { invalidateAll } from './parsers/index.js';
 export { getProjectState } from './project-state.js';
 export { buildSystemPrompt, buildCompactionContext } from './context-builder.js';
-export { enrichCommand } from './command-enricher.js';
+export { enrichCommand, elideConditionalSections } from './command-enricher.js';
 export { createToolRegistry } from './tool-registry.js';
 export { safeHook } from './safe-hook.js';
 export { createNotifier } from './notification.js';

@@ -575,6 +575,74 @@ export function enrichCommand(input, output, cwd) {
       text: `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`,
     });
   }
+
+  // Conditional section elision: process any workflow content already in output.parts.
+  // Note: command.execute.before fires BEFORE @-reference resolution, so output.parts
+  // typically starts empty (the bgsd-context block we just prepended is output.parts[0]).
+  // This elision pass processes any parts added by OTHER hooks or future architectures
+  // where workflow content is injected directly. Skip index 0 (our bgsd-context block).
+  if (output.parts && output.parts.length > 1) {
+    let sectionsElided = 0;
+    const allElidedNames = [];
+    let totalTokensSaved = 0;
+
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (!part || typeof part.text !== 'string') continue;
+      if (!part.text.includes('<!-- section:') || !part.text.includes('if="')) continue;
+
+      const result = elideConditionalSections(part.text, enrichment);
+      if (result.sections_elided > 0) {
+        part.text = result.text;
+        sectionsElided += result.sections_elided;
+        allElidedNames.push(...result.elided_names);
+        totalTokensSaved += result.tokens_saved_estimate;
+      }
+      // Store dangling warnings on the part temporarily for collection below
+      if (result.warnings && result.warnings.length > 0) {
+        part._elisionWarnings = result.warnings;
+      }
+    }
+
+    // Collect all dangling reference warnings across parts
+    const allDanglingWarnings = [];
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (part && part._elisionWarnings) {
+        allDanglingWarnings.push(...part._elisionWarnings);
+        delete part._elisionWarnings;
+      }
+    }
+
+    if (sectionsElided > 0) {
+      // Add elision stats as debug field in bgsd-context
+      enrichment._elision = {
+        sections_elided: sectionsElided,
+        elided_names: allElidedNames,
+        tokens_saved_estimate: totalTokensSaved,
+      };
+      if (allDanglingWarnings.length > 0) {
+        enrichment._elision.dangling_warnings = allDanglingWarnings;
+      }
+      // Update bgsd-context block with elision flag and stats
+      if (output.parts[0] && output.parts[0].text) {
+        enrichment.elision_applied = true;
+        output.parts[0].text = `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`;
+      }
+
+      if (process.env.BGSD_DEBUG) {
+        // eslint-disable-next-line no-console
+        console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(', ')}) ~${totalTokensSaved} tokens saved`);
+        if (allDanglingWarnings.length > 0) {
+          // eslint-disable-next-line no-console
+          console.error(`[bgsd-enricher] dangling references found: ${allDanglingWarnings.map(w => w.section).join(', ')}`);
+        }
+      }
+    } else if (allDanglingWarnings.length > 0 && process.env.BGSD_DEBUG) {
+      // eslint-disable-next-line no-console
+      console.error(`[bgsd-enricher] dangling references found (no elision): ${allDanglingWarnings.map(w => w.section).join(', ')}`);
+    }
+  }
 }
 
 /**
@@ -681,4 +749,152 @@ function toSlug(name) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+}
+
+/**
+ * Elide conditional sections from workflow text based on enrichment state.
+ *
+ * Parses `<!-- section: name if="condition" -->` ... `<!-- /section -->` markers
+ * and removes sections whose condition evaluates to false against the enrichment
+ * object. Sections without `if=` conditions are always preserved.
+ *
+ * Condition evaluation order:
+ * 1. Direct field: `enrichment[conditionKey]` — truthy = keep, falsy = elide
+ * 2. Decision lookup: `enrichment.decisions?.[conditionKey]?.value` — truthy = keep, falsy = elide
+ * 3. Boolean string: `"true"` = keep, `"false"` = elide
+ * 4. Missing key = keep (fail-open: don't elide if condition can't be evaluated)
+ *
+ * After elision, performs a dangling reference scan: if remaining content contains
+ * any of the elided section names as whole words, reports warnings. These are
+ * references to removed sections that could confuse agents.
+ *
+ * @param {string} text - Workflow text to process
+ * @param {object} enrichment - Enrichment object with fields and decisions
+ * @returns {{ text: string, sections_elided: number, elided_names: string[], tokens_saved_estimate: number, warnings: Array<{section: string, references: string[]}> }}
+ */
+export function elideConditionalSections(text, enrichment) {
+  if (!text || typeof text !== 'string') {
+    return { text: text || '', sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+  if (!enrichment || typeof enrichment !== 'object') {
+    return { text, sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+
+  // Regex: match conditional section opening markers
+  // Captures: (1) section name, (2) condition key
+  const CONDITIONAL_OPEN_RE = /<!--\s*section:\s*(\S+)\s+if="([^"]+)"\s*-->/g;
+  const SECTION_CLOSE = '<!-- /section -->';
+
+  let result = text;
+  let sectionsElided = 0;
+  const elidedNames = [];
+  let tokensSaved = 0;
+
+  // Collect all conditional sections with their positions
+  // Process from last to first to avoid index invalidation
+  const matches = [];
+  let m;
+  const re = new RegExp(CONDITIONAL_OPEN_RE.source, 'g');
+  while ((m = re.exec(text)) !== null) {
+    matches.push({
+      fullMatch: m[0],
+      name: m[1],
+      condition: m[2],
+      startIndex: m.index,
+    });
+  }
+
+  // Process in reverse order to preserve indices
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { fullMatch, name, condition, startIndex } = matches[i];
+
+    // Evaluate condition
+    const shouldKeep = evaluateElisionCondition(condition, enrichment);
+    if (shouldKeep) continue;
+
+    // Find closing marker
+    const closeIndex = result.indexOf(SECTION_CLOSE, startIndex + fullMatch.length);
+
+    let sectionStart = startIndex;
+    let sectionEnd;
+    if (closeIndex === -1) {
+      // Unclosed section: extend to EOF
+      sectionEnd = result.length;
+    } else {
+      sectionEnd = closeIndex + SECTION_CLOSE.length;
+    }
+
+    // Remove the section (including trailing newline if present)
+    const removedContent = result.slice(sectionStart, sectionEnd);
+    // Estimate tokens: ~4 chars per token
+    tokensSaved += Math.ceil(removedContent.length / 4);
+
+    // Remove section + optional trailing newline
+    const afterSection = result.slice(sectionEnd);
+    const trailingNewline = afterSection.startsWith('\n') ? '\n' : '';
+    result = result.slice(0, sectionStart) + afterSection.slice(trailingNewline.length);
+
+    sectionsElided++;
+    elidedNames.unshift(name); // unshift to maintain order
+  }
+
+  // Post-elision dangling reference scan
+  // Scans remaining content for references to elided section names using word-boundary matching.
+  // Catches cases where a non-conditional section references an elided section by name.
+  const warnings = [];
+  if (elidedNames.length > 0) {
+    const lines = result.split('\n');
+    for (const name of elidedNames) {
+      // Word-boundary match: name must appear as a whole word (not substring of another identifier)
+      // Use word boundaries to avoid false positives (e.g., "tdd_execution" vs "tdd_execution_mode")
+      const wordRe = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      const matchingLines = lines.filter(line => wordRe.test(line));
+      if (matchingLines.length > 0) {
+        warnings.push({ section: name, references: matchingLines });
+      }
+    }
+  }
+
+  return {
+    text: result,
+    sections_elided: sectionsElided,
+    elided_names: elidedNames,
+    tokens_saved_estimate: tokensSaved,
+    warnings,
+  };
+}
+
+/**
+ * Evaluate a single elision condition key against the enrichment object.
+ *
+ * @param {string} key - Condition key (e.g., "is_tdd", "ci_enabled")
+ * @param {object} enrichment - Enrichment object
+ * @returns {boolean} True = keep section, false = elide
+ */
+function evaluateElisionCondition(key, enrichment) {
+  // Fail-open: if no key, keep
+  if (!key) return true;
+
+  // 1. Direct field lookup
+  if (Object.prototype.hasOwnProperty.call(enrichment, key)) {
+    const val = enrichment[key];
+    // Boolean string handling
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+    return Boolean(val);
+  }
+
+  // 2. Decision lookup: enrichment.decisions?.[key]?.value
+  if (enrichment.decisions && typeof enrichment.decisions === 'object') {
+    const decision = enrichment.decisions[key];
+    if (decision !== undefined && decision !== null) {
+      const val = typeof decision === 'object' ? decision.value : decision;
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+      return Boolean(val);
+    }
+  }
+
+  // 3. Missing key = keep (fail-open)
+  return true;
 }

@@ -1,26 +1,25 @@
-<required_reading>
-Read: `.planning/STATE.md`, `.planning/PROJECT.md`, `.planning/ROADMAP.md`, current phase `*-PLAN.md` and `*-SUMMARY.md` files.
-</required_reading>
-
+<!-- section: purpose -->
 <purpose>
-
-Mark current phase complete and advance to next. This is the natural point where progress tracking and PROJECT.md evolution happen.
-
-"Planning next phase" = "current phase is done"
-
+Mark current phase complete and advance to next. "Planning next phase" = "current phase is done."
 </purpose>
+<!-- /section -->
+
+<skill:bgsd-context-init />
 
 <process>
 
+<!-- section: load_state -->
 <step name="load_project_state" priority="first">
 ```bash
 cat .planning/STATE.md 2>/dev/null
 cat .planning/PROJECT.md 2>/dev/null
 ```
 
-Parse current position to verify correct phase. Note accumulated context needing updates.
+Parse current position. Note accumulated context needing updates.
 </step>
+<!-- /section -->
 
+<!-- section: verify_completion -->
 <step name="verify_completion">
 ```bash
 ls .planning/phases/XX-current/*-PLAN.md 2>/dev/null | sort
@@ -29,26 +28,15 @@ ls .planning/phases/XX-current/*-SUMMARY.md 2>/dev/null | sort
 
 Count PLANs vs SUMMARYs. Match → complete. Mismatch → incomplete.
 
-<config-check>
-
-```bash
-cat .planning/config.json 2>/dev/null
-```
-
-</config-check>
-
 **If all plans complete:**
 
 <if mode="yolo">
 
 ```
 ⚡ Auto-approved: Transition Phase [X] → Phase [X+1]
-Phase [X] complete — all [Y] plans finished.
-
-Proceeding to mark done and advance...
 ```
 
-Proceed directly to cleanup_handoff step.
+Proceed to cleanup_handoff.
 
 </if>
 
@@ -56,22 +44,16 @@ Proceed directly to cleanup_handoff step.
 
 Ask: "Phase [X] complete — all [Y] plans finished. Ready to mark done and move to Phase [X+1]?"
 
-Wait for confirmation before proceeding.
-
 </if>
 
 **If plans incomplete:**
 
-**SAFETY RAIL: always_confirm_destructive applies here.**
-Skipping incomplete plans is destructive — ALWAYS prompt regardless of mode.
-
-Present:
+**SAFETY RAIL: always_confirm_destructive applies.** Always prompt regardless of mode.
 
 ```
 Phase [X] has incomplete plans:
 - {phase}-01-SUMMARY.md ✓ Complete
 - {phase}-02-SUMMARY.md ✗ Missing
-- {phase}-03-SUMMARY.md ✗ Missing
 
 ⚠️ Safety rail: Skipping plans requires confirmation (destructive action)
 
@@ -81,22 +63,20 @@ Options:
 3. Review what's left
 ```
 
-Wait for user decision.
-
 </step>
+<!-- /section -->
 
+<!-- section: cleanup_handoff -->
 <step name="cleanup_handoff">
-
-Check for lingering handoffs:
-
 ```bash
 ls .planning/phases/XX-current/.continue-here*.md 2>/dev/null
 ```
 
 If found, delete them — phase is complete, handoffs are stale.
-
 </step>
+<!-- /section -->
 
+<!-- section: update_roadmap -->
 <step name="update_roadmap_and_state">
 ```bash
 TRANSITION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase complete "${current_phase}")
@@ -105,389 +85,109 @@ TRANSITION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase comp
 CLI handles: phase checkbox `[x]`, plan count, Progress table, STATE.md advance, last-phase detection.
 Extract: `completed_phase`, `plans_executed`, `next_phase`, `next_phase_name`, `is_last_phase`.
 </step>
+<!-- /section -->
 
-<step name="archive_prompts">
-
-If prompts were generated for the phase, they stay in place.
-The `completed/` subfolder pattern from create-meta-prompts handles archival.
-
-</step>
-
+<!-- section: evolve_project -->
 <step name="evolve_project">
 
-Evolve PROJECT.md to reflect learnings from completed phase.
-
-**Read phase summaries:**
-
+Read phase summaries:
 ```bash
 cat .planning/phases/XX-current/*-SUMMARY.md
 ```
 
-**Assess requirement changes:**
+Assess requirement changes using this decision table:
 
-1. **Requirements validated?**
-   - Any Active requirements shipped in this phase?
-   - Move to Validated with phase reference: `- ✓ [Requirement] — Phase X`
+| Change type | Condition | Action |
+|-------------|-----------|--------|
+| Validated | Active requirement shipped | Move to Validated: `- ✓ [Req] — Phase X` |
+| Invalidated | Requirement found unnecessary | Move to Out of Scope with reason |
+| Emerged | New requirement discovered | Add to Active: `- [ ] [New req]` |
+| Decision | Decision made in SUMMARY | Add to Key Decisions table |
+| Description | Product meaningfully changed | Update "What This Is" |
 
-2. **Requirements invalidated?**
-   - Any Active requirements discovered to be unnecessary or wrong?
-   - Move to Out of Scope with reason: `- [Requirement] — [why invalidated]`
-
-3. **Requirements emerged?**
-   - Any new requirements discovered during building?
-   - Add to Active: `- [ ] [New requirement]`
-
-4. **Decisions to log?**
-   - Extract decisions from SUMMARY.md files
-   - Add to Key Decisions table with outcome if known
-
-5. **"What This Is" still accurate?**
-   - If the product has meaningfully changed, update the description
-   - Keep it current and accurate
-
-**Update PROJECT.md:**
-
-Make the edits inline. Update "Last updated" footer:
-
+Update PROJECT.md inline. Update footer:
 ```markdown
 ---
 *Last updated: [date] after Phase [X]*
 ```
 
-**Example evolution:**
-
-Before:
-
-```markdown
-### Active
-
-- [ ] JWT authentication
-- [ ] Real-time sync < 500ms
-- [ ] Offline mode
-
-### Out of Scope
-
-- OAuth2 — complexity not needed for v1
-```
-
-After (Phase 2 shipped JWT auth, discovered rate limiting needed):
-
-```markdown
-### Validated
-
-- ✓ JWT authentication — Phase 2
-
-### Active
-
-- [ ] Real-time sync < 500ms
-- [ ] Offline mode
-- [ ] Rate limiting on sync endpoint
-
-### Out of Scope
-
-- OAuth2 — complexity not needed for v1
-```
-
-**Step complete when:**
-
-- [ ] Phase summaries reviewed for learnings
-- [ ] Validated requirements moved from Active
-- [ ] Invalidated requirements moved to Out of Scope with reason
-- [ ] Emerged requirements added to Active
-- [ ] New decisions logged with rationale
-- [ ] "What This Is" updated if product changed
-- [ ] "Last updated" footer reflects this transition
-
+**Step complete when:** Validated/invalidated/emerged requirements updated, decisions logged, description current.
 </step>
+<!-- /section -->
 
+<!-- section: update_position -->
 <step name="update_current_position_after_transition">
-
-**Note:** Basic position updates (Current Phase, Status, Current Plan, Last Activity) were already handled by `bgsd-tools plan:phase complete` in the update_roadmap_and_state step.
-
-Verify the updates are correct by reading STATE.md. If the progress bar needs updating, use:
+Basic position updates were handled by `bgsd-tools plan:phase complete`. Verify STATE.md is correct. If progress bar needs updating:
 
 ```bash
 PROGRESS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:progress bar)
 ```
 
-Update the progress bar line in STATE.md with the result.
-
-**Step complete when:**
-
-- [ ] Phase number incremented to next phase (done by phase complete)
-- [ ] Plan status reset to "Not started" (done by phase complete)
-- [ ] Status shows "Ready to plan" (done by phase complete)
-- [ ] Progress bar reflects total completed plans
-
+Update the progress bar line in STATE.md.
 </step>
+<!-- /section -->
 
+<!-- section: update_reference -->
 <step name="update_project_reference">
-
-Update Project Reference section in STATE.md.
-
-```markdown
-## Project Reference
-
-See: .planning/PROJECT.md (updated [today])
-
-**Core value:** [Current core value from PROJECT.md]
-**Current focus:** [Next phase name]
-```
-
-Update the date and current focus to reflect the transition.
-
+Update Project Reference in STATE.md: date, core value, current focus → next phase name.
 </step>
+<!-- /section -->
 
+<!-- section: review_context -->
 <step name="review_accumulated_context">
+**Decisions:** Note recent decisions (3-5 max). Full log in PROJECT.md.
 
-Review and update Accumulated Context section in STATE.md.
-
-**Decisions:**
-
-- Note recent decisions from this phase (3-5 max)
-- Full log lives in PROJECT.md Key Decisions table
-
-**Blockers/Concerns:**
-
-- Review blockers from completed phase
-- If addressed in this phase: Remove from list
-- If still relevant for future: Keep with "Phase X" prefix
-- Add any new concerns from completed phase's summaries
-
-**Example:**
-
-Before:
-
-```markdown
-### Blockers/Concerns
-
-- ⚠️ [Phase 1] Database schema not indexed for common queries
-- ⚠️ [Phase 2] WebSocket reconnection behavior on flaky networks unknown
-```
-
-After (if database indexing was addressed in Phase 2):
-
-```markdown
-### Blockers/Concerns
-
-- ⚠️ [Phase 2] WebSocket reconnection behavior on flaky networks unknown
-```
-
-**Step complete when:**
-
-- [ ] Recent decisions noted (full log in PROJECT.md)
-- [ ] Resolved blockers removed from list
-- [ ] Unresolved blockers kept with phase prefix
-- [ ] New concerns from completed phase added
-
+**Blockers:** Resolved → remove. Still relevant → keep with "Phase X" prefix. New from summaries → add.
 </step>
+<!-- /section -->
 
+<!-- section: update_session -->
 <step name="update_session_continuity_after_transition">
-
-Update Session Continuity section in STATE.md to reflect transition completion.
-
-**Format:**
-
+Update Session Continuity in STATE.md:
 ```markdown
 Last session: [today]
 Stopped at: Phase [X] complete, ready to plan Phase [X+1]
 Resume file: None
 ```
-
-**Step complete when:**
-
-- [ ] Last session timestamp updated to current date and time
-- [ ] Stopped at describes phase completion and next phase
-- [ ] Resume file confirmed as None (transitions don't use resume files)
-
 </step>
+<!-- /section -->
 
+<!-- section: offer_next -->
 <step name="offer_next_phase">
 
-**MANDATORY: Verify milestone status before presenting next steps.**
+Pre-computed decisions: use `decisions.auto-advance` and `decisions.branch-handling` from `<bgsd-context>` if present.
 
-**Pre-computed decision (auto-advance):** If `decisions.auto-advance` exists in `<bgsd-context>`, use its `.value` (boolean) to determine whether to auto-advance. Skip config/flag check below.
+Use `is_last_phase` from `plan:phase complete`:
 
-**Pre-computed decision (branch-handling):** If `decisions.branch-handling` exists in `<bgsd-context>`, use its `.value` (skip/create/update/use-existing) for any branch operations during transition. Skip branch state evaluation.
+**Route A (more phases):** Check `ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null`
+- Yolo: CONTEXT.md → `/bgsd-plan-phase [X+1] --auto`, else `/bgsd-discuss-phase [X+1] --auto`
+- Interactive: Show `## ✓ Phase [X] Complete` + `## ▶ Next Up` block with `/bgsd-discuss-phase [X+1]` (no context) or `/bgsd-plan-phase [X+1]` (has context), `<sub>/clear first</sub>`
 
-**Fallback** (if decisions not available):
-
-**Use the transition result from `bgsd-tools plan:phase complete`:**
-
-The `is_last_phase` field from the phase complete result tells you directly:
-- `is_last_phase: false` → More phases remain → Go to **Route A**
-- `is_last_phase: true` → Milestone complete → Go to **Route B**
-
-The `next_phase` and `next_phase_name` fields give you the next phase details.
-
-If you need additional context, use:
-```bash
-ROADMAP=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap analyze)
-```
-
-This returns all phases with goals, disk status, and completion info.
-
----
-
-**Route A: More phases remain in milestone**
-
-Read ROADMAP.md to get the next phase's name and goal.
-
-**Check if next phase has CONTEXT.md:**
-
-```bash
-ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null
-```
-
-**If next phase exists:**
-
-<if mode="yolo">
-
-**If CONTEXT.md exists:**
-
-```
-Phase [X] marked complete.
-
-Next: Phase [X+1] — [Name]
-
-⚡ Auto-continuing: Plan Phase [X+1] in detail
-```
-
-Exit and run: /bgsd-plan-phase [X+1] --auto
-
-**If CONTEXT.md does NOT exist:**
-
-```
-Phase [X] marked complete.
-
-Next: Phase [X+1] — [Name]
-
-⚡ Auto-continuing: Discuss Phase [X+1] first
-```
-
-Exit and run: /bgsd-discuss-phase [X+1] --auto
-
-</if>
-
-<if mode="interactive" OR="custom with gates.confirm_transition true">
-
-**If CONTEXT.md does NOT exist:**
-
-```
-## ✓ Phase [X] Complete
-
----
-
-## ▶ Next Up
-
-**Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
-
-`/bgsd-discuss-phase [X+1]` — gather context and clarify approach
-
-<sub>`/clear` first → fresh context window</sub>
-
----
-
-**Also available:**
-- `/bgsd-plan-phase [X+1]` — skip discussion, plan directly
-- `/bgsd-research-phase [X+1]` — investigate unknowns
-
----
-```
-
-**If CONTEXT.md exists:**
-
-```
-## ✓ Phase [X] Complete
-
----
-
-## ▶ Next Up
-
-**Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
-<sub>✓ Context gathered, ready to plan</sub>
-
-`/bgsd-plan-phase [X+1]`
-
-<sub>`/clear` first → fresh context window</sub>
-
----
-
-**Also available:**
-- `/bgsd-discuss-phase [X+1]` — revisit context
-- `/bgsd-research-phase [X+1]` — investigate unknowns
-
----
-```
-
-</if>
-
----
-
-**Route B: Milestone complete (all phases done)**
-
-**Clear auto-advance** — milestone boundary is the natural stopping point:
+**Route B (milestone complete):**
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.auto_advance false
 ```
-
-<if mode="yolo">
-
-```
-Phase {X} marked complete.
-
-🎉 Milestone {version} is 100% complete — all {N} phases finished!
-
-⚡ Auto-continuing: Complete milestone and archive
-```
-
-Exit and run: /bgsd-complete-milestone {version}
-
-</if>
-
-<if mode="interactive" OR="custom with gates.confirm_transition true">
-
-```
-## ✓ Phase {X}: {Phase Name} Complete
-
-🎉 Milestone {version} is 100% complete — all {N} phases finished!
-
----
-
-## ▶ Next Up
-
-**Complete Milestone {version}** — archive and prepare for next
-
-`/bgsd-complete-milestone {version}`
-
-<sub>`/clear` first → fresh context window</sub>
-
----
-
-**Also available:**
-- Review accomplishments before archiving
-
----
-```
-
-</if>
+- Yolo: `🎉 Milestone {version} complete!` → exit, run `/bgsd-complete-milestone {version}`
+- Interactive: `## ✓ Phase {X} Complete` + `🎉 100% complete` + `## ▶ Next Up: /bgsd-complete-milestone {version}` + `<sub>/clear first</sub>`
 
 </step>
+<!-- /section -->
 
 </process>
 
+<!-- section: implicit_tracking -->
 <implicit_tracking>
-Progress tracking is IMPLICIT: planning phase N implies phases 1-(N-1) complete. No separate progress step—forward motion IS progress.
+Progress tracking is IMPLICIT: planning phase N implies phases 1-(N-1) complete. No separate progress step — forward motion IS progress.
 </implicit_tracking>
+<!-- /section -->
 
+<!-- section: partial_completion -->
 <partial_completion>
-
-If user wants to move on but phase isn't fully complete:
+If user wants to move on but phase isn't fully complete, present:
 
 ```
 Phase [X] has incomplete plans:
 - {phase}-02-PLAN.md (not executed)
-- {phase}-03-PLAN.md (not executed)
 
 Options:
 1. Mark complete anyway (plans weren't needed)
@@ -495,25 +195,18 @@ Options:
 3. Stay and finish current phase
 ```
 
-Respect user judgment — they know if work matters.
-
-**If marking complete with incomplete plans:**
-
-- Update ROADMAP: "2/3 plans complete" (not "3/3")
-- Note in transition message which plans were skipped
-
+If marking complete with incomplete plans: update ROADMAP as "2/3 plans complete" and note skipped plans.
 </partial_completion>
+<!-- /section -->
 
+<!-- section: success_criteria -->
 <success_criteria>
-
-Transition is complete when:
-
-- [ ] Current phase plan summaries verified (all exist or user chose to skip)
-- [ ] Any stale handoffs deleted
+- [ ] Phase summaries verified (all exist or user chose to skip)
+- [ ] Stale handoffs deleted
 - [ ] ROADMAP.md updated with completion status and plan count
-- [ ] PROJECT.md evolved (requirements, decisions, description if needed)
+- [ ] PROJECT.md evolved (requirements, decisions, description)
 - [ ] STATE.md updated (position, project reference, context, session)
 - [ ] Progress table updated
 - [ ] User knows next steps
-
 </success_criteria>
+<!-- /section -->

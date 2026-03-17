@@ -1,112 +1,101 @@
 # Roadmap
 
-**Last updated:** 2026-03-15
+**Last updated:** 2026-03-17
 
 ## Milestones
 
 - ✅ **v12.1 Tool Integration & Agent Enhancement** — Phases 124–128 (shipped 2026-03-15)
-- 🚧 **v13.0 Closed-Loop Agent Evolution** — Phases 129–133 (in progress)
+- ✅ **v13.0 Closed-Loop Agent Evolution** — Phases 129–133 (shipped 2026-03-15)
+- 🚧 **v14.0 LLM Workload Reduction** — Phases 134–137 (in progress)
 
 ## Active Phases
 
-### 🚧 v13.0 Closed-Loop Agent Evolution (In Progress)
+### 🚧 v14.0 LLM Workload Reduction (In Progress)
 
-**Milestone Goal:** Enable agents and skills to improve continuously from project experience — local agent overrides, lesson-driven improvement suggestions, agentskills.io discovery, and enhanced research workflows.
+**Milestone Goal:** Reduce context consumption and token waste by compressing workflows, pre-computing document scaffolds, and shifting administrative work from LLM reasoning to deterministic CLI operations.
 
 ## Phases
 
-- [x] **Phase 129: Foundation & Agent Overrides** - Local agent override lifecycle with YAML validation and content sanitization (completed 2026-03-15)
-- [x] **Phase 130: Lesson Schema & Analysis Pipeline** - Structured lesson format, analysis engine, and workflow improvement hooks (completed 2026-03-15)
-- [x] **Phase 131: Skill Discovery & Security** - Security-first skill install/manage lifecycle with 41-pattern scanner and agentskills.io discovery (completed 2026-03-15)
-- [x] **Phase 132: Deviation Recovery Auto-Capture** - Rule-1-only auto-capture hook wired into execute-phase with typo fix (completed 2026-03-15)
-- [x] **Phase 133: Enhanced Research Workflow** - Structured research quality profile and gap surfacing (completed 2026-03-15)
+- [x] **Phase 134: Measurement Infrastructure & Baseline** - Token measurement tooling, structural contract tests, and compression regression detection (completed 2026-03-16)
+- [x] **Phase 135: Workflow Compression & Section Markers** - Top 10 workflows prose-tightened 40%+, section markers added, shared blocks extracted to skill references (completed 2026-03-17)
+- [x] **Phase 136: Scaffold Infrastructure** - Pre-computed PLAN.md and VERIFICATION.md scaffolds with data/judgment separation following summary:generate pattern (completed 2026-03-17)
+- [x] **Phase 137: Section-Level Loading & Conditional Elision** - Enricher loads workflow sections per-step instead of full file; conditional steps elided when decisions indicate they don't apply (completed 2026-03-17)
 
 ## Phase Details
 
-### Phase 129: Foundation & Agent Overrides
-**Goal**: Users can manage project-local agent overrides — creating, viewing diffs, syncing with globals — with YAML validation and content sanitization preventing silent failure
+### Phase 134: Measurement Infrastructure & Baseline
+**Goal**: Users can measure, compare, and structurally validate workflows — establishing the safety net required before any compression work begins
 **Depends on**: Nothing (first phase)
-**Requirements**: LOCAL-01, LOCAL-02, LOCAL-03, LOCAL-04, LOCAL-05, LOCAL-06, LOCAL-07
+**Requirements**: MEAS-01, MEAS-02, MEAS-03
 **Success Criteria** (what must be TRUE):
-  1. User can run `agent:list-local` and see both global and project-local agents with scope annotations (global / local-override)
-  2. User can run `agent:override <name>` to create a project-local copy in `.opencode/agents/` — missing `name:` field hard-errors before writing
-  3. User can run `agent:diff <name>` to view a line-level diff between the local override and its global counterpart
-  4. User can run `agent:sync <name>` to see incoming upstream changes and accept or reject them
-  5. bgsd-context `local_agent_overrides` field lists which agents have project-local versions, and any generated agent content is sanitized against system-prompt mangling
+  1. User can run `workflow:baseline` and receive a JSON snapshot containing per-workflow token counts for all 44 workflows
+  2. User can run `workflow:compare <snapshot-a> <snapshot-b>` and see per-workflow token deltas with a total reduction percentage
+  3. User can run `workflow:verify-structure` and confirm that all workflows preserve their Task() calls, CLI commands, section markers, and question blocks — regressions produce explicit failures
+**Plans**: 2/2 plans complete
+
+### Phase 135: Workflow Compression & Section Markers
+**Goal**: Top 10 highest-traffic workflows are prose-tightened with section markers for selective loading, and shared blocks repeated across 3+ workflows are extracted to skill references — all verified against the Phase 134 baseline
+**Depends on**: Phase 134
+**Requirements**: COMP-01, COMP-02, COMP-03
+**Success Criteria** (what must be TRUE):
+  1. Top 10 workflows (discuss-phase, execute-phase, new-milestone, execute-plan, transition, new-project, audit-milestone, quick, resume-project, map-codebase) show 40%+ average token reduction measured by `workflow:compare` against the Phase 134 baseline
+  2. All 10 compressed workflows have `<!-- section: step_name -->` markers at each major process step, verified by `workflow:verify-structure`
+  3. Shared blocks (deviation rules, commit protocol, checkpoint format) that appeared in 3+ workflows are extracted to skill references — workflows use `<skill:X />` instead of inline content
+  4. Zero structural regressions — `workflow:verify-structure` passes on all compressed workflows (Task() count, CLI command count, branch markers preserved)
+**Plans**: 5/5 plans complete
+
+### Phase 136: Scaffold Infrastructure
+**Goal**: CLI generates pre-filled PLAN.md and VERIFICATION.md scaffolds from deterministic data sources, with clear data/judgment section separation — LLM fills only judgment sections instead of writing from scratch
+**Depends on**: Nothing (can parallel with Phases 134–135 — touches different files)
+**Requirements**: SCAF-01, SCAF-02, SCAF-03
+**Success Criteria** (what must be TRUE):
+  1. User can run `plan:generate --phase <N>` and receive a PLAN.md scaffold pre-filled with frontmatter, objective, task structure, file paths, and requirement links from the roadmap phase definition
+  2. User can run `verify:generate --phase <N>` and receive a VERIFICATION.md scaffold pre-filled with success criteria from ROADMAP.md, test result data, and requirement completion status
+  3. Both scaffold types clearly mark each section as `<!-- data -->` (CLI pre-filled) or `<!-- judgment -->` (LLM fills), following the `summary:generate` JUDGMENT_SECTIONS pattern
+  4. Scaffold generators are idempotent — re-running on an existing file preserves LLM-written judgment sections while refreshing data sections
 **Plans**: 3/3 plans complete
 
-### Phase 130: Lesson Schema & Analysis Pipeline
-**Goal**: Users can capture, list, analyze, and get improvement suggestions from structured lessons — with migration of existing free-form lessons and workflow hooks that surface suggestions after verify-work and milestone completion
-**Depends on**: Phase 129
-**Requirements**: LESSON-01, LESSON-02, LESSON-03, LESSON-04, LESSON-05, LESSON-06, LESSON-07, LESSON-08, LESSON-09
+### Phase 137: Section-Level Loading & Conditional Elision
+**Goal**: The enricher loads only the workflow section(s) relevant to the current step instead of the full workflow, and conditional features are elided when bgsd-context decisions indicate they don't apply — delivering per-invocation context savings
+**Depends on**: Phase 135 (section markers), Phase 136 (scaffolds for elision context)
+**Requirements**: COMP-04, SCAF-04
 **Success Criteria** (what must be TRUE):
-  1. User can run `lessons:capture` with required fields (Date, Title, Severity, Type, Root Cause, Prevention Rule, Affected Agents) and the entry is stored correctly
-  2. Existing free-form `lessons.md` entry is grandfathered as `Type: environment` and produces 0 improvement suggestions
-  3. User can run `lessons:list --type agent-behavior --severity HIGH` and get filtered results with pagination via `--limit` and `--since`
-  4. User can run `lessons:analyze` and see recurrent patterns grouped by affected agent (only groups with ≥2 supporting lessons are shown)
-  5. verify-work and complete-milestone workflows surface `lessons:suggest` advisory (non-blocking, informational) after phase/milestone completes; `lessons:compact` deduplicates when store exceeds 100 entries
+  1. Workflow loading in command enricher supports section-level extraction — agents receive only the section(s) relevant to the current step, not the full workflow file
+  2. Workflow steps that reference conditional features (TDD, auto-test, review, deviation-capture) are elided when bgsd-context decisions indicate those features don't apply to the current task
+  3. End-to-end measurement shows cumulative token savings from compression + scaffolds + section loading, with no behavioral regressions in critical workflows (execute-plan, execute-phase, verify-work)
 **Plans**: 2/2 plans complete
-
-### Phase 131: Skill Discovery & Security
-**Goal**: Users can browse, install, validate, and remove project-local skills with a mandatory security scan and human confirmation gate before any file is written — plus bgsd-context exposing installed skills
-**Depends on**: Nothing (independent of Phase 130)
-**Requirements**: SKILL-01, SKILL-02, SKILL-03, SKILL-04, SKILL-05, SKILL-06, SKILL-07, SKILL-08, SKILL-09
-**Success Criteria** (what must be TRUE):
-  1. User can run `skills:list` and see all skills installed in `.agents/skills/` with name and source
-  2. User can run `skills:install <github-url>` — the system runs a 41-pattern security scan; dangerous findings block install; policy/warn findings require explicit human confirmation; full content diff shown before any file is written
-  3. All install attempts (including blocked/rejected) appear in `.agents/skill-audit.json` with timestamp, source, scan verdict, and outcome
-  4. User can run `skills:validate <name>` to re-scan an installed skill; user can run `skills:remove <name>` to delete it
-  5. `new-milestone.md` Step 8.5 prompts optional skill discovery; bgsd-context `installed_skills` field lists installed skill names
-**Plans**: 3/3 plans complete
-
-| Plan | Wave | Objective | Tasks |
-|------|------|-----------|-------|
-| 0131-01 | 1 | Security scanner (41 patterns) + skills:list + skills:validate | 2 |
-| 0131-02 | 2 | skills:install (GitHub fetch + scan + confirm) + skills:remove + audit | 2 |
-| 0131-03 | 3 | Router/help wiring + enricher installed_skills + new-milestone Step 8.5 | 2 |
-
-### Phase 132: Deviation Recovery Auto-Capture
-**Goal**: Winning recovery patterns from Rule-1 (code bug) failures are automatically captured as structured lesson entries in execute-phase — capped at 3 per milestone, non-blocking, never triggered by environmental failures
-**Depends on**: Phase 130
-**Requirements**: DEVCAP-01, DEVCAP-02, DEVCAP-03, DEVCAP-04
-**Success Criteria** (what must be TRUE):
-  1. `autoRecovery.js` typo `autonomousRecoverles` is fixed to `autonomousRecoveries` and deviation telemetry increments correctly
-  2. After a Rule-1 deviation recovery succeeds in execute-phase, a structured lesson entry is auto-captured non-blocking (`2>/dev/null || true`) — Rule-3 environmental failures never trigger capture
-  3. Auto-capture stops silently after 3 entries per milestone; captured entries include deviation rule type, failure count before success, behavioral change that succeeded, and affected agent
-**Plans**: 2/2 plans complete
-
-### Phase 133: Enhanced Research Workflow
-**Goal**: `research:score` returns a structured quality profile instead of a single grade, new-milestone.md surfaces it with LOW-confidence flags, `research:gaps` extracts gap lists, and multi-source conflicts are explicitly surfaced
-**Depends on**: Nothing (independent of Phases 129–132)
-**Requirements**: RESEARCH-01, RESEARCH-02, RESEARCH-03, RESEARCH-04
-**Success Criteria** (what must be TRUE):
-  1. `research:score <file>` returns a structured JSON profile: `{ source_count, high_confidence_pct, oldest_source_days, has_official_docs, flagged_gaps[] }` — not a single A-F grade
-  2. `new-milestone.md` research completion step displays the quality profile and flags any file with LOW confidence for optional re-research (non-blocking)
-  3. `research:gaps <file>` returns the `flagged_gaps[]` array as a formatted list
-  4. `research:score` detects and surfaces multi-source conflicts as `conflicts: [{claim, source_a, source_b}]` when two or more sources disagree on a fact
-**Plans**: 2/2 plans complete
-
-| Plan | Wave | Objective | Tasks |
-|------|------|-----------|-------|
-| 0133-01 | 1 | Core commands — cmdResearchScore + cmdResearchGaps + tests | 2 |
-| 0133-02 | 2 | Router/help wiring + new-milestone.md quality profile integration | 2 |
 
 ## Progress
 
 **Execution Order:**
-Phases execute in order: 129 → 130 → 131 (parallel with 130) → 132 (after 130) → 133 (any order)
+Phases 134 → 135 (after 134) → 136 (parallel with 134–135) → 137 (after 135 + 136)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 129. Foundation & Agent Overrides | 3/3 | Complete    | 2026-03-15 | - |
-| 130. Lesson Schema & Analysis Pipeline | 2/2 | Complete    | 2026-03-15 | - |
-| 131. Skill Discovery & Security | 2/3 | Complete    | 2026-03-15 | - |
-| 132. Deviation Recovery Auto-Capture | 2/2 | Complete    | 2026-03-15 | - |
-| 133. Enhanced Research Workflow | v13.0 | Complete    | 2026-03-15 | - |
+| 134. Measurement Infrastructure & Baseline | 2/2 | Complete    | 2026-03-16 | - |
+| 135. Workflow Compression & Section Markers | 5/5 | Complete    | 2026-03-17 | - |
+| 136. Scaffold Infrastructure | v14.0 | 3/3 | Complete | 2026-03-17 |
+| 137. Section-Level Loading & Conditional Elision | 2/2 | Complete    | 2026-03-17 | - |
 
 ---
 
 ## Completed Milestones
+
+<details>
+<summary>v13.0 Closed-Loop Agent Evolution (shipped 2026-03-15) — 5 phases, 12 plans</summary>
+
+**Goal:** Enable agents and skills to improve continuously from project experience — local agent overrides, lesson-driven improvement suggestions, agentskills.io discovery, and enhanced research workflows.
+
+**Phases:**
+- [x] Phase 129: Foundation & Agent Overrides — Local agent override lifecycle with YAML validation and content sanitization
+- [x] Phase 130: Lesson Schema & Analysis Pipeline — Structured lesson format, analysis engine, and workflow improvement hooks
+- [x] Phase 131: Skill Discovery & Security — Security-first skill install/manage lifecycle with 41-pattern scanner
+- [x] Phase 132: Deviation Recovery Auto-Capture — Rule-1-only auto-capture hook wired into execute-phase
+- [x] Phase 133: Enhanced Research Workflow — Structured research quality profile and gap surfacing
+
+**Archives:** `.planning/milestones/v13.0-ROADMAP.md`, `v13.0-REQUIREMENTS.md`
+
+</details>
 
 <details>
 <summary>v12.1 Tool Integration & Agent Enhancement (shipped 2026-03-15) — 5 phases, 13 plans</summary>

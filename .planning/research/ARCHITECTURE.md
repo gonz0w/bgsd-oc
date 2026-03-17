@@ -1,33 +1,33 @@
-# Architecture Research — SQLite-First Data Layer Integration
+# Architecture Research — Workflow Compression & Scaffold Generation Integration
 
-**Domain:** SQLite structured tables integration with existing parser/cache/enricher architecture  
-**Researched:** 2026-03-14  
+**Domain:** Workflow compression round 2 and pre-computed document scaffolds for v14.0 LLM Workload Reduction  
+**Researched:** 2026-03-16  
 **Confidence:** HIGH  
-**Research mode:** Ecosystem — How structured SQLite tables integrate with existing architecture
+**Research mode:** Ecosystem — How new compression and scaffold features integrate with existing bGSD architecture
 
 ---
 
 <!-- section: compact -->
 <architecture_compact>
 
-**Architecture:** Dual-store layered data access — markdown files remain authority, SQLite serves as structured query cache with git-hash invalidation, parsers gain SQLite-backed persistence via new `DataStore` class sitting between parsers and the existing `CacheEngine`.
+**Architecture:** Layered token reduction — workflow files get section markers for selective loading, CLI generates pre-filled document scaffolds (PLAN.md, VERIFICATION.md) from deterministic data, enricher injects scaffold paths so agents write less from scratch.
 
 **Major components:**
 
 | Component | Responsibility |
 |-----------|----------------|
-| DataStore (NEW) | Unified SQLite access layer — schema management, migrations, structured CRUD, git-hash invalidation |
-| StructuredParsers (MODIFIED) | Parsers write structured rows to DataStore after parsing markdown, read from DataStore when cache is valid |
-| QueryAPI (NEW) | SQL query functions replacing subprocess calls — get tasks by status, count plans, filter decisions |
-| EnricherV2 (MODIFIED) | Enricher reads pre-computed data from DataStore instead of re-parsing files, eliminating 3x listSummaryFiles |
-| MemoryMigrator (NEW) | One-time migration of .planning/memory/*.json into SQLite tables |
-| FileWatcher (MODIFIED) | On change, invalidates DataStore entries (not just parser Map caches) |
+| WorkflowCompressor (NEW) | Applies section markers to workflow .md files, measures token savings per workflow |
+| ScaffoldGenerator (MODIFIED misc.js) | Extends existing `util:scaffold` to generate PLAN.md and VERIFICATION.md from roadmap/phase/plan data |
+| ExtractSections (EXISTING features.js) | Already parses `<!-- section: name -->` markers — unchanged, consumed by agents and new section-loader |
+| SectionLoader (NEW lib module) | Loads workflow sections on demand based on execution step, returns subset of workflow text |
+| CommandEnricher (MODIFIED) | Adds `scaffold_available` and `scaffold_path` fields when scaffolds exist |
+| MeasureWorkflows (EXISTING features.js) | Token measurement baseline/compare — reused for compression validation |
 
-**Key patterns:** Write-through cache (parse → persist to SQLite), git-hash staleness detection, schema versioning with forward-only migrations, Map L1 → SQLite L2 → markdown L3 data hierarchy
+**Key patterns:** Section-marked workflows with selective loading, scaffold-then-fill (CLI generates data sections, LLM fills judgment), enricher pre-computation of scaffold availability
 
-**Anti-patterns:** SQLite as source of truth (markdown is always authority), bypassing DataStore to query db directly, schema changes without migration, dropping Map fallback on Node <22.5
+**Anti-patterns:** Compressing workflows so aggressively that agents lose critical context, generating scaffolds with stale data (no invalidation), breaking existing section marker parsing
 
-**Scaling priority:** Enricher hot-path latency — currently re-parses files on every /bgsd-* command invocation; SQLite-backed cache eliminates file I/O on warm starts
+**Scaling priority:** Top 10 workflows by token count — compress highest-impact workflows first (execute-phase 497L, discuss-phase 538L, new-milestone 505L, transition 519L)
 
 </architecture_compact>
 <!-- /section -->
@@ -37,813 +37,576 @@
 <!-- section: standard_architecture -->
 ## System Overview
 
-### Current Architecture (Before v12.0)
+### Current Architecture (Before v14.0)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      Plugin Layer (ESM)                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-│  │ context-     │  │ command-     │  │ tools/               │   │
-│  │ builder.js   │  │ enricher.js  │  │ bgsd-{status,plan,   │   │
-│  │              │  │              │  │  progress,context}   │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
-│         │                 │                      │              │
-│         └─────────────────┼──────────────────────┘              │
-│                           │                                     │
-│                    ┌──────▼──────┐                               │
-│                    │ project-    │                               │
-│                    │ state.js    │  ← Unified facade             │
-│                    └──────┬──────┘                               │
-│         ┌─────────────────┼───────────────────────┐             │
-│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐             │
-│  │ state.js    │  │ roadmap.js  │  │ plan.js     │  ← 6 parsers│
-│  │ (Map cache) │  │ (Map cache) │  │ (Map cache) │  each with  │
-│  └─────────────┘  └─────────────┘  └─────────────┘  own Map()  │
-│                                                                 │
-│  ┌────────────────┐   ┌─────────────────────┐                   │
-│  │ file-watcher   │──→│ invalidateAll()     │                   │
-│  │ (fs.watch)     │   │ clears all Maps     │                   │
-│  └────────────────┘   └─────────────────────┘                   │
-├──────────────────────────────────────────────────────────────────┤
-│                       CLI Layer (CJS)                           │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
-│  │ cache.js     │   │ memory.js    │   │ decision-    │        │
-│  │ CacheEngine  │   │ JSON files   │   │ rules.js     │        │
-│  │ (SQLite|Map) │   │ (.planning/  │   │ (pure fns)   │        │
-│  │ 2 tables:    │   │  memory/)    │   │ 12 rules     │        │
-│  │ file_cache,  │   │              │   │              │        │
-│  │ research_    │   │              │   │              │        │
-│  │   cache      │   │              │   │              │        │
-│  └──────────────┘   └──────────────┘   └──────────────┘        │
-├──────────────────────────────────────────────────────────────────┤
-│                    Filesystem (.planning/)                       │
-│  STATE.md  ROADMAP.md  config.json  INTENT.md  PROJECT.md       │
-│  phases/*/PLAN.md  memory/*.json  REQUIREMENTS.md               │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Agent System Prompt                       │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Workflow.md  │  │   Agent.md   │  │   Skill.md   │      │
+│  │  (full file)  │  │  (full file) │  │  (on-demand) │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                 │                 │               │
+├─────────┴─────────────────┴─────────────────┴───────────────┤
+│                    <bgsd-context> JSON                       │
+│  ┌──────────┐  ┌────────────┐  ┌────────────┐              │
+│  │ Enricher │→ │ ProjectState│→ │  Decisions │              │
+│  └──────────┘  └────────────┘  └────────────┘              │
+├─────────────────────────────────────────────────────────────┤
+│                    CLI (bgsd-tools.cjs)                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ init.js  │  │  misc.js │  │features.js│  │ verify.js│   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│                    Data Layer                                │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│  │ SQLite   │  │ Markdown │  │   Git    │                  │
+│  │ (cache)  │  │ (source) │  │ (history)│                  │
+│  └──────────┘  └──────────┘  └──────────┘                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Target Architecture (After v12.0)
+**Token flow problem:** Workflows are loaded as full files into agent context. The top 10 workflows consume 4,000-8,000+ tokens each. Agents read entire workflow even when they only need the current step. Documents like PLAN.md and VERIFICATION.md are written from scratch by LLMs despite 60-80% of their content being deterministic data.
+
+### Target Architecture (v14.0)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      Plugin Layer (ESM)                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-│  │ context-     │  │ command-     │  │ tools/               │   │
-│  │ builder.js   │  │ enricher.js  │  │ bgsd-{status,plan,   │   │
-│  │              │  │ (V2: reads   │  │  progress,context,   │   │
-│  │              │  │  from store) │  │  validate}           │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
-│         │                 │                      │              │
-│         └─────────────────┼──────────────────────┘              │
-│                           │                                     │
-│                    ┌──────▼──────┐                               │
-│                    │ project-    │                               │
-│                    │ state.js    │  ← Enhanced facade            │
-│                    │ (reads from │     delegates to DataStore    │
-│                    │  DataStore) │                               │
-│                    └──────┬──────┘                               │
-│         ┌─────────────────┼───────────────────────┐             │
-│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐             │
-│  │ state.js    │  │ roadmap.js  │  │ plan.js     │  ← Parsers  │
-│  │ Map L1 +    │  │ Map L1 +    │  │ Map L1 +    │  persist to │
-│  │ DataStore L2│  │ DataStore L2│  │ DataStore L2│  DataStore   │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
-│                                                                 │
-│  ┌────────────────┐   ┌─────────────────────────┐               │
-│  │ file-watcher   │──→│ invalidateAll() +       │               │
-│  │ (fs.watch)     │   │ dataStore.invalidate()  │               │
-│  └────────────────┘   └─────────────────────────┘               │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                  DataStore (NEW)                          │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │   │
-│  │  │ phases   │  │ plans    │  │ tasks    │  │ reqs    │  │   │
-│  │  │ table    │  │ table    │  │ table    │  │ table   │  │   │
-│  │  ├──────────┤  ├──────────┤  ├──────────┤  ├─────────┤  │   │
-│  │  │decisions │  │ sessions │  │ memory_  │  │ meta    │  │   │
-│  │  │ table    │  │ table    │  │ tables   │  │ table   │  │   │
-│  │  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │   │
-│  └──────────────────────────────────────────────────────────┘   │
-├──────────────────────────────────────────────────────────────────┤
-│                       CLI Layer (CJS)                           │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
-│  │ cache.js     │   │ memory.js    │   │ decision-    │        │
-│  │ CacheEngine  │   │ (V2: reads/  │   │ rules.js     │        │
-│  │ (unchanged)  │   │  writes via  │   │ (V2: new     │        │
-│  │ file_cache + │   │  DataStore)  │   │  SQLite-fed  │        │
-│  │ research_    │   │              │   │  rules)      │        │
-│  │   cache      │   │              │   │              │        │
-│  └──────────────┘   └──────────────┘   └──────────────┘        │
-├──────────────────────────────────────────────────────────────────┤
-│                    Filesystem (.planning/)                       │
-│  STATE.md  ROADMAP.md  config.json  INTENT.md  PROJECT.md       │
-│  phases/*/PLAN.md  memory/*.json  REQUIREMENTS.md               │
-│  (AUTHORITY — always the source of truth for content)           │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Agent System Prompt                       │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Workflow.md   │  │   Agent.md   │  │   Skill.md   │      │
+│  │ (COMPRESSED)  │  │  (unchanged) │  │  (unchanged) │      │
+│  │ - 40% smaller │  │              │  │              │      │
+│  │ - section-    │  │              │  │              │      │
+│  │   marked      │  │              │  │              │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                 │                 │               │
+│  ┌──────┴───────┐                                          │
+│  │SectionLoader │ ← Loads only needed sections per step     │
+│  └──────────────┘                                          │
+├─────────────────────────────────────────────────────────────┤
+│                    <bgsd-context> JSON                       │
+│  ┌──────────┐  ┌────────────┐  ┌────────────┐              │
+│  │ Enricher │→ │ ProjectState│→ │  Decisions │              │
+│  │(+scaffold│  └────────────┘  └────────────┘              │
+│  │  fields) │                                              │
+│  └──────────┘                                              │
+├─────────────────────────────────────────────────────────────┤
+│                    CLI (bgsd-tools.cjs)                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ init.js  │  │  misc.js │  │features.js│  │ verify.js│   │
+│  │          │  │(+scaffold│  │(existing  │  │          │   │
+│  │          │  │ generate)│  │ extract)  │  │          │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│                    Data Layer (unchanged)                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Current | After v12.0 | Change Type |
-|-----------|---------|-------------|-------------|
-| `src/lib/cache.js` CacheEngine | SQLite file_cache + research_cache with Map fallback | **Unchanged** — continues as file content cache | None |
-| `src/plugin/parsers/*.js` (6 parsers) | Read markdown → Map cache → frozen objects | Read markdown → Map L1 + DataStore L2 write-through | Modified |
-| `src/plugin/project-state.js` | Composes 6 parsers into frozen facade | Adds DataStore read path — skips parsers when cache valid | Modified |
-| `src/plugin/command-enricher.js` | Calls parsePlans 3x, listSummaryFiles 3x | Reads pre-computed counts from DataStore | Modified |
-| `src/plugin/file-watcher.js` | fs.watch → invalidateAll() (Map caches) | Also invalidates DataStore entries for changed files | Modified |
-| `src/commands/memory.js` | Read/write JSON files in .planning/memory/ | Dual-write: JSON files + DataStore tables | Modified |
-| `src/lib/decision-rules.js` | 12 pure rules consuming enrichment state | 18-20 rules, new ones consuming SQLite-backed state | Modified |
-| **DataStore (NEW)** | N/A | Unified SQLite access: schema, migrations, CRUD, queries | New |
-| **QueryAPI (NEW)** | N/A | SQL query functions for workflows (count, filter, aggregate) | New |
-| **MemoryMigrator (NEW)** | N/A | One-time JSON → SQLite migration for memory stores | New |
+| Component | Responsibility | Location | Status |
+|-----------|----------------|----------|--------|
+| `extractSectionsFromFile()` | Parse `<!-- section: X -->` markers, extract named sections | `src/commands/features.js:1354` | EXISTS — reuse as-is |
+| `cmdSummaryGenerate()` | Generate SUMMARY.md scaffold from plan/git data | `src/commands/misc.js:2067` | EXISTS — pattern to follow |
+| `cmdScaffold()` | Generate context/uat/verification/phase-dir scaffolds | `src/commands/misc.js:1470` | EXISTS — extend for plan + verification |
+| `measureAllWorkflows()` | Measure token counts across all workflow files | `src/commands/features.js:1489` | EXISTS — use for compression validation |
+| `enrichCommand()` | Inject `<bgsd-context>` JSON into command execution | `src/plugin/command-enricher.js:29` | MODIFY — add scaffold fields |
+| Workflow .md files | Agent instruction prompts loaded as system prompt | `workflows/*.md` (44 files) | MODIFY — compress top 10, add sections |
+| SectionLoader (new) | Load specific workflow sections by step name | `src/lib/` (new module) | NEW |
+| ScaffoldPlan (new function) | Generate PLAN.md skeleton from roadmap + phase data | `src/commands/misc.js` (extend) | NEW |
+| ScaffoldVerification (new function) | Generate VERIFICATION.md from success criteria + test results | `src/commands/misc.js` (extend) | NEW |
 
 <!-- /section -->
-
----
 
 <!-- section: patterns -->
 ## Architectural Patterns
 
-### Pattern 1: Write-Through Structured Cache
+### Pattern 1: Scaffold-Then-Fill
 
-**What:** When a parser reads and parses a markdown file, it simultaneously writes the structured data as rows into SQLite. On subsequent reads, if the SQLite cache is valid (git-hash matches), the parser returns data from SQLite without re-reading the file.
+**What:** CLI generates the deterministic 60-80% of a document (frontmatter, headers, data tables, file lists, commit logs), LLM fills only the judgment sections (accomplishments, decisions, analysis).
 
-**When to use:** Every parser (state, roadmap, plan, config, project, intent).
+**When to use:** Any document where structured data is available before the LLM writes. Already proven by `summary:generate` (50%+ writing reduction).
 
 **Trade-offs:**
-- Pro: Cross-invocation persistence — CLI exits and re-enters without re-parsing
-- Pro: SQL queries replace file-scanning (e.g., "count plans in phase 73")
-- Con: Schema must stay backward-compatible as markdown formats evolve
-- Con: Two code paths (parse-and-store vs read-from-store) need testing
+- Pro: Massive token savings — LLM writes ~20-40% instead of 100%
+- Pro: Consistent document structure — no formatting drift
+- Pro: Data accuracy — git commits, file counts, timestamps are deterministic
+- Con: Must handle stale scaffolds (phase changes between scaffold and fill)
+- Con: LLM must understand TODO markers and not blindly accept them
 
-**Data flow:**
-
-```
-Request for state data
-        │
-        ▼
-    Map L1 hit? ──yes──→ Return frozen object
-        │ no
-        ▼
-    DataStore L2 hit? ──yes──→ Validate git-hash
-        │ no                       │
-        ▼                    valid? ──yes──→ Hydrate, cache in Map L1, return
-    Read file from disk            │ no
-        │                          ▼
-        ▼                    Invalidate L2 entry
-    Parse markdown                 │
-        │                          │
-        ▼                          │
-    Store in Map L1 ◄──────────────┘
-        │
-        ▼
-    Write to DataStore L2
-        │
-        ▼
-    Return frozen object
+**Existing precedent:**
+```javascript
+// src/commands/misc.js:2067 — cmdSummaryGenerate
+// Generates full SUMMARY.md with frontmatter, performance data, task commits,
+// file changes — LLM only fills "Accomplishments", "Key Decisions", "Patterns Established"
+const JUDGMENT_SECTIONS = {
+  'Accomplishments': 'LLM fills: what was achieved and why it matters',
+  'Key Decisions': 'LLM fills: decisions made during execution with rationale',
+  'Patterns Established': 'LLM fills: patterns created for future phases',
+};
 ```
 
-**Example:**
+**New scaffolds follow this pattern:**
 
 ```javascript
-// In src/plugin/parsers/state.js (modified)
-export function parseState(cwd) {
-  const resolvedCwd = cwd || process.cwd();
+// scaffold:plan — from roadmap phase data
+// Data sections: frontmatter, objective, file inventory, task skeleton
+// Judgment sections: task details, verify blocks, file paths
 
-  // L1: Map cache (in-process, same as today)
-  if (_cache.has(resolvedCwd)) {
-    return _cache.get(resolvedCwd);
-  }
-
-  // L2: DataStore (cross-invocation persistence)
-  const store = getDataStore();
-  if (store) {
-    const cached = store.getState(resolvedCwd);
-    if (cached && store.isValid(resolvedCwd, 'STATE.md')) {
-      _cache.set(resolvedCwd, cached);
-      return cached;
-    }
-  }
-
-  // L3: Parse from filesystem (current logic)
-  const raw = readFileSync(join(resolvedCwd, '.planning', 'STATE.md'), 'utf-8');
-  const result = Object.freeze({ /* ... parsed fields ... */ });
-
-  // Write-through to both caches
-  _cache.set(resolvedCwd, result);
-  if (store) {
-    store.setState(resolvedCwd, result);
-  }
-
-  return result;
-}
+// scaffold:verification — from success criteria + plan summaries
+// Data sections: frontmatter, phase goal, observable truth table skeleton, artifact list
+// Judgment sections: evidence, status assessments, gap analysis
 ```
 
-### Pattern 2: Git-Hash Staleness Detection
+### Pattern 2: Section-Marked Workflows with Selective Loading
 
-**What:** Instead of checking file mtime (which the current CacheEngine already does for file_cache), structured cache entries store the git commit hash at write time. On read, compare current HEAD hash with stored hash. If different, the cache may be stale — re-validate via mtime or content hash.
+**What:** Add `<!-- section: step_name -->` markers to workflow .md files. Agents load only the sections needed for the current execution step rather than the full workflow.
 
-**When to use:** DataStore entries for parsed planning data.
+**When to use:** Workflows > 200 lines where agents only need a subset per step. The existing `extractSectionsFromFile()` already handles this format.
 
 **Trade-offs:**
-- Pro: More reliable than mtime alone — mtime can be reset by git checkout/rebase
-- Pro: A single git hash check covers all files (one `git rev-parse HEAD` per invocation)
-- Con: Requires a git call on startup (execSync ~5ms)
-- Con: Uncommitted changes aren't captured by git hash — need file hash fallback
+- Pro: 40-60% token reduction per step when only loading relevant sections
+- Pro: Zero new parsing code — reuses existing marker parser
+- Pro: Full workflow still readable by humans as a single file
+- Con: Agents must know which sections to request
+- Con: Section boundaries must be carefully chosen to remain self-contained
 
-**Implementation:**
+**How it works with existing infrastructure:**
 
-```javascript
-// In DataStore
-_meta table: { key TEXT PRIMARY KEY, value TEXT }
+```bash
+# Agent loads only the section for current step
+node bin/bgsd-tools.cjs util:extract-sections workflows/execute-plan.md parse_segments context_budget_check
 
-// On startup: store current git hash
-const currentHash = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
-this._setMeta('git_hash', currentHash);
-
-// On cache read: compare
-isValid(cwd, filename) {
-  const storedHash = this._getMeta('git_hash');
-  if (storedHash !== this._currentHash) {
-    // Git state changed — check file-level staleness
-    const filePath = join(cwd, '.planning', filename);
-    const currentMtime = statSync(filePath).mtimeMs;
-    const storedMtime = this._getFileMtime(cwd, filename);
-    return currentMtime === storedMtime;
-  }
-  return true; // Same git hash = same files
-}
+# Returns combined content of just those sections
+# Instead of loading all 376 lines, loads ~60 lines
 ```
 
-**Decision:** Use a **hybrid approach**: git-hash for bulk invalidation (new commit = re-check everything), plus per-file mtime for fine-grained staleness within the same commit. This handles both `git checkout` scenarios and live editing.
+**Implementation:** Workflows already have `<step name="X">` tags. Adding `<!-- section: X -->` markers around each step is backward-compatible — agents loading the full file see no change. Section-aware agents can use extract-sections to load subsets.
 
-### Pattern 3: Dual-Store Authority (Markdown + SQLite)
+### Pattern 3: Compression Without Information Loss
 
-**What:** Markdown files remain the source of truth for all planning data. SQLite is a derived cache that can always be regenerated from markdown. This means:
-1. Writes go to markdown first, then SQLite
-2. On conflict, markdown wins
-3. If SQLite is corrupted/deleted, everything rebuilds from markdown
-4. STATE.md continues to be human-readable and git-tracked
+**What:** Reduce workflow token count by eliminating redundancy, tightening prose, removing examples that overlap with skill content, and consolidating repeated patterns.
 
-**When to use:** ALL structured data operations.
+**When to use:** All top 10 workflows by token count. v1.1 achieved 54.6% compression on the first 8 workflows; round 2 targets the next 10 that were skipped.
 
 **Trade-offs:**
-- Pro: Git history, human readability, and AI agent compatibility preserved
-- Pro: SQLite corruption is recoverable (just delete cache.db and re-parse)
-- Pro: No migration risk — existing .planning/ directories work unchanged
-- Con: Two representations to keep in sync (mitigated by write-through pattern)
-- Con: Some queries need to parse markdown for data not in the schema
+- Pro: Every workflow load consumes fewer tokens
+- Pro: Agents still have all instructions needed
+- Con: Must verify agents behave identically after compression
+- Con: Too-aggressive compression causes agent quality degradation
 
-**Rules:**
-1. **Never modify markdown via SQLite** — always read/write markdown with existing patterns
-2. **SQLite is disposable** — `rm cache.db` is always safe
-3. **Schema additions are append-only** — never rename/remove columns in place
-4. **Markdown is the backup** — if DataStore returns null, fall through to file parsing
+**Compression techniques (proven in v1.1):**
+1. **Redundancy removal:** Instructions repeated across steps consolidated to single declaration
+2. **Prose tightening:** "You should make sure to check that X exists before doing Y" → "Check X exists before Y"
+3. **Skill extraction:** Move domain knowledge to skills (loaded on-demand), keep only workflow-specific steps
+4. **Table compression:** Convert verbose lists to tables
+5. **Example deduplication:** Remove examples that exist in referenced templates
 
-### Pattern 4: Schema Versioning with Forward-Only Migrations
+**Measurement protocol:**
+```bash
+# Before compression — baseline
+node bin/bgsd-tools.cjs util:measure baseline
 
-**What:** A `_schema_version` meta key tracks the current schema version. On DataStore initialization, if the stored version is lower than the code's expected version, migration functions run sequentially. Migrations only add tables/columns — never drop or rename.
-
-**When to use:** Every schema change across versions.
-
-**Implementation:**
-
-```javascript
-const SCHEMA_VERSION = 3; // Bump on every schema change
-
-class DataStore {
-  _migrate() {
-    const current = this._getSchemaVersion();
-
-    if (current < 1) {
-      this.db.exec(`
-        CREATE TABLE phases (...)
-        CREATE TABLE plans (...)
-        CREATE TABLE tasks (...)
-      `);
-    }
-    if (current < 2) {
-      this.db.exec(`
-        CREATE TABLE decisions (...)
-        CREATE TABLE lessons (...)
-      `);
-    }
-    if (current < 3) {
-      this.db.exec(`
-        ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER
-      `);
-    }
-
-    this._setSchemaVersion(SCHEMA_VERSION);
-  }
-}
+# After compression — compare
+node bin/bgsd-tools.cjs util:measure compare
 ```
-
-**Trade-offs:**
-- Pro: Always forward-compatible — old databases upgrade automatically
-- Pro: No data loss — append-only schema changes
-- Con: Cannot remove dead columns/tables without a major version bump
-- Con: Migration chain grows over time (acceptable for a CLI tool)
-
-### Pattern 5: MapBackend Fallback Preservation
-
-**What:** The existing Map fallback for Node <22.5 must be preserved for all new functionality. DataStore operations are gated behind `getDataStore()` which returns null when SQLite is unavailable. All callers use `if (store) { ... }` guards.
-
-**When to use:** Every DataStore consumer.
-
-**Example:**
-
-```javascript
-// Safe pattern — used everywhere
-const store = getDataStore();
-if (store) {
-  const cached = store.getPhases(cwd);
-  if (cached) return cached;
-}
-// Fall through to existing Map-based path
-```
-
-**Trade-offs:**
-- Pro: Zero-regression on older Node versions
-- Pro: Map path remains the tested, proven code path
-- Con: Two code paths to maintain and test
-- Con: Map-only users don't get cross-invocation persistence (acceptable — they don't today either)
 
 <!-- /section -->
-
----
 
 <!-- section: data_flow -->
 ## Data Flow
 
-### Current Enricher Flow (Before v12.0)
+### Scaffold Generation Flow
 
 ```
-/bgsd-* command invoked
-    │
-    ▼
-enrichCommand() called
-    │
-    ├──→ getProjectState()
-    │       ├──→ parseState()      → readFileSync STATE.md → Map cache
-    │       ├──→ parseRoadmap()    → readFileSync ROADMAP.md → Map cache
-    │       ├──→ parseConfig()     → readFileSync config.json → Map cache
-    │       ├──→ parseProject()    → readFileSync PROJECT.md → Map cache
-    │       ├──→ parseIntent()     → readFileSync INTENT.md → Map cache
-    │       └──→ parsePlans()      → readdirSync + readFileSync *-PLAN.md → Map cache
-    │
-    ├──→ parsePlans() AGAIN (for plan_count derivation)  ← DUPLICATION
-    │
-    ├──→ listSummaryFiles() x3                           ← DUPLICATION
-    │       └──→ readdirSync + filter 3 times
-    │
-    ├──→ evaluateDecisions()
-    │       └──→ 12 pure rules on enrichment object
-    │
-    └──→ Serialize to <bgsd-context> JSON
+[Roadmap Phase Data]              [Git History]              [Plan Data]
+  ↓ (roadmap:get-phase)             ↓ (structuredLog)         ↓ (parsePlan)
+  phase_goal, requirements,         commits scoped to         tasks, objective,
+  success_criteria                  phase/plan                frontmatter
+        ↓                              ↓                        ↓
+        └──────────────────┬───────────┘                        │
+                           ↓                                    │
+                    ┌──────────────┐                             │
+                    │  scaffold:*  │ ←──────────────────────────┘
+                    │  (misc.js)   │
+                    └──────┬───────┘
+                           ↓
+              ┌────────────────────────┐
+              │  {padded}-PLAN.md or   │
+              │  {padded}-VERIFICATION │
+              │  with TODO markers     │
+              └────────────────────────┘
+                           ↓
+              ┌────────────────────────┐
+              │  Enricher adds:        │
+              │  scaffold_plan_path    │
+              │  scaffold_verif_path   │
+              └────────────────────────┘
+                           ↓
+              ┌────────────────────────┐
+              │  Agent fills TODO      │
+              │  sections (20-40%      │
+              │  of document)          │
+              └────────────────────────┘
 ```
 
-**Problem:** On a cold start (first invocation after cache clear), the enricher:
-- Reads 6 markdown files from disk
-- Calls `parsePlans()` 3 times (once in getProjectState, twice in enricher)
-- Calls `listSummaryFiles()` 3 times (scanning phase directory each time)
-- All results are Map-cached but only for this process invocation
-
-### Target Enricher Flow (After v12.0)
+### Workflow Section Loading Flow
 
 ```
-/bgsd-* command invoked
-    │
-    ▼
-enrichCommand() called
-    │
-    ├──→ getProjectState()
-    │       │
-    │       ├──→ DataStore.isValid(cwd)?
-    │       │       │
-    │       │     yes → Return pre-built enrichment from DataStore
-    │       │       │     (single row read, ~0.1ms)
-    │       │       │
-    │       │      no → Parse all files (existing logic)
-    │       │             │
-    │       │             ├──→ Write structured rows to DataStore
-    │       │             └──→ Pre-compute enrichment fields
-    │       │                   ├──→ plan_count, summary_count  (SQL COUNT)
-    │       │                   ├──→ incomplete_plans            (SQL query)
-    │       │                   ├──→ task_types                  (SQL query)
-    │       │                   └──→ Store pre-computed enrichment
-    │       │
-    │       └──→ Return frozen project state
-    │
-    ├──→ evaluateDecisions()  ← Same pure functions, richer inputs
-    │
-    └──→ Serialize to <bgsd-context> JSON
+[Agent receives workflow .md in system prompt]
+        ↓
+[Agent identifies current step from plan progress]
+        ↓
+[Agent calls extract-sections for needed steps]
+        ↓
+[extract-sections returns section content only]
+        ↓
+[Agent executes with ~40% fewer context tokens]
 ```
 
-**Improvement:** On warm starts (DataStore cache valid):
-- Zero file I/O — all data from SQLite
-- Zero duplication — plan_count and summary_count are pre-computed
-- Single validation check (git-hash + mtime) instead of 6 file reads
-- Enrichment result is pre-computed and cached as a JSON blob
-
-### Memory Store Data Flow (Migration)
+### Workflow Compression Flow
 
 ```
-BEFORE:                              AFTER:
-.planning/memory/                    .planning/memory/
-  decisions.json ──read/write──→       decisions.json ──read────→ (authority)
-  lessons.json   ──read/write──→       lessons.json   ──read────→ (authority)
-  trajectory.json──read/write──→       trajectory.json──read────→ (authority)
-  bookmarks.json ──read/write──→       bookmarks.json ──read────→ (authority)
-
-                                     DataStore (SQLite):
-                                       decisions ──────→ indexed, queryable
-                                       lessons ────────→ indexed, queryable
-                                       trajectories ──→ indexed, queryable
-                                       bookmarks ─────→ indexed, queryable
-
-Write path:
-  1. Write to JSON file (existing behavior, preserves git tracking)
-  2. Write to DataStore table (for query acceleration)
-
-Read path (queries):
-  1. Check DataStore first (SQL WHERE/ORDER BY/LIMIT)
-  2. Fall back to JSON file read + in-memory filter (existing behavior)
-
-Migration (one-time):
-  On first DataStore init, scan .planning/memory/*.json
-  Import all entries into corresponding SQLite tables
-  Store migration timestamp in _meta table
+[Existing workflow file (N tokens)]
+        ↓
+[Compression analysis: identify redundancy, verbose prose, duplicate examples]
+        ↓
+[Apply compression techniques: tighten, deduplicate, extract to skills]
+        ↓
+[Add section markers for selective loading]
+        ↓
+[Compressed workflow file (~0.6N tokens)]
+        ↓
+[Validate: measure:baseline → measure:compare to confirm 40%+ reduction]
+        ↓
+[Test: run workflow end-to-end, verify agent behavior unchanged]
 ```
 
-### File Watcher Integration
+### Key Data Flows
 
-```
-File change detected by fs.watch
-    │
-    ▼
-Debounce (200ms, existing)
-    │
-    ▼
-Filter out self-writes (existing)
-    │
-    ▼
-invalidateAll(cwd)        ← Existing: clears all Map caches
-    │
-    ▼
-dataStore.invalidateFile(  ← NEW: marks DataStore entries stale
-  cwd, changedFilename     
-)
-    │
-    ▼
-Next enricher call will:
-  - Miss Map L1 (cleared)
-  - Miss DataStore L2 (marked stale)
-  - Re-parse from filesystem
-  - Re-populate both caches
-```
+1. **Scaffold data sources:** ROADMAP.md → phase goal/requirements/success criteria; PLAN.md → tasks/objective (for verification scaffold); Git → commit history/diff summary (for plan scaffold); Assertions → must-have truths (for verification scaffold)
+2. **Enricher scaffold injection:** During `enrichCommand()`, check if scaffold files exist in phase dir → add `scaffold_plan: path` or `scaffold_verification: path` to `<bgsd-context>` JSON
+3. **Section loading:** Agent parses step name from plan progress → calls `util:extract-sections workflow.md step1 step2` → receives only relevant content
 
 <!-- /section -->
 
----
+<!-- section: integration_map -->
+## Integration Points — New vs Modified vs Unchanged
 
-<!-- section: scaling -->
-## Schema Design
+### NEW Components
 
-### Structured Tables
+| Component | Type | Location | Depends On | Consumed By |
+|-----------|------|----------|------------|-------------|
+| `cmdScaffoldPlan()` | CLI function | `src/commands/misc.js` | `findPhaseInternal`, `getRoadmapPhaseInternal`, `extractFrontmatter` | `plan-phase.md` workflow, planner agent |
+| `cmdScaffoldVerification()` | CLI function | `src/commands/misc.js` | `findPhaseInternal`, `parsePlans`, plan summaries, `ASSERTIONS.md` parser | `verify-work.md` workflow, verifier agent |
+| Section markers in workflows | Workflow text | `workflows/*.md` (10 files) | — | `extractSectionsFromFile()` (existing), agents |
+| `util:scaffold plan` | CLI route | `src/router.js` (new case) | `cmdScaffoldPlan` | Workflow orchestration |
+| `util:scaffold verification` | CLI route | `src/router.js` (new case) | `cmdScaffoldVerification` | Workflow orchestration |
 
-```sql
--- Meta table for schema version and git hash tracking
-CREATE TABLE IF NOT EXISTS _meta (
-  key   TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
+### MODIFIED Components
 
--- Phases extracted from ROADMAP.md
-CREATE TABLE IF NOT EXISTS phases (
-  cwd          TEXT NOT NULL,
-  number       TEXT NOT NULL,       -- "73", "73.1"
-  name         TEXT NOT NULL,
-  status       TEXT NOT NULL,       -- 'complete', 'incomplete'
-  goal         TEXT,
-  plan_count   INTEGER DEFAULT 0,
-  depends_on   TEXT,                -- JSON array of phase numbers
-  git_hash     TEXT NOT NULL,       -- git hash when cached
-  file_mtime   REAL NOT NULL,       -- ROADMAP.md mtime when cached
-  PRIMARY KEY (cwd, number)
-);
+| Component | What Changes | Why |
+|-----------|-------------|-----|
+| `src/commands/misc.js` — `cmdScaffold()` | Add `plan` and `verification` cases to switch | Extends existing scaffold command with new document types |
+| `src/router.js` | No changes needed — `scaffold` subcommand already routes to `cmdScaffold` | Existing routing handles new scaffold types automatically |
+| `src/plugin/command-enricher.js` | Add `scaffold_plan_path`, `scaffold_verification_path` fields | Agents need to know when scaffolds are available |
+| `workflows/execute-phase.md` (497L) | Compress prose, add section markers | Token reduction |
+| `workflows/discuss-phase.md` (538L) | Compress prose, add section markers | Token reduction — largest workflow |
+| `workflows/new-milestone.md` (505L) | Compress prose, add section markers | Token reduction |
+| `workflows/transition.md` (519L) | Compress prose, add section markers | Token reduction |
+| `workflows/execute-plan.md` (376L) | Add section markers, integrate scaffold references | Token reduction + scaffold awareness |
+| `workflows/plan-phase.md` (187L) | Add scaffold generation step before planner spawn | Planner receives scaffold instead of blank file |
+| `workflows/verify-work.md` (165L) | Add scaffold generation step before verifier spawn | Verifier receives scaffold instead of blank file |
+| `workflows/progress.md` (349L) | Compress prose | Token reduction |
+| `workflows/quick.md` (341L) | Compress prose, add section markers | Token reduction |
+| `workflows/map-codebase.md` (303L) | Compress prose | Token reduction |
+| `src/lib/constants.js` | Update `COMMAND_HELP` for new scaffold types | Help text for `util:scaffold plan` and `util:scaffold verification` |
 
--- Plans extracted from PLAN.md files
-CREATE TABLE IF NOT EXISTS plans (
-  cwd          TEXT NOT NULL,
-  phase_number TEXT NOT NULL,
-  plan_number  TEXT NOT NULL,       -- "01", "02"
-  path         TEXT NOT NULL,       -- relative path to PLAN.md
-  objective    TEXT,
-  task_count   INTEGER DEFAULT 0,
-  has_summary  INTEGER DEFAULT 0,   -- 1 if matching SUMMARY.md exists
-  frontmatter  TEXT,                -- JSON blob of frontmatter
-  git_hash     TEXT NOT NULL,
-  file_mtime   REAL NOT NULL,
-  PRIMARY KEY (cwd, phase_number, plan_number)
-);
+### UNCHANGED Components
 
--- Tasks extracted from PLAN.md <task> elements
-CREATE TABLE IF NOT EXISTS tasks (
-  cwd          TEXT NOT NULL,
-  phase_number TEXT NOT NULL,
-  plan_number  TEXT NOT NULL,
-  task_number  INTEGER NOT NULL,    -- 1-indexed
-  name         TEXT,
-  type         TEXT DEFAULT 'auto', -- 'auto', 'checkpoint:decision', etc.
-  files        TEXT,                -- JSON array
-  action       TEXT,
-  verify       TEXT,
-  done         TEXT,
-  status       TEXT DEFAULT 'pending', -- 'pending', 'complete'
-  PRIMARY KEY (cwd, phase_number, plan_number, task_number),
-  FOREIGN KEY (cwd, phase_number, plan_number) REFERENCES plans(cwd, phase_number, plan_number)
-);
-
--- Requirements from REQUIREMENTS.md
-CREATE TABLE IF NOT EXISTS requirements (
-  cwd          TEXT NOT NULL,
-  req_id       TEXT NOT NULL,       -- "TEST-01", "CMD-03"
-  text         TEXT NOT NULL,
-  status       TEXT NOT NULL,       -- 'validated', 'active', 'oos'
-  phase        TEXT,                -- phase number if mapped
-  plan         TEXT,                -- plan number if mapped
-  git_hash     TEXT NOT NULL,
-  PRIMARY KEY (cwd, req_id)
-);
-
--- Decisions from memory store + STATE.md
-CREATE TABLE IF NOT EXISTS decisions (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  cwd          TEXT NOT NULL,
-  phase        TEXT,
-  text         TEXT NOT NULL,
-  timestamp    TEXT NOT NULL,       -- ISO 8601
-  source       TEXT NOT NULL        -- 'state.md', 'memory'
-);
-CREATE INDEX IF NOT EXISTS idx_decisions_cwd ON decisions(cwd);
-CREATE INDEX IF NOT EXISTS idx_decisions_phase ON decisions(cwd, phase);
-
--- Lessons from memory store
-CREATE TABLE IF NOT EXISTS lessons (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  cwd          TEXT NOT NULL,
-  phase        TEXT,
-  text         TEXT NOT NULL,
-  timestamp    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_lessons_cwd ON lessons(cwd);
-
--- Trajectories from memory store
-CREATE TABLE IF NOT EXISTS trajectories (
-  id           TEXT NOT NULL,       -- "tj-abc123" format
-  cwd          TEXT NOT NULL,
-  category     TEXT NOT NULL,       -- 'decision', 'observation', etc.
-  text         TEXT NOT NULL,
-  phase        TEXT,
-  confidence   TEXT,                -- 'high', 'medium', 'low'
-  tags         TEXT,                -- JSON array
-  references   TEXT,                -- JSON array
-  timestamp    TEXT NOT NULL,
-  PRIMARY KEY (id, cwd)
-);
-CREATE INDEX IF NOT EXISTS idx_traj_cwd ON trajectories(cwd);
-CREATE INDEX IF NOT EXISTS idx_traj_category ON trajectories(cwd, category);
-
--- Session state (replacing parts of STATE.md for machine access)
-CREATE TABLE IF NOT EXISTS session_state (
-  cwd          TEXT PRIMARY KEY,
-  phase        TEXT,
-  current_plan TEXT,
-  progress     INTEGER,
-  status       TEXT,
-  last_activity TEXT,
-  git_hash     TEXT NOT NULL,
-  updated_at   TEXT NOT NULL        -- ISO 8601
-);
-
--- Pre-computed enrichment cache
-CREATE TABLE IF NOT EXISTS enrichment_cache (
-  cwd          TEXT PRIMARY KEY,
-  data         TEXT NOT NULL,       -- Full JSON enrichment blob
-  git_hash     TEXT NOT NULL,
-  computed_at  TEXT NOT NULL
-);
-```
-
-### Schema Sizing
-
-| Table | Expected Rows (per project) | Growth Rate |
-|-------|---------------------------|-------------|
-| _meta | 3-5 | Static |
-| phases | 5-20 | Per milestone |
-| plans | 10-50 | Per phase |
-| tasks | 50-200 | Per plan |
-| requirements | 20-100 | Per milestone |
-| decisions | 50-500 | Per session |
-| lessons | 20-200 | Per milestone |
-| trajectories | 20-200 | Per session |
-| session_state | 1 | Static |
-| enrichment_cache | 1 | Static |
-
-Total: Under 2000 rows for a mature project. SQLite handles this trivially.
+| Component | Why Unchanged |
+|-----------|--------------|
+| `src/commands/features.js` — `extractSectionsFromFile()` | Already handles section markers perfectly — no changes needed |
+| `src/commands/features.js` — `measureAllWorkflows()` | Already measures token counts — used for compression validation |
+| `src/lib/context.js` — `estimateTokens()` | Token estimation unchanged |
+| `src/lib/context.js` — `AGENT_MANIFESTS` | Agent context scoping unchanged — scaffold fields are optional enrichment |
+| `src/commands/misc.js` — `cmdSummaryGenerate()` | Existing scaffold pattern — serves as implementation reference |
+| Templates (`templates/*.md`) | Templates define format; scaffolds populate instances |
+| `build.cjs` | No new entry points — all code goes into existing modules |
+| Plugin tools (`src/plugin/tools/`) | LLM tools unchanged — scaffolds are CLI operations |
+| SQLite layer (`src/lib/db.js`, `planning-cache.js`) | No new tables needed — scaffolds are generated on demand |
 
 <!-- /section -->
 
----
+<!-- section: build_order -->
+## Suggested Build Order
+
+### Wave 1: Foundation (No Dependencies)
+
+**Task 1: Workflow Compression — Top 10 Workflows**
+- Files: `workflows/*.md` (10 largest files)
+- Action: Apply proven compression techniques from v1.1
+- Verify: `util:measure baseline` before, `util:measure compare` after — target 40%+ reduction
+- Dependencies: None — pure text editing
+- Risk: Low — compression is reversible
+
+**Task 2: Add Section Markers to Compressed Workflows**
+- Files: Same 10 workflow files from Task 1
+- Action: Wrap `<step name="X">` blocks with `<!-- section: X -->` / `<!-- /section -->` markers
+- Verify: `util:extract-sections workflow.md step_name` returns correct content
+- Dependencies: Task 1 (compress first, then add markers)
+- Risk: Low — markers are additive, no behavior change
+
+### Wave 2: Scaffold Generation (Depends on Wave 1 only for final integration)
+
+**Task 3: PLAN.md Scaffold Generator**
+- Files: `src/commands/misc.js` (extend `cmdScaffold`), `src/lib/constants.js` (help text)
+- Action: Add `plan` case to scaffold switch — generates PLAN.md skeleton from roadmap phase data
+- Pattern: Follow `cmdSummaryGenerate()` implementation pattern exactly
+- Data sources: `getRoadmapPhaseInternal()` for goal/requirements, `extractFrontmatter()` for existing plan format
+- Verify: `node bin/bgsd-tools.cjs util:scaffold plan --phase 1` generates valid PLAN.md skeleton
+- Dependencies: None (can start in parallel with Wave 1)
+
+**Task 4: VERIFICATION.md Scaffold Generator**
+- Files: `src/commands/misc.js` (extend `cmdScaffold`), `src/lib/constants.js` (help text)
+- Action: Add `verification` case to scaffold switch — generates VERIFICATION.md from success criteria
+- Data sources: ROADMAP.md success criteria, plan summaries, ASSERTIONS.md must-haves
+- Verify: `node bin/bgsd-tools.cjs util:scaffold verification --phase 1` generates valid report skeleton
+- Dependencies: None (can start in parallel with Task 3)
+
+### Wave 3: Enricher Integration (Depends on Wave 2)
+
+**Task 5: Enricher Scaffold Awareness**
+- Files: `src/plugin/command-enricher.js`
+- Action: Check for existing scaffold files in phase dir, add `scaffold_plan_path` and `scaffold_verification_path` to enrichment object
+- Verify: `<bgsd-context>` JSON includes scaffold paths when files exist
+- Dependencies: Tasks 3 and 4 (scaffold files must exist to test detection)
+
+### Wave 4: Workflow Integration (Depends on Waves 2-3)
+
+**Task 6: Update plan-phase.md to Generate Scaffold**
+- Files: `workflows/plan-phase.md`
+- Action: Add step before planner spawn that calls `util:scaffold plan` to pre-generate PLAN.md skeleton
+- Verify: `/bgsd-plan-phase` generates scaffold, planner fills judgment sections only
+- Dependencies: Task 3 (scaffold generator exists), Task 5 (enricher advertises scaffold)
+
+**Task 7: Update verify-work/execute-phase to Use Verification Scaffold**
+- Files: `workflows/verify-work.md`, `workflows/execute-phase.md`
+- Action: Add step that calls `util:scaffold verification` before verifier spawn
+- Verify: `/bgsd-verify-work` generates scaffold, verifier fills status/evidence columns
+- Dependencies: Task 4 (verification scaffold generator exists), Task 5 (enricher advertises scaffold)
+
+### Dependency Graph
+
+```
+Wave 1:  Task 1 (compress) → Task 2 (section markers)
+                                                        ↘
+Wave 2:  Task 3 (plan scaffold) ──────────────────────→ Wave 3: Task 5 (enricher)
+         Task 4 (verification scaffold) ──────────────↗           ↓
+                                                        Wave 4: Task 6 (plan workflow)
+                                                                  Task 7 (verify workflow)
+```
+
+**Parallel opportunities:**
+- Tasks 1-2 and Tasks 3-4 can run in parallel (different files, no overlap)
+- Tasks 3 and 4 can run in parallel (different scaffold types)
+- Tasks 6 and 7 can run in parallel (different workflows)
+
+<!-- /section -->
 
 <!-- section: anti_patterns -->
-## Anti-Patterns to Avoid
+## Anti-Patterns
 
-### Anti-Pattern 1: SQLite as Source of Truth
+### Anti-Pattern 1: Over-Compression
 
-**What people do:** Write data to SQLite first and generate markdown from it.  
-**Why it's wrong:** Markdown files are git-tracked, human-readable, and consumed by AI agents. Making SQLite authoritative means git diffs become meaningless and .planning/ directories become useless without the SQLite database.  
-**Do this instead:** Always write markdown first, then update SQLite as a derived cache. If SQLite is deleted, everything should rebuild transparently.
+**What people do:** Compress workflow prose so aggressively that agents lose critical context — removing examples, edge case handling, or decision trees.
+**Why it's wrong:** Agent quality degrades silently. The 40% target is conservative deliberately — v1.1 achieved 54.6% on easier workflows, but the remaining 10 are harder because they contain more decision logic.
+**Do this instead:** Compress redundancy and verbose prose. Preserve decision trees, edge cases, and examples that don't exist in skills/templates. Measure agent behavior with before/after test runs.
 
-### Anti-Pattern 2: Direct Database Access from Multiple Modules
+### Anti-Pattern 2: Stale Scaffolds
 
-**What people do:** Import DatabaseSync in every module and run raw SQL.  
-**Why it's wrong:** Schema coupling spreads across the codebase, making migrations impossible and SQL injection likely.  
-**Do this instead:** ALL database access goes through DataStore class methods. No raw SQL outside DataStore. The existing CacheEngine pattern (encapsulated backend) is the model.
+**What people do:** Generate a scaffold, then change the roadmap/plan data before the LLM fills it.
+**Why it's wrong:** Scaffold contains outdated phase goals, wrong requirement IDs, or mismatched task counts. Agent writes wrong document.
+**Do this instead:** Generate scaffolds just-in-time (in the workflow step immediately before the agent uses it). Never cache scaffolds across sessions. Include a `generated_at` timestamp in scaffold frontmatter so agents can detect staleness.
 
-### Anti-Pattern 3: Eager Table Population on Startup
+### Anti-Pattern 3: Breaking Section Marker Format
 
-**What people do:** Parse every markdown file and populate every table on first CLI invocation.  
-**Why it's wrong:** Most CLI commands need only 1-2 tables worth of data. Parsing all files to populate all tables adds 100-500ms startup cost that most invocations don't benefit from.  
-**Do this instead:** Lazy population — tables are populated when first queried. Use the existing parser call chain: when `parseState()` is called, it populates the `session_state` table. When `parsePlans()` is called, it populates `plans` and `tasks` tables.
+**What people do:** Use non-standard markers like `<!-- SECTION: X -->` or `<!-- Section X -->` or nest markers incorrectly.
+**Why it's wrong:** `extractSectionsFromFile()` uses the regex `/<!--\s*section:\s*(.+?)\s*-->/i` — case-insensitive match on `section:` with colon. Non-standard formats silently fail. Nested markers close at the first `<!-- /section -->`.
+**Do this instead:** Use exactly `<!-- section: step_name -->` and `<!-- /section -->`. Don't nest sections. Test with `util:extract-sections file.md section_name` to verify parsing.
 
-### Anti-Pattern 4: Breaking the Map Fallback Path
+### Anti-Pattern 4: Scaffold as Source of Truth
 
-**What people do:** Make SQLite a hard dependency and remove Map-based caching.  
-**Why it's wrong:** Map fallback exists because `node:sqlite` is Stability 1.2 (Release Candidate). Removing it breaks backward compatibility with Node <22.5 and removes the safety net if SQLite has bugs.  
-**Do this instead:** Every DataStore consumer uses `if (store) { ... }` guards. The Map-based path remains the default path. DataStore is a performance accelerator, not a requirement.
-
-### Anti-Pattern 5: Storing Raw Markdown in SQLite
-
-**What people do:** Store the entire ROADMAP.md content as a TEXT blob in SQLite and re-parse it from there.  
-**Why it's wrong:** This is what the existing `file_cache` table already does. Structured tables should store *parsed, queryable data* — not raw file content. Having both raw blobs and structured rows creates confusion about which to read.  
-**Do this instead:** Structured tables store extracted fields only (name, status, count). The `file_cache` table in CacheEngine already handles raw content caching. Don't duplicate it.
-
-### Anti-Pattern 6: Schema Migrations That Drop Data
-
-**What people do:** `DROP TABLE IF EXISTS phases; CREATE TABLE phases (...)` on version bump.  
-**Why it's wrong:** Destroys cached data unnecessarily. Since markdown is the authority, the data would be re-parsed, but this causes a cold-start performance hit on every upgrade.  
-**Do this instead:** Forward-only migrations: `ALTER TABLE ... ADD COLUMN`, `CREATE TABLE IF NOT EXISTS`. Never DROP in normal operation.
+**What people do:** Treat the scaffold as the final document — agent just commits it without filling TODO markers.
+**Why it's wrong:** TODO markers remain in committed files. Judgment sections are empty. Document looks complete but lacks analysis.
+**Do this instead:** Scaffold includes explicit `TODO:` markers that agents must replace. Verification can grep for remaining TODOs as a quality gate: `grep -c 'TODO:' file.md` should be 0 after agent fills.
 
 <!-- /section -->
 
+<!-- section: sizing -->
+## Sizing Estimates
+
+### Token Impact Analysis
+
+| Target | Current Tokens (est.) | After Compression | Savings |
+|--------|----------------------|-------------------|---------|
+| Top 10 workflows (compression) | ~45,000 total | ~27,000 total | ~18,000 tokens per agent load |
+| PLAN.md scaffold (per plan) | 0 (LLM writes all) | ~800 scaffold + ~400 LLM | ~1,200 tokens per plan |
+| VERIFICATION.md scaffold (per phase) | 0 (LLM writes all) | ~600 scaffold + ~300 LLM | ~800 tokens per verification |
+| Section loading (per step) | ~3,000 (full workflow) | ~800 (2-3 sections) | ~2,200 tokens per step |
+
+**Total milestone impact:** ~20,000+ tokens saved per plan execution cycle (workflow load + document generation).
+
+### Effort Estimates
+
+| Task | Complexity | Files | Estimated Duration |
+|------|-----------|-------|-------------------|
+| Workflow compression (10 files) | Medium — manual prose analysis | 10 workflows | 45-60 min |
+| Section markers (10 files) | Low — additive markers | 10 workflows | 20-30 min |
+| PLAN.md scaffold | Medium — follow summary:generate pattern | misc.js, constants.js | 30-45 min |
+| VERIFICATION.md scaffold | Medium — parse success criteria | misc.js, constants.js | 30-45 min |
+| Enricher scaffold fields | Low — add 2 fields | command-enricher.js | 15-20 min |
+| Workflow integration | Low — add CLI calls to workflows | plan-phase.md, verify-work.md | 20-30 min |
+
+<!-- /section -->
+
+<!-- section: scaffold_specification -->
+## Scaffold Specifications
+
+### PLAN.md Scaffold — Data Sources and Structure
+
+```markdown
+---
+phase: "{padded_phase}-{phase_slug}"
+plan: "{padded_plan}"
+objective: "{from roadmap phase goal}"
+tags: []
+requirements: [{requirement IDs from roadmap}]
+must_haves:
+  truths: [{from ASSERTIONS.md or roadmap success criteria}]
+files_modified: []
 ---
 
-<!-- section: integration -->
-## Integration Points
+# Phase {phase_number} Plan {plan_number}: {objective}
 
-### New vs. Modified Components
+<objective>
+{Phase goal from ROADMAP.md}
+</objective>
 
-| Component | Type | Files | Dependencies |
-|-----------|------|-------|-------------|
-| DataStore | **NEW** | `src/lib/datastore.js` | `node:sqlite` (optional), `src/lib/cache.js` (for db path pattern) |
-| QueryAPI | **NEW** | `src/lib/query.js` | DataStore |
-| MemoryMigrator | **NEW** | `src/lib/memory-migrator.js` | DataStore, `src/commands/memory.js` (for store paths) |
-| state.js parser | MODIFIED | `src/plugin/parsers/state.js` | DataStore (optional) |
-| roadmap.js parser | MODIFIED | `src/plugin/parsers/roadmap.js` | DataStore (optional) |
-| plan.js parser | MODIFIED | `src/plugin/parsers/plan.js` | DataStore (optional) |
-| project-state.js | MODIFIED | `src/plugin/project-state.js` | DataStore (optional) |
-| command-enricher.js | MODIFIED | `src/plugin/command-enricher.js` | DataStore (via project-state) |
-| file-watcher.js | MODIFIED | `src/plugin/file-watcher.js` | DataStore (for invalidation) |
-| memory.js | MODIFIED | `src/commands/memory.js` | DataStore (dual-write) |
-| decision-rules.js | MODIFIED | `src/lib/decision-rules.js` | New rules consuming DataStore queries |
-| parsers/index.js | MODIFIED | `src/plugin/parsers/index.js` | DataStore (invalidateAll extension) |
+## Context
 
-### Internal Boundaries
+**Phase Goal:** {from ROADMAP.md}
+**Requirements:** {IDs and descriptions from REQUIREMENTS.md}
+**Prior Research:** {reference to RESEARCH.md if exists}
 
-| Boundary | Communication | Direction | Notes |
-|----------|---------------|-----------|-------|
-| Parsers → DataStore | Direct method calls | Write-through | Parsers call `store.setPhases()`, `store.setPlans()`, etc. |
-| ProjectState → DataStore | Direct method calls | Read | `getProjectState()` checks DataStore before calling parsers |
-| Enricher → ProjectState | Existing facade | Read | No change — enricher still calls getProjectState() |
-| FileWatcher → DataStore | Method call on invalidation | Write | `dataStore.invalidateFile(cwd, filename)` |
-| Memory.js → DataStore | Dual-write | Write | After JSON file write, also write to DataStore table |
-| QueryAPI → DataStore | Direct method calls | Read | Exposes high-level query functions for CLI commands |
-| CacheEngine → DataStore | **None** | Isolated | CacheEngine keeps its own db connection and tables (file_cache, research_cache). DataStore manages a separate database or separate tables in the same database |
+TODO: Add any additional context from discuss-phase decisions.
 
-### Database Location Decision
+## Tasks
 
-**Option A: Separate database file** — DataStore uses `~/.config/oc/bgsd-oc/data.db`, CacheEngine keeps `cache.db`.  
-**Option B: Same database file** — DataStore adds tables to the existing `cache.db`.
+TODO: Define tasks based on requirements and research.
+Each task should follow this structure:
 
-**Recommendation: Option B (same database)**. Reasons:
-1. Single SQLite connection — no overhead from opening two databases
-2. DataStore can reuse CacheEngine's DatabaseSync instance via constructor injection
-3. Schema versioning via `_meta` table doesn't conflict with CacheEngine's tables
-4. Single backup/delete path for troubleshooting
-
-**However**, DataStore and CacheEngine must remain architecturally separate classes. DataStore does NOT inherit from or compose CacheEngine. They share a database connection, not an API.
-
-### Project-Local vs. Global Database
-
-The existing CacheEngine stores its database globally (`~/.config/oc/bgsd-oc/cache.db`) — shared across all projects. This is correct for file content caching.
-
-For structured planning data, **project-local storage** is required because:
-- Phase/plan/task data is project-specific
-- Memory stores are per-project (.planning/memory/)
-- Git-hash invalidation is per-repository
-
-**Decision:** DataStore uses the project's `.planning/.cache.db` file (gitignored). This keeps structured data co-located with the project it describes. The CacheEngine's global `cache.db` continues unchanged for file content caching.
-
-```
-~/.config/oc/bgsd-oc/cache.db      ← CacheEngine (global file cache)
-/project/.planning/.cache.db        ← DataStore (project-specific structured data)
+<task id="1">
+<name>Task 1: TODO: task name</name>
+<description>TODO: what this task accomplishes</description>
+<files>TODO: list files to create or modify</files>
+<verify>TODO: how to verify task completion</verify>
+</task>
 ```
 
-Add `.cache.db` to `.planning/.gitignore` (or the project's `.gitignore`).
+**Data source mapping:**
+- `phase`, `plan`, `objective` → `getRoadmapPhaseInternal(cwd, phase)` → `.goal`, `.phase_number`
+- `requirements` → Parse ROADMAP.md phase block for `Requirements:` line
+- `must_haves.truths` → Parse `ASSERTIONS.md` for this phase's requirements (if exists)
+- `Phase Goal`, `Requirements` section → Same roadmap data
+- `Prior Research` → Check for `{padded_phase}-RESEARCH.md` existence
 
-## Build Order (Dependency-Aware)
+### VERIFICATION.md Scaffold — Data Sources and Structure
 
-The components have a strict dependency chain. Build in this order:
+```markdown
+---
+phase: "{padded_phase}-{phase_name}"
+verified: TODO: timestamp
+status: TODO: passed | gaps_found | human_needed
+score: TODO: N/M must-haves verified
+---
 
-### Wave 1: Foundation (no downstream dependents yet)
+# Phase {phase_number}: {phase_name} Verification Report
 
-| # | Component | Depends On | Enables |
-|---|-----------|------------|---------|
-| 1 | **DataStore class** | node:sqlite (existing) | Everything else |
-| 2 | **Schema + migrations** | DataStore | Table consumers |
-| 3 | **Git-hash invalidation** | DataStore, git.js | Cache validity checks |
+**Phase Goal:** {goal from ROADMAP.md}
+**Verified:** TODO: timestamp
+**Status:** TODO
 
-DataStore must be built first — it's the foundation all other components depend on. Include Map fallback (return null from `getDataStore()` when SQLite unavailable).
+## Goal Achievement
 
-### Wave 2: Parser Integration (depends on Wave 1)
+### Observable Truths
 
-| # | Component | Depends On | Enables |
-|---|-----------|------------|---------|
-| 4 | **Parser write-through** (state, roadmap, plan) | DataStore | Structured cache population |
-| 5 | **project-state.js enhancement** | Parser write-through | DataStore read path |
-| 6 | **parsers/index.js invalidation** | DataStore | File watcher integration |
-| 7 | **file-watcher.js extension** | DataStore, parsers/index.js | Change-driven invalidation |
+| # | Truth | Status | Evidence |
+|---|-------|--------|----------|
+{for each truth from must_haves/assertions:}
+| {n} | {truth text} | TODO | TODO |
 
-Parsers can be modified independently (state.js, roadmap.js, plan.js are independent of each other). The index.js and file-watcher changes depend on at least one parser being done.
+**Score:** TODO: N/{total_truths} truths verified
 
-### Wave 3: Enricher Acceleration (depends on Wave 2)
+### Required Artifacts
 
-| # | Component | Depends On | Enables |
-|---|-----------|------------|---------|
-| 8 | **Enricher V2** — read from DataStore | project-state enhanced, DataStore | Eliminates 3x duplication |
-| 9 | **enrichment_cache table** | Enricher V2, DataStore | Pre-computed enrichment |
+| Artifact | Expected | Status | Details |
+|----------|----------|--------|---------|
+{for each file from plan summaries:}
+| `{file_path}` | {description from task} | TODO | TODO |
 
-This is the highest-impact change — eliminates the 3x listSummaryFiles and 2x parsePlans duplication in command-enricher.js.
+### Key Link Verification
 
-### Wave 4: Memory Migration (independent, can parallel with Wave 2-3)
+TODO: Identify and verify key connections between components.
 
-| # | Component | Depends On | Enables |
-|---|-----------|------------|---------|
-| 10 | **Memory tables schema** | DataStore | Memory store queries |
-| 11 | **MemoryMigrator** | Memory tables, memory.js | One-time JSON import |
-| 12 | **memory.js dual-write** | Memory tables, MemoryMigrator | Ongoing sync |
-| 13 | **QueryAPI for memory** | Memory tables | CLI query commands |
+## Requirements Coverage
 
-Memory migration is largely independent of parser integration. The main dependency is DataStore existing.
+| Requirement | Status | Blocking Issue |
+|-------------|--------|----------------|
+{for each requirement mapped to phase:}
+| {REQ-ID}: {description} | TODO | TODO |
 
-### Wave 5: Decision Rules Expansion (depends on Wave 2-3)
+## Test Results
 
-| # | Component | Depends On | Enables |
-|---|-----------|------------|---------|
-| 14 | **New decision rules** (6-8 rules) | DataStore queries, enricher V2 | Richer workflow routing |
-| 15 | **Enricher decision integration** | New rules, enricher V2 | Pre-computed decisions |
+TODO: Run test suite and record results.
+```
 
-New rules consume SQLite-backed state (e.g., "has this phase been attempted before?", "what's the average task completion rate?").
+**Data source mapping:**
+- `phase`, `phase_name`, `Phase Goal` → `getRoadmapPhaseInternal(cwd, phase)`
+- `Observable Truths` rows → Parse `ASSERTIONS.md` must-haves for this phase's requirement IDs; fallback to ROADMAP.md success criteria
+- `Required Artifacts` rows → Parse completed plan SUMMARYs for `key-files.created` and `key-files.modified`
+- `Requirements Coverage` rows → Parse ROADMAP.md phase block for `Requirements:` IDs, cross-reference `REQUIREMENTS.md` for descriptions
 
-### Wave 6: Session State (depends on Wave 2)
+<!-- /section -->
 
-| # | Component | Depends On | Enables |
-|---|-----------|------------|---------|
-| 16 | **session_state table population** | DataStore, state parser | Cross-invocation session |
-| 17 | **STATE.md as generated view** | session_state, state parser | Reduced STATE.md manipulation |
+<!-- section: risks -->
+## Risks and Mitigations
 
-This is the most architecturally aggressive change — making STATE.md a generated output rather than the primary store for session state. It should be last because it changes the authority model for session data.
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| Workflow compression degrades agent behavior | HIGH | Measure with baseline/compare, test workflows end-to-end after compression |
+| Section markers break existing workflow loading | MEDIUM | Markers are additive — agents loading full file see no change; only section-aware agents use markers |
+| Scaffold data stale by time agent uses it | MEDIUM | Generate just-in-time in workflow step immediately before use; never cache |
+| `extractSectionsFromFile()` edge cases with new markers | LOW | Extensive existing test coverage; add tests for each compressed workflow |
+| Enricher performance impact from scaffold file checks | LOW | Single `existsSync` per scaffold type — negligible I/O cost |
+| New scaffold types conflict with existing `cmdScaffold` switch | LOW | Additive cases to existing switch — no modification of existing paths |
+
+<!-- /section -->
 
 ## Sources
 
-1. **src/lib/cache.js** — Existing CacheEngine with SQLiteBackend and MapBackend (752 lines, reviewed in full)
-2. **src/plugin/parsers/*.js** — 6 in-process parsers with Map caches (state: 101 lines, roadmap: 220 lines, plan: 258 lines, config: 155 lines)
-3. **src/plugin/command-enricher.js** — Command enrichment with 3x duplication identified (340 lines)
-4. **src/plugin/project-state.js** — Unified facade composing 6 parsers (67 lines)
-5. **src/plugin/file-watcher.js** — fs.watch with invalidateAll() integration (202 lines)
-6. **src/commands/memory.js** — JSON file-based memory stores (378 lines)
-7. **src/lib/decision-rules.js** — 12 pure decision functions with registry (467 lines)
-8. **src/plugin/context-builder.js** — System prompt and compaction context builders (387 lines)
-9. **src/plugin/tools/bgsd-progress.js** — STATE.md mutation with file locking (324 lines)
-10. **Node.js v25.8.1 SQLite documentation** — Stability 1.2 Release Candidate, DatabaseSync API, SQLTagStore, Session/Changeset support
-11. **PROJECT.md** — v12.0 milestone context, architecture constraints, key decisions (293 lines)
+- `src/commands/misc.js:2067` — `cmdSummaryGenerate()` scaffold-then-fill pattern (verified in codebase, HIGH confidence)
+- `src/commands/features.js:1354` — `extractSectionsFromFile()` section marker parser (verified in codebase, HIGH confidence)
+- `src/commands/features.js:1489` — `measureAllWorkflows()` token measurement (verified in codebase, HIGH confidence)
+- `src/plugin/command-enricher.js:29` — `enrichCommand()` context injection (verified in codebase, HIGH confidence)
+- `src/commands/misc.js:1470` — `cmdScaffold()` existing scaffold generator (verified in codebase, HIGH confidence)
+- `workflows/*.md` — Workflow file sizes via `wc -l` (measured directly, HIGH confidence)
+- v1.1 compression results — 54.6% average reduction on first 8 workflows (from PROJECT.md, HIGH confidence)
+- v11.3 summary:generate — 50%+ LLM writing reduction (from PROJECT.md, HIGH confidence)
 
 ---
-
-*Architecture research for: SQLite-First Data Layer Integration*  
-*Researched: 2026-03-14*  
-*Confidence: HIGH — All findings verified against source code and Node.js documentation*
-
-<!-- /section -->
+*Architecture research for: v14.0 LLM Workload Reduction — Workflow Compression & Scaffold Generation*  
+*Researched: 2026-03-16*

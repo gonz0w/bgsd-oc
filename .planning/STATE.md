@@ -2,20 +2,20 @@
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-03-15)
+See: `.planning/PROJECT.md` (updated 2026-03-16)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** Between milestones — v13.0 complete, ready for next milestone
+**Current focus:** v14.0 LLM Workload Reduction — workflow compression, scaffold generation, section-level loading
 
 ## Current Position
 
-**Milestone:** None (v13.0 Closed-Loop Agent Evolution completed 2026-03-15)
-**Phase:** N/A
-**Current Plan:** N/A
-**Status:** Between milestones
-**Last Activity:** 2026-03-15
+**Milestone:** v14.0 LLM Workload Reduction
+**Phase:** 137 — Section-Level Loading & Conditional Elision
+**Current Plan:** Not started
+**Status:** Milestone complete
+**Last Activity:** 2026-03-17
 
-Progress: [██████████] 100% (v13.0 complete)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -25,90 +25,80 @@ Progress: [██████████] 100% (v13.0 complete)
 - Total execution time: ~41.5 hours
 
 **Recent Trend:**
-- v12.1 Phase 126 Plan 03: 4 min, 2 tasks, 1 file (1427 tests)
-- v12.1 Phase 127 Plan 01: ~15 min, 2 tasks, 2 files (1446 tests)
-- v12.1 Phase 127 Plan 02: ~10 min, 2 tasks, 2 files (1501 tests)
-- v12.1 Phase 128 Plan 01: 12 min, 2 tasks, 4 files (1503 tests)
-- v12.1 Phase 128 Plan 02: 14 min, 2 tasks, 2 files (1503 tests)
-- v12.1 Phase 128 Plan 03: 5 min, 2 tasks, 2 files (1565 tests)
-- v13.0 Phase 129 Plan 01: 11 min, 2 tasks, 3 files (foundation utilities + list-local)
-- v13.0 Phase 129 Plan 02: 11 min, 2 tasks, 3 files (agent:override + agent:diff commands)
-- v13.0 Phase 129 Plan 03: 4 min, 2 tasks, 4 files (agent:sync + local_agent_overrides)
 - v13.0 Phase 130 Plan 01: 10 min, 2 tasks, 9 files (lessons schema + capture + migrate + list + memory filters)
 - v13.0 Phase 130 Plan 02: 8 min, 2 tasks, 6 files (lessons:analyze + suggest + compact + workflow hooks)
 - v13.0 Phase 131 Plan 01: 12 min, 2 tasks, 1 file (security scanner + skills:list + skills:validate)
 - v13.0 Phase 131 Plan 02: 12 min, 2 tasks, 1 file (skills:install + skills:remove + audit logging)
 - v13.0 Phase 131 Plan 03: 6 min, 2 tasks, 6 files (router wiring + enricher installed_skills + new-milestone Step 8.5)
-- v13.0 Phase 132 Plan 01: 8 min, 2 tasks, 9 files (autonomousRecoveries typo fix + lessons:deviation-capture with Rule-1 filter + 3-cap)
-- v13.0 Phase 132 Plan 02: 5 min, 2 tasks, 4 files (deviation_auto_capture hook in execute-plan.md + help/discovery metadata)
-- v13.0 Phase 133 Plan 01: 8 min, 2 tasks, 4 files (research:score + research:gaps command handlers with 22 tests)
-- v13.0 Phase 133 Plan 02: 8 min, 2 tasks, 5 files (help/discovery wiring + new-milestone.md quality profile integration)
+- v13.0 Phase 132 Plan 01: 8 min, 2 tasks, 9 files (autonomousRecoveries typo fix + lessons:deviation-capture)
+- v13.0 Phase 132 Plan 02: 5 min, 2 tasks, 4 files (deviation_auto_capture hook in execute-plan.md)
+- v13.0 Phase 133 Plan 01: 8 min, 2 tasks, 4 files (research:score + research:gaps command handlers)
+- v13.0 Phase 133 Plan 02: 8 min, 2 tasks, 5 files (help/discovery wiring + new-milestone.md quality profile)
+- v14.0 Phase 134 Plan 01: 7 min, 2 tasks, 7 files (workflow:baseline + workflow:compare + structural fingerprint + 21 tests)
+- v14.0 Phase 134 Plan 02: 12 min, 2 tasks, 4 files (workflow:verify-structure + regression detection + 14 tests)
+- v14.0 Phase 135 Plan 01: 5 min, 2 tasks, 5 files (pre-compression baseline + 3 shared skill extractions)
+  - v14.0 Phase 135 Plan 02: 12 min, 2 tasks, 2 files (discuss-phase 42% + execute-phase 42% compression, section markers, skill refs)
+  - v14.0 Phase 135 Plan 03: 8 min, 2 tasks, 2 files (new-milestone 45% + execute-plan 40% compression, section markers, skill refs)
+  - v14.0 Phase 135 Plan 04: 14 min, 3 tasks, 3 files (transition 42% + new-project 41% + resume-project 41% compression, section markers)
+  - v14.0 Phase 135 Plan 05: 32 min, 3 tasks, 6 files (audit-milestone -41% + map-codebase -43% + quick -40% + transition further to -43%; 41.1% avg)
+- v14.0 Phase 136 Plan 01: 8 min, 2 tasks, 2 files (scaffold merge lib: DATA_MARKER, JUDGMENT_MARKER, parseMarkedSections, mergeScaffold; 28 unit tests)
+- v14.0 Phase 136 Plan 02: 15 min, 2 tasks, 3 files (plan:generate command — roadmap pre-fill, data/judgment markers, idempotent merge)
+- v14.0 Phase 136 Plan 03: 5 min, 2 tasks, 2 files (verify:generate command — success criteria pre-fill, must-haves extraction; 31 integration tests; 1681 tests pass)
+- v14.0 Phase 137 Plan 01: 16 min, 5 tasks, 9 files (elideConditionalSections + enrichCommand wiring + if= annotations on TDD/auto-test/CI/post-execution + 28 tests; 1709 tests pass)
+- v14.0 Phase 137 Plan 02: 15 min, 3 tasks, 7 files (dangling reference check + workflow:savings cumulative table 42.3% avg + 14 structural regression tests; 49 elision tests; 1730 tests pass)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
 
 ## Accumulated Context
 
-### v13.0 Roadmap Summary
+### v14.0 Roadmap Summary
 
-- **Phases:** 129–133 (5 phases)
-- **Requirements:** 33 total (LOCAL-*, LESSON-*, SKILL-*, DEVCAP-*, RESEARCH-* categories)
+- **Phases:** 134–137 (4 phases)
+- **Requirements:** 11 total (MEAS-01 through MEAS-03, COMP-01 through COMP-04, SCAF-01 through SCAF-04)
 - **Coverage:** 100% — every requirement maps to exactly one phase
-- **Dependencies:** Phase 129 first; Phase 130 before Phase 132; Phase 131 and 133 independent
+- **Dependencies:** Phase 134 first (measurement before compression); Phase 135 after 134; Phase 136 parallel with 134–135 (different files); Phase 137 after 135 + 136
 
 ### Phase Descriptions
 
 | Phase | Name | Goal | Requirements |
 |-------|------|------|--------------|
-| 129 | Foundation & Agent Overrides | Local agent override lifecycle with YAML validation | LOCAL-01 through LOCAL-07 |
-| 130 | Lesson Schema & Analysis Pipeline | Structured lessons + analysis + workflow hooks | LESSON-01 through LESSON-09 |
-| 131 | Skill Discovery & Security | Security-first skill lifecycle + agentskills.io discovery | SKILL-01 through SKILL-09 |
-| 132 | Deviation Recovery Auto-Capture | Rule-1-only auto-capture in execute-phase | DEVCAP-01 through DEVCAP-04 |
-| 133 | Enhanced Research Workflow | Structured quality profile + conflict detection | RESEARCH-01 through RESEARCH-04 |
-| Phase 0133 P01 | 8min | 2 tasks | 4 files |
-| Phase 0133-02 P02 | 8min | 2 tasks | 5 files |
+| 134 | Measurement Infrastructure & Baseline | Token measurement, structural tests, regression detection | MEAS-01, MEAS-02, MEAS-03 |
+| 135 | Workflow Compression & Section Markers | Top 10 workflows compressed 40%+, section markers, shared block extraction | COMP-01, COMP-02, COMP-03 |
+| 136 | Scaffold Infrastructure | PLAN.md + VERIFICATION.md scaffolds with data/judgment separation | SCAF-01, SCAF-02, SCAF-03 |
+| 137 | Section-Level Loading & Conditional Elision | Per-step workflow loading + conditional feature elision | COMP-04, SCAF-04 |
 
 ### Key Decisions
 
-- [v13.0 roadmap]: Phase 129 first — OC path correction (`.opencode/agents/` not `.planning/agents/`) and YAML validation must precede any automation writing agent files
-- [v13.0 roadmap]: Phase 130 before Phase 132 — `lessons:capture` must exist before deviation auto-capture can call it
-- [v13.0 roadmap]: Phase 131 independent — skill security architecture decoupled from lesson pipeline
-- [v13.0 roadmap]: Phase 133 independent — research scoring has no dependency on Phases 129–132
-- [v13.0 roadmap]: DEVCAP-01 typo fix included in Phase 132 (fix before building capture telemetry on top)
-- [v13.0 roadmap]: Skill install writes to `.agents/skills/` only — never `~/.config`; 41-pattern security scan is mandatory, not optional
-- [Phase 129 Plan 01]: LCS DP for generateUnifiedDiff — O(mn) is acceptable for agent files (<500 lines), avoids external diff library dependency
-- [Phase 129 Plan 01]: sanitizeAgentContent uses regex lookbehind to exclude path contexts (.opencode/agents/) from editor name replacement
-- [Phase 129 Plan 02]: findClosestAgent scores by prefix length (not agent name length) — bgsd-exector correctly maps to bgsd-executor via 9-char prefix match
-- [Phase 129 Plan 02]: injectNameField adds name: as first frontmatter field; all global agents lack name: field so all overrides show a persistent diff at the name: line
-- [Phase 129 Plan 03]: agent:sync uses --accept/--reject flags (not stdin) because bgsd-tools.cjs is a non-interactive CLI
-- [Phase 129 Plan 03]: agent:sync raw string comparison for identical check — silent exit only when truly identical, expected that all overrides with injected name: field show 1-section diff
-- [Phase 130 Plan 01]: validateLesson() receives pre-built entry — id/date set by caller, validation only checks 6 schema-required fields — keeps validation pure and testable
-- [Phase 130 Plan 01]: cmdLessonsMigrate uses type:environment as sentinel per LESSON-02 — downstream analysis can exclude legacy entries by checking type!=environment
-- [Phase 130 Plan 01]: lessons-specific filters in cmdMemoryRead use options.type/since/severity to avoid collision with trajectory filter options
-- [Phase 130 Plan 02]: lessons:suggest excludes type:environment per LESSON-02 sentinel — migrated free-form lessons lack structured data, filtering prevents noisy suggestions
-- [Phase 130 Plan 02]: lessons:compact normalizes root_cause by lowercase+trim before grouping — ensures case/whitespace variants merge correctly
-- [Phase 130 Plan 02]: workflow hooks use 2>/dev/null || true — lessons command failures must never block verification or milestone completion
-- [Phase 131 Plan 01]: 41 patterns exactly in SECURITY_PATTERNS — trimmed from 45 by removing fs.appendFile, dgram, encodeURIComponent+http, </system> (redundant with <system>)
-- [Phase 131 Plan 01]: scanSkillFiles returns structured { verdict, findings, summary } — clean contract for install gatekeeper, validate, and list consumers
-- [Phase 131 Plan 01]: formatScanResults(scanResult, verbose) is pure — callers control when/how to print, no side effects
-- [Phase 131 Plan 02]: Dangerous verdict is hard block: no force/override option in cmdSkillsInstall — files never reach dest dir on dangerous findings
-- [Phase 131 Plan 02]: --confirm pattern mirrors agent:sync --accept/--reject; without --confirm, outputs confirmation data for calling agent to handle Y/N
-- [Phase 131 Plan 02]: logAuditEntry is synchronous — simplifies error handling, audit writes are non-critical and fast
-- [Phase 131 Plan 03]: skills:install uses await in router — cmdSkillsInstall is async (GitHub API fetch), main() is already async so await is safe
-- [Phase 131 Plan 03]: COMMAND_TREE added as new export from commandDiscovery.js — not previously present, created full tree covering all namespaces (additive, backward-compatible)
-- [Phase 132 Plan 01]: deviation-recovery added as 5th type in LESSON_SCHEMA.type_values — reuses existing validateLesson() pipeline without schema changes
-- [Phase 132 Plan 01]: lessons:deviation-capture uses Rule-1-only parseInt filter — silently skips Rules 2, 3, 4 per DEVCAP-01
-- [Phase 132 Plan 01]: cmdDeviationCapture wrapped in try/catch — all errors swallowed and debugLogged, never blocks execution per DEVCAP-04
-- [Phase 132 Plan 02]: Rule-3 explicitly excluded in workflow text AND command filters internally — dual-layer prevents accidental invocation for environmental failures
-- [Phase 133 Plan 01]: research:score + research:gaps use composite negative-signal scoring (5 signals, >= 3 = LOW); router wiring added as Rule-3 blocking fix — commands need explicit case blocks to be callable
-- [Phase 133 Plan 01]: cache-first pattern: cmdResearchScore writes research-score.json, cmdResearchGaps reads it — no independent recomputation keeps the two commands decoupled
-- [Phase 133 Plan 01]: parseResearchFile scans Primary+Secondary sources only for official docs detection (docs.* domain or "official" keyword) — Tertiary sources excluded as secondary references
-- [Phase 133 Plan 02]: quality profile section placed after RESEARCH COMPLETE banner with non-blocking re-research prompt (N default) — shows profile to completers without forcing on skippers; HIGH/MEDIUM gaps only per CONTEXT.md
-- [Phase 133 Plan 02]: advisory gate pattern: surface quality info after completion banner, offer remediation with N default — never block primary workflow
-
-### Pending Work
-
-None — v13.0 milestone complete and archived.
+- [v14.0 roadmap]: Phase 134 first — baseline measurement required before any compression work (v1.1 lesson: compression without verification catches regressions too late)
+- [v14.0 roadmap]: COMP-01 + COMP-02 together in Phase 135 — section markers added WITH compression, not separately
+- [v14.0 roadmap]: Phase 136 parallel with 134–135 — scaffold work touches misc.js/verify.js, compression touches workflows/*.md, no overlap
+- [v14.0 roadmap]: Phase 137 last — section-level loading depends on markers from Phase 135; conditional elision depends on scaffolds from Phase 136
+- [134-01]: Reuse measureAllWorkflows() from features.js (exported it) rather than duplicating measurement code
+- [134-01]: Structural fingerprint stores arrays of matched strings (not just counts) for richer future diffing
+- [134-01]: Workflow baselines named workflow-baseline-{timestamp}.json to distinguish from old baseline-{timestamp}.json
+- [134-02]: CLI-based unit tests (execSync + BGSD_PLUGIN_DIR) for verify-structure — direct stdout capture interferes with node:test runner
+- [134-02]: Fixed __dirname path in workflow.js: path.resolve(dirname, '..') not '../..' (bundled binary has bin/ as dirname)
+- [135-01]: Baseline JSON gitignored (.planning/.gitignore: baselines/*.json) — snapshot exists on disk, not in git (intentional per project convention)
+- [135-01]: Parameterized CI gate skill with {{scope}}/{{base_branch}} to serve both execute-phase and quick workflows
+- [135-01]: bgsd-context-init skill has no placeholders — 2-paragraph preamble is identical across all 10 workflows
+- [135-03]: Research pipeline banner not duplicated in workflow — skill already contains the RESEARCHING banner block
+- [135-03]: TDD auto-test kept inline (compressed) in execute-plan rather than full skill reference — execute:tdd command stays visible
+- [135-04]: Decision tables used in transition.md and resume-project.md routing logic — more compact/scannable than if/else prose
+- [135-04]: Research pipeline (4 researchers + synthesizer) in new-project.md replaced with single skill reference — all 5 Task() calls preserved in skill
+- [135-05]: Compressed transition.md in Plan 05 (was only 32% token reduction after Plan 04 despite 42% line reduction) — offer_next routes expressed as compact bullet routing
+- [135-05]: map-codebase 4 Task() calls kept as distinct code blocks rather than 1 template — structural fingerprint requires individual calls
+- [135-05]: Phase 135 final: 41.1% average token reduction across 10 workflows (threshold: 40%); all 1609 tests pass
+- [136-01]: scaffold.js uses Map (ordered) for parseMarkedSections() to preserve section order for document rebuilding
+- [136-02]: REQUIREMENTS.md format is **ID:** (colon inside bold markers) not **ID**: — regex must match `\*\*ID:\*\*` not `\*\*ID\*\*:`
+- [136-02]: Frontmatter values must be raw strings (not `"0050"`) to prevent idempotency failure where extractFrontmatter strips embedded quotes
+- [136-02]: marker count must use `/g` regex flag — `String.match(constant)` finds only first occurrence
+- [137-01]: command.execute.before hook fires BEFORE @-reference resolution — output.parts starts empty; elision processes injected content only
+- [137-01]: Fail-open elision: missing enrichment key keeps section (safe default prevents accidental removal)
+- [137-01]: Section fingerprint normalization: strip if= attributes from section names for baseline comparison
+- [137-02]: workflow:savings uses hardcoded Phase 135 SUMMARY baselines — on-disk baselines all created post-compression during Plan 01 testing
+- [137-02]: Post-elision column in workflow:savings = worst-case (all conditions false) — strips all conditional sections from workflow files for maximum savings estimate
+- [137-02]: Dangling reference check is non-blocking — warnings in _elision debug field, BGSD_DEBUG logs, no enrichment failure
 
 ### Blockers/Concerns
 
@@ -116,7 +106,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-15
-**This session:** 2026-03-15 — Completed v13.0 milestone archival (PROJECT.md evolved, ROADMAP/REQUIREMENTS archived, DOCS artifact created, git tag v13.0)
+**Last session:** 2026-03-17T04:58:15.200Z
+**This session:** 2026-03-17 — Executed Phase 137 Plan 02 (dangling reference check + workflow:savings + regression tests). 42.3% avg cumulative reduction confirmed. 49 elision tests, 1730 total pass.
+**Stopped at:** Completed 137-02-PLAN.md
 **Next steps:**
-1. Run `/bgsd-new-milestone` to start the next milestone
+1. Phase 137 complete — v14.0 milestone ready for audit/completion (`/bgsd-audit-milestone` or `/bgsd-complete-milestone`)

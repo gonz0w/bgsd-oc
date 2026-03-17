@@ -111,6 +111,8 @@ function lazyDecisions() { return _modules.decisions || (_modules.decisions = re
 function lazyDb() { return _modules.db || (_modules.db = require('./lib/db')); }
 function lazyLessons() { return _modules.lessons || (_modules.lessons = require('./commands/lessons')); }
 function lazySkills() { return _modules.skills || (_modules.skills = require('./commands/skills')); }
+function lazyWorkflow() { return _modules.workflow || (_modules.workflow = require('./commands/workflow')); }
+function lazyScaffold() { return _modules.scaffold || (_modules.scaffold = require('./commands/scaffold')); }
 
 
 async function main() {
@@ -253,7 +255,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -269,7 +271,7 @@ async function main() {
   }
 
   if (!command) {
-    error('Usage: bgsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript|collect|nlm-create|nlm-add-source|nlm-ask|nlm-report|score|gaps>');
+    error('Usage: bgsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript|collect|nlm-create|nlm-add-source|nlm-ask|nlm-report|score|gaps>, workflow:<baseline|compare|verify-structure|savings>');
   }
 
   // --help / -h: print command help to stderr (never contaminates JSON stdout)
@@ -476,8 +478,20 @@ Use without --exact for fuzzy matching.`);
           } else {
             error('Unknown phase subcommand. Available: next-decimal, add, insert, remove, complete');
           }
+        } else if (subcommand === 'generate') {
+          const phaseIdx = restArgs.indexOf('--phase');
+          const planIdx = restArgs.indexOf('--plan');
+          const typeIdx = restArgs.indexOf('--type');
+          const waveIdx = restArgs.indexOf('--wave');
+          const options = {
+            phase: phaseIdx !== -1 ? restArgs[phaseIdx + 1] : null,
+            plan: planIdx !== -1 ? restArgs[planIdx + 1] : null,
+            type: typeIdx !== -1 ? restArgs[typeIdx + 1] : null,
+            wave: waveIdx !== -1 ? restArgs[waveIdx + 1] : null,
+          };
+          lazyScaffold().cmdPlanGenerate(cwd, options, raw);
         } else {
-          error(`Unknown plan subcommand: ${subcommand}. Available: intent, requirements, roadmap, phases, find-phase, milestone, phase`);
+          error(`Unknown plan subcommand: ${subcommand}. Available: intent, requirements, roadmap, phases, find-phase, milestone, phase, generate`);
         }
         break;
       }
@@ -768,8 +782,14 @@ Use without --exact for fuzzy matching.`);
             from: fromIdx !== -1 ? restArgs[fromIdx + 1] : null,
             to: toIdx !== -1 ? restArgs[toIdx + 1] : null,
           }, raw);
+        } else if (subcommand === 'generate') {
+          const phaseIdx = restArgs.indexOf('--phase');
+          const options = {
+            phase: phaseIdx !== -1 ? restArgs[phaseIdx + 1] : null,
+          };
+          lazyScaffold().cmdVerifyGenerate(cwd, options, raw);
         } else {
-          error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, handoff, agents`);
+          error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, handoff, agents, generate`);
         }
         break;
       }
@@ -1456,15 +1476,32 @@ Examples:
          break;
        }
 
+      // workflow namespace
+      case 'workflow': {
+        const workflowRestArgs = remainingArgs.slice(1);
+        if (subCmd === 'baseline') {
+          lazyWorkflow().cmdWorkflowBaseline(cwd, raw);
+        } else if (subCmd === 'compare') {
+          lazyWorkflow().cmdWorkflowCompare(cwd, workflowRestArgs, raw);
+        } else if (subCmd === 'verify-structure') {
+          lazyWorkflow().cmdWorkflowVerifyStructure(cwd, workflowRestArgs, raw);
+        } else if (subCmd === 'savings') {
+          lazyWorkflow().cmdWorkflowSavings(cwd, workflowRestArgs, raw);
+        } else {
+          error('Unknown workflow subcommand: ' + subCmd + '. Available: baseline, compare, verify-structure, savings');
+        }
+        break;
+      }
+
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons, skills`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons, skills, workflow`);
     }
     return; // Exit after handling namespaced command
   }
 
   // No command matched any namespace — unknown
-  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, lessons, skills`);
+  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, lessons, skills, workflow`);
 }
 
 // Track command execution in history (Phase 97: UX Polish)

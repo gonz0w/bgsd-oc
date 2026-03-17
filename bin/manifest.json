@@ -1,5 +1,5 @@
 {
-  "generated": "2026-03-16T04:04:25.184Z",
+  "generated": "2026-03-17T11:03:53.500Z",
   "files": [
     "VERSION",
     "agents/bgsd-codebase-mapper.md",
@@ -59,8 +59,10 @@
     "commands/bgsd-verify-work.md",
     "plugin.js",
     "skills/automation-reference/SKILL.md",
+    "skills/bgsd-context-init/SKILL.md",
     "skills/checkpoint-protocol/SKILL.md",
     "skills/checkpoint-protocol/checkpoints-reference.md",
+    "skills/ci-quality-gate/SKILL.md",
     "skills/commit-protocol/SKILL.md",
     "skills/continuation-format/SKILL.md",
     "skills/debugger-hypothesis-testing/SKILL.md",
@@ -82,6 +84,7 @@
     "skills/questioning/SKILL.md",
     "skills/raci/SKILL.md",
     "skills/research-patterns/SKILL.md",
+    "skills/research-pipeline/SKILL.md",
     "skills/skill-index/SKILL.md",
     "skills/state-update-protocol/SKILL.md",
     "skills/structured-returns/SKILL.md",

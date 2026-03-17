@@ -2242,4 +2242,5 @@ module.exports = {
   cmdTokenBudget,
   cmdTestCoverage,
   cmdSessionSummary,
+  measureAllWorkflows,
 };

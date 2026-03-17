@@ -255,7 +255,15 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ### Active
 
-(No active milestone — run `/bgsd-new-milestone` to start next)
+## Current Milestone: v14.0 LLM Workload Reduction
+
+**Goal:** Reduce context consumption and token waste by compressing workflows, pre-computing document scaffolds, and shifting administrative work from LLM reasoning to deterministic CLI operations.
+
+**Target features:**
+- Workflow compression round 2 — top 10 workflows reduced by 40%+ tokens
+- Pre-computed PLAN.md scaffolds from roadmap/phase data
+- Pre-computed VERIFICATION.md scaffolds from success criteria and test results
+- Section-level workflow loading — load only what's needed per step
 
 ### Out of Scope
 
@@ -361,4 +369,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-15 after v13.0 milestone completed*
+*Last updated: 2026-03-16 after v14.0 milestone started*

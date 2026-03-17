@@ -5100,7 +5100,59 @@ Options:
   --name <name>   Name of the installed skill to remove
 
 Examples:
-  bgsd-tools skills:remove --name my-skill`
+  bgsd-tools skills:remove --name my-skill`,
+      "workflow:baseline": `Usage: bgsd-tools workflow:baseline
+
+Measure token counts and structural fingerprints for all workflow files.
+Saves a versioned snapshot to .planning/baselines/workflow-baseline-{timestamp}.json.
+
+The structural fingerprint per workflow includes:
+  - task_calls:       Task() function call counts
+  - cli_commands:     bgsd-tools invocations in code blocks
+  - section_markers:  <!-- section: ... --> markers
+  - question_blocks:  <question> blocks
+  - xml_tags:         <step>, <process>, <purpose> tags
+
+Output (stderr): Human-readable table with token counts and structural element counts.
+Output (stdout): JSON snapshot with { version, timestamp, workflow_count, total_tokens, workflows: [...] }
+
+Examples:
+  bgsd-tools workflow:baseline
+  bgsd-tools workflow:baseline --raw`,
+      "workflow:compare": `Usage: bgsd-tools workflow:compare [<snapshot-a>] [<snapshot-b>]
+
+Compare two workflow baseline snapshots to see per-workflow token deltas.
+
+Modes:
+  Two args:   Compare snapshot-a to snapshot-b
+  One arg:    Compare snapshot-a to current workflow state
+  No args:    Compare the two most recent baselines in .planning/baselines/
+
+Output (stderr): Comparison table with per-workflow before/after/delta/% columns.
+Output (stdout): JSON with { snapshot_a, snapshot_b, summary: { before_total, after_total, delta, percent_change, workflows_improved, workflows_unchanged, workflows_worsened }, workflows: [...] }
+
+Examples:
+  bgsd-tools workflow:compare
+  bgsd-tools workflow:compare .planning/baselines/workflow-baseline-2026-01-01T00-00-00-000Z.json
+  bgsd-tools workflow:compare baseline-a.json baseline-b.json`,
+      "workflow:savings": `Usage: bgsd-tools workflow:savings
+
+Generate a cumulative token savings table showing the reduction journey across milestones:
+  Original (pre-Phase 135) \u2192 Post-Compression (Phase 135) \u2192 Post-Elision (Phase 137)
+
+Loads Phase 134 and Phase 135 baselines from .planning/baselines/ if available.
+Falls back to hardcoded Phase 135 SUMMARY values if disk baselines unavailable.
+The post-elision column shows current workflow token counts (all conditional sections removed).
+
+Output:
+  | Workflow | Original | Compressed | Post-Elision | Total % |
+
+Options:
+  --raw   JSON output
+
+Examples:
+  bgsd-tools workflow:savings
+  bgsd-tools workflow:savings --raw`
     };
     module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
@@ -6839,6 +6891,58 @@ ${JSON.stringify(enrichment, null, 2)}
 </bgsd-context>`
     });
   }
+  if (output.parts && output.parts.length > 1) {
+    let sectionsElided = 0;
+    const allElidedNames = [];
+    let totalTokensSaved = 0;
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (!part || typeof part.text !== "string") continue;
+      if (!part.text.includes("<!-- section:") || !part.text.includes('if="')) continue;
+      const result = elideConditionalSections(part.text, enrichment);
+      if (result.sections_elided > 0) {
+        part.text = result.text;
+        sectionsElided += result.sections_elided;
+        allElidedNames.push(...result.elided_names);
+        totalTokensSaved += result.tokens_saved_estimate;
+      }
+      if (result.warnings && result.warnings.length > 0) {
+        part._elisionWarnings = result.warnings;
+      }
+    }
+    const allDanglingWarnings = [];
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (part && part._elisionWarnings) {
+        allDanglingWarnings.push(...part._elisionWarnings);
+        delete part._elisionWarnings;
+      }
+    }
+    if (sectionsElided > 0) {
+      enrichment._elision = {
+        sections_elided: sectionsElided,
+        elided_names: allElidedNames,
+        tokens_saved_estimate: totalTokensSaved
+      };
+      if (allDanglingWarnings.length > 0) {
+        enrichment._elision.dangling_warnings = allDanglingWarnings;
+      }
+      if (output.parts[0] && output.parts[0].text) {
+        enrichment.elision_applied = true;
+        output.parts[0].text = `<bgsd-context>
+${JSON.stringify(enrichment, null, 2)}
+</bgsd-context>`;
+      }
+      if (process.env.BGSD_DEBUG) {
+        console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(", ")}) ~${totalTokensSaved} tokens saved`);
+        if (allDanglingWarnings.length > 0) {
+          console.error(`[bgsd-enricher] dangling references found: ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
+        }
+      }
+    } else if (allDanglingWarnings.length > 0 && process.env.BGSD_DEBUG) {
+      console.error(`[bgsd-enricher] dangling references found (no elision): ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
+    }
+  }
 }
 function detectPhaseArg(parts, commandStr) {
   if (parts && Array.isArray(parts)) {
@@ -6902,6 +7006,88 @@ function countDiagnosedUatGaps(phaseDir) {
 }
 function toSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function elideConditionalSections(text, enrichment) {
+  if (!text || typeof text !== "string") {
+    return { text: text || "", sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+  if (!enrichment || typeof enrichment !== "object") {
+    return { text, sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+  const CONDITIONAL_OPEN_RE = /<!--\s*section:\s*(\S+)\s+if="([^"]+)"\s*-->/g;
+  const SECTION_CLOSE = "<!-- /section -->";
+  let result = text;
+  let sectionsElided = 0;
+  const elidedNames = [];
+  let tokensSaved = 0;
+  const matches = [];
+  let m;
+  const re = new RegExp(CONDITIONAL_OPEN_RE.source, "g");
+  while ((m = re.exec(text)) !== null) {
+    matches.push({
+      fullMatch: m[0],
+      name: m[1],
+      condition: m[2],
+      startIndex: m.index
+    });
+  }
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { fullMatch, name, condition, startIndex } = matches[i];
+    const shouldKeep = evaluateElisionCondition(condition, enrichment);
+    if (shouldKeep) continue;
+    const closeIndex = result.indexOf(SECTION_CLOSE, startIndex + fullMatch.length);
+    let sectionStart = startIndex;
+    let sectionEnd;
+    if (closeIndex === -1) {
+      sectionEnd = result.length;
+    } else {
+      sectionEnd = closeIndex + SECTION_CLOSE.length;
+    }
+    const removedContent = result.slice(sectionStart, sectionEnd);
+    tokensSaved += Math.ceil(removedContent.length / 4);
+    const afterSection = result.slice(sectionEnd);
+    const trailingNewline = afterSection.startsWith("\n") ? "\n" : "";
+    result = result.slice(0, sectionStart) + afterSection.slice(trailingNewline.length);
+    sectionsElided++;
+    elidedNames.unshift(name);
+  }
+  const warnings = [];
+  if (elidedNames.length > 0) {
+    const lines = result.split("\n");
+    for (const name of elidedNames) {
+      const wordRe = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+      const matchingLines = lines.filter((line) => wordRe.test(line));
+      if (matchingLines.length > 0) {
+        warnings.push({ section: name, references: matchingLines });
+      }
+    }
+  }
+  return {
+    text: result,
+    sections_elided: sectionsElided,
+    elided_names: elidedNames,
+    tokens_saved_estimate: tokensSaved,
+    warnings
+  };
+}
+function evaluateElisionCondition(key, enrichment) {
+  if (!key) return true;
+  if (Object.prototype.hasOwnProperty.call(enrichment, key)) {
+    const val = enrichment[key];
+    if (val === "true") return true;
+    if (val === "false") return false;
+    return Boolean(val);
+  }
+  if (enrichment.decisions && typeof enrichment.decisions === "object") {
+    const decision = enrichment.decisions[key];
+    if (decision !== void 0 && decision !== null) {
+      const val = typeof decision === "object" ? decision.value : decision;
+      if (val === "true") return true;
+      if (val === "false") return false;
+      return Boolean(val);
+    }
+  }
+  return true;
 }
 
 // src/plugin/tools/bgsd-status.js
@@ -8502,6 +8688,7 @@ export {
   createNotifier,
   createStuckDetector,
   createToolRegistry,
+  elideConditionalSections,
   enrichCommand,
   getProjectState,
   invalidateAll,

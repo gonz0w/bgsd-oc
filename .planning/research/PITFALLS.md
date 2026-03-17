@@ -1,385 +1,273 @@
 # Pitfalls Research
 
-**Domain:** Adding structured SQLite tables to an existing Node.js CLI tool (node:sqlite Stability 1.2)
-**Researched:** 2026-03-14
-**Confidence:** HIGH (verified against official Node.js docs for v22.x and v25.x, existing codebase analysis)
+**Domain:** Workflow compression round 2 + document scaffold generation for AI agent orchestration
+**Researched:** 2026-03-16
+**Confidence:** HIGH (based on v1.1 compression experience, existing scaffold precedent in summary:generate, and current research on prompt compression effects)
 
 <!-- section: compact -->
 <pitfalls_compact>
 <!-- Compact view for planners. Keep under 25 lines. -->
 
 **Top pitfalls:**
-1. **node:sqlite API drift between Node versions** — pin minimum version, feature-detect new APIs like `createTagStore`/`prepare` options, wrap in try-catch (Schema design phase)
-2. **Schema migration in single-file deploy** — embed versioned migration array in code, use `PRAGMA user_version`, run on every db open (Schema design phase)
-3. **Map/SQLite behavioral divergence** — structured tables have NO Map equivalent; dual-backend only for cache layer, new tables are SQLite-only with graceful error on Node <22.5 (Schema design phase)
-4. **JSON-to-SQLite data loss from type coercion** — SQLite has 5 types; arrays/booleans/nested objects need explicit serialization strategy per column (Migration phase)
-5. **Stale parsed-data cache after markdown file edits** — git-hash invalidation alone is insufficient; combine mtime checks with content-hash for sub-second accuracy (Invalidation phase)
-6. **Database locking in concurrent CLI invocations** — WAL mode + busy timeout prevent SQLITE_BUSY crashes (Schema design phase)
-7. **Bundle size explosion from new table modules** — each structured table adds schema + queries + migration code; budget 50KB headroom (All phases)
+1. **Semantic anchor loss** — preserve all Task() calls, step names, and decision branch markers during compression; diff before/after structurally (Phase: Compression)
+2. **Scaffold/LLM boundary bleed** — define rigid section ownership (CLI fills data, LLM fills judgment); never let scaffolds generate content requiring reasoning (Phase: Scaffold design)
+3. **Compression regression without detection** — add behavioral contract tests comparing compressed vs original workflow outputs before deleting originals (Phase: Compression)
+4. **Section-level loading creates orphan context** — agents receiving partial workflow sections lose preceding context; sections must be self-contained with local variable definitions (Phase: Section loading)
+5. **Scaffold staleness after source changes** — scaffolds pre-computed from ROADMAP/PLAN data go stale when those files change; need invalidation or regenerate-on-read (Phase: Scaffold infra)
+6. **Over-compression of low-frequency workflows** — diminishing returns on small workflows; focus on top 10 by token count, not all 44 (Phase: Planning)
 
-**Tech debt traps:** schema-less TEXT blobs pretending to be structured, skipping foreign keys for speed, hardcoding column lists instead of using introspection, silencing all SQLite errors
+**Tech debt traps:** compressing without token measurement, hardcoding scaffold section boundaries, duplicate compression logic across workflow types, skipping merge/preserve behavior for re-runs
 
-**Security risks:** SQL injection in dynamic column/table names, unvalidated user data in decision/lesson stores, db file permissions too open
+**Security risks:** compressed workflows dropping security-relevant instructions; section loading skipping security preambles
 
 **"Looks done but isn't" checks:**
-- Schema migration: verify upgrade FROM every prior version, not just current-1
-- Map fallback: verify CLI still works fully on Node <22.5 (graceful degradation, not crash)
-- Cache invalidation: verify editing a markdown file immediately reflects in next CLI invocation
-- Memory store migration: verify sacred data (decisions, lessons) preserved with zero data loss
+- Compression: verify Task() call count matches pre-compression count per workflow
+- Compression: verify decision branches (if/else/route) are preserved, not just step names
+- Scaffolds: verify re-running scaffold on existing file preserves LLM-written sections
+- Section loading: verify each extracted section works standalone without prior section context
 </pitfalls_compact>
 <!-- /section -->
 
 <!-- section: critical_pitfalls -->
 ## Critical Pitfalls
 
-### Pitfall 1: node:sqlite API Drift Between Node Versions
+### Pitfall 1: Semantic Anchor Loss During Compression
 
 **What goes wrong:**
-Code written against Node 25.x APIs (`createTagStore`, `prepare(sql, options)`, `database.limits`, `database.aggregate`, `enableDefensive`, `setAuthorizer`) breaks on Node 22.5–22.12 where these don't exist. The project already uses `createTagStore()` (added in v24.9.0) — but the current code wraps it in try-catch. As v12.0 adds more structured table code, the surface area for version-dependent APIs expands dramatically.
-
-Specific API gaps between v22.5 (minimum) and current Node versions:
-- `createTagStore()` — added v24.9.0, not available in v22.x at all
-- `database.prepare(sql, options)` — options parameter (readBigInts, returnArrays, etc.) added in v22.18.0+, not in v22.5
-- `database.aggregate()` — added v22.16.0, not in v22.5–v22.15
-- `database.isOpen` — added v22.15.0
-- `database.isTransaction` — added v22.16.0
-- `database.limits` — added v25.8.0 only
-- `database.enableDefensive()` — added v25.1.0 only
-- `defensive` constructor option — added v25.5.0 (default: true), absent in v22.x
-- `timeout` constructor option — added v22.16.0
-- `Statement.columns()` — added v22.16.0
-- `Statement.iterate()` — added v22.13.0
+Aggressive prose tightening removes text that the LLM uses as behavioral anchors — specifically Task() code blocks, step numbering, conditional branch instructions ("If X, do Y; otherwise Z"), and XML-tagged sections like `<purpose>`, `<required_reading>`, `<core_principle>`. The compressed workflow reads correctly to a human but the LLM skips steps, merges distinct tasks, or ignores conditional branches because the structural markers it attends to were removed.
 
 **Why it happens:**
-Stability 1.2 (Release Candidate) means the API is "feature complete" but still evolving across minor releases. The jump from v22.5 to v22.22 alone added 15+ new methods. Developers test on their current Node version and don't realize features aren't available on the minimum supported version.
+v1.1 compression already caught this: Task() calls were dropped from verify-work.md (3→0) and plan-phase.md (5→3) during compression and had to be restored. Prose that looks "redundant" to a human compressor often serves as attention anchors for the LLM. The compressor (human or AI) sees "this paragraph says the same thing as the step header" and removes it, not realizing the LLM relies on both the header AND the expanded instruction to activate the behavior. Research on prompt compression (PAACE framework, arxiv 2512.16970) confirms that function-preserving compression requires explicit plan-awareness — naive text compression destroys behavioral fidelity.
 
 **How to avoid:**
-1. Create a capability detection layer: `sqliteCapabilities()` returning `{ hasTagStore, hasAggregate, hasTimeout, hasIterate, hasPrepareOptions }` based on actual feature probing (not version parsing)
-2. All new structured table code must use only the v22.5 baseline API: `DatabaseSync`, `exec`, `prepare`, `StatementSync.get/all/run`
-3. Wrap optional features (tag store, iterate, aggregate) behind capability checks
-4. Add a CI matrix test running against Node 22.5 specifically (not just "latest")
-5. Document which node:sqlite APIs are "safe baseline" vs "enhanced" in a capabilities map
+1. Define an **immutable structural inventory** before compressing each workflow: count of Task() blocks, step names/numbers, conditional branches (if/else/when), XML-tagged sections, @-references, subagent spawn points.
+2. After compression, run an automated **structural diff** comparing the inventory before vs after. Any delta = regression.
+3. The v1.1 structural integrity table (Task() before/after, steps preserved) is the pattern. Formalize it as a CLI verification command: `workflow:verify-structure <file>`.
 
 **Warning signs:**
-- Tests pass on developer machine but fail on CI with older Node
-- `TypeError: db.createTagStore is not a function` in production
-- Statement options silently ignored (no error, but behavior differs)
-- Using `PRAGMA` features that require newer SQLite versions bundled with newer Node
+- Compressed workflow has fewer Task() blocks than original
+- Step numbers in compressed version skip (1, 2, 5, 6)
+- Conditional branches ("If plan has checkpoints...") replaced with unconditional instructions
+- XML tags removed during "cleanup" (they're structural, not decorative)
 
 **Phase to address:**
-Schema design phase (first phase) — establish the API baseline before any structured tables are written.
+Compression phase — must be a pre-commit verification gate, not a post-hoc check.
 
 ---
 
-### Pitfall 2: Schema Migration in Single-File Deploy
+### Pitfall 2: Scaffold/LLM Boundary Bleed
 
 **What goes wrong:**
-The CLI deploys as a single CJS file via `deploy.sh`. There's no migration runner, no version tracking, no schema diff tooling. When structured tables change between versions (adding columns, changing types, adding indexes), the existing `cache.db` on the user's machine has the old schema. `CREATE TABLE IF NOT EXISTS` doesn't add new columns — it silently succeeds with the old schema, and new code expecting those columns gets `undefined` values or INSERT failures.
-
-Currently `cache.js` uses only `CREATE TABLE IF NOT EXISTS` with no versioning:
-```sql
-CREATE TABLE IF NOT EXISTS file_cache (key TEXT PRIMARY KEY, value TEXT, mtime REAL, ...)
-CREATE TABLE IF NOT EXISTS research_cache (key TEXT PRIMARY KEY, value TEXT, ...)
-```
-This works for the current simple cache tables but will fail catastrophically when structured tables need to evolve.
+The scaffold pre-fills sections that require LLM judgment (accomplishments, key decisions, one-liner summaries), producing plausible but wrong content. Or conversely, the scaffold leaves data sections empty that could be deterministically computed (file lists, commit hashes, timing), forcing the LLM to waste tokens gathering data it already had. The boundary between "CLI fills this" and "LLM fills this" is unclear, leading to either over-scaffolding (scaffold generates wrong judgments) or under-scaffolding (LLM re-derives data).
 
 **Why it happens:**
-Schema migration tools (knex, prisma, drizzle) assume a project directory with migration files. Single-file CLIs can't ship migration directories. Developers forget that `CREATE TABLE IF NOT EXISTS` is NOT a migration — it only handles table creation, not table modification.
+The existing `summary:generate` command demonstrates the correct pattern (it uses `JUDGMENT_SECTIONS` constant to mark sections as "TODO: LLM fills this" and pre-fills data sections from git/plan data). But new scaffolds for PLAN.md and VERIFICATION.md have different section structures and the boundaries aren't obvious. PLAN.md has both deterministic content (file paths from codebase analysis, requirement IDs from ROADMAP.md) and judgment content (task descriptions, verification criteria, objective narrative). Without explicit section-type annotation, developers will guess wrong.
 
 **How to avoid:**
-1. Use `PRAGMA user_version` as the schema version tracker (integer, persisted in the .db file itself)
-2. Embed migrations as a versioned array in the code:
-   ```js
-   const MIGRATIONS = [
-     { version: 1, up: 'CREATE TABLE phases (...)' },
-     { version: 2, up: 'ALTER TABLE phases ADD COLUMN status TEXT DEFAULT "pending"' },
-     { version: 3, up: 'CREATE INDEX idx_phases_status ON phases (status)' },
-   ];
-   ```
-3. Run migrations inside a transaction on every database open:
-   ```js
-   const current = db.prepare('PRAGMA user_version').get().user_version;
-   for (const m of MIGRATIONS.filter(m => m.version > current)) {
-     db.exec(m.up);
-     db.exec(`PRAGMA user_version = ${m.version}`);
-   }
-   ```
-4. **CRITICAL**: SQLite does NOT support `ALTER TABLE DROP COLUMN` before SQLite 3.35.0 (Node 22 ships 3.45+, so safe). But SQLite does NOT support `ALTER TABLE MODIFY COLUMN` at all. Column type changes require create-new-table-copy-data-drop-old-rename pattern.
-5. Never delete migrations — the array is append-only
-6. Test migration FROM version 0 (fresh install) AND from every intermediate version
+1. Every scaffold type needs an explicit **section manifest** declaring each section as `data` (CLI fills) or `judgment` (LLM fills) or `hybrid` (CLI provides data, LLM adds narrative).
+2. Data sections use actual values: `"**Duration:** 12 min"`. Judgment sections use TODO markers with instructions: `"TODO: one-liner (substantive — NOT 'phase complete')"`.
+3. Follow the `summary:generate` pattern exactly — it's the proven blueprint. The `JUDGMENT_SECTIONS` constant is the key design pattern.
+4. Test: scaffold output should have zero ambiguous sections. Every section is either fully filled or explicitly marked TODO.
 
 **Warning signs:**
-- "table X has no column named Y" errors after deploy
-- Data silently missing because old schema doesn't have new columns
-- Users reporting "works on fresh install, breaks on upgrade"
-- Tests always use `:memory:` (fresh schema) and never test migration paths
+- Scaffold output contains placeholder text that reads like real content (e.g., "Implemented core features" instead of "TODO:")
+- LLM fills a section that was already pre-filled by the scaffold (wasted tokens)
+- Scaffold generates different content when run twice on the same inputs (non-deterministic = judgment, not data)
 
 **Phase to address:**
-Schema design phase (first phase) — migration framework must exist before any tables are created.
+Scaffold design phase — define section manifests before implementing scaffold commands.
 
 ---
 
-### Pitfall 3: Map/SQLite Backend Divergence for Structured Data
+### Pitfall 3: Compression Regression Without Detection
 
 **What goes wrong:**
-The existing `CacheEngine` has clean dual-backend parity: `MapBackend` and `SQLiteBackend` expose identical `get/set/invalidate/clear` interfaces. This works because the cache is a simple key-value store. But v12.0's structured tables (phases, plans, tasks, requirements, decisions) need SQL queries: `SELECT * FROM tasks WHERE plan_id = ? AND status = 'pending'`, `JOIN` across tables, aggregate queries. There is no way to maintain a Map-based equivalent for relational queries without reimplementing a query engine.
+A compressed workflow works initially but a later edit (adding a feature, fixing a bug, updating for a new CLI command) introduces a regression because the editor doesn't realize they're modifying a compressed workflow where every line is load-bearing. In an uncompressed workflow, there's slack — moving a paragraph doesn't break behavior. In a compressed workflow, removing one line can drop a critical instruction.
 
 **Why it happens:**
-Developers assume the dual-backend pattern extends to all new SQLite usage. They try to build a Map-based "fallback" for structured queries, which either: (a) becomes a full in-memory database reimplementation, or (b) silently returns different results than the SQLite path, or (c) gets abandoned halfway, leaving broken code paths.
+Compressed workflows are fragile by definition. The v1.1 compression achieved 54.6% reduction — meaning ~45% of the original content was removed as "non-essential." What remains is ALL essential. Future editors (human or AI) may not realize this density and will edit compressed workflows as if they have the same slack as normal prose. The "Taxonomy of Prompt Defects" (arxiv 2509.14404) classifies this under Maintainability defects — compressed prompts resist modification because context density is too high for safe local edits.
 
 **How to avoid:**
-1. **Accept that structured tables are SQLite-only.** The Map fallback exists for the file cache (backward compatibility). New structured data tables do NOT need a Map equivalent.
-2. On Node <22.5: structured table features return graceful errors (`{ error: 'requires Node 22.5+', fallback: true }`) and the CLI falls back to the current markdown-parsing behavior.
-3. The cache layer (`CacheEngine`) keeps its dual-backend for file/research caching.
-4. New structured data gets its own module (e.g., `src/lib/data-store.js`) that requires SQLite directly and fails fast if unavailable.
-5. Document the architecture split clearly:
-   - **Cache layer** (cache.js): dual-backend, backward compatible
-   - **Data layer** (data-store.js): SQLite-only, graceful degradation to markdown parsing
+1. Add a **compression marker** in workflow frontmatter or header: `<!-- compressed: v2 | structural-anchors: 13 steps, 2 Task(), 3 branches -->`. This warns editors that the file is compressed and what structural elements must survive edits.
+2. Create a `workflow:lint` command that validates structural integrity (step counts, Task() counts, branch counts) against the declared values in the compression marker.
+3. Include workflow structural tests in the CI pipeline — `npm test` should catch structural regressions.
+4. Add compression markers to the v1.1 already-compressed workflows retroactively, not just new round 2 work.
 
 **Warning signs:**
-- A `MapBackend` class growing methods like `queryByPlanId()` or `joinPhasesAndTasks()`
-- Test files with `if (backend === 'map') skip()` scattered everywhere
-- "TODO: implement map fallback" comments accumulating
-- Different test suites for Map vs SQLite paths
+- Workflow edit reduces step count or Task() count without explicit justification
+- A workflow test passes on content matching but fails on behavioral verification
+- Agent behavior changes after a "minor edit" to a workflow file
 
 **Phase to address:**
-Schema design phase — architectural decision must be made before any structured table code is written. Document in KEY DECISIONS.
+First phase — establish the lint/marker infrastructure before doing round 2 compression. Retroactively mark v1.1 compressed workflows.
 
 ---
 
-### Pitfall 4: JSON-to-SQLite Data Loss from Type Coercion
+### Pitfall 4: Section-Level Loading Creates Orphan Context
 
 **What goes wrong:**
-The memory stores (decisions.json, lessons.json, trajectories.json, bookmarks.json) contain nested JSON with arrays, booleans, objects, and mixed types. SQLite has 5 types: NULL, INTEGER, REAL, TEXT, BLOB. When migrating:
-- JavaScript `true`/`false` → SQLite INTEGER 1/0 (but reading back gives `1`/`0`, not `true`/`false`)
-- JavaScript arrays → must be JSON.stringify'd into TEXT (but what about querying array contents?)
-- JavaScript `undefined` → SQLite NULL (but JSON.parse of NULL is not `undefined`)
-- JavaScript objects → TEXT via JSON.stringify (nested querying impossible without JSON1 extension)
-- JavaScript Date strings → TEXT (sortable only if ISO 8601 format)
-- Large integers → may exceed JavaScript `Number.MAX_SAFE_INTEGER` (SQLite INTEGER is 64-bit)
-
-Example from existing `decisions.json`:
-```json
-{
-  "decision": "Use node:sqlite over better-sqlite3",
-  "rationale": "Preserves single-file deploy",
-  "tags": ["architecture", "dependency"],
-  "confidence": "high",
-  "timestamp": "2026-03-10T..."
-}
-```
-The `tags` array needs a design decision: store as JSON TEXT, or normalize into a junction table?
+Section-level workflow loading (DO-99: "workflows load only the sections relevant to their current step") extracts a section from a workflow and provides it to the agent without the preceding context. The section references variables, conventions, or assumptions established in earlier sections. The agent receives instructions like "Use the route determined in Step 3" but Step 3 wasn't loaded. Or a section says "Following the pattern above..." when "above" wasn't included.
 
 **Why it happens:**
-JSON is schemaless and JavaScript is dynamically typed. Developers map JSON fields directly to SQLite columns without thinking about round-trip fidelity. The data "looks right" on write but comes back wrong on read.
+Workflows are written as coherent documents where later sections build on earlier ones. Extracting a section breaks the implicit context chain. The existing `extract-sections` command (v1.1) handles reference files well because those files were designed with section independence in mind (each section of checkpoints.md is self-contained). But workflow files were NOT designed for section extraction — they're sequential procedures with 13-27 steps that build on each other.
 
 **How to avoid:**
-1. Define explicit type mapping for every column before migration:
-   - Scalars (string, number) → native SQLite types
-   - Booleans → INTEGER with explicit `=== 1` on read
-   - Arrays → JSON TEXT with `json_each()` for queries (SQLite JSON1 is built-in)
-   - Objects → JSON TEXT with `json_extract()` for queries
-   - Dates → TEXT in ISO 8601 (lexicographic sort works)
-2. Write round-trip tests: `JSON → SQLite → JSON === original` for every store
-3. Use `STRICT` tables where possible to catch type mismatches at write time
-4. Consider a `_raw_json TEXT` column alongside structured columns for lossless storage during transition
-5. **Sacred data protection**: decisions.json and lessons.json are marked "sacred" — migration MUST be reversible. Keep JSON files as backup until verified.
+1. **Sections must be self-contained units.** If section-level loading is implemented for workflows, each loadable section must re-declare any context it needs — no forward/backward references to other sections.
+2. Consider an alternative: instead of extracting sections from workflows, create **step-scoped context injection** where the workflow stays monolithic but CLI-computed context is injected only at the relevant step (e.g., scaffold data injected at the "write PLAN.md" step, not at workflow start).
+3. If section extraction is necessary, add a `depends_on` metadata field to each section listing required prior sections: `<!-- section: execution depends_on: setup, context -->`.
 
 **Warning signs:**
-- `typeof value === 'boolean'` checks failing after SQLite read
-- Array fields returning as strings `"[\"a\",\"b\"]"` instead of arrays
-- Tests comparing objects failing on `undefined` vs `null`
-- Date sorting producing wrong order
+- Extracted section contains phrases like "as described above," "the X from Step N," "following the same pattern"
+- Agent asks clarifying questions that would be answered by the un-loaded preceding sections
+- Section works in full-workflow mode but fails in isolated mode
 
 **Phase to address:**
-Schema design phase (type mapping) + Migration phase (round-trip verification).
+Section loading phase — must audit all workflows for cross-section dependencies before implementing extraction.
 
 ---
 
-### Pitfall 5: Stale Cache After Markdown File Edits
+### Pitfall 5: Scaffold Staleness After Source Data Changes
 
 **What goes wrong:**
-v12.0's core promise is "parsed roadmap, plan metadata, phase mappings survive between CLI invocations with git-hash invalidation." But git-hash invalidation has a fatal gap: **edits that haven't been committed yet.** User edits STATE.md or a PLAN.md file → runs a CLI command → gets stale data from SQLite because the git hash hasn't changed. The existing `file_cache` uses `mtime` comparison (line 148-149 of cache.js), but the new structured tables will parse and store derived data (task counts, completion status, phase mappings) that don't map 1:1 to a single file's mtime.
-
-Additionally, the plugin parsers (state.js, roadmap.js, plan.js) each have their own `new Map()` caches that are per-process (lines 13 in each parser file). These Map caches and the SQLite cache can disagree if one is invalidated but not the other.
+A scaffold is generated from ROADMAP.md, PLAN.md, or other planning files, then the source file is edited (requirement added, success criterion changed, phase goal updated). The scaffold becomes stale — it reflects the old data. If the LLM fills in judgment sections on top of stale data sections, the completed document is internally inconsistent (e.g., verification report checks requirements that no longer exist).
 
 **Why it happens:**
-Git-hash invalidation is elegant for committed state but blind to working-directory changes. Developers assume "git hash changed = data changed" when in reality the edit lifecycle is: edit file → CLI reads stale cache → user confused → commits → cache invalidates → next read correct. This means every edit has a stale window.
+The `summary:generate` command avoids this because it's run once after plan execution and the source data (git commits, PLAN.md) is frozen by that point. But PLAN.md scaffolds would be generated BEFORE execution and VERIFICATION.md scaffolds BEFORE verification — both during active editing periods where source data is still changing.
 
 **How to avoid:**
-1. **Two-level invalidation**: git-hash for cross-session staleness + file mtime for within-session staleness
-2. For derived data (parsed phases, task status), store the source file's mtime AND content hash alongside the parsed result
-3. On read: check source file mtime first (fast fs.statSync), only query SQLite if mtime matches
-4. The plugin file-watcher already detects file changes — hook it into SQLite invalidation for specific tables
-5. Consider a `source_files TEXT` column in each structured table storing the JSON array of files that contributed to that row, with their mtimes
-6. **Invalidation cascade**: changing ROADMAP.md invalidates phases table, which cascades to plans, which cascades to tasks
+1. **Generate scaffolds at the latest possible moment** — not during planning, but at the start of execution/verification. The scaffold command reads live data at invocation time.
+2. Implement **merge/preserve semantics** (like `summary:generate` already does): re-running the scaffold on an existing file refreshes data sections while preserving LLM-filled judgment sections. This makes re-generation safe.
+3. Add a **freshness check**: scaffold embeds a hash of source data in frontmatter (`source_hash: abc123`). Before use, compare against current source hash. If mismatched, warn or auto-regenerate.
+4. Never cache scaffolds on disk for later use. They should be generated on demand.
 
 **Warning signs:**
-- Users reporting "I edited the file but the command shows old data"
-- Inconsistency between `cat .planning/STATE.md` and `bgsd-tools state:show`
-- Tests passing because they always start fresh but production having stale reads
-- Plugin system prompt showing different data than CLI commands
+- Scaffold references requirements not in current ROADMAP.md
+- Verification scaffold lists success criteria that were modified after scaffold generation
+- Generated PLAN.md scaffold has file paths that no longer exist
 
 **Phase to address:**
-Invalidation strategy phase — after schema design but before any structured tables store derived data.
+Scaffold infrastructure phase — implement freshness checks and merge/preserve before building specific scaffold types.
 
 ---
 
-### Pitfall 6: Database Locking Under Concurrent Invocations
+### Pitfall 6: Testing Compressed Workflows Is Harder Than Testing Uncompressed Ones
 
 **What goes wrong:**
-The CLI tool may be invoked concurrently: multiple terminal tabs, plugin hooks (idle-validator, file-watcher, stuck-detector), and manual CLI calls running simultaneously. SQLite's default journal mode uses exclusive locks — one writer blocks all readers. Without WAL mode and busy timeout, concurrent invocations get `SQLITE_BUSY` errors that manifest as mysterious "database is locked" crashes.
-
-The current `cache.js` constructor doesn't set WAL mode or busy timeout:
-```js
-this.db = new DatabaseSync(this.dbPath);
-this._initSchema();
-```
+The test suite validates that compressed workflows produce correct JSON output or contain expected strings, but doesn't validate behavioral equivalence. A compressed workflow passes all existing tests but produces subtly different agent behavior (steps reordered, conditional branches collapsed, error handling removed). The 1587-test suite gives false confidence.
 
 **Why it happens:**
-SQLite is often described as "serverless" — developers assume it handles concurrency like a server database. In reality, default SQLite is single-writer with file-level locking. CLI tools seem "single process" until you consider: editor plugin background hooks, multiple terminal sessions, git hooks, etc.
+Workflow tests in this codebase are primarily structural (command output format, JSON fields, string presence). They don't test "does the agent following this workflow produce the same outcome as the agent following the original workflow?" — that would require E2E agent testing which is expensive and non-deterministic.
 
 **How to avoid:**
-1. Enable WAL mode immediately after opening: `this.db.exec('PRAGMA journal_mode=WAL')`
-2. Set busy timeout (available since v22.16.0 as constructor option, use PRAGMA for v22.5):
-   `this.db.exec('PRAGMA busy_timeout=5000')` — 5 seconds
-3. Wrap all multi-statement operations in explicit transactions:
-   ```js
-   db.exec('BEGIN');
-   try { /* operations */ db.exec('COMMIT'); }
-   catch (e) { db.exec('ROLLBACK'); throw e; }
-   ```
-4. Use `INSERT OR REPLACE` (already done in cache.js) rather than SELECT-then-INSERT patterns
-5. Keep transactions short — parse data in JavaScript, then do a single batch INSERT
-6. Test concurrent access explicitly: spawn 10 CLI processes simultaneously, verify no SQLITE_BUSY
+1. Add **structural contract tests** for each workflow: `{ steps: 13, tasks: 2, branches: 3, spawns: 1, references: ['checkpoints.md'] }`. These are cheap, deterministic, and catch structural regressions.
+2. For critical workflows (execute-plan, execute-phase, verify-work), do **parallel execution testing** during development: run both original and compressed versions on the same task, compare outputs. Discard the originals only after behavioral equivalence is confirmed.
+3. The `context-budget` command already measures token counts per workflow. Add a `workflow:diff` command that shows structural differences between two workflow versions.
 
 **Warning signs:**
-- "database is locked" errors appearing sporadically
-- Plugin hooks failing silently (caught by try-catch)
-- Data corruption when editing files while CLI is running
-- Tests never failing because they run serially
+- All tests pass but agent behavior changes after compression
+- Token count reduction exceeds 50% on a workflow that was already compressed in v1.1 (suspicious — where did 50% more come from?)
+- No new tests added for newly compressed workflows
 
 **Phase to address:**
-Schema design phase — WAL mode and busy timeout must be set before any new tables are created. This is a prerequisite, not an afterthought.
+First phase — structural contract tests must exist before round 2 compression begins.
 
 ---
 
-### Pitfall 7: Test Suite Regression from SQLite Dependency
+### Pitfall 7: Diminishing Returns on Already-Compressed Workflows
 
 **What goes wrong:**
-The existing 1008 tests don't test SQLite paths — there are zero test files for cache.js. When v12.0 adds structured tables that many commands depend on, the test suite faces several risks:
-1. Tests that worked with markdown parsing now depend on SQLite initialization
-2. Tests running on CI with Node <22.5 crash instead of using fallback paths
-3. `:memory:` databases in tests don't exercise migration paths
-4. Parallel test execution causes database file contention
-5. Test isolation breaks — one test's SQLite writes affect another test
+Round 2 targets the "top 10 workflows by token count." But 8 of those were already compressed 54.6% in v1.1. Attempting another 40% reduction on already-compressed content either: (a) fails to reach the target because the remaining content is all structural, or (b) succeeds by removing structural anchors that v1.1 carefully preserved. The 40% target (SC-76) becomes a perverse incentive to over-compress.
 
 **Why it happens:**
-The existing test suite tests CLI commands via `execFileSync` against fixture files. SQLite adds a stateful dependency that persists between test runs (the .db file). Developers add SQLite code to existing commands without updating the test strategy.
+The v1.1 compression was thorough: prose tightening, deduplication, selective reference loading, `--compact` init calls. The remaining content is dense. The 8 already-compressed workflows average ~1,940 tokens each. Getting another 40% would mean reducing them to ~1,164 tokens each — below the threshold where workflows can meaningfully direct agent behavior.
 
 **How to avoid:**
-1. **Every test file that touches SQLite must use `:memory:` databases** — never shared file-backed databases
-2. Create a test helper: `createTestDb()` that returns an in-memory DatabaseSync with schema applied
-3. Add explicit test categories: `--sqlite` flag to run SQLite-specific tests, default tests must pass without SQLite
-4. Add a CI job running with `BGSD_CACHE_FORCE_MAP=1` to verify fallback paths
-5. Migration tests must use temp file databases (not `:memory:`) to test the file-backed migration path
-6. Test both "fresh install" (no db) and "upgrade" (existing db with old schema) scenarios
-7. Aim for the new SQLite-specific tests to be isolated — don't modify existing passing tests
+1. **Measure the target correctly.** SC-76 says "Top 10 workflows measured before/after with tokenx; average reduction >= 40%." The top 10 includes 2 workflows NOT compressed in v1.1 (discuss-phase at 538 lines, transition at 519 lines). Prioritize the fresh workflows for heavy compression; target incremental gains on v1.1 workflows.
+2. Set per-workflow targets: 40-60% for uncompressed workflows, 15-25% for v1.1-compressed workflows. Average across all 10 should still hit 40%.
+3. Track cumulative reduction from pre-v1.1 baseline, not just round-2 reduction.
+4. Consider that the biggest wins may come from section-level loading (DO-99) rather than further prose compression — loading only 30% of a workflow's sections per invocation is a 70% reduction without any text changes.
 
 **Warning signs:**
-- Test suite suddenly takes 3x longer (database I/O)
-- Flaky tests that pass individually but fail in parallel
-- `SQLITE_BUSY` errors in test output
-- Tests leaking `.db` files in the test directory
+- Round 2 compression removes content that v1.1 explicitly preserved (Task() blocks, step names)
+- Per-workflow token counts drop below 800 tokens (dangerously sparse)
+- Compression changes require re-adding content to fix behavioral regressions
 
 **Phase to address:**
-Schema design phase (test strategy) + every subsequent phase (test discipline).
+Planning phase — set realistic per-workflow targets before starting compression work.
 
 ---
 
-### Pitfall 8: Sacred Data Loss During Memory Store Migration
+### Pitfall 8: Scaffold Command Inconsistency Across Types
 
 **What goes wrong:**
-decisions.json, lessons.json, and trajectories.json are marked as "sacred" — they're protected from compaction and represent accumulated project intelligence. Migrating this data to SQLite tables creates a one-way door: if the migration has bugs (wrong encoding, missing fields, truncated entries), the sacred data is corrupted with no recovery path. The current `memory.js` module explicitly protects these stores from compaction (line 9 of memory.js: `const SACRED_STORES = ['decisions', 'lessons', 'trajectories']`).
+The system accumulates scaffold commands with inconsistent interfaces: `summary:generate` takes `(phase, plan)` args, `util:scaffold` takes `(type, --path, --phase, --name)`, and new `plan:generate` and `verify:generate` would introduce yet another pattern. Each has different merge behavior, different output formats, and different error handling. Agents and workflows calling these commands need to remember which pattern each uses.
 
 **Why it happens:**
-Developers treat data migration as a one-shot operation: read JSON, write SQLite, delete JSON. They don't account for: partial failures (migration crashes halfway), encoding issues (Unicode in decision text), or field evolution (old entries have different shapes than new entries). Sacred data accumulated over months of project work is irreplaceable.
+Scaffolds were built incrementally: `util:scaffold` was first (v1.0, simple file creation), `summary:generate` was second (v11.3, sophisticated data extraction + merge). New scaffold commands will be built by different people at different times, each solving their immediate need without unifying the interface.
 
 **How to avoid:**
-1. **Never delete JSON files during migration.** Keep them as backup indefinitely.
-2. Migration runs in two phases:
-   - Phase A: Copy JSON → SQLite (additive only, JSON untouched)
-   - Phase B: Verify SQLite content matches JSON exactly (round-trip test)
-   - Only after Phase B passes does the system start reading from SQLite
-3. Add a `migration_status` table tracking: `{ store, json_count, sqlite_count, verified_at, json_hash }`
-4. On every startup, if JSON file mtime > last migration time, re-sync (handles manual JSON edits)
-5. Provide a `memory:export --format=json` command that can reconstruct JSON from SQLite at any time
-6. Schema must handle variable entry shapes — old entries may lack fields added in later versions
+1. Define a **unified scaffold interface** before building new commands:
+   - All scaffold commands: `<type>:generate <phase> [plan] [--force] [--dry-run]`
+   - All return: `{ scaffolded: true, path, sections_filled, sections_todo, source_hash }`
+   - All support: merge/preserve on existing files, exclusive-create for new files, `--dry-run` for preview
+2. Refactor `util:scaffold` to delegate to the unified interface (or deprecate it for the scaffold types that now have dedicated generators).
+3. Document the interface contract in COMMAND_HELP — all scaffold commands share the same help pattern.
 
 **Warning signs:**
-- JSON file deleted before verification
-- Sacred store counts differ between JSON and SQLite
-- Migration has no rollback path
-- Tests use synthetic data instead of real memory store fixtures
+- Workflow instructions have different invocation patterns for different scaffold types
+- Error messages differ between scaffold commands for the same failure mode
+- One scaffold type supports `--dry-run` and another doesn't
+- Merge/preserve behavior varies across scaffold types
 
 **Phase to address:**
-Memory store migration phase — this is a dedicated phase because sacred data is irreplaceable.
+Scaffold infrastructure phase — unify interface before building plan:generate and verify:generate.
 
 ---
 
-### Pitfall 9: Enricher Duplication Fix Creating New Duplication
+### Pitfall 9: init Context and Scaffold Data Overlap
 
 **What goes wrong:**
-v12.0 targets "fix duplication (3x listSummaryFiles, 2x parsePlans)" in the enricher by pre-computing data from SQLite. But the fix can create a new form of duplication: SQLite tables storing data that's ALSO being parsed from markdown on every invocation. If the enricher reads from SQLite but other code paths still parse markdown directly, the system has two sources of truth that can disagree. The plugin parsers (state.js, roadmap.js, plan.js) each have their own Map caches — adding SQLite as a third caching layer creates three potential sources of disagreement.
+The `init:*` commands already inject context (phase, plan, state, requirements, codebase stats) into workflow execution. Scaffold commands generate documents from the same data. When both are used in the same workflow, the agent receives the same data twice: once in the init JSON context and once in the scaffold output. This wastes tokens and can create conflicts if the two computations diverge (e.g., init reads fresh data but scaffold was generated earlier).
 
 **Why it happens:**
-Incremental migration means both paths (markdown parsing and SQLite query) coexist for a period. Developers fix the enricher to use SQLite but forget that 15 other code paths still call `parseRoadmap()`, `parseState()`, `parsePlan()` directly. The enricher shows SQLite data, the CLI shows parsed markdown data, and they disagree.
+init commands and scaffold commands are built by different mechanisms. The init system is well-established (v1.0+). Scaffolds are new. Without explicit coordination, they'll independently query the same sources (ROADMAP.md, PLAN.md, git log) and produce overlapping output.
 
 **How to avoid:**
-1. Define a clear data flow direction: **Markdown → Parser → SQLite → Consumers**
-2. Parsers become the ONLY writers to SQLite structured tables
-3. All consumers (enricher, CLI commands, plugin) read from SQLite, never parse markdown directly
-4. Phase the migration by data type, not by consumer:
-   - Phase A: phases table (roadmap data)
-   - Phase B: plans/tasks tables (plan data)
-   - Phase C: session state table (STATE.md data)
-5. For each data type, migrate ALL consumers at once — no mixed reading
-6. The plugin parsers' Map caches should be replaced by SQLite reads (not layered on top)
+1. Scaffold generation should be **part of init output**, not a separate command. For example, `init:plan-phase` could include a `scaffold` field in its JSON output containing the pre-computed PLAN.md structure. This ensures single-source computation and no duplication.
+2. If scaffolds remain separate commands, add a `--skip-init-fields` flag that omits data already provided by init (or rely on section marking so the LLM knows which data is authoritative).
+3. Document clearly: "init provides context for reasoning; scaffold provides document structure for writing. Don't use scaffold data for reasoning or init data for document structure."
 
 **Warning signs:**
-- Different commands showing different completion percentages
-- Plugin system prompt disagreeing with `bgsd-tools state:show`
-- "Fixed in enricher but not in CLI" bugs
-- Three cache layers: parser Map → CacheEngine Map/SQLite → structured tables SQLite
+- Agent receives phase requirements in both init JSON and scaffold VERIFICATION.md header
+- Token budget calculations don't account for scaffold + init overlap
+- Agent copy-pastes from init context into scaffold sections instead of using the scaffold
 
 **Phase to address:**
-Enricher acceleration phase — but the architecture decision must happen in schema design phase.
+Scaffold infrastructure phase — decide the relationship between init and scaffold before implementation.
 
 ---
 
-### Pitfall 10: Bundle Size Explosion
+### Pitfall 10: Compressed Workflow XML Tags Silently Ignored by New Models
 
 **What goes wrong:**
-Each structured table needs: schema definition, migration SQL, query functions, type mapping, validation, and tests. The current bundle is 837KB against a 1550KB budget. Adding 6-8 new structured tables with their query layers can easily add 50-100KB to the bundle. If the data layer module is not carefully structured, it becomes the largest source file in the bundle (like `helpers.js` or `verify.js` today).
+The bGSD workflows use custom XML tags (`<purpose>`, `<required_reading>`, `<core_principle>`, `<execution_context>`) as structural delimiters. Modern LLMs (2026) are better at following direct instructions and may treat unrecognized XML tags as noise rather than structure. Compressing workflows that rely on XML tags for section boundaries may work today but break when the model is updated, or work with one model but not another.
 
 **Why it happens:**
-SQL queries are verbose strings. Each table needs CRUD operations, each with multiple query variants (by id, by status, by parent, bulk insert, etc.). Developers write one module per table, each with inline SQL, creating many similar modules. The minifier can't compress SQL strings well.
+Research ("The Anti-Prompting Guide," Rephrase, Mar 2026) documents that prompt patterns which worked in 2023-2024 can backfire on newer models. XML-style section markers were effective when models struggled with instruction following; modern models may handle markdown headers equally well. Compression that preserves XML tags but removes their surrounding context may leave tags that the model doesn't attend to.
 
 **How to avoid:**
-1. Use a shared query builder pattern — not an ORM, but helper functions that construct SQL from table metadata
-2. Keep all SQL in a single `schema.js` module — colocated SQL is easier to minify and deduplicate
-3. Monitor bundle size after every phase: `npm run build` already reports per-module sizes
-4. Set a per-phase bundle budget: +30KB max per phase, never exceed 1000KB total
-5. Reuse existing patterns: the current `db.prepare(SQL).run(params)` pattern is already compact
+1. **Test XML tag attention explicitly**: for each critical XML tag in workflows, verify the agent's behavior changes when the tag content changes. If behavior doesn't change, the tag isn't being attended to.
+2. Consider migrating from XML tags to **markdown headers with explicit section labels** during compression — these are more universally supported across model families.
+3. Don't remove XML tags during compression without testing. If they're load-bearing for current models, keep them. But be aware they may need updating for future models.
+4. The PAACE framework (function-preserving compression) recommends preserving structural delimiters regardless of format — don't compress the skeleton.
 
 **Warning signs:**
-- Build warnings about bundle size approaching budget
-- New modules appearing in the >50KB warning list
-- SQL strings duplicated across modules
-- Data layer becoming larger than the entire commands directory
+- Agent ignores `<purpose>` section content during execution
+- Different model versions produce different step ordering from the same workflow
+- Compression that removes XML tags shows no behavioral change (suggesting tags weren't load-bearing to begin with — reconsider whether to keep them)
 
 **Phase to address:**
-All phases — monitor continuously. Set bundle size check in build.cjs.
+Compression phase — test tag attention as part of behavioral verification.
 <!-- /section -->
 
 <!-- section: tech_debt -->
@@ -389,27 +277,27 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Store everything as JSON TEXT blobs in SQLite | Fast migration, no schema design needed | Can't query individual fields, can't index, can't enforce constraints — just a slower JSON file | Never for structured data; OK for truly opaque blobs (e.g., raw research results) |
-| Skip foreign keys between tables | Simpler schema, fewer migration headaches | Orphaned rows accumulate, data integrity degrades silently, queries return partial results | Only during initial development with plan to enable before shipping |
-| Use `db.exec()` for all writes (no prepared statements) | Simpler code, no statement lifecycle management | SQL injection risk with dynamic values, no parameter binding, no statement caching | Never for user-supplied or variable data |
-| Hardcode column lists in INSERT/SELECT | Works today, easy to understand | Every schema change requires updating multiple code locations | Only if you have a test that verifies columns match schema |
-| Silence all SQLite errors with empty catch blocks | CLI never crashes, matches current cache.js pattern | Data silently lost, bugs invisible, corruption undetected | Only for cache layer (already established pattern); never for structured data |
-| Test only with `:memory:` databases | Fast tests, no file cleanup needed | Migration paths never tested, file locking never tested, WAL mode behavior different | OK for unit tests; integration tests must use file-backed db |
-| `CREATE TABLE IF NOT EXISTS` as migration strategy | Simple, no version tracking needed | Can never add columns, change types, add constraints, or create indexes after initial deploy | Only for the initial v12.0 release if you're confident the schema won't change (it will) |
+| Compress without before/after token measurement | Faster compression work | No way to prove reduction or detect regressions in future edits | Never — v1.1 proved measurement is essential |
+| Hardcode scaffold section boundaries in strings | Quick scaffold implementation | Every new section or reformat requires code changes; brittle to template evolution | Never — use a section manifest data structure |
+| Skip merge/preserve for scaffold re-runs | Simpler first implementation | LLM work lost on re-generation; discourages iterative scaffold+fill workflow | Never — summary:generate proved this is essential |
+| Duplicate compression logic per workflow type | Each workflow compressed independently | Bug fixes need N updates; inconsistent compression quality | Only during prototyping phase; refactor before shipping |
+| Compress all 44 workflows uniformly | "Complete" coverage | Small workflows have low token impact; effort wasted on 50-line files | Never — Pareto: top 10 workflows cover 80%+ of token cost |
+| Test compressed workflow by reading it manually | Quick human verification | Misses structural regressions; doesn't catch subtle anchor loss | Only during development; automated tests required for CI |
+| Build scaffold commands without unified interface | Ship one scaffold type quickly | Interface divergence accumulates; agents need type-specific invocation patterns | Only for the first scaffold type, with commitment to unify before the second |
 
 ## Integration Gotchas
 
-Common mistakes when connecting SQLite structured tables to existing systems.
+Common mistakes when integrating compression and scaffolds into the existing system.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Plugin parsers (state.js, roadmap.js, plan.js) | Layering SQLite reads ON TOP of existing Map caches, creating 3 cache layers | Replace Map caches with SQLite reads; one source of truth |
-| Enricher (command-enricher.js) | Fixing duplication by adding SQLite reads alongside existing `parsePlans()` calls | Route ALL enricher data through SQLite; remove direct parser calls |
-| Memory stores (memory.js) | Migrating JSON→SQLite and deleting JSON files | Keep JSON as backup; add migration_status tracking; verify before switching read path |
-| Build pipeline (build.cjs) | Not validating new SQLite-dependent code in smoke test | Add `BGSD_CACHE_FORCE_MAP=1` smoke test variant |
-| File watcher (file-watcher.js) | Not invalidating SQLite structured tables when source markdown changes | Hook file-watcher events to table-specific invalidation |
-| Decision rules (decision-rules.js) | Querying SQLite for every decision evaluation (12 rules × N invocations) | Pre-load decision inputs during enrichment phase, query SQLite once per invocation |
-| esbuild bundler | `node:sqlite` in external array already — but new data layer modules may import patterns that esbuild doesn't tree-shake | Verify metafile analysis shows expected module sizes; avoid circular imports in data layer |
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| `init:*` commands + scaffold | Scaffold output duplicates data already in init JSON output; agent receives same data twice | Scaffold references init data by section; scaffold sections marked "from init" are omitted when init context is already injected |
+| `extract-sections` + compressed workflow | Extracting sections from a compressed workflow loses more context than from an uncompressed one (less redundancy = less context per section) | Either don't section-extract compressed workflows, or ensure each section has self-contained preamble |
+| `context-budget` baseline + compression | New baselines don't account for v1.1 already-compressed workflows; shows misleading "0% reduction" | Take a fresh baseline before round 2; explicitly track cumulative reduction (v1.1 + v2) |
+| `workflow:lint` + existing v1.1 workflows | Lint command rejects v1.1 compressed workflows that lack compression markers | Retroactively add markers to v1.1 workflows; lint command has `--add-markers` mode |
+| scaffold `plan:generate` + existing manual PLAN.md | Scaffold overwrites manually written PLAN.md | Use exclusive-create (wx flag) like existing cmdScaffold; never overwrite existing files unless `--force` |
+| `summary:generate` + new scaffold commands | Inconsistent API patterns between summary:generate and plan:generate/verify:generate | All scaffold commands follow same pattern: read source → build frontmatter → build body → merge if existing → output |
+| Plugin `command.execute.before` hook + scaffold injection | Hook pre-injects scaffold data at workflow start but workflow generates scaffold at a later step | Scaffold data injected lazily (on demand) not eagerly (at workflow start); or scaffold generation happens in the hook and result is cached |
 <!-- /section -->
 
 <!-- section: performance -->
@@ -419,12 +307,11 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Running migrations on every CLI invocation | Startup time increases 50-200ms even when no migration needed | Check `PRAGMA user_version` first (single fast read), skip if current; cache version check result for process lifetime | Always — even a no-op `BEGIN; COMMIT` adds measurable latency |
-| Parsing ALL markdown files into SQLite on first run | 10+ second startup on large projects (50+ plans, 20+ phases) | Lazy population: parse on demand, cache aggressively; background pre-population via plugin idle hooks | Projects with >20 plans across >5 phases |
-| SELECT N+1 queries (fetch phases, then for each phase fetch plans, then for each plan fetch tasks) | CLI command goes from 50ms to 500ms+ as project grows | Use JOINs or batch queries; pre-compute common aggregations in summary views | Projects with >30 tasks across >5 plans |
-| JSON.parse on every SQLite TEXT read | CPU spike when reading many rows with JSON columns | Parse lazily (only when field accessed); cache parsed results; consider storing frequently-queried fields as native SQLite columns alongside JSON blob | Tables with >100 rows with JSON columns |
-| No indexes on query columns | Queries degrade from instant to noticeable at scale | Add indexes for: status columns, foreign keys, timestamp columns used in ORDER BY | Tables with >500 rows (not a concern initially but matters for decisions/lessons over time) |
-| Opening database connection per CLI command | 10-30ms overhead per invocation for WAL mode sync + schema check | Module-level singleton pattern (current cache.js already does this); consider connection pooling for plugin | Every invocation — this is cumulative and noticeable |
+| Scaffold reads entire ROADMAP.md + all PLAN.md files on every invocation | Noticeable latency on large projects (10+ phases, 30+ plans) | Use SQLite-cached planning data (PlanningCache) instead of re-parsing markdown; scaffold commands should be lightweight consumers of already-parsed data | >15 plan files, >500KB total planning docs |
+| Token measurement via tokenx on every workflow save | Adds 50-100ms per save; annoying in tight edit loops | Measure only on explicit command (`context-budget`), not on-save hooks | Any project — latency is always noticeable |
+| Section-level loading creates N file reads per workflow step | Each `extract-sections` call reads the full file, parses, extracts | Cache parsed section index per file; return sections from in-memory index | >5 section extractions per workflow execution |
+| Scaffold regeneration on every init call | Scaffold computation adds to init latency (already optimized in v9.1) | Scaffold only on explicit command; init injects a flag "scaffold available" for agents to request | Any project — init is hot path |
+| Running structural verification (workflow:lint) on every commit | Adds 200ms+ to git hooks for each workflow file | Run structural verification only for modified workflow files; cache structural inventories | >10 workflow files modified in a single commit |
 <!-- /section -->
 
 <!-- section: security -->
@@ -434,11 +321,11 @@ Domain-specific security issues beyond general web security.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Dynamic table/column names from user input | SQL injection even with prepared statements (parameterization doesn't protect identifiers) | Whitelist table/column names; never interpolate user input into SQL identifiers |
-| Database file with 0644 permissions | Other users on shared machines can read project decisions, lessons, trajectories — may contain sensitive project context | Create with `0600` permissions (owner read/write only); verify after creation |
-| Storing unvalidated markdown in SQLite TEXT | Injection into generated STATE.md or SUMMARY.md views — malicious content in decisions could corrupt planning documents | Sanitize on write to SQLite, not just on read-back; validate against expected shapes |
-| WAL file (.db-wal) and shared memory file (.db-shm) left behind | These contain recent writes in plaintext; `deploy.sh` or cleanup scripts might miss them | Include `*.db-wal` and `*.db-shm` in cleanup operations; `PRAGMA wal_checkpoint(TRUNCATE)` before backup/deploy |
-| Sensitive data in SQLite without encryption | CLI db stored in `~/.config/oc/bgsd-oc/cache.db` — not encrypted, accessible to any process running as the user | Acceptable for this use case (planning metadata, not secrets); document that sensitive data should not be stored in decisions/lessons |
+| Compressed workflow removes security-relevant instructions | Instructions like "DO NOT commit .env files," "verify no secrets in output," or "never force push to main" get compressed away as "obvious" | Security instructions are immutable anchors — add to structural inventory; never compress them |
+| Section-level loading skips security preamble | If security instructions are in workflow header and only a mid-section is loaded, agent doesn't see them | Security instructions must be in EVERY loadable section, or in a permanent system-prompt layer outside workflows (already exists in AGENTS.md) |
+| Scaffold generates content from user-authored ROADMAP.md without sanitization | If ROADMAP.md contains markdown injection, scaffold output inherits it | Sanitize or escape user content in scaffold data sections (already practiced in `sanitizeAgentContent`) |
+
+None of these are high-risk for this project (internal tool, no external user data), but worth tracking for correctness.
 <!-- /section -->
 
 <!-- section: ux -->
@@ -448,11 +335,11 @@ Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Silent fallback to markdown parsing when SQLite is unavailable | User doesn't know they're getting degraded performance; can't diagnose slow commands | Log once per session: "SQLite unavailable (Node <22.5), using markdown parsing (slower)" |
-| Migration runs on first command, blocking the user | `bgsd-tools state:show` takes 5s instead of 50ms on first run after upgrade | Show progress: "Migrating planning data to SQLite (one-time, ~3s)..." |
-| Schema corruption requires manual db deletion | User gets cryptic SQLite errors, has to find and delete cache.db manually | Add `cache:reset` command that safely recreates the database; auto-detect corruption and offer repair |
-| Different data freshness between CLI and plugin | Plugin shows stale data, CLI shows current data (or vice versa) | Unified invalidation: both CLI and plugin read from same SQLite; file-watcher invalidates for both |
-| Error messages expose SQLite internals | "SQLITE_CONSTRAINT: UNIQUE constraint failed: phases.number" is meaningless to users | Catch SQLite errors, translate to user-friendly messages: "Phase 3 already exists. Use --force to replace." |
+| Scaffold produces TODO markers that look like errors | User sees "TODO: one-liner" in generated SUMMARY.md and thinks something broke | Use clear marker format with context: `"TODO: [LLM fills this] one-liner (substantive — NOT 'phase complete')"` |
+| Compression makes workflows unreadable to human editors | User trying to customize a workflow can't follow compressed prose | Add comments at key structural points: `<!-- ANCHOR: 13 steps, 2 Task(), 3 branches -->`; maintain readable structure even if prose is terse |
+| Section-level loading produces confusing error when section doesn't exist | Agent tries `extract-sections workflow.md "execution"` but section name changed during compression | `extract-sections` already handles missing sections gracefully (returns available sections); ensure compressed workflows maintain same section names |
+| Scaffold commands have inconsistent interfaces | Agent invokes `plan:generate 3` but `verify:generate` needs `--phase 3 --plan 01` | Standardize all scaffold commands: `<type>:generate <phase> [plan] [--options]` |
+| Cumulative token reduction not visible | User sees "40% reduction in round 2" but doesn't know total savings from v1.1 + round 2 | Report both: "Round 2: 35% reduction. Cumulative (v1.1 + v2): 72% reduction from original baseline." |
 <!-- /section -->
 
 <!-- section: looks_done -->
@@ -460,16 +347,19 @@ Common user experience mistakes in this domain.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Schema migration:** Often missing upgrade tests FROM prior versions — verify migration works from v0 (fresh) AND from each intermediate version, not just latest-1
-- [ ] **Map fallback:** Often missing end-to-end test on Node <22.5 — verify `BGSD_CACHE_FORCE_MAP=1 node bin/bgsd-tools.cjs state:show` produces correct output
-- [ ] **Cache invalidation:** Often missing "edit file then immediately query" test — verify modifying STATE.md and immediately running a CLI command reflects the edit
-- [ ] **Sacred data migration:** Often missing round-trip verification — verify `JSON.parse(sqlite_row.value)` deep-equals original JSON for EVERY entry, including edge cases (Unicode, empty arrays, null fields)
-- [ ] **Concurrent access:** Often missing multi-process test — verify spawning 5 simultaneous CLI invocations produces no SQLITE_BUSY errors
-- [ ] **Bundle size:** Often missing post-migration size check — verify `npm run build` stays under 1000KB after all data layer code is added
-- [ ] **Plugin integration:** Often missing system prompt consistency check — verify plugin's `buildSystemPrompt()` and CLI's `init:context` agree on current phase/plan/status
-- [ ] **Error recovery:** Often missing corruption handling — verify deleting cache.db and running any command triggers clean recreation, not a crash
-- [ ] **Deploy pipeline:** Often missing `deploy.sh` update — verify deployment copies no extra files and handles db-less installations
-- [ ] **Existing tests:** Often missing regression check — verify all 1008 existing tests still pass after adding SQLite dependencies (especially with `BGSD_CACHE_FORCE_MAP=1`)
+- [ ] **Workflow compression:** Often missing structural contract tests — verify automated step/Task/branch count validation exists per workflow, not just manual inspection
+- [ ] **Workflow compression:** Often missing compression markers in file headers — verify every compressed workflow has `<!-- compressed: vN | anchors: ... -->` metadata
+- [ ] **Workflow compression:** Often missing cumulative token measurement — verify both v1.1 and v2.0 reductions are tracked and the combined number is reported
+- [ ] **Workflow compression:** Often missing re-verification of v1.1 workflows — verify round 2 didn't regress the 8 already-compressed workflows
+- [ ] **PLAN.md scaffold:** Often missing merge/preserve for re-runs — verify running scaffold twice on same phase doesn't duplicate or overwrite content
+- [ ] **PLAN.md scaffold:** Often missing requirement-to-task mapping — verify scaffold pulls requirement IDs from ROADMAP.md and includes them in plan frontmatter
+- [ ] **PLAN.md scaffold:** Often missing file path pre-computation — verify scaffold uses codebase intelligence to suggest relevant file paths per task
+- [ ] **VERIFICATION.md scaffold:** Often missing test result pre-fill — verify scaffold reads cached test results and pre-populates test status
+- [ ] **VERIFICATION.md scaffold:** Often missing success criteria extraction — verify scaffold parses success criteria from ROADMAP.md phase requirements
+- [ ] **Section-level loading:** Often missing self-containment audit — verify each extractable section works without prior section context
+- [ ] **Section-level loading:** Often missing section name stability — verify section names in compressed workflows match what agents/commands expect
+- [ ] **All scaffold types:** Often missing exclusive-create safety — verify scaffolds never overwrite existing files (use `fs.openSync(path, 'wx')` pattern from cmdScaffold)
+- [ ] **All scaffold types:** Often missing --dry-run mode — verify agents can preview scaffold output without writing files
 <!-- /section -->
 
 <!-- section: recovery -->
@@ -479,16 +369,15 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Schema migration breaks | MEDIUM | Delete cache.db, let CLI recreate from scratch (data re-parsed from markdown). If sacred data in SQLite only: restore from JSON backup files |
-| Data loss during memory migration | HIGH if JSON deleted, LOW if JSON preserved | If JSON backup exists: re-run migration from JSON. If not: attempt SQLite `.dump` recovery, manual data reconstruction from git history |
-| API drift between Node versions | LOW | Feature-detect at runtime, fall back to baseline API. If new API was required: pin minimum Node version higher |
-| Stale cache causing wrong behavior | LOW | `cache:clear` or delete cache.db. Fix: add mtime check to the affected table's read path |
-| Database locking errors | LOW | Enable WAL mode + busy timeout. If db is corrupted from locking: delete and recreate |
-| Bundle size over budget | MEDIUM | Audit per-module sizes via build-analysis.json, identify largest SQL modules, extract shared patterns, consider lazy loading |
-| Test suite regression | MEDIUM | Bisect: run with `BGSD_CACHE_FORCE_MAP=1` to isolate SQLite-specific failures. Fix data layer or add proper mocking |
-| Sacred data corruption in SQLite | HIGH | Restore from JSON backup. If no backup: extract from git history of `.planning/memory/*.json` files. Prevention: never delete JSON backups |
-| Enricher data disagreement | LOW | Clear all caches, restart plugin. Fix: ensure single data flow direction (markdown → SQLite → consumers) |
-| Concurrent access corruption | MEDIUM | `PRAGMA integrity_check` on the database. If corrupted: delete and recreate. Prevention: WAL mode + busy timeout + explicit transactions |
+| Semantic anchor loss in compressed workflow | LOW | Git revert the compression commit; re-compress with structural inventory check; diff Task()/step counts before committing |
+| Scaffold generates wrong section boundaries | MEDIUM | Fix section manifest; re-run scaffold on affected files; manually verify LLM-filled sections weren't corrupted |
+| Compression regression in production | MEDIUM | Run `workflow:lint` to identify which structural anchors are missing; compare with git history; restore missing anchors from original |
+| Section loading breaks due to cross-references | LOW | Switch back to full-workflow loading for affected workflow; audit and fix section self-containment; re-enable section loading |
+| Scaffold staleness causes inconsistent docs | LOW | Re-run scaffold with merge/preserve to regenerate data sections; LLM judgment sections preserved automatically |
+| Test suite gives false confidence on compressed workflow | HIGH | Requires adding structural contract tests after the fact; may need to re-verify behavioral equivalence manually for all compressed workflows |
+| Over-compressed workflow fails behaviorally | MEDIUM | Git revert to pre-compression; identify minimum viable compression level by incremental testing; re-compress with lower target |
+| Scaffold/init data overlap wastes tokens | LOW | Measure with context-budget; remove overlap from scaffold or init; document which is authoritative source |
+| XML tags become non-functional after model update | MEDIUM | Test each tag's behavioral impact; replace non-functional XML with markdown headers; update compression markers |
 
 ## Pitfall-to-Phase Mapping
 
@@ -496,28 +385,67 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| API drift between Node versions | Schema design (first phase) | CI matrix includes Node 22.5; capability detection tested |
-| Schema migration in single-file deploy | Schema design (first phase) | Migration test from v0 and each intermediate version passes |
-| Map/SQLite backend divergence | Schema design (first phase) | Architecture documented; no Map fallback code for structured tables |
-| JSON-to-SQLite type coercion | Schema design + Migration | Round-trip tests pass for every data type; STRICT tables used |
-| Stale cache after markdown edits | Invalidation strategy | Edit-then-read test passes within same second |
-| Database locking | Schema design (first phase) | WAL mode verified; concurrent 5-process test passes |
-| Test suite regression | Every phase | 1008+ tests pass after each phase; `BGSD_CACHE_FORCE_MAP=1` CI job green |
-| Sacred data loss | Memory store migration | JSON backups preserved; migration_status verified; round-trip equality confirmed |
-| Enricher duplication | Enricher acceleration | No duplicate parsing calls; all consumers read from SQLite |
-| Bundle size explosion | Every phase | Build stays under 1000KB; per-phase budget of +30KB enforced |
+| Semantic anchor loss | Compression infrastructure (first) | `workflow:verify-structure` passes for all compressed workflows; structural contract tests in CI |
+| Scaffold/LLM boundary bleed | Scaffold design (scaffold phase) | Section manifest exists for each scaffold type; `data`/`judgment` labels verified |
+| Compression regression | Compression infrastructure (first) | Compression markers in all compressed files; structural tests pass after every edit |
+| Orphan context from section loading | Section loading phase | Each extractable section verified standalone; `depends_on` metadata if needed |
+| Scaffold staleness | Scaffold infrastructure (scaffold phase) | Merge/preserve works; re-generation produces consistent results |
+| Insufficient testing | All phases | Structural contract tests added before compression begins; maintained per workflow |
+| Diminishing returns on v1.1 workflows | Planning phase | Per-workflow targets set; combined with section-level loading for overall token reduction |
+| Scaffold command inconsistency | Scaffold infrastructure (first scaffold phase) | Unified interface documented and tested; all scaffold types follow same pattern |
+| init/scaffold data overlap | Scaffold infrastructure (scaffold phase) | context-budget shows no redundant data between init and scaffold output |
+| XML tag degradation | Compression phase | Tag attention verified during behavioral testing; migration path documented |
+<!-- /section -->
+
+<!-- section: v11_lessons -->
+## Lessons from v1.1 Compression (Direct Experience)
+
+The v1.1 compression (Phase 8) provides concrete data for pitfall prevention:
+
+### What Worked
+- **Before/after token measurement** with tokenx — proved 54.6% average reduction (39,426→15,542 tokens across 8 workflows)
+- **Structural integrity table** tracking Task() counts and step counts per workflow — caught regressions before shipping
+- **Selective reference loading** — replacing 782-line unconditional loads with conditional `extract-sections` calls
+- **Prose tightening** — "AI agents don't need persuasion" is a reliable compression heuristic
+- **Deduplication** — new-project.md had identical Round 2 questions in auto/interactive modes (72.5% reduction)
+
+### What Went Wrong
+- **Task() calls dropped during compression** of verify-work.md (3→0) and plan-phase.md (5→3) — caught during review, had to be restored (deviation logged in 08-02-SUMMARY.md)
+- **Merged steps that appeared redundant** in quick.md — Steps 3+4 were not identical (mkdir + context check), behavior differed
+- **No automated structural verification** — relied entirely on manual counting; should have been a CLI command
+
+### What to Do Differently in Round 2
+1. Build `workflow:verify-structure` or `workflow:lint` **before** starting compression
+2. Add compression markers **during** compression, not retroactively
+3. Run parallel execution on at least the top 3 workflows to confirm behavioral equivalence
+4. Track cumulative reduction: v1.1 reduced 8 workflows from ~39K to ~15.5K tokens; round 2 measures against the original pre-v1.1 baseline
+5. Set realistic per-workflow targets: 40-60% for fresh workflows, 15-25% for already-compressed ones
+6. The biggest remaining workflows (discuss-phase 538 lines, transition 519 lines, new-milestone 505 lines) were NOT compressed in v1.1 — these are the primary round 2 targets
+
+### Existing Scaffold Precedents
+The `summary:generate` command (src/commands/misc.js:2067-2350) established patterns:
+- `JUDGMENT_SECTIONS` constant marking LLM-only sections
+- Merge/preserve: re-running on existing SUMMARY.md preserves LLM-filled sections while refreshing data sections
+- Frontmatter auto-generation from git and plan data
+- 50%+ LLM writing reduction measured and verified
+- `cmdScaffold` (src/commands/misc.js:1468-1535) established the exclusive-create (wx) safety pattern
 <!-- /section -->
 
 <!-- section: sources -->
 ## Sources
 
-- **Node.js v22.x SQLite docs** (Stability 1.1): https://nodejs.org/docs/latest-v22.x/api/sqlite.html — baseline API, active development
-- **Node.js v25.x SQLite docs** (Stability 1.2): https://nodejs.org/api/sqlite.html — release candidate, shows API additions (`createTagStore`, `defensive`, `limits`, `aggregate`, `setAuthorizer`)
-- **Existing codebase analysis**: `src/lib/cache.js` (752 lines), `src/commands/memory.js` (378 lines), plugin parsers, build.cjs, parity-check.js
-- **SQLite documentation**: https://www.sqlite.org/pragma.html — PRAGMA user_version for schema versioning, PRAGMA journal_mode for WAL
-- **SQLite ALTER TABLE limitations**: https://www.sqlite.org/lang_altertable.html — no MODIFY COLUMN, DROP COLUMN only in SQLite 3.35+
-- **PROJECT.md**: v12.0 milestone goals, existing architecture decisions, constraints
+- **Direct experience:** v1.1 Phase 8 compression (08-02-SUMMARY.md, 08-VERIFICATION.md) — 54.6% reduction, Task() drop-and-restore incident, structural integrity verification pattern
+- **Direct experience:** `summary:generate` scaffold implementation (src/commands/misc.js:2067-2350) — JUDGMENT_SECTIONS pattern, merge/preserve behavior, 50%+ LLM writing reduction
+- **Direct experience:** `cmdScaffold` implementation (src/commands/misc.js:1468-1535) — exclusive-create (wx) pattern, scaffold type registry
+- **Direct experience:** Workflow file analysis — 44 workflows totaling ~8,750 lines; top 14 by line count identified; 8 already compressed in v1.1
+- **Research:** PAACE: Plan-Aware Automated Agent Context Engineering Framework (arxiv 2512.16970) — function-preserving compression, plan-aware context optimization for multi-step agent workflows
+- **Research:** "A Taxonomy of Prompt Defects in LLM Systems" (arxiv 2509.14404) — 6-dimension defect classification; Maintainability defects from over-compressed prompts
+- **Research:** "Prompt Compression for LLMs: Cutting Tokens Without Breaking Reasoning" (Yahia Mohamed, Feb 2026) — compression techniques taxonomy, reasoning preservation techniques
+- **Research:** "Prompt Compression: How to Reduce Context Size Without Losing Quality" (MasterPrompting.net, Feb 2026) — lost-in-the-middle effect, attention degradation on long contexts
+- **Research:** "The Anti-Prompting Guide: 12 Prompt Patterns That Used to Work" (Rephrase, Mar 2026) — model evolution affecting prompt pattern effectiveness
+- **Research:** "How to Automate Workflows with Prompt Templates" (Rephrase, Mar 2026) — prompt templates as workflow code; parameterized, versioned, tested patterns
+- **Research:** "Semantic Prompt Compression" (Aleksapolskyi, Apr 2025) — 22% compression with 95%+ entity/term preservation; tuned for human-generated text, less applicable to structured agent prompts
 
 ---
-*Pitfalls research for: Adding structured SQLite tables to bgsd-tools CLI (v12.0)*
-*Researched: 2026-03-14*
+*Pitfalls research for: Workflow compression round 2 + document scaffold generation (v14.0)*
+*Researched: 2026-03-16*
