@@ -5100,7 +5100,41 @@ Options:
   --name <name>   Name of the installed skill to remove
 
 Examples:
-  bgsd-tools skills:remove --name my-skill`
+  bgsd-tools skills:remove --name my-skill`,
+      "workflow:baseline": `Usage: bgsd-tools workflow:baseline
+
+Measure token counts and structural fingerprints for all workflow files.
+Saves a versioned snapshot to .planning/baselines/workflow-baseline-{timestamp}.json.
+
+The structural fingerprint per workflow includes:
+  - task_calls:       Task() function call counts
+  - cli_commands:     bgsd-tools invocations in code blocks
+  - section_markers:  <!-- section: ... --> markers
+  - question_blocks:  <question> blocks
+  - xml_tags:         <step>, <process>, <purpose> tags
+
+Output (stderr): Human-readable table with token counts and structural element counts.
+Output (stdout): JSON snapshot with { version, timestamp, workflow_count, total_tokens, workflows: [...] }
+
+Examples:
+  bgsd-tools workflow:baseline
+  bgsd-tools workflow:baseline --raw`,
+      "workflow:compare": `Usage: bgsd-tools workflow:compare [<snapshot-a>] [<snapshot-b>]
+
+Compare two workflow baseline snapshots to see per-workflow token deltas.
+
+Modes:
+  Two args:   Compare snapshot-a to snapshot-b
+  One arg:    Compare snapshot-a to current workflow state
+  No args:    Compare the two most recent baselines in .planning/baselines/
+
+Output (stderr): Comparison table with per-workflow before/after/delta/% columns.
+Output (stdout): JSON with { snapshot_a, snapshot_b, summary: { before_total, after_total, delta, percent_change, workflows_improved, workflows_unchanged, workflows_worsened }, workflows: [...] }
+
+Examples:
+  bgsd-tools workflow:compare
+  bgsd-tools workflow:compare .planning/baselines/workflow-baseline-2026-01-01T00-00-00-000Z.json
+  bgsd-tools workflow:compare baseline-a.json baseline-b.json`
     };
     module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
