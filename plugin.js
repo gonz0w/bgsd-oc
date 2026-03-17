@@ -5134,7 +5134,25 @@ Output (stdout): JSON with { snapshot_a, snapshot_b, summary: { before_total, af
 Examples:
   bgsd-tools workflow:compare
   bgsd-tools workflow:compare .planning/baselines/workflow-baseline-2026-01-01T00-00-00-000Z.json
-  bgsd-tools workflow:compare baseline-a.json baseline-b.json`
+  bgsd-tools workflow:compare baseline-a.json baseline-b.json`,
+      "workflow:savings": `Usage: bgsd-tools workflow:savings
+
+Generate a cumulative token savings table showing the reduction journey across milestones:
+  Original (pre-Phase 135) \u2192 Post-Compression (Phase 135) \u2192 Post-Elision (Phase 137)
+
+Loads Phase 134 and Phase 135 baselines from .planning/baselines/ if available.
+Falls back to hardcoded Phase 135 SUMMARY values if disk baselines unavailable.
+The post-elision column shows current workflow token counts (all conditional sections removed).
+
+Output:
+  | Workflow | Original | Compressed | Post-Elision | Total % |
+
+Options:
+  --raw   JSON output
+
+Examples:
+  bgsd-tools workflow:savings
+  bgsd-tools workflow:savings --raw`
     };
     module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
@@ -6888,6 +6906,17 @@ ${JSON.stringify(enrichment, null, 2)}
         allElidedNames.push(...result.elided_names);
         totalTokensSaved += result.tokens_saved_estimate;
       }
+      if (result.warnings && result.warnings.length > 0) {
+        part._elisionWarnings = result.warnings;
+      }
+    }
+    const allDanglingWarnings = [];
+    for (let idx = 1; idx < output.parts.length; idx++) {
+      const part = output.parts[idx];
+      if (part && part._elisionWarnings) {
+        allDanglingWarnings.push(...part._elisionWarnings);
+        delete part._elisionWarnings;
+      }
     }
     if (sectionsElided > 0) {
       enrichment._elision = {
@@ -6895,6 +6924,9 @@ ${JSON.stringify(enrichment, null, 2)}
         elided_names: allElidedNames,
         tokens_saved_estimate: totalTokensSaved
       };
+      if (allDanglingWarnings.length > 0) {
+        enrichment._elision.dangling_warnings = allDanglingWarnings;
+      }
       if (output.parts[0] && output.parts[0].text) {
         enrichment.elision_applied = true;
         output.parts[0].text = `<bgsd-context>
@@ -6903,7 +6935,12 @@ ${JSON.stringify(enrichment, null, 2)}
       }
       if (process.env.BGSD_DEBUG) {
         console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(", ")}) ~${totalTokensSaved} tokens saved`);
+        if (allDanglingWarnings.length > 0) {
+          console.error(`[bgsd-enricher] dangling references found: ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
+        }
       }
+    } else if (allDanglingWarnings.length > 0 && process.env.BGSD_DEBUG) {
+      console.error(`[bgsd-enricher] dangling references found (no elision): ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
     }
   }
 }
@@ -7014,11 +7051,23 @@ function elideConditionalSections(text, enrichment) {
     sectionsElided++;
     elidedNames.unshift(name);
   }
+  const warnings = [];
+  if (elidedNames.length > 0) {
+    const lines = result.split("\n");
+    for (const name of elidedNames) {
+      const wordRe = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+      const matchingLines = lines.filter((line) => wordRe.test(line));
+      if (matchingLines.length > 0) {
+        warnings.push({ section: name, references: matchingLines });
+      }
+    }
+  }
   return {
     text: result,
     sections_elided: sectionsElided,
     elided_names: elidedNames,
-    tokens_saved_estimate: tokensSaved
+    tokens_saved_estimate: tokensSaved,
+    warnings
   };
 }
 function evaluateElisionCondition(key, enrichment) {
