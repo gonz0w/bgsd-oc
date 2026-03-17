@@ -149,4 +149,3 @@ The data layer should be invisible to users — workflows feel faster, decisions
 </history>
 <!-- Highest outcome ID: DO-104 -->
 <!-- Highest criteria ID: SC-83 -->
-<!-- Highest outcome ID: OUT-0 -->

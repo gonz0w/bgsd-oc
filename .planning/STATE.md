@@ -5,32 +5,31 @@
 See: `.planning/PROJECT.md` (updated 2026-03-17)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** v14.1 Tool-Aware Agent Routing — making tool detection actionable in workflows and agents
+**Current focus:** No active milestone — v14.1 shipped 2026-03-17
 
 ## Current Position
 
-**Milestone:** v14.1 Tool-Aware Agent Routing
-**Phase:** 140 of 140 (Infrastructure Pruning)
-**Current Plan:** Not started
-**Status:** v14.1 milestone complete
+**Milestone:** None (between milestones)
+**Phase:** N/A
+**Current Plan:** N/A
+**Status:** Ready for next milestone
 **Last Activity:** 2026-03-17
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% (v14.1 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 266 (through v14.0 Phase 137 Plan 02)
+- Total plans completed: 270 (through v14.1 Phase 140 Plan 01)
 - Average duration: ~13 min/plan (improving with better tooling)
-- Total execution time: ~43.5 hours
+- Total execution time: ~44.4 hours
 
 **Recent Trend:**
-- v14.0 Phase 135 Plan 05: 32 min, 3 tasks, 6 files (41.1% avg compression across 10 workflows)
-- v14.0 Phase 136 Plan 01: 8 min, 2 tasks, 2 files (scaffold merge lib + 28 unit tests)
-- v14.0 Phase 136 Plan 02: 15 min, 2 tasks, 3 files (plan:generate command)
-- v14.0 Phase 136 Plan 03: 5 min, 2 tasks, 2 files (verify:generate command)
 - v14.0 Phase 137 Plan 01: 16 min, 5 tasks, 9 files (conditional elision engine + 28 tests)
 - v14.0 Phase 137 Plan 02: 15 min, 3 tasks, 7 files (dangling refs + workflow:savings + 14 structural tests)
+- v14.1 Phase 138 Plan 01: 15 min, 4 tasks, 4 files (workflow tool routing — 4 workflows updated)
+- v14.1 Phase 138 Plan 02: 20 min, 3 tasks, 3 files (agent tool routing — 3 agent system prompts)
+- v14.1 Phase 139 Plan 01: 18 min, 2 tasks, 2 files (E2E + contract tests — 24 tests added)
 - v14.1 Phase 140 Plan 01: 9 min, 3 tasks, 7 files (prune 3 orphaned rules + simplify handoff_tool_context)
 - Trend: Stable
 
@@ -38,32 +37,20 @@ Progress: [██████████] 100%
 
 ## Accumulated Context
 
-### v14.1 Roadmap Summary
+### v14.1 Milestone Summary (complete)
 
-- **Phases:** 138–140 (3 phases)
-- **Requirements:** 10 total (ROUTE-01 through ROUTE-03, AGENT-01 through AGENT-02, GH-01, TEST-01 through TEST-02, PRUNE-01 through PRUNE-02)
-- **Coverage:** 100% — every requirement maps to exactly one phase
-- **Dependencies:** Phase 138 first (wire routing); Phase 139 after 138 (tests verify routing); Phase 140 after 139 (prune only confirmed-unused)
-
-### Phase Descriptions
-
-| Phase | Name | Goal | Requirements |
-|-------|------|------|--------------|
-| 138 | Workflow & Agent Tool Routing | Wire tool decisions into workflows and agents | ROUTE-01, ROUTE-02, ROUTE-03, AGENT-01, AGENT-02, GH-01 |
-| 139 | End-to-End Validation | Prove detection → enrichment → behavior chain | TEST-01, TEST-02 |
-| 140 | Infrastructure Pruning | Remove unused Chain B infrastructure | PRUNE-01, PRUNE-02 |
-| Phase 138 P01 | 15 min | 4 tasks | 4 files |
-| Phase 138 P02 | 20 min | 3 tasks | 3 files |
-| Phase 139 P01 | 18 min | 2 tasks | 2 files |
-| Phase 140-01 P01 | 9 min | 3 tasks | 7 files |
+- **Phases:** 138–140 (3 phases, 4 plans, 9 tasks)
+- **Requirements:** 10/10 delivered (ROUTE-01–03, AGENT-01–02, GH-01, TEST-01–02, PRUNE-01–02)
+- **Tests:** 1,677 passing (0 failures)
+- **PR:** #28 merged (all CodeQL checks clean)
 
 ### Key Decisions
 
-- [v14.1 roadmap]: ROUTE + AGENT + GH bundled in Phase 138 — all workflow/agent edits in one phase, GH-01 is a single workflow edit that fits naturally
-- [v14.1 roadmap]: TEST after ROUTE+AGENT — tests verify what routing produces, can't write E2E tests before behavior exists
-- [v14.1 roadmap]: PRUNE last — must see what's actually consumed after routing is wired and tested before removing anything
-- [140-01 PRUNE-01]: handoff_tool_context pruned to capability_level only — available_tools and tool_count had zero workflow consumers; capability_level is what execute-phase.md and map-codebase.md actually read
-- [140-01 PRUNE-02]: 3 orphaned decision rules removed (agent-capability-level, json-transform-mode, phase-dependencies) — DECISION_REGISTRY down from 22 to 19; isConsumer() fixed to use decisions.{id} pattern not blanket tool_availability match
+- [v14.1 roadmap]: ROUTE + AGENT + GH bundled in Phase 138 — all workflow/agent edits in one phase
+- [v14.1 roadmap]: TEST after ROUTE+AGENT — can't write E2E tests before behavior exists
+- [v14.1 roadmap]: PRUNE last — must see what's consumed before removing anything
+- [140-01 PRUNE-01]: handoff_tool_context pruned to capability_level only — available_tools and tool_count had zero workflow consumers
+- [140-01 PRUNE-02]: 3 orphaned decision rules removed (agent-capability-level, json-transform-mode, phase-dependencies) — DECISION_REGISTRY 22→19; isConsumer() fixed
 
 ### Blockers/Concerns
 
@@ -71,8 +58,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-17T23:26:22.764Z
-**This session:** 2026-03-17 — Phase 140 Infrastructure Pruning complete — v14.1 milestone complete
-**Stopped at:** CI: MERGED - PR https://github.com/gonz0w/bgsd-oc/pull/28
+**Last session:** 2026-03-17
+**This session:** 2026-03-17 — v14.1 milestone complete, archived
+**Stopped at:** v14.1 milestone completion workflow
 **Next steps:**
-1. Run `/bgsd-complete-milestone` to archive v14.1 milestone
+1. Run `/bgsd-new-milestone` to start the next milestone (after `/clear`)

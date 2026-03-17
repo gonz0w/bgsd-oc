@@ -2,26 +2,30 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-five versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), and v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling).
+A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-six versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling), v14.0 (LLM workload reduction — workflow measurement, 41.1% avg compression across 10 workflows, 3 shared skills extracted, scaffold generation, conditional section elision), and v14.1 (tool-aware agent routing — 4 workflows and 3 agents consume tool detection decisions, E2E + contract validation tests, DECISION_REGISTRY pruned 22→19, 1677 tests passing).
 
 ## Core Value
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v14.1 Tool-Aware Agent Routing
+## Current Milestone: Next
 
-**Goal:** Make the tool detection infrastructure from v12.1 actionable — workflows and agents consume tool_availability decisions to route behavior, gh-preflight replaces raw calls, and dead-weight infrastructure is pruned.
-
-**Target features:**
-- Workflows read file-discovery-mode, search-mode, json-transform-mode decisions and emit tool-specific instructions
-- Executor/debugger/mapper agents receive actionable tool usage guidance based on capability level
-- github-ci workflow uses detect:gh-preflight instead of raw gh auth status
-- End-to-end tests proving detection → enrichment → workflow behavior change
-- Prune Chain B infrastructure that can't be made useful
+No active milestone. v14.1 shipped 2026-03-17.
 
 ## Current State
 
-**Last shipped:** v14.0 LLM Workload Reduction (2026-03-17)
+**Last shipped:** v14.1 Tool-Aware Agent Routing (2026-03-17)
+
+<details>
+<summary>Previous: v14.1 Tool-Aware Agent Routing (shipped 2026-03-17)</summary>
+
+- Wired tool detection decisions into 4 workflows: file-discovery/search-mode in execute-plan, capability_level in execute-phase Task() prompts, fd/rg TOOL_GUIDANCE in map-codebase mapper spawns, detect:gh-preflight in github-ci
+- Added `<tool_routing>` Preferred Commands sections to executor (5 ops), debugger (4 ops), and codebase-mapper (6 ops) — concrete fd/rg/jq/bat commands with Glob/Grep/node fallbacks
+- 13 E2E tests proving all Chain B rules produce tool-dependent output; 11 contract tests proving zero orphaned decisions
+- Pruned dead-weight infrastructure: `handoff_tool_context` simplified to `{ capability_level }`; 3 orphaned rules removed; DECISION_REGISTRY 22→19
+- 1,677 tests (all passing); 10/10 requirements delivered (ROUTE-01–03, AGENT-01–02, GH-01, TEST-01–02, PRUNE-01–02)
+
+</details>
 
 <details>
 <summary>Previous: v14.0 LLM Workload Reduction (shipped 2026-03-17)</summary>
@@ -284,13 +288,15 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 - ✓ Conditional section elision: elideConditionalSections() with fail-open semantics and if= markers — v14.0
 - ✓ Cumulative token savings measurement: workflow:savings command with dangling reference detection — v14.0
 
+- ✓ Tool-aware workflow routing: execute-plan, execute-phase, map-codebase, github-ci emit tool-specific instructions based on file-discovery-mode and search-mode decisions — v14.1
+- ✓ Agent tool guidance: executor, debugger, codebase-mapper agents include `<tool_routing>` Preferred Commands sections adapting to tool_availability — v14.1
+- ✓ gh-preflight integration: github-ci uses detect:gh-preflight with structured JSON output replacing raw gh auth status — v14.1
+- ✓ E2E + contract validation: 13 E2E tests prove tool-dependent decision outputs; 11 contract tests prove zero orphaned Chain B rules — v14.1
+- ✓ Infrastructure pruning: handoff_tool_context simplified to capability_level only; 3 orphaned decision rules removed; DECISION_REGISTRY at 19 entries — v14.1
+
 ### Active
 
-- Tool-aware workflow routing — workflows consume tool decisions to alter agent instructions
-- Agent tool guidance — executor/debugger/mapper agents get actionable tool usage based on capability level
-- gh-preflight integration — github-ci uses detect:gh-preflight CLI command
-- End-to-end validation — tests proving full detection → enrichment → behavior chain
-- Dead weight pruning — remove or simplify unused Chain B infrastructure
+None. No active milestone.
 
 ### Out of Scope
 
@@ -307,12 +313,13 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ## Context
 
-Shipped v1.0 through v14.0. 1730 tests (all passing), 52 src/ modules, esbuild bundler.
+Shipped v1.0 through v14.1. 1677 tests (all passing), 52 src/ modules, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
 9 specialized AI agents, 41 slash commands, 45 workflows, 27 skills.
+DECISION_REGISTRY: 19 entries (2 remaining Chain B tool-routing rules: file-discovery-mode, search-mode).
 
 Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 
@@ -402,4 +409,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-17 after v14.1 milestone started*
+*Last updated: 2026-03-17 after v14.1 milestone complete*
