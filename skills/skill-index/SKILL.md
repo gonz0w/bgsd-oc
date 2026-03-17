@@ -7,13 +7,15 @@ agents: [all]
 
 # Skill Index
 
-**Generated:** 2026-03-16T04:04:25.182Z
-**Total skills:** 27
+**Generated:** 2026-03-17T01:00:33.962Z
+**Total skills:** 30
 
 | Skill | Type | Agents | Description |
 |-------|------|--------|-------------|
 | automation-reference | shared | executor, planner, github-ci | CLI and service automation patterns — what agents must automate vs what needs human action, service CLI commands, environment variable automation, dev server lifecycle, CLI installation handling, and pre-checkpoint automation failure recovery. |
+| bgsd-context-init | shared | all | Standard bgsd-context initialization preamble shared by all workflows — detects auto-injected bgsd-context block, provides plugin-required error message, and specifies the Parse JSON instruction pattern. |
 | checkpoint-protocol | shared | executor, github-ci, planner, debugger | Checkpoint detection, handling, and structured return format for pausing execution at human interaction points. Covers human-verify, decision, and human-action checkpoint types with auto-mode behavior. |
+| ci-quality-gate | shared | orchestrator | CI quality gate spawn pattern for post-execution code scanning — checks config, displays gate header, spawns bgsd-github-ci with ci_parameters, and handles merged/checkpoint results. |
 | commit-protocol | shared | executor, github-ci | Atomic task commit protocol with staging rules, conventional commit message format, and hash tracking for SUMMARY.md. Used after completing each task during plan execution. |
 | continuation-format | shared | executor | Standard format for presenting next steps after command/workflow completion — Next Up block structure, format rules, variants for different completion scenarios (next plan, phase complete, milestone complete), context-pulling patterns, and anti-patterns. |
 | debugger-hypothesis-testing | agent-specific | debugger | Scientific hypothesis testing methodology for debuggers — forming falsifiable hypotheses, experimental design framework, evidence quality assessment, decision criteria for acting, recovery from wrong hypotheses, and multiple competing hypotheses strategy. |
@@ -35,6 +37,7 @@ agents: [all]
 | questioning | shared | planner, roadmapper, debugger | Collaborative questioning methodology for project initialization — dream extraction philosophy, question types (motivation, concreteness, clarification, success), context checklist, decision gates, and anti-patterns to avoid during user questioning. |
 | raci | shared | planner, executor, verifier, debugger, roadmapper, project-researcher, phase-researcher, codebase-mapper, plan-checker, github-ci | Agent responsibility matrix and handoff contracts — which agent owns each lifecycle step, what artifacts pass between agents, required sections in handoff documents, and how receiving agents consume them. |
 | research-patterns | shared | phase-researcher, project-researcher | Research methodology for phase and project researchers — RAG tool selection strategy, source verification protocol, confidence assessment, and citation requirements for producing reliable research documents. |
+| research-pipeline | shared | orchestrator | Research + synthesize pipeline shared by new-milestone and new-project — 4 parallel bgsd-project-researcher spawns (Stack, Features, Architecture, Pitfalls), synthesizer spawn, and research quality scoring with retry loop. |
 | state-update-protocol | shared | executor, github-ci | STATE.md and ROADMAP.md update procedures after plan completion — advancing position, recording metrics, adding decisions, updating session continuity, and marking requirements complete. |
 | structured-returns | shared | executor, planner, verifier, debugger, github-ci, roadmapper, codebase-mapper, project-researcher, phase-researcher, plan-checker | Agent-specific structured return formats for orchestrator communication. Each agent has a defined return template. Load specific sections via section attribute to get only the relevant format. |
 | tdd-execution | shared | executor, planner | TDD red-green-refactor execution flow with CLI validation gates, commit protocol per phase, and context budget guidance. Covers both executor (running cycles) and planner (structuring TDD plans) perspectives. |
