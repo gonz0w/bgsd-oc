@@ -493,6 +493,8 @@ For each task:
 3. Can it run independently? (no dependencies = Wave 1 candidate)
 
 Apply TDD detection heuristic. Apply user setup detection.
+
+**TDD hint from ROADMAP.md:** If the phase section contains `**TDD:** recommended` or `**TDD:** required`, the roadmapper has signaled that this phase has TDD-eligible work. When `recommended`: actively evaluate each plan — if tasks cover business logic, validation, algorithms, or API endpoints with defined I/O, create a `type: tdd` plan. When `required`: ALL plans covering testable behavior (can you write `expect(fn(input)).toBe(output)` before writing `fn`?) MUST use `type: tdd`. The checker will flag violations.
 </step>
 
 <step name="build_dependency_graph">

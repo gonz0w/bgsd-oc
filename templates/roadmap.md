@@ -30,6 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: [What this phase delivers]
 **Depends on**: Nothing (first phase)
 **Requirements**: [REQ-01, REQ-02, REQ-03]  <!-- brackets optional, parser handles both formats -->
+**TDD**: recommended  <!-- optional: recommended | required | omit if not applicable -->
 **Success Criteria** (what must be TRUE):
   1. [Observable behavior from user perspective]
   2. [Observable behavior from user perspective]
@@ -118,6 +119,12 @@ Phases execute in numeric order: 2 → 2.1 → 2.2 → 3 → 3.1 → 4
 - Every checklist entry MUST have a matching `### Phase N:` detail section
 - Mismatches cause `phase complete` to misidentify the last phase and prematurely declare milestone complete
 - Run `validate roadmap` to detect and `validate roadmap --repair` to fix parity issues
+
+**TDD field (optional):**
+- `recommended` — Planner should create `type: tdd` plans for business logic, validation, algorithms
+- `required` — All plans with testable behavior MUST use `type: tdd`; checker flags violations
+- Omit the field when TDD doesn't apply (config, UI layout, documentation phases)
+- The planner uses this hint to decide plan type; the checker validates compliance
 
 **Success criteria:**
 - 2-5 observable behaviors per phase (from user's perspective)

@@ -90,6 +90,10 @@ function parsePhases(content) {
     const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
     const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
 
+    // Extract TDD hint if present
+    const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+
     // Check completion status via checkbox - escape all regex special chars
     const escaped = number.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, 'i');
@@ -101,6 +105,7 @@ function parsePhases(content) {
       status,
       planCount,
       goal,
+      tdd,
       section,
     }));
   }
@@ -160,14 +165,19 @@ function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedC
   }));
 
   // Reconstruct phases — schema: { number, cwd, name, status, plan_count, goal, depends_on, requirements, section }
-  const phases = (phaseRows || []).map(row => Object.freeze({
-    number: row.number || '',
-    name: row.name || '',
-    status: row.status || 'incomplete',
-    planCount: row.plan_count != null ? row.plan_count : 0,
-    goal: row.goal || null,
-    section: row.section || '',
-  }));
+  const phases = (phaseRows || []).map(row => {
+    const sec = row.section || '';
+    const tddMatch = sec.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    return Object.freeze({
+      number: row.number || '',
+      name: row.name || '',
+      status: row.status || 'incomplete',
+      planCount: row.plan_count != null ? row.plan_count : 0,
+      goal: row.goal || null,
+      tdd: tddMatch ? tddMatch[1].trim().toLowerCase() : null,
+      section: sec,
+    });
+  });
 
   // Reconstruct progress — schema: { phase, cwd, plans_complete, plans_total, status, completed_date }
   const progress = (progressRows || []).map(row => Object.freeze({
@@ -208,10 +218,15 @@ function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedC
         total: parseInt(plansMatch[2], 10),
       } : null;
 
+      // Extract TDD hint from section
+      const tddMatch2 = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+      const tdd = tddMatch2 ? tddMatch2[1].trim().toLowerCase() : found.tdd;
+
       return Object.freeze({
         number: found.number,
         name: found.name,
         goal: found.goal,
+        tdd,
         dependsOn,
         requirements,
         successCriteria,
@@ -322,6 +337,7 @@ export function parseRoadmap(cwd) {
         number: found.number,
         name: found.name,
         goal: found.goal,
+        tdd: found.tdd,
         dependsOn,
         requirements,
         successCriteria,
