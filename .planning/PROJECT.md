@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-four versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), and v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling).
+A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-five versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), and v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling).
 
 ## Core Value
 
@@ -10,7 +10,20 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current State
 
-**Last shipped:** v13.0 Closed-Loop Agent Evolution (2026-03-15)
+**Last shipped:** v14.0 LLM Workload Reduction (2026-03-17)
+
+<details>
+<summary>Previous: v14.0 LLM Workload Reduction (shipped 2026-03-17)</summary>
+
+- Workflow measurement infrastructure: `workflow:baseline`, `workflow:compare`, `workflow:verify-structure` commands for token measurement, regression detection, and structural contract validation
+- Top 10 workflows compressed 41.1% average with `<!-- section: name -->` markers for selective loading
+- 3 shared skills extracted (ci-quality-gate, research-pipeline, bgsd-context-init) from duplicate workflow content
+- Scaffold generation: `plan:generate` and `verify:generate` CLI commands with data/judgment section separation and idempotent merge
+- Conditional elision engine: `elideConditionalSections()` with fail-open semantics, if= markers on TDD/auto-test/CI/post-execution sections
+- Dangling reference detection, `workflow:savings` cumulative measurement, structural regression tests for critical workflows
+- 1,730 tests (all passing); 11/11 requirements delivered across 3 categories (MEAS, COMP, SCAF)
+
+</details>
 
 <details>
 <summary>Previous: v13.0 Closed-Loop Agent Evolution (shipped 2026-03-15)</summary>
@@ -253,17 +266,16 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 - ✓ Deviation recovery auto-capture with Rule-1 filter, 3-per-milestone cap, and non-blocking error handling — v13.0
 - ✓ Enhanced research quality profiling with 7-field JSON score, conflict detection, and gap extraction — v13.0
 
+- ✓ Workflow measurement infrastructure: baseline snapshots, token comparison, structural contract validation — v14.0
+- ✓ Top 10 workflow compression with 41.1% average token reduction and section markers — v14.0
+- ✓ Shared skill extraction: 3 skills (ci-quality-gate, research-pipeline, bgsd-context-init) replacing inline duplicates — v14.0
+- ✓ Scaffold generation: plan:generate and verify:generate with data/judgment separation and idempotent merge — v14.0
+- ✓ Conditional section elision: elideConditionalSections() with fail-open semantics and if= markers — v14.0
+- ✓ Cumulative token savings measurement: workflow:savings command with dangling reference detection — v14.0
+
 ### Active
 
-## Current Milestone: v14.0 LLM Workload Reduction
-
-**Goal:** Reduce context consumption and token waste by compressing workflows, pre-computing document scaffolds, and shifting administrative work from LLM reasoning to deterministic CLI operations.
-
-**Target features:**
-- Workflow compression round 2 — top 10 workflows reduced by 40%+ tokens
-- Pre-computed PLAN.md scaffolds from roadmap/phase data
-- Pre-computed VERIFICATION.md scaffolds from success criteria and test results
-- Section-level workflow loading — load only what's needed per step
+(None — between milestones)
 
 ### Out of Scope
 
@@ -280,7 +292,7 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ## Context
 
-Shipped v1.0 through v13.0. 1587 tests (1586 passing), 52 src/ modules, ~871KB bundle, esbuild bundler.
+Shipped v1.0 through v14.0. 1730 tests (all passing), 52 src/ modules, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
@@ -362,6 +374,12 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 | Rule-1-only deviation capture filter | Silently skips Rules 2, 3, 4; dual-layer prevention in workflow+CLI | Good — no noise from environmental failures |
 | Composite negative-signal research scoring | 5 signals, >= 3 = LOW confidence | Good — nuanced quality assessment |
 | Cache-first research:score/gaps | research:score writes JSON, research:gaps reads it | Good — decoupled commands |
+| Baseline-before-compression | Phase 134 measurement must precede Phase 135 compression | Good — catches regressions early |
+| Section markers WITH compression | COMP-01 + COMP-02 together in Phase 135 — markers added during compression pass | Good — single coherent pass |
+| Fail-open elision | Missing enrichment key keeps section — never accidentally remove content | Good — safe default |
+| Hardcoded SUMMARY baselines in workflow:savings | On-disk baselines all post-compression; SUMMARY data provides pre-compression reference | Good — accurate historical comparison |
+| Non-blocking dangling reference check | Warnings in _elision debug field, no enrichment failure | Good — observability without risk |
+| Scaffold merge idempotency | Re-running preserves LLM-written judgment sections while refreshing data sections | Good — safe to re-run |
 
 ---
 
@@ -369,4 +387,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-16 after v14.0 milestone started*
+*Last updated: 2026-03-17 after v14.0 milestone completed*
