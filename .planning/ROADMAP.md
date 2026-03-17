@@ -42,7 +42,7 @@
   2. All 10 compressed workflows have `<!-- section: step_name -->` markers at each major process step, verified by `workflow:verify-structure`
   3. Shared blocks (deviation rules, commit protocol, checkpoint format) that appeared in 3+ workflows are extracted to skill references — workflows use `<skill:X />` instead of inline content
   4. Zero structural regressions — `workflow:verify-structure` passes on all compressed workflows (Task() count, CLI command count, branch markers preserved)
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 ### Phase 136: Scaffold Infrastructure
 **Goal**: CLI generates pre-filled PLAN.md and VERIFICATION.md scaffolds from deterministic data sources, with clear data/judgment section separation — LLM fills only judgment sections instead of writing from scratch
@@ -73,7 +73,7 @@ Phases 134 → 135 (after 134) → 136 (parallel with 134–135) → 137 (after 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 134. Measurement Infrastructure & Baseline | 2/2 | Complete    | 2026-03-16 | - |
-| 135. Workflow Compression & Section Markers | 3/5 | In Progress|  | - |
+| 135. Workflow Compression & Section Markers | 4/5 | In Progress|  | - |
 | 136. Scaffold Infrastructure | v14.0 | 0/TBD | Not started | - |
 | 137. Section-Level Loading & Conditional Elision | v14.0 | 0/TBD | Not started | - |
 

@@ -11,11 +11,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-16)
 
 **Milestone:** v14.0 LLM Workload Reduction
 **Phase:** 135 — Workflow Compression & Section Markers
-**Current Plan:** Plan 03 complete (3/5)
+**Current Plan:** Plan 04 complete (4/5)
 **Status:** In Progress
 **Last Activity:** 2026-03-17
 
-Progress: [██████████] 96%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
@@ -37,7 +37,9 @@ Progress: [██████████] 96%
 - v14.0 Phase 134 Plan 01: 7 min, 2 tasks, 7 files (workflow:baseline + workflow:compare + structural fingerprint + 21 tests)
 - v14.0 Phase 134 Plan 02: 12 min, 2 tasks, 4 files (workflow:verify-structure + regression detection + 14 tests)
 - v14.0 Phase 135 Plan 01: 5 min, 2 tasks, 5 files (pre-compression baseline + 3 shared skill extractions)
-- v14.0 Phase 135 Plan 02: 12 min, 2 tasks, 2 files (discuss-phase 42% + execute-phase 42% compression, section markers, skill refs)
+  - v14.0 Phase 135 Plan 02: 12 min, 2 tasks, 2 files (discuss-phase 42% + execute-phase 42% compression, section markers, skill refs)
+  - v14.0 Phase 135 Plan 03: 8 min, 2 tasks, 2 files (new-milestone 45% + execute-plan 40% compression, section markers, skill refs)
+  - v14.0 Phase 135 Plan 04: 14 min, 3 tasks, 3 files (transition 42% + new-project 41% + resume-project 41% compression, section markers)
 - Trend: Stable, improving velocity with infrastructure improvements
 
 *Updated after each plan completion*
@@ -76,7 +78,8 @@ Progress: [██████████] 96%
 - [135-01]: bgsd-context-init skill has no placeholders — 2-paragraph preamble is identical across all 10 workflows
 - [135-03]: Research pipeline banner not duplicated in workflow — skill already contains the RESEARCHING banner block
 - [135-03]: TDD auto-test kept inline (compressed) in execute-plan rather than full skill reference — execute:tdd command stays visible
-- v14.0 Phase 135 Plan 03: 8 min, 2 tasks, 2 files (new-milestone 45% compression + execute-plan 40% compression, section markers, skill refs)
+- [135-04]: Decision tables used in transition.md and resume-project.md routing logic — more compact/scannable than if/else prose
+- [135-04]: Research pipeline (4 researchers + synthesizer) in new-project.md replaced with single skill reference — all 5 Task() calls preserved in skill
 
 ### Blockers/Concerns
 
@@ -84,8 +87,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-17T01:19:11Z
-**This session:** 2026-03-17 — Executed Phase 135 Plan 02 (discuss-phase 42% + execute-phase 42% compression). COMP-01, COMP-02 complete.
+**Last session:** 2026-03-17T01:19:48Z
+**This session:** 2026-03-17 — Executed Phase 135 Plan 04 (transition 42% + new-project 41% + resume-project 41% compression). COMP-01, COMP-02 complete.
 **Next steps:**
-1. Continue Phase 135 Plans 04-05 (compress remaining workflows in top-10 list)
+1. Continue Phase 135 Plan 05 (compress remaining workflows to complete top-10 list)
 2. Phase 136 (scaffold infrastructure) can run in parallel with 135 (different files)
