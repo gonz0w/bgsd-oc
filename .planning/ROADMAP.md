@@ -7,7 +7,7 @@ Make the tool detection infrastructure from v12.1 actionable — workflows and a
 ## Phases
 
 - [x] **Phase 138: Workflow & Agent Tool Routing** - Wire tool detection decisions into workflows and agent system prompts so behavior adapts to available tools (completed 2026-03-17)
-- [ ] **Phase 139: End-to-End Validation** - Prove the full detection → enrichment → workflow behavior chain with E2E and contract tests
+- [x] **Phase 139: End-to-End Validation** - Prove the full detection → enrichment → workflow behavior chain with E2E and contract tests (completed 2026-03-17)
 - [ ] **Phase 140: Infrastructure Pruning** - Audit and remove unused Chain B infrastructure after routing is wired and validated
 
 ## Phase Details
@@ -31,7 +31,7 @@ Make the tool detection infrastructure from v12.1 actionable — workflows and a
 **Success Criteria** (what must be TRUE):
   1. An E2E test mocks tool_availability with all tools present, runs the enricher, and verifies workflow output contains tool-specific guidance that differs from all-tools-absent output
   2. A contract test verifies every Chain B decision rule (file-discovery-mode, search-mode, json-transform-mode, agent-capability-level) has at least one workflow or agent consumer — zero orphaned decisions
-**Plans**: 0/1 plans complete
+**Plans**: 1/1 plans complete
 
 ### Phase 140: Infrastructure Pruning
 **Goal**: Unused tool infrastructure is identified and removed without breaking anything
@@ -51,5 +51,5 @@ Phases execute in numeric order: 138 → 139 → 140
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 138. Workflow & Agent Tool Routing | 2/2 | Complete    | 2026-03-17 |
-| 139. End-to-End Validation | 0/1 | Not started | - |
+| 139. End-to-End Validation | 1/1 | Complete    | 2026-03-17 |
 | 140. Infrastructure Pruning | 0/TBD | Not started | - |
