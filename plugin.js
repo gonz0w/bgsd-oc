@@ -6937,6 +6937,76 @@ function countDiagnosedUatGaps(phaseDir) {
 function toSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
+function elideConditionalSections(text, enrichment) {
+  if (!text || typeof text !== "string") {
+    return { text: text || "", sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+  if (!enrichment || typeof enrichment !== "object") {
+    return { text, sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+  const CONDITIONAL_OPEN_RE = /<!--\s*section:\s*(\S+)\s+if="([^"]+)"\s*-->/g;
+  const SECTION_CLOSE = "<!-- /section -->";
+  let result = text;
+  let sectionsElided = 0;
+  const elidedNames = [];
+  let tokensSaved = 0;
+  const matches = [];
+  let m;
+  const re = new RegExp(CONDITIONAL_OPEN_RE.source, "g");
+  while ((m = re.exec(text)) !== null) {
+    matches.push({
+      fullMatch: m[0],
+      name: m[1],
+      condition: m[2],
+      startIndex: m.index
+    });
+  }
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { fullMatch, name, condition, startIndex } = matches[i];
+    const shouldKeep = evaluateElisionCondition(condition, enrichment);
+    if (shouldKeep) continue;
+    const closeIndex = result.indexOf(SECTION_CLOSE, startIndex + fullMatch.length);
+    let sectionStart = startIndex;
+    let sectionEnd;
+    if (closeIndex === -1) {
+      sectionEnd = result.length;
+    } else {
+      sectionEnd = closeIndex + SECTION_CLOSE.length;
+    }
+    const removedContent = result.slice(sectionStart, sectionEnd);
+    tokensSaved += Math.ceil(removedContent.length / 4);
+    const afterSection = result.slice(sectionEnd);
+    const trailingNewline = afterSection.startsWith("\n") ? "\n" : "";
+    result = result.slice(0, sectionStart) + afterSection.slice(trailingNewline.length);
+    sectionsElided++;
+    elidedNames.unshift(name);
+  }
+  return {
+    text: result,
+    sections_elided: sectionsElided,
+    elided_names: elidedNames,
+    tokens_saved_estimate: tokensSaved
+  };
+}
+function evaluateElisionCondition(key, enrichment) {
+  if (!key) return true;
+  if (Object.prototype.hasOwnProperty.call(enrichment, key)) {
+    const val = enrichment[key];
+    if (val === "true") return true;
+    if (val === "false") return false;
+    return Boolean(val);
+  }
+  if (enrichment.decisions && typeof enrichment.decisions === "object") {
+    const decision = enrichment.decisions[key];
+    if (decision !== void 0 && decision !== null) {
+      const val = typeof decision === "object" ? decision.value : decision;
+      if (val === "true") return true;
+      if (val === "false") return false;
+      return Boolean(val);
+    }
+  }
+  return true;
+}
 
 // src/plugin/tools/bgsd-status.js
 var bgsd_status = {
@@ -8536,6 +8606,7 @@ export {
   createNotifier,
   createStuckDetector,
   createToolRegistry,
+  elideConditionalSections,
   enrichCommand,
   getProjectState,
   invalidateAll,

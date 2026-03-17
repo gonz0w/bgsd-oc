@@ -682,3 +682,129 @@ function toSlug(name) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 }
+
+/**
+ * Elide conditional sections from workflow text based on enrichment state.
+ *
+ * Parses `<!-- section: name if="condition" -->` ... `<!-- /section -->` markers
+ * and removes sections whose condition evaluates to false against the enrichment
+ * object. Sections without `if=` conditions are always preserved.
+ *
+ * Condition evaluation order:
+ * 1. Direct field: `enrichment[conditionKey]` — truthy = keep, falsy = elide
+ * 2. Decision lookup: `enrichment.decisions?.[conditionKey]?.value` — truthy = keep, falsy = elide
+ * 3. Boolean string: `"true"` = keep, `"false"` = elide
+ * 4. Missing key = keep (fail-open: don't elide if condition can't be evaluated)
+ *
+ * @param {string} text - Workflow text to process
+ * @param {object} enrichment - Enrichment object with fields and decisions
+ * @returns {{ text: string, sections_elided: number, elided_names: string[], tokens_saved_estimate: number }}
+ */
+export function elideConditionalSections(text, enrichment) {
+  if (!text || typeof text !== 'string') {
+    return { text: text || '', sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+  if (!enrichment || typeof enrichment !== 'object') {
+    return { text, sections_elided: 0, elided_names: [], tokens_saved_estimate: 0 };
+  }
+
+  // Regex: match conditional section opening markers
+  // Captures: (1) section name, (2) condition key
+  const CONDITIONAL_OPEN_RE = /<!--\s*section:\s*(\S+)\s+if="([^"]+)"\s*-->/g;
+  const SECTION_CLOSE = '<!-- /section -->';
+
+  let result = text;
+  let sectionsElided = 0;
+  const elidedNames = [];
+  let tokensSaved = 0;
+
+  // Collect all conditional sections with their positions
+  // Process from last to first to avoid index invalidation
+  const matches = [];
+  let m;
+  const re = new RegExp(CONDITIONAL_OPEN_RE.source, 'g');
+  while ((m = re.exec(text)) !== null) {
+    matches.push({
+      fullMatch: m[0],
+      name: m[1],
+      condition: m[2],
+      startIndex: m.index,
+    });
+  }
+
+  // Process in reverse order to preserve indices
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { fullMatch, name, condition, startIndex } = matches[i];
+
+    // Evaluate condition
+    const shouldKeep = evaluateElisionCondition(condition, enrichment);
+    if (shouldKeep) continue;
+
+    // Find closing marker
+    const closeIndex = result.indexOf(SECTION_CLOSE, startIndex + fullMatch.length);
+
+    let sectionStart = startIndex;
+    let sectionEnd;
+    if (closeIndex === -1) {
+      // Unclosed section: extend to EOF
+      sectionEnd = result.length;
+    } else {
+      sectionEnd = closeIndex + SECTION_CLOSE.length;
+    }
+
+    // Remove the section (including trailing newline if present)
+    const removedContent = result.slice(sectionStart, sectionEnd);
+    // Estimate tokens: ~4 chars per token
+    tokensSaved += Math.ceil(removedContent.length / 4);
+
+    // Remove section + optional trailing newline
+    const afterSection = result.slice(sectionEnd);
+    const trailingNewline = afterSection.startsWith('\n') ? '\n' : '';
+    result = result.slice(0, sectionStart) + afterSection.slice(trailingNewline.length);
+
+    sectionsElided++;
+    elidedNames.unshift(name); // unshift to maintain order
+  }
+
+  return {
+    text: result,
+    sections_elided: sectionsElided,
+    elided_names: elidedNames,
+    tokens_saved_estimate: tokensSaved,
+  };
+}
+
+/**
+ * Evaluate a single elision condition key against the enrichment object.
+ *
+ * @param {string} key - Condition key (e.g., "is_tdd", "ci_enabled")
+ * @param {object} enrichment - Enrichment object
+ * @returns {boolean} True = keep section, false = elide
+ */
+function evaluateElisionCondition(key, enrichment) {
+  // Fail-open: if no key, keep
+  if (!key) return true;
+
+  // 1. Direct field lookup
+  if (Object.prototype.hasOwnProperty.call(enrichment, key)) {
+    const val = enrichment[key];
+    // Boolean string handling
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+    return Boolean(val);
+  }
+
+  // 2. Decision lookup: enrichment.decisions?.[key]?.value
+  if (enrichment.decisions && typeof enrichment.decisions === 'object') {
+    const decision = enrichment.decisions[key];
+    if (decision !== undefined && decision !== null) {
+      const val = typeof decision === 'object' ? decision.value : decision;
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+      return Boolean(val);
+    }
+  }
+
+  // 3. Missing key = keep (fail-open)
+  return true;
+}
