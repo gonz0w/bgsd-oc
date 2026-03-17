@@ -6,7 +6,7 @@ Make the tool detection infrastructure from v12.1 actionable — workflows and a
 
 ## Phases
 
-- [ ] **Phase 138: Workflow & Agent Tool Routing** - Wire tool detection decisions into workflows and agent system prompts so behavior adapts to available tools
+- [x] **Phase 138: Workflow & Agent Tool Routing** - Wire tool detection decisions into workflows and agent system prompts so behavior adapts to available tools (completed 2026-03-17)
 - [ ] **Phase 139: End-to-End Validation** - Prove the full detection → enrichment → workflow behavior chain with E2E and contract tests
 - [ ] **Phase 140: Infrastructure Pruning** - Audit and remove unused Chain B infrastructure after routing is wired and validated
 
@@ -22,7 +22,7 @@ Make the tool detection infrastructure from v12.1 actionable — workflows and a
   3. map-codebase.md uses fd for file discovery and ripgrep for content search when available, falling back to node-based commands when absent
   4. Executor and debugger agent system prompts include tool-specific CLI commands that adapt based on tool_availability from bgsd-context
   5. github-ci.md uses detect:gh-preflight JSON output for authentication validation instead of raw `gh auth status`
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ### Phase 139: End-to-End Validation
 **Goal**: The full detection → enrichment → workflow behavior chain is validated end-to-end with automated tests
@@ -50,6 +50,6 @@ Phases execute in numeric order: 138 → 139 → 140
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 138. Workflow & Agent Tool Routing | 1/2 | In Progress|  |
+| 138. Workflow & Agent Tool Routing | 2/2 | Complete   | 2026-03-17 |
 | 139. End-to-End Validation | 0/TBD | Not started | - |
 | 140. Infrastructure Pruning | 0/TBD | Not started | - |
