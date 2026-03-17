@@ -12,7 +12,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-17)
 **Milestone:** v14.1 Tool-Aware Agent Routing
 **Phase:** 140 of 140 (Infrastructure Pruning)
 **Current Plan:** Not started
-**Status:** Milestone complete
+**Status:** v14.1 milestone complete
 **Last Activity:** 2026-03-17
 
 Progress: [██████████] 100%
@@ -71,8 +71,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-17T22:35:20.950Z
+**Last session:** 2026-03-17T23:26:22.764Z
 **This session:** 2026-03-17 — Phase 140 Infrastructure Pruning complete — v14.1 milestone complete
-**Stopped at:** Completed 140-01-PLAN.md
+**Stopped at:** CI: MERGED - PR https://github.com/gonz0w/bgsd-oc/pull/28
 **Next steps:**
 1. Run `/bgsd-complete-milestone` to archive v14.1 milestone
