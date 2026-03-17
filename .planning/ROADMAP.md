@@ -75,7 +75,7 @@ Phases 134 → 135 (after 134) → 136 (parallel with 134–135) → 137 (after 
 | 134. Measurement Infrastructure & Baseline | 2/2 | Complete    | 2026-03-16 | - |
 | 135. Workflow Compression & Section Markers | 5/5 | Complete    | 2026-03-17 | - |
 | 136. Scaffold Infrastructure | v14.0 | 3/3 | Complete | 2026-03-17 |
-| 137. Section-Level Loading & Conditional Elision | 2/2 | Complete   | 2026-03-17 | - |
+| 137. Section-Level Loading & Conditional Elision | 2/2 | Complete    | 2026-03-17 | - |
 
 ---
 

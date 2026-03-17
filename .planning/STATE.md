@@ -11,8 +11,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-16)
 
 **Milestone:** v14.0 LLM Workload Reduction
 **Phase:** 137 — Section-Level Loading & Conditional Elision
-**Current Plan:** Plan 02 complete (2/2)
-**Status:** Complete — all plans done
+**Current Plan:** Not started
+**Status:** Milestone complete
 **Last Activity:** 2026-03-17
 
 Progress: [██████████] 100%
