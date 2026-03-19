@@ -15,7 +15,16 @@ Resolve model for:
 
 ## Step 1: Normalize and Validate Phase
 
-@__OPENCODE_CONFIG__/bgsd-oc/references/phase-argument-parsing.md
+<skill:phase-argument-parsing />
+
+Extract `PHASE` from `$ARGUMENTS` (first non-flag token). **Phase number is required.** If no phase number provided:
+```
+ERROR: Phase number required.
+Usage: /bgsd-research-phase <phase-number>
+Example: /bgsd-research-phase 92
+Use /bgsd-progress to see available phases.
+```
+Exit.
 
 ```bash
 PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase "${PHASE}")

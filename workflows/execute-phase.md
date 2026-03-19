@@ -18,19 +18,30 @@ Read STATE.md before starting.
 <step name="initialize" priority="first">
 <skill:bgsd-context-init />
 
-Extract from PHASE_ARG:
-```bash
-PHASE_NUMBER="${BASH_REMATCH[1]}"  # first numeric arg (integer or X.Y)
-GAPS_ONLY="false"
-[[ "$PHASE_ARG" == *"--gaps-only"* ]] && GAPS_ONLY="true"
-CI_FLAG=""
-[[ "$PHASE_ARG" == *"--ci"* && "$PHASE_ARG" != *"--no-ci"* ]] && CI_FLAG="force"
-[[ "$PHASE_ARG" == *"--no-ci"* ]] && CI_FLAG="skip"
-```
-
 Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`, `handoff_tool_context`, `capability_level` (from `handoff_tool_context.capability_level`).
 
-`phase_found` false or `plan_count` 0 → error. No STATE.md but `.planning/` exists → offer reconstruct. `parallelization` false → sequential.
+**`phase_number` is the authoritative phase — it comes from the user's argument as resolved by the bGSD plugin. Never infer or auto-select a different phase.**
+
+**Phase number is required.** If `phase_number` is null or `phase_found` is false:
+```
+ERROR: Phase number required.
+Usage: /bgsd-execute-phase <phase-number> [flags]
+Example: /bgsd-execute-phase 92
+Use /bgsd-progress to see available phases.
+```
+Exit.
+
+Extract flags from `$ARGUMENTS`:
+```bash
+PHASE_NUMBER="${phase_number}"  # from <bgsd-context> — user-provided arg
+GAPS_ONLY="false"
+[[ "$ARGUMENTS" == *"--gaps-only"* ]] && GAPS_ONLY="true"
+CI_FLAG=""
+[[ "$ARGUMENTS" == *"--ci"* && "$ARGUMENTS" != *"--no-ci"* ]] && CI_FLAG="force"
+[[ "$ARGUMENTS" == *"--no-ci"* ]] && CI_FLAG="skip"
+```
+
+`plan_count` 0 → error: no plans found for phase. No STATE.md but `.planning/` exists → offer reconstruct. `parallelization` false → sequential.
 </step>
 <!-- /section -->
 

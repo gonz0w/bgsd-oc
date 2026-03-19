@@ -6811,7 +6811,7 @@ function detectPhaseArg(parts, commandStr) {
     for (let i = 1; i < parts.length; i++) {
       const part = parts[i];
       if (typeof part === "string") {
-        const match = part.match(/^(\d{1,3})$/);
+        const match = part.match(/^(\d+)$/);
         if (match) {
           return parseInt(match[1], 10);
         }
@@ -6819,7 +6819,7 @@ function detectPhaseArg(parts, commandStr) {
     }
   }
   if (commandStr && typeof commandStr === "string") {
-    const match = commandStr.match(/bgsd-\S+\s+(\d{1,3})(?:\s|$)/);
+    const match = commandStr.match(/bgsd-\S+\s+(\d+)(?:\s|$)/);
     if (match) {
       return parseInt(match[1], 10);
     }

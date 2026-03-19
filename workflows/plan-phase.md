@@ -24,8 +24,18 @@ If no `.planning/`: error — run `/bgsd-new-project`.
 
 ## 2. Parse Arguments
 
-Extract: phase number, flags (`--research`, `--skip-research`, `--gaps`, `--skip-verify`).
-No phase number → detect next unplanned. Phase not found → create dir from slug/padded_phase.
+Extract: phase number from `phase_number` in `<bgsd-context>`, flags (`--research`, `--skip-research`, `--gaps`, `--skip-verify`) from `$ARGUMENTS`.
+
+**Phase number is required.** If `phase_number` is null or `phase_found` is false:
+```
+ERROR: Phase number required.
+Usage: /bgsd-plan-phase <phase-number> [flags]
+Example: /bgsd-plan-phase 92
+Use /bgsd-progress to see available phases.
+```
+Exit.
+
+Phase directory not found on disk → create dir from `padded_phase` and `phase_slug` from `<bgsd-context>`.
 
 ## 3. Validate Phase
 

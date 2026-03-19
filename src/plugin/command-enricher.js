@@ -647,11 +647,12 @@ export function enrichCommand(input, output, cwd) {
  */
 function detectPhaseArg(parts, commandStr) {
   // Primary: scan input.parts[] for a standalone numeric arg (skip index 0 = command name)
+  // Matches any positive integer phase number (no upper digit limit — supports 4-digit phases)
   if (parts && Array.isArray(parts)) {
     for (let i = 1; i < parts.length; i++) {
       const part = parts[i];
       if (typeof part === 'string') {
-        const match = part.match(/^(\d{1,3})$/);
+        const match = part.match(/^(\d+)$/);
         if (match) {
           return parseInt(match[1], 10);
         }
@@ -661,7 +662,7 @@ function detectPhaseArg(parts, commandStr) {
 
   // Fallback: parse from input.command string e.g. "bgsd-execute-phase 15"
   if (commandStr && typeof commandStr === 'string') {
-    const match = commandStr.match(/bgsd-\S+\s+(\d{1,3})(?:\s|$)/);
+    const match = commandStr.match(/bgsd-\S+\s+(\d+)(?:\s|$)/);
     if (match) {
       return parseInt(match[1], 10);
     }
