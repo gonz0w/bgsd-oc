@@ -59,6 +59,7 @@ Recent decisions affecting current work:
 - [Phase 141]: resolveQuestionType and resolveOptionGeneration in DECISION_REGISTRY at execution time
 - [Phase 142]: Primary 6 workflows migrated to template references (discuss-phase, new-milestone, plan-phase, transition, verify-work, execute-phase)
 - [Phase 143]: questions:audit/list/validate CLI commands added
+- [Phase ci]: CI: merged - 2 checks passed, 0 fixed, 0 dismissed
 
 ### Pending Todos
 
