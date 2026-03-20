@@ -123,11 +123,8 @@ Your custom files in other locations are preserved:
 Modified bGSD files are automatically backed up to `gsd-local-patches/` — reapply manually after update.
 ```
 
-Use question:
+questionTemplate('update-proceed'):
 - Question: "Proceed with update?"
-- Options:
-  - "Yes, update now"
-  - "No, cancel"
 
 **If user cancels:** Exit.
 </step>

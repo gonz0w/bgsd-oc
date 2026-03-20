@@ -67,13 +67,9 @@ If potential duplicate found:
 1. Read the existing todo
 2. Compare scope
 
-If overlapping, use question:
+If overlapping, questionTemplate('add-todo-duplicate-action'):
 - header: "Duplicate?"
 - question: "Similar todo exists: [title]. What would you like to do?"
-- options:
-  - "Skip" — keep existing todo
-  - "Replace" — update existing with new context
-  - "Add anyway" — create as separate todo
 </step>
 
 <step name="create_file">

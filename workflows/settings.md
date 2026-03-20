@@ -36,62 +36,49 @@ Parse current values (default to `true` if not present):
 Use question with current values pre-selected:
 
 ```
+let qtModel = questionTemplate('settings-model-profile', 'SINGLE_CHOICE');
+let qtResearcher = questionTemplate('settings-plan-researcher', 'BINARY');
+let qtChecker = questionTemplate('settings-plan-checker', 'BINARY');
+let qtVerifier = questionTemplate('settings-execution-verifier', 'BINARY');
+let qtAuto = questionTemplate('settings-auto-advance', 'BINARY');
+let qtBranching = questionTemplate('settings-branching-strategy', 'SINGLE_CHOICE');
+
 question([
   {
     question: "Which model profile for agents?",
     header: "Model",
     multiSelect: false,
-    options: [
-      { label: "Quality", description: "Opus everywhere except verification (highest cost)" },
-      { label: "Balanced (Recommended)", description: "Opus for planning, Sonnet for execution/verification" },
-      { label: "Budget", description: "Sonnet for writing, Haiku for research/verification (lowest cost)" }
-    ]
+    options: qtModel.options
   },
   {
     question: "Spawn Plan Researcher? (researches domain before planning)",
     header: "Research",
     multiSelect: false,
-    options: [
-      { label: "Yes", description: "Research phase goals before planning" },
-      { label: "No", description: "Skip research, plan directly" }
-    ]
+    options: qtResearcher.options
   },
   {
     question: "Spawn Plan Checker? (verifies plans before execution)",
     header: "Plan Check",
     multiSelect: false,
-    options: [
-      { label: "Yes", description: "Verify plans meet phase goals" },
-      { label: "No", description: "Skip plan verification" }
-    ]
+    options: qtChecker.options
   },
   {
     question: "Spawn Execution Verifier? (verifies phase completion)",
     header: "Verifier",
     multiSelect: false,
-    options: [
-      { label: "Yes", description: "Verify must-haves after execution" },
-      { label: "No", description: "Skip post-execution verification" }
-    ]
+    options: qtVerifier.options
   },
   {
     question: "Auto-advance pipeline? (discuss → plan → execute automatically)",
     header: "Auto",
     multiSelect: false,
-    options: [
-      { label: "No (Recommended)", description: "Manual /clear + paste between stages" },
-      { label: "Yes", description: "Chain stages via Task() subagents (same isolation)" }
-    ]
+    options: qtAuto.options
   },
   {
     question: "Git branching strategy?",
     header: "Branching",
     multiSelect: false,
-    options: [
-      { label: "None (Recommended)", description: "Commit directly to current branch" },
-      { label: "Per Phase", description: "Create branch for each phase (gsd/phase-{N}-{name})" },
-      { label: "Per Milestone", description: "Create branch for entire milestone (gsd/{version}-{name})" }
-    ]
+    options: qtBranching.options
   }
 ])
 ```
@@ -123,15 +110,14 @@ Write updated config to `.planning/config.json`.
 Ask whether to save these settings as global defaults for future projects:
 
 ```
+let qtDefaults = questionTemplate('settings-save-defaults', 'BINARY');
+
 question([
   {
     question: "Save these as default settings for all new projects?",
     header: "Defaults",
     multiSelect: false,
-    options: [
-      { label: "Yes", description: "New projects start with these settings (saved to ~/.gsd/defaults.json)" },
-      { label: "No", description: "Only apply to this project" }
-    ]
+    options: qtDefaults.options
   }
 ])
 ```

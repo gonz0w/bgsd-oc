@@ -99,25 +99,15 @@ If `.planning/ROADMAP.md` exists:
 <step name="offer_actions">
 **If todo maps to a roadmap phase:**
 
-Use question:
+questionTemplate('check-todos-roadmap-action'):
 - header: "Action"
 - question: "This todo relates to Phase [N]: [name]. What would you like to do?"
-- options:
-  - "Work on it now" — move to done, start working
-  - "Add to phase plan" — include when planning Phase [N]
-  - "Brainstorm approach" — think through before deciding
-  - "Put it back" — return to list
 
 **If no roadmap match:**
 
-Use question:
+questionTemplate('check-todos-general-action'):
 - header: "Action"
 - question: "What would you like to do with this todo?"
-- options:
-  - "Work on it now" — move to done, start working
-  - "Create a phase" — /bgsd-add-phase with this scope
-  - "Brainstorm approach" — think through before deciding
-  - "Put it back" — return to list
 </step>
 
 <step name="execute_action">

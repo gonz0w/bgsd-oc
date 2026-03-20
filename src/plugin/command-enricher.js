@@ -93,7 +93,7 @@ export function enrichCommand(input, output, cwd) {
   // Phase-aware detection: scan command parts for a phase number argument.
   // Falls back to parsing input.command (e.g. "bgsd-execute-phase 15") if
   // input.parts is absent or contains no numeric arg.
-  const phaseNum = detectPhaseArg(input.parts, input.command);
+  const phaseNum = detectPhaseArg(input.parts, input.command, input.arguments);
 
   // Resolve effective phase number (explicit arg or current from STATE.md)
   let effectivePhaseNum = phaseNum;
@@ -643,9 +643,11 @@ export function enrichCommand(input, output, cwd) {
  * Scans for a standalone digit pattern (e.g., "73", "01").
  *
  * @param {string[]} parts - Command parts array
+ * @param {string} commandStr - Command string (unused, kept for API compat)
+ * @param {string} argumentsStr - Raw arguments string from input.arguments
  * @returns {number|null} Phase number or null
  */
-function detectPhaseArg(parts, commandStr) {
+function detectPhaseArg(parts, commandStr, argumentsStr) {
   // Primary: scan input.parts[] for a standalone numeric arg (skip index 0 = command name)
   // Matches any positive integer phase number (no upper digit limit — supports 4-digit phases)
   if (parts && Array.isArray(parts)) {
@@ -657,6 +659,21 @@ function detectPhaseArg(parts, commandStr) {
           return parseInt(match[1], 10);
         }
       }
+    }
+  }
+
+  // Secondary: parse from input.arguments (OpenCode passes phase here, not in command/parts)
+  if (argumentsStr && typeof argumentsStr === 'string') {
+    const trimmed = argumentsStr.trim();
+    // Direct number: "143"
+    const directMatch = trimmed.match(/^(\d+)$/);
+    if (directMatch) {
+      return parseInt(directMatch[1], 10);
+    }
+    // With "phase" prefix: "phase 143", "Phase 143:"
+    const phaseMatch = trimmed.match(/^(?:phase\s+)?(\d+)/i);
+    if (phaseMatch) {
+      return parseInt(phaseMatch[1], 10);
     }
   }
 

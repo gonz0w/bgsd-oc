@@ -1782,6 +1782,42 @@ Options:
 Examples:
   bgsd-tools workflow:savings
   bgsd-tools workflow:savings --raw`,
+
+  // questions namespace
+  'questions:audit': `Usage: bgsd-tools questions:audit [--json]
+
+Scan all workflows, identify inline question text vs template references.
+Reports taxonomy compliance percentage.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:audit
+  bgsd-tools questions:audit --json`,
+
+  'questions:list': `Usage: bgsd-tools questions:list [--json]
+
+List all question templates in src/lib/questions.js with taxonomy type and usage count per workflow.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:list
+  bgsd-tools questions:list --json`,
+
+  'questions:validate': `Usage: bgsd-tools questions:validate [--json]
+
+Validate all question templates have 3-5 options, formatting parity, and escape hatches.
+Phase 143: warn-only mode (reports issues, does not block).
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:validate
+  bgsd-tools questions:validate --json`,
 };
 
 module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };

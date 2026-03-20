@@ -93,7 +93,8 @@ No phase directories found to archive. Phases may have been removed or archived 
 
 Stop here.
 
-question: "Proceed with archiving?" with options: "Yes — archive listed phases" | "Cancel"
+questionTemplate('cleanup-proceed'):
+- question: "Proceed with archiving?"
 
 If "Cancel": Stop.
 

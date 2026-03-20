@@ -5170,7 +5170,40 @@ Options:
 
 Examples:
   bgsd-tools workflow:savings
-  bgsd-tools workflow:savings --raw`
+  bgsd-tools workflow:savings --raw`,
+      // questions namespace
+      "questions:audit": `Usage: bgsd-tools questions:audit [--json]
+
+Scan all workflows, identify inline question text vs template references.
+Reports taxonomy compliance percentage.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:audit
+  bgsd-tools questions:audit --json`,
+      "questions:list": `Usage: bgsd-tools questions:list [--json]
+
+List all question templates in src/lib/questions.js with taxonomy type and usage count per workflow.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:list
+  bgsd-tools questions:list --json`,
+      "questions:validate": `Usage: bgsd-tools questions:validate [--json]
+
+Validate all question templates have 3-5 options, formatting parity, and escape hatches.
+Phase 143: warn-only mode (reports issues, does not block).
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:validate
+  bgsd-tools questions:validate --json`
     };
     module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
@@ -5381,6 +5414,65 @@ var require_questions = __commonJS({
         ],
         typeHint: "SINGLE_CHOICE"
       },
+      // settings workflow templates
+      "settings-model-profile": {
+        question: "Which model profile for agents?",
+        options: [
+          { id: "quality", label: "Quality", description: "Opus everywhere except verification (highest cost)", diversity: { certainty: 1 } },
+          { id: "balanced", label: "Balanced (Recommended)", description: "Opus for planning, Sonnet for execution/verification", diversity: { certainty: 0.6 } },
+          { id: "budget", label: "Budget", description: "Sonnet for writing, Haiku for research/verification (lowest cost)", diversity: { certainty: 0.3 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      "settings-plan-researcher": {
+        question: "Spawn Plan Researcher? (researches domain before planning)",
+        options: [
+          { id: "yes", label: "Yes", description: "Research phase goals before planning", diversity: { certainty: 1 } },
+          { id: "no", label: "No", description: "Skip research, plan directly", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
+      },
+      "settings-plan-checker": {
+        question: "Spawn Plan Checker? (verifies plans before execution)",
+        options: [
+          { id: "yes", label: "Yes", description: "Verify plans meet phase goals", diversity: { certainty: 1 } },
+          { id: "no", label: "No", description: "Skip plan verification", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
+      },
+      "settings-execution-verifier": {
+        question: "Spawn Execution Verifier? (verifies phase completion)",
+        options: [
+          { id: "yes", label: "Yes", description: "Verify must-haves after execution", diversity: { certainty: 1 } },
+          { id: "no", label: "No", description: "Skip post-execution verification", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
+      },
+      "settings-auto-advance": {
+        question: "Auto-advance pipeline? (discuss \u2192 plan \u2192 execute automatically)",
+        options: [
+          { id: "no", label: "No (Recommended)", description: "Manual /clear + paste between stages", diversity: { certainty: 0.8 } },
+          { id: "yes", label: "Yes", description: "Chain stages via Task() subagents (same isolation)", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "BINARY"
+      },
+      "settings-branching-strategy": {
+        question: "Git branching strategy?",
+        options: [
+          { id: "none", label: "None (Recommended)", description: "Commit directly to current branch", diversity: { certainty: 0.8 } },
+          { id: "per-phase", label: "Per Phase", description: "Create branch for each phase (gsd/phase-{N}-{name})", diversity: { certainty: 0.5 } },
+          { id: "per-milestone", label: "Per Milestone", description: "Create branch for entire milestone (gsd/{version}-{name})", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      "settings-save-defaults": {
+        question: "Save these as default settings for all new projects?",
+        options: [
+          { id: "yes", label: "Yes", description: "New projects start with these settings (saved to ~/.gsd/defaults.json)", diversity: { certainty: 1 } },
+          { id: "no", label: "No", description: "Only apply to this project", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
+      },
       // new-milestone workflow templates
       "new-milestone-goals": {
         question: "What do you want to build next?",
@@ -5425,6 +5517,64 @@ var require_questions = __commonJS({
           { id: "none", label: "None for this milestone", diversity: { scope: 1 } }
         ],
         typeHint: "MULTI_CHOICE"
+      },
+      // check-todos workflow templates
+      "check-todos-roadmap-action": {
+        question: "This todo relates to Phase [N]: [name]. What would you like to do?",
+        options: [
+          { id: "work-now", label: "Work on it now", diversity: { certainty: 1 } },
+          { id: "add-to-plan", label: "Add to phase plan", diversity: { certainty: 0.7 } },
+          { id: "brainstorm", label: "Brainstorm approach", diversity: { certainty: 0.4 } },
+          { id: "put-back", label: "Put it back", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      "check-todos-general-action": {
+        question: "What would you like to do with this todo?",
+        options: [
+          { id: "work-now", label: "Work on it now", diversity: { certainty: 1 } },
+          { id: "create-phase", label: "Create a phase", diversity: { certainty: 0.7 } },
+          { id: "brainstorm", label: "Brainstorm approach", diversity: { certainty: 0.4 } },
+          { id: "put-back", label: "Put it back", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      // add-todo workflow templates
+      "add-todo-duplicate-action": {
+        question: "Similar todo exists: [title]. What would you like to do?",
+        options: [
+          { id: "skip", label: "Skip", diversity: { certainty: 0.8 } },
+          { id: "replace", label: "Replace", diversity: { certainty: 0.5 } },
+          { id: "add-anyway", label: "Add anyway", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      // update workflow templates
+      "update-proceed": {
+        question: "Proceed with update?",
+        options: [
+          { id: "yes", label: "Yes, update now", diversity: { certainty: 1 } },
+          { id: "no", label: "No, cancel", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
+      },
+      // cleanup workflow templates
+      "cleanup-proceed": {
+        question: "Proceed with archiving?",
+        options: [
+          { id: "yes", label: "Yes \u2014 archive listed phases", diversity: { certainty: 1 } },
+          { id: "cancel", label: "Cancel", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
+      },
+      // complete-milestone workflow templates
+      "complete-milestone-push": {
+        question: "Push to remote?",
+        options: [
+          { id: "yes", label: "Yes", diversity: { certainty: 1 } },
+          { id: "no", label: "No", diversity: { certainty: 0 } }
+        ],
+        typeHint: "BINARY"
       }
     };
     function getQuestionTemplate(id, context = {}) {
@@ -6872,7 +7022,7 @@ function enrichCommand(input, output, cwd) {
     milestone: currentMilestone ? currentMilestone.version : null,
     milestone_name: currentMilestone ? currentMilestone.name : null
   };
-  const phaseNum = detectPhaseArg(input.parts, input.command);
+  const phaseNum = detectPhaseArg(input.parts, input.command, input.arguments);
   let effectivePhaseNum = phaseNum;
   let plans = null;
   let summaryFiles = null;
@@ -7303,7 +7453,7 @@ ${JSON.stringify(enrichment, null, 2)}
     }
   }
 }
-function detectPhaseArg(parts, commandStr) {
+function detectPhaseArg(parts, commandStr, argumentsStr) {
   if (parts && Array.isArray(parts)) {
     for (let i = 1; i < parts.length; i++) {
       const part = parts[i];
@@ -7313,6 +7463,17 @@ function detectPhaseArg(parts, commandStr) {
           return parseInt(match[1], 10);
         }
       }
+    }
+  }
+  if (argumentsStr && typeof argumentsStr === "string") {
+    const trimmed = argumentsStr.trim();
+    const directMatch = trimmed.match(/^(\d+)$/);
+    if (directMatch) {
+      return parseInt(directMatch[1], 10);
+    }
+    const phaseMatch = trimmed.match(/^(?:phase\s+)?(\d+)/i);
+    if (phaseMatch) {
+      return parseInt(phaseMatch[1], 10);
     }
   }
   if (commandStr && typeof commandStr === "string") {

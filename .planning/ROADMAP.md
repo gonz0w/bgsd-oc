@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v14.1 Tool-Aware Agent Routing** - Phases 138-140 (shipped 2026-03-17)
-- 🚧 **v15.0 Workflow Questioning & Decision Quality** - Phases 141-143 (in progress)
+- ✅ **v15.0 Workflow Questioning & Decision Quality** - Phases 141-143 (shipped 2026-03-20)
 
 ## Overview
 
@@ -13,7 +13,7 @@ v15.0 implements a question design system for workflow discussions — replacing
 
 - [x] **Phase 141: Taxonomy & Infrastructure** - Define question taxonomy, option generation rules, prompts.js template library, and decision routing functions (completed 2026-03-20)
 - [x] **Phase 142: Primary Workflow Migration** - Migrate discuss-phase, new-milestone, plan-phase, transition, verify-work, execute-phase to template references (completed 2026-03-20)
-- [ ] **Phase 143: Remaining Workflows & CLI Tools** - Audit remaining workflows, migrate all to templates, add questions:audit/list/validate CLI commands
+- [x] **Phase 143: Remaining Workflows & CLI Tools** - Audit remaining workflows, migrate all to templates, add questions:audit/list/validate CLI commands (completed 2026-03-20)
 
 ## Phase Details
 
@@ -53,7 +53,7 @@ v15.0 implements a question design system for workflow discussions — replacing
   3. questions:validate command validates all question templates have 3-5 options, formatting parity, and escape hatches
   4. Remaining ~40 workflows audited with inventory of inline question text documented
   5. All remaining workflows migrated to question() template references — zero bare open-ended questions remain
-**Plans**: TBD
+**Plans**: 5/5 plans complete
 
 ## Progress
 
@@ -61,7 +61,7 @@ v15.0 implements a question design system for workflow discussions — replacing
 |-------|----------------|--------|-----------|
 | 141. Taxonomy & Infrastructure | 3/3 | Complete    | 2026-03-20 |
 | 142. Primary Workflow Migration | 6/6 | Complete    | 2026-03-20 |
-| 143. Remaining Workflows & CLI Tools | 0/? | Not started | - |
+| 143. Remaining Workflows & CLI Tools | 5/5 | Complete    | 2026-03-20 |
 
 ---
 
