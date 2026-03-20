@@ -53,7 +53,7 @@ v15.0 implements a question design system for workflow discussions — replacing
   3. questions:validate command validates all question templates have 3-5 options, formatting parity, and escape hatches
   4. Remaining ~40 workflows audited with inventory of inline question text documented
   5. All remaining workflows migrated to question() template references — zero bare open-ended questions remain
-**Plans**: TBD
+**Plans**: 1/5 plans executed
 
 ## Progress
 
@@ -61,7 +61,7 @@ v15.0 implements a question design system for workflow discussions — replacing
 |-------|----------------|--------|-----------|
 | 141. Taxonomy & Infrastructure | 3/3 | Complete    | 2026-03-20 |
 | 142. Primary Workflow Migration | 6/6 | Complete    | 2026-03-20 |
-| 143. Remaining Workflows & CLI Tools | 0/? | Not started | - |
+| 143. Remaining Workflows & CLI Tools | 1/5 | In Progress|  |
 
 ---
 

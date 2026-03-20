@@ -5170,7 +5170,40 @@ Options:
 
 Examples:
   bgsd-tools workflow:savings
-  bgsd-tools workflow:savings --raw`
+  bgsd-tools workflow:savings --raw`,
+      // questions namespace
+      "questions:audit": `Usage: bgsd-tools questions:audit [--json]
+
+Scan all workflows, identify inline question text vs template references.
+Reports taxonomy compliance percentage.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:audit
+  bgsd-tools questions:audit --json`,
+      "questions:list": `Usage: bgsd-tools questions:list [--json]
+
+List all question templates in src/lib/questions.js with taxonomy type and usage count per workflow.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:list
+  bgsd-tools questions:list --json`,
+      "questions:validate": `Usage: bgsd-tools questions:validate [--json]
+
+Validate all question templates have 3-5 options, formatting parity, and escape hatches.
+Phase 143: warn-only mode (reports issues, does not block).
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:validate
+  bgsd-tools questions:validate --json`
     };
     module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
   }
@@ -6872,7 +6905,7 @@ function enrichCommand(input, output, cwd) {
     milestone: currentMilestone ? currentMilestone.version : null,
     milestone_name: currentMilestone ? currentMilestone.name : null
   };
-  const phaseNum = detectPhaseArg(input.parts, input.command);
+  const phaseNum = detectPhaseArg(input.parts, input.command, input.arguments);
   let effectivePhaseNum = phaseNum;
   let plans = null;
   let summaryFiles = null;
@@ -7303,7 +7336,7 @@ ${JSON.stringify(enrichment, null, 2)}
     }
   }
 }
-function detectPhaseArg(parts, commandStr) {
+function detectPhaseArg(parts, commandStr, argumentsStr) {
   if (parts && Array.isArray(parts)) {
     for (let i = 1; i < parts.length; i++) {
       const part = parts[i];
@@ -7313,6 +7346,17 @@ function detectPhaseArg(parts, commandStr) {
           return parseInt(match[1], 10);
         }
       }
+    }
+  }
+  if (argumentsStr && typeof argumentsStr === "string") {
+    const trimmed = argumentsStr.trim();
+    const directMatch = trimmed.match(/^(\d+)$/);
+    if (directMatch) {
+      return parseInt(directMatch[1], 10);
+    }
+    const phaseMatch = trimmed.match(/^(?:phase\s+)?(\d+)/i);
+    if (phaseMatch) {
+      return parseInt(phaseMatch[1], 10);
     }
   }
   if (commandStr && typeof commandStr === "string") {

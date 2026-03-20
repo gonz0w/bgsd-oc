@@ -218,6 +218,66 @@ const OPTION_TEMPLATES = {
     typeHint: 'SINGLE_CHOICE'
   },
 
+  // settings workflow templates
+  'settings-model-profile': {
+    question: 'Which model profile for agents?',
+    options: [
+      { id: 'quality', label: 'Quality', description: 'Opus everywhere except verification (highest cost)', diversity: { certainty: 1.0 } },
+      { id: 'balanced', label: 'Balanced (Recommended)', description: 'Opus for planning, Sonnet for execution/verification', diversity: { certainty: 0.6 } },
+      { id: 'budget', label: 'Budget', description: 'Sonnet for writing, Haiku for research/verification (lowest cost)', diversity: { certainty: 0.3 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'settings-plan-researcher': {
+    question: 'Spawn Plan Researcher? (researches domain before planning)',
+    options: [
+      { id: 'yes', label: 'Yes', description: 'Research phase goals before planning', diversity: { certainty: 1.0 } },
+      { id: 'no', label: 'No', description: 'Skip research, plan directly', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
+  },
+  'settings-plan-checker': {
+    question: 'Spawn Plan Checker? (verifies plans before execution)',
+    options: [
+      { id: 'yes', label: 'Yes', description: 'Verify plans meet phase goals', diversity: { certainty: 1.0 } },
+      { id: 'no', label: 'No', description: 'Skip plan verification', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
+  },
+  'settings-execution-verifier': {
+    question: 'Spawn Execution Verifier? (verifies phase completion)',
+    options: [
+      { id: 'yes', label: 'Yes', description: 'Verify must-haves after execution', diversity: { certainty: 1.0 } },
+      { id: 'no', label: 'No', description: 'Skip post-execution verification', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
+  },
+  'settings-auto-advance': {
+    question: 'Auto-advance pipeline? (discuss → plan → execute automatically)',
+    options: [
+      { id: 'no', label: 'No (Recommended)', description: 'Manual /clear + paste between stages', diversity: { certainty: 0.8 } },
+      { id: 'yes', label: 'Yes', description: 'Chain stages via Task() subagents (same isolation)', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'BINARY'
+  },
+  'settings-branching-strategy': {
+    question: 'Git branching strategy?',
+    options: [
+      { id: 'none', label: 'None (Recommended)', description: 'Commit directly to current branch', diversity: { certainty: 0.8 } },
+      { id: 'per-phase', label: 'Per Phase', description: 'Create branch for each phase (gsd/phase-{N}-{name})', diversity: { certainty: 0.5 } },
+      { id: 'per-milestone', label: 'Per Milestone', description: 'Create branch for entire milestone (gsd/{version}-{name})', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'settings-save-defaults': {
+    question: 'Save these as default settings for all new projects?',
+    options: [
+      { id: 'yes', label: 'Yes', description: 'New projects start with these settings (saved to ~/.gsd/defaults.json)', diversity: { certainty: 1.0 } },
+      { id: 'no', label: 'No', description: 'Only apply to this project', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
+  },
+
   // new-milestone workflow templates
   'new-milestone-goals': {
     question: 'What do you want to build next?',
@@ -262,6 +322,69 @@ const OPTION_TEMPLATES = {
       { id: 'none', label: 'None for this milestone', diversity: { scope: 1.0 } }
     ],
     typeHint: 'MULTI_CHOICE'
+  },
+
+  // check-todos workflow templates
+  'check-todos-roadmap-action': {
+    question: 'This todo relates to Phase [N]: [name]. What would you like to do?',
+    options: [
+      { id: 'work-now', label: 'Work on it now', diversity: { certainty: 1.0 } },
+      { id: 'add-to-plan', label: 'Add to phase plan', diversity: { certainty: 0.7 } },
+      { id: 'brainstorm', label: 'Brainstorm approach', diversity: { certainty: 0.4 } },
+      { id: 'put-back', label: 'Put it back', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'check-todos-general-action': {
+    question: 'What would you like to do with this todo?',
+    options: [
+      { id: 'work-now', label: 'Work on it now', diversity: { certainty: 1.0 } },
+      { id: 'create-phase', label: 'Create a phase', diversity: { certainty: 0.7 } },
+      { id: 'brainstorm', label: 'Brainstorm approach', diversity: { certainty: 0.4 } },
+      { id: 'put-back', label: 'Put it back', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+
+  // add-todo workflow templates
+  'add-todo-duplicate-action': {
+    question: 'Similar todo exists: [title]. What would you like to do?',
+    options: [
+      { id: 'skip', label: 'Skip', diversity: { certainty: 0.8 } },
+      { id: 'replace', label: 'Replace', diversity: { certainty: 0.5 } },
+      { id: 'add-anyway', label: 'Add anyway', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+
+  // update workflow templates
+  'update-proceed': {
+    question: 'Proceed with update?',
+    options: [
+      { id: 'yes', label: 'Yes, update now', diversity: { certainty: 1.0 } },
+      { id: 'no', label: 'No, cancel', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
+  },
+
+  // cleanup workflow templates
+  'cleanup-proceed': {
+    question: 'Proceed with archiving?',
+    options: [
+      { id: 'yes', label: 'Yes — archive listed phases', diversity: { certainty: 1.0 } },
+      { id: 'cancel', label: 'Cancel', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
+  },
+
+  // complete-milestone workflow templates
+  'complete-milestone-push': {
+    question: 'Push to remote?',
+    options: [
+      { id: 'yes', label: 'Yes', diversity: { certainty: 1.0 } },
+      { id: 'no', label: 'No', diversity: { certainty: 0.0 } }
+    ],
+    typeHint: 'BINARY'
   }
 };
 
