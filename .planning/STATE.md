@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-**Phase:** 142 of 143 (Primary Workflow Migration)
-**Current Plan:** Not started
-**Status:** Ready to plan
-**Last Activity:** 2026-03-20
+**Phase:** 143 of 143 (Remaining Workflows & CLI Tools)
+**Current Plan:** 02 complete
+**Status:** Executing
+**Last Activity:** 2026-03-19
 
 Progress: [▓▓▓▓▓▓▓▓▓░] 95%
 
@@ -29,19 +29,19 @@ Progress: [▓▓▓▓▓▓▓▓▓░] 95%
 |-------|-------|-------|----------|
 | 141 | 3 | 3 | 1.3 min |
 | 142 | 6 | 6 | 2.3 min |
-| 143 | 0 | - | - |
+| 143 | 1 | 1 | 4 min |
 
 **Recent Trend:**
 - v14.1 Phase 140 Plan 01: 9 min, 3 tasks, 7 files (prune orphaned rules)
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 143-remaining-workflows-cli-tools P02 | 4 min | 3 tasks | 1 file |
 | Phase 142-primary-workflow-migration P06 | 2 min | 3 tasks | 2 files |
 | Phase 142-primary-workflow-migration P05 | 2.5 min | 3 tasks | 2 files |
 | Phase 142-primary-workflow-migration P04 | 1 min | 3 tasks | 2 files |
 | Phase 142-primary-workflow-migration P03 | 3.5 min | 3 tasks | 2 files |
 | Phase 142-primary-workflow-migration P02 | 2 min | 3 tasks | 2 files |
-| Phase 142-primary-workflow-migration P01 | 3 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -59,6 +59,7 @@ Recent decisions affecting current work:
 - [Phase 141]: resolveQuestionType and resolveOptionGeneration in DECISION_REGISTRY at execution time
 - [Phase 142]: Primary 6 workflows migrated to template references (discuss-phase, new-milestone, plan-phase, transition, verify-work, execute-phase)
 - [Phase 143]: questions:audit/list/validate CLI commands added
+- [Phase 143 Plan 02]: Audit found 6 workflows needing migration (settings, check-todos, add-todo, update, cleanup, complete-milestone), 12 cmd-*.md workflows are active wrappers, 2 use conversational questions only
 - [Phase ci]: CI: merged - 2 checks passed, 0 fixed, 0 dismissed
 
 ### Pending Todos
@@ -75,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20
-Stopped at: Phase 142 all 6 plans complete — Primary Workflow Migration phase complete
+Last session: 2026-03-19
+Stopped at: Phase 143 Plan 02 complete — workflow audit complete, 6 migration targets identified
 Resume file: None
