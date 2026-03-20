@@ -202,7 +202,10 @@ Plans with `autonomous: false` require user interaction.
 
 **Standard flow:**
 1. Spawn agent → runs until checkpoint → returns structured state
-2. Present to user → user responds
+2. Present to user → user responds using questionTemplate() options:
+   - human-verify: `questionTemplate('execute-checkpoint-verify', 'SINGLE_CHOICE')` → Pass / Fail / Needs adjustment
+   - spot-check failures: `questionTemplate('execute-checkpoint-retry', 'SINGLE_CHOICE')` → Retry / Continue / Skip
+   - wave completion: `questionTemplate('execute-wave-continue', 'SINGLE_CHOICE')` → Proceed to next wave / Review current / Pause
 3. Spawn continuation agent (NOT resume) with completed_tasks_table, resume_task, user_response
 4. Continuation verifies previous commits, continues from resume point
 5. Repeat until complete

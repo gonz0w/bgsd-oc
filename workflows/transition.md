@@ -43,6 +43,7 @@ Proceed to cleanup_handoff.
 <if mode="interactive" OR="custom with gates.confirm_transition true">
 
 Ask: "Phase [X] complete — all [Y] plans finished. Ready to mark done and move to Phase [X+1]?"
+→ Options: `questionTemplate('transition-complete', 'SINGLE_CHOICE')` (Mark done / Cancel)
 
 </if>
 
@@ -57,10 +58,7 @@ Phase [X] has incomplete plans:
 
 ⚠️ Safety rail: Skipping plans requires confirmation (destructive action)
 
-Options:
-1. Continue current phase (execute remaining plans)
-2. Mark complete anyway (skip remaining plans)
-3. Review what's left
+→ Options: `questionTemplate('transition-incomplete', 'SINGLE_CHOICE')` (Continue current phase / Mark complete anyway / Review what's left)
 ```
 
 </step>

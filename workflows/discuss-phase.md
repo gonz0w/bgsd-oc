@@ -55,12 +55,12 @@ Exit.
 
 <!-- section: check_existing -->
 <step name="check_existing">
-Use `has_context` from init. If CONTEXT.md exists — use question:
+Use `has_context` from init. If CONTEXT.md exists — use questionTemplate('discuss-context-existing', 'SINGLE_CHOICE'):
 - "Update it" → load existing, continue to analyze_phase
 - "View it" → display, then offer update/skip
 - "Skip" → exit
 
-If no CONTEXT.md and `has_plans` is true — use question: "Phase [X] already has {plan_count} plan(s) without user context. Decisions here won't affect existing plans unless you replan."
+If no CONTEXT.md and `has_plans` is true — use questionTemplate('discuss-replan-warning', 'SINGLE_CHOICE'):
 - "Continue and replan after" → continue
 - "View existing plans" → display, then offer "Continue" / "Cancel"
 - "Cancel" → exit

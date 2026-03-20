@@ -181,6 +181,41 @@ const OPTION_TEMPLATES = {
       { id: 'milestone-complete', label: 'Complete milestone', diversity: { certainty: 0.8 } }
     ],
     typeHint: 'SINGLE_CHOICE'
+  },
+
+  // verify-work workflow templates
+  'verify-session-resume': {
+    question: 'Which would you like to do?',
+    options: [
+      { id: 'resume', label: 'Resume existing session', diversity: { certainty: 0.8 } },
+      { id: 'start-new', label: 'Start new session', diversity: { certainty: 0.6 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'verify-test-response': {
+    question: 'How did the test go?',
+    options: [
+      { id: 'pass', label: 'Pass — it works as expected', diversity: { certainty: 1.0 } },
+      { id: 'fail', label: 'Fail — something is wrong', diversity: { certainty: 0.3 } },
+      { id: 'skip', label: 'Skip — cannot test right now', diversity: { certainty: 0.5 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'verify-complete-issues': {
+    question: 'Issues were found. What would you like to do?',
+    options: [
+      { id: 'diagnose', label: 'Diagnose issues — find root causes', diversity: { approach: 0.7 } },
+      { id: 'next-phase', label: 'Suggest next phase — defer issues', diversity: { approach: 0.4 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'verify-diagnose': {
+    question: 'How should issues be handled?',
+    options: [
+      { id: 'spawn', label: 'Spawn debug agents — auto-investigate', diversity: { approach: 0.8 } },
+      { id: 'manual', label: 'Manual handling — I will address', diversity: { approach: 0.3 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
   }
 };
 

@@ -46,7 +46,7 @@ Extract `phase_number`, `phase_name`, `goal`, `tdd` (TDD hint: `recommended`, `r
 
 ## 4. Load CONTEXT.md
 
-If `context_path` exists: use it. If null: ask continue without or run discuss-phase first.
+If `context_path` exists: use it. If null: use `questionTemplate('plan-phase-context', 'SINGLE_CHOICE')`.
 
 ## 5. Handle Research
 
@@ -80,7 +80,7 @@ RESEARCH COMPLETE → continue. RESEARCH BLOCKED → offer context/skip/abort.
 
 ## 6. Check Existing Plans
 
-If plans exist: offer add more / view / replan.
+If plans exist: use `questionTemplate('plan-phase-existing', 'SINGLE_CHOICE')`.
 
 ## 7. Use Context Paths from INIT
 
@@ -138,7 +138,7 @@ Check: requirement coverage, task structure, dependencies, must_haves.",
 )
 ```
 
-PASSED → step 14. ISSUES → revision loop (max 3):
+PASSED → use `questionTemplate('plan-phase-checker-passed', 'SINGLE_CHOICE')`. ISSUES → revision loop (max 3):
 
 ```
 Task(
@@ -149,7 +149,7 @@ Checker issues: {structured_issues}. Make targeted updates, return what changed.
 )
 ```
 
-After revision → re-check, increment iteration_count. Max reached → offer force/guidance/abandon.
+After revision → re-check, increment iteration_count. Max reached → use `questionTemplate('plan-phase-checker-issues', 'SINGLE_CHOICE')`.
 
 ## 14. Present Final Status
 
