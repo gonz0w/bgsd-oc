@@ -186,7 +186,8 @@ If branches exist: offer squash merge / merge with history / delete / keep. Hand
 ```bash
 git tag -a v[X.Y] -m "v[X.Y] [Name] — [accomplishments]"
 ```
-Ask: push to remote?
+questionTemplate('complete-milestone-push'):
+- question: "Push to remote?"
 </step>
 
 <step name="git_commit_milestone">
