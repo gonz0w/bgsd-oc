@@ -9,11 +9,11 @@ See: `.planning/PROJECT.md` (updated 2026-03-17)
 
 ## Current Position
 
-**Milestone:** None (between milestones)
+**Milestone:** v15.0 (starting)
 **Phase:** N/A
 **Current Plan:** N/A
-**Status:** Ready for next milestone
-**Last Activity:** 2026-03-17
+**Status:** Defining requirements
+**Last Activity:** 2026-03-19
 
 Progress: [██████████] 100% (v14.1 complete)
 

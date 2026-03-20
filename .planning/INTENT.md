@@ -1,6 +1,6 @@
-**Revision:** 24
+**Revision:** 25
 **Created:** 2026-02-25
-**Updated:** 2026-03-17
+**Updated:** 2026-03-19
 
 <objective>
 A high-performance agent orchestration engine that maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations.
@@ -43,6 +43,13 @@ A high-performance agent orchestration engine that maximizes LLM reasoning and c
 **DO-102:** github-ci uses detect:gh-preflight — structured preflight check replaces raw gh auth status call
 **DO-103:** End-to-end validation proves the full chain — detection to enrichment to workflow behavioral change tested
 **DO-104:** Dead-weight infrastructure pruned — unused Chain B artifacts simplified or removed
+
+### v15.0 — Workflow Questioning & Decision Quality (active)
+
+**DO-105:** Question design patterns with taxonomy of question types (motivation, concreteness, clarification, success) and better option generation methodology
+**DO-106:** Multi-select vs single-select guidelines based on decision nature — when to let users pick one vs many
+**DO-107:** Curated option sets for all milestone/phase discussion workflows — every question has 3-5 thoughtful choices
+**DO-108:** Agent prompts updated to generate thoughtful options before asking — never bare open-ended questions
 </outcomes>
 
 <criteria>
@@ -75,6 +82,13 @@ A high-performance agent orchestration engine that maximizes LLM reasoning and c
 **SC-81:** github-ci workflow uses detect:gh-preflight JSON output instead of raw gh auth status
 **SC-82:** E2E test validates: mock tool_availability → enricher → workflow output contains tool-specific guidance
 **SC-83:** No orphaned decision rules — every computed decision in Chain B has at least one workflow consumer
+
+### v15.0 — Workflow Questioning & Decision Quality (active)
+
+**SC-84:** Question taxonomy documented and applied — motivation/concreteness/clarification/success types guide option generation
+**SC-85:** Multi-select vs single-select decision tree implemented — workflows follow consistent selection pattern
+**SC-86:** All milestone/phase discussion workflows have 3-5 curated options per question — zero bare open-ended questions
+**SC-87:** Agent prompts enforce option-first questioning — any question asked by an agent includes 3-5 thoughtful choices
 </criteria>
 
 <constraints>
@@ -100,6 +114,11 @@ The data layer should be invisible to users — workflows feel faster, decisions
 </health>
 
 <history>
+### v15.0 — 2026-03-19
+- **Added** outcomes: DO-105 through DO-108 for question taxonomy, multi-select guidelines, curated options, agent prompts
+- **Added** criteria: SC-84 through SC-87 for v15.0 verification
+  - Reason: Milestone v15.0 initiated — workflow questioning & decision quality improvement
+
 ### v14.1 — 2026-03-17
 - **Added** outcomes: DO-100 through DO-104 for tool-aware routing, agent guidance, gh-preflight, validation, pruning
 - **Added** criteria: SC-80 through SC-83 for v14.1 verification
@@ -147,6 +166,6 @@ The data layer should be invisible to users — workflows feel faster, decisions
 
 (See `.planning/archive/INTENT-vv12.0.md` for full history)
 </history>
-<!-- Highest outcome ID: DO-104 -->
-<!-- Highest criteria ID: SC-83 -->
+<!-- Highest outcome ID: DO-108 -->
+<!-- Highest criteria ID: SC-87 -->
 <!-- Highest outcome ID: OUT-0 -->
