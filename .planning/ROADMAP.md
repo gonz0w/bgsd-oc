@@ -41,7 +41,7 @@ v15.0 implements a question design system for workflow discussions — replacing
   4. transition.md uses question() template references — phase transition workflow unchanged
   5. verify-work.md uses question() template references — verification flow preserved
   6. execute-phase.md (checkpoint human-verify step) uses question() template references
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans executed
 
 ### Phase 143: Remaining Workflows & CLI Tools
 **Goal**: Audit remaining ~40 workflows, migrate all to templates, add questions:audit/list/validate CLI commands
@@ -60,7 +60,7 @@ v15.0 implements a question design system for workflow discussions — replacing
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 141. Taxonomy & Infrastructure | 3/3 | Complete    | 2026-03-20 |
-| 142. Primary Workflow Migration | 5/6 | In Progress|  |
+| 142. Primary Workflow Migration | 6/6 | Complete    | 2026-03-20 |
 | 143. Remaining Workflows & CLI Tools | 0/? | Not started | - |
 
 ---

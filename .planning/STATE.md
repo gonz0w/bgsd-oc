@@ -36,10 +36,10 @@ Progress: [▓▓▓▓▓▓▓░░░] 60%
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 142-primary-workflow-migration P06 | 2 min | 3 tasks | 2 files |
+| Phase 142-primary-workflow-migration P05 | 2.5 min | 3 tasks | 2 files |
+| Phase 142-primary-workflow-migration P03 | 3.5 min | 3 tasks | 2 files |
 | Phase 142-primary-workflow-migration P02 | 2 min | 3 tasks | 2 files |
-| Phase 142-primary-workflow-migration P01 | 3 min | 3 tasks | 2 files |
-| Phase 141-taxonomy-infrastructure P02 | 1 min | 1 tasks | 1 files |
-| Phase 142 P03 | 3.5 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -73,5 +73,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-20
-Stopped at: Phase 142 Plan 03 complete — plan-phase.md migrated to questionTemplate()
+Stopped at: Phase 142 Plan 06 complete — execute-phase.md checkpoint human-verify migrated to questionTemplate()
 Resume file: None
