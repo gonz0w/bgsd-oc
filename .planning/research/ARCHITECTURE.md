@@ -1,33 +1,31 @@
-# Architecture Research — Workflow Compression & Scaffold Generation Integration
+# Architecture Research
 
-**Domain:** Workflow compression round 2 and pre-computed document scaffolds for v14.0 LLM Workload Reduction  
-**Researched:** 2026-03-16  
-**Confidence:** HIGH  
-**Research mode:** Ecosystem — How new compression and scaffold features integrate with existing bGSD architecture
+**Domain:** CLI-based AI agent orchestration with question design system integration
+**Researched:** 2026-03-19
+**Confidence:** HIGH
+**Research mode:** Ecosystem — How a question taxonomy and option generation system fits into existing bGSD architecture
 
 ---
 
 <!-- section: compact -->
 <architecture_compact>
 
-**Architecture:** Layered token reduction — workflow files get section markers for selective loading, CLI generates pre-filled document scaffolds (PLAN.md, VERIFICATION.md) from deterministic data, enricher injects scaffold paths so agents write less from scratch.
+**Architecture:** Workflow-driven agent orchestration with structured question routing via taxonomy-tagged templates
 
 **Major components:**
 
 | Component | Responsibility |
 |-----------|----------------|
-| WorkflowCompressor (NEW) | Applies section markers to workflow .md files, measures token savings per workflow |
-| ScaffoldGenerator (MODIFIED misc.js) | Extends existing `util:scaffold` to generate PLAN.md and VERIFICATION.md from roadmap/phase/plan data |
-| ExtractSections (EXISTING features.js) | Already parses `<!-- section: name -->` markers — unchanged, consumed by agents and new section-loader |
-| SectionLoader (NEW lib module) | Loads workflow sections on demand based on execution step, returns subset of workflow text |
-| CommandEnricher (MODIFIED) | Adds `scaffold_available` and `scaffold_path` fields when scaffolds exist |
-| MeasureWorkflows (EXISTING features.js) | Token measurement baseline/compare — reused for compression validation |
+| `workflows/*.md` | Step sequences with `question()` calls — where questions are asked |
+| `prompts.js` | inquirer-based question primitives — MODIFY to add taxonomy + option generation |
+| `decision-rules.js` | Pure decision functions in DECISION_REGISTRY — NEW: question-type routing rules |
+| `context.js` | Agent manifests with field scoping — MODIFY: add question context fields |
 
-**Key patterns:** Section-marked workflows with selective loading, scaffold-then-fill (CLI generates data sections, LLM fills judgment), enricher pre-computation of scaffold availability
+**Key patterns:** Decision-first question routing, taxonomy-tagged question templates, manifest-driven question context injection
 
-**Anti-patterns:** Compressing workflows so aggressively that agents lose critical context, generating scaffolds with stale data (no invalidation), breaking existing section marker parsing
+**Anti-patterns:** Bare open-ended questions without options, inline question text scattered across 45 workflows, LLM generating options without taxonomy guidance
 
-**Scaling priority:** Top 10 workflows by token count — compress highest-impact workflows first (execute-phase 497L, discuss-phase 538L, new-milestone 505L, transition 519L)
+**Scaling priority:** Inline question text duplication (45 workflows × 5 questions = 225 inline texts) — centralize into `prompts.js` question templates first
 
 </architecture_compact>
 <!-- /section -->
@@ -37,71 +35,67 @@
 <!-- section: standard_architecture -->
 ## System Overview
 
-### Current Architecture (Before v14.0)
+### Current Architecture (Before v15.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Agent System Prompt                       │
+│                    Workflow Layer (workflows/*.md)             │
+│  45 markdown workflow files with <step> definitions           │
+│  question() calls embedded inline with raw question text      │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  Workflow.md  │  │   Agent.md   │  │   Skill.md   │      │
-│  │  (full file)  │  │  (full file) │  │  (on-demand) │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                 │                 │               │
-├─────────┴─────────────────┴─────────────────┴───────────────┤
-│                    <bgsd-context> JSON                       │
-│  ┌──────────┐  ┌────────────┐  ┌────────────┐              │
-│  │ Enricher │→ │ ProjectState│→ │  Decisions │              │
-│  └──────────┘  └────────────┘  └────────────┘              │
+│                    Orchestration Layer                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ orchestration │  │ decision-    │  │ context.js   │     │
+│  │ .js          │  │ rules.js     │  │ AGENT_       │     │
+│  │ Task routing │  │ DECISION_    │  │ MANIFESTS    │     │
+│  │ Model select │  │ REGISTRY(19) │  │ (9 agents)   │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
 ├─────────────────────────────────────────────────────────────┤
-│                    CLI (bgsd-tools.cjs)                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ init.js  │  │  misc.js │  │features.js│  │ verify.js│   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+│                    CLI Layer                                  │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                   prompts.js                             │   │
+│  │   inputPrompt, listPrompt, checkboxPrompt, confirm      │   │
+│  │   NO taxonomy — bare primitives only                  │   │
+│  └──────────────────────────────────────────────────────┘   │
 ├─────────────────────────────────────────────────────────────┤
-│                    Data Layer                                │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ SQLite   │  │ Markdown │  │   Git    │                  │
-│  │ (cache)  │  │ (source) │  │ (history)│                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
+│                    State / Data Layer                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                │
+│  │ STATE.md │  │ SQLite   │  │ DECISION_│                │
+│  └──────────┘  └──────────┘  │ REGISTRY  │                │
+│                               └──────────┘                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Token flow problem:** Workflows are loaded as full files into agent context. The top 10 workflows consume 4,000-8,000+ tokens each. Agents read entire workflow even when they only need the current step. Documents like PLAN.md and VERIFICATION.md are written from scratch by LLMs despite 60-80% of their content being deterministic data.
+**Problem:** Every workflow step that asks a question embeds raw question text inline. Options are generated ad-hoc by the LLM without guidance. No taxonomy means no systematic way to audit "which questions still use bare open-ended prompts?"
 
-### Target Architecture (v14.0)
+### Target Architecture (v15.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Agent System Prompt                       │
+│                    Workflow Layer (workflows/*.md)             │
+│  45 markdown files — question() calls reference taxonomy IDs │
+│  No inline question text — all questions come from prompts.js│
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ Workflow.md   │  │   Agent.md   │  │   Skill.md   │      │
-│  │ (COMPRESSED)  │  │  (unchanged) │  │  (unchanged) │      │
-│  │ - 40% smaller │  │              │  │              │      │
-│  │ - section-    │  │              │  │              │      │
-│  │   marked      │  │              │  │              │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                 │                 │               │
-│  ┌──────┴───────┐                                          │
-│  │SectionLoader │ ← Loads only needed sections per step     │
-│  └──────────────┘                                          │
+│                    Question Taxonomy Layer                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                  prompts.js (ENHANCED)                  │   │
+│  │  - Question type router (clarify/decide/prioritize/   │   │
+│  │    discover/confirm/scope)                            │   │
+│  │  - Option generation per type (3-5 thoughtful options) │   │
+│  │  - Taxonomy-tagged question templates                 │   │
+│  └──────────────────────────────────────────────────────┘   │
 ├─────────────────────────────────────────────────────────────┤
-│                    <bgsd-context> JSON                       │
-│  ┌──────────┐  ┌────────────┐  ┌────────────┐              │
-│  │ Enricher │→ │ ProjectState│→ │  Decisions │              │
-│  │(+scaffold│  └────────────┘  └────────────┘              │
-│  │  fields) │                                              │
-│  └──────────┘                                              │
+│                    Orchestration Layer (UNCHANGED)             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ orchestration │  │ decision-    │  │ context.js   │    │
+│  │ .js          │  │ rules.js     │  │              │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘    │
 ├─────────────────────────────────────────────────────────────┤
-│                    CLI (bgsd-tools.cjs)                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ init.js  │  │  misc.js │  │features.js│  │ verify.js│   │
-│  │          │  │(+scaffold│  │(existing  │  │          │   │
-│  │          │  │ generate)│  │ extract)  │  │          │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    Data Layer (unchanged)                    │
+│                    DECISION_REGISTRY (EXTENDED)               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  NEW: resolveQuestionType, resolveOptionGeneration     │   │
+│  │  +3-5 question-routing decision functions            │   │
+│  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -109,189 +103,238 @@
 
 | Component | Responsibility | Location | Status |
 |-----------|----------------|----------|--------|
-| `extractSectionsFromFile()` | Parse `<!-- section: X -->` markers, extract named sections | `src/commands/features.js:1354` | EXISTS — reuse as-is |
-| `cmdSummaryGenerate()` | Generate SUMMARY.md scaffold from plan/git data | `src/commands/misc.js:2067` | EXISTS — pattern to follow |
-| `cmdScaffold()` | Generate context/uat/verification/phase-dir scaffolds | `src/commands/misc.js:1470` | EXISTS — extend for plan + verification |
-| `measureAllWorkflows()` | Measure token counts across all workflow files | `src/commands/features.js:1489` | EXISTS — use for compression validation |
-| `enrichCommand()` | Inject `<bgsd-context>` JSON into command execution | `src/plugin/command-enricher.js:29` | MODIFY — add scaffold fields |
-| Workflow .md files | Agent instruction prompts loaded as system prompt | `workflows/*.md` (44 files) | MODIFY — compress top 10, add sections |
-| SectionLoader (new) | Load specific workflow sections by step name | `src/lib/` (new module) | NEW |
-| ScaffoldPlan (new function) | Generate PLAN.md skeleton from roadmap + phase data | `src/commands/misc.js` (extend) | NEW |
-| ScaffoldVerification (new function) | Generate VERIFICATION.md from success criteria + test results | `src/commands/misc.js` (extend) | NEW |
+| `workflows/*.md` | Step sequences, agent spawning, question references | `workflows/` (45 files) | MODIFY — replace inline text with template IDs |
+| `prompts.js` | inquirer wrappers (input, list, checkbox, confirm) | `src/lib/prompts.js` | **MODIFY — add taxonomy + option generation** |
+| `decision-rules.js` | Pure decision functions | `src/lib/decision-rules.js` | **MODIFY — add question-type routing rules** |
+| `context.js` | Agent manifests, context scoping | `src/lib/context.js` | MODIFY — add question context to manifests |
+| `orchestration.js` | Task classification, execution mode | `src/lib/orchestration.js` | NO CHANGE for v15.0 |
+| `src/commands/questions.js` | CLI for question taxonomy audit | `src/commands/` (new) | **NEW** |
+
+## Recommended Project Structure
+
+```
+src/
+├── lib/
+│   ├── prompts.js           # MODIFY: add question taxonomy + option generation
+│   ├── decision-rules.js     # MODIFY: add question-type routing rules to DECISION_REGISTRY
+│   ├── context.js            # MODIFY: add question context fields to manifests
+│   ├── orchestration.js     # NO CHANGE
+│   └── ...
+├── commands/
+│   ├── questions.js          # NEW: CLI commands for question taxonomy management
+│   └── ...
+└── ...
+
+workflows/
+├── discuss-phase.md          # MODIFY: use question taxonomy template IDs
+├── new-milestone.md         # MODIFY: use question taxonomy template IDs
+├── plan-phase.md            # MODIFY: use question taxonomy template IDs
+└── ... (45 total)
+```
+
+### Structure Rationale
+
+- **`prompts.js` as question template library:** Centralize all question templates here instead of scattering raw question text across 45 workflows. This enables reuse, consistent option generation, and systematic taxonomy enforcement.
+- **`questions.js` CLI:** Inspection/debugging commands — `questions:audit` scans workflows for taxonomy compliance, `questions:list` shows available templates.
+- **Workflows reference templates by ID:** `question(id="discover_phase_areas", type="discover", context="gray_areas")` instead of embedding raw text. The prompts.js template renderer expands this at runtime.
+- **No new agents:** Per the agent cap constraint (max 9), question intelligence is delivered as CLI data, not new agent roles.
 
 <!-- /section -->
+
+---
 
 <!-- section: patterns -->
 ## Architectural Patterns
 
-### Pattern 1: Scaffold-Then-Fill
+### Pattern 1: Question Taxonomy Routing
 
-**What:** CLI generates the deterministic 60-80% of a document (frontmatter, headers, data tables, file lists, commit logs), LLM fills only the judgment sections (accomplishments, decisions, analysis).
+**What:** Classify each question by intent type before presenting it. The taxonomy determines option generation strategy, prompt structure, and inquirer type.
 
-**When to use:** Any document where structured data is available before the LLM writes. Already proven by `summary:generate` (50%+ writing reduction).
+**When to use:** Any workflow step that asks the user to choose, prioritize, clarify, or decide.
 
-**Trade-offs:**
-- Pro: Massive token savings — LLM writes ~20-40% instead of 100%
-- Pro: Consistent document structure — no formatting drift
-- Pro: Data accuracy — git commits, file counts, timestamps are deterministic
-- Con: Must handle stale scaffolds (phase changes between scaffold and fill)
-- Con: LLM must understand TODO markers and not blindly accept them
+**Question Taxonomy (proposed for v15.0):**
 
-**Existing precedent:**
+| Type | When to Use | inquirer type | Options |
+|------|-------------|--------------|---------|
+| `clarify` | User needs to explain intent | `input` | None — freeform (but this is the anti-pattern to minimize) |
+| `decide` | Binary or fixed choice | `list` | 2-3 options + "you decide" fallback |
+| `prioritize` | Rank or select top-N | `checkbox` | Multi-select with count hint (e.g., "pick 3") |
+| `discover` | Explore possibilities | `list` | 4-6 options with "other" escape hatch |
+| `confirm` | Validate understanding | `confirm` | Yes/No only |
+| `scope` | Include/exclude scope items | `checkbox` | Checkbox multi-select |
+
+**Example question template in `prompts.js`:**
 ```javascript
-// src/commands/misc.js:2067 — cmdSummaryGenerate
-// Generates full SUMMARY.md with frontmatter, performance data, task commits,
-// file changes — LLM only fills "Accomplishments", "Key Decisions", "Patterns Established"
-const JUDGMENT_SECTIONS = {
-  'Accomplishments': 'LLM fills: what was achieved and why it matters',
-  'Key Decisions': 'LLM fills: decisions made during execution with rationale',
-  'Patterns Established': 'LLM fills: patterns created for future phases',
+// Question taxonomy router
+function routeQuestionType(decisionType, context) {
+  const routes = {
+    decide:     { inquirerType: 'list',     minOptions: 2, maxOptions: 3, includeDefault: true },
+    prioritize: { inquirerType: 'checkbox', countHint: 3, criteria: ['specific', 'ranked-by-impact'] },
+    discover:   { inquirerType: 'list',     minOptions: 4, maxOptions: 6, includeOther: true },
+    confirm:    { inquirerType: 'confirm',  },
+    scope:      { inquirerType: 'checkbox', },
+    clarify:    { inquirerType: 'input',    }, // Minimize — the problem being solved
+  };
+  return routes[decisionType] || routes.clarify;
+}
+
+// Example: question template for "discover phase areas"
+const QUESTION_TEMPLATES = {
+  discover_phase_areas: {
+    id: 'discover_phase_areas',
+    type: 'discover',
+    render: (context) => ({
+      message: `Which areas do you want to discuss for ${context.phase_name}?`,
+      options: context.gray_areas, // e.g., ['Session handling', 'Error responses', ...]
+      type: 'discover',
+    }),
+  },
+  decide_version: {
+    id: 'decide_version',
+    type: 'decide',
+    render: (context) => ({
+      message: 'What type of release is this?',
+      options: [
+        { value: 'patch', label: 'Patch — bug fixes only' },
+        { value: 'minor', label: 'Minor — new features, backward compatible' },
+        { value: 'major', label: 'Major — breaking changes' },
+      ],
+      type: 'decide',
+    }),
+  },
 };
 ```
 
-**New scaffolds follow this pattern:**
+### Pattern 2: Decision-First Question Routing
 
+**What:** Use `DECISION_REGISTRY` to pre-compute question routing before the workflow step executes. The enriched `bgsd-context` carries question taxonomy decisions.
+
+**When to use:** When the same question type recurs across multiple workflows and you want consistent option generation.
+
+**Existing precedent:** `resolvePlanExistenceRoute` routes between `needs-research`, `needs-planning`, `ready`, `blocked-deps`. New `resolveQuestionType` follows the same pattern.
+
+**Example decision function:**
 ```javascript
-// scaffold:plan — from roadmap phase data
-// Data sections: frontmatter, objective, file inventory, task skeleton
-// Judgment sections: task details, verify blocks, file paths
-
-// scaffold:verification — from success criteria + plan summaries
-// Data sections: frontmatter, phase goal, observable truth table skeleton, artifact list
-// Judgment sections: evidence, status assessments, gap analysis
+// In decision-rules.js
+function resolveQuestionType(state) {
+  const { workflow_step, decision_category } = state || {};
+  const taxonomy = {
+    'discuss-phase:present_gray_areas': 'discover',
+    'discuss-phase:discuss_areas': 'decide',
+    'new-milestone:determine_version': 'decide',
+    'new-milestone:research': 'confirm',
+    'plan-phase:validate_approach': 'decide',
+  };
+  const type = taxonomy[`${workflow_step}:${decision_category}`] ||
+               taxonomy[workflow_step] ||
+               'clarify';
+  return { value: type, confidence: 'HIGH', rule_id: 'question-type' };
+}
 ```
 
-### Pattern 2: Section-Marked Workflows with Selective Loading
+### Pattern 3: Scaffold-Then-Fill for Question Options
 
-**What:** Add `<!-- section: step_name -->` markers to workflow .md files. Agents load only the sections needed for the current execution step rather than the full workflow.
+**What:** Use CLI to pre-generate options from structured data (roadmap phases, gray areas, requirement categories) before the question is asked. Options aren't generated ad-hoc by the LLM — they come from deterministic data.
 
-**When to use:** Workflows > 200 lines where agents only need a subset per step. The existing `extractSectionsFromFile()` already handles this format.
+**When to use:** When options can be derived from project data rather than invented.
 
-**Trade-offs:**
-- Pro: 40-60% token reduction per step when only loading relevant sections
-- Pro: Zero new parsing code — reuses existing marker parser
-- Pro: Full workflow still readable by humans as a single file
-- Con: Agents must know which sections to request
-- Con: Section boundaries must be carefully chosen to remain self-contained
+**Existing precedent:** `cmdSummaryGenerate` in `misc.js` pre-builds SUMMARY.md data sections. Apply the same pattern to question options.
 
-**How it works with existing infrastructure:**
+**Example:**
+```javascript
+// Gray areas derived from phase domain analysis — not invented by LLM
+function generateGrayAreaOptions(phaseData) {
+  const domain = phaseData.domain; // e.g., "CLI tool integration"
+  return GRAY_AREA_TEMPLATES[domain] || GRAY_AREA_TEMPLATES.default;
+}
 
-```bash
-# Agent loads only the section for current step
-node bin/bgsd-tools.cjs util:extract-sections workflows/execute-plan.md parse_segments context_budget_check
-
-# Returns combined content of just those sections
-# Instead of loading all 376 lines, loads ~60 lines
+// Options come from structured data, LLM doesn't need to invent them
+const options = generateGrayAreaOptions({ domain: 'question-taxonomy', phase_name: 'v15.0' });
+// → ['Session handling', 'Error responses', 'Multi-device policy', 'Recovery flow']
 ```
 
-**Implementation:** Workflows already have `<step name="X">` tags. Adding `<!-- section: X -->` markers around each step is backward-compatible — agents loading the full file see no change. Section-aware agents can use extract-sections to load subsets.
+### Pattern 4: Workflow Section Compression (existing — note for integration)
 
-### Pattern 3: Compression Without Information Loss
+**What:** Workflows use `<!-- section:name -->` markers for selective loading. Question templates in `prompts.js` should also use section markers internally so they compress cleanly.
 
-**What:** Reduce workflow token count by eliminating redundancy, tightening prose, removing examples that overlap with skill content, and consolidating repeated patterns.
-
-**When to use:** All top 10 workflows by token count. v1.1 achieved 54.6% compression on the first 8 workflows; round 2 targets the next 10 that were skipped.
-
-**Trade-offs:**
-- Pro: Every workflow load consumes fewer tokens
-- Pro: Agents still have all instructions needed
-- Con: Must verify agents behave identically after compression
-- Con: Too-aggressive compression causes agent quality degradation
-
-**Compression techniques (proven in v1.1):**
-1. **Redundancy removal:** Instructions repeated across steps consolidated to single declaration
-2. **Prose tightening:** "You should make sure to check that X exists before doing Y" → "Check X exists before Y"
-3. **Skill extraction:** Move domain knowledge to skills (loaded on-demand), keep only workflow-specific steps
-4. **Table compression:** Convert verbose lists to tables
-5. **Example deduplication:** Remove examples that exist in referenced templates
-
-**Measurement protocol:**
-```bash
-# Before compression — baseline
-node bin/bgsd-tools.cjs util:measure baseline
-
-# After compression — compare
-node bin/bgsd-tools.cjs util:measure compare
-```
+**Integration note:** Question taxonomy does NOT add significant token overhead if templates are section-marked and loaded only when the workflow step reaches that question.
 
 <!-- /section -->
+
+---
 
 <!-- section: data_flow -->
 ## Data Flow
 
-### Scaffold Generation Flow
+### Question Presentation Flow
 
 ```
-[Roadmap Phase Data]              [Git History]              [Plan Data]
-  ↓ (roadmap:get-phase)             ↓ (structuredLog)         ↓ (parsePlan)
-  phase_goal, requirements,         commits scoped to         tasks, objective,
-  success_criteria                  phase/plan                frontmatter
-        ↓                              ↓                        ↓
-        └──────────────────┬───────────┘                        │
-                           ↓                                    │
-                    ┌──────────────┐                             │
-                    │  scaffold:*  │ ←──────────────────────────┘
-                    │  (misc.js)   │
-                    └──────┬───────┘
-                           ↓
-              ┌────────────────────────┐
-              │  {padded}-PLAN.md or   │
-              │  {padded}-VERIFICATION │
-              │  with TODO markers     │
-              └────────────────────────┘
-                           ↓
-              ┌────────────────────────┐
-              │  Enricher adds:        │
-              │  scaffold_plan_path    │
-              │  scaffold_verif_path   │
-              └────────────────────────┘
-                           ↓
-              ┌────────────────────────┐
-              │  Agent fills TODO      │
-              │  sections (20-40%      │
-              │  of document)          │
-              └────────────────────────┘
+[Workflow Step]
+    │
+    ├─→ Parse <bgsd-context> for question-relevant fields
+    │      (phase_dir, phase_name, gray_areas, etc.)
+    │
+    ├─→ Decision: resolveQuestionType({ workflow_step, decision_category })
+    │      → Returns { type: 'discover', confidence: 'HIGH', rule_id: 'question-type' }
+    │
+    ├─→ prompts.js: questionTemplate('discover_phase_areas', context)
+    │      → Returns { message, options: [...], type: 'discover' }
+    │
+    └─→ inquirer: listPrompt / checkboxPrompt / confirmPrompt
+             │
+             ├─→ CLI displays question with 4-6 options
+             │
+             └─→ User selects → answer captured
+                      │
+                      └─→ Continue to next step
 ```
 
-### Workflow Section Loading Flow
+### Option Generation Flow
 
 ```
-[Agent receives workflow .md in system prompt]
-        ↓
-[Agent identifies current step from plan progress]
-        ↓
-[Agent calls extract-sections for needed steps]
-        ↓
-[extract-sections returns section content only]
-        ↓
-[Agent executes with ~40% fewer context tokens]
+[Project Data]                    [prompts.js]              [Workflow]
+     │                                  │                        │
+     ├─→ gray_areas from phase ──────→│                        │
+     ├─→ requirements from roadmap ───→│  optionGeneration()    │
+     ├─→ phase domains ───────────────→│  → structured options  │
+     │                                  │                        │
+     │                                  │  ← render(template, ctx)│
+     │                                  │                        │
+     │                                  │  → 4-6 concrete options│
+     │                                  │                        │
+     │←─────────────────────────────── │  options passed to     │
+     │                                  │  listPrompt()          │
+     └────────────────────────────────→│                        │
+                                       │                        │
 ```
 
-### Workflow Compression Flow
+### Decision Recording Flow (for downstream agent reuse)
 
 ```
-[Existing workflow file (N tokens)]
-        ↓
-[Compression analysis: identify redundancy, verbose prose, duplicate examples]
-        ↓
-[Apply compression techniques: tighten, deduplicate, extract to skills]
-        ↓
-[Add section markers for selective loading]
-        ↓
-[Compressed workflow file (~0.6N tokens)]
-        ↓
-[Validate: measure:baseline → measure:compare to confirm 40%+ reduction]
-        ↓
-[Test: run workflow end-to-end, verify agent behavior unchanged]
+[User selects option]
+    │
+    └─→ prompts.js captures answer
+             │
+             ├─→ Workflow continues
+             │
+             └─→ recordDecision('question_answer', { question_id, answer })
+                      │
+                      └─→ DECISION_REGISTRY entry
+                               │
+                               ├─→ bgsd-context enrichment includes question decisions
+                               │
+                               └─→ Downstream agents (planner, executor) see what was decided
 ```
 
 ### Key Data Flows
 
-1. **Scaffold data sources:** ROADMAP.md → phase goal/requirements/success criteria; PLAN.md → tasks/objective (for verification scaffold); Git → commit history/diff summary (for plan scaffold); Assertions → must-have truths (for verification scaffold)
-2. **Enricher scaffold injection:** During `enrichCommand()`, check if scaffold files exist in phase dir → add `scaffold_plan: path` or `scaffold_verification: path` to `<bgsd-context>` JSON
-3. **Section loading:** Agent parses step name from plan progress → calls `util:extract-sections workflow.md step1 step2` → receives only relevant content
+1. **Question context injection:** `bgsd-context` enrichment → workflow step reads phase/plan state → options generated from structured data (not ad-hoc LLM generation)
+2. **Decision recording:** User answer → `prompts.js` → `decision-rules.js` → DECISION_REGISTRY entry → SQLite + STATE.md dual-write
+3. **Question taxonomy audit:** `questions:audit` CLI → scans all workflows → reports which use bare `inputPrompt` vs taxonomy-tagged questions
 
 <!-- /section -->
+
+---
 
 <!-- section: integration_map -->
 ## Integration Points — New vs Modified vs Unchanged
@@ -300,313 +343,260 @@ node bin/bgsd-tools.cjs util:measure compare
 
 | Component | Type | Location | Depends On | Consumed By |
 |-----------|------|----------|------------|-------------|
-| `cmdScaffoldPlan()` | CLI function | `src/commands/misc.js` | `findPhaseInternal`, `getRoadmapPhaseInternal`, `extractFrontmatter` | `plan-phase.md` workflow, planner agent |
-| `cmdScaffoldVerification()` | CLI function | `src/commands/misc.js` | `findPhaseInternal`, `parsePlans`, plan summaries, `ASSERTIONS.md` parser | `verify-work.md` workflow, verifier agent |
-| Section markers in workflows | Workflow text | `workflows/*.md` (10 files) | — | `extractSectionsFromFile()` (existing), agents |
-| `util:scaffold plan` | CLI route | `src/router.js` (new case) | `cmdScaffoldPlan` | Workflow orchestration |
-| `util:scaffold verification` | CLI route | `src/router.js` (new case) | `cmdScaffoldVerification` | Workflow orchestration |
+| Question templates | Data + functions | `src/lib/prompts.js` (new section) | `routeQuestionType`, option generation helpers | Workflows via `question()` calls |
+| `questions:audit` | CLI command | `src/commands/questions.js` | `extractSectionsFromFile`, workflow scanning | Developers debugging taxonomy compliance |
+| `questions:list` | CLI command | `src/commands/questions.js` | `QUESTION_TEMPLATES` registry | Developers discovering available templates |
+| `resolveQuestionType` | Decision function | `src/lib/decision-rules.js` | Workflow step parsing | `evaluateDecisions()` — consumed by bgsd-context |
+| `resolveOptionGeneration` | Decision function | `src/lib/decision-rules.js` | `routeQuestionType` | Option generation in `prompts.js` |
 
 ### MODIFIED Components
 
 | Component | What Changes | Why |
 |-----------|-------------|-----|
-| `src/commands/misc.js` — `cmdScaffold()` | Add `plan` and `verification` cases to switch | Extends existing scaffold command with new document types |
-| `src/router.js` | No changes needed — `scaffold` subcommand already routes to `cmdScaffold` | Existing routing handles new scaffold types automatically |
-| `src/plugin/command-enricher.js` | Add `scaffold_plan_path`, `scaffold_verification_path` fields | Agents need to know when scaffolds are available |
-| `workflows/execute-phase.md` (497L) | Compress prose, add section markers | Token reduction |
-| `workflows/discuss-phase.md` (538L) | Compress prose, add section markers | Token reduction — largest workflow |
-| `workflows/new-milestone.md` (505L) | Compress prose, add section markers | Token reduction |
-| `workflows/transition.md` (519L) | Compress prose, add section markers | Token reduction |
-| `workflows/execute-plan.md` (376L) | Add section markers, integrate scaffold references | Token reduction + scaffold awareness |
-| `workflows/plan-phase.md` (187L) | Add scaffold generation step before planner spawn | Planner receives scaffold instead of blank file |
-| `workflows/verify-work.md` (165L) | Add scaffold generation step before verifier spawn | Verifier receives scaffold instead of blank file |
-| `workflows/progress.md` (349L) | Compress prose | Token reduction |
-| `workflows/quick.md` (341L) | Compress prose, add section markers | Token reduction |
-| `workflows/map-codebase.md` (303L) | Compress prose | Token reduction |
-| `src/lib/constants.js` | Update `COMMAND_HELP` for new scaffold types | Help text for `util:scaffold plan` and `util:scaffold verification` |
+| `src/lib/prompts.js` | Add `QUESTION_TEMPLATES`, `routeQuestionType()`, `questionTemplate()`, option generation helpers, section markers | Centralize question text + add taxonomy layer |
+| `src/lib/decision-rules.js` | Add `resolveQuestionType` and `resolveOptionGeneration` to DECISION_REGISTRY | Pre-compute question routing decisions |
+| `src/lib/context.js` | Add `question_context` to relevant agent manifests (planner, phase-researcher, executor) | Downstream agents need question decisions |
+| `workflows/discuss-phase.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions — primary target |
+| `workflows/new-milestone.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions |
+| `workflows/plan-phase.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions |
+| `workflows/transition.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions |
 
 ### UNCHANGED Components
 
 | Component | Why Unchanged |
 |-----------|--------------|
-| `src/commands/features.js` — `extractSectionsFromFile()` | Already handles section markers perfectly — no changes needed |
-| `src/commands/features.js` — `measureAllWorkflows()` | Already measures token counts — used for compression validation |
-| `src/lib/context.js` — `estimateTokens()` | Token estimation unchanged |
-| `src/lib/context.js` — `AGENT_MANIFESTS` | Agent context scoping unchanged — scaffold fields are optional enrichment |
-| `src/commands/misc.js` — `cmdSummaryGenerate()` | Existing scaffold pattern — serves as implementation reference |
-| Templates (`templates/*.md`) | Templates define format; scaffolds populate instances |
+| `src/lib/orchestration.js` | Task routing and model selection unaffected by question taxonomy |
+| `src/lib/db.js` | No new SQLite tables needed — question decisions stored via existing dual-write pattern |
+| `src/commands/decisions.js` | Already handles DECISION_REGISTRY entries — new rules auto-discovered |
+| `src/plugin/command-enricher.js` | Question decisions flow through existing enricher pipeline automatically |
+| `src/router.js` | New CLI commands use existing namespace routing (`questions:*`) |
+| Templates (`templates/*.md`) | Document templates unaffected |
 | `build.cjs` | No new entry points — all code goes into existing modules |
-| Plugin tools (`src/plugin/tools/`) | LLM tools unchanged — scaffolds are CLI operations |
-| SQLite layer (`src/lib/db.js`, `planning-cache.js`) | No new tables needed — scaffolds are generated on demand |
+| `AGENTS.md` | Agent definitions unchanged — question intelligence is CLI data, not new agents |
 
 <!-- /section -->
+
+---
 
 <!-- section: build_order -->
 ## Suggested Build Order
 
-### Wave 1: Foundation (No Dependencies)
+### Wave 1: Core Infrastructure (No Dependencies)
 
-**Task 1: Workflow Compression — Top 10 Workflows**
-- Files: `workflows/*.md` (10 largest files)
-- Action: Apply proven compression techniques from v1.1
-- Verify: `util:measure baseline` before, `util:measure compare` after — target 40%+ reduction
-- Dependencies: None — pure text editing
-- Risk: Low — compression is reversible
+**Task 1: Add question taxonomy to `prompts.js`**
+- File: `src/lib/prompts.js`
+- Action: Add `QUESTION_TEMPLATES` registry, `routeQuestionType()`, `questionTemplate()`, option generation helpers
+- Pattern: Follow `cmdSummaryGenerate` pattern — templates with data/judgment separation
+- Verify: `prompts.js` exports `routeQuestionType` and `questionTemplate`
+- Dependencies: None
 
-**Task 2: Add Section Markers to Compressed Workflows**
-- Files: Same 10 workflow files from Task 1
-- Action: Wrap `<step name="X">` blocks with `<!-- section: X -->` / `<!-- /section -->` markers
-- Verify: `util:extract-sections workflow.md step_name` returns correct content
-- Dependencies: Task 1 (compress first, then add markers)
-- Risk: Low — markers are additive, no behavior change
+**Task 2: Add question routing decision functions to `decision-rules.js`**
+- File: `src/lib/decision-rules.js`
+- Action: Add `resolveQuestionType`, `resolveOptionGeneration` to DECISION_REGISTRY
+- Pattern: Follow existing decision functions (pure, state → { value, confidence, rule_id })
+- Verify: `decisions:list` shows new rules; `decisions:evaluate question-type --state '{...}'` works
+- Dependencies: None (can parallelize with Task 1)
 
-### Wave 2: Scaffold Generation (Depends on Wave 1 only for final integration)
+### Wave 2: Workflow Migration (Depends on Wave 1)
 
-**Task 3: PLAN.md Scaffold Generator**
-- Files: `src/commands/misc.js` (extend `cmdScaffold`), `src/lib/constants.js` (help text)
-- Action: Add `plan` case to scaffold switch — generates PLAN.md skeleton from roadmap phase data
-- Pattern: Follow `cmdSummaryGenerate()` implementation pattern exactly
-- Data sources: `getRoadmapPhaseInternal()` for goal/requirements, `extractFrontmatter()` for existing plan format
-- Verify: `node bin/bgsd-tools.cjs util:scaffold plan --phase 1` generates valid PLAN.md skeleton
-- Dependencies: None (can start in parallel with Wave 1)
+**Task 3: Migrate discuss-phase.md to use question taxonomy**
+- File: `workflows/discuss-phase.md`
+- Key steps to migrate:
+  - `present_gray_areas` step: 5 inline gray area options → `question(id="discover_phase_areas")`
+  - `discuss_areas` step: "More questions" / "Next area" → taxonomy-tagged options
+  - `customer_stress_test` step: "No changes" / "Revisit" → `question(id="decide_stress_outcome")`
+- Verify: Workflow behaves identically — measure before/after token count
+- Dependencies: Task 1 (templates must exist)
 
-**Task 4: VERIFICATION.md Scaffold Generator**
-- Files: `src/commands/misc.js` (extend `cmdScaffold`), `src/lib/constants.js` (help text)
-- Action: Add `verification` case to scaffold switch — generates VERIFICATION.md from success criteria
-- Data sources: ROADMAP.md success criteria, plan summaries, ASSERTIONS.md must-haves
-- Verify: `node bin/bgsd-tools.cjs util:scaffold verification --phase 1` generates valid report skeleton
-- Dependencies: None (can start in parallel with Task 3)
+**Task 4: Migrate new-milestone.md to use question taxonomy**
+- File: `workflows/new-milestone.md`
+- Key steps:
+  - `determine_version` step: inline version options → `question(id="decide_version")`
+  - `research` step: "Research first" / "Skip research" → `question(id="confirm_research")`
+  - `define_requirements` step: category scoping checkboxes → `question(id="scope_requirements")`
+- Verify: Workflow behaves identically
+- Dependencies: Task 1 (templates must exist)
 
-### Wave 3: Enricher Integration (Depends on Wave 2)
+**Task 5: Migrate remaining workflow question steps**
+- Files: `workflows/transition.md`, `workflows/plan-phase.md`, `workflows/add-phase.md`, etc.
+- Pattern: Same as Tasks 3-4
+- Dependencies: Task 1 (templates must exist)
 
-**Task 5: Enricher Scaffold Awareness**
-- Files: `src/plugin/command-enricher.js`
-- Action: Check for existing scaffold files in phase dir, add `scaffold_plan_path` and `scaffold_verification_path` to enrichment object
-- Verify: `<bgsd-context>` JSON includes scaffold paths when files exist
-- Dependencies: Tasks 3 and 4 (scaffold files must exist to test detection)
+### Wave 3: Tooling + Agent Context (Depends on Wave 1)
 
-### Wave 4: Workflow Integration (Depends on Waves 2-3)
+**Task 6: Add `questions:audit` and `questions:list` CLI commands**
+- File: `src/commands/questions.js` (new)
+- Actions:
+  - `questions:audit` — scan all workflow .md files, detect bare `question(` calls without taxonomy IDs, report findings
+  - `questions:list` — list all registered `QUESTION_TEMPLATES` with their types
+- Verify: `questions:audit` reports remaining non-taxonomied questions
+- Dependencies: Task 1 (template registry must exist)
 
-**Task 6: Update plan-phase.md to Generate Scaffold**
-- Files: `workflows/plan-phase.md`
-- Action: Add step before planner spawn that calls `util:scaffold plan` to pre-generate PLAN.md skeleton
-- Verify: `/bgsd-plan-phase` generates scaffold, planner fills judgment sections only
-- Dependencies: Task 3 (scaffold generator exists), Task 5 (enricher advertises scaffold)
-
-**Task 7: Update verify-work/execute-phase to Use Verification Scaffold**
-- Files: `workflows/verify-work.md`, `workflows/execute-phase.md`
-- Action: Add step that calls `util:scaffold verification` before verifier spawn
-- Verify: `/bgsd-verify-work` generates scaffold, verifier fills status/evidence columns
-- Dependencies: Task 4 (verification scaffold generator exists), Task 5 (enricher advertises scaffold)
+**Task 7: Add question context to agent manifests**
+- File: `src/lib/context.js`
+- Action: Add `question_decisions` to AGENT_MANIFESTS for planner, phase-researcher
+- Pattern: Follow existing manifest field addition pattern
+- Verify: `bgsd-context` JSON includes `question_decisions` for relevant agents
+- Dependencies: Task 2 (decision functions must exist)
 
 ### Dependency Graph
 
 ```
-Wave 1:  Task 1 (compress) → Task 2 (section markers)
-                                                        ↘
-Wave 2:  Task 3 (plan scaffold) ──────────────────────→ Wave 3: Task 5 (enricher)
-         Task 4 (verification scaffold) ──────────────↗           ↓
-                                                        Wave 4: Task 6 (plan workflow)
-                                                                  Task 7 (verify workflow)
+Wave 1:  Task 1 (prompts taxonomy) ──┬──→ Task 2 (decision functions)
+                                      │
+Wave 2:  Task 3 (discuss-phase) ───←─┤
+          Task 4 (new-milestone) ───←─┤
+          Task 5 (remaining workflows)←─┘
+
+Wave 3:  Task 6 (questions CLI) ────←──┐
+          Task 7 (agent manifests) ───←──┘
 ```
 
 **Parallel opportunities:**
-- Tasks 1-2 and Tasks 3-4 can run in parallel (different files, no overlap)
-- Tasks 3 and 4 can run in parallel (different scaffold types)
-- Tasks 6 and 7 can run in parallel (different workflows)
+- Tasks 1 and 2 can start in parallel (different files, same layer)
+- Tasks 3, 4, 5 can run in parallel (different workflow files)
+- Tasks 6 and 7 can start once Task 1 is complete
 
 <!-- /section -->
+
+---
 
 <!-- section: anti_patterns -->
 ## Anti-Patterns
 
-### Anti-Pattern 1: Over-Compression
+### Anti-Pattern 1: Bare Open-Ended Questions (The Problem Being Solved)
 
-**What people do:** Compress workflow prose so aggressively that agents lose critical context — removing examples, edge case handling, or decision trees.
-**Why it's wrong:** Agent quality degrades silently. The 40% target is conservative deliberately — v1.1 achieved 54.6% on easier workflows, but the remaining 10 are harder because they contain more decision logic.
-**Do this instead:** Compress redundancy and verbose prose. Preserve decision trees, edge cases, and examples that don't exist in skills/templates. Measure agent behavior with before/after test runs.
+**What people do:** Asking users to make decisions without presenting options:
+```
+question: "What do you want to build next?"
+```
 
-### Anti-Pattern 2: Stale Scaffolds
+**Why it's wrong:** Forces the user to generate options from scratch — cognitive load is high, quality varies. This is the exact anti-pattern v15.0 eliminates.
 
-**What people do:** Generate a scaffold, then change the roadmap/plan data before the LLM fills it.
-**Why it's wrong:** Scaffold contains outdated phase goals, wrong requirement IDs, or mismatched task counts. Agent writes wrong document.
-**Do this instead:** Generate scaffolds just-in-time (in the workflow step immediately before the agent uses it). Never cache scaffolds across sessions. Include a `generated_at` timestamp in scaffold frontmatter so agents can detect staleness.
+**Do this instead:**
+```
+question(id="discover_milestone_goals", type="discover", context={ previous_features })
+// prompts.js renders:
+// "What do you want to build next?"
+// Options: [Feature from research, Feature from research, Feature from research, "Something else"]
+```
 
-### Anti-Pattern 3: Breaking Section Marker Format
+### Anti-Pattern 2: Inline Question Text in Workflows
 
-**What people do:** Use non-standard markers like `<!-- SECTION: X -->` or `<!-- Section X -->` or nest markers incorrectly.
-**Why it's wrong:** `extractSectionsFromFile()` uses the regex `/<!--\s*section:\s*(.+?)\s*-->/i` — case-insensitive match on `section:` with colon. Non-standard formats silently fail. Nested markers close at the first `<!-- /section -->`.
-**Do this instead:** Use exactly `<!-- section: step_name -->` and `<!-- /section -->`. Don't nest sections. Test with `util:extract-sections file.md section_name` to verify parsing.
+**What people do:** Embedding raw question text directly in workflow markdown:
+```
+question: "Which areas do you want to discuss for [phase name]?"
+options: ["Session handling", "Error responses", "Multi-device policy", "Recovery flow"]
+```
 
-### Anti-Pattern 4: Scaffold as Source of Truth
+**Why it's wrong:** Same question text duplicated across workflows. No reuse. No taxonomy. Hard to audit which questions still need upgrading.
 
-**What people do:** Treat the scaffold as the final document — agent just commits it without filling TODO markers.
-**Why it's wrong:** TODO markers remain in committed files. Judgment sections are empty. Document looks complete but lacks analysis.
-**Do this instead:** Scaffold includes explicit `TODO:` markers that agents must replace. Verification can grep for remaining TODOs as a quality gate: `grep -c 'TODO:' file.md` should be 0 after agent fills.
+**Do this instead:** Reference a question template from `prompts.js`:
+```
+question(id="discover_phase_areas", type="discover", context="gray_areas")
+```
+
+### Anti-Pattern 3: LLM Generating Options Without Taxonomy
+
+**What people do:** Workflow instructs LLM to "generate 3-5 options" without providing a taxonomy or criteria for good options.
+
+**Why it's wrong:** LLM option quality is inconsistent. No guarantee of coverage, clarity, or appropriateness.
+
+**Do this instead:** Provide taxonomy-specific option generation guidance in `prompts.js`:
+```javascript
+const QUESTION_GUIDANCE = {
+  discover: {
+    minOptions: 4,
+    maxOptions: 6,
+    criteria: ['specific', 'mutually-exclusive', 'actionable'],
+    includeOther: true,
+  },
+  decide: {
+    minOptions: 2,
+    maxOptions: 3,
+    criteria: ['concrete', 'high-contrast', 'actionable'],
+    includeDefault: true,
+  },
+  prioritize: {
+    type: 'checkbox',
+    countHint: 3,
+    criteria: ['specific', 'ranked-by-impact'],
+  },
+};
+```
+
+### Anti-Pattern 4: Questions Without Decision Recording
+
+**What people do:** Asking for user input but not recording the decision for downstream agents.
+
+**Why it's wrong:** Downstream agents (planner, executor) can't see what was decided. Either the question gets asked again or agents make different choices.
+
+**Do this instead:** Every question that captures a decision should:
+1. Record to `DECISION_REGISTRY` via `decision-rules.js` (already handled by `evaluateDecisions`)
+2. Write to `STATE.md` under "Decisions" section
+3. Include the decision in `bgsd-context` for downstream agents
+
+### Anti-Pattern 5: Options That Are Just Labels
+
+**What people do:**
+```
+options: ["Option A", "Option B", "Option C"]
+```
+
+**Why it's wrong:** Users can't make informed decisions from unlabeled options. Options should be self-explanatory without requiring the user to remember what the question was.
+
+**Do this instead:**
+```
+options: [
+  { value: 'session', label: 'Session handling — how state persists across calls' },
+  { value: 'errors', label: 'Error responses — what happens when things fail' },
+  { value: 'multi', label: 'Multi-device policy — how state syncs across devices' },
+]
+```
 
 <!-- /section -->
+
+---
 
 <!-- section: sizing -->
 ## Sizing Estimates
 
 ### Token Impact Analysis
 
-| Target | Current Tokens (est.) | After Compression | Savings |
-|--------|----------------------|-------------------|---------|
-| Top 10 workflows (compression) | ~45,000 total | ~27,000 total | ~18,000 tokens per agent load |
-| PLAN.md scaffold (per plan) | 0 (LLM writes all) | ~800 scaffold + ~400 LLM | ~1,200 tokens per plan |
-| VERIFICATION.md scaffold (per phase) | 0 (LLM writes all) | ~600 scaffold + ~300 LLM | ~800 tokens per verification |
-| Section loading (per step) | ~3,000 (full workflow) | ~800 (2-3 sections) | ~2,200 tokens per step |
-
-**Total milestone impact:** ~20,000+ tokens saved per plan execution cycle (workflow load + document generation).
+| Target | Current State | After v15.0 | Savings |
+|--------|--------------|-------------|---------|
+| 45 workflows × avg 5 questions | ~225 inline question texts | ~225 template references (shorter) | ~2-3K tokens total |
+| Option generation | Ad-hoc LLM generation (variable) | Structured from templates (deterministic) | Consistent, auditable |
+| Question taxonomy decision routing | None | Pre-computed via DECISION_REGISTRY | ~200 tokens per question decision |
 
 ### Effort Estimates
 
 | Task | Complexity | Files | Estimated Duration |
 |------|-----------|-------|-------------------|
-| Workflow compression (10 files) | Medium — manual prose analysis | 10 workflows | 45-60 min |
-| Section markers (10 files) | Low — additive markers | 10 workflows | 20-30 min |
-| PLAN.md scaffold | Medium — follow summary:generate pattern | misc.js, constants.js | 30-45 min |
-| VERIFICATION.md scaffold | Medium — parse success criteria | misc.js, constants.js | 30-45 min |
-| Enricher scaffold fields | Low — add 2 fields | command-enricher.js | 15-20 min |
-| Workflow integration | Low — add CLI calls to workflows | plan-phase.md, verify-work.md | 20-30 min |
+| prompts.js taxonomy infrastructure | Medium — design taxonomy, template registry | `src/lib/prompts.js` | 45-60 min |
+| decision-rules.js question routing | Low — pure functions, follows existing pattern | `src/lib/decision-rules.js` | 20-30 min |
+| questions:audit + questions:list CLI | Low — scanning + listing | `src/commands/questions.js` | 30-45 min |
+| discuss-phase.md migration | Medium — 5-6 questions to migrate | `workflows/discuss-phase.md` | 20-30 min |
+| new-milestone.md migration | Medium — 4-5 questions to migrate | `workflows/new-milestone.md` | 15-20 min |
+| Remaining workflows migration | Low-Medium — per workflow | ~40 other workflows | 60-90 min total |
 
 <!-- /section -->
 
-<!-- section: scaffold_specification -->
-## Scaffold Specifications
-
-### PLAN.md Scaffold — Data Sources and Structure
-
-```markdown
----
-phase: "{padded_phase}-{phase_slug}"
-plan: "{padded_plan}"
-objective: "{from roadmap phase goal}"
-tags: []
-requirements: [{requirement IDs from roadmap}]
-must_haves:
-  truths: [{from ASSERTIONS.md or roadmap success criteria}]
-files_modified: []
 ---
 
-# Phase {phase_number} Plan {plan_number}: {objective}
-
-<objective>
-{Phase goal from ROADMAP.md}
-</objective>
-
-## Context
-
-**Phase Goal:** {from ROADMAP.md}
-**Requirements:** {IDs and descriptions from REQUIREMENTS.md}
-**Prior Research:** {reference to RESEARCH.md if exists}
-
-TODO: Add any additional context from discuss-phase decisions.
-
-## Tasks
-
-TODO: Define tasks based on requirements and research.
-Each task should follow this structure:
-
-<task id="1">
-<name>Task 1: TODO: task name</name>
-<description>TODO: what this task accomplishes</description>
-<files>TODO: list files to create or modify</files>
-<verify>TODO: how to verify task completion</verify>
-</task>
-```
-
-**Data source mapping:**
-- `phase`, `plan`, `objective` → `getRoadmapPhaseInternal(cwd, phase)` → `.goal`, `.phase_number`
-- `requirements` → Parse ROADMAP.md phase block for `Requirements:` line
-- `must_haves.truths` → Parse `ASSERTIONS.md` for this phase's requirements (if exists)
-- `Phase Goal`, `Requirements` section → Same roadmap data
-- `Prior Research` → Check for `{padded_phase}-RESEARCH.md` existence
-
-### VERIFICATION.md Scaffold — Data Sources and Structure
-
-```markdown
----
-phase: "{padded_phase}-{phase_name}"
-verified: TODO: timestamp
-status: TODO: passed | gaps_found | human_needed
-score: TODO: N/M must-haves verified
----
-
-# Phase {phase_number}: {phase_name} Verification Report
-
-**Phase Goal:** {goal from ROADMAP.md}
-**Verified:** TODO: timestamp
-**Status:** TODO
-
-## Goal Achievement
-
-### Observable Truths
-
-| # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-{for each truth from must_haves/assertions:}
-| {n} | {truth text} | TODO | TODO |
-
-**Score:** TODO: N/{total_truths} truths verified
-
-### Required Artifacts
-
-| Artifact | Expected | Status | Details |
-|----------|----------|--------|---------|
-{for each file from plan summaries:}
-| `{file_path}` | {description from task} | TODO | TODO |
-
-### Key Link Verification
-
-TODO: Identify and verify key connections between components.
-
-## Requirements Coverage
-
-| Requirement | Status | Blocking Issue |
-|-------------|--------|----------------|
-{for each requirement mapped to phase:}
-| {REQ-ID}: {description} | TODO | TODO |
-
-## Test Results
-
-TODO: Run test suite and record results.
-```
-
-**Data source mapping:**
-- `phase`, `phase_name`, `Phase Goal` → `getRoadmapPhaseInternal(cwd, phase)`
-- `Observable Truths` rows → Parse `ASSERTIONS.md` must-haves for this phase's requirement IDs; fallback to ROADMAP.md success criteria
-- `Required Artifacts` rows → Parse completed plan SUMMARYs for `key-files.created` and `key-files.modified`
-- `Requirements Coverage` rows → Parse ROADMAP.md phase block for `Requirements:` IDs, cross-reference `REQUIREMENTS.md` for descriptions
-
-<!-- /section -->
-
-<!-- section: risks -->
-## Risks and Mitigations
-
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| Workflow compression degrades agent behavior | HIGH | Measure with baseline/compare, test workflows end-to-end after compression |
-| Section markers break existing workflow loading | MEDIUM | Markers are additive — agents loading full file see no change; only section-aware agents use markers |
-| Scaffold data stale by time agent uses it | MEDIUM | Generate just-in-time in workflow step immediately before use; never cache |
-| `extractSectionsFromFile()` edge cases with new markers | LOW | Extensive existing test coverage; add tests for each compressed workflow |
-| Enricher performance impact from scaffold file checks | LOW | Single `existsSync` per scaffold type — negligible I/O cost |
-| New scaffold types conflict with existing `cmdScaffold` switch | LOW | Additive cases to existing switch — no modification of existing paths |
-
-<!-- /section -->
-
+<!-- section: sources -->
 ## Sources
 
-- `src/commands/misc.js:2067` — `cmdSummaryGenerate()` scaffold-then-fill pattern (verified in codebase, HIGH confidence)
-- `src/commands/features.js:1354` — `extractSectionsFromFile()` section marker parser (verified in codebase, HIGH confidence)
-- `src/commands/features.js:1489` — `measureAllWorkflows()` token measurement (verified in codebase, HIGH confidence)
-- `src/plugin/command-enricher.js:29` — `enrichCommand()` context injection (verified in codebase, HIGH confidence)
-- `src/commands/misc.js:1470` — `cmdScaffold()` existing scaffold generator (verified in codebase, HIGH confidence)
-- `workflows/*.md` — Workflow file sizes via `wc -l` (measured directly, HIGH confidence)
-- v1.1 compression results — 54.6% average reduction on first 8 workflows (from PROJECT.md, HIGH confidence)
-- v11.3 summary:generate — 50%+ LLM writing reduction (from PROJECT.md, HIGH confidence)
+- `src/lib/prompts.js` — Existing inquirer wrapper primitives (verified in codebase, HIGH confidence)
+- `src/lib/decision-rules.js` — DECISION_REGISTRY with 19 existing pure decision functions (verified in codebase, HIGH confidence)
+- `src/lib/context.js` — AGENT_MANIFESTS with field scoping (verified in codebase, HIGH confidence)
+- `workflows/discuss-phase.md` — 538-line workflow with inline question text (verified in filesystem, HIGH confidence)
+- `workflows/new-milestone.md` — 275-line workflow with inline question text (verified in filesystem, HIGH confidence)
+- [Azure AI Agent Design Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) — Orchestration patterns (sequential, parallel, multi-agent), HIGH confidence
+- [Screech 120-Agent Architecture](https://www.decodingai.com/p/scaling-120-ai-agents-two-tier-orchestration) — Two-tier orchestration (conductor + specialists), routing before expensive calls, MEDIUM confidence
+- [Anthropic Prompt Engineering Guide](https://docs.anthropic.com/claude/docs/introduction-to-prompt-engineering) — Option generation guidance, few-shot examples, HIGH confidence
+- [Google Cloud Prompt Engineering](https://cloud.google.com/discover/what-is-prompt-engineering) — Prompt structure and role engineering, MEDIUM confidence
 
 ---
-*Architecture research for: v14.0 LLM Workload Reduction — Workflow Compression & Scaffold Generation*  
-*Researched: 2026-03-16*
+*Architecture research for: v15.0 Workflow Questioning & Decision Quality — question design system integration*
+*Researched: 2026-03-19*

@@ -8,9 +8,15 @@ A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, pr
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: Next
+## Current Milestone: v15.0 Workflow Questioning & Decision Quality
 
-No active milestone. v14.1 shipped 2026-03-17.
+**Goal:** Ensure all workflow discussions provide clear, thoughtful multiple-choice options rather than bare open-ended questions — improving agent decision quality and user experience.
+
+**Target features:**
+- Question design patterns with better option generation, taxonomy of question types
+- Multi-select vs single-select guidelines based on decision nature
+- Curated option sets for all milestone/phase discussion workflows
+- Agent prompts updated to always generate 3-5 thoughtful options before asking
 
 ## Current State
 

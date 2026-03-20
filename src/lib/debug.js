@@ -268,23 +268,32 @@ function inspectState() {
  */
 function inspectPhase(phaseNum) {
   const phaseDir = path.join(process.cwd(), '.planning', 'phases');
-  const phaseStr = String(phaseNum).padStart(2, '0');
-  
-  // Find phase directory
+  const normalized = String(phaseNum).replace(/^0+/, '') || '0';
+
+  // Find phase directory using normalized comparison
   let targetDir = null;
   try {
-    const dirs = fs.readdirSync(phaseDir);
-    targetDir = dirs.find(d => d.startsWith(phaseStr + '-'));
+    const entries = fs.readdirSync(phaseDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+      if (dirPhaseNum === normalized) {
+        targetDir = entry.name;
+        break;
+      }
+    }
   } catch (e) {
     return null;
   }
-  
+
   if (!targetDir) {
     return null;
   }
-  
+
   const phasePath = path.join(phaseDir, targetDir);
-  const contextPath = path.join(phasePath, phaseStr + '-CONTEXT.md');
+  const contextPath = path.join(phasePath, normalized + '-CONTEXT.md');
   
   if (!fs.existsSync(contextPath)) {
     return { path: phasePath, exists: true, hasContext: false };
@@ -324,25 +333,36 @@ function inspectRoadmap() {
  */
 function inspectPlans(phaseNum) {
   const phaseDir = path.join(process.cwd(), '.planning', 'phases');
-  const phaseStr = String(phaseNum).padStart(2, '0');
-  
+  const normalized = String(phaseNum).replace(/^0+/, '') || '0';
+
+  // Find phase directory using normalized comparison
+  let targetDir = null;
   try {
-    const dirs = fs.readdirSync(phaseDir);
-    const targetDir = dirs.find(d => d.startsWith(phaseStr + '-'));
-    
-    if (!targetDir) {
-      return [];
+    const entries = fs.readdirSync(phaseDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+      if (dirPhaseNum === normalized) {
+        targetDir = entry.name;
+        break;
+      }
     }
-    
-    const plansPath = path.join(phaseDir, targetDir);
-    const files = fs.readdirSync(plansPath);
-    
-    return files
-      .filter(f => f.endsWith('-PLAN.md'))
-      .sort();
   } catch (e) {
     return [];
   }
+
+  if (!targetDir) {
+    return [];
+  }
+
+  const plansPath = path.join(phaseDir, targetDir);
+  const files = fs.readdirSync(plansPath);
+
+  return files
+    .filter(f => f.endsWith('-PLAN.md'))
+    .sort();
 }
 
 // ─── Debug Flag Integration ─────────────────────────────────────────────────

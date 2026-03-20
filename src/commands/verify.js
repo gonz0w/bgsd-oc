@@ -1085,20 +1085,23 @@ function cmdVerifyRequirements(cwd, options, raw) {
     const traceEntry = traceMap[req.id];
     const phase = traceEntry ? traceEntry.phase : null;
     if (phase) {
-      const phasePadded = phase.padStart(2, '0');
+      const normalizedPhase = String(phase).replace(/^0+/, '') || '0';
       const phasesDir = path.join(cwd, '.planning', 'phases');
       let hasSummaries = false;
 
       try {
         const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
         for (const entry of entries) {
-          if (entry.isDirectory() && entry.name.startsWith(phasePadded)) {
-            const phaseFiles = fs.readdirSync(path.join(phasesDir, entry.name));
-            if (phaseFiles.some(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md')) {
-              hasSummaries = true;
-            }
-            break;
+          if (!entry.isDirectory()) continue;
+          const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+          if (!dirMatch) continue;
+          const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+          if (dirPhaseNum !== normalizedPhase) continue;
+          const phaseFiles = fs.readdirSync(path.join(phasesDir, entry.name));
+          if (phaseFiles.some(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md')) {
+            hasSummaries = true;
           }
+          break;
         }
       } catch (e) {
         debugLog('verify.requirements', 'readdir failed', e);

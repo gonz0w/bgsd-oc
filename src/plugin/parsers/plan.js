@@ -298,16 +298,22 @@ export function parsePlans(phaseNum, cwd) {
     return _plansCache.get(cacheKey);
   }
 
-  const numStr = String(phaseNum).padStart(2, '0');
+  const normalized = String(phaseNum).replace(/^0+/, '') || '0';
   const phasesDir = join(resolvedCwd, '.planning', 'phases');
 
-  // Find phase directory
+  // Find phase directory using normalized comparison to handle variable-length zero-padding
   let phaseDir = null;
   try {
-    const entries = readdirSync(phasesDir);
-    const dirName = entries.find(d => d.startsWith(numStr + '-') || d === numStr);
-    if (dirName) {
-      phaseDir = join(phasesDir, dirName);
+    const entries = readdirSync(phasesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+      if (dirPhaseNum === normalized) {
+        phaseDir = join(phasesDir, entry.name);
+        break;
+      }
     }
   } catch {
     return Object.freeze([]);

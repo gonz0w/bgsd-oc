@@ -235,6 +235,34 @@ function normalizePhaseName(phase) {
   return parts.length > 1 ? `${padded}.${parts[1]}` : padded;
 }
 
+/**
+ * Find a phase directory by phase number using normalized comparison.
+ * This handles variable-length zero-padding in directory names (e.g., "67", "0067", "0114").
+ *
+ * @param {string} phasesDir - Path to the phases directory
+ * @param {number|string} phaseNum - Phase number to find
+ * @returns {string|null} The matching directory name, or null if not found
+ */
+function findPhaseDirByNumber(phasesDir, phaseNum) {
+  const normalized = normalizePhaseName(String(phaseNum));
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(PHASE_DIR_NUMBER);
+      if (!dirMatch) continue;
+      const dirPhaseNumber = dirMatch[1];
+      const dirNormalized = normalizePhaseName(dirPhaseNumber);
+      if (dirNormalized === normalized) {
+        return entry.name;
+      }
+    }
+  } catch {
+    // Directory scan failed
+  }
+  return null;
+}
+
 // ─── Must-Haves Block Parser ─────────────────────────────────────────────────
 
 function parseMustHavesBlock(content, blockName) {

@@ -10,6 +10,8 @@
 
 let inquirer;
 
+const { getQuestionTemplate, generateRuntimeOptions, OPTION_RULES, TAXONOMY } = require('./questions');
+
 /**
  * Check if defaults mode is enabled (--defaults flag passed)
  */
@@ -304,6 +306,58 @@ function isAbortError(error) {
          error.message?.includes('aborted');
 }
 
+// =============================================================================
+// Question Template Integration
+// =============================================================================
+
+/**
+ * Get options from a question template, with runtime fallback.
+ * Templates provide OPTIONS ONLY — question text stays in workflow.
+ * 
+ * @param {string} id - Template ID to look up
+ * @param {string} type - Question type (TAXONOMY value)
+ * @param {Object} [context={}] - Context with optional tone parameter
+ * @param {string} [context.tone] - 'formal' or 'casual' for tone-adjusted wording
+ * @returns {Object} { templateId, options, typeHint, escapeHatch }
+ */
+function questionTemplate(id, type, context = {}) {
+  const template = getQuestionTemplate(id, context);
+  
+  if (template) {
+    // Template found - use its options
+    return {
+      templateId: id,
+      options: template.options,
+      typeHint: template.typeHint || getTypeHint(type),
+      escapeHatch: OPTION_RULES.ESCAPE_HATCH
+    };
+  }
+  
+  // Template not found - generate runtime options
+  const options = generateRuntimeOptions(type, context);
+  return {
+    templateId: id,
+    options,
+    typeHint: getTypeHint(type),
+    escapeHatch: OPTION_RULES.ESCAPE_HATCH
+  };
+}
+
+/**
+ * Derive user-facing type hint from question type.
+ * @param {string} type - TAXONOMY value
+ * @returns {string} User-facing hint string
+ */
+function getTypeHint(type) {
+  if (type === TAXONOMY.SINGLE_CHOICE || type === TAXONOMY.BINARY) {
+    return 'Pick one';
+  }
+  if (type === TAXONOMY.MULTI_CHOICE) {
+    return 'Select all that apply';
+  }
+  return '';
+}
+
 module.exports = {
   // Core prompt functions
   inputPrompt,
@@ -317,6 +371,7 @@ module.exports = {
   createPhaseSelectionPrompt,
   createPlanSelectionPrompt,
   createConfirmActionPrompt,
+  questionTemplate,
   
   // Utilities
   promptWithDefaults,

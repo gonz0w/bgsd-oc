@@ -1,9 +1,9 @@
 # Project Research Summary
 
-**Project:** bGSD Plugin v14.0 — LLM Workload Reduction
-**Domain:** Token optimization for AI agent orchestration — workflow compression, pre-computed document scaffolds, section-level loading
-**Researched:** 2026-03-16
-**Confidence:** HIGH (all recommendations validated against existing codebase infrastructure — zero new dependencies, proven patterns from v1.1 compression and v11.3 scaffold-then-fill)
+**Project:** Question Design Systems for AI Agents
+**Domain:** CLI-based AI agent orchestration with question design system integration
+**Researched:** 2026-03-19
+**Confidence:** HIGH
 
 <!-- section: compact -->
 <compact_summary>
@@ -11,38 +11,38 @@
      Keep it under 30 lines. Synthesizes all 4 research areas.
      Full sections below are loaded on-demand via extract-sections. -->
 
-**Summary:** v14.0 reduces LLM context consumption through three complementary strategies: workflow compression round 2 (top 10 workflows, 40%+ token reduction), pre-computed document scaffolds for PLAN.md and VERIFICATION.md (CLI generates 50-70% of content, LLM fills only judgment sections), and section-level workflow loading via `<!-- section: -->` markers (agents load per-step, not whole file). Zero new dependencies — all work uses existing modules (extractSectionsFromFile, cmdSummaryGenerate, estimateTokens, enricher pipeline). Total impact: ~20,000+ tokens saved per plan execution cycle.
+**Summary:** Research confirms v15.0 should implement a question taxonomy + option generation system in `prompts.js` using structured data (no external libraries). The core gap is option generation quality — current workflows rely on ad-hoc LLM generation without taxonomy guidance. The solution: taxonomy-tagged question templates in `prompts.js`, decision routing via `DECISION_REGISTRY`, and workflow migration from inline question text to template references.
 
-**Recommended stack:** tokenx (bundled BPE measurement), extractSectionsFromFile (section markers), cmdSummaryGenerate pattern (scaffold-then-fill), estimateTokens (compression validation), node:sqlite PlanningCache (scaffold data), esbuild (unchanged build pipeline)
+**Recommended stack:** Structured question templates (data, no lib), Question taxonomy enum (data), Option generation rules (data + prompting), prompts.js inquirer wrappers (modify)
 
-**Architecture:** Layered token reduction — workflow files get section markers + prose compression (40%+), misc.js gains `cmdScaffoldPlan()` and `cmdScaffoldVerification()` following the summary:generate pattern, enricher adds scaffold_path fields, agents write 20-40% instead of 100% of documents
+**Architecture:** Workflow-driven agent orchestration with taxonomy-tagged question routing via centralized templates in `prompts.js` and pre-computed routing decisions in `DECISION_REGISTRY`.
 
 **Top pitfalls:**
-1. **Semantic anchor loss** — preserve all Task() calls, step names, branch markers during compression; run automated structural diff before/after
-2. **Scaffold/LLM boundary bleed** — define rigid section manifests (CLI fills data, LLM fills judgment); follow summary:generate JUDGMENT_SECTIONS pattern exactly
-3. **Compression regression** — add compression markers to workflow headers; build structural contract tests before round 2 begins
-4. **Orphan context from section loading** — sections must be self-contained; audit cross-section dependencies before implementing extraction
-5. **Diminishing returns on v1.1 workflows** — set per-workflow targets (40-60% fresh, 15-25% already-compressed); section loading provides the bigger win
+1. Vague open-ended questions — Always add goal+context+options (Phase 1)
+2. Option cueing bias — Formatting parity across all options (Phase 1)
+3. Poor distractor quality — Wrong answers must be plausible to non-experts (Phase 1)
+4. No question taxonomy — Single-select vs multi-select based on decision type (Phase 1)
+5. Leading/biased framing — Neutral language; don't embed assumptions (Phase 1)
 
 **Suggested phases:**
-1. **Compression Infrastructure & Baseline** — measurement tooling, structural contract tests, compression markers; prerequisite for safe compression work
-2. **Workflow Compression Round 2** — top 10 workflows compressed + section markers added; 40%+ average reduction verified
-3. **Scaffold Infrastructure & PLAN.md Generation** — unified scaffold interface, cmdScaffoldPlan following summary:generate pattern; 60%+ PLAN.md pre-fill
-4. **VERIFICATION.md Scaffold & Enricher Integration** — cmdScaffoldVerification, enricher scaffold_path fields, workflow integration
-5. **Section-Level Loading & Validation** — section-aware workflow loading in command-enricher, end-to-end validation of all compression + scaffold savings
+1. **Phase 1: Taxonomy & Infrastructure** — Define question taxonomy, option generation rules, prompts.js infrastructure, decision routing functions
+2. **Phase 2: Workflow Migration** — Migrate discuss-phase.md, new-milestone.md, plan-phase.md to use taxonomy template references
+3. **Phase 3: Remaining Workflows & CLI Tools** — Migrate remaining ~40 workflows, add `questions:audit` and `questions:list` CLI commands
 
-**Confidence:** HIGH across all 4 research areas | **Gaps:** Behavioral equivalence testing for compressed workflows requires parallel execution (expensive, non-deterministic); section-level loading integration point in command-enricher.js is medium risk (changes how workflows are injected)
+**Confidence:** HIGH | **Gaps:** Option generation at runtime is an open research problem — hybrid Phase 1 (pre-authored) + Phase 2 (structured generation) approach is pragmatic
 </compact_summary>
 <!-- /section -->
 
 <!-- section: executive_summary -->
 ## Executive Summary
 
-v14.0 shifts administrative writing work from LLM reasoning to deterministic CLI operations. The milestone targets three complementary token reduction strategies that compound: workflow prose compression (reducing what goes into context), document scaffolds (reducing what the LLM writes from scratch), and section-level loading (loading only what's needed per step). Together these deliver ~20,000+ tokens saved per plan execution cycle without requiring any new npm dependencies.
+This research confirms that bGSD v15.0 should implement a question design system using **no external libraries** — all patterns as structured data in the existing `bin/bgsd-tools.cjs` architecture. The core problem: current workflows scatter raw question text across 45 markdown files with ad-hoc option generation by LLMs, producing inconsistent question quality and no systematic way to audit or improve.
 
-Research confirms the approach is architecturally sound — every component builds on proven infrastructure. The v1.1 compression round achieved 54.6% average reduction across 8 workflows; round 2 targets the remaining high-traffic workflows using the same techniques plus section markers. The v11.3 `summary:generate` command proved the scaffold-then-fill pattern (50%+ LLM writing reduction); extending it to PLAN.md and VERIFICATION.md follows the identical code pattern in `misc.js`. The `extractSectionsFromFile()` function already parses `<!-- section: -->` markers — section-level loading consumes this existing API.
+The recommended approach centers on a **question taxonomy** (clarify, decide, prioritize, discover, confirm, scope) that drives option generation strategy, and a **template centralization** pattern where `prompts.js` becomes the single source for all question templates. Workflows reference templates by ID rather than embedding inline text.
 
-The primary risk is compression quality: over-compressed workflows lose behavioral anchors that LLMs rely on (Task() calls, conditional branches, XML tags). v1.1 experienced this directly — Task() calls were dropped from verify-work.md (3→0) and plan-phase.md (5→3) during compression and had to be restored. Round 2 mitigates this by establishing structural contract tests and compression markers *before* starting compression work, not after. The secondary risk is scaffold/LLM boundary bleed — scaffolds that generate content requiring judgment produce plausible but wrong output. The `JUDGMENT_SECTIONS` pattern from `summary:generate` is the proven solution.
+The primary architectural pattern is **Decision-First Question Routing** — use `DECISION_REGISTRY` to pre-compute question type before workflow execution, enriching `bgsd-context` with taxonomy decisions that downstream agents can reference. This follows the existing `resolvePlanExistenceRoute` pattern and extends it to question classification.
+
+Key risks: Option generation at runtime is an open research problem (no libraries exist); the pragmatic solution is hybrid pre-authored options for common workflows + structured generation rules for novel contexts.
 <!-- /section -->
 
 <!-- section: key_findings -->
@@ -50,66 +50,56 @@ The primary risk is compression quality: over-compressed workflows lose behavior
 
 ### Recommended Stack
 
-Zero new dependencies. All work uses existing bundled modules and follows established patterns.
+The stack is entirely **data + prompting** — no external dependencies. All patterns live in `src/lib/prompts.js` and `src/lib/decision-rules.js` following existing DECISION_REGISTRY conventions.
 
 **Core technologies:**
-- **tokenx (bundled)**: BPE token measurement for before/after compression proof — already integrated in `context.js`, ~4.5KB, ~96% accuracy
-- **extractSectionsFromFile (features.js)**: Section-level workflow loading via `<!-- section: name -->` markers — already tested and exported since v1.1
-- **cmdSummaryGenerate (misc.js)**: Scaffold-then-fill blueprint — extend same pattern to PLAN.md and VERIFICATION.md scaffolds
-- **node:sqlite PlanningCache**: Cache pre-computed scaffold data for cross-invocation reuse — already in use via `planning-cache.js`
-- **estimateTokens (context.js)**: Per-workflow token counting for compression measurement and regression detection
-
-**What NOT to use:**
-- Template engines (Mustache/Handlebars/EJS) — adds dependency; string interpolation sufficient
-- Markdown AST parsers (remark/unified) — 200KB+ dependency; regex-based section extraction already works
-- LLM-based prompt compression (LLMLingua/CompactPrompt) — adds latency, non-deterministic, risk of semantic drift
-- External compression libraries (gzip/brotli) — wrong kind of compression; we need semantic token reduction
-- New workflow format (YAML/JSON) — workflows are Markdown prompts consumed by LLMs; changing format breaks agent architecture
+- **Structured question templates** (data, no lib): Pre-authored option sets per discussion context in `prompts.js` — zero dependency, version-controllable
+- **Question taxonomy enum** (data, no lib): Classifies question types — BINARY, SINGLE_CHOICE, MULTI_CHOICE, RANKING, FILTERING, EXPLORATION, CLARIFICATION
+- **Option generation rules** (data + prompting): Constraints for runtime generation — MIN 3, MAX 5, diversity across certainty/scope/approach/priority dimensions
+- **prompts.js inquirer wrappers** (existing, modify): Centralize question templates here instead of scattering raw text across 45 workflows
 
 ### Expected Features
 
-**Must have — v14.0 launch (P1):**
-- **Workflow compression round 2** — top 10 workflows by token count (discuss-phase ~5,100, execute-phase ~4,900, new-milestone ~4,700, execute-plan ~4,200, transition ~3,000, new-project ~2,800, audit-milestone ~2,700, quick ~2,500, resume-project ~2,200, map-codebase ~2,100) reduced by 40%+ average. Techniques: redundancy removal, prose tightening, shared block extraction, table/XML conversion
-- **Pre-computed PLAN.md scaffolds** — `util:scaffold plan --populate <phase>` generates PLAN.md skeleton with frontmatter, objective, task structure, requirement links from roadmap/requirements data. LLM fills only task descriptions and verification criteria. Estimated: 40-60% of planner writing work eliminated
-- **Pre-computed VERIFICATION.md scaffolds** — `util:scaffold verification --populate <phase>` generates verification report with observable truths, artifact tables, requirement mapping from PLAN.md data. LLM fills only status, evidence, gap analysis. Estimated: 50-70% of verifier writing work eliminated
-- **Section-level workflow loading** — `<!-- section: step_name -->` markers added to all top 10 workflows; orchestrator loads per-step instead of whole file. Reuses existing `extractSectionsFromFile()` API
-- **Baseline measurement with regression detection** — `util:baseline measure --sections` captures per-section token counts; `util:baseline compare --check` fails on >10% regression
+**Must have (table stakes):**
+- Single-select vs multi-select distinction — different question types require different option semantics
+- 3-5 options enforcement — agent prompts updated to always generate 3-5 thoughtful options first
+- Parallel structure rule — options must match in grammar, length, specificity
+- Plausible distractor generation — wrong answers must be believable to someone with partial knowledge
+- Escalation option — every question set includes "Something else / None of the above" escape hatch
+- Mutual exclusivity signal — "Pick one" vs "Select all that apply" explicit in question phrasing
 
-**Should have — v14.0 later phases (P2):**
-- **Conditional step elision** — execute-plan.md steps gated by `<bgsd-context>` decisions (TDD, review, deviation-capture conditionally excluded). 30-50% per-invocation savings
-- **Reference deduplication** — deviation rules, commit protocol, checkpoint protocol extracted to skills; 5+ workflows use `<skill:X />` instead of inline content
-- **Step-level CLI pre-computation** — resume-project diagnostics, new-milestone phase detection replaced by enricher fields
+**Should have (competitive differentiators):**
+- Workflow-specific option taxonomies — milestone vs phase vs plan discussions have distinct decision types
+- Consequence-framed options — each choice shows its outcome trade-off
+- Option difficulty calibration — options vary in commitment/risk level
 
-**Defer — v15+ (P3):**
-- Workflow-level caching (serve cached workflow when context unchanged)
-- Model-aware section selection (fewer sections for more capable models)
-- Dynamic context budgeting (compress more when context window is tight)
-- Workflow DAG execution (parallel steps — blocked by synchronous architecture)
+**Defer (v2+):**
+- Option generation with user history — personalized options based on past decisions
+- Dynamic option count — adaptive number based on decision complexity
+- Option quality scoring — automated evaluation of distractor plausibility
 
 ### Architecture Approach
 
-Layered token reduction with three independent but compounding strategies. Workflow files get section markers for selective loading and prose compression for reduced size. CLI generates pre-filled document scaffolds (PLAN.md, VERIFICATION.md) from deterministic data sources (ROADMAP.md, REQUIREMENTS.md, git history). The enricher injects scaffold paths so agents know when pre-built scaffolds are available.
+The architecture adds a **Question Taxonomy Layer** between workflow execution and the CLI prompts. Workflows (`workflows/*.md`) replace inline question text with `question(id, type, context)` references. `prompts.js` becomes the template library with `routeQuestionType()` and `questionTemplate()` functions. `DECISION_REGISTRY` gains `resolveQuestionType` and `resolveOptionGeneration` decision functions for pre-computed routing.
 
 **Major components:**
-1. **Compressed Workflows (MODIFIED, 10 files)** — prose tightened, redundancy removed, section markers added; 40%+ token reduction measured with tokenx
-2. **ScaffoldPlan (NEW function in misc.js)** — generates PLAN.md skeleton from roadmap phase data following `cmdSummaryGenerate()` pattern; pre-fills frontmatter, objective, task structure, requirement links
-3. **ScaffoldVerification (NEW function in misc.js)** — generates VERIFICATION.md from success criteria + test results; pre-fills observable truths table, artifact list, requirement mapping
-4. **SectionLoader integration (MODIFIED command-enricher.js)** — adds section-filtering logic for workflow loading; adds `scaffold_plan_path` and `scaffold_verification_path` enricher fields
-5. **Measurement tooling (EXISTING features.js)** — `measureAllWorkflows()` and `estimateTokens()` used for compression validation and regression detection
-
-**Build order:** Compression infrastructure (baseline + markers) → Workflow compression (10 files) → Scaffold infrastructure (plan + verification generators) → Enricher integration (scaffold fields) → Workflow integration (plan-phase.md, verify-work.md use scaffolds) → Section loading → Validation
+1. `workflows/*.md` — Step sequences with `question()` calls referencing taxonomy IDs (MODIFY — replace inline text)
+2. `src/lib/prompts.js` — Question template library with taxonomy routing and option generation (MODIFY — add taxonomy + generation)
+3. `src/lib/decision-rules.js` — Pure decision functions including question-type routing rules (MODIFY — add routing rules)
+4. `src/lib/context.js` — Agent manifests with question context fields (MODIFY — add question context)
+5. `src/commands/questions.js` — CLI commands for taxonomy audit and template listing (NEW)
 
 ### Critical Pitfalls
 
-1. **Semantic anchor loss during compression** — LLMs use Task() blocks, step numbering, conditional branches, and XML tags as behavioral anchors. v1.1 caught Task() calls dropped from verify-work.md (3→0) and plan-phase.md (5→3). Prevention: build automated structural inventory before compressing (count Task(), steps, branches per workflow); run structural diff before committing.
+1. **Vague open-ended questions** — Always add goal+context+options. Apply the QuestionCraft formula: goal clarity + relevant context + cognitive level + specificity + actionability.
 
-2. **Scaffold/LLM boundary bleed** — scaffolds that generate judgment content produce plausible but wrong output; scaffolds that leave data sections empty waste LLM tokens. Prevention: every scaffold type needs an explicit section manifest declaring each section as `data` (CLI fills) or `judgment` (LLM fills). Follow `JUDGMENT_SECTIONS` pattern from `cmdSummaryGenerate()`.
+2. **Option cueing bias** — Correct answer gets longest/detailed option. Apply formatting parity: all options same length, same grammatical structure, same level of detail.
 
-3. **Compression regression without detection** — compressed workflows are fragile; every remaining line is load-bearing. Future edits can silently break behavior. Prevention: add compression markers in workflow headers (`<!-- compressed: v2 | anchors: N steps, M Task(), K branches -->`); add `workflow:lint` structural verification to CI.
+3. **Poor distractor quality** — Wrong options are obviously wrong. Distractors must be plausible to someone with partial knowledge; use common misconceptions, not random errors.
 
-4. **Orphan context from section loading** — sections extracted from sequential workflows lose preceding context. "Use the route from Step 3" fails when Step 3 wasn't loaded. Prevention: each loadable section must be self-contained; audit cross-section dependencies; add `depends_on` metadata if needed.
+4. **No question taxonomy** — Single-select vs multi-select used interchangeably. Define and enforce taxonomy: single-select (mutually exclusive), multi-select (any combination valid), ranked (order matters).
 
-5. **Diminishing returns on already-compressed workflows** — 8 of top 10 were already compressed 54.6% in v1.1. Another 40% on dense content either fails or over-compresses. Prevention: set per-workflow targets (40-60% for uncompressed discuss-phase/transition, 15-25% for v1.1-compressed); combine with section-level loading for overall target.
+5. **Leading/biased framing** — Neutral language must be verified. Apply "opposite day" test: if you flipped the question, would the same answer still be best?
 <!-- /section -->
 
 <!-- section: roadmap_implications -->
@@ -117,55 +107,42 @@ Layered token reduction with three independent but compounding strategies. Workf
 
 Based on research, suggested phase structure:
 
-### Phase 1: Compression Infrastructure & Baseline
-**Rationale:** Pitfalls research strongly recommends building structural contract tests and compression markers *before* starting compression work — v1.1 learned this lesson the hard way (Task() drops caught only by manual review). Baseline measurement must capture pre-compression state.
-**Delivers:** `workflow:verify-structure` or `workflow:lint` CLI command validating structural integrity (step counts, Task() counts, branch counts); compression markers retroactively added to v1.1 compressed workflows; `util:baseline measure --sections` with per-section token counts; regression detection (`--check` flag failing on >10% growth)
-**Addresses:** FEATURES.md baseline measurement tooling; PITFALLS.md #3 (regression detection), #6 (insufficient testing), #7 (diminishing returns measurement)
-**Avoids:** Starting compression without measurement infrastructure (tech debt trap from PITFALLS.md)
+### Phase 1: Taxonomy & Infrastructure
+**Rationale:** Cannot build option sets or migrate workflows without the taxonomy definition and infrastructure first. Wave 1 has no dependencies — it establishes the foundation.
+**Delivers:** Question taxonomy enum in `prompts.js`, `routeQuestionType()` and `questionTemplate()` functions, `resolveQuestionType` and `resolveOptionGeneration` in `DECISION_REGISTRY`, option generation rules with diversity constraints
+**Addresses:** Feature: question type classification, mutual exclusivity signaling; Pitfalls: vague questions, no taxonomy, leading framing
+**Avoids:** Anti-pattern: bare open-ended questions, inline question text in workflows
+**Research flag:** Standard pattern — no deeper research needed during planning
 
-### Phase 2: Workflow Compression Round 2
-**Rationale:** The biggest token reduction opportunity — ~34,200 tokens across top 10 workflows. Must happen after Phase 1 infrastructure is in place. Primary targets: discuss-phase (538L, never compressed), transition (519L, never compressed), new-milestone (505L, never compressed). Secondary: incremental gains on v1.1-compressed workflows.
-**Delivers:** 10 workflows compressed with proven techniques (redundancy removal, prose tightening, shared block extraction, table/XML conversion); `<!-- section: step_name -->` markers added to all 10; structural contract tests per workflow; compression markers in headers; before/after token measurement proving 40%+ average
-**Uses:** tokenx for measurement (STACK.md); extractSectionsFromFile for section validation (STACK.md); compression techniques proven in v1.1 (PITFALLS.md v1.1 lessons)
-**Avoids:** PITFALLS.md #1 (semantic anchor loss — structural inventory check), #7 (diminishing returns — per-workflow targets set)
+### Phase 2: Workflow Migration — Primary Workflows
+**Rationale:** Primary user-facing workflows (discuss-phase, new-milestone, plan-phase) need taxonomied questions first. These are highest-traffic and most impactful for quality improvement.
+**Delivers:** Migrated `discuss-phase.md` (5-6 questions → template references), migrated `new-milestone.md` (4-5 questions → template references), migrated `plan-phase.md` and `transition.md`
+**Uses:** Structured question templates from Phase 1, option generation rules
+**Implements:** Question template library in `prompts.js`
+**Research flag:** Medium risk — may reveal edge cases in taxonomy; have backup research task
 
-### Phase 3: Scaffold Infrastructure & PLAN.md Generation
-**Rationale:** The scaffold-then-fill pattern is proven by `summary:generate` (50%+ writing reduction). PLAN.md scaffold is the highest-value document scaffold because every plan execution starts with planner writing PLAN.md from scratch. Can start in parallel with Phases 1-2 (different files, no overlap).
-**Delivers:** Unified scaffold interface design (consistent across all scaffold types); `cmdScaffoldPlan()` in misc.js generating PLAN.md skeleton from roadmap/requirements data; `util:scaffold plan --populate <phase>` CLI command; merge/preserve for re-runs; exclusive-create safety; frontmatter, objective, task structure, requirement links pre-filled (60%+ content)
-**Uses:** cmdSummaryGenerate pattern (STACK.md); getRoadmapPhaseInternal, extractFrontmatter, findPhaseInternal (ARCHITECTURE.md data sources)
-**Implements:** ARCHITECTURE.md Pattern 1 (scaffold-then-fill); ARCHITECTURE.md scaffold specification for PLAN.md
-**Avoids:** PITFALLS.md #2 (boundary bleed — section manifest with data/judgment labels), #5 (staleness — generate just-in-time), #8 (inconsistent interface — unified design first)
-
-### Phase 4: VERIFICATION.md Scaffold & Enricher Integration
-**Rationale:** VERIFICATION.md scaffold logically follows PLAN.md scaffold — it derives from plan content (success criteria, file lists, requirements). The scaffold generator already has parsed data from Phase 3. Enricher integration wires scaffolds into the agent pipeline so agents discover pre-built scaffolds automatically.
-**Delivers:** `cmdScaffoldVerification()` in misc.js generating VERIFICATION.md from success criteria + test results; `util:scaffold verification --populate <phase>` CLI command; enricher `scaffold_plan_path` and `scaffold_verification_path` fields; `plan-phase.md` updated to generate scaffold before planner spawn; `verify-work.md` updated to generate scaffold before verifier spawn
-**Uses:** PLAN.md success_criteria parser (existing); ROADMAP.md phase data (existing); enricher pipeline (ARCHITECTURE.md)
-**Avoids:** PITFALLS.md #9 (init/scaffold data overlap — scaffold references init data by section), #4 (stale scaffolds — generate just-in-time in workflow step)
-
-### Phase 5: Section-Level Loading & End-to-End Validation
-**Rationale:** Section-level loading requires section markers (added in Phase 2) and is the integration layer that ties compression + scaffolds together. End-to-end validation of all compression + scaffold savings proves the milestone's token reduction targets (SC-76 through SC-79).
-**Delivers:** Section-aware workflow loading in command-enricher.js (load per-step instead of full file); self-containment audit of all extractable sections; end-to-end token measurement proving cumulative savings; behavioral equivalence testing for critical workflows (execute-plan, execute-phase, verify-work)
-**Implements:** ARCHITECTURE.md Pattern 2 (section-marked workflows with selective loading); FEATURES.md conditional step elision (P2, if time permits)
-**Avoids:** PITFALLS.md #4 (orphan context — self-containment audit), #10 (XML tag attention — tag attention verified during behavioral testing)
+### Phase 3: Workflow Migration — Remaining + CLI Tools
+**Rationale:** Remaining ~40 workflows can be migrated once template library is proven. CLI tools (`questions:audit`, `questions:list`) enable systematic taxonomy compliance auditing.
+**Delivers:** ~40 remaining workflows migrated, `questions:audit` CLI command, `questions:list` CLI command, agent manifest question context fields
+**Uses:** Template library + decision routing from Phases 1-2
+**Research flag:** Standard pattern — parallelizable, lower risk than Phase 2
 
 ### Phase Ordering Rationale
 
-- **Phase 1 first:** Measurement infrastructure and structural tests are prerequisites for safe compression. v1.1 proved that compression without automated verification catches regressions too late.
-- **Phase 2 second:** Workflow compression is the highest-impact single change (~13,700 tokens saved per session). Must happen after infrastructure but before section loading depends on markers.
-- **Phases 3-4 can parallel with 1-2:** Scaffold work touches different files (misc.js, verify.js) than compression work (workflows/*.md). No code overlap.
-- **Phase 4 after Phase 3:** Verification scaffold derives from plan scaffold infrastructure. Enricher integration needs both scaffold types to exist.
-- **Phase 5 last:** Section-level loading requires markers from Phase 2. End-to-end validation requires all components working together.
+- **Dependency order:** Phase 1 infrastructure must exist before workflow migration can begin
+- **Impact order:** Primary workflows (Phase 2) before secondary (Phase 3) — highest value first
+- **Parallelization:** Within Phase 2, discuss-phase, new-milestone, plan-phase can migrate in parallel (different files)
+- **Pitfall avoidance:** Phase 1 enforces taxonomy before any question is asked in migrated workflows
+- **Anti-pattern prevention:** Phase 1 establishes template centralization before 45 workflows are touched
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2:** Per-workflow compression targets need calibration after baseline measurement — the 40%+ average target may need adjustment based on actual v1.1-compressed workflow density
-- **Phase 5:** `command-enricher.js` section-filtering integration is medium risk — changes how workflows are injected into LLM context; needs careful design to avoid breaking existing workflow loading
+- **Phase 2 (Workflow Migration):** May reveal edge cases in question taxonomy when applied to real workflows; have fallback: extend taxonomy with additional types rather than forcing fit
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** Baseline measurement extends existing `measureAllWorkflows()`; structural tests are straightforward CLI additions
-- **Phase 3:** Follows `cmdSummaryGenerate()` implementation pattern exactly; data sources (roadmap parser, requirements parser) already exist
-- **Phase 4:** Extends Phase 3 pattern; enricher field addition is a proven low-risk change
+- **Phase 1 (Taxonomy & Infrastructure):** Data-driven approach with clear precedent in DECISION_REGISTRY
+- **Phase 3 (Remaining Workflows + CLI):** Mechanical migration once library exists; CLI patterns well-established
 <!-- /section -->
 
 <!-- section: confidence -->
@@ -173,42 +150,48 @@ Phases with standard patterns (skip research-phase):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new dependencies; all modules verified in existing codebase; tokenx, extractSectionsFromFile, cmdSummaryGenerate all battle-tested |
-| Features | HIGH | Feature landscape grounded in measured token counts (44 workflows, ~66,800 total tokens); compression targets validated against v1.1 results; scaffold estimates based on summary:generate measured reduction |
-| Architecture | HIGH | All integration points mapped to existing modules; data flow verified against current enricher/scaffold/section-extraction code paths; build order respects actual file dependencies |
-| Pitfalls | HIGH | Top pitfalls drawn from direct v1.1 experience (Task() drops, structural verification gaps); scaffold boundary risks from summary:generate lessons; compression research (PAACE framework, Taxonomy of Prompt Defects) validates prevention strategies |
+| Stack | HIGH | Verified in codebase — DECISION_REGISTRY pattern confirmed, prompts.js location confirmed, no external libraries needed per PROJECT.md constraint |
+| Features | HIGH | Community consensus across education (Bloom's), MCQ research, UX literature; multiple sources agree on table stakes |
+| Architecture | HIGH | All components verified in existing codebase; decision routing pattern has clear precedent; integration points mapped |
+| Pitfalls | HIGH | Sourced from QuestionCraft (60+ years research), AI4VET4AI, medical education MCQ studies, UX conversation design |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Behavioral equivalence testing for compressed workflows** (MEDIUM confidence): Structural contract tests catch anchor loss, but don't prove behavioral equivalence. Parallel execution of original vs compressed workflows on the same task is the gold standard but is expensive and non-deterministic. Mitigation: run parallel tests on top 3 critical workflows (execute-plan, execute-phase, verify-work) during Phase 2; accept structural tests as sufficient for remaining 7.
-- **Section-level loading integration in command-enricher.js** (MEDIUM confidence): The enricher currently injects full workflow content. Adding section-aware filtering changes a core injection path. The section extraction API is stable, but the integration point is new. Mitigation: implement behind a feature flag in Phase 5; fall back to full-workflow loading if section extraction fails.
-- **XML tag attention with newer models** (LOW confidence): Custom XML tags (`<purpose>`, `<required_reading>`) may receive different attention from future model versions. Compression that preserves tags but removes surrounding context may leave non-functional structural markers. Mitigation: test tag attention during Phase 2 behavioral verification; document migration path from XML to markdown headers if needed.
+**Option generation at runtime:** No library or framework exists for AI-driven option generation. All existing approaches use pre-authored options or LLM-with-constraints. This is an open research problem.
+
+- **Gap:** Runtime option generation without pre-authored sets
+- **Handling:** Hybrid approach — Phase 1 curates pre-authored option sets for existing workflows; Phase 2 adds `generateFrom` functions with diversity constraints; Phase 3 (future) explores structured prompting for fully dynamic generation
+
+**Inline question text duplication:** 45 workflows × 5 questions = 225 inline texts to migrate. Token impact is actually positive (template references shorter than inline text), but migration effort is non-trivial.
+
+- **Gap:** Manual migration effort for remaining workflows
+- **Handling:** CLI audit tool (`questions:audit`) to track progress; parallelizable across Phase 3
 <!-- /section -->
 
 <!-- section: sources -->
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Codebase inspection** — `src/commands/misc.js` (cmdSummaryGenerate L2067-2354, cmdScaffold L1470-1534), `src/commands/features.js` (extractSectionsFromFile L1354, measureAllWorkflows L1489), `src/plugin/command-enricher.js` (enrichCommand L29), `workflows/*.md` (44 files measured) — direct source analysis
-- **v1.1 compression results** — `.planning/milestones/v1.1-phases/08-workflow-reference-compression/` — 54.6% avg reduction across 8 workflows; Task() drop-and-restore incident documented
-- **v11.3 scaffold results** — `.planning/milestones/v11.3-phases/0113-programmatic-summary-generation/` — summary:generate proven 50%+ LLM writing reduction
-- **Token measurement** — all 44 workflows measured: ~66,800 total tokens; top 10 account for ~34,200 (51.2%)
-- **PROJECT.md / INTENT.md** — v14.0 requirements DO-96 through DO-99, success criteria SC-76 through SC-79
+- `src/lib/prompts.js` — Existing inquirer wrappers (verified in codebase)
+- `src/lib/decision-rules.js` — DECISION_REGISTRY with 19 decision functions (verified in codebase)
+- `src/lib/context.js` — AGENT_MANIFESTS (verified in codebase)
+- `workflows/discuss-phase.md`, `workflows/new-milestone.md` — Existing workflow patterns (verified in filesystem)
+- LangChain GitHub Issue #9932 — PromptTree branching prompt pattern (reference, not code)
+- arXiv:2602.03704 — REQUESTA multi-agent MCQ generation framework
 
 ### Secondary (MEDIUM confidence)
-- **OpenDev paper** (arXiv:2603.05344v3, 2026-03-13) — adaptive context compaction, conditional prompt composition, lazy tool discovery patterns
-- **CompactPrompt paper** (arXiv:2510.18043, 2025-10-20) — n-gram abbreviation, self-information scoring; benchmark results only
-- **Anthropic context engineering patterns** (morphllm.com summary, 2026-02-15) — "right information at the right time", lazy loading principles
-- **PAACE framework** (arXiv:2512.16970) — function-preserving compression, plan-aware context optimization for multi-step agent workflows
-- **Taxonomy of Prompt Defects** (arXiv:2509.14404) — maintainability defects from over-compressed prompts
+- University of Michigan Center for Academic Innovation: MCQ prompting guidelines (2025)
+- QuestionCraft "Ultimate Guide to Asking Better Questions in the AI Age" (2025)
+- AI4VET4AI: AI Chatbots are Terrible at Creating MCQs — distractor quality, Bloom's taxonomy
+- Azure AI Agent Design Patterns — Orchestration patterns
+- arXiv:2412.00970 — Multi-Agent LLM Approach to AI Literacy MCQs
 
 ### Tertiary (LOW confidence — validate during implementation)
-- **"The Anti-Prompting Guide"** (Rephrase, Mar 2026) — model evolution affecting prompt pattern effectiveness; XML tag attention degradation
-- **Elliott Girard context engineering article** (2026-02-18) — "prompt engineering gets you a demo, context engineering gets you a product"
-- **Semantic Prompt Compression** (Aleksapolskyi, Apr 2025) — 22% compression with 95%+ entity preservation; less applicable to structured agent prompts
+- Kapture.ai, Zendesk, NN/g Nielsen Norman Group — Conversation design principles (general, not CLI-specific)
+- Chaos and Order "Chatbot Conversation Design Guide" (2026) — Needs validation against CLI context
 
 ---
-*Research completed: 2026-03-16*
+*Research completed: 2026-03-19*
 *Ready for roadmap: yes*

@@ -646,6 +646,28 @@ const DECISION_REGISTRY = [
     resolve: resolveCommitStrategy,
   },
 
+  // Phase 141: Question taxonomy decision functions
+  {
+    id: 'resolve-question-type',
+    name: 'Question Type Resolution',
+    category: 'question-routing',
+    description: 'Determines TAXONOMY type for a workflow step',
+    inputs: ['workflow_id', 'step_id'],
+    outputs: ['TAXONOMY enum value'],
+    confidence_range: ['HIGH'],
+    resolve: resolveQuestionType,
+  },
+  {
+    id: 'resolve-option-generation',
+    name: 'Option Generation Strategy',
+    category: 'question-routing',
+    description: 'Determines pre-authored vs runtime generation approach',
+    inputs: ['questionType', 'context'],
+    outputs: ['pre-authored' | 'runtime'],
+    confidence_range: ['HIGH'],
+    resolve: resolveOptionGeneration,
+  },
+
   // Phase 127: Tool routing decision functions
   {
     id: 'file-discovery-mode',
@@ -668,6 +690,75 @@ const DECISION_REGISTRY = [
     resolve: resolveSearchMode,
   },
 ];
+
+// ─── Phase 141: Question taxonomy decision functions ─────────────────────────
+
+const { TAXONOMY, OPTION_TEMPLATES } = require('./questions');
+
+/**
+ * resolveQuestionType - Determines TAXONOMY type for a workflow step.
+ *
+ * @param {object} state - { workflow_id, step_id }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveQuestionType(state) {
+  const { workflow_id, step_id } = state || {};
+
+  // Mapping of workflow+step to TAXONOMY type
+  const questionTypeMap = {
+    'discuss-phase:area-select': TAXONOMY.SINGLE_CHOICE,
+    'discuss-phase:topic-select': TAXONOMY.MULTI_CHOICE,
+    'discuss-phase:depth-select': TAXONOMY.RANKING,
+    'new-milestone:goal-type': TAXONOMY.SINGLE_CHOICE,
+    'new-milestone:priority-set': TAXONOMY.RANKING,
+    'new-milestone:constraint-add': TAXONOMY.FILTERING,
+    'plan-phase:task-breakdown': TAXONOMY.MULTI_CHOICE,
+    'plan-phase:dependency-add': TAXONOMY.FILTERING,
+    'plan-phase:priority-order': TAXONOMY.RANKING,
+    'verify-work:criteria-select': TAXONOMY.MULTI_CHOICE,
+    'verify-work:pass-fail': TAXONOMY.BINARY,
+    'execute-phase:tool-select': TAXONOMY.SINGLE_CHOICE,
+    'execute-phase:parallel-tasks': TAXONOMY.MULTI_CHOICE,
+    'transition:direction-select': TAXONOMY.SINGLE_CHOICE,
+    'transition:risk-assess': TAXONOMY.FILTERING,
+  };
+
+  const key = `${workflow_id}:${step_id}`;
+  const type = questionTypeMap[key];
+
+  if (type) {
+    return { value: type, confidence: 'HIGH', rule_id: 'resolve-question-type' };
+  }
+
+  // Graceful fallback for unknown workflow/step combinations
+  return { value: TAXONOMY.SINGLE_CHOICE, confidence: 'HIGH', rule_id: 'resolve-question-type' };
+}
+
+/**
+ * resolveOptionGeneration - Determines pre-authored vs runtime generation approach.
+ *
+ * @param {object} state - { questionType, context }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveOptionGeneration(state) {
+  const { questionType, context = {} } = state || {};
+
+  if (!questionType) {
+    return { value: 'runtime', confidence: 'HIGH', rule_id: 'resolve-option-generation' };
+  }
+
+  // Check if we have a pre-authored template for this question type
+  // Template lookup uses the questionType as a template ID hint
+  const templateId = context.templateId || questionType.toLowerCase();
+  const template = OPTION_TEMPLATES[templateId];
+
+  if (template) {
+    return { value: 'pre-authored', confidence: 'HIGH', rule_id: 'resolve-option-generation' };
+  }
+
+  // Runtime generation as fallback (uses generateRuntimeOptions internally)
+  return { value: 'runtime', confidence: 'HIGH', rule_id: 'resolve-option-generation' };
+}
 
 // ─── Phase 127: Tool routing decision functions ───────────────────────────────
 
@@ -775,6 +866,9 @@ module.exports = {
   resolveResearchGate,
   resolveMilestoneCompletion,
   resolveCommitStrategy,
+  // Phase 141: Question taxonomy decision functions
+  resolveQuestionType,
+  resolveOptionGeneration,
   // Phase 127: Tool routing decision functions
   resolveFileDiscoveryMode,
   resolveSearchMode,

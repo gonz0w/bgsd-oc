@@ -24,13 +24,13 @@ Read all execution_context files before starting.
 
 **If MILESTONE-CONTEXT.md exists:** Use features/scope from discuss-milestone; present summary for confirmation.
 
-**If no context file:** Present last milestone's shipped features. Ask: "What do you want to build next?" Use question() to explore features, priorities, constraints, scope.
+**If no context file:** Present last milestone's shipped features. Use questionTemplate('new-milestone-goals', 'EXPLORATION') to explore features, priorities, constraints, scope.
 <!-- /section -->
 
 <!-- section: determine_version -->
 ## 3. Determine Milestone Version
 
-Parse last version from MILESTONES.md. Suggest next version (v1.0 → v1.1, or v2.0 for major). Confirm with user.
+Parse last version from MILESTONES.md. Suggest next version (v1.0 → v1.1, or v2.0 for major). Use questionTemplate('new-milestone-version', 'BINARY') to confirm with user.
 <!-- /section -->
 
 <!-- section: update_project -->
@@ -99,7 +99,7 @@ Extract from `<bgsd-context>` JSON: `researcher_model`, `synthesizer_model`, `ro
 <!-- section: research -->
 ## 8. Research Decision
 
-question: "Research the domain ecosystem for new features before defining requirements?"
+Use questionTemplate('new-milestone-research', 'SINGLE_CHOICE') to decide:
 - "Research first (Recommended)" — Discover patterns, features, architecture for NEW capabilities
 - "Skip research" — Go straight to requirements
 
@@ -132,7 +132,7 @@ mkdir -p .planning/research
 SKILLS=$(node $BGSD_HOME/bin/bgsd-tools.cjs skills:list)
 ```
 
-Display current skills and `https://agentskills.io`. Ask: "Install any skills before defining requirements? (y/N)"
+Display current skills and `https://agentskills.io`. Use questionTemplate('new-milestone-skills', 'BINARY') to confirm skill installation.
 
 **If yes:** User provides GitHub URL(s). `node $BGSD_HOME/bin/bgsd-tools.cjs skills:install --source <url>` — security scan runs automatically.
 
@@ -152,7 +152,7 @@ If INTENT.md exists: use desired outcomes (especially new ones) to guide categor
 
 Read PROJECT.md for core value, milestone goals, existing requirements. If research exists: read FEATURES.md, extract feature categories. If no research: gather requirements through conversation.
 
-**Scope each category** via question (multiSelect: true):
+**Scope each category** via questionTemplate('new-milestone-scope-category', 'MULTI_CHOICE'):
 - Present features by category with table stakes / differentiators
 - "None for this milestone" — defer entire category
 

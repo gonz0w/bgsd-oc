@@ -66,14 +66,25 @@ function getWaveFromPlan(cwd, planId) {
   const parsed = parsePlanId(planId);
   if (!parsed) return '0';
 
-  // Search for the plan file
+  // Search for the plan file using normalized phase comparison
   const phasesDir = path.join(cwd, '.planning', 'phases');
+  const normalizedPhase = String(parsed.phase).replace(/^0+/, '') || '0';
   try {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const phaseDir = entries.find(e => e.isDirectory() && e.name.startsWith(parsed.phase.padStart(2, '0')));
+    let phaseDir = null;
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+      if (dirPhaseNum === normalizedPhase) {
+        phaseDir = entry;
+        break;
+      }
+    }
     if (!phaseDir) return '0';
 
-    const planFile = path.join(phasesDir, phaseDir.name, `${parsed.phase.padStart(2, '0')}-${parsed.plan.padStart(2, '0')}-PLAN.md`);
+    const planFile = path.join(phasesDir, phaseDir.name, `${normalizedPhase.padStart(2, '0')}-${parsed.plan.padStart(2, '0')}-PLAN.md`);
     if (!fs.existsSync(planFile)) return '0';
 
     const content = fs.readFileSync(planFile, 'utf-8');
@@ -521,12 +532,22 @@ function parseMergeTreeConflicts(output) {
  */
 function getPhaseFilesModified(cwd, phaseNumber) {
   const phasesDir = path.join(cwd, '.planning', 'phases');
-  const paddedPhase = String(phaseNumber).padStart(2, '0');
+  const normalizedPhase = String(phaseNumber).replace(/^0+/, '') || '0';
   const results = [];
 
   try {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const phaseDir = entries.find(e => e.isDirectory() && e.name.startsWith(paddedPhase + '-'));
+    let phaseDir = null;
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+      if (dirPhaseNum === normalizedPhase) {
+        phaseDir = entry;
+        break;
+      }
+    }
     if (!phaseDir) return results;
 
     const phasePath = path.join(phasesDir, phaseDir.name);

@@ -730,7 +730,13 @@ function cmdRollbackInfo(cwd, planId, raw) {
     const phaseMatch = planId.match(/^(\d+)/);
     if (phaseMatch) {
       const phaseNum = phaseMatch[1];
-      const dir = dirs.find(d => d.startsWith(phaseNum + '-') || d === phaseNum);
+      const normalizedPhase = phaseNum.replace(/^0+/, '') || '0';
+      const dir = dirs.find(d => {
+        const dirPhaseMatch = d.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+        if (!dirPhaseMatch) return false;
+        const dirPhaseNum = dirPhaseMatch[1].replace(/^0+/, '') || '0';
+        return dirPhaseNum === normalizedPhase;
+      });
       if (dir) {
         const files = fs.readdirSync(path.join(phasesDir, dir));
         const summary = files.find(f => f.includes(planId) && f.endsWith('-SUMMARY.md'));

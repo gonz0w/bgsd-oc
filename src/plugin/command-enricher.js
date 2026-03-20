@@ -673,20 +673,26 @@ function detectPhaseArg(parts, commandStr) {
 
 /**
  * Resolve a phase number to its directory path (relative).
+ * Uses normalized comparison to handle variable-length zero-padding in directory names.
  *
  * @param {number} phaseNum - Phase number
  * @param {string} cwd - Working directory
  * @returns {string|null} Relative path like '.planning/phases/73-context-injection' or null
  */
 function resolvePhaseDir(phaseNum, cwd) {
-  const numStr = String(phaseNum).padStart(2, '0');
+  const normalized = String(phaseNum).replace(/^0+/, '') || '0';
   const phasesDir = join(cwd, '.planning', 'phases');
 
   try {
-    const entries = readdirSync(phasesDir);
-    const dirName = entries.find(d => d.startsWith(numStr + '-') || d === numStr);
-    if (dirName) {
-      return `.planning/phases/${dirName}`;
+    const entries = readdirSync(phasesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+      if (dirPhaseNum === normalized) {
+        return `.planning/phases/${entry.name}`;
+      }
     }
   } catch { /* phases dir doesn't exist */ }
 

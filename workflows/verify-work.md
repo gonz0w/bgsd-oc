@@ -29,6 +29,8 @@ If active sessions AND no args: show sessions table, ask which to resume or star
 If active sessions AND args: check if session exists for phase — offer resume/restart.
 If no sessions AND no args: prompt for phase number.
 If no sessions AND args: continue to create_uat_file.
+
+→ Options: `questionTemplate('verify-session-resume', 'SINGLE_CHOICE')` (Resume existing session / Start new session)
 </step>
 
 <step name="find_summaries">
@@ -56,6 +58,8 @@ Write `{phase_num}-UAT.md` with frontmatter (status: testing, started), Current 
 <step name="present_test">
 Display checkpoint box: Test {N}: {name}, expected behavior, → "pass" or describe what's wrong.
 Wait for response.
+
+→ Options: `questionTemplate('verify-test-response', 'SINGLE_CHOICE')` (Pass / Fail / Skip)
 </step>
 
 <step name="process_response">
@@ -74,7 +78,7 @@ Read UAT file, find first pending test, announce progress, continue from there.
 Update status: complete. Clear Current Test. Commit UAT file.
 
 Present summary table. If intent-based tests were included: report intent outcome coverage alongside pass/fail counts.
-If issues > 0 → diagnose_issues. If issues == 0 → suggest next phase.
+If issues > 0 → use `questionTemplate('verify-complete-issues', 'SINGLE_CHOICE')` (Diagnose issues / Suggest next phase). If issues == 0 → suggest next phase.
 </step>
 
 <step name="surface_lesson_suggestions">
@@ -96,6 +100,7 @@ This step is non-blocking: `2>/dev/null || true` ensures lesson command failures
 </step>
 
 <step name="diagnose_issues">
+→ Options: `questionTemplate('verify-diagnose', 'SINGLE_CHOICE')` (Spawn debug agents / Manual handling)
 Spawn parallel debug agents for each issue. Collect root causes. Update UAT.md. Proceed to plan_gap_closure.
 </step>
 

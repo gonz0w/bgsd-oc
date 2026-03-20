@@ -35,11 +35,21 @@ function _eagerMtimeCheck(resolvedCwd, phaseNum) {
 
     // Add plan files for the current phase
     if (phaseNum) {
-      const numStr = String(phaseNum).padStart(2, '0');
+      const normalized = String(phaseNum).replace(/^0+/, '') || '0';
       const phasesDir = join(resolvedCwd, '.planning', 'phases');
       try {
-        const entries = readdirSync(phasesDir);
-        const dirName = entries.find(d => d.startsWith(numStr + '-') || d === numStr);
+        const entries = readdirSync(phasesDir, { withFileTypes: true });
+        let dirName = null;
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+          if (!dirMatch) continue;
+          const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+          if (dirPhaseNum === normalized) {
+            dirName = entry.name;
+            break;
+          }
+        }
         if (dirName) {
           const phaseDir = join(phasesDir, dirName);
           const files = readdirSync(phaseDir);
@@ -141,13 +151,20 @@ export function getProjectState(cwd) {
 
     // Resolve phaseDir for current phase (relative path like '.planning/phases/0120-name')
     // This is already computed inside _eagerMtimeCheck — compute it here for the facade.
+    // Uses normalized comparison to handle variable-length zero-padding in directory names.
     try {
-      const numStr = String(phaseNum).padStart(2, '0');
+      const normalized = String(phaseNum).replace(/^0+/, '') || '0';
       const phasesDir = join(resolvedCwd, '.planning', 'phases');
-      const entries = readdirSync(phasesDir);
-      const dirName = entries.find(d => d.startsWith(numStr + '-') || d === numStr);
-      if (dirName) {
-        phaseDir = `.planning/phases/${dirName}`;
+      const entries = readdirSync(phasesDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+        if (!dirMatch) continue;
+        const dirPhaseNum = dirMatch[1].replace(/^0+/, '') || '0';
+        if (dirPhaseNum === normalized) {
+          phaseDir = `.planning/phases/${entry.name}`;
+          break;
+        }
       }
     } catch {
       // Phase directory not found — phaseDir stays null

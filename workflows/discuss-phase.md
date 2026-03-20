@@ -55,12 +55,12 @@ Exit.
 
 <!-- section: check_existing -->
 <step name="check_existing">
-Use `has_context` from init. If CONTEXT.md exists — use question:
+Use `has_context` from init. If CONTEXT.md exists — use questionTemplate('discuss-context-existing', 'SINGLE_CHOICE'):
 - "Update it" → load existing, continue to analyze_phase
 - "View it" → display, then offer update/skip
 - "Skip" → exit
 
-If no CONTEXT.md and `has_plans` is true — use question: "Phase [X] already has {plan_count} plan(s) without user context. Decisions here won't affect existing plans unless you replan."
+If no CONTEXT.md and `has_plans` is true — use questionTemplate('discuss-replan-warning', 'SINGLE_CHOICE'):
 - "Continue and replan after" → continue
 - "View existing plans" → display, then offer "Continue" / "Cancel"
 - "Cancel" → exit
@@ -91,10 +91,11 @@ Domain: [What this phase delivers]
 We'll clarify HOW to implement this. (New capabilities belong in other phases.)
 ```
 
-Use question (multiSelect: true):
+Use questionTemplate('discuss-gray-areas', 'MULTI_CHOICE', {phase}):
 - header: "Discuss"
 - question: "Which areas do you want to discuss for [phase name]?"
-- options: 3-4 phase-specific gray areas, each with 1-2 concrete questions
+- multiSelect: true
+- options: qt.options (from template, dynamic based on phase gray areas)
 
 **Do NOT include "skip" or "you decide" options.** Give real choices.
 </step>
@@ -115,7 +116,7 @@ For each selected area, conduct a focused Socratic discussion loop.
 **Per area:**
 1. "Let's talk about [Area]."
 2. Ask 4 questions via question (header: "[Area]", max 12 chars). Include "You decide" when reasonable. **After each answer:** ask a "why" follow-up before the next question.
-3. After 4 questions: "More questions about [area], or move to next?" → "More questions" (4 more) / "Next area"
+3. After 4 questions: use questionTemplate('discuss-socratic-continue', 'SINGLE_CHOICE') → "More questions" (4 more) / "Next area"
    - Continuation phrases ("chat more", "keep going", "yes") → More questions
    - Advancement phrases ("done", "move on", "next") → Next area
    - Ambiguous → ask explicitly
@@ -144,6 +145,7 @@ I'll play someone who's been using this for 2 years — invested, opinionated, s
 **Format per challenge:** State complaint in-character (1-2 sentences) → wait for response → accept or push back once more.
 
 After 3-5 challenges:
+use questionTemplate('discuss-stress-test-response', 'SINGLE_CHOICE'):
 - question: "That's my grumpy user impression. Any of those points change your thinking?"
 - options: "No changes — proceed" / "Revisit a decision"
 
