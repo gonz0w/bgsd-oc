@@ -113,6 +113,7 @@ function lazyLessons() { return _modules.lessons || (_modules.lessons = require(
 function lazySkills() { return _modules.skills || (_modules.skills = require('./commands/skills')); }
 function lazyWorkflow() { return _modules.workflow || (_modules.workflow = require('./commands/workflow')); }
 function lazyScaffold() { return _modules.scaffold || (_modules.scaffold = require('./commands/scaffold')); }
+function lazyQuestions() { return _modules.questions || (_modules.questions = require('./commands/questions')); }
 
 
 async function main() {
@@ -255,7 +256,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow', 'questions'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -1493,9 +1494,23 @@ Examples:
         break;
       }
 
+      // questions namespace
+      case 'questions': {
+        if (subCmd === 'audit') {
+          lazyQuestions().cmdQuestionsAudit(cwd, raw);
+        } else if (subCmd === 'list') {
+          lazyQuestions().cmdQuestionsList(cwd, raw);
+        } else if (subCmd === 'validate') {
+          lazyQuestions().cmdQuestionsValidate(cwd, raw);
+        } else {
+          error('Unknown questions subcommand. Available: audit, list, validate');
+        }
+        break;
+      }
+
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons, skills, workflow`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons, skills, workflow, questions`);
     }
     return; // Exit after handling namespaced command
   }
