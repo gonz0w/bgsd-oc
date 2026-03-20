@@ -2,64 +2,69 @@
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-03-17)
+See: .planning/PROJECT.md (updated 2026-03-17)
 
-**Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance
-**Current focus:** No active milestone — v14.1 shipped 2026-03-17
+**Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
+**Current focus:** Phase 141 (Taxonomy & Infrastructure)
 
 ## Current Position
 
-**Milestone:** v15.0 (starting)
-**Phase:** N/A
-**Current Plan:** N/A
-**Status:** Defining requirements
-**Last Activity:** 2026-03-19
+**Phase:** 141 of 143 (Taxonomy & Infrastructure)
+**Current Plan:** 0 of ? in current phase
+**Status:** Ready to plan
+**Last Activity:** 2026-03-19 — Roadmap created for v15.0
 
-Progress: [██████████] 100% (v14.1 complete)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 270 (through v14.1 Phase 140 Plan 01)
-- Average duration: ~13 min/plan (improving with better tooling)
+- Total plans completed: 270 (through v14.1 Phase 140)
+- Average duration: ~13 min/plan (stable across v14.x)
 - Total execution time: ~44.4 hours
 
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 141 | 0 | - | - |
+| 142 | 0 | - | - |
+| 143 | 0 | - | - |
+
 **Recent Trend:**
-- v14.0 Phase 137 Plan 01: 16 min, 5 tasks, 9 files (conditional elision engine + 28 tests)
-- v14.0 Phase 137 Plan 02: 15 min, 3 tasks, 7 files (dangling refs + workflow:savings + 14 structural tests)
-- v14.1 Phase 138 Plan 01: 15 min, 4 tasks, 4 files (workflow tool routing — 4 workflows updated)
-- v14.1 Phase 138 Plan 02: 20 min, 3 tasks, 3 files (agent tool routing — 3 agent system prompts)
-- v14.1 Phase 139 Plan 01: 18 min, 2 tasks, 2 files (E2E + contract tests — 24 tests added)
-- v14.1 Phase 140 Plan 01: 9 min, 3 tasks, 7 files (prune 3 orphaned rules + simplify handoff_tool_context)
+- v14.1 Phase 140 Plan 01: 9 min, 3 tasks, 7 files (prune orphaned rules)
 - Trend: Stable
 
 *Updated after each plan completion*
 
 ## Accumulated Context
 
-### v14.1 Milestone Summary (complete)
+### Decisions
 
-- **Phases:** 138–140 (3 phases, 4 plans, 9 tasks)
-- **Requirements:** 10/10 delivered (ROUTE-01–03, AGENT-01–02, GH-01, TEST-01–02, PRUNE-01–02)
-- **Tests:** 1,677 passing (0 failures)
-- **PR:** #28 merged (all CodeQL checks clean)
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
 
-### Key Decisions
+- [Phase 141]: Question taxonomy uses 7 types: BINARY, SINGLE_CHOICE, MULTI_CHOICE, RANKING, FILTERING, EXPLORATION, CLARIFICATION
+- [Phase 141]: questionTemplate(id, type, context) centralizes templates in prompts.js
+- [Phase 141]: Option generation enforces 3-5 options with diversity, parity, and escape hatch
+- [Phase 141]: resolveQuestionType and resolveOptionGeneration added to DECISION_REGISTRY
+- [Phase 142]: Primary 6 workflows migrated to template references (discuss-phase, new-milestone, plan-phase, transition, verify-work, execute-phase)
+- [Phase 143]: questions:audit/list/validate CLI commands added
 
-- [v14.1 roadmap]: ROUTE + AGENT + GH bundled in Phase 138 — all workflow/agent edits in one phase
-- [v14.1 roadmap]: TEST after ROUTE+AGENT — can't write E2E tests before behavior exists
-- [v14.1 roadmap]: PRUNE last — must see what's consumed before removing anything
-- [140-01 PRUNE-01]: handoff_tool_context pruned to capability_level only — available_tools and tool_count had zero workflow consumers
-- [140-01 PRUNE-02]: 3 orphaned decision rules removed (agent-capability-level, json-transform-mode, phase-dependencies) — DECISION_REGISTRY 22→19; isConsumer() fixed
+### Pending Todos
+
+[From .planning/todos/pending/ — ideas captured during sessions]
+
+None yet.
 
 ### Blockers/Concerns
 
-None.
+[Issues that affect future work]
+
+None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-03-17
-**This session:** 2026-03-17 — v14.1 milestone complete, archived
-**Stopped at:** v14.1 milestone completion workflow
-**Next steps:**
-1. Run `/bgsd-new-milestone` to start the next milestone (after `/clear`)
+Last session: 2026-03-19
+Stopped at: v15.0 roadmap created — ready to begin Phase 141
+Resume file: None

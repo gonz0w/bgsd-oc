@@ -85,24 +85,24 @@ Traceability matrix at bottom.
 
 | REQ-ID | Type | Phase | Intent Outcome | Priority |
 |---------|------|-------|----------------|----------|
-| TAX-01 | must | 1 | DO-105 | HIGH |
-| TAX-02 | must | 1 | DO-105 | HIGH |
-| TAX-03 | must | 1 | DO-105, DO-106 | HIGH |
-| TAX-04 | must | 1 | DO-105 | HIGH |
-| TAX-05 | must | 1 | DO-106 | HIGH |
-| TAX-06 | must | 1 | DO-106 | MEDIUM |
-| TAX-07 | should | 2 | DO-106 | MEDIUM |
-| MIGRATE-01 | must | 2 | DO-107 | HIGH |
-| MIGRATE-02 | must | 2 | DO-107 | HIGH |
-| MIGRATE-03 | must | 2 | DO-107 | HIGH |
-| MIGRATE-04 | must | 2 | DO-107 | MEDIUM |
-| MIGRATE-05 | must | 2 | DO-107 | MEDIUM |
-| MIGRATE-06 | must | 2 | DO-107 | MEDIUM |
-| MIGRATE-07 | must | 3 | DO-107 | HIGH |
-| MIGRATE-08 | must | 3 | DO-107 | HIGH |
-| CLI-01 | must | 3 | DO-108 | HIGH |
-| CLI-02 | must | 3 | DO-108 | MEDIUM |
-| CLI-03 | must | 3 | DO-108 | MEDIUM |
+| TAX-01 | must | 141 | DO-105 | HIGH |
+| TAX-02 | must | 141 | DO-105 | HIGH |
+| TAX-03 | must | 141 | DO-105, DO-106 | HIGH |
+| TAX-04 | must | 141 | DO-105 | HIGH |
+| TAX-05 | must | 141 | DO-106 | HIGH |
+| TAX-06 | must | 141 | DO-106 | MEDIUM |
+| TAX-07 | should | 141 | DO-106 | MEDIUM |
+| MIGRATE-01 | must | 142 | DO-107 | HIGH |
+| MIGRATE-02 | must | 142 | DO-107 | HIGH |
+| MIGRATE-03 | must | 142 | DO-107 | HIGH |
+| MIGRATE-04 | must | 142 | DO-107 | MEDIUM |
+| MIGRATE-05 | must | 142 | DO-107 | MEDIUM |
+| MIGRATE-06 | must | 142 | DO-107 | MEDIUM |
+| MIGRATE-07 | must | 143 | DO-107 | HIGH |
+| MIGRATE-08 | must | 143 | DO-107 | HIGH |
+| CLI-01 | must | 143 | DO-108 | HIGH |
+| CLI-02 | must | 143 | DO-108 | MEDIUM |
+| CLI-03 | must | 143 | DO-108 | MEDIUM |
 
 ---
 
