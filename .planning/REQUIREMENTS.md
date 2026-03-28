@@ -13,11 +13,11 @@ Traceability matrix at bottom.
 
 ### Requirements
 
-- [ ] **SAFE-01:** Destructive command pattern library — 25+ regex patterns detecting dangerous operations (rm -rf, DROP TABLE, force-push, format disk, kill -9, etc.) with Unicode NFKD normalization to prevent homoglyph bypass
+- [x] **SAFE-01:** Destructive command pattern library — 25+ regex patterns detecting dangerous operations (rm -rf, DROP TABLE, force-push, format disk, kill -9, etc.) with Unicode NFKD normalization to prevent homoglyph bypass
 
-- [ ] **SAFE-02:** User confirmation gate — When destructive command detected, present advisory warning with command details, risk assessment, and confirmation prompt; non-blocking per C-03 (user can always proceed)
+- [x] **SAFE-02:** User confirmation gate — When destructive command detected, present advisory warning with command details, risk assessment, and confirmation prompt; non-blocking per C-03 (user can always proceed)
 
-- [ ] **SAFE-03:** Container/sandbox bypass — Detect Docker, Singularity, Modal, Daytona environments and skip confirmation (sandboxed execution is inherently safer); configurable override
+- [x] **SAFE-03:** Container/sandbox bypass — Detect Docker, Singularity, Modal, Daytona environments and skip confirmation (sandboxed execution is inherently safer); configurable override
 
 ---
 

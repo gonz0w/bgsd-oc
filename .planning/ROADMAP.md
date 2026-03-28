@@ -29,7 +29,7 @@ v16.0 transforms bGSD from a planning/execution engine into a complete enterpris
   2. Unicode homoglyph variants of destructive commands (Cyrillic 'а' for Latin 'a', zero-width characters) are detected and flagged identically to ASCII originals
   3. Commands executed inside Docker, Singularity, or Modal containers skip confirmation automatically (sandboxed execution detected)
   4. User can always proceed past any warning — nothing blocks workflow execution (C-03 advisory constraint)
-**Plans**: 2 (Wave 1: implementation, Wave 2: tests)
+**Plans**: 1/2 plans executed
 
 ### Phase 145: Structured Agent Memory
 **Goal**: Agents recall project-specific facts, user preferences, and environment patterns across sessions via a structured, injectable MEMORY.md
@@ -83,7 +83,7 @@ v16.0 transforms bGSD from a planning/execution engine into a complete enterpris
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 144. Safety Guardrails | 0/2 | Planned | - |
+| 144. Safety Guardrails | 1/2 | In Progress|  |
 | 145. Structured Agent Memory | 0/0 | Not started | - |
 | 146. Code Review Workflow | 0/0 | Not started | - |
 | 147. Security Audit Workflow | 0/0 | Not started | - |
