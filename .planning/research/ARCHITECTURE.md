@@ -1,602 +1,804 @@
 # Architecture Research
 
-**Domain:** CLI-based AI agent orchestration with question design system integration
-**Researched:** 2026-03-19
+**Domain:** Enterprise developer team features for bGSD plugin (v16.0)
+**Researched:** 2026-03-28
 **Confidence:** HIGH
-**Research mode:** Ecosystem — How a question taxonomy and option generation system fits into existing bGSD architecture
-
----
 
 <!-- section: compact -->
 <architecture_compact>
+<!-- Compact view for planners. Keep under 30 lines. -->
 
-**Architecture:** Workflow-driven agent orchestration with structured question routing via taxonomy-tagged templates
+**Architecture:** Extension-based integration into existing layered CLI + plugin + workflow architecture. Six features delivered as new CLI modules, workflows, plugin enhancements, and skills — zero new agents.
 
-**Major components:**
+**Major new components:**
 
-| Component | Responsibility |
-|-----------|----------------|
-| `workflows/*.md` | Step sequences with `question()` calls — where questions are asked |
-| `prompts.js` | inquirer-based question primitives — MODIFY to add taxonomy + option generation |
-| `decision-rules.js` | Pure decision functions in DECISION_REGISTRY — NEW: question-type routing rules |
-| `context.js` | Agent manifests with field scoping — MODIFY: add question context fields |
+| Component | Responsibility | Layer |
+|-----------|----------------|-------|
+| `src/commands/review.js` | Code review analysis CLI (structural audit, anti-pattern detection) | CLI |
+| `src/commands/security.js` | Security audit CLI (OWASP patterns, secrets scanning, dependency checks) | CLI |
+| `src/commands/release.js` | Release pipeline CLI (semver bump, changelog gen, git tag, PR creation) | CLI |
+| `src/commands/readiness.js` | Pre-ship dashboard CLI (tests, lint, coverage, TODOs aggregation) | CLI |
+| `workflows/review.md` | Code review orchestration workflow (drives verifier agent) | Workflow |
+| `workflows/security-audit.md` | Security audit orchestration workflow (drives verifier agent) | Workflow |
+| `workflows/release.md` | Release pipeline orchestration workflow (drives executor agent) | Workflow |
+| `src/plugin/advisory-guardrails.js` (extend) | GARD-04: Destructive command detection | Plugin |
+| `src/plugin/context-builder.js` (extend) | MEMORY.md injection into system prompts | Plugin |
+| `src/commands/memory.js` (extend) | Structured MEMORY.md read/write/compact | CLI |
 
-**Key patterns:** Decision-first question routing, taxonomy-tagged question templates, manifest-driven question context injection
+**Key patterns:** Workflow-driven agent reuse (verifier for review+security, executor for release), CLI-first data generation, progressive trust (advisory→blocking), plugin hook extension
 
-**Anti-patterns:** Bare open-ended questions without options, inline question text scattered across 45 workflows, LLM generating options without taxonomy guidance
+**Anti-patterns:** New agents (capped at 9), monolithic workflows, inline security rules, hardcoded version strings
 
-**Scaling priority:** Inline question text duplication (45 workflows × 5 questions = 225 inline texts) — centralize into `prompts.js` question templates first
-
+**Scaling priority:** Memory file size (compaction needed), review performance on large codebases (file batching)
 </architecture_compact>
 <!-- /section -->
 
----
-
 <!-- section: standard_architecture -->
-## System Overview
+## Standard Architecture
 
-### Current Architecture (Before v15.0)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Workflow Layer (workflows/*.md)             │
-│  45 markdown workflow files with <step> definitions           │
-│  question() calls embedded inline with raw question text      │
-├─────────────────────────────────────────────────────────────┤
-│                    Orchestration Layer                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ orchestration │  │ decision-    │  │ context.js   │     │
-│  │ .js          │  │ rules.js     │  │ AGENT_       │     │
-│  │ Task routing │  │ DECISION_    │  │ MANIFESTS    │     │
-│  │ Model select │  │ REGISTRY(19) │  │ (9 agents)   │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-├─────────────────────────────────────────────────────────────┤
-│                    CLI Layer                                  │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │                   prompts.js                             │   │
-│  │   inputPrompt, listPrompt, checkboxPrompt, confirm      │   │
-│  │   NO taxonomy — bare primitives only                  │   │
-│  └──────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    State / Data Layer                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                │
-│  │ STATE.md │  │ SQLite   │  │ DECISION_│                │
-│  └──────────┘  └──────────┘  │ REGISTRY  │                │
-│                               └──────────┘                  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Problem:** Every workflow step that asks a question embeds raw question text inline. Options are generated ad-hoc by the LLM without guidance. No taxonomy means no systematic way to audit "which questions still use bare open-ended prompts?"
-
-### Target Architecture (v15.0)
+### System Overview — Integration Map
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Workflow Layer (workflows/*.md)             │
-│  45 markdown files — question() calls reference taxonomy IDs │
-│  No inline question text — all questions come from prompts.js│
-├─────────────────────────────────────────────────────────────┤
-│                    Question Taxonomy Layer                    │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │                  prompts.js (ENHANCED)                  │   │
-│  │  - Question type router (clarify/decide/prioritize/   │   │
-│  │    discover/confirm/scope)                            │   │
-│  │  - Option generation per type (3-5 thoughtful options) │   │
-│  │  - Taxonomy-tagged question templates                 │   │
-│  └──────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    Orchestration Layer (UNCHANGED)             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │ orchestration │  │ decision-    │  │ context.js   │    │
-│  │ .js          │  │ rules.js     │  │              │    │
-│  └──────────────┘  └──────────────┘  └──────────────┘    │
-├─────────────────────────────────────────────────────────────┤
-│                    DECISION_REGISTRY (EXTENDED)               │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  NEW: resolveQuestionType, resolveOptionGeneration     │   │
-│  │  +3-5 question-routing decision functions            │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                     SLASH COMMANDS (commands/*.md)                    │
+│  /bgsd-review  /bgsd-security  /bgsd-release  /bgsd-readiness       │
+├──────────┬──────────┬──────────┬──────────┬─────────────────────────┤
+│          │          │          │          │                          │
+│          ▼          ▼          ▼          ▼                          │
+│     WORKFLOWS (workflows/*.md)                                       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                             │
+│  │ review   │ │ security │ │ release  │                              │
+│  │ .md      │ │-audit.md │ │ .md      │                              │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘                             │
+│       │            │            │                                    │
+│       ▼            ▼            ▼                                    │
+│     AGENTS (existing — no new roles)                                 │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                             │
+│  │ verifier │ │ verifier │ │ executor │  ← reused existing agents    │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘                             │
+│       │            │            │                                    │
+├───────┴────────────┴────────────┴────────────────────────────────────┤
+│              CLI MODULES (src/commands/*.js)                          │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                │
+│  │review.js │ │security  │ │release.js│ │readiness │                │
+│  │          │ │.js       │ │          │ │.js       │                │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘                │
+│       │            │            │            │                       │
+├───────┴────────────┴────────────┴────────────┴───────────────────────┤
+│              SHARED LIBRARIES (src/lib/*.js)                         │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐             │
+│  │git.js│ │ast.js│ │format│ │deps  │ │config│ │output│             │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘             │
+├─────────────────────────────────────────────────────────────────────┤
+│              PLUGIN (src/plugin/*.js)                                 │
+│  ┌───────────────────┐ ┌───────────────┐ ┌───────────────────────┐  │
+│  │advisory-guardrails│ │context-builder│ │command-enricher       │  │
+│  │ + GARD-04         │ │ + MEMORY.md   │ │ + review/security ctx │  │
+│  └───────────────────┘ └───────────────┘ └───────────────────────┘  │
+├─────────────────────────────────────────────────────────────────────┤
+│              DATA LAYER                                              │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐   │
+│  │STATE.md    │ │.cache.db   │ │memory/     │ │MEMORY.md (new) │   │
+│  │(generated) │ │(SQLite)    │ │(JSON store)│ │(cross-session)  │   │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Location | Status |
-|-----------|----------------|----------|--------|
-| `workflows/*.md` | Step sequences, agent spawning, question references | `workflows/` (45 files) | MODIFY — replace inline text with template IDs |
-| `prompts.js` | inquirer wrappers (input, list, checkbox, confirm) | `src/lib/prompts.js` | **MODIFY — add taxonomy + option generation** |
-| `decision-rules.js` | Pure decision functions | `src/lib/decision-rules.js` | **MODIFY — add question-type routing rules** |
-| `context.js` | Agent manifests, context scoping | `src/lib/context.js` | MODIFY — add question context to manifests |
-| `orchestration.js` | Task classification, execution mode | `src/lib/orchestration.js` | NO CHANGE for v15.0 |
-| `src/commands/questions.js` | CLI for question taxonomy audit | `src/commands/` (new) | **NEW** |
-
-## Recommended Project Structure
-
-```
-src/
-├── lib/
-│   ├── prompts.js           # MODIFY: add question taxonomy + option generation
-│   ├── decision-rules.js     # MODIFY: add question-type routing rules to DECISION_REGISTRY
-│   ├── context.js            # MODIFY: add question context fields to manifests
-│   ├── orchestration.js     # NO CHANGE
-│   └── ...
-├── commands/
-│   ├── questions.js          # NEW: CLI commands for question taxonomy management
-│   └── ...
-└── ...
-
-workflows/
-├── discuss-phase.md          # MODIFY: use question taxonomy template IDs
-├── new-milestone.md         # MODIFY: use question taxonomy template IDs
-├── plan-phase.md            # MODIFY: use question taxonomy template IDs
-└── ... (45 total)
-```
-
-### Structure Rationale
-
-- **`prompts.js` as question template library:** Centralize all question templates here instead of scattering raw question text across 45 workflows. This enables reuse, consistent option generation, and systematic taxonomy enforcement.
-- **`questions.js` CLI:** Inspection/debugging commands — `questions:audit` scans workflows for taxonomy compliance, `questions:list` shows available templates.
-- **Workflows reference templates by ID:** `question(id="discover_phase_areas", type="discover", context="gray_areas")` instead of embedding raw text. The prompts.js template renderer expands this at runtime.
-- **No new agents:** Per the agent cap constraint (max 9), question intelligence is delivered as CLI data, not new agent roles.
+| Component | Responsibility | Integration Points |
+|-----------|----------------|-------------------|
+| `review.js` | Structural code review: anti-pattern detection, consistency checks, complexity scoring, auto-fix suggestions | Consumes `ast.js` (complexity, exports), `conventions.js` (naming), `git.js` (diff extraction), `deps.js` (import analysis) |
+| `security.js` | Security scanning: secrets patterns, OWASP rules, dependency vulnerability checks, confidence scoring | Consumes `ast.js` (code patterns), `deps.js` (dependency graph), `git.js` (diff for focused scanning) |
+| `release.js` | Release pipeline: semver version bump, changelog generation from git log, git tag creation, PR creation via `gh` | Consumes `git.js` (structured log, branch info, tag), `detect.js` (gh preflight) |
+| `readiness.js` | Pre-ship status dashboard: test results, lint status, coverage, TODO count, security findings aggregation | Consumes `review.js`, `security.js`, test runner, lint runner — aggregator pattern |
+| `MEMORY.md` | Structured cross-session learning: agent preferences, project patterns, error resolutions, performance hints | Written by `memory.js` CLI, read by `context-builder.js` plugin, compacted by `memory:compact` |
+| GARD-04 | Destructive command detection: warns on `rm -rf`, `git push --force`, `DROP TABLE`, production env access | Extends `advisory-guardrails.js` with new pattern matcher in `onToolAfter` hook |
 
 <!-- /section -->
 
+<!-- section: feature_architectures -->
+## Feature Architectures
+
+### Feature 1: Code Review Workflow (`/bgsd-review`)
+
+**Agent mapping:** The **verifier** agent runs code reviews. Rationale: verifier already does goal-backward analysis ("did we build what we intended?"). Code review is the same pattern applied to code quality ("does this code meet standards?"). The verifier agent's skills (verification-reference, goal-backward) directly apply.
+
+**Data flow:**
+```
+/bgsd-review [--scope phase|file|diff]
+    ↓
+commands/bgsd-review.md (thin wrapper)
+    ↓
+workflows/review.md (orchestration)
+    ↓ calls
+review:analyze CLI     →  Structural analysis JSON
+    ↓                      (complexity, patterns, issues)
+verifier agent         ←  Reads analysis + source code
+    ↓
+review:report CLI      →  Writes REVIEW.md report
+    ↓ (if auto-fix)
+executor agent         ←  Applies suggested fixes
+```
+
+**New CLI commands:**
+- `review:analyze [--scope diff|phase|files] [--severity blocker|major|minor|all]` — Returns JSON with structural issues, complexity metrics, anti-pattern detections
+- `review:report [--format md|json]` — Generates REVIEW.md from analysis results
+- `review:auto-fix [--dry-run]` — Applies mechanical fixes (imports, naming, dead code)
+
+**Key design decisions:**
+- CLI does structural analysis (deterministic, testable); agent does judgment calls (context-dependent, nuanced)
+- Two-pass architecture: Pass 1 = CLI scan → JSON findings; Pass 2 = agent reviews findings + source context → batched user questions
+- Auto-fix is opt-in, mechanical only (import ordering, unused variables, naming convention). No semantic changes.
+- Scope modes: `diff` (changed files only — default), `phase` (all files in current phase's plans), `files` (explicit file list)
+
+**Integration with existing modules:**
+- `ast.js`: Complexity metrics (cyclomatic), export analysis, function signatures
+- `conventions.js`: Naming pattern detection for consistency checks
+- `deps.js`: Import/dependency analysis for unused imports, circular dependencies
+- `git.js`: `structuredDiff()` for extracting changed files and hunks
+
 ---
+
+### Feature 2: Security Audit Workflow (`/bgsd-security`)
+
+**Agent mapping:** The **verifier** agent runs security audits. Rationale: security auditing is verification — checking code against security requirements. The verifier's pattern of "derive must-haves → check codebase" maps directly to "derive security requirements → scan for violations."
+
+**Data flow:**
+```
+/bgsd-security [--scope full|diff|deps]
+    ↓
+commands/bgsd-security.md (thin wrapper)
+    ↓
+workflows/security-audit.md (orchestration)
+    ↓ calls
+security:scan CLI      →  Pattern-matched findings JSON
+    ↓                      (secrets, OWASP, dependencies)
+verifier agent         ←  Reviews findings, triages severity
+    ↓                      eliminates false positives
+security:report CLI    →  Writes SECURITY.md report
+```
+
+**New CLI commands:**
+- `security:scan [--scope full|diff|deps] [--rules owasp|secrets|deps|all]` — Returns JSON with confidence-scored findings
+- `security:report [--format md|json]` — Generates SECURITY.md from scan results
+- `security:baseline [--update]` — Manages known/accepted findings (suppression list)
+
+**Security scanning categories:**
+1. **Secrets detection** (HIGH confidence — pattern-based): API keys, tokens, passwords, private keys in source code. Uses regex patterns similar to `skills:validate` 41-pattern scanner already in `src/commands/skills.js`.
+2. **OWASP Top 10 patterns** (MEDIUM confidence — heuristic): SQL injection vectors, XSS opportunities, insecure deserialization, path traversal, command injection. AST-based where possible.
+3. **Dependency vulnerabilities** (HIGH confidence — data-driven): `npm audit --json`, known CVE checks via package-lock.json analysis.
+
+**Confidence gating:** Every finding has a confidence level (HIGH/MEDIUM/LOW). Only HIGH findings auto-escalate. MEDIUM findings are presented as advisory. LOW findings are suppressed unless `--verbose`.
+
+**Integration with existing modules:**
+- `ast.js`: Pattern detection in source code (e.g., `eval()`, `child_process.exec()` with user input)
+- `deps.js`: Dependency graph for transitive vulnerability analysis
+- `skills.js`: Reuse/extend the 41-pattern security scanner from skill installation validation
+
+---
+
+### Feature 3: Review Readiness Dashboard
+
+**Architecture:** Pure CLI command — no workflow, no agent. This is a data aggregation command that pulls from multiple sources and presents a dashboard.
+
+**Data flow:**
+```
+/bgsd-readiness [--phase N]
+    ↓
+commands/bgsd-readiness.md (thin wrapper — runs CLI directly)
+    ↓
+readiness:dashboard CLI
+    ↓ aggregates
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ npm test │ │ lint     │ │ review:  │ │security: │ │ TODO     │
+│ results  │ │ results  │ │ analyze  │ │ scan     │ │ count    │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+    ↓ formats
+readiness dashboard (TTY table or JSON)
+```
+
+**New CLI commands:**
+- `readiness:dashboard [--phase N] [--format table|json]` — Aggregated pre-ship status
+- `readiness:check [--gate pass|warn]` — CI-mode: exit 0/1 based on readiness thresholds
+
+**Dashboard sections:**
+1. Tests: pass/fail/skip counts, coverage % if available
+2. Lint: error/warning counts
+3. Review: open issues by severity
+4. Security: open findings by confidence
+5. TODOs: count of TODO/FIXME/HACK comments in codebase
+6. Git status: dirty files, unpushed commits
+
+**Integration with existing modules:**
+- `format.js`: `formatTable()`, `progressBar()`, `color()`, `box()` for TTY output
+- `detect.js`: Tool availability for lint runner detection
+- Reuses `review:analyze` and `security:scan` if those CLI commands exist (graceful degradation if not yet built)
+
+---
+
+### Feature 4: Automated Release Workflow (`/bgsd-release`)
+
+**Agent mapping:** The **executor** agent runs release workflows. Rationale: release is a sequence of concrete, ordered steps (bump version, generate changelog, create tag, create PR) — exactly what the executor does. The executor's commit protocol, deviation handling, and checkpoint system all apply.
+
+**Data flow:**
+```
+/bgsd-release [--type major|minor|patch] [--dry-run]
+    ↓
+commands/bgsd-release.md (thin wrapper)
+    ↓
+workflows/release.md (orchestration)
+    ↓ calls
+release:prepare CLI     →  Version bump, changelog draft
+    ↓
+executor agent          ←  Reviews changelog, creates commits
+    ↓ calls
+release:tag CLI         →  Git tag creation
+    ↓
+release:publish CLI     →  PR creation via gh CLI
+    ↓ (checkpoint)
+human verification      ←  Review PR before merge
+```
+
+**New CLI commands:**
+- `release:prepare [--type major|minor|patch] [--dry-run]` — Bumps version in package.json, generates changelog from git log since last tag
+- `release:changelog [--since tag|date] [--format md|json]` — Generates changelog from structured git log (uses conventional commit parsing)
+- `release:tag [--version X.Y.Z] [--sign]` — Creates annotated git tag
+- `release:publish [--draft] [--base main]` — Creates GitHub release PR via `gh` CLI
+- `release:validate` — Pre-release checks (tests pass, no dirty files, on correct branch, gh authenticated)
+
+**Version detection:** Reads `package.json` for current version. Applies semver increment. Writes back. Follows existing pattern of `execGit` for all git operations.
+
+**Changelog generation:** Uses `git.structuredLog()` to extract commits since last tag. Parses conventional commit prefixes (feat, fix, chore, docs, refactor). Groups by type. The existing `milestone:auto-changelog` in `complete-milestone` workflow provides a pattern to follow.
+
+**Integration with existing modules:**
+- `git.js`: `structuredLog()`, `branchInfo()`, `execGit()` for tag operations
+- `detect.js`: `gh-preflight` for GitHub CLI availability check
+- Existing `github-ci` workflow pattern for PR creation and merge
+
+---
+
+### Feature 5: Structured Agent Memory (MEMORY.md)
+
+**Architecture:** Three-layer system: CLI writes structured data → plugin reads and injects into prompts → compaction keeps it bounded.
+
+**Data flow:**
+```
+Agent learns something useful
+    ↓
+memory:write CLI         →  Appends to MEMORY.md
+    ↓
+Next agent session starts
+    ↓
+context-builder.js       ←  Reads MEMORY.md, injects into system prompt
+    ↓
+Agent sees memory         →  Applies learned patterns
+    ↓ (when file grows too large)
+memory:compact CLI       →  Consolidates entries, removes stale data
+```
+
+**MEMORY.md format:**
+```markdown
+# Agent Memory
+
+**Last updated:** 2026-03-28
+**Entries:** 12
+
+## Project Patterns
+<!-- Patterns specific to this project that agents should follow -->
+- [pattern]: [description] (learned: [date], source: [agent])
+
+## Error Resolutions  
+<!-- Known error→fix mappings for this project -->
+- [error pattern]: [resolution] (confidence: HIGH, last seen: [date])
+
+## Performance Hints
+<!-- What works well/poorly for this codebase -->
+- [hint]: [details] (learned: [date])
+
+## Agent Preferences
+<!-- User-confirmed preferences for agent behavior -->
+- [preference]: [details] (confirmed: [date])
+```
+
+**New CLI commands:**
+- `memory:write [--section patterns|errors|hints|preferences] [--entry JSON]` — Append structured entry
+- `memory:read [--section all|patterns|errors|hints|preferences] [--format md|json]` — Read memory entries
+- `memory:compact [--max-entries N] [--age-days N]` — Consolidate and prune old/low-value entries
+- `memory:search [--query text]` — Search memory entries
+
+**Plugin integration — context-builder.js extension:**
+- Read MEMORY.md at plugin init (cached, like other planning files)
+- Inject relevant entries into `buildSystemPrompt()` as `<agent_memory>` XML block
+- Token budget: ~200-400 tokens max for memory injection (configurable in config.json)
+- Section filtering: Only inject sections relevant to the current agent type (executor sees performance hints, verifier sees error resolutions, etc.)
+
+**Relationship to existing memory system:**
+- Existing `memory.js` manages JSON stores in `.planning/memory/` (decisions, lessons, trajectories, bookmarks) — these are _system_ memory for bGSD's own state
+- MEMORY.md is _agent_ memory for cross-session learning — what agents discover about the _target project_
+- The two systems are complementary, not competing. MEMORY.md is human-readable, project-committed. JSON stores are machine-optimized, often gitignored.
+
+**Compaction strategy:**
+- Max entries per section (configurable, default 20)
+- Age-based pruning (entries older than 90 days auto-archived unless marked `sticky: true`)
+- Duplicate detection (similar entries consolidated with latest date)
+- Size cap: MEMORY.md should stay under 2KB to fit within token budget constraints
+
+---
+
+### Feature 6: Destructive Command Detection (GARD-04)
+
+**Architecture:** Extension of existing `advisory-guardrails.js` with a new guardrail type. Follows the exact same pattern as GARD-01 (conventions), GARD-02 (planning protection), GARD-03 (test suggestions).
+
+**Data flow:**
+```
+Agent calls bash tool with command
+    ↓
+plugin hook: tool.execute.after (or tool.execute.before for blocking)
+    ↓
+advisory-guardrails.js → GARD-04 check
+    ↓ matches destructive pattern?
+notifier.notify()       →  Warning to user
+    ↓ (if blocking mode enabled)
+return { blocked: true }  →  Prevents execution
+```
+
+**Destructive command patterns (initial set):**
+
+| Category | Patterns | Severity |
+|----------|----------|----------|
+| File deletion | `rm -rf /`, `rm -rf ~`, `rm -rf .` (recursive on sensitive paths) | CRITICAL |
+| Git destructive | `git push --force`, `git reset --hard`, `git clean -fd` | HIGH |
+| Database destructive | `DROP TABLE`, `DROP DATABASE`, `TRUNCATE`, `DELETE FROM` (without WHERE) | HIGH |
+| Production access | `ssh prod`, `kubectl delete`, `docker rm -f` | HIGH |
+| Package publish | `npm publish`, `pip upload` | MEDIUM |
+| Environment destructive | `unset PATH`, `export PATH=` | MEDIUM |
+
+**Implementation approach:**
+- Extend `onToolAfter` in `advisory-guardrails.js` to also inspect `bash` tool calls (currently only checks `write`/`edit`/`patch`)
+- Add `WRITE_TOOLS` → `MONITORED_TOOLS` expansion: include `bash` for GARD-04
+- Pattern matching on `input.args.command` for bash tool invocations
+- Two modes: `advisory` (default — warn only) and `blocking` (configurable — prevent execution)
+- Config: `advisory_guardrails.destructive_commands.enabled`, `advisory_guardrails.destructive_commands.mode` (advisory|blocking), `advisory_guardrails.destructive_commands.patterns` (extensible list)
+
+**Key design decision — `tool.execute.before` vs `tool.execute.after`:**
+- For GARD-04, ideally use `tool.execute.before` to _prevent_ execution rather than warn after
+- However, the current plugin hooks only register `tool.execute.after` (see `plugin/index.js` hooks)
+- Phase 1: Use `tool.execute.after` with strong warning (matches existing pattern)
+- Phase 2 (if OC supports it): Migrate to `tool.execute.before` for true blocking
+- Note: Check if OC's plugin API supports `tool.execute.before` hook — if yes, use it from the start
+
+**Integration with existing modules:**
+- `advisory-guardrails.js`: Direct extension of existing factory function
+- `notification.js`: Uses existing `notifier.notify()` for warnings
+- `config.js`: Uses existing config parsing for guardrail settings
+- No new dependencies — pure pattern matching on command strings
+
+<!-- /section -->
 
 <!-- section: patterns -->
 ## Architectural Patterns
 
-### Pattern 1: Question Taxonomy Routing
+### Pattern 1: CLI-First Data, Agent-Second Judgment
 
-**What:** Classify each question by intent type before presenting it. The taxonomy determines option generation strategy, prompt structure, and inquirer type.
+**What:** CLI commands produce structured JSON analysis; agents consume JSON + source to make judgment calls. The CLI does the deterministic work (pattern matching, metric calculation, structural analysis). The agent does the nuanced work (prioritization, context-aware filtering, user communication).
 
-**When to use:** Any workflow step that asks the user to choose, prioritize, clarify, or decide.
+**When to use:** All new features (review, security, release, readiness).
 
-**Question Taxonomy (proposed for v15.0):**
-
-| Type | When to Use | inquirer type | Options |
-|------|-------------|--------------|---------|
-| `clarify` | User needs to explain intent | `input` | None — freeform (but this is the anti-pattern to minimize) |
-| `decide` | Binary or fixed choice | `list` | 2-3 options + "you decide" fallback |
-| `prioritize` | Rank or select top-N | `checkbox` | Multi-select with count hint (e.g., "pick 3") |
-| `discover` | Explore possibilities | `list` | 4-6 options with "other" escape hatch |
-| `confirm` | Validate understanding | `confirm` | Yes/No only |
-| `scope` | Include/exclude scope items | `checkbox` | Checkbox multi-select |
-
-**Example question template in `prompts.js`:**
-```javascript
-// Question taxonomy router
-function routeQuestionType(decisionType, context) {
-  const routes = {
-    decide:     { inquirerType: 'list',     minOptions: 2, maxOptions: 3, includeDefault: true },
-    prioritize: { inquirerType: 'checkbox', countHint: 3, criteria: ['specific', 'ranked-by-impact'] },
-    discover:   { inquirerType: 'list',     minOptions: 4, maxOptions: 6, includeOther: true },
-    confirm:    { inquirerType: 'confirm',  },
-    scope:      { inquirerType: 'checkbox', },
-    clarify:    { inquirerType: 'input',    }, // Minimize — the problem being solved
-  };
-  return routes[decisionType] || routes.clarify;
-}
-
-// Example: question template for "discover phase areas"
-const QUESTION_TEMPLATES = {
-  discover_phase_areas: {
-    id: 'discover_phase_areas',
-    type: 'discover',
-    render: (context) => ({
-      message: `Which areas do you want to discuss for ${context.phase_name}?`,
-      options: context.gray_areas, // e.g., ['Session handling', 'Error responses', ...]
-      type: 'discover',
-    }),
-  },
-  decide_version: {
-    id: 'decide_version',
-    type: 'decide',
-    render: (context) => ({
-      message: 'What type of release is this?',
-      options: [
-        { value: 'patch', label: 'Patch — bug fixes only' },
-        { value: 'minor', label: 'Minor — new features, backward compatible' },
-        { value: 'major', label: 'Major — breaking changes' },
-      ],
-      type: 'decide',
-    }),
-  },
-};
-```
-
-### Pattern 2: Decision-First Question Routing
-
-**What:** Use `DECISION_REGISTRY` to pre-compute question routing before the workflow step executes. The enriched `bgsd-context` carries question taxonomy decisions.
-
-**When to use:** When the same question type recurs across multiple workflows and you want consistent option generation.
-
-**Existing precedent:** `resolvePlanExistenceRoute` routes between `needs-research`, `needs-planning`, `ready`, `blocked-deps`. New `resolveQuestionType` follows the same pattern.
-
-**Example decision function:**
-```javascript
-// In decision-rules.js
-function resolveQuestionType(state) {
-  const { workflow_step, decision_category } = state || {};
-  const taxonomy = {
-    'discuss-phase:present_gray_areas': 'discover',
-    'discuss-phase:discuss_areas': 'decide',
-    'new-milestone:determine_version': 'decide',
-    'new-milestone:research': 'confirm',
-    'plan-phase:validate_approach': 'decide',
-  };
-  const type = taxonomy[`${workflow_step}:${decision_category}`] ||
-               taxonomy[workflow_step] ||
-               'clarify';
-  return { value: type, confidence: 'HIGH', rule_id: 'question-type' };
-}
-```
-
-### Pattern 3: Scaffold-Then-Fill for Question Options
-
-**What:** Use CLI to pre-generate options from structured data (roadmap phases, gray areas, requirement categories) before the question is asked. Options aren't generated ad-hoc by the LLM — they come from deterministic data.
-
-**When to use:** When options can be derived from project data rather than invented.
-
-**Existing precedent:** `cmdSummaryGenerate` in `misc.js` pre-builds SUMMARY.md data sections. Apply the same pattern to question options.
+**Trade-offs:**
+- ✅ CLI analysis is testable, fast, deterministic — unit tests cover analysis logic
+- ✅ Agent judgment improves with better models — no code changes needed
+- ✅ JSON output enables both human CLI usage and agent consumption
+- ❌ Two-step process adds complexity vs. single agent doing everything
+- ❌ CLI must be built first before workflow can function
 
 **Example:**
 ```javascript
-// Gray areas derived from phase domain analysis — not invented by LLM
-function generateGrayAreaOptions(phaseData) {
-  const domain = phaseData.domain; // e.g., "CLI tool integration"
-  return GRAY_AREA_TEMPLATES[domain] || GRAY_AREA_TEMPLATES.default;
+// review.js — CLI produces structured data
+function cmdReviewAnalyze(cwd, options) {
+  const findings = [];
+  // Deterministic: complexity > threshold → finding
+  const complexity = ast.getComplexity(filePath);
+  if (complexity.cyclomatic > 15) {
+    findings.push({
+      type: 'complexity',
+      severity: 'major',
+      file: filePath,
+      metric: complexity.cyclomatic,
+      suggestion: 'Extract helper functions to reduce complexity'
+    });
+  }
+  output({ findings, summary: { total: findings.length, ... } });
 }
-
-// Options come from structured data, LLM doesn't need to invent them
-const options = generateGrayAreaOptions({ domain: 'question-taxonomy', phase_name: 'v15.0' });
-// → ['Session handling', 'Error responses', 'Multi-device policy', 'Recovery flow']
 ```
 
-### Pattern 4: Workflow Section Compression (existing — note for integration)
+### Pattern 2: Agent Reuse via Workflow Specialization
 
-**What:** Workflows use `<!-- section:name -->` markers for selective loading. Question templates in `prompts.js` should also use section markers internally so they compress cleanly.
+**What:** Instead of creating new agents for code review and security audit, create specialized workflows that guide existing agents (verifier, executor) through domain-specific processes. The workflow is the specialization layer.
 
-**Integration note:** Question taxonomy does NOT add significant token overhead if templates are section-marked and loaded only when the workflow step reaches that question.
+**When to use:** Whenever a new capability maps naturally to an existing agent's competency (verification → verifier, sequential execution → executor).
+
+**Trade-offs:**
+- ✅ Respects 9-agent cap — no new roles needed
+- ✅ Agents inherit existing skills (verification-reference, commit-protocol, etc.)
+- ✅ Consistent behavior — same agent patterns, same return formats
+- ❌ Workflows must be more detailed to guide agents through unfamiliar territory
+- ❌ Verifier agent system prompt may need minor extension for review/security context
+
+**Agent-to-feature mapping:**
+
+| Feature | Agent | Why This Agent |
+|---------|-------|----------------|
+| Code review | verifier | Review = verification of code quality against standards |
+| Security audit | verifier | Security = verification of code against security requirements |
+| Release pipeline | executor | Release = sequential execution of ordered steps |
+| Memory write | executor | Memory updates happen during plan execution |
+| Readiness dashboard | (none) | Pure CLI — no agent needed |
+| Destructive detection | (none) | Plugin guardrail — no agent needed |
+
+### Pattern 3: Progressive Trust Guardrails
+
+**What:** New safety features start in advisory mode (warn but allow), then graduate to blocking mode after building user trust. This matches the existing pattern established in v7.0 for review enforcement.
+
+**When to use:** Destructive command detection (GARD-04), and potentially security audit findings in CI mode.
+
+**Trade-offs:**
+- ✅ No disruption on day 1 — users see warnings, adapt behavior
+- ✅ Configurable — users choose when to enable blocking
+- ✅ Matches existing GARD-01/02/03 pattern exactly
+- ❌ Advisory-only may be ignored — some destructive commands should be blocked immediately
+
+**Config pattern:**
+```json
+{
+  "advisory_guardrails": {
+    "destructive_commands": {
+      "enabled": true,
+      "mode": "advisory",
+      "critical_patterns_block": true
+    }
+  }
+}
+```
+
+### Pattern 4: Markdown-as-Interface for Agent Memory
+
+**What:** MEMORY.md uses structured markdown (not JSON, not database) as the persistence format for cross-session agent learning. Human-readable, git-committable, directly injectable into prompts.
+
+**When to use:** Agent memory (MEMORY.md). NOT for system state (use SQLite/JSON for that).
+
+**Trade-offs:**
+- ✅ Human-readable — users can review and edit agent memories
+- ✅ Git-trackable — memories travel with the repo
+- ✅ Direct injection — markdown → system prompt with minimal transformation
+- ✅ Matches bGSD philosophy: "human-readable authority + machine-optimized caching"
+- ❌ Parsing markdown is fuzzier than parsing JSON
+- ❌ Token cost — markdown is less compact than JSON
+- ❌ Compaction requires markdown-aware logic
 
 <!-- /section -->
-
----
 
 <!-- section: data_flow -->
 ## Data Flow
 
-### Question Presentation Flow
+### Review Flow (End-to-End)
 
 ```
-[Workflow Step]
-    │
-    ├─→ Parse <bgsd-context> for question-relevant fields
-    │      (phase_dir, phase_name, gray_areas, etc.)
-    │
-    ├─→ Decision: resolveQuestionType({ workflow_step, decision_category })
-    │      → Returns { type: 'discover', confidence: 'HIGH', rule_id: 'question-type' }
-    │
-    ├─→ prompts.js: questionTemplate('discover_phase_areas', context)
-    │      → Returns { message, options: [...], type: 'discover' }
-    │
-    └─→ inquirer: listPrompt / checkboxPrompt / confirmPrompt
-             │
-             ├─→ CLI displays question with 4-6 options
-             │
-             └─→ User selects → answer captured
-                      │
-                      └─→ Continue to next step
+User: /bgsd-review --scope diff
+    ↓
+command-enricher.js
+    ↓ enriches with phase context, review:analyze output
+<bgsd-context> includes review_data
+    ↓
+workflows/review.md
+    ↓ Step 1: Run analysis
+review:analyze --scope diff --format json
+    ↓ returns JSON findings
+    ↓ Step 2: Agent reviews
+verifier reads findings + source files
+    ↓ classifies, prioritizes, batches questions
+    ↓ Step 3: User interaction
+"These 3 issues need your input: [batched questions]"
+    ↓ Step 4: Auto-fix (if approved)
+executor applies mechanical fixes
+    ↓ Step 5: Report
+review:report → writes .planning/REVIEW.md
 ```
 
-### Option Generation Flow
+### Security Audit Flow (End-to-End)
 
 ```
-[Project Data]                    [prompts.js]              [Workflow]
-     │                                  │                        │
-     ├─→ gray_areas from phase ──────→│                        │
-     ├─→ requirements from roadmap ───→│  optionGeneration()    │
-     ├─→ phase domains ───────────────→│  → structured options  │
-     │                                  │                        │
-     │                                  │  ← render(template, ctx)│
-     │                                  │                        │
-     │                                  │  → 4-6 concrete options│
-     │                                  │                        │
-     │←─────────────────────────────── │  options passed to     │
-     │                                  │  listPrompt()          │
-     └────────────────────────────────→│                        │
-                                       │                        │
+User: /bgsd-security --scope full
+    ↓
+workflows/security-audit.md
+    ↓ Step 1: Run scans
+security:scan --rules all --format json
+    ↓ returns confidence-scored findings
+    ↓ Step 2: Agent triage
+verifier reviews findings, eliminates false positives
+    ↓ applies confidence gating (HIGH=escalate, MEDIUM=advisory, LOW=suppress)
+    ↓ Step 3: Report
+security:report → writes .planning/SECURITY.md
+    ↓ Step 4: Baseline management
+security:baseline --update (if user approves known/accepted findings)
 ```
 
-### Decision Recording Flow (for downstream agent reuse)
+### Release Flow (End-to-End)
 
 ```
-[User selects option]
-    │
-    └─→ prompts.js captures answer
-             │
-             ├─→ Workflow continues
-             │
-             └─→ recordDecision('question_answer', { question_id, answer })
-                      │
-                      └─→ DECISION_REGISTRY entry
-                               │
-                               ├─→ bgsd-context enrichment includes question decisions
-                               │
-                               └─→ Downstream agents (planner, executor) see what was decided
+User: /bgsd-release --type minor
+    ↓
+workflows/release.md
+    ↓ Step 1: Validate
+release:validate (tests, clean tree, correct branch, gh auth)
+    ↓ Step 2: Prepare
+release:prepare --type minor (bump package.json, generate changelog)
+    ↓ Step 3: Review (checkpoint)
+Present changelog to user for approval
+    ↓ Step 4: Tag & commit
+executor commits version bump + changelog, creates git tag
+    ↓ Step 5: Publish
+release:publish (creates GitHub PR via gh CLI)
+    ↓ Step 6: Verify (checkpoint)
+Human reviews PR before merge
 ```
 
-### Key Data Flows
+### Memory Injection Flow
 
-1. **Question context injection:** `bgsd-context` enrichment → workflow step reads phase/plan state → options generated from structured data (not ad-hoc LLM generation)
-2. **Decision recording:** User answer → `prompts.js` → `decision-rules.js` → DECISION_REGISTRY entry → SQLite + STATE.md dual-write
-3. **Question taxonomy audit:** `questions:audit` CLI → scans all workflows → reports which use bare `inputPrompt` vs taxonomy-tagged questions
+```
+Plugin starts (session init)
+    ↓
+context-builder.js reads .planning/MEMORY.md
+    ↓ parses sections, applies token budget
+    ↓ filters by current agent type
+buildSystemPrompt() includes <agent_memory> block
+    ↓
+Every LLM turn sees relevant memories (~200-400 tokens)
+    ↓
+Agent learns new pattern during execution
+    ↓
+memory:write --section patterns --entry '{"pattern": "..."}'
+    ↓ appends to MEMORY.md
+Next session picks up the new memory
+```
+
+### Destructive Command Detection Flow
+
+```
+Agent calls bash tool
+    ↓
+plugin hook: tool.execute.after
+    ↓
+advisory-guardrails.js → onToolAfter()
+    ↓ checks: is tool 'bash'?
+    ↓ extracts command from args
+    ↓ matches against destructive patterns
+    ↓ if match found:
+notifier.notify({ type: 'advisory-destructive', severity: 'critical', ... })
+    ↓
+User sees warning in notification channel
+```
 
 <!-- /section -->
-
----
-
-<!-- section: integration_map -->
-## Integration Points — New vs Modified vs Unchanged
-
-### NEW Components
-
-| Component | Type | Location | Depends On | Consumed By |
-|-----------|------|----------|------------|-------------|
-| Question templates | Data + functions | `src/lib/prompts.js` (new section) | `routeQuestionType`, option generation helpers | Workflows via `question()` calls |
-| `questions:audit` | CLI command | `src/commands/questions.js` | `extractSectionsFromFile`, workflow scanning | Developers debugging taxonomy compliance |
-| `questions:list` | CLI command | `src/commands/questions.js` | `QUESTION_TEMPLATES` registry | Developers discovering available templates |
-| `resolveQuestionType` | Decision function | `src/lib/decision-rules.js` | Workflow step parsing | `evaluateDecisions()` — consumed by bgsd-context |
-| `resolveOptionGeneration` | Decision function | `src/lib/decision-rules.js` | `routeQuestionType` | Option generation in `prompts.js` |
-
-### MODIFIED Components
-
-| Component | What Changes | Why |
-|-----------|-------------|-----|
-| `src/lib/prompts.js` | Add `QUESTION_TEMPLATES`, `routeQuestionType()`, `questionTemplate()`, option generation helpers, section markers | Centralize question text + add taxonomy layer |
-| `src/lib/decision-rules.js` | Add `resolveQuestionType` and `resolveOptionGeneration` to DECISION_REGISTRY | Pre-compute question routing decisions |
-| `src/lib/context.js` | Add `question_context` to relevant agent manifests (planner, phase-researcher, executor) | Downstream agents need question decisions |
-| `workflows/discuss-phase.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions — primary target |
-| `workflows/new-milestone.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions |
-| `workflows/plan-phase.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions |
-| `workflows/transition.md` | Replace inline question text with `question(id, context)` references | Taxonomied questions |
-
-### UNCHANGED Components
-
-| Component | Why Unchanged |
-|-----------|--------------|
-| `src/lib/orchestration.js` | Task routing and model selection unaffected by question taxonomy |
-| `src/lib/db.js` | No new SQLite tables needed — question decisions stored via existing dual-write pattern |
-| `src/commands/decisions.js` | Already handles DECISION_REGISTRY entries — new rules auto-discovered |
-| `src/plugin/command-enricher.js` | Question decisions flow through existing enricher pipeline automatically |
-| `src/router.js` | New CLI commands use existing namespace routing (`questions:*`) |
-| Templates (`templates/*.md`) | Document templates unaffected |
-| `build.cjs` | No new entry points — all code goes into existing modules |
-| `AGENTS.md` | Agent definitions unchanged — question intelligence is CLI data, not new agents |
-
-<!-- /section -->
-
----
 
 <!-- section: build_order -->
 ## Suggested Build Order
 
-### Wave 1: Core Infrastructure (No Dependencies)
-
-**Task 1: Add question taxonomy to `prompts.js`**
-- File: `src/lib/prompts.js`
-- Action: Add `QUESTION_TEMPLATES` registry, `routeQuestionType()`, `questionTemplate()`, option generation helpers
-- Pattern: Follow `cmdSummaryGenerate` pattern — templates with data/judgment separation
-- Verify: `prompts.js` exports `routeQuestionType` and `questionTemplate`
-- Dependencies: None
-
-**Task 2: Add question routing decision functions to `decision-rules.js`**
-- File: `src/lib/decision-rules.js`
-- Action: Add `resolveQuestionType`, `resolveOptionGeneration` to DECISION_REGISTRY
-- Pattern: Follow existing decision functions (pure, state → { value, confidence, rule_id })
-- Verify: `decisions:list` shows new rules; `decisions:evaluate question-type --state '{...}'` works
-- Dependencies: None (can parallelize with Task 1)
-
-### Wave 2: Workflow Migration (Depends on Wave 1)
-
-**Task 3: Migrate discuss-phase.md to use question taxonomy**
-- File: `workflows/discuss-phase.md`
-- Key steps to migrate:
-  - `present_gray_areas` step: 5 inline gray area options → `question(id="discover_phase_areas")`
-  - `discuss_areas` step: "More questions" / "Next area" → taxonomy-tagged options
-  - `customer_stress_test` step: "No changes" / "Revisit" → `question(id="decide_stress_outcome")`
-- Verify: Workflow behaves identically — measure before/after token count
-- Dependencies: Task 1 (templates must exist)
-
-**Task 4: Migrate new-milestone.md to use question taxonomy**
-- File: `workflows/new-milestone.md`
-- Key steps:
-  - `determine_version` step: inline version options → `question(id="decide_version")`
-  - `research` step: "Research first" / "Skip research" → `question(id="confirm_research")`
-  - `define_requirements` step: category scoping checkboxes → `question(id="scope_requirements")`
-- Verify: Workflow behaves identically
-- Dependencies: Task 1 (templates must exist)
-
-**Task 5: Migrate remaining workflow question steps**
-- Files: `workflows/transition.md`, `workflows/plan-phase.md`, `workflows/add-phase.md`, etc.
-- Pattern: Same as Tasks 3-4
-- Dependencies: Task 1 (templates must exist)
-
-### Wave 3: Tooling + Agent Context (Depends on Wave 1)
-
-**Task 6: Add `questions:audit` and `questions:list` CLI commands**
-- File: `src/commands/questions.js` (new)
-- Actions:
-  - `questions:audit` — scan all workflow .md files, detect bare `question(` calls without taxonomy IDs, report findings
-  - `questions:list` — list all registered `QUESTION_TEMPLATES` with their types
-- Verify: `questions:audit` reports remaining non-taxonomied questions
-- Dependencies: Task 1 (template registry must exist)
-
-**Task 7: Add question context to agent manifests**
-- File: `src/lib/context.js`
-- Action: Add `question_decisions` to AGENT_MANIFESTS for planner, phase-researcher
-- Pattern: Follow existing manifest field addition pattern
-- Verify: `bgsd-context` JSON includes `question_decisions` for relevant agents
-- Dependencies: Task 2 (decision functions must exist)
+Build order is driven by **inter-feature dependencies** and **value delivery speed**.
 
 ### Dependency Graph
 
 ```
-Wave 1:  Task 1 (prompts taxonomy) ──┬──→ Task 2 (decision functions)
-                                      │
-Wave 2:  Task 3 (discuss-phase) ───←─┤
-          Task 4 (new-milestone) ───←─┤
-          Task 5 (remaining workflows)←─┘
-
-Wave 3:  Task 6 (questions CLI) ────←──┐
-          Task 7 (agent manifests) ───←──┘
+Feature 6 (GARD-04)           ← no dependencies, smallest scope
+    ↓ (none)
+Feature 5 (MEMORY.md)         ← no dependencies on other features
+    ↓ (none)
+Feature 3 (Readiness)         ← benefits from review.js + security.js but degrades gracefully
+    ↓ (soft dependency)
+Feature 1 (Code Review)       ← independent, but readiness uses review:analyze
+Feature 2 (Security Audit)    ← independent, but readiness uses security:scan
+    ↓ (both complete)
+Feature 4 (Release)           ← benefits from readiness:check as pre-release gate
 ```
 
-**Parallel opportunities:**
-- Tasks 1 and 2 can start in parallel (different files, same layer)
-- Tasks 3, 4, 5 can run in parallel (different workflow files)
-- Tasks 6 and 7 can start once Task 1 is complete
+### Recommended Phase Structure
+
+| Phase | Feature | Rationale | Estimated Scope |
+|-------|---------|-----------|-----------------|
+| 1 | **Destructive Command Detection** (GARD-04) | Smallest scope, pure plugin extension, follows existing GARD-01/02/03 pattern exactly. Immediate safety value. | ~2-3 plans |
+| 2 | **Structured Agent Memory** (MEMORY.md) | Independent, foundational for agent improvement across all subsequent features. Plugin + CLI work. | ~2-3 plans |
+| 3 | **Code Review Workflow** | Core enterprise feature. New CLI module + workflow + skill. Enables readiness dashboard. | ~3-4 plans |
+| 4 | **Security Audit Workflow** | Same architecture as review. Can reuse review patterns. Enables readiness dashboard fully. | ~3-4 plans |
+| 5 | **Review Readiness Dashboard** | Aggregation layer — maximized by having review + security built first. Pure CLI. | ~1-2 plans |
+| 6 | **Automated Release Workflow** | Final feature. Benefits from readiness:check as pre-release validation gate. | ~2-3 plans |
+
+### Why This Order
+
+1. **GARD-04 first:** One file to modify (`advisory-guardrails.js`), one config extension, immediate safety value. Ships in ~1 plan. Builds momentum.
+
+2. **MEMORY.md second:** Independent of all other features but benefits all of them. Once memory is working, agents learning during review/security/release workflows can persist what they learn.
+
+3. **Code review third:** The largest new capability and highest user value. Establishes the "CLI analysis + agent judgment" pattern that security audit will follow.
+
+4. **Security audit fourth:** Follows code review's pattern exactly. ~50% of the architecture decisions carry over. Can share some scanning infrastructure (regex patterns, confidence scoring).
+
+5. **Readiness dashboard fifth:** By this point, both `review:analyze` and `security:scan` exist. The dashboard aggregates their output. Without them, it's a thinner dashboard (just tests + lint + TODOs).
+
+6. **Release last:** Benefits from readiness:check as a pre-release gate. The complete-milestone workflow already tags releases, so this is evolutionary rather than greenfield.
 
 <!-- /section -->
 
----
+<!-- section: module_inventory -->
+## New vs Modified Component Inventory
+
+### New Files
+
+| File | Type | Purpose |
+|------|------|---------|
+| `src/commands/review.js` | CLI module | Code review analysis commands (`review:analyze`, `review:report`, `review:auto-fix`) |
+| `src/commands/security.js` | CLI module | Security scanning commands (`security:scan`, `security:report`, `security:baseline`) |
+| `src/commands/release.js` | CLI module | Release pipeline commands (`release:prepare`, `release:changelog`, `release:tag`, `release:publish`, `release:validate`) |
+| `src/commands/readiness.js` | CLI module | Review readiness dashboard (`readiness:dashboard`, `readiness:check`) |
+| `workflows/review.md` | Workflow | Code review orchestration (drives verifier agent) |
+| `workflows/security-audit.md` | Workflow | Security audit orchestration (drives verifier agent) |
+| `workflows/release.md` | Workflow | Release pipeline orchestration (drives executor agent) |
+| `commands/bgsd-review.md` | Slash command | Thin wrapper for `/bgsd-review` |
+| `commands/bgsd-security.md` | Slash command | Thin wrapper for `/bgsd-security` |
+| `commands/bgsd-release.md` | Slash command | Thin wrapper for `/bgsd-release` |
+| `commands/bgsd-readiness.md` | Slash command | Thin wrapper for `/bgsd-readiness` |
+| `skills/review-workflow.md` | Skill | Review-specific guidance loaded by verifier during code review |
+| `skills/security-workflow.md` | Skill | Security-specific guidance loaded by verifier during security audit |
+| `skills/release-workflow.md` | Skill | Release-specific guidance loaded by executor during release |
+| `templates/review-report.md` | Template | REVIEW.md report template |
+| `templates/security-report.md` | Template | SECURITY.md report template |
+| `test/review.test.js` | Test | Review CLI command tests |
+| `test/security.test.js` | Test | Security CLI command tests |
+| `test/release.test.js` | Test | Release CLI command tests |
+| `test/readiness.test.js` | Test | Readiness CLI command tests |
+| `test/guardrails-destructive.test.js` | Test | GARD-04 destructive detection tests |
+| `test/memory-structured.test.js` | Test | MEMORY.md read/write/compact tests |
+
+### Modified Files
+
+| File | Modification | Scope |
+|------|-------------|-------|
+| `src/router.js` | Add routes for `review:*`, `security:*`, `release:*`, `readiness:*` namespaces | Small — add lazy-load entries |
+| `src/plugin/advisory-guardrails.js` | Add GARD-04 destructive command detection | Medium — new pattern matcher, extend `onToolAfter` |
+| `src/plugin/context-builder.js` | Add MEMORY.md reading and `<agent_memory>` block injection | Medium — new block in `buildSystemPrompt()` |
+| `src/plugin/command-enricher.js` | Add review/security context enrichment for new commands | Small — extend enrichment object |
+| `src/plugin/index.js` | Register `tool.execute.before` hook if available for GARD-04 blocking | Small — add hook registration |
+| `src/commands/memory.js` | Add MEMORY.md structured write/read/compact commands | Medium — new command functions |
+| `src/lib/constants.js` | Add COMMAND_HELP entries for new namespaces | Small — data additions |
+| `agents/bgsd-verifier.md` | Add skills table entries for review-workflow and security-workflow | Small — 2 lines in skills table |
+| `agents/bgsd-executor.md` | Add skills table entry for release-workflow | Small — 1 line in skills table |
+| `src/lib/config.js` | Add schema entries for new config options (GARD-04, memory budget) | Small |
+| `build.cjs` | Ensure new modules are included in bundle | Small — add to entry points if needed |
+
+### Unchanged (But Consumed)
+
+| File | Used By |
+|------|---------|
+| `src/lib/ast.js` | review.js (complexity), security.js (pattern detection) |
+| `src/lib/git.js` | review.js (diff), release.js (log, tag, branch) |
+| `src/lib/deps.js` | review.js (imports), security.js (dependency analysis) |
+| `src/lib/format.js` | readiness.js (dashboard formatting) |
+| `src/lib/conventions.js` | review.js (naming consistency) |
+| `src/lib/detect.js` | release.js (gh preflight), readiness.js (tool availability) |
+| `src/plugin/notification.js` | GARD-04 (destructive warnings) |
+
+<!-- /section -->
+
+<!-- section: agent_cap_analysis -->
+## Agent Cap Analysis
+
+**Constraint:** Maximum 9 agent roles. Current agents: executor, planner, verifier, debugger, github-ci, roadmapper, codebase-mapper, project-researcher, phase-researcher.
+
+**All 6 features delivered within the cap:**
+
+| Feature | Agent Used | New Agent? | Justification |
+|---------|-----------|------------|---------------|
+| Code review | **verifier** | No | Code review IS verification — checking code against quality standards |
+| Security audit | **verifier** | No | Security audit IS verification — checking code against security requirements |
+| Release pipeline | **executor** | No | Release IS execution — sequential ordered steps with commits |
+| Agent memory | **executor** (writes) + **plugin** (reads) | No | CLI writes during execution; plugin reads at session start |
+| Readiness dashboard | **(none)** | No | Pure CLI command — no agent involvement |
+| Destructive detection | **(none)** | No | Plugin guardrail — no agent involvement |
+
+**Why this works:** The existing agent roles are defined by *competency* not *domain*:
+- **Verifier** = "checks if something meets criteria" → applies to phase goals, code quality, security
+- **Executor** = "performs ordered sequence of steps" → applies to plans, releases, memory updates
+- **Plugin** = "always-on background intelligence" → applies to context injection, guardrails
+
+The differentiation comes from **workflows** (which define the domain-specific process) and **skills** (which provide domain-specific knowledge). The agent provides the competency; the workflow provides the context.
+
+**Verifier agent extension:** The verifier agent system prompt needs minimal changes. Add 2 entries to its skills table:
+```markdown
+| review-workflow | Code review analysis patterns and question batching | When running /bgsd-review | — |
+| security-workflow | OWASP patterns, secrets scanning, confidence scoring | When running /bgsd-security | — |
+```
+These skills are loaded on-demand — they don't increase the verifier's base token cost.
+
+<!-- /section -->
 
 <!-- section: anti_patterns -->
 ## Anti-Patterns
 
-### Anti-Pattern 1: Bare Open-Ended Questions (The Problem Being Solved)
+### Anti-Pattern 1: Creating New Agent Roles
 
-**What people do:** Asking users to make decisions without presenting options:
-```
-question: "What do you want to build next?"
-```
+**What people do:** Create a `bgsd-reviewer` agent and a `bgsd-security-auditor` agent to handle review and security features.
+**Why it's wrong:** Violates the 9-agent cap (PROJECT.md: "Agent role explosion — Cap at 9 roles; intelligence = data, not agents"). Each new agent adds coordination overhead, model costs, and system prompt maintenance burden.
+**Do this instead:** Reuse the verifier agent with specialized workflows and skills. The verifier already knows how to check things against criteria — just change what criteria it's checking.
 
-**Why it's wrong:** Forces the user to generate options from scratch — cognitive load is high, quality varies. This is the exact anti-pattern v15.0 eliminates.
+### Anti-Pattern 2: Hardcoding Security Patterns
 
-**Do this instead:**
-```
-question(id="discover_milestone_goals", type="discover", context={ previous_features })
-// prompts.js renders:
-// "What do you want to build next?"
-// Options: [Feature from research, Feature from research, Feature from research, "Something else"]
-```
+**What people do:** Embed regex patterns for secrets detection directly in the workflow markdown.
+**Why it's wrong:** Patterns need to be testable, versionable, and extensible. Workflow markdown is for agent orchestration, not data.
+**Do this instead:** Put patterns in `security.js` CLI module as a data structure. Expose via `security:scan` JSON output. The workflow calls the CLI and acts on results.
 
-### Anti-Pattern 2: Inline Question Text in Workflows
+### Anti-Pattern 3: Blocking Guardrails Without Progressive Trust
 
-**What people do:** Embedding raw question text directly in workflow markdown:
-```
-question: "Which areas do you want to discuss for [phase name]?"
-options: ["Session handling", "Error responses", "Multi-device policy", "Recovery flow"]
-```
+**What people do:** Ship GARD-04 in blocking mode from day 1, preventing all destructive commands.
+**Why it's wrong:** False positives will frustrate users. `rm -rf dist/` is perfectly safe; `rm -rf /` is catastrophic. The patterns need tuning before they should block.
+**Do this instead:** Ship in advisory mode. Track false positive rate. Graduate to blocking for CRITICAL patterns only after validation. Allow per-pattern mode overrides.
 
-**Why it's wrong:** Same question text duplicated across workflows. No reuse. No taxonomy. Hard to audit which questions still need upgrading.
+### Anti-Pattern 4: Memory Without Compaction
 
-**Do this instead:** Reference a question template from `prompts.js`:
-```
-question(id="discover_phase_areas", type="discover", context="gray_areas")
-```
+**What people do:** Append to MEMORY.md indefinitely, growing the file to thousands of tokens.
+**Why it's wrong:** Every token in MEMORY.md is injected into every LLM turn. 2KB of memory = ~500 tokens per turn. At 50 turns per session, that's 25K extra tokens wasted.
+**Do this instead:** Hard cap at 2KB. Auto-compact when exceeding limit. Prune old entries. Deduplicate. Users can mark entries as `sticky` to protect them from compaction.
 
-### Anti-Pattern 3: LLM Generating Options Without Taxonomy
+### Anti-Pattern 5: Monolithic Review/Security Workflows
 
-**What people do:** Workflow instructs LLM to "generate 3-5 options" without providing a taxonomy or criteria for good options.
-
-**Why it's wrong:** LLM option quality is inconsistent. No guarantee of coverage, clarity, or appropriateness.
-
-**Do this instead:** Provide taxonomy-specific option generation guidance in `prompts.js`:
-```javascript
-const QUESTION_GUIDANCE = {
-  discover: {
-    minOptions: 4,
-    maxOptions: 6,
-    criteria: ['specific', 'mutually-exclusive', 'actionable'],
-    includeOther: true,
-  },
-  decide: {
-    minOptions: 2,
-    maxOptions: 3,
-    criteria: ['concrete', 'high-contrast', 'actionable'],
-    includeDefault: true,
-  },
-  prioritize: {
-    type: 'checkbox',
-    countHint: 3,
-    criteria: ['specific', 'ranked-by-impact'],
-  },
-};
-```
-
-### Anti-Pattern 4: Questions Without Decision Recording
-
-**What people do:** Asking for user input but not recording the decision for downstream agents.
-
-**Why it's wrong:** Downstream agents (planner, executor) can't see what was decided. Either the question gets asked again or agents make different choices.
-
-**Do this instead:** Every question that captures a decision should:
-1. Record to `DECISION_REGISTRY` via `decision-rules.js` (already handled by `evaluateDecisions`)
-2. Write to `STATE.md` under "Decisions" section
-3. Include the decision in `bgsd-context` for downstream agents
-
-### Anti-Pattern 5: Options That Are Just Labels
-
-**What people do:**
-```
-options: ["Option A", "Option B", "Option C"]
-```
-
-**Why it's wrong:** Users can't make informed decisions from unlabeled options. Options should be self-explanatory without requiring the user to remember what the question was.
-
-**Do this instead:**
-```
-options: [
-  { value: 'session', label: 'Session handling — how state persists across calls' },
-  { value: 'errors', label: 'Error responses — what happens when things fail' },
-  { value: 'multi', label: 'Multi-device policy — how state syncs across devices' },
-]
-```
+**What people do:** Create a single workflow that does analysis, reporting, auto-fixing, and user interaction in one pass.
+**Why it's wrong:** Workflows should be composable. A user might want just the analysis (CI mode), just the report (documentation), or the full interactive experience. Monolithic workflows can't be partially invoked.
+**Do this instead:** CLI commands for each step (analyze, report, auto-fix). Workflow orchestrates the full flow. Each step is independently callable.
 
 <!-- /section -->
 
----
+<!-- section: integration -->
+## Integration Points
 
-<!-- section: sizing -->
-## Sizing Estimates
+### External Services
 
-### Token Impact Analysis
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| GitHub (via `gh` CLI) | `detect:gh-preflight` → `gh pr create`, `gh release create` | Already established in github-ci workflow. Release workflow reuses this pattern. |
+| npm registry | `npm audit --json` for dependency vulnerabilities | Read-only. No publishing (out of scope per PROJECT.md). |
+| Git | `execGit()` for all operations — tags, log, diff, branch | Already comprehensive in `git.js`. Release adds tag creation. |
 
-| Target | Current State | After v15.0 | Savings |
-|--------|--------------|-------------|---------|
-| 45 workflows × avg 5 questions | ~225 inline question texts | ~225 template references (shorter) | ~2-3K tokens total |
-| Option generation | Ad-hoc LLM generation (variable) | Structured from templates (deterministic) | Consistent, auditable |
-| Question taxonomy decision routing | None | Pre-computed via DECISION_REGISTRY | ~200 tokens per question decision |
+### Internal Boundaries
 
-### Effort Estimates
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| CLI ↔ Plugin | JSON over stdout (CLI output) and file system (.planning/) | Standard pattern. New commands follow existing convention. |
+| Plugin ↔ Agent | `<bgsd-context>` XML block in system prompt | command-enricher.js already handles this. Extend for review/security data. |
+| Agent ↔ Workflow | Workflow markdown defines process; agent follows steps | New workflows follow existing patterns (verify-work, github-ci). |
+| Workflow ↔ Skill | On-demand skill loading via `<skill:name />` | New skills (review-workflow, security-workflow, release-workflow) loaded only when needed. |
+| MEMORY.md ↔ Plugin | File read by context-builder.js, parsed as markdown | New integration point. Uses existing caching patterns from state/roadmap parsers. |
+| GARD-04 ↔ Plugin | Extends existing `onToolAfter` hook in advisory-guardrails.js | Minimal new integration — follows GARD-01/02/03 pattern exactly. |
 
-| Task | Complexity | Files | Estimated Duration |
-|------|-----------|-------|-------------------|
-| prompts.js taxonomy infrastructure | Medium — design taxonomy, template registry | `src/lib/prompts.js` | 45-60 min |
-| decision-rules.js question routing | Low — pure functions, follows existing pattern | `src/lib/decision-rules.js` | 20-30 min |
-| questions:audit + questions:list CLI | Low — scanning + listing | `src/commands/questions.js` | 30-45 min |
-| discuss-phase.md migration | Medium — 5-6 questions to migrate | `workflows/discuss-phase.md` | 20-30 min |
-| new-milestone.md migration | Medium — 4-5 questions to migrate | `workflows/new-milestone.md` | 15-20 min |
-| Remaining workflows migration | Low-Medium — per workflow | ~40 other workflows | 60-90 min total |
+### Cross-Feature Integration
+
+| Integration | Description |
+|-------------|-------------|
+| readiness ← review + security | Readiness dashboard aggregates review:analyze and security:scan output |
+| release ← readiness | Release workflow calls readiness:check as pre-release validation gate |
+| memory ← all features | All agents can write memories during any workflow execution |
+| GARD-04 ← all agents | Destructive command detection applies to all agent bash calls |
 
 <!-- /section -->
 
----
-
-<!-- section: sources -->
 ## Sources
 
-- `src/lib/prompts.js` — Existing inquirer wrapper primitives (verified in codebase, HIGH confidence)
-- `src/lib/decision-rules.js` — DECISION_REGISTRY with 19 existing pure decision functions (verified in codebase, HIGH confidence)
-- `src/lib/context.js` — AGENT_MANIFESTS with field scoping (verified in codebase, HIGH confidence)
-- `workflows/discuss-phase.md` — 538-line workflow with inline question text (verified in filesystem, HIGH confidence)
-- `workflows/new-milestone.md` — 275-line workflow with inline question text (verified in filesystem, HIGH confidence)
-- [Azure AI Agent Design Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) — Orchestration patterns (sequential, parallel, multi-agent), HIGH confidence
-- [Screech 120-Agent Architecture](https://www.decodingai.com/p/scaling-120-ai-agents-two-tier-orchestration) — Two-tier orchestration (conductor + specialists), routing before expensive calls, MEDIUM confidence
-- [Anthropic Prompt Engineering Guide](https://docs.anthropic.com/claude/docs/introduction-to-prompt-engineering) — Option generation guidance, few-shot examples, HIGH confidence
-- [Google Cloud Prompt Engineering](https://cloud.google.com/discover/what-is-prompt-engineering) — Prompt structure and role engineering, MEDIUM confidence
+- Existing bGSD architecture: `src/plugin/index.js`, `src/plugin/advisory-guardrails.js`, `src/plugin/context-builder.js`
+- Agent definitions: `agents/bgsd-verifier.md`, `agents/bgsd-executor.md`
+- Plugin hook system: `src/plugin/safe-hook.js`, plugin.js (bundled output)
+- Existing patterns: `src/commands/verify.js` (2832 lines), `src/commands/memory.js` (433 lines), `src/commands/lessons.js` (726 lines)
+- Decision architecture: `src/lib/decision-rules.js` (878 lines)
+- Git integration: `src/lib/git.js` (392 lines)
+- Skills system: 30 skills in `skills/` directory
+- PROJECT.md: Agent cap constraint, architecture decisions, out-of-scope items
 
 ---
-*Architecture research for: v15.0 Workflow Questioning & Decision Quality — question design system integration*
-*Researched: 2026-03-19*
+*Architecture research for: bGSD v16.0 Enterprise Developer Team Features*
+*Researched: 2026-03-28*
