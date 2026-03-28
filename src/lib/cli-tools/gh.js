@@ -276,9 +276,10 @@ function checkAuth(options = {}) {
       });
       
       // Parse auth status - check for logged in indicator
-      // gh auth status returns "Logged in to github.com as user..." on success
-      // Use regex to match the specific format and prevent arbitrary URL matches
-      const isLoggedIn = /^Logged in to github\.com as\b/m.test(output);
+      // gh <=2.88: "Logged in to github.com as user..."
+      // gh >=2.89: "✓ Logged in to github.com account user..."
+      // Lines may have leading whitespace and Unicode checkmark prefix
+      const isLoggedIn = /Logged in to github\.com (as|account)\b/m.test(output);
       return { authenticated: isLoggedIn, status: output.trim() };
     },
     () => {
