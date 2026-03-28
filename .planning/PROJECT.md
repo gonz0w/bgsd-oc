@@ -8,19 +8,33 @@ A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, pr
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v15.0 Workflow Questioning & Decision Quality
+## Current Milestone: v16.0 Enterprise Developer Team
 
-**Goal:** Ensure all workflow discussions provide clear, thoughtful multiple-choice options rather than bare open-ended questions — improving agent decision quality and user experience.
+**Goal:** Transform bGSD from a planning/execution engine into a complete enterprise development team — adding code review, security audit, release pipeline, structured agent memory, and safety guardrails. Inspired by competitive analysis of gstack (sprint lifecycle) and hermes-agent (self-improvement, memory).
 
 **Target features:**
-- Question design patterns with better option generation, taxonomy of question types
-- Multi-select vs single-select guidelines based on decision nature
-- Curated option sets for all milestone/phase discussion workflows
-- Agent prompts updated to always generate 3-5 thoughtful options before asking
+- Code review workflow (`/bgsd-review`) with structural audit, auto-fix, and batched user questions
+- Security audit workflow (`/bgsd-security`) with OWASP Top 10, secrets scanning, dependency checks, confidence-gated findings
+- Review readiness dashboard CLI command showing pre-ship status (tests, lint, coverage, TODOs)
+- Automated release workflow (`/bgsd-release`) with semver version bump, changelog generation, git tag, PR creation
+- Structured agent memory (MEMORY.md) injected into prompts for cross-session learning
+- Destructive command detection and safety guardrails for production-dangerous operations
 
 ## Current State
 
-**Last shipped:** v14.1 Tool-Aware Agent Routing (2026-03-17)
+**Last shipped:** v15.0 Workflow Questioning & Decision Quality (2026-03-20)
+
+<details>
+<summary>Previous: v15.0 Workflow Questioning & Decision Quality (shipped 2026-03-20)</summary>
+
+- Question taxonomy with 7 types (BINARY, SINGLE_CHOICE, MULTI_CHOICE, RANKING, FILTERING, EXPLORATION, CLARIFICATION)
+- questionTemplate() in prompts.js centralizing all question templates — workflows reference by ID
+- Option generation rules: MIN 3, MAX 5 options with diversity constraints and escape hatches
+- 6 primary workflows migrated to template references (discuss-phase, new-milestone, plan-phase, transition, verify-work, execute-phase)
+- questions:audit/list/validate CLI commands for taxonomy compliance
+- 13 templates added, 6 additional workflows migrated (settings, check-todos, add-todo, update, cleanup, complete-milestone)
+
+</details>
 
 <details>
 <summary>Previous: v14.1 Tool-Aware Agent Routing (shipped 2026-03-17)</summary>
@@ -302,7 +316,12 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ### Active
 
-None. No active milestone.
+- Code review workflow with structural audit, auto-fix capability, and batched user questions — v16.0
+- Security audit workflow with OWASP Top 10, secrets scanning, dependency vulnerability checks — v16.0
+- Review readiness dashboard CLI command for pre-ship status checking — v16.0
+- Automated release workflow with semver version bump, changelog generation, git tag, PR creation — v16.0
+- Structured agent memory (MEMORY.md) with cross-session learning injected into prompts — v16.0
+- Destructive command detection with safety guardrails for production-dangerous operations — v16.0
 
 ### Out of Scope
 
@@ -319,12 +338,12 @@ None. No active milestone.
 
 ## Context
 
-Shipped v1.0 through v14.1. 1677 tests (all passing), 52 src/ modules, esbuild bundler.
+Shipped v1.0 through v15.0. 1677 tests (all passing), 52 src/ modules, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
 Deploy pipeline: `npm run build` → esbuild bundle → `deploy.sh` with smoke test and rollback.
-9 specialized AI agents, 41 slash commands, 45 workflows, 27 skills.
+9 specialized AI agents, 41 slash commands, 45 workflows, 30 skills.
 DECISION_REGISTRY: 19 entries (2 remaining Chain B tool-routing rules: file-discovery-mode, search-mode).
 
 Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
@@ -415,4 +434,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-17 after v14.1 milestone complete*
+*Last updated: 2026-03-28 after v16.0 milestone start*

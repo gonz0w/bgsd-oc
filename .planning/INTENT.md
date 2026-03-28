@@ -1,14 +1,15 @@
-**Revision:** 25
+**Revision:** 26
 **Created:** 2026-02-25
-**Updated:** 2026-03-19
+**Updated:** 2026-03-28
 
 <objective>
-A high-performance agent orchestration engine that maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations.
+A high-performance agent orchestration engine that delivers enterprise-quality software through a complete AI development team — planning, execution, code review, security audit, release management, and cross-session learning — while maximizing LLM output per token by shifting administrative work to deterministic CLI operations.
 </objective>
 
 <users>
 - Software developers using AI coding assistants (OpenCode) for project planning and execution
 - Solo developers managing complex multi-phase projects with AI assistance
+- Teams building enterprise applications that require review gates, security scanning, and release automation
 - The GSD plugin's own development workflow (self-referential: planning GSD improvements using GSD)
 </users>
 
@@ -36,20 +37,21 @@ A high-performance agent orchestration engine that maximizes LLM reasoning and c
 **DO-98:** Pre-compute VERIFICATION.md scaffolds — CLI pre-fills success criteria, test results, and requirement status; LLM fills only judgment sections
 **DO-99:** Reduce per-invocation context load — workflows load only the sections relevant to their current step, not the full document
 
-### v14.1 — Tool-Aware Agent Routing (active)
-
-**DO-100:** Workflows consume tool routing decisions — file-discovery-mode, search-mode, json-transform-mode decisions alter agent instructions based on available tools
-**DO-101:** Agents receive actionable tool guidance — executor/debugger/mapper agents get specific tool commands based on capability level (HIGH/MEDIUM/LOW)
-**DO-102:** github-ci uses detect:gh-preflight — structured preflight check replaces raw gh auth status call
-**DO-103:** End-to-end validation proves the full chain — detection to enrichment to workflow behavioral change tested
-**DO-104:** Dead-weight infrastructure pruned — unused Chain B artifacts simplified or removed
-
-### v15.0 — Workflow Questioning & Decision Quality (active)
+### v15.0 — Workflow Questioning & Decision Quality (delivered)
 
 **DO-105:** Question design patterns with taxonomy of question types (motivation, concreteness, clarification, success) and better option generation methodology
 **DO-106:** Multi-select vs single-select guidelines based on decision nature — when to let users pick one vs many
 **DO-107:** Curated option sets for all milestone/phase discussion workflows — every question has 3-5 thoughtful choices
 **DO-108:** Agent prompts updated to generate thoughtful options before asking — never bare open-ended questions
+
+### v16.0 — Enterprise Developer Team (active)
+
+**DO-109:** Code review workflow (`/bgsd-review`) with structural audit, auto-fixable issue detection, and batched user questions — covering patterns like N+1 queries, race conditions, trust boundaries
+**DO-110:** Security audit workflow (`/bgsd-security`) with OWASP Top 10 coverage, secrets-in-code scanning, dependency vulnerability checks, and confidence-gated findings with false positive exclusions
+**DO-111:** Review readiness dashboard CLI command showing pre-ship status — tests pass, lint clean, coverage threshold, no TODOs in diff, changelog updated
+**DO-112:** Automated release workflow (`/bgsd-release`) with semver version bump, changelog generation from plan summaries, git tag, and PR creation
+**DO-113:** Structured agent memory (MEMORY.md) with project facts, user preferences, and environment patterns injected into agent prompts at session start for cross-session learning
+**DO-114:** Destructive command detection with safety guardrails — pattern-based detection of dangerous operations (rm -rf, DROP TABLE, force-push) with user confirmation gates
 </outcomes>
 
 <criteria>
@@ -76,19 +78,21 @@ A high-performance agent orchestration engine that maximizes LLM reasoning and c
 **SC-78:** `verify:generate` produces a VERIFICATION.md scaffold with success criteria and test data pre-filled
 **SC-79:** Workflow compression preserves all behavioral logic — zero regressions in workflow execution
 
-### v14.1 — Tool-Aware Agent Routing (active)
-
-**SC-80:** At least 3 workflows emit different agent instructions when tool_availability changes (tools present vs absent)
-**SC-81:** github-ci workflow uses detect:gh-preflight JSON output instead of raw gh auth status
-**SC-82:** E2E test validates: mock tool_availability → enricher → workflow output contains tool-specific guidance
-**SC-83:** No orphaned decision rules — every computed decision in Chain B has at least one workflow consumer
-
-### v15.0 — Workflow Questioning & Decision Quality (active)
+### v15.0 — Workflow Questioning & Decision Quality (achieved)
 
 **SC-84:** Question taxonomy documented and applied — motivation/concreteness/clarification/success types guide option generation
 **SC-85:** Multi-select vs single-select decision tree implemented — workflows follow consistent selection pattern
 **SC-86:** All milestone/phase discussion workflows have 3-5 curated options per question — zero bare open-ended questions
 **SC-87:** Agent prompts enforce option-first questioning — any question asked by an agent includes 3-5 thoughtful choices
+
+### v16.0 — Enterprise Developer Team (active)
+
+**SC-88:** `/bgsd-review` workflow produces structured code review with auto-fix capability — findings categorized as AUTO-FIX, ASK, or INFO
+**SC-89:** `/bgsd-security` workflow scans for OWASP Top 10, hardcoded secrets, and dependency vulnerabilities with >= 8/10 confidence gate on findings
+**SC-90:** Review readiness dashboard CLI command returns JSON with pass/fail status for tests, lint, coverage, TODOs, and changelog
+**SC-91:** `/bgsd-release` workflow automates semver bump, CHANGELOG.md generation, git tag, and PR creation in a single command
+**SC-92:** MEMORY.md injected into agent system prompts at session start — agents demonstrate recall of project-specific facts across sessions
+**SC-93:** Destructive command patterns detected and blocked with user confirmation — zero false negatives on core patterns (rm -rf, DROP TABLE, force-push)
 </criteria>
 
 <constraints>
@@ -114,6 +118,15 @@ The data layer should be invisible to users — workflows feel faster, decisions
 </health>
 
 <history>
+### v16.0 — 2026-03-28
+- **Updated** objective: Expanded from "maximizes LLM output per token" to include "enterprise-quality software through a complete AI development team"
+- **Added** user: Teams building enterprise applications requiring review gates, security scanning, release automation
+- **Marked delivered** v14.1 outcomes (DO-100 through DO-104) and v15.0 outcomes (DO-105 through DO-108)
+- **Marked achieved** v14.1 criteria (SC-80 through SC-83) and v15.0 criteria (SC-84 through SC-87)
+- **Added** outcomes: DO-109 through DO-114 for code review, security audit, review dashboard, release automation, agent memory, destructive command detection
+- **Added** criteria: SC-88 through SC-93 for v16.0 verification
+  - Reason: Milestone v16.0 initiated — enterprise developer team capabilities informed by gstack and hermes-agent competitive analysis
+
 ### v15.0 — 2026-03-19
 - **Added** outcomes: DO-105 through DO-108 for question taxonomy, multi-select guidelines, curated options, agent prompts
 - **Added** criteria: SC-84 through SC-87 for v15.0 verification
@@ -166,6 +179,6 @@ The data layer should be invisible to users — workflows feel faster, decisions
 
 (See `.planning/archive/INTENT-vv12.0.md` for full history)
 </history>
-<!-- Highest outcome ID: DO-108 -->
-<!-- Highest criteria ID: SC-87 -->
+<!-- Highest outcome ID: DO-114 -->
+<!-- Highest criteria ID: SC-93 -->
 <!-- Highest outcome ID: OUT-0 -->
