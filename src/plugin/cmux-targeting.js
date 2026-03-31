@@ -1,4 +1,4 @@
-import { capabilities, identify, listWorkspaces, ping, sidebarState } from './cmux-cli.js';
+import { capabilities, ping } from './cmux-cli.js';
 
 const REQUIRED_SIDEBAR_METHODS = ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'];
 

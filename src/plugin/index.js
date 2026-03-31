@@ -11,9 +11,66 @@ import { createFileWatcher } from './file-watcher.js';
 import { createIdleValidator } from './idle-validator.js';
 import { createStuckDetector } from './stuck-detector.js';
 import { createAdvisoryGuardrails } from './advisory-guardrails.js';
+import { createNoopCmuxAdapter, resolveCmuxAvailability } from './cmux-targeting.js';
 import { parseConfig } from './parsers/config.js';
 import { writeDebugDiagnostic } from './debug-contract.js';
 import { getToolAvailability } from './tool-availability.js';
+
+const cmuxAdapterCache = new Map();
+
+function buildCmuxCacheKey(projectDir, env = process.env) {
+  return JSON.stringify({
+    projectDir,
+    workspaceId: env.CMUX_WORKSPACE_ID || null,
+    surfaceId: env.CMUX_SURFACE_ID || null,
+    socketPath: env.CMUX_SOCKET_PATH || null,
+    socketMode: env.CMUX_SOCKET_MODE || null,
+  });
+}
+
+async function getCachedCmuxAdapter(projectDir, options = {}) {
+  const env = options.env || process.env;
+  const cacheKey = buildCmuxCacheKey(projectDir, env);
+
+  if (cmuxAdapterCache.has(cacheKey)) {
+    return cmuxAdapterCache.get(cacheKey);
+  }
+
+  const adapterPromise = (async () => {
+    try {
+      const resolveAvailability = typeof options.resolveAvailability === 'function'
+        ? options.resolveAvailability
+        : resolveCmuxAvailability;
+      const verdict = await resolveAvailability({
+        projectDir,
+        env,
+        cmux: options.client,
+        command: options.command,
+        timeoutMs: options.timeoutMs,
+        maxBuffer: options.maxBuffer,
+      });
+      return createNoopCmuxAdapter(verdict);
+    } catch (error) {
+      writeDebugDiagnostic('[bgsd-plugin]', `cmux initialization failed (non-fatal): ${error.message || String(error)}`);
+      return createNoopCmuxAdapter({
+        available: false,
+        attached: false,
+        mode: 'none',
+        suppressionReason: 'cmux-init-failed',
+        workspaceId: null,
+        surfaceId: null,
+        writeProven: false,
+      });
+    }
+  })();
+
+  cmuxAdapterCache.set(cacheKey, adapterPromise);
+  return adapterPromise;
+}
+
+export function resetCmuxAdapterCache() {
+  cmuxAdapterCache.clear();
+}
 
 // Re-export parsers, tool registry, and safeHook for external consumption
 export { parseState, invalidateState } from './parsers/state.js';
@@ -62,7 +119,7 @@ export { createAdvisoryGuardrails } from './advisory-guardrails.js';
  * Hook signature: (input, output) => Promise<void>
  * Source uses ESM imports — esbuild produces clean ESM output.
  */
-export const BgsdPlugin = async ({ directory, $ }) => {
+export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   // Initialize tool registry
   const registry = createToolRegistry(safeHook);
 
@@ -70,6 +127,7 @@ export const BgsdPlugin = async ({ directory, $ }) => {
   const projectDir = directory || process.cwd();
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
+  const cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmux || {});
 
   // Best-effort tool cache warmup so first subagent handoffs have fresh availability data.
   try {
@@ -235,6 +293,7 @@ export const BgsdPlugin = async ({ directory, $ }) => {
     'command.execute.before': commandEnrich,
     'event': eventHandler,
     'tool.execute.after': toolAfter,
+    cmuxAdapter,
     tool: getTools(registry),
   };
 };

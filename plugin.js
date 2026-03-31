@@ -10918,6 +10918,330 @@ function createAdvisoryGuardrails(cwd, notifier, config) {
   };
 }
 
+// src/plugin/cmux-cli.js
+import { execFile } from "node:child_process";
+var DEFAULT_CMUX_TIMEOUT_MS = 750;
+var DEFAULT_CMUX_MAX_BUFFER = 1024 * 1024;
+function normalizeTimeout(timeoutMs) {
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_CMUX_TIMEOUT_MS;
+}
+function buildTargetArgs(options = {}) {
+  const args = [];
+  if (options.workspace) {
+    args.push("--workspace", String(options.workspace));
+  }
+  if (options.surface) {
+    args.push("--surface", String(options.surface));
+  }
+  if (options.window) {
+    args.push("--window", String(options.window));
+  }
+  return args;
+}
+function normalizeExecError(error, { timedOut = false } = {}) {
+  if (!error) return null;
+  if (timedOut) {
+    return {
+      type: "timeout",
+      message: error.message || `cmux command timed out after ${DEFAULT_CMUX_TIMEOUT_MS}ms`,
+      code: error.code || null,
+      signal: error.signal || null
+    };
+  }
+  if (error.name === "AbortError") {
+    return {
+      type: "aborted",
+      message: error.message || "cmux command aborted",
+      code: error.code || null,
+      signal: error.signal || null
+    };
+  }
+  if (error.code === "ENOENT") {
+    return {
+      type: "missing-cli",
+      message: error.message || "cmux CLI not found",
+      code: error.code,
+      signal: error.signal || null
+    };
+  }
+  return {
+    type: "command-failed",
+    message: error.message || "cmux command failed",
+    code: typeof error.code === "number" || typeof error.code === "string" ? error.code : null,
+    signal: error.signal || null
+  };
+}
+function ensureJsonFlag(args) {
+  return args.includes("--json") ? [...args] : [...args, "--json"];
+}
+async function runCmuxCommand(commandName, commandArgs = [], options = {}) {
+  const executable = options.command || "cmux";
+  const timeoutMs = normalizeTimeout(options.timeoutMs);
+  const signal = options.signal;
+  const args = [commandName, ...commandArgs, ...buildTargetArgs(options)];
+  let timedOut = false;
+  let cleanupAbort = null;
+  const result = await new Promise((resolve4) => {
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+    }, timeoutMs);
+    let aborted = false;
+    const onAbort = () => {
+      aborted = true;
+      child.kill("SIGTERM");
+    };
+    if (signal) {
+      if (signal.aborted) {
+        aborted = true;
+      } else {
+        signal.addEventListener("abort", onAbort, { once: true });
+        cleanupAbort = () => signal.removeEventListener("abort", onAbort);
+      }
+    }
+    const child = execFile(executable, args, {
+      cwd: options.cwd,
+      env: options.env,
+      encoding: "utf-8",
+      windowsHide: true,
+      maxBuffer: Number.isFinite(options.maxBuffer) && options.maxBuffer > 0 ? options.maxBuffer : DEFAULT_CMUX_MAX_BUFFER,
+      timeout: timeoutMs
+    }, (error, stdout, stderr) => {
+      clearTimeout(timer);
+      if (cleanupAbort) cleanupAbort();
+      const normalizedError = normalizeExecError(error, { timedOut });
+      resolve4({
+        ok: !normalizedError,
+        command: executable,
+        commandName,
+        args,
+        stdout: typeof stdout === "string" ? stdout : String(stdout || ""),
+        stderr: typeof stderr === "string" ? stderr : String(stderr || ""),
+        exitCode: error && typeof error.code === "number" ? error.code : null,
+        signal: error?.signal || null,
+        timedOut,
+        aborted: aborted || normalizedError?.type === "aborted",
+        error: normalizedError
+      });
+    });
+    if (aborted) {
+      child.kill("SIGTERM");
+    }
+  });
+  return result;
+}
+async function runCmuxJson(commandName, commandArgs = [], options = {}) {
+  const result = await runCmuxCommand(commandName, ensureJsonFlag(commandArgs), options);
+  if (!result.ok) {
+    return { ...result, json: null };
+  }
+  try {
+    const text = String(result.stdout || "").trim();
+    return {
+      ...result,
+      json: text ? JSON.parse(text) : null
+    };
+  } catch (error) {
+    return {
+      ...result,
+      ok: false,
+      json: null,
+      error: {
+        type: "invalid-json",
+        message: error.message || "cmux returned invalid JSON",
+        code: null,
+        signal: null
+      }
+    };
+  }
+}
+function ping(options = {}) {
+  return runCmuxCommand("ping", [], options);
+}
+function capabilities(options = {}) {
+  return runCmuxJson("capabilities", [], options);
+}
+
+// src/plugin/cmux-targeting.js
+var REQUIRED_SIDEBAR_METHODS = ["set-status", "clear-status", "set-progress", "clear-progress", "log"];
+function normalizeAccessMode(value) {
+  if (!value) return null;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "allowall" || normalized === "allow-all" || normalized === "allow_all") return "allowAll";
+  if (normalized === "off") return "off";
+  if (normalized === "cmux processes only" || normalized === "cmuxonly" || normalized === "cmux-only" || normalized === "cmux_only") {
+    return "cmuxOnly";
+  }
+  return value;
+}
+function extractCapabilitiesPayload(capabilityResult) {
+  if (!capabilityResult || !capabilityResult.json) return null;
+  return capabilityResult.json.result || capabilityResult.json;
+}
+function extractMethods(payload) {
+  const candidates = [
+    payload?.methods,
+    payload?.available_methods,
+    payload?.capabilities,
+    payload?.result?.methods
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.map((entry) => String(entry));
+    }
+  }
+  return [];
+}
+function resolveAccessMode(payload) {
+  return normalizeAccessMode(
+    payload?.access_mode || payload?.accessMode || payload?.socket_mode || payload?.socketMode || payload?.socket?.mode
+  );
+}
+function hasManagedEnv(env) {
+  return Boolean(env?.CMUX_WORKSPACE_ID || env?.CMUX_SURFACE_ID);
+}
+function hasCompleteManagedEnv(env) {
+  return Boolean(env?.CMUX_WORKSPACE_ID && env?.CMUX_SURFACE_ID);
+}
+function buildVerdict(overrides = {}) {
+  return Object.freeze({
+    available: false,
+    attached: false,
+    mode: "none",
+    suppressionReason: null,
+    workspaceId: null,
+    surfaceId: null,
+    accessMode: null,
+    methods: [],
+    writeProven: false,
+    ...overrides
+  });
+}
+function inferPingSuppressionReason(result) {
+  if (result?.error?.type === "missing-cli") return "cmux-missing";
+  if (result?.timedOut) return "cmux-timeout";
+  return "cmux-unreachable";
+}
+function buildCmuxClient(options = {}) {
+  if (options.cmux) return options.cmux;
+  const shared = {
+    command: options.command,
+    cwd: options.projectDir,
+    env: options.env,
+    timeoutMs: options.timeoutMs,
+    maxBuffer: options.maxBuffer
+  };
+  return {
+    ping: (callOptions = {}) => ping({ ...shared, ...callOptions }),
+    capabilities: (callOptions = {}) => capabilities({ ...shared, ...callOptions }),
+    identify: (callOptions = {}) => identify({ ...shared, ...callOptions }),
+    listWorkspaces: (callOptions = {}) => listWorkspaces({ ...shared, ...callOptions }),
+    sidebarState: (callOptions = {}) => sidebarState({ ...shared, ...callOptions })
+  };
+}
+function createNoopCmuxAdapter(verdict = {}) {
+  const normalizedVerdict = buildVerdict(verdict);
+  async function suppressed(action, details = {}) {
+    return {
+      ok: false,
+      suppressed: true,
+      action,
+      reason: normalizedVerdict.suppressionReason || "not-attached",
+      mode: normalizedVerdict.mode,
+      available: normalizedVerdict.available,
+      attached: normalizedVerdict.attached,
+      workspaceId: normalizedVerdict.workspaceId,
+      surfaceId: normalizedVerdict.surfaceId,
+      details
+    };
+  }
+  return Object.freeze({
+    ...normalizedVerdict,
+    verdict: normalizedVerdict,
+    getVerdict() {
+      return normalizedVerdict;
+    },
+    setStatus(key, value, options = {}) {
+      return suppressed("set-status", { key, value, options });
+    },
+    clearStatus(key, options = {}) {
+      return suppressed("clear-status", { key, options });
+    },
+    setProgress(progress, options = {}) {
+      return suppressed("set-progress", { progress, options });
+    },
+    clearProgress(options = {}) {
+      return suppressed("clear-progress", { options });
+    },
+    log(message, options = {}) {
+      return suppressed("log", { message, options });
+    }
+  });
+}
+async function resolveCmuxAvailability(options = {}) {
+  const env = options.env || process.env;
+  const cmux = buildCmuxClient(options);
+  const mode = hasManagedEnv(env) ? "managed" : "alongside";
+  const pingResult = await cmux.ping();
+  if (!pingResult.ok) {
+    return buildVerdict({
+      mode: "none",
+      suppressionReason: inferPingSuppressionReason(pingResult)
+    });
+  }
+  const capabilitiesResult = await cmux.capabilities();
+  if (!capabilitiesResult.ok) {
+    return buildVerdict({
+      mode,
+      suppressionReason: "capabilities-unavailable"
+    });
+  }
+  const payload = extractCapabilitiesPayload(capabilitiesResult);
+  const accessMode = resolveAccessMode(payload);
+  const methods = extractMethods(payload);
+  const missingMethods = methods.length > 0 ? REQUIRED_SIDEBAR_METHODS.filter((method) => !methods.includes(method)) : [];
+  if (accessMode === "off") {
+    return buildVerdict({
+      mode,
+      accessMode,
+      methods,
+      suppressionReason: "access-mode-off"
+    });
+  }
+  if (missingMethods.length > 0) {
+    return buildVerdict({
+      mode,
+      accessMode,
+      methods,
+      suppressionReason: "missing-methods"
+    });
+  }
+  if (hasManagedEnv(env) && !hasCompleteManagedEnv(env)) {
+    return buildVerdict({
+      mode: "managed",
+      accessMode,
+      methods,
+      suppressionReason: "missing-env"
+    });
+  }
+  if (!hasManagedEnv(env) && accessMode && accessMode !== "allowAll") {
+    return buildVerdict({
+      mode: "alongside",
+      accessMode,
+      methods,
+      suppressionReason: "access-mode-blocked"
+    });
+  }
+  return buildVerdict({
+    available: true,
+    mode: hasManagedEnv(env) ? "managed" : accessMode === "allowAll" ? "alongside" : "none",
+    workspaceId: env.CMUX_WORKSPACE_ID || null,
+    surfaceId: env.CMUX_SURFACE_ID || null,
+    accessMode,
+    methods
+  });
+}
+
 // src/plugin/index.js
 init_config();
 await init_state();
@@ -10927,11 +11251,59 @@ init_config();
 init_project();
 init_intent();
 await init_parsers();
-var BgsdPlugin = async ({ directory, $ }) => {
+var cmuxAdapterCache = /* @__PURE__ */ new Map();
+function buildCmuxCacheKey(projectDir, env = process.env) {
+  return JSON.stringify({
+    projectDir,
+    workspaceId: env.CMUX_WORKSPACE_ID || null,
+    surfaceId: env.CMUX_SURFACE_ID || null,
+    socketPath: env.CMUX_SOCKET_PATH || null,
+    socketMode: env.CMUX_SOCKET_MODE || null
+  });
+}
+async function getCachedCmuxAdapter(projectDir, options = {}) {
+  const env = options.env || process.env;
+  const cacheKey = buildCmuxCacheKey(projectDir, env);
+  if (cmuxAdapterCache.has(cacheKey)) {
+    return cmuxAdapterCache.get(cacheKey);
+  }
+  const adapterPromise = (async () => {
+    try {
+      const resolveAvailability = typeof options.resolveAvailability === "function" ? options.resolveAvailability : resolveCmuxAvailability;
+      const verdict = await resolveAvailability({
+        projectDir,
+        env,
+        cmux: options.client,
+        command: options.command,
+        timeoutMs: options.timeoutMs,
+        maxBuffer: options.maxBuffer
+      });
+      return createNoopCmuxAdapter(verdict);
+    } catch (error) {
+      writeDebugDiagnostic2("[bgsd-plugin]", `cmux initialization failed (non-fatal): ${error.message || String(error)}`);
+      return createNoopCmuxAdapter({
+        available: false,
+        attached: false,
+        mode: "none",
+        suppressionReason: "cmux-init-failed",
+        workspaceId: null,
+        surfaceId: null,
+        writeProven: false
+      });
+    }
+  })();
+  cmuxAdapterCache.set(cacheKey, adapterPromise);
+  return adapterPromise;
+}
+function resetCmuxAdapterCache() {
+  cmuxAdapterCache.clear();
+}
+var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const registry = createToolRegistry(safeHook);
   const projectDir = directory || process.cwd();
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
+  const cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmux || {});
   try {
     if (existsSync9(join20(projectDir, ".planning"))) {
       getToolAvailability(projectDir, { refreshIfNeeded: true });
@@ -11057,6 +11429,7 @@ var BgsdPlugin = async ({ directory, $ }) => {
     "command.execute.before": commandEnrich,
     "event": eventHandler,
     "tool.execute.after": toolAfter,
+    cmuxAdapter,
     tool: getTools(registry)
   };
 };
@@ -11088,5 +11461,6 @@ export {
   parseProject,
   parseRoadmap,
   parseState,
+  resetCmuxAdapterCache,
   safeHook
 };
