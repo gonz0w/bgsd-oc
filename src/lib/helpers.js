@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { debugLog } = require('./output');
 const { loadConfig } = require('./config');
-const { MODEL_PROFILES } = require('./constants');
+const { DEFAULT_MODEL_SETTINGS, MODEL_SETTING_PROFILES, VALID_MODEL_OVERRIDE_AGENTS } = require('./constants');
 const { cachedRegex, PHASE_DIR_NUMBER } = require('./regex-cache');
 
 // ─── File Helpers ────────────────────────────────────────────────────────────
@@ -618,36 +618,86 @@ function isValidDateString(str) {
 
 // ─── Internal Helpers (used by commands, not exported to CLI) ─────────────────
 
-function resolveModelInternal(cwd, agentType) {
-  const config = loadConfig(cwd);
+function normalizeModelOverrideValue(value) {
+  if (typeof value === 'string') {
+    const model = value.trim();
+    return model || null;
+  }
+  if (value && typeof value === 'object' && typeof value.model === 'string') {
+    const model = value.model.trim();
+    return model || null;
+  }
+  return null;
+}
 
-  // Check per-agent override first
-  const override = config.model_overrides?.[agentType];
-  if (override) {
-    return override === 'opus' ? 'inherit' : override;
+function buildCanonicalModelSettings(config) {
+  const rawConfig = config && typeof config === 'object' ? config : {};
+  const rawModelSettings = rawConfig.model_settings && typeof rawConfig.model_settings === 'object'
+    ? rawConfig.model_settings
+    : {};
+  const rawProfiles = rawModelSettings.profiles && typeof rawModelSettings.profiles === 'object'
+    ? rawModelSettings.profiles
+    : {};
+  const profiles = {};
+
+  for (const profileName of MODEL_SETTING_PROFILES) {
+    const fallbackModel = DEFAULT_MODEL_SETTINGS.profiles[profileName].model;
+    const rawProfile = rawProfiles[profileName];
+    const configuredModel = normalizeModelOverrideValue(rawProfile);
+    profiles[profileName] = { model: configuredModel || fallbackModel };
   }
 
-  const profile = config.model_profile || 'balanced';
+  const requestedProfile = typeof rawModelSettings.default_profile === 'string' && rawModelSettings.default_profile.trim()
+    ? rawModelSettings.default_profile.trim()
+    : typeof rawConfig.model_profile === 'string' && rawConfig.model_profile.trim()
+      ? rawConfig.model_profile.trim()
+      : DEFAULT_MODEL_SETTINGS.default_profile;
+  const defaultProfile = MODEL_SETTING_PROFILES.includes(requestedProfile)
+    ? requestedProfile
+    : DEFAULT_MODEL_SETTINGS.default_profile;
 
-  // Try model-selection decision rule first (SQLite-backed, Phase 122)
-  try {
-    const { resolveModelSelection } = require('./decision-rules');
-    const { getDb } = require('./db');
-    const db = getDb(cwd);
-    const result = resolveModelSelection({ agent_type: agentType, model_profile: profile, db });
-    if (result && result.value && result.value.model) {
-      const model = result.value.model;
-      return model === 'opus' ? 'inherit' : model;
-    }
-  } catch {
-    // Fall through to static lookup
+  const rawOverrides = rawModelSettings.agent_overrides && typeof rawModelSettings.agent_overrides === 'object'
+    ? rawModelSettings.agent_overrides
+    : rawConfig.model_overrides && typeof rawConfig.model_overrides === 'object'
+      ? rawConfig.model_overrides
+      : {};
+  const agentOverrides = {};
+  for (const [agentId, rawValue] of Object.entries(rawOverrides)) {
+    const model = normalizeModelOverrideValue(rawValue);
+    if (model) agentOverrides[agentId] = model;
   }
 
-  // Static fallback
-  const agentModels = MODEL_PROFILES[agentType];
-  if (!agentModels) return 'sonnet';
-  const resolved = agentModels[profile] || agentModels['balanced'] || 'sonnet';
+  return {
+    default_profile: defaultProfile,
+    profiles,
+    agent_overrides: agentOverrides,
+  };
+}
+
+function normalizeResolvedModel(model) {
+  const fallbackModel = DEFAULT_MODEL_SETTINGS.profiles[DEFAULT_MODEL_SETTINGS.default_profile].model;
+  const resolved = typeof model === 'string' && model.trim() ? model.trim() : fallbackModel;
   return resolved === 'opus' ? 'inherit' : resolved;
+}
+
+function resolveModelSelectionFromConfig(config, agentType) {
+  const modelSettings = buildCanonicalModelSettings(config);
+  const selectedProfile = modelSettings.default_profile;
+  const overrideModel = agentType ? modelSettings.agent_overrides[agentType] : null;
+  const profileModel = modelSettings.profiles[selectedProfile]?.model;
+  const model = normalizeResolvedModel(overrideModel || profileModel);
+
+  return {
+    agent_type: agentType || null,
+    selected_profile: selectedProfile,
+    model,
+    source: overrideModel ? 'agent_override' : 'default_profile',
+    unknown_agent: Boolean(agentType) && !VALID_MODEL_OVERRIDE_AGENTS.includes(agentType),
+  };
+}
+
+function resolveModelInternal(cwd, agentType) {
+  return resolveModelSelectionFromConfig(loadConfig(cwd), agentType).model;
 }
 
 function getArchivedPhaseDirs(cwd) {
@@ -1637,6 +1687,8 @@ module.exports = {
   parseMustHavesBlock,
   sanitizeShellArg,
   isValidDateString,
+  buildCanonicalModelSettings,
+  resolveModelSelectionFromConfig,
   resolveModelInternal,
   getArchivedPhaseDirs,
   findPhaseInternal,

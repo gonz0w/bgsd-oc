@@ -535,18 +535,20 @@ describe('decisions: resolveModelSelection contract', () => {
     const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: 'balanced' });
     assert.ok(typeof result.value === 'object', 'value should be an object');
     assert.ok(typeof result.value.tier === 'string', 'value.tier should be a string');
+    assert.ok(typeof result.value.profile === 'string', 'value.profile should be a string');
     assert.ok(typeof result.value.model === 'string', 'value.model should be a string');
   });
 
-  it('falls back to static defaults when db is null', () => {
-    const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: 'balanced', db: null });
+  it('falls back to shipped profile defaults when contract details are absent', () => {
+    const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: 'balanced' });
     assert.ok(result.value.model, 'Should return a model');
     assert.strictEqual(result.confidence, 'HIGH');
   });
 
-  it('falls back to sonnet when agent_type is unknown', () => {
+  it('uses the selected default profile even when agent_type is unknown', () => {
     const result = resolveModelSelection({ agent_type: 'bgsd-unknown-agent', model_profile: 'balanced' });
-    assert.strictEqual(result.value.model, 'sonnet');
+    assert.strictEqual(result.value.model, 'gpt-5.4-mini');
+    assert.strictEqual(result.value.unknown_agent, true);
   });
 
   it('uses model_profile default when not provided', () => {
@@ -563,6 +565,42 @@ describe('decisions: resolveModelSelection contract', () => {
   it('returns correct tier in value', () => {
     const result = resolveModelSelection({ agent_type: 'bgsd-planner', model_profile: 'quality' });
     assert.strictEqual(result.value.tier, 'quality');
+  });
+
+  it('prefers direct agent overrides over the selected profile', () => {
+    const result = resolveModelSelection({
+      agent_type: 'bgsd-executor',
+      model_settings: {
+        default_profile: 'quality',
+        profiles: {
+          quality: { model: 'gpt-5.4' },
+          balanced: { model: 'gpt-5.4-mini' },
+          budget: { model: 'gpt-5.4-nano' },
+        },
+        agent_overrides: {
+          'bgsd-executor': 'ollama/qwen3-coder:latest',
+        },
+      },
+    });
+    assert.strictEqual(result.value.profile, 'quality');
+    assert.strictEqual(result.value.model, 'ollama/qwen3-coder:latest');
+    assert.strictEqual(result.value.source, 'agent_override');
+  });
+
+  it('uses shipped profile definitions when requested profile entry is missing', () => {
+    const result = resolveModelSelection({
+      agent_type: 'bgsd-planner',
+      model_settings: {
+        default_profile: 'budget',
+        profiles: {
+          quality: { model: 'custom-quality' },
+        },
+        agent_overrides: {},
+      },
+    });
+    assert.strictEqual(result.value.profile, 'budget');
+    assert.strictEqual(result.value.model, 'gpt-5.4-nano');
+    assert.strictEqual(result.value.source, 'default_profile');
   });
 });
 
@@ -1047,4 +1085,3 @@ describe('Phase 127: Tool routing decision functions', () => {
 
   });
 });
-

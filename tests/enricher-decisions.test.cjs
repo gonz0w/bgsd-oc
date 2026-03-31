@@ -431,6 +431,43 @@ describe('enricher-decisions: model-selection fires with agent_type + model_prof
     assert.ok(results['model-selection'], 'model-selection should appear in results');
     assert.strictEqual(results['model-selection'].value.tier, 'quality');
   });
+
+  it('prefers canonical agent overrides from model_settings', () => {
+    const results = evaluateDecisions('bgsd-execute-phase', {
+      agent_type: 'bgsd-executor',
+      model_settings: {
+        default_profile: 'quality',
+        profiles: {
+          quality: { model: 'gpt-5.4' },
+          balanced: { model: 'gpt-5.4-mini' },
+          budget: { model: 'gpt-5.4-nano' },
+        },
+        agent_overrides: {
+          'bgsd-executor': 'ollama/qwen3-coder:latest',
+        },
+      },
+    });
+    assert.ok(results['model-selection'], 'model-selection should appear in results');
+    assert.strictEqual(results['model-selection'].value.profile, 'quality');
+    assert.strictEqual(results['model-selection'].value.model, 'ollama/qwen3-coder:latest');
+    assert.strictEqual(results['model-selection'].value.source, 'agent_override');
+  });
+
+  it('uses shipped default profile models when canonical settings omit a profile entry', () => {
+    const results = evaluateDecisions('bgsd-plan-phase', {
+      agent_type: 'bgsd-planner',
+      model_settings: {
+        default_profile: 'budget',
+        profiles: {
+          quality: { model: 'custom-quality' },
+        },
+      },
+    });
+    assert.ok(results['model-selection'], 'model-selection should appear in results');
+    assert.strictEqual(results['model-selection'].value.profile, 'budget');
+    assert.strictEqual(results['model-selection'].value.model, 'gpt-5.4-nano');
+    assert.strictEqual(results['model-selection'].value.source, 'default_profile');
+  });
 });
 
 describe('enricher-decisions: verification-routing fires with task_count + verifier_enabled', () => {

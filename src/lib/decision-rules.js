@@ -313,9 +313,8 @@ function resolveDebugHandlerRoute(state) {
 // ─── Phase 122: New Decision Functions ───────────────────────────────────────
 
 /**
- * Model selection — picks the concrete model string for a given agent + tier.
- * Reads from SQLite model_profiles table if a db handle is available in state,
- * falls back to static MODEL_PROFILES from constants.js.
+ * Model selection — picks the concrete model string for a given agent from the
+ * canonical model_settings contract.
  *
  * Category: configuration
  */
@@ -323,41 +322,23 @@ function resolveModelSelection(state) {
   const {
     agent_type,
     model_profile = 'balanced',
-    db,
+    model_settings,
   } = state || {};
 
-  // Try SQLite-backed lookup first
-  if (db && agent_type) {
-    try {
-      // Lazy require to avoid circular deps at module load
-      const { PlanningCache } = require('./planning-cache');
-      const cache = new PlanningCache(db);
-      const profile = cache.getModelProfile(process.cwd(), agent_type);
-      if (profile) {
-        // Override model takes precedence over tier
-        if (profile.override_model) {
-          return { value: { tier: model_profile, model: profile.override_model }, confidence: 'HIGH', rule_id: 'model-selection' };
-        }
-        const tierKey = model_profile + '_model';
-        if (profile[tierKey]) {
-          return { value: { tier: model_profile, model: profile[tierKey] }, confidence: 'HIGH', rule_id: 'model-selection' };
-        }
-      }
-    } catch {
-      // Fall through to static lookup
-    }
-  }
+  const { resolveModelSelectionFromConfig } = require('./helpers');
+  const resolved = resolveModelSelectionFromConfig({ model_settings, model_profile }, agent_type);
 
-  // Static fallback from constants.js
-  const { MODEL_PROFILES } = require('./constants');
-  if (agent_type && MODEL_PROFILES[agent_type]) {
-    const agentProfile = MODEL_PROFILES[agent_type];
-    const model = agentProfile[model_profile] || agentProfile.balanced || 'sonnet';
-    return { value: { tier: model_profile, model }, confidence: 'HIGH', rule_id: 'model-selection' };
-  }
-
-  // Ultimate fallback
-  return { value: { tier: model_profile, model: 'sonnet' }, confidence: 'HIGH', rule_id: 'model-selection' };
+  return {
+    value: {
+      tier: resolved.selected_profile,
+      profile: resolved.selected_profile,
+      model: resolved.model,
+      source: resolved.source,
+      unknown_agent: resolved.unknown_agent,
+    },
+    confidence: 'HIGH',
+    rule_id: 'model-selection'
+  };
 }
 
 /**
@@ -599,9 +580,9 @@ const DECISION_REGISTRY = [
     id: 'model-selection',
     name: 'Model Selection',
     category: 'configuration',
-    description: 'Resolves concrete model string for an agent type and tier, SQLite-backed with static fallback',
-    inputs: ['agent_type', 'model_profile', 'db'],
-    outputs: ['{ tier, model }'],
+    description: 'Resolves concrete model string for an agent type from canonical model settings',
+    inputs: ['agent_type', 'model_profile', 'model_settings'],
+    outputs: ['{ profile, model }'],
     confidence_range: ['HIGH'],
     resolve: resolveModelSelection,
   },
