@@ -7,7 +7,7 @@ const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
 const { banner, sectionHeader, progressBar, formatTable, summaryLine, actionHint, color, SYMBOLS, colorByPercent } = require('../lib/format');
 const { loadConfig, readRawConfig } = require('../lib/config');
-const { safeReadFile, cachedReadFile, findPhaseInternal, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree, normalizePhasePlanFilesTddMetadata, buildPhaseSnapshotInternal, buildPhaseHandoffExpectedFingerprint, getRuntimeFreshness } = require('../lib/helpers');
+const { safeReadFile, cachedReadFile, findPhaseInternal, resolveConfiguredModelStateFromConfig, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree, normalizePhasePlanFilesTddMetadata, buildPhaseSnapshotInternal, buildPhaseHandoffExpectedFingerprint, getRuntimeFreshness } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 const { buildPhaseHandoffValidation, listPhaseHandoffArtifacts } = require('../lib/phase-handoff');
@@ -140,6 +140,31 @@ function formatCodebaseContext(intel, cwd) {
   }
 
   return { codebase_stats, codebase_conventions, codebase_dependencies, codebase_freshness };
+}
+
+function formatInitModelSummary(entries) {
+  return entries
+    .filter((entry) => entry && entry.state)
+    .map(({ label, state }) => {
+      const prefix = state.source === 'agent_override'
+        ? `${label} override ${state.configured}`
+        : `${label} ${state.configured}`;
+      return `${prefix} -> ${state.resolved_model}`;
+    })
+    .join('; ');
+}
+
+function attachInitModelStates(result, config, entries) {
+  const summaryEntries = [];
+
+  for (const entry of entries) {
+    const state = resolveConfiguredModelStateFromConfig(config, entry.agentType);
+    result[entry.modelKey] = state.resolved_model;
+    result[`${entry.modelKey}_state`] = state;
+    summaryEntries.push({ label: entry.label, state });
+  }
+
+  result.model_summary = formatInitModelSummary(summaryEntries);
 }
 
 function getSnapshotArtifacts(snapshot) {
@@ -324,10 +349,6 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   } catch (e) { debugLog('init.executePhase', 'raw config read failed', e); }
 
   const result = {
-    // Models
-    executor_model: resolveModelInternal(cwd, 'bgsd-executor'),
-    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
-
     // Config flags
     commit_docs: config.commit_docs,
     parallelization: config.parallelization,
@@ -397,6 +418,10 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     previous_attempts: null,
     runtime_freshness: summarizeRuntimeFreshnessForPlans(cwd, snapshot?.artifacts?.plans || []),
   };
+  attachInitModelStates(result, config, [
+    { modelKey: 'executor_model', agentType: 'bgsd-executor', label: 'executor' },
+    { modelKey: 'verifier_model', agentType: 'bgsd-verifier', label: 'verifier' },
+  ]);
   if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
 
   // Advisory intent summary — never crash, never block
@@ -603,6 +628,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       branch_name: result.branch_name,
       verifier_enabled: result.verifier_enabled,
       pre_flight_validation: result.pre_flight_validation,
+      model_summary: result.model_summary,
       intent_drift: result.intent_drift ? {
         score: result.intent_drift.score,
         alignment: result.intent_drift.alignment,
@@ -671,11 +697,6 @@ function cmdInitPlanPhase(cwd, phase, raw) {
   } catch (e) { debugLog('init.planPhase', 'raw config read failed', e); }
 
   const result = {
-    // Models
-    researcher_model: resolveModelInternal(cwd, 'bgsd-phase-researcher'),
-    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
-    checker_model: resolveModelInternal(cwd, 'bgsd-plan-checker'),
-
     // Workflow flags
     research_enabled: config.research,
     plan_checker_enabled: config.plan_checker,
@@ -711,6 +732,11 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     effective_intent: null,
     jj_planning_context: buildJjPlanningContext(rawConfig),
   };
+  attachInitModelStates(result, config, [
+    { modelKey: 'researcher_model', agentType: 'bgsd-phase-researcher', label: 'researcher' },
+    { modelKey: 'planner_model', agentType: 'bgsd-planner', label: 'planner' },
+    { modelKey: 'checker_model', agentType: 'bgsd-plan-checker', label: 'checker' },
+  ]);
   if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
 
   // Advisory intent summary — never crash, never block
@@ -805,6 +831,7 @@ function cmdInitPlanPhase(cwd, phase, raw) {
       plan_count: result.plan_count,
       research_enabled: result.research_enabled,
       plan_checker_enabled: result.plan_checker_enabled,
+      model_summary: result.model_summary,
     };
     if (result.intent_summary) compactResult.intent_summary = result.intent_summary;
     if (result.intent_path) compactResult.intent_path = result.intent_path;
@@ -1029,12 +1056,6 @@ function cmdInitQuick(cwd, description, raw) {
   } catch (e) { debugLog('init.quick', 'readdir failed', e); }
 
   const result = {
-    // Models
-    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
-    executor_model: resolveModelInternal(cwd, 'bgsd-executor'),
-    checker_model: resolveModelInternal(cwd, 'bgsd-plan-checker'),
-    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
-
     // Config
     commit_docs: config.commit_docs,
 
@@ -1056,6 +1077,12 @@ function cmdInitQuick(cwd, description, raw) {
     planning_exists: pathExistsInternal(cwd, '.planning'),
 
   };
+  attachInitModelStates(result, config, [
+    { modelKey: 'planner_model', agentType: 'bgsd-planner', label: 'planner' },
+    { modelKey: 'executor_model', agentType: 'bgsd-executor', label: 'executor' },
+    { modelKey: 'checker_model', agentType: 'bgsd-plan-checker', label: 'checker' },
+    { modelKey: 'verifier_model', agentType: 'bgsd-verifier', label: 'verifier' },
+  ]);
 
   // Environment context — inject compact summary
   try {
@@ -1077,6 +1104,7 @@ function cmdInitQuick(cwd, description, raw) {
       task_dir: result.task_dir,
       date: result.date,
       planning_exists: result.planning_exists,
+      model_summary: result.model_summary,
       env_summary: result.env_summary || null,
     };
     if (global._gsdManifestMode) {
@@ -1782,10 +1810,6 @@ function cmdInitProgress(cwd, raw) {
   } catch (e) { debugLog('init.progress', 'read failed', e); }
 
   const result = {
-    // Models
-    executor_model: resolveModelInternal(cwd, 'bgsd-executor'),
-    planner_model: resolveModelInternal(cwd, 'bgsd-planner'),
-
     // Config
     commit_docs: config.commit_docs,
 
@@ -1821,6 +1845,10 @@ function cmdInitProgress(cwd, raw) {
     // Intent summary (null if no INTENT.md)
     intent_summary: null,
   };
+  attachInitModelStates(result, config, [
+    { modelKey: 'executor_model', agentType: 'bgsd-executor', label: 'executor' },
+    { modelKey: 'planner_model', agentType: 'bgsd-planner', label: 'planner' },
+  ]);
 
   // Advisory intent summary — never crash, never block
   try {
@@ -1880,6 +1908,7 @@ function cmdInitProgress(cwd, raw) {
       next_phase: result.next_phase,
       has_work_in_progress: result.has_work_in_progress,
       session_diff: result.session_diff,
+      model_summary: result.model_summary,
       intent_summary: result.intent_summary || null,
       env_summary: result.env_summary || null,
       codebase_stats: result.codebase_stats || null,
