@@ -1065,3 +1065,213 @@ describe('Plugin cmux adapter fail-open contract', () => {
     }
   });
 });
+
+describe('Plugin cmux sidebar sync', () => {
+  const pluginPath = path.join(__dirname, '..', 'plugin.js');
+
+  function writeCmuxSidebarFixture(tmpDir, stateContent) {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '171-ambient-workspace-status-progress'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), stateContent);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap
+
+## Current Milestone
+
+### v18.0
+- Status: Active
+- Phases: 168-172
+
+## Phases
+
+### Phase 171: Ambient Workspace Status & Progress
+- Goal: Show trustworthy ambient cmux state
+- Status: current
+`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '171-ambient-workspace-status-progress', '171-02-PLAN.md'), `---
+phase: 171-ambient-workspace-status-progress
+plan: 02
+---
+
+<tasks>
+<task type="auto">
+  <name>Fixture task</name>
+  <files>src/plugin/index.js</files>
+  <action>Exercise cmux sidebar sync</action>
+  <done>Sidebar sync verified</done>
+</task>
+</tasks>
+`);
+  }
+
+  function buildState({
+    phase = '171 — Ambient Workspace Status & Progress',
+    plan = '02',
+    status = 'Ready to plan',
+    lastActivity = '2026-03-31T15:00:00Z',
+    progressLine = '**Progress:** [████░░░░░░] 40%',
+    continuity = 'Ready to plan',
+  } = {}) {
+    const phaseLine = phase === null ? '' : `**Phase:** ${phase}\n`;
+    const planLine = plan === null ? '' : `**Current Plan:** ${plan}\n`;
+    const lastActivityLine = lastActivity === null ? '' : `**Last Activity:** ${lastActivity}\n`;
+    const progressBlock = progressLine ? `\n${progressLine}\n` : '\n';
+
+    return `# Project State
+
+## Current Position
+
+${phaseLine}${planLine}**Status:** ${status}
+${lastActivityLine}${progressBlock}
+## Accumulated Context
+
+### Decisions
+
+None yet.
+
+### Blockers/Concerns
+
+None yet.
+
+## Session Continuity
+
+**Last session:** 2026-03-31
+**Stopped at:** ${continuity}
+**Resume file:** None
+`;
+  }
+
+  test('attached startup and lifecycle refreshes apply trusted sidebar state, clear stale metadata, and preserve activity-only progress', async () => {
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+    const calls = [];
+
+    try {
+      writeCmuxSidebarFixture(tmpDir, buildState());
+      mod.resetCmuxAdapterCache();
+
+      const plugin = await mod.BgsdPlugin({
+        directory: tmpDir,
+        cmux: {
+          resolveAvailability: async () => ({
+            available: true,
+            attached: true,
+            mode: 'managed',
+            suppressionReason: null,
+            workspaceId: 'workspace:1',
+            surfaceId: 'surface:1',
+            writeProven: true,
+          }),
+          setStatus: async ({ workspace, key, value }) => {
+            calls.push(`setStatus:${workspace}:${key}:${value}`);
+            return { ok: true };
+          },
+          clearStatus: async ({ workspace, key }) => {
+            calls.push(`clearStatus:${workspace}:${key}`);
+            return { ok: true };
+          },
+          setProgress: async ({ workspace, progress, label }) => {
+            calls.push(`setProgress:${workspace}:${progress}:${label || ''}`);
+            return { ok: true };
+          },
+          clearProgress: async ({ workspace }) => {
+            calls.push(`clearProgress:${workspace}`);
+            return { ok: true };
+          },
+        },
+      });
+
+      assert.deepStrictEqual(calls.slice(0, 4), [
+        'setStatus:workspace:1:bgsd.state:Input needed',
+        'setStatus:workspace:1:bgsd.context:Planning',
+        'clearStatus:workspace:1:bgsd.activity',
+        'setProgress:workspace:1:0.4:Phase 171',
+      ], 'startup should publish primary state, workflow context, and exact progress through stable keys');
+
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), buildState({
+        status: 'Working',
+        progressLine: null,
+        continuity: 'Executing plan work',
+        lastActivity: '2099-03-31T15:00:00Z',
+      }));
+      await plugin['tool.execute.after']({ tool: 'write', args: { file: 'STATE.md' } });
+
+      assert.ok(calls.includes('setStatus:workspace:1:bgsd.activity:Executing'), 'activity-only progress should surface a non-numeric activity hint');
+      assert.ok(calls.includes('clearProgress:workspace:1'), 'activity-only progress should clear stale numeric progress');
+
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), buildState({
+        phase: null,
+        plan: null,
+        status: 'Paused',
+        progressLine: null,
+        continuity: 'Waiting',
+        lastActivity: null,
+      }));
+      await plugin.event({ event: { type: 'file.watcher.updated', path: path.join(tmpDir, '.planning', 'STATE.md') } });
+
+      assert.ok(calls.includes('clearStatus:workspace:1:bgsd.context'), 'hidden context should clear stale context metadata');
+      assert.ok(calls.filter((entry) => entry === 'clearStatus:workspace:1:bgsd.activity').length >= 2, 'hidden progress should clear stale activity metadata');
+
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), buildState({
+        status: 'Verification in progress',
+        progressLine: '**Progress:** [████████░░] 80%',
+        continuity: 'Verifying focused changes',
+      }));
+      await plugin.event({ event: { type: 'session.idle' } });
+
+      assert.ok(calls.includes('setStatus:workspace:1:bgsd.context:Verifying'), 'idle refresh should reapply trusted workflow context');
+      assert.ok(calls.includes('setProgress:workspace:1:0.8:Phase 171'), 'idle refresh should reapply trustworthy exact progress');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('suppressed adapters stay quiet while normal plugin hooks still work', async () => {
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+    const calls = [];
+
+    try {
+      writeCmuxSidebarFixture(tmpDir, buildState());
+      mod.resetCmuxAdapterCache();
+
+      const plugin = await mod.BgsdPlugin({
+        directory: tmpDir,
+        cmux: {
+          resolveAvailability: async () => ({
+            available: false,
+            attached: false,
+            mode: 'none',
+            suppressionReason: 'cmux-missing',
+            workspaceId: null,
+            surfaceId: null,
+            writeProven: false,
+          }),
+          setStatus: async (...args) => {
+            calls.push(['setStatus', ...args]);
+            return { ok: true };
+          },
+          clearStatus: async (...args) => {
+            calls.push(['clearStatus', ...args]);
+            return { ok: true };
+          },
+          setProgress: async (...args) => {
+            calls.push(['setProgress', ...args]);
+            return { ok: true };
+          },
+          clearProgress: async (...args) => {
+            calls.push(['clearProgress', ...args]);
+            return { ok: true };
+          },
+        },
+      });
+
+      const system = await runSystemTransform(plugin, { type: 'file.watcher.updated', path: path.join(tmpDir, '.planning', 'STATE.md') });
+      await plugin['tool.execute.after']({ tool: 'write', args: { file: 'STATE.md' } });
+      await plugin.event({ event: { type: 'session.idle' } });
+
+      assert.deepStrictEqual(calls, [], 'suppressed adapters should remain a no-op across startup and lifecycle hooks');
+      assert.match(system, /<bgsd>[\s\S]*Ambient Workspace Status & Progress[\s\S]*<\/bgsd>/, 'suppressed cmux should not break normal plugin state injection');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+});
