@@ -36,7 +36,7 @@ Usage:
 
 What gets installed:
   ~/.config/opencode/bgsd-oc/          Core CLI, workflows, templates, references
-  ~/.config/opencode/commands/bgsd-*   40 slash commands
+  ~/.config/opencode/commands/bgsd-*   Canonical and compatibility slash commands
   ~/.config/opencode/agents/bgsd-*     10 specialized agents
   ~/.config/opencode/skills/           Reusable skill modules for agents
   ~/.config/opencode/plugin/bgsd.js    Plugin hooks (session, env, compaction)
@@ -153,7 +153,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"))
 
 /**
  * Determine destination path for a manifest file entry.
- * Mirrors deploy.sh dest_for_file() logic.
+ * Mirrors deploy.sh dest_for_file() logic so canonical and compatibility wrappers stay aligned.
  */
 function destForFile(file) {
   if (/^commands\/bgsd-.*\.md$/.test(file)) {

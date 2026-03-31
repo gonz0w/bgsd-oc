@@ -1,10 +1,18 @@
 # bGSD Command Reference
 
-Complete reference for all bGSD slash commands and CLI operations.
+Canonical reference for the supported bGSD slash commands and CLI operations.
+
+Preferred canonical command families:
+
+- `/bgsd-plan ...` for planning, roadmap, gaps, and plan-scoped todo flows
+- `/bgsd-inspect ...` for read-only diagnostics and search/history flows
+- `/bgsd-settings ...` for configuration profile switching and config validation
+
+Compatibility shims still exist during migration, but this reference stays canonical-first and lists the runnable commands users should follow.
 
 ---
 
-## Slash Commands (41)
+## Slash Commands (19)
 
 ### Project Initialization
 
@@ -38,62 +46,28 @@ Analyze an existing codebase using 4 parallel mapper agents. Produces structured
 
 ### Phase Planning
 
-#### `/bgsd-discuss-phase`
+Reference-style planning-family index: `phase`, `discuss`, `research`, and `assumptions` are family labels inside `/bgsd-plan`, not runnable shorthand. Use the concrete examples in the table below when you want to execute one of these routes.
 
-Gather implementation decisions through adaptive questioning. Produces CONTEXT.md for downstream planning agents.
+#### `/bgsd-plan`
 
-| Argument | Description |
-|----------|-------------|
-| `<phase>` | Phase number to discuss |
-| `--auto` | Auto-advance to `/bgsd-plan-phase` after |
+Canonical planning family for plan preparation, planning, roadmap changes, gap planning, and plan-scoped todos.
 
-**Workflow:** `workflows/discuss-phase.md`
-**Creates:** `{phase_dir}/{padded_phase}-CONTEXT.md`
+| Sub-action | Example | Description |
+|------------|---------|-------------|
+| `assumptions <phase>` | `/bgsd-plan assumptions 159` | Surface planning assumptions before discussion or planning |
+| `discuss <phase>` | `/bgsd-plan discuss 159` | Gather locked decisions and create `CONTEXT.md` |
+| `research <phase>` | `/bgsd-plan research 159` | Run standalone deep research and create `RESEARCH.md` |
+| `phase <phase> [flags]` | `/bgsd-plan phase 159 --research` | Create executable `PLAN.md` files for the phase |
+| `roadmap add <description>` | `/bgsd-plan roadmap add "Add export functionality"` | Append a new roadmap phase |
+| `roadmap insert <after> <description>` | `/bgsd-plan roadmap insert 3 "Fix critical auth vulnerability"` | Insert a decimal phase after an existing one |
+| `roadmap remove <phase>` | `/bgsd-plan roadmap remove 7` | Remove an unstarted future phase |
+| `gaps <phase-or-context>` | `/bgsd-plan gaps 159` | Create gap-closure plans for the requested phase or active milestone context |
+| `todo add <description>` | `/bgsd-plan todo add "Fix the edge case in user validation"` | Capture a plan-scoped todo |
+| `todo check [area]` | `/bgsd-plan todo check auth` | Review pending plan-scoped todos |
 
----
+**Planning flags:** `/bgsd-plan phase 159 --auto`, `/bgsd-plan phase 159 --skip-verify`, `/bgsd-plan phase 159 --skip-research`
 
-#### `/bgsd-list-assumptions`
-
-Surface the AI's assumptions about a phase approach before planning. Conversational only — no files created.
-
-| Argument | Description |
-|----------|-------------|
-| `[phase]` | Phase number to analyze |
-
-**Workflow:** `workflows/list-phase-assumptions.md`
-
----
-
-#### `/bgsd-research-phase`
-
-Standalone deep research for a specific phase. Spawns a dedicated researcher agent.
-
-| Argument | Description |
-|----------|-------------|
-| `[phase]` | Phase number to research |
-
-**Workflow:** `workflows/research-phase.md`
-**Agents:** gsd-phase-researcher
-**Creates:** `{phase_dir}/{phase}-RESEARCH.md`
-
----
-
-#### `/bgsd-plan-phase`
-
-Create executable plans (PLAN.md files) for a phase. Includes optional research, plan quality review with revision loop.
-
-| Argument | Description |
-|----------|-------------|
-| `[phase]` | Phase number to plan |
-| `--auto` | Auto-advance to execution after planning |
-| `--research` | Force research phase (overrides config) |
-| `--skip-research` | Skip research (even if config enables it) |
-| `--gaps` | Only create plans for UAT gaps |
-| `--skip-verify` | Skip plan-checker quality review |
-
-**Workflow:** `workflows/plan-phase.md`
-**Agents:** gsd-phase-researcher (optional), gsd-planner, gsd-plan-checker (optional)
-**Creates:** `{phase_dir}/{phase}-{plan}-PLAN.md` files
+**Workflows:** `workflows/list-phase-assumptions.md`, `workflows/discuss-phase.md`, `workflows/research-phase.md`, `workflows/plan-phase.md`, `workflows/add-phase.md`, `workflows/insert-phase.md`, `workflows/remove-phase.md`, `workflows/plan-milestone-gaps.md`, `workflows/add-todo.md`, `workflows/check-todos.md`
 
 ---
 
@@ -129,18 +103,6 @@ Execute small ad-hoc tasks with bGSD tracking (atomic commits, state updates) bu
 
 ---
 
-#### `/bgsd-quick-task`
-
-Execute a quick task without full phase planning. Alias for `/bgsd-quick` with simplified invocation.
-
-| Argument | Description |
-|----------|-------------|
-| `[description]` | Task description |
-
-**Workflow:** `workflows/quick.md`
-
----
-
 #### `/bgsd-github-ci`
 
 Run the GitHub CI quality gate: push a branch, create a PR, monitor code scanning checks (CodeQL), fix true positive findings, dismiss false positives, and auto-merge when clean.
@@ -160,40 +122,13 @@ Run the GitHub CI quality gate: push a branch, create a PR, monitor code scannin
 
 ### Roadmap Management
 
-#### `/bgsd-add-phase`
+Preferred canonical roadmap routes: `/bgsd-plan roadmap add`, `/bgsd-plan roadmap insert`, and `/bgsd-plan roadmap remove`.
 
-Add a new phase to the end of the current milestone.
+Use `/bgsd-plan roadmap ...` examples directly:
 
-| Argument | Description |
-|----------|-------------|
-| `<description>` | Phase description |
-
-**Workflow:** `workflows/add-phase.md`
-
----
-
-#### `/bgsd-insert-phase`
-
-Insert urgent work as a decimal phase (e.g., 3.1 between phases 3 and 4).
-
-| Argument | Description |
-|----------|-------------|
-| `<after>` | Phase number to insert after |
-| `<description>` | Phase description |
-
-**Workflow:** `workflows/insert-phase.md`
-
----
-
-#### `/bgsd-remove-phase`
-
-Remove an unstarted future phase and renumber subsequent phases.
-
-| Argument | Description |
-|----------|-------------|
-| `<phase>` | Phase number to remove |
-
-**Workflow:** `workflows/remove-phase.md`
+- `/bgsd-plan roadmap add "Add export functionality"`
+- `/bgsd-plan roadmap insert 3 "Fix critical auth vulnerability"`
+- `/bgsd-plan roadmap remove 7`
 
 ---
 
@@ -238,22 +173,40 @@ Audit milestone against original intent. Cross-phase integration check.
 
 ---
 
-#### `/bgsd-plan-gaps`
+Use `/bgsd-plan gaps` for gap closure planning:
 
-Create phases to close all gaps identified by milestone audit.
-
-**Workflow:** `workflows/plan-milestone-gaps.md`
-**Reads:** `MILESTONE-AUDIT.md`
+- `/bgsd-plan gaps 159` for phase-scoped gap follow-up
+- `/bgsd-plan gaps` after `/bgsd-audit-milestone` when the milestone context is already active
 
 ---
 
-### Progress & Session
+### Progress, Inspection & Session
 
-#### `/bgsd-progress`
+#### `/bgsd-inspect`
 
-Check project progress and get intelligently routed to the next action.
+Canonical read-only diagnostics family for progress, traceability, search/history, and analysis flows.
 
-**Workflow:** `workflows/progress.md`
+Canonical route: `/bgsd-inspect progress`.
+Canonical inspection route: `/bgsd-inspect health`.
+Canonical route: `/bgsd-inspect search decisions <query>`.
+Canonical route: `/bgsd-inspect search lessons <query>`.
+Canonical route: `/bgsd-inspect trace <req-id>`.
+
+| Sub-action | Example | Description |
+|------------|---------|-------------|
+| `progress` | `/bgsd-inspect progress` | Check project progress and get routed to the next action |
+| `health` | `/bgsd-inspect health` | Check `.planning/` integrity without repair |
+| `impact <files...>` | `/bgsd-inspect impact bin/bgsd-tools.cjs` | Show module dependencies and blast radius for one or more files |
+| `trace <req-id>` | `/bgsd-inspect trace CMD-04` | Trace a requirement from `REQUIREMENTS.md` through plans to files |
+| `search decisions <query>` | `/bgsd-inspect search decisions "database"` | Search recorded decisions in active and archived state |
+| `search lessons <query>` | `/bgsd-inspect search lessons "auth"` | Search prior lessons in `.planning/memory/lessons.json` |
+| `velocity` | `/bgsd-inspect velocity` | Show execution velocity metrics and completion forecast |
+| `context-budget <phase-or-plan>` | `/bgsd-inspect context-budget 159-09` | Estimate token usage for a phase or plan file |
+| `rollback-info <plan-id>` | `/bgsd-inspect rollback-info 159-08` | Show commits and the revert command for a specific plan |
+| `session-diff` | `/bgsd-inspect session-diff` | Show commits since the last planning session activity |
+| `validate-deps <phase>` | `/bgsd-inspect validate-deps 159` | Validate the dependency graph for a phase |
+
+**Workflow router:** `commands/bgsd-inspect.md`
 
 ---
 
@@ -307,28 +260,15 @@ Systematic debugging with persistent state across context resets.
 
 ### Todo Management
 
-#### `/bgsd-add-todo`
+Preferred canonical todo routes: `/bgsd-plan todo add` and `/bgsd-plan todo check`.
 
-Capture an idea or task from current conversation context.
+Use the planning-family todo routes directly:
 
-| Argument | Description |
-|----------|-------------|
-| `[description]` | Optional description (inferred from context if omitted) |
+- `/bgsd-plan todo add "Fix the edge case in user validation"`
+- `/bgsd-plan todo check auth`
 
-**Workflow:** `workflows/add-todo.md`
+**Workflow:** `workflows/add-todo.md`, `workflows/check-todos.md`
 **Creates:** `.planning/todos/pending/{date}-{slug}.md`
-
----
-
-#### `/bgsd-check-todos`
-
-List pending todos, select one to work on.
-
-| Argument | Description |
-|----------|-------------|
-| `[area]` | Optional filter (e.g., "auth", "api", "ui") |
-
-**Workflow:** `workflows/check-todos.md`
 
 ---
 
@@ -336,38 +276,20 @@ List pending todos, select one to work on.
 
 #### `/bgsd-settings`
 
-Interactive configuration of workflow agents and model profile.
+Canonical settings family for interactive configuration, model-profile switching, and config validation.
+
+| Sub-action | Description |
+|------------|-------------|
+| `[settings args]` | Open the interactive settings workflow |
+| `profile <profile>` | Switch model profile (`quality`, `balanced`, `budget`) — for example `/bgsd-settings profile quality` |
+| `validate [path]` | Validate `.planning/config.json` or another config path — for example `/bgsd-settings validate .planning/config.json` |
 
 **Workflow:** `workflows/settings.md`
 **Updates:** `.planning/config.json`, optionally `~/.gsd/defaults.json`
 
 ---
 
-#### `/bgsd-set-profile`
-
-Quick switch model profile for bGSD agents.
-
-| Argument | Description |
-|----------|-------------|
-| `<profile>` | `quality`, `balanced`, or `budget` |
-
-**Workflow:** `workflows/set-profile.md`
-
----
-
 ### Utility
-
-#### `/bgsd-health`
-
-Check `.planning/` directory integrity. Optionally repair issues.
-
-| Argument | Description |
-|----------|-------------|
-| `--repair` | Auto-fix repairable issues |
-
-**Workflow:** `workflows/health.md`
-
----
 
 #### `/bgsd-cleanup`
 
@@ -393,83 +315,7 @@ Display the complete bGSD command reference.
 
 ---
 
-### Analytics & Utility
-
-#### `/bgsd-velocity`
-
-Show execution velocity metrics: plans completed per day, average duration, and completion forecast for the current milestone.
-
-**Workflow:** `workflows/cmd-velocity.md`
-
----
-
-#### `/bgsd-impact`
-
-Show module dependencies and blast radius for given files. Analyzes which modules import/reference the specified files.
-
-| Argument | Description |
-|----------|-------------|
-| `<files...>` | One or more file paths to analyze |
-
-**Workflow:** `workflows/cmd-codebase-impact.md`
-
----
-
-#### `/bgsd-context-budget`
-
-Estimate token usage for a plan file and warn if over context budget. Warns when plan content exceeds the configured context window threshold (default: 50% of 200K tokens).
-
-| Argument | Description |
-|----------|-------------|
-| `[file-path]` | Optional path to a plan file (defaults to current phase) |
-
-**Workflow:** `workflows/cmd-context-budget.md`
-
----
-
-#### `/bgsd-rollback-info`
-
-Show commits and revert command for a specific plan. Useful when a plan's changes need to be undone.
-
-| Argument | Description |
-|----------|-------------|
-| `<plan-id>` | Plan identifier (e.g., "45-01") |
-
-**Workflow:** `workflows/cmd-rollback-info.md`
-
----
-
-#### `/bgsd-search-decisions`
-
-Search STATE.md and archived states for past decisions matching a query. Useful for understanding past architectural and implementation choices.
-
-| Argument | Description |
-|----------|-------------|
-| `<query>` | Search query text |
-
-**Workflow:** `workflows/cmd-search-decisions.md`
-
----
-
-#### `/bgsd-search-lessons`
-
-Search completed phase lessons for relevant patterns and insights. Surfaces lessons learned from past execution to inform current planning.
-
-| Argument | Description |
-|----------|-------------|
-| `<query>` | Search query text |
-
-**Workflow:** `workflows/cmd-search-lessons.md`
-
----
-
-#### `/bgsd-session-diff`
-
-Show git commits since last planning session activity. Useful for understanding what changed since the last session.
-
-**Workflow:** `workflows/cmd-session-diff.md`
-
----
+### Test Utility
 
 #### `/bgsd-test-run`
 
@@ -479,695 +325,45 @@ Parse test output and apply pass/fail gating. Detects test framework (ExUnit, Go
 
 ---
 
-#### `/bgsd-trace`
+## Direct CLI (`bgsd-tools.cjs`)
 
-Trace a requirement from REQUIREMENTS.md through plans to actual files on disk. Shows the full implementation chain for a specific requirement ID.
+Run direct CLI commands with the shipped binary name:
 
-| Argument | Description |
-|----------|-------------|
-| `<req-id>` | Requirement identifier (e.g., "REQ-01") |
-
-**Workflow:** `workflows/cmd-trace-requirement.md`
-
----
-
-#### `/bgsd-validate-config`
-
-Validate `.planning/config.json` against the schema. Checks for missing fields, invalid values, and typos in field names.
-
-**Workflow:** `workflows/cmd-validate-config.md`
-
----
-
-#### `/bgsd-validate-deps`
-
-Validate the dependency graph for a phase. Checks that all plan dependencies are satisfiable and flags circular or missing dependencies.
-
-| Argument | Description |
-|----------|-------------|
-| `[phase]` | Optional phase number (defaults to current phase) |
-
-**Workflow:** `workflows/cmd-validate-deps.md`
-
----
-
-## CLI Tool (`gsd-tools.cjs`)
-
-Run directly:
 ```bash
-node bin/gsd-tools.cjs <command> [args] --raw
+node bin/bgsd-tools.cjs <command> [args] --raw
 ```
 
-### Global Flags
+### Common executable CLI routes
+
+These are the direct CLI commands most often used in planning, execution, validation, and settings flows:
+
+```bash
+node bin/bgsd-tools.cjs init:execute-phase 159
+node bin/bgsd-tools.cjs init:plan-phase 159
+node bin/bgsd-tools.cjs plan:roadmap get-phase 159
+node bin/bgsd-tools.cjs plan:find-phase 159
+node bin/bgsd-tools.cjs plan:requirements mark-complete CMD-05 CMD-06
+node bin/bgsd-tools.cjs verify:state update-progress
+node bin/bgsd-tools.cjs verify:state validate --fix
+node bin/bgsd-tools.cjs verify:verify plan-structure .planning/phases/159-help-surface-command-integrity/159-03-PLAN.md
+node bin/bgsd-tools.cjs util:validate-commands --raw
+node bin/bgsd-tools.cjs util:config-get workflow.auto_advance
+node bin/bgsd-tools.cjs lessons:list --phase 159
+```
+
+### Global flags
 
 | Flag | Effect |
 |------|--------|
-| `--raw` | JSON output to stdout (default for programmatic use) |
-| `--verbose` | Full output (disables compact mode) |
-| `--compact` | Minimal output (default for init commands) |
-| `--manifest` | Include context manifest with file loading guidance |
-| `--fields f1,f2` | Filter JSON to specified dot-notation fields |
+| `--raw` | JSON output to stdout |
+| `--verbose` | Full output |
+| `--compact` | Minimal output for init-style commands |
+| `--fields f1,f2` | Filter JSON to specific fields |
 | `--help` / `-h` | Print help text |
 
-When JSON output exceeds 50KB, it's written to a temp file and stdout emits `@file:/tmp/bgsd-TIMESTAMP.json`.
+When JSON output exceeds 50KB, stdout emits a temp-file reference such as `@file:/tmp/bgsd-TIMESTAMP.json`.
 
----
-
-### Command Groups
-
-#### `state` — Project State Management
-
-```bash
-gsd-tools state                                    # Load all state
-gsd-tools state get <field>                        # Get specific field
-gsd-tools state update <field> <value>             # Update field
-gsd-tools state patch --key1 val1 --key2 val2      # Update multiple fields
-gsd-tools state advance-plan                       # Increment plan counter
-gsd-tools state record-metric --phase P --plan N --duration D [--tasks T] [--files F]
-gsd-tools state update-progress                    # Recalculate from disk
-gsd-tools state add-decision --phase P --summary S [--rationale R]
-gsd-tools state add-blocker --text "..."
-gsd-tools state resolve-blocker --text "..."
-gsd-tools state record-session --stopped-at "..." [--resume-file path]
-gsd-tools state validate [--fix]                   # Drift detection + repair
-```
-
-#### `init` — Workflow Context Injection
-
-```bash
-gsd-tools init execute-phase <phase>
-gsd-tools init plan-phase <phase>
-gsd-tools init new-project
-gsd-tools init new-milestone
-gsd-tools init quick <description>
-gsd-tools init resume
-gsd-tools init verify-work <phase>
-gsd-tools init phase-op <phase>
-gsd-tools init todos [area]
-gsd-tools init milestone-op
-gsd-tools init map-codebase
-gsd-tools init progress
-gsd-tools init memory [--workflow name] [--phase N] [--compact]
-```
-
-#### `intent` — Project Intent
-
-```bash
-gsd-tools intent create [--force] [--objective "..."] [--users "..."] [--outcomes "..."] [--criteria "..."]
-gsd-tools intent show [section] [--full]
-gsd-tools intent read [section]
-gsd-tools intent update [--add] [--remove] [--set-priority] [--value]
-gsd-tools intent validate
-gsd-tools intent trace [--gaps]
-gsd-tools intent drift
-```
-
-#### `verify` — Quality Gates
-
-```bash
-gsd-tools verify plan-structure <file>
-gsd-tools verify phase-completeness <phase>
-gsd-tools verify references <file>
-gsd-tools verify commits <hash1> [hash2] ...
-gsd-tools verify artifacts <plan-file>
-gsd-tools verify key-links <plan-file>
-gsd-tools verify analyze-plan <plan-file>
-gsd-tools verify deliverables [--plan file]
-gsd-tools verify requirements
-gsd-tools verify regression [--before f] [--after f]
-gsd-tools verify plan-wave <phase-dir>
-gsd-tools verify plan-deps <phase-dir>
-gsd-tools verify quality [--plan f] [--phase N]
-```
-
-#### `validate` — Integrity Checks
-
-```bash
-gsd-tools validate consistency
-gsd-tools validate health [--repair]
-```
-
-#### `roadmap` — Roadmap Operations
-
-```bash
-gsd-tools roadmap get-phase <phase>
-gsd-tools roadmap analyze
-gsd-tools roadmap update-plan-progress <N>
-```
-
-#### `phase` — Phase Lifecycle
-
-```bash
-gsd-tools phase next-decimal <phase>
-gsd-tools phase add <description>
-gsd-tools phase insert <after> <description>
-gsd-tools phase remove <phase> [--force]
-gsd-tools phase complete <phase>
-```
-
-#### `milestone` — Milestone Lifecycle
-
-```bash
-gsd-tools milestone complete <version> [--name "..."] [--archive-phases]
-```
-
-#### `memory` — Persistent Stores
-
-```bash
-gsd-tools memory write --store <name> --entry '{json}'
-gsd-tools memory read --store <name> [--limit N] [--query "text"] [--phase N]
-gsd-tools memory list
-gsd-tools memory ensure-dir
-gsd-tools memory compact [--store name] [--threshold N] [--dry-run]
-```
-
-Stores: `decisions`, `lessons`, `trajectories` (sacred — never pruned), `bookmarks` (trimmed to 20), `todos`.
-
-#### `codebase` — Codebase Intelligence
-
-```bash
-gsd-tools codebase analyze [--full]
-gsd-tools codebase status
-gsd-tools codebase conventions [--threshold N] [--all]
-gsd-tools codebase rules [--threshold N] [--max N]
-gsd-tools codebase deps [--cycles]
-gsd-tools codebase impact <file1> [file2] ...
-gsd-tools codebase context --files <f1> [f2] ... [--plan path]
-gsd-tools codebase lifecycle
-gsd-tools codebase ast <file>
-gsd-tools codebase complexity [file]
-gsd-tools codebase exports <file>
-gsd-tools codebase repo-map [--budget N]
-```
-
-#### `env` — Environment Detection
-
-```bash
-gsd-tools env scan [--force] [--verbose]
-gsd-tools env status
-```
-
-#### `frontmatter` — YAML Frontmatter
-
-```bash
-gsd-tools frontmatter get <file> [--field key]
-gsd-tools frontmatter set <file> --field k --value v
-gsd-tools frontmatter merge <file> --data '{json}'
-gsd-tools frontmatter validate <file> --schema type
-```
-
-#### `template` — Document Templates
-
-```bash
-gsd-tools template select <type>
-gsd-tools template fill <type> --phase N --plan M --name "..." [--type execute|tdd] [--wave N]
-```
-
-#### `scaffold` — Create Documents
-
-```bash
-gsd-tools scaffold context --phase N
-gsd-tools scaffold uat --phase N
-gsd-tools scaffold verification --phase N
-gsd-tools scaffold phase-dir --phase N --name "..."
-```
-
-#### `assertions` — Acceptance Criteria
-
-```bash
-gsd-tools assertions list [--req SREQ-01]
-gsd-tools assertions validate
-```
-
-#### `worktree` — Git Worktree Isolation
-
-```bash
-gsd-tools worktree create <plan-id>
-gsd-tools worktree list
-gsd-tools worktree remove <plan-id>
-gsd-tools worktree cleanup
-gsd-tools worktree merge <plan-id>
-gsd-tools worktree check-overlap <phase-number>
-```
-
-#### `context-budget` — Token Management
-
-```bash
-gsd-tools context-budget <file-path>
-gsd-tools context-budget baseline
-gsd-tools context-budget compare [baseline-path]
-gsd-tools context-budget measure
-```
-
-#### `mcp` — MCP Server Management
-
-```bash
-gsd-tools mcp profile [--window N] [--apply] [--dry-run] [--restore]
-```
-
-#### `trajectory` — Trajectory Engineering
-
-Structured exploration system for checkpointing, comparing, and choosing between implementation approaches.
-
-##### `trajectory checkpoint <name>`
-
-Create a named checkpoint with automatically captured quality metrics. Creates a git branch as a permanent reference and writes a journal entry.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `<name>` | positional | required | Checkpoint name (alphanumeric, hyphens, underscores) |
-| `--scope <scope>` | string | `"phase"` | Scope level (e.g., `phase`, `task`, `milestone`) |
-| `--description <text>` | string | none | Human-readable context for this checkpoint |
-
-**Behavior:**
-1. Validates no uncommitted changes outside `.planning/`
-2. Counts existing checkpoints with same scope+name, auto-increments attempt number
-3. Creates git branch at `trajectory/<scope>/<name>/attempt-N` (ref only, no checkout)
-4. Collects metrics (fault-tolerant — partial metrics if any collector fails):
-   - **Tests:** runs test suite, captures total/pass/fail
-   - **LOC delta:** insertions, deletions, files changed from last 5 commits
-   - **Complexity:** cyclomatic complexity of recently changed `.js` files
-5. Generates unique ID (`tj-XXXXXX`) with collision detection
-6. Writes entry to `.planning/memory/trajectory.json`
-
-**Examples:**
-```bash
-# Basic checkpoint
-gsd-tools trajectory checkpoint auth-flow
-
-# With scope and description
-gsd-tools trajectory checkpoint auth-flow --scope task --description "JWT with refresh tokens"
-
-# Repeated calls auto-increment: attempt-1, attempt-2, etc.
-gsd-tools trajectory checkpoint auth-flow
-gsd-tools trajectory checkpoint auth-flow
-```
-
-**Output:**
-```json
-{
-  "created": true,
-  "checkpoint": "auth-flow",
-  "branch": "trajectory/phase/auth-flow/attempt-1",
-  "attempt": 1,
-  "git_ref": "abc1234...",
-  "metrics": {
-    "tests": { "total": 716, "pass": 716, "fail": 0 },
-    "loc_delta": { "insertions": 50, "deletions": 12, "files_changed": 4 },
-    "complexity": { "total": 25, "files_analyzed": 3 }
-  }
-}
-```
-
-##### `trajectory list`
-
-List all checkpoints with metrics. Dual-mode output: formatted table in terminal, JSON when piped.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--scope <scope>` | string | all | Filter by scope |
-| `--name <name>` | string | all | Filter by checkpoint name |
-| `--limit <N>` | integer | all | Limit number of results |
-
-**Examples:**
-```bash
-# List all checkpoints
-gsd-tools trajectory list
-
-# Filter by name
-gsd-tools trajectory list --name auth-flow
-
-# Filter by scope with limit
-gsd-tools trajectory list --scope task --limit 5
-```
-
-**Terminal output** shows a color-coded table:
-```
-Name        Scope  Attempt  Ref      Tests     LOC         Age
-auth-flow   phase  2        def4567  716/716   +50 -12     2 hours ago
-auth-flow   phase  1        abc1234  710/716   +30 -5      5 hours ago
-```
-
-##### `trajectory compare <name>`
-
-Compare metrics across all non-abandoned attempts for a named checkpoint. Best values highlighted green, worst highlighted red.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `<name>` | positional | required | Checkpoint name to compare attempts for |
-| `--scope <scope>` | string | `"phase"` | Scope level |
-
-**Behavior:**
-1. Reads trajectory journal and filters to matching non-abandoned checkpoints
-2. Builds metrics array: tests_pass, tests_fail, tests_total, loc_insertions, loc_deletions, complexity
-3. Identifies best/worst per metric using directional logic (higher is better for tests_pass; lower is better for tests_fail, LOC, complexity)
-4. Produces a color-coded comparison table (green = best, red = worst per metric)
-
-**Examples:**
-```bash
-# Compare all attempts for a checkpoint
-gsd-tools trajectory compare my-feat
-
-# Compare with scope filter
-gsd-tools trajectory compare try-redis --scope task
-```
-
-**Output:**
-```json
-{
-  "checkpoint": "my-feat",
-  "scope": "phase",
-  "attempt_count": 3,
-  "attempts": [...],
-  "best_per_metric": { "tests_pass": 2, "complexity": 1 },
-  "worst_per_metric": { "tests_pass": 0, "complexity": 2 }
-}
-```
-
-##### `trajectory pivot <checkpoint>`
-
-Abandon the current approach with a recorded reason and rewind source code to a prior checkpoint. Auto-checkpoints the current work as an abandoned attempt before rewinding.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `<checkpoint>` | positional | required | Name of checkpoint to rewind to |
-| `--scope <scope>` | string | `"phase"` | Scope level |
-| `--reason <text>` | string | **required** | Why this approach is being abandoned |
-| `--attempt <N>` | integer | most recent | Target specific attempt number |
-| `--stash` | boolean | false | Auto-stash dirty working tree before pivot |
-
-**Behavior:**
-1. Checks for dirty working tree (with optional `--stash` to auto-stash)
-2. Finds matching non-abandoned checkpoints in the trajectory journal
-3. Resolves target checkpoint (specific attempt via `--attempt`, or most recent by default)
-4. Auto-checkpoints current HEAD as an abandoned attempt (creates archived branch)
-5. Performs selective rewind to target checkpoint's git ref (preserves `.planning/` and root configs)
-6. Pops stash if used
-7. Writes the abandoned journal entry to `trajectory.json`
-
-**Examples:**
-```bash
-# Pivot back to most recent checkpoint
-gsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
-
-# Pivot to a specific attempt
-gsd-tools trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"
-
-# Auto-stash dirty files before pivoting
-gsd-tools trajectory pivot try-redis --scope task --reason "Redis overkill" --stash
-```
-
-**Output:**
-```json
-{
-  "pivoted": true,
-  "checkpoint": "explore-auth",
-  "target_ref": "abc1234",
-  "abandoned_branch": "archived/trajectory/phase/explore-auth/attempt-3",
-  "files_rewound": 12,
-  "stash_used": false
-}
-```
-
-##### `trajectory choose <name>`
-
-Select the winning attempt, merge its code, archive non-chosen attempts as git tags, and delete all trajectory working branches.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `<name>` | positional | required | Checkpoint name to finalize |
-| `--attempt <N>` | integer | **required** | The winning attempt number |
-| `--scope <scope>` | string | `"phase"` | Scope level |
-| `--reason <text>` | string | none | Why this attempt was chosen (recorded in journal) |
-
-**Behavior:**
-1. Reads trajectory journal and finds all checkpoint entries for the scope+name
-2. Validates the winning attempt exists and is not abandoned
-3. Verifies the winning branch still exists in git
-4. Merges the winning attempt's branch into the current branch using `--no-ff` (preserves lineage)
-5. Archives non-chosen attempt branches as lightweight git tags
-6. Deletes ALL trajectory working branches (including winner, since code is now merged)
-7. Writes a `category: 'choose'` journal entry with `tags: ['choose', 'lifecycle-complete']`
-
-**Examples:**
-```bash
-# Choose the winning attempt
-gsd-tools trajectory choose my-feat --attempt 2
-
-# With reason for journal
-gsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"
-```
-
-**Output:**
-```json
-{
-  "chosen": true,
-  "checkpoint": "my-feat",
-  "attempt": 2,
-  "merged_branch": "trajectory/phase/my-feat/attempt-2",
-  "archived_tags": ["trajectory/phase/my-feat/attempt-1"],
-  "deleted_branches": ["trajectory/phase/my-feat/attempt-1", "trajectory/phase/my-feat/attempt-2"],
-  "journal_id": "tj-abc123"
-}
-```
-
----
-
-#### `git` — Structured Git Intelligence
-
-Structured git operations with JSON output. Includes selective code rewind and trajectory branch creation.
-
-##### Standard git operations
-
-```bash
-gsd-tools git log [--count N] [--since D] [--until D] [--author A] [--path P]
-gsd-tools git diff-summary [--from ref] [--to ref] [--path P]
-gsd-tools git blame <file>
-gsd-tools git branch-info
-```
-
-##### `git rewind --ref <ref>` — Selective Code Rewind
-
-Roll back source code to any git ref while preserving planning state and root configuration files.
-
-| Flag | Type | Required | Description |
-|------|------|----------|-------------|
-| `--ref <ref>` | string | yes | Git ref to rewind to (SHA, branch, `HEAD~N`) |
-| `--dry-run` | boolean | no | Preview changes without modifying files |
-| `--confirm` | boolean | no | Required to execute rewind |
-
-**Protected paths** (never rewound):
-- `.planning/` (entire directory)
-- `package.json`, `package-lock.json`
-- `tsconfig.json`, `tsconfig.*.json`
-- `.gitignore`, `.env`, `.env.*`
-
-**Three-gate safety:**
-1. `--dry-run` — returns change list, no modifications
-2. No flags — returns `needs_confirm: true` with change preview
-3. `--confirm` — executes rewind with auto-stash if working tree is dirty
-
-**Examples:**
-```bash
-# Preview rewind to a trajectory checkpoint
-gsd-tools git rewind --ref trajectory/phase/auth-flow/attempt-1 --dry-run
-
-# Execute rewind
-gsd-tools git rewind --ref trajectory/phase/auth-flow/attempt-1 --confirm
-
-# Rewind to any git ref
-gsd-tools git rewind --ref HEAD~3 --confirm
-```
-
-##### `git trajectory-branch` — Exploration Branches
-
-Create dedicated branches for longer trajectory explorations.
-
-| Flag | Type | Required | Description |
-|------|------|----------|-------------|
-| `--phase <N>` | string | yes | Phase number |
-| `--slug <name>` | string | yes | Short name slug |
-| `--push` | boolean | no | Push to origin with upstream tracking |
-
-**Examples:**
-```bash
-# Create local exploration branch
-gsd-tools git trajectory-branch --phase 5 --slug auth-refactor
-
-# Create and push
-gsd-tools git trajectory-branch --phase 5 --slug auth-refactor --push
-```
-
-Creates branch at `gsd/trajectory/<phase>-<slug>`. Unlike `trajectory checkpoint`, this **does** check out the new branch.
-
-#### `classify` — Task Complexity Classification
-
-Scores task complexity (1-5) based on file count, cross-module reach, and test requirements. Recommends execution strategy.
-
-```bash
-gsd-tools classify plan <plan-path>
-gsd-tools classify phase <phase-number>
-```
-
-#### `review` — Code Review Context
-
-Two-stage code review (spec compliance + code quality) with severity classification (BLOCKER/WARNING/INFO).
-
-```bash
-gsd-tools review <phase> <plan>
-```
-
-#### `codebase` — Codebase Intelligence (complete)
-
-```bash
-gsd-tools codebase analyze [--full]
-gsd-tools codebase status
-gsd-tools codebase conventions [--threshold N] [--all]
-gsd-tools codebase rules [--threshold N] [--max N]
-gsd-tools codebase deps [--cycles]
-gsd-tools codebase impact <file1> [file2] ...
-gsd-tools codebase context --files <f1> [f2] ... [--plan path]
-gsd-tools codebase lifecycle
-gsd-tools codebase ast <file>
-gsd-tools codebase complexity [file]
-gsd-tools codebase exports <file>
-gsd-tools codebase repo-map [--budget N]
-```
-
-#### `mcp-profile` — MCP Server Profiling (alias)
-
-```bash
-gsd-tools mcp-profile [--window N] [--apply] [--dry-run] [--restore]
-```
-
-#### Standalone Commands
-
-```bash
-gsd-tools commit <message> [--files f1 f2] [--amend]
-gsd-tools resolve-model <agent-type>
-gsd-tools find-phase <phase>
-gsd-tools generate-slug <text>
-gsd-tools current-timestamp [full|date|filename]
-gsd-tools list-todos [area]
-gsd-tools verify-path-exists <path>
-gsd-tools verify-summary <path> [--check-count N]
-gsd-tools config-ensure-section
-gsd-tools config-set <key.path> <value>
-gsd-tools config-get <key.path>
-gsd-tools config-migrate
-gsd-tools history-digest [--limit N] [--phases p1,p2] [--slim]
-gsd-tools phase-plan-index <phase>
-gsd-tools state-snapshot
-gsd-tools summary-extract <path> [--fields f1,f2]
-gsd-tools progress [json|table|bar]
-gsd-tools session-diff
-gsd-tools session-summary
-gsd-tools test-run
-gsd-tools search-decisions <query>
-gsd-tools validate-dependencies <phase>
-gsd-tools search-lessons <query>
-gsd-tools codebase-impact <files...>
-gsd-tools rollback-info <plan-id>
-gsd-tools velocity
-gsd-tools trace-requirement <req-id>
-gsd-tools validate-config
-gsd-tools quick-summary
-gsd-tools extract-sections <file-path> [section1] [section2] ...
-gsd-tools test-coverage
-gsd-tools token-budget
-gsd-tools websearch <query> [--limit N] [--freshness day|week|month]
-gsd-tools todo complete <filename>
-gsd-tools requirements mark-complete <ids>
-gsd-tools phases list [--type type] [--phase N] [--include-archived]
-```
-
-#### `cache` — SQLite Caching (v8.0)
-
-```bash
-gsd-tools cache warm          # Pre-populate cache with .planning/ files
-gsd-tools cache stats         # Cache hit/miss statistics
-gsd-tools cache clear         # Clear the SQLite cache
-```
-
-#### `profiler` — Performance Profiling (v8.0)
-
-```bash
-gsd-tools profiler compare    # Before/after timing deltas with color-coded regression highlighting
-gsd-tools cache-speedup       # Validate cache effectiveness with timing data
-```
-
-Enable profiling for any command: `GSD_PROFILE=1 node bin/gsd-tools.cjs <command>`
-
-#### `agent-audit` — Agent System Validation (v8.0)
-
-```bash
-gsd-tools agent-audit         # Validate RACI matrix, token budgets, agent manifests
-```
-
-#### `decisions` — Decision Engine (v11.3)
-
-Query and debug the deterministic decision engine that replaces LLM calls.
-
-```bash
-gsd-tools decisions list                    # List all registered decision functions
-gsd-tools decisions inspect <name>          # Show decision function details and inputs
-gsd-tools decisions evaluate                # Run all decisions against current project state
-gsd-tools decisions savings                 # Per-workflow LLM step savings report
-```
-
-#### `summary` — Programmatic Summary Generation (v11.3)
-
-```bash
-gsd-tools summary generate <plan-path>     # Pre-build SUMMARY.md from git/plan data
-```
-
-#### `detect` — CLI Tool Detection (v12.1)
-
-```bash
-gsd-tools detect tools                     # Detect available CLI tools (ripgrep, fd, jq, yq, bat, gh)
-```
-
-#### `agent` — Local Agent Overrides (v13.0)
-
-Customize agent behavior per-project without modifying upstream agent definitions.
-
-```bash
-gsd-tools agent list-local                 # List project-local agent overrides
-gsd-tools agent override <agent-type>      # Create local override for an agent
-gsd-tools agent diff <agent-type>          # Diff local override against upstream
-gsd-tools agent sync <agent-type>          # Sync local override from upstream changes
-```
-
-#### `lessons` — Lesson Analysis Pipeline (v13.0)
-
-Structured lesson capture, analysis, and improvement suggestions from past executions.
-
-```bash
-gsd-tools lessons capture <text>           # Capture a structured lesson
-gsd-tools lessons list [--phase N]         # List lessons (optionally filtered by phase)
-gsd-tools lessons analyze                  # Group lessons by pattern, surface trends
-gsd-tools lessons suggest                  # Generate advisory improvement suggestions
-gsd-tools lessons compact                  # Deduplicate redundant lessons
-gsd-tools lessons deviation-capture        # Auto-capture Rule-1 deviation recoveries
-```
-
-#### `skills` — Skill Discovery & Security (v13.0)
-
-Install, validate, and manage community skills with security scanning.
-
-```bash
-gsd-tools skills list                      # List installed skills
-gsd-tools skills install <github-url>      # Install skill from GitHub (with security scan + confirmation)
-gsd-tools skills validate                  # Validate all installed skills against 41-pattern security scanner
-gsd-tools skills remove <name>             # Remove an installed skill
-```
-
-#### `research` — Research Quality Scoring (v13.0)
-
-```bash
-gsd-tools research score <file>            # Return structured quality profile for a research document
-gsd-tools research gaps <file>             # Extract actionable gap list from research document
-```
+For lower-level command families beyond the routes above, use `node bin/bgsd-tools.cjs --help` or inspect the workflow file that owns the surface command you are following.
 
 ---
 

@@ -8,7 +8,7 @@ dependency_graph:
     - phase: 72-01
       provides: bgsd-tools.cjs CLI binary, BGSD_ env vars, bgsd-oc config paths
   provides:
-    - 10 renamed agent files (bgsd-*.md) with BGSD_HOME path setup
+    - 10 renamed agent files (bgsd-*.md) with __OPENCODE_CONFIG__/bgsd-oc path setup
     - install.js migration logic (get-shit-done -> bgsd-oc)
     - deploy.sh targeting bgsd-oc destination
     - Old agent file cleanup in both install and deploy flows
@@ -36,7 +36,7 @@ decisions:
   - "Migration in install.js uses copy-then-delete pattern (cpSync + rmSync) per research recommendation for safety"
   - "Agent migration runs before main install to ensure old files are renamed before new ones are deployed"
 patterns-established:
-  - "BGSD_HOME path resolution: BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)"
+  - "__OPENCODE_CONFIG__/bgsd-oc path resolution: __OPENCODE_CONFIG__/bgsd-oc=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)"
   - "Migration detection: check for old dir AND absence of new dir before migrating"
 requirements-completed: [RBND-06, RBND-07]
 metrics:
@@ -48,7 +48,7 @@ metrics:
 
 # Phase 72 Plan 02: Agent Files, install.js Migration, deploy.sh Summary
 
-**Renamed all 10 agent files from gsd-*.md to bgsd-*.md with BGSD_HOME path setup, added install.js migration logic for seamless get-shit-done→bgsd-oc transition, and updated deploy.sh to target bgsd-oc**
+**Renamed all 10 agent files from gsd-*.md to bgsd-*.md with __OPENCODE_CONFIG__/bgsd-oc path setup, added install.js migration logic for seamless get-shit-done→bgsd-oc transition, and updated deploy.sh to target bgsd-oc**
 
 ## Performance
 
@@ -60,7 +60,7 @@ metrics:
 
 ## Accomplishments
 - All 10 agent files renamed to bgsd-*.md with git mv (preserving history)
-- Every agent's PATH SETUP updated: GSD_HOME→BGSD_HOME, get-shit-done→bgsd-oc, gsd-tools→bgsd-tools
+- Every agent's PATH SETUP updated: GSD_HOME→__OPENCODE_CONFIG__/bgsd-oc, get-shit-done→bgsd-oc, gsd-tools→bgsd-tools
 - All agent cross-references updated (gsd-executor→bgsd-executor, gsd-planner→bgsd-planner, etc.)
 - install.js now detects existing get-shit-done installations and migrates to bgsd-oc automatically
 - install.js cleans up old gsd-*.md agent files after deploying new bgsd-*.md ones

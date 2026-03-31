@@ -32,7 +32,7 @@ Output: A structured review document at `.planning/quick/6-review-plugin-and-ens
 @package.json
 @deploy.sh
 @build.js
-@lessons.md
+@.planning/memory/lessons.json
 </context>
 
 <tasks>

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { output, status, error, debugLog } = require('../lib/output');
 const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS } = require('../lib/format');
+const { resolvePluginDirs: resolveRuntimePluginDirs } = require('../lib/plugin-paths');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -127,26 +128,11 @@ const WORKFLOW_FREQUENCY = {
 
 /**
  * Resolve the plugin home directory for scanning workflows and agents.
- * Follows the pattern from agent.js resolveBgsdPaths().
  *
  * @returns {{ workflowsDir: string, agentsDir: string }}
  */
 function resolvePluginDirs() {
-  // In development: __dirname is src/commands/, so plugin root is ../../
-  // In production bundle: __dirname is inside bin/, resolve via BGSD_HOME
-  const BGSD_HOME = process.env.BGSD_HOME ||
-    path.resolve(__dirname, '..', '..');
-
-  const workflowsDir = path.join(BGSD_HOME, 'workflows');
-  const agentsDir = path.join(path.dirname(BGSD_HOME), 'agents');
-
-  // Fallback: if running from dev workspace, workflows are at project root
-  if (!fs.existsSync(workflowsDir)) {
-    const devWorkflows = path.resolve(__dirname, '..', '..', 'workflows');
-    const devAgents = path.resolve(__dirname, '..', '..', 'agents');
-    return { workflowsDir: devWorkflows, agentsDir: devAgents };
-  }
-
+  const { workflowsDir, agentsDir } = resolveRuntimePluginDirs();
   return { workflowsDir, agentsDir };
 }
 

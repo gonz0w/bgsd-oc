@@ -11,7 +11,7 @@ const { transformJson, transformWithPreset, getFilterPresets, FILTER_PRESETS, is
 const { parseYAML, transformYAML, YAMLtoJSON, transformWithPreset: transformYAMLWithPreset, getFilterPresets: getYqFilterPresets, FILTER_PRESETS: YQ_FILTER_PRESETS, isYqAvailable } = require('./yq.js');
 const { catWithHighlight, getFileTheme, listThemes, getLanguage, getStylePresets, STYLE_PRESETS, isBatAvailable } = require('./bat.js');
 const { listPRs, getPR, listIssues, getIssue, getRepoInfo, isGhAvailable, checkAuth, isGhUsable } = require('./gh.js');
-const { detectTool, getToolStatus, clearCache, TOOLS } = require('./detector.js');
+const { detectTool, getToolStatus, refreshToolStatus, clearCache, TOOLS } = require('./detector.js');
 const { withToolFallback, isToolAvailable, isToolEnabled, getToolGuidance } = require('./fallback.js');
 const { getInstallGuidance } = require('./install-guidance.js');
 
@@ -109,7 +109,7 @@ function getAllToolStatus() {
 
 /**
  * Check if a specific tool is available
- * @param {string} toolName - Tool name (ripgrep, fd, jq, yq, bat, gh)
+ * @param {string} toolName - Tool name (ripgrep, fd, jq, yq, ast_grep, sd, hyperfine, bat, gh)
  * @returns {boolean}
  */
 function checkToolAvailability(toolName) {
@@ -166,6 +166,7 @@ module.exports = {
   // detector exports
   detectTool,
   getToolStatus,
+  refreshToolStatus,
   clearCache,
   TOOLS,
   

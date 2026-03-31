@@ -6,6 +6,7 @@ const { execGit } = require('../lib/git');
 const { parseIntentMd, generateIntentMd, parsePlanIntent, getMilestoneInfo, normalizePhaseName } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, box, colorByPercent, actionHint } = require('../lib/format');
+const { formatPhaseIntentAvailabilityWarning, readPhaseIntentContract } = require('../lib/phase-context');
 
 // ─── Intent Commands ─────────────────────────────────────────────────────────
 
@@ -125,13 +126,204 @@ function cmdIntentCreate(cwd, args, raw) {
 // ─── Intent Show / Read ──────────────────────────────────────────────────────
 
 const SECTION_ALIASES = ['objective', 'users', 'outcomes', 'criteria', 'constraints', 'health', 'history'];
+const SHOW_SECTION_ALIASES = [...SECTION_ALIASES, 'effective', 'effective_intent'];
+
+function extractTaggedSection(content, tag) {
+  const match = String(content || '').match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  return match ? match[1].trim() : null;
+}
+
+function extractHeadingSection(content, headingPattern) {
+  const lines = String(content || '').split('\n');
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (headingPattern.test(lines[i])) {
+      start = i + 1;
+      break;
+    }
+  }
+  if (start === -1) return null;
+
+  const collected = [];
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^#{1,6}\s+/.test(line) && collected.length > 0) break;
+    collected.push(line);
+  }
+  const text = collected.join('\n').trim();
+  return text || null;
+}
+
+function extractBullets(text) {
+  if (!text) return [];
+  return String(text)
+    .split('\n')
+    .map(line => line.match(/^\s*[-*]\s+(.+)$/)?.[1]?.trim() || null)
+    .filter(Boolean);
+}
+
+function parseOutcomeRefs(lines) {
+  return extractBullets(lines).map(item => {
+    const match = item.match(/^(DO-\d+)(?::\s*(.+))?$/);
+    if (!match) return { id: null, text: item };
+    return { id: match[1], text: match[2] ? match[2].trim() : null };
+  });
+}
+
+function parseMilestoneIntentMd(content) {
+  if (!content || typeof content !== 'string') return null;
+
+  const whyNow = extractTaggedSection(content, 'why_now')
+    || extractHeadingSection(content, /^##\s*Why Now\s*$/i);
+  const targetOutcomes = extractTaggedSection(content, 'target_outcomes')
+    || extractHeadingSection(content, /^##\s*Target Outcomes\s*$/i);
+  const priorities = extractTaggedSection(content, 'priorities')
+    || extractHeadingSection(content, /^##\s*Priorities\s*$/i);
+  const nonGoals = extractTaggedSection(content, 'non_goals')
+    || extractHeadingSection(content, /^##\s*Non-Goals\s*$/i);
+
+  const milestone = {
+    why_now: whyNow ? whyNow.replace(/\s+/g, ' ').trim() : null,
+    target_outcomes: parseOutcomeRefs(targetOutcomes).filter(entry => entry.id || entry.text),
+    priorities: extractBullets(priorities),
+    non_goals: extractBullets(nonGoals),
+  };
+
+  if (!milestone.why_now && milestone.target_outcomes.length === 0 && milestone.priorities.length === 0 && milestone.non_goals.length === 0) {
+    return null;
+  }
+
+  return milestone;
+}
+
+function readMilestoneIntent(cwd) {
+  const milestonePath = path.join(cwd, '.planning', 'MILESTONE-INTENT.md');
+  if (!fs.existsSync(milestonePath)) return null;
+
+  const parsed = parseMilestoneIntentMd(fs.readFileSync(milestonePath, 'utf-8'));
+  if (!parsed) return null;
+
+  const milestoneInfo = getMilestoneInfo(cwd);
+  return {
+    version: milestoneInfo.version || null,
+    name: milestoneInfo.name || null,
+    source_path: '.planning/MILESTONE-INTENT.md',
+    ...parsed,
+  };
+}
+
+function mergeOutcomeRefs(projectOutcomes, milestoneOutcomes) {
+  const merged = [];
+  const seen = new Set();
+  for (const entry of [...(projectOutcomes || []), ...(milestoneOutcomes || [])]) {
+    const key = entry.id || entry.text;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push({ id: entry.id || null, text: entry.text || null });
+  }
+  return merged;
+}
+
+function uniqueCompact(values, limit = 5) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values || []) {
+    const normalized = String(value || '').trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+function buildProjectIntentLayer(cwd) {
+  const intentPath = path.join(cwd, '.planning', 'INTENT.md');
+  if (!fs.existsSync(intentPath)) return null;
+
+  const data = parseIntentMd(fs.readFileSync(intentPath, 'utf-8'));
+  if (!data.objective || !data.objective.statement) return null;
+
+  return {
+    objective: data.objective.statement,
+    outcome_count: (data.outcomes || []).length,
+    top_outcomes: (data.outcomes || [])
+      .filter(o => o.priority === 'P1')
+      .slice(0, 3)
+      .map(o => ({ id: o.id, text: o.text })),
+    users: (data.users || []).slice(0, 3).map(u => u.text),
+    has_criteria: (data.criteria || []).length > 0,
+  };
+}
+
+function getEffectiveIntent(cwd, options = {}) {
+  const phase = options.phase ? normalizePhaseName(options.phase) : null;
+  const project = buildProjectIntentLayer(cwd);
+  if (!project) return null;
+
+  const milestone = readMilestoneIntent(cwd);
+  const phaseIntentContract = phase ? readPhaseIntentContract(cwd, phase) : null;
+  const phaseIntent = phaseIntentContract?.intent || null;
+  const warnings = [];
+  const missingLayers = [];
+
+  if (!milestone) {
+    missingLayers.push('milestone');
+    warnings.push('Partial intent context: .planning/MILESTONE-INTENT.md is missing, so effective_intent is using project and available phase context only.');
+  }
+  if (phase && !phaseIntent) {
+    missingLayers.push('phase');
+    warnings.push(formatPhaseIntentAvailabilityWarning(phase, phaseIntentContract));
+  }
+
+  return {
+    advisory: true,
+    project,
+    milestone,
+    phase: phaseIntent,
+    effective: {
+      objective: project.objective,
+      focus: phaseIntent?.purpose || milestone?.why_now || null,
+      outcomes: mergeOutcomeRefs(project.top_outcomes, milestone?.target_outcomes),
+      priorities: uniqueCompact([...(milestone?.priorities || [])]),
+      non_goals: uniqueCompact([...(milestone?.non_goals || []), ...(phaseIntent?.non_goals || [])]),
+    },
+    warnings,
+    metadata: {
+      partial: missingLayers.length > 0,
+      missing_layers: missingLayers,
+      phase: phase,
+    },
+  };
+}
+
+function renderEffectiveIntent(data) {
+  const lines = [];
+  lines.push(banner('Effective Intent'));
+  lines.push(`  Advisory: ${data?.advisory ? 'yes' : 'no'}`);
+  lines.push('');
+  lines.push(sectionHeader('Project'));
+  lines.push(`  Objective: ${data?.project?.objective || '(missing)'}`);
+  lines.push(`  Top Outcomes: ${(data?.project?.top_outcomes || []).map(outcome => outcome.id).join(', ') || 'none'}`);
+  lines.push('');
+  lines.push(sectionHeader('Effective'));
+  lines.push(`  Focus: ${data?.effective?.focus || '(inherits project objective only)'}`);
+  lines.push(`  Non-goals: ${(data?.effective?.non_goals || []).join(' | ') || 'none'}`);
+  if (data?.warnings?.length) {
+    lines.push('');
+    lines.push(sectionHeader('Warnings'));
+    for (const warning of data.warnings) lines.push(`  ${color.yellow(SYMBOLS.warning)} ${warning}`);
+  }
+  lines.push('');
+  return lines.join('\n') + '\n';
+}
 
 /**
  * Formatter for intent show — renders based on parsed data.
  * Handles section filtering and full mode via closure over args.
  */
 function makeFormatIntentShow(args, rawContent) {
-  const sectionFilter = args.length > 0 && SECTION_ALIASES.includes(args[0]) ? args[0] : null;
+  const sectionFilter = args.length > 0 && SHOW_SECTION_ALIASES.includes(args[0]) ? args[0] : null;
   const fullFlag = args.includes('--full');
 
   return function formatIntentShow(data) {
@@ -157,7 +349,21 @@ function cmdIntentShow(cwd, args, raw) {
   const data = parseIntentMd(content);
 
   // Check for section filter (first positional arg after subcommand)
-  const sectionFilter = args.length > 0 && SECTION_ALIASES.includes(args[0]) ? args[0] : null;
+  const sectionFilter = args.length > 0 && SHOW_SECTION_ALIASES.includes(args[0]) ? args[0] : null;
+
+  if (sectionFilter === 'effective' || sectionFilter === 'effective_intent') {
+    const phaseArg = args[1] || null;
+    const effectiveIntent = getEffectiveIntent(cwd, { phase: phaseArg });
+    const payload = { effective_intent: effectiveIntent };
+
+    if (raw) {
+      output(payload, false);
+      return;
+    }
+
+    output(payload, { formatter: () => renderEffectiveIntent(effectiveIntent) });
+    return;
+  }
 
   // Forced JSON mode (intent read passes raw=true explicitly)
   if (raw) {
@@ -1597,24 +1803,7 @@ function cmdIntentDrift(cwd, args, raw) {
  * @returns {{ objective: string, outcome_count: number, top_outcomes: Array<{id: string, text: string}>, users: string[], has_criteria: boolean } | null}
  */
 function getIntentSummary(cwd) {
-  const intentPath = path.join(cwd, '.planning', 'INTENT.md');
-  if (!fs.existsSync(intentPath)) return null;
-
-  const content = fs.readFileSync(intentPath, 'utf-8');
-  const data = parseIntentMd(content);
-
-  if (!data.objective || !data.objective.statement) return null;
-
-  return {
-    objective: data.objective.statement,
-    outcome_count: (data.outcomes || []).length,
-    top_outcomes: (data.outcomes || [])
-      .filter(o => o.priority === 'P1')
-      .slice(0, 3)
-      .map(o => ({ id: o.id, text: o.text })),
-    users: (data.users || []).slice(0, 3).map(u => u.text),
-    has_criteria: (data.criteria || []).length > 0,
-  };
+  return buildProjectIntentLayer(cwd);
 }
 
 module.exports = {
@@ -1626,4 +1815,7 @@ module.exports = {
   cmdIntentDrift,
   getIntentDriftData,
   getIntentSummary,
+  parseMilestoneIntentMd,
+  readMilestoneIntent,
+  getEffectiveIntent,
 };

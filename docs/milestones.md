@@ -88,18 +88,18 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 
 ### Foundation (Phase 45)
 - **Trajectory store** — New memory store type (`trajectories`) with auto-generated 6-char hex IDs and collision detection
-- **Checkpoint command** — `gsd-tools trajectory checkpoint <name>` creates named git branch at `trajectory/<scope>/<name>/attempt-N` with automatic metrics collection (test count, LOC delta, cyclomatic complexity)
-- **Selective rewind** — `gsd-tools git rewind --ref <ref>` reverts code to a checkpoint while protecting `.planning/` directory, root configs (package.json, tsconfig.json, etc.), and auto-stashes dirty working tree. Denylist approach for protected paths.
-- **Trajectory branch creation** — `gsd-tools git trajectory-branch --phase N --slug name` creates branches in `gsd/trajectory/` namespace
+- **Checkpoint command** — `bgsd-tools execute:trajectory checkpoint <name>` creates named git branch at `trajectory/<scope>/<name>/attempt-N` with automatic metrics collection (test count, LOC delta, cyclomatic complexity)
+- **Selective rewind** — `bgsd-tools util:git rewind --ref <ref>` reverts code to a checkpoint while protecting `.planning/` directory, root configs (package.json, tsconfig.json, etc.), and auto-stashes dirty working tree. Denylist approach for protected paths.
+- **Trajectory branch creation** — `bgsd-tools util:git trajectory-branch --phase N --slug name` creates branches in `gsd/trajectory/` namespace
 
 ### Checkpoint & Metrics (Phase 46)
 - **Snapshot metrics collection** — Fault-tolerant collection of test count, LOC delta, and cyclomatic complexity at checkpoint time. Partial metrics if any collector fails.
 - **Branch ref-only creation** — Uses `git branch` (not checkout) to preserve working tree during checkpoint
-- **Trajectory list command** — `gsd-tools trajectory list` with scope/name filtering, limit control, and dual-mode output (JSON for agents, formatted for humans). Sorted newest-first.
+- **Trajectory list command** — `bgsd-tools execute:trajectory list` with scope/name filtering, limit control, and dual-mode output (JSON for agents, formatted for humans). Sorted newest-first.
 - **Dirty tree exclusion** — Excludes `.planning/` from dirty working tree checks for consecutive checkpoints
 
 ### Pivot (Phase 47)
-- **Pivot command** — `gsd-tools trajectory pivot <checkpoint> --reason "..."` abandons the current approach with recorded reasoning
+- **Pivot command** — `bgsd-tools execute:trajectory pivot <checkpoint> --reason "..."` abandons the current approach with recorded reasoning
 - **Selective checkout** — Rewinds source code to target checkpoint while preserving `.planning/` and root configs via `selectiveRewind`
 - **Auto-archival** — Current HEAD is auto-checkpointed as an abandoned attempt with archived branch before rewinding
 - **Auto-stash support** — `--stash` flag handles dirty working trees gracefully
@@ -107,13 +107,13 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 - **Formatted output** — TTY banner + table output showing pivoted state, rewound files, and archived branch
 
 ### Compare (Phase 48)
-- **Compare command** — `gsd-tools trajectory compare <name>` shows side-by-side metrics across all non-abandoned attempts
+- **Compare command** — `bgsd-tools execute:trajectory compare <name>` shows side-by-side metrics across all non-abandoned attempts
 - **Directional scoring** — Best/worst identification per metric (higher is better for tests_pass, lower for complexity and LOC)
 - **Color-coded output** — Green for best values, red for worst values in TTY mode
 - **Formatted tables** — Test results, LOC delta, and cyclomatic complexity per attempt with best/worst indicators
 
 ### Choose (Phase 49)
-- **Choose command** — `gsd-tools trajectory choose <name> --attempt N` selects the winning attempt and finalizes the exploration
+- **Choose command** — `bgsd-tools execute:trajectory choose <name> --attempt N` selects the winning attempt and finalizes the exploration
 - **Merge with lineage** — Winning attempt merged via `git merge --no-ff` to preserve exploration history
 - **Tag archival** — Non-chosen attempts archived as lightweight git tags (permanent reference)
 - **Branch cleanup** — ALL trajectory working branches deleted (including winner, since code is now merged)
@@ -136,7 +136,7 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 - **Graceful Map fallback** — Falls back to Map-only on Node <22.5 with zero crashes and zero warnings.
 - **Hot-path command wiring** — All hot-path commands (phase, verify, misc) use `cachedReadFile()` for `.planning/` file reads.
 - **Cache warm with auto-discovery** — `cache warm` command with auto-discovery of `.planning/` files, `--no-cache` flag for test parity.
-- **Explicit invalidation** — Cache invalidated on all gsd-tools file writes for immediate consistency.
+- **Explicit invalidation** — Cache invalidated on all CLI file writes for immediate consistency.
 
 ### Agent Consolidation (Phase 53)
 - **RACI matrix** — Every lifecycle step has exactly one responsible agent. Agent audit command validates the matrix.
@@ -145,7 +145,7 @@ Complete history of every bGSD milestone, what was delivered, and the metrics.
 
 ### Command Consolidation (Phase 54)
 - **Namespace routing** — Commands organized into semantic namespaces (`init:`, `plan:`, `execute:`, `verify:`, `util:`) with colon syntax. Router supports both namespaced and flat command formats.
-- **Auto changelog** — `gsd-tools milestone complete` auto-generates version docs from git log and STATE.md metrics.
+- **Auto changelog** — `bgsd-tools plan:milestone complete` auto-generates version docs from git log and STATE.md metrics.
 
 ### Profiler & Validation (Phase 55)
 - **Profiler instrumentation** — `GSD_PROFILE=1` emits timing data for file reads, git operations, markdown parsing, and AST analysis.

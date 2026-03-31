@@ -21,17 +21,19 @@ Defines clear ownership boundaries: each lifecycle step has exactly ONE Responsi
 <!-- section: matrix -->
 ### RACI Matrix
 
+This matrix uses reference-style route shapes for ownership only. When the workflow expects someone to run a command immediately, surface a concrete executable example such as `/bgsd-plan discuss 159` instead of the placeholder form.
+
 | Step | Responsible (R) | Accountable (A) | Consulted (C) |
 |------|----------------|-----------------|---------------|
 | project-init | roadmapper | /bgsd-new-project | project-researcher |
 | intent-capture | User | /bgsd-new-project | — |
 | project-research | project-researcher | /bgsd-new-project | — |
 | roadmap-creation | roadmapper | /bgsd-new-project | project-researcher |
-| phase-discussion | User | /bgsd-discuss-phase | — |
-| phase-research | phase-researcher | /bgsd-plan-phase | — |
-| plan-creation | planner | /bgsd-plan-phase | phase-researcher, codebase-mapper |
-| plan-checking | plan-checker | /bgsd-plan-phase | planner |
-| plan-revision | planner | /bgsd-plan-phase | plan-checker |
+| phase-discussion | User | /bgsd-plan discuss [phase] | — |
+| phase-research | phase-researcher | /bgsd-plan research [phase] | — |
+| plan-creation | planner | /bgsd-plan phase [phase] | phase-researcher, codebase-mapper |
+| plan-checking | plan-checker | /bgsd-plan phase [phase] | planner |
+| plan-revision | planner | /bgsd-plan phase [phase] | plan-checker |
 | execution-dispatch | User | /bgsd-execute-phase | — |
 | task-execution | executor | /bgsd-execute-phase | codebase-mapper |
 | commit-management | executor | /bgsd-execute-phase | — |
@@ -43,8 +45,8 @@ Defines clear ownership boundaries: each lifecycle step has exactly ONE Responsi
 | codebase-mapping | codebase-mapper | /bgsd-map-codebase | — |
 | debug-investigation | debugger | /bgsd-debug | User |
 | gap-diagnosis | debugger | /bgsd-verify-work | — |
-| gap-closure-planning | planner | /bgsd-plan-phase --gaps | verifier, debugger |
-| progress-reporting | executor | /bgsd-progress | — |
+| gap-closure-planning | planner | /bgsd-plan gaps [phase] | verifier, debugger |
+| progress-reporting | executor | /bgsd-inspect progress | — |
 | state-management | executor | /bgsd-execute-phase | — |
 
 **Rules:** Each step has exactly ONE Responsible agent. Zero dual-R assignments.

@@ -1,18 +1,21 @@
----
-description: Add a new phase to roadmap
+description: Compatibility alias for `/bgsd-plan roadmap add`
 ---
 <objective>
-Add a new phase to the roadmap.
+Preserve the legacy roadmap-add entrypoint while routing to canonical `/bgsd-plan roadmap add` behavior.
 </objective>
 
 <execution_context>
-@__OPENCODE_CONFIG__/bgsd-oc/workflows/add-phase.md
+@__OPENCODE_CONFIG__/bgsd-oc/commands/bgsd-plan.md
 </execution_context>
 
 <context>
-$ARGUMENTS: Phase name/description
+$ARGUMENTS: Phase description
 </context>
 
 <process>
-Execute the add-phase workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/add-phase.md end-to-end.
+Treat `/bgsd-add-phase` as a compatibility alias only.
+
+Translate the request to canonical `/bgsd-plan roadmap add $ARGUMENTS` behavior and follow the shared planning-family contract in @__OPENCODE_CONFIG__/bgsd-oc/commands/bgsd-plan.md.
+
+Do not present this alias as the preferred path.
 </process>

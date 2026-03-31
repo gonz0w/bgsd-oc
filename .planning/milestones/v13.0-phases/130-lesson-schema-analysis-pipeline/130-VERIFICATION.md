@@ -32,7 +32,7 @@ gaps: []
 |---|-------|--------|----------|
 | 1 | User can run `lessons:capture` with all required fields and a structured entry is written to `.planning/memory/lessons.json` with auto-generated id and date | ✓ VERIFIED | CLI returns `{captured:true,id:"...",title:"...",severity:"HIGH",type:"tooling",entry_count:3}` |
 | 2 | `lessons:capture` rejects entries missing any required field with a clear error message | ✓ VERIFIED | `--title "Bad entry" --severity HIGH` returns `Error: Lesson validation failed: - type is required - root_cause is required - prevention_rule is required - affected_agents is required` |
-| 3 | `lessons:migrate` converts free-form `lessons.md` sections to `type:environment` entries | ✓ VERIFIED | `{migrated:1,sources:["/mnt/raid/DEV/bgsd-oc/lessons.md"],entry_count:4}` — entries get type:environment |
+| 3 | Structured lessons live in `.planning/memory/lessons.json` and can be queried without markdown parsing | ✓ VERIFIED | `lessons:list` and `verify:search-lessons` both read the structured store directly and return entries from `.planning/memory/lessons.json` |
 | 4 | User can run `lessons:list --type tooling --severity HIGH` and see only matching entries; `--since` filters by date; `--limit` paginates | ✓ VERIFIED | Filtered output shows count:2 from total:3; `--since 2026-01-01 --limit 2` correctly applies both filters |
 | 5 | `util:memory read --store lessons --type agent-behavior --since 2026-03-01` works with new filter flags | ✓ VERIFIED | `--store lessons --severity HIGH` and `--type tooling` both filter correctly via lessons-specific block in `cmdMemoryRead` |
 | 6 | `lessons:analyze` shows recurrent patterns grouped by affected agent — only groups with ≥2 supporting lessons | ✓ VERIFIED | Output shows group `{agent:"bgsd-executor",pattern_type:"tooling",count:2}` — single-lesson groups absent |
@@ -48,9 +48,9 @@ gaps: []
 
 | Artifact | Exists | Substantive | Wired | Notes |
 |----------|--------|-------------|-------|-------|
-| `src/commands/lessons.js` | ✓ | ✓ (634 lines, 8 exports) | ✓ | Exports: LESSON_SCHEMA, validateLesson, cmdLessonsCapture, cmdLessonsMigrate, cmdLessonsList, cmdLessonsAnalyze, cmdLessonsSuggest, cmdLessonsCompact |
+| `src/commands/lessons.js` | ✓ | ✓ (current structured lessons command module) | ✓ | Exports the structured lessons entrypoints used by the repo today: capture, list, analyze, suggest, compact, and deviation-capture support helpers. |
 | `src/commands/memory.js` | ✓ | ✓ | ✓ | Lessons-specific filter block at line 239 (LESSON-06) — `--type`, `--since`, `--severity` filters |
-| `src/router.js` | ✓ | ✓ | ✓ | `lazyLessons()` at line 112; `case 'lessons':` at line 1352 with capture/list/migrate/analyze/suggest/compact routing |
+| `src/router.js` | ✓ | ✓ | ✓ | `lazyLessons()` plus `case 'lessons':` route the structured lessons command family used by the repo today. |
 | `.planning/memory/lessons.json` | ✓ | ✓ | ✓ | 1,230 bytes; contains structured entries with id, date, title, severity, type, root_cause, prevention_rule, affected_agents |
 | `workflows/verify-work.md` | ✓ | ✓ | ✓ | `surface_lesson_suggestions` step with `2>/dev/null \|\| true` guard |
 | `workflows/complete-milestone.md` | ✓ | ✓ | ✓ | `surface_lesson_suggestions` step with `2>/dev/null \|\| true` guard |

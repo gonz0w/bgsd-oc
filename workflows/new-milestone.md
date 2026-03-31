@@ -16,7 +16,8 @@ Read all execution_context files before starting.
 - Read PROJECT.md (existing project, validated requirements, decisions)
 - Read MILESTONES.md (what shipped previously)
 - Read STATE.md (pending todos, blockers)
-- Check for MILESTONE-CONTEXT.md (from /bgsd-discuss-milestone)
+- Check for MILESTONE-CONTEXT.md (reference-only: created by the milestone discuss flow, not a standalone command)
+- Use `init:new-milestone` lesson snapshot fields as the frozen milestone baseline when available (`lesson_snapshot_path`, `remediation_summary`, `remediation_buckets`) instead of rediscovering live lesson history.
 <!-- /section -->
 
 <!-- section: gather_goals -->
@@ -50,14 +51,14 @@ Update Active requirements section and "Last updated" footer.
 <!-- /section -->
 
 <!-- section: review_intent -->
-## 4.5. Review and Evolve Intent
+## 4.5. Review Project Intent and Refresh Milestone Intent
 
-**If INTENT.md does NOT exist:** Ask Q1-Q4 (Objective, Desired Outcomes, Success Criteria, Constraints), create INTENT.md, commit.
+**If INTENT.md does NOT exist:** Ask Q1-Q4 (Objective, Desired Outcomes, Success Criteria, Constraints), create INTENT.md as the enduring project intent, commit.
 
 **If INTENT.md exists:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► REVIEWING INTENT
+ bGSD ► REVIEWING PROJECT INTENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -65,13 +66,22 @@ Update Active requirements section and "Last updated" footer.
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent show
 ```
 
-Ask Q1-Q4 about evolution: objective still valid? outcomes complete/new? criteria updated? constraints changed? Apply changes with `--reason` flag. Commit if changed.
+Ask only whether the enduring project north star changed: objective still valid? durable outcomes complete/new? success criteria updated? constraints changed? Apply changes with `--reason` flag only for true project-level intent changes. Commit if changed.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: evolve intent for milestone v[X.Y]" --files .planning/INTENT.md
 ```
 
-Present: `✓ Intent reviewed for v[X.Y]: {N} modifications` or `✓ Intent unchanged — carrying forward to v[X.Y]`
+After reviewing project intent, create or refresh `.planning/MILESTONE-INTENT.md` using `templates/MILESTONE-INTENT.md` as the single owned home for milestone-specific why-now strategy, targeted outcomes, priorities, and non-goals.
+
+Do **not** evolve `.planning/INTENT.md` just to capture temporary milestone focus, milestone-local priorities, or short-lived sequencing decisions.
+
+Roadmapper inputs must distinguish the two layers explicitly:
+- `.planning/INTENT.md` = project north star and durable outcomes
+- `.planning/MILESTONE-INTENT.md` = current milestone strategy and boundaries
+
+Present: `✓ Project intent reviewed for v[X.Y]: {N} modifications` or `✓ Project intent unchanged — carrying forward to v[X.Y]`
+Present: `✓ Milestone intent refreshed for v[X.Y]` once `.planning/MILESTONE-INTENT.md` is written.
 <!-- /section -->
 
 <!-- section: update_state -->
@@ -86,7 +96,7 @@ Set current position to: Phase not started, Status: Defining requirements. Keep 
 Delete MILESTONE-CONTEXT.md if exists (consumed).
 
 ```bash
-node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: start milestone v[X.Y] [Name]" --files .planning/PROJECT.md .planning/STATE.md
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: start milestone v[X.Y] [Name]" --files .planning/PROJECT.md .planning/STATE.md .planning/MILESTONE-INTENT.md
 ```
 <!-- /section -->
 
@@ -129,12 +139,18 @@ mkdir -p .planning/research
 ```
 
 ```bash
-SKILLS=$(node $BGSD_HOME/bin/bgsd-tools.cjs skills:list)
+SKILLS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs skills:list)
 ```
 
-Display current skills and `https://agentskills.io`. Use questionTemplate('new-milestone-skills', 'BINARY') to confirm skill installation.
+If `.planning/research/SKILLS.md` exists, read it and present:
+- currently installed project skills from `skills:list`
+- top recommended skills from research, including repo URL and brief rationale
 
-**If yes:** User provides GitHub URL(s). `node $BGSD_HOME/bin/bgsd-tools.cjs skills:install --source <url>` — security scan runs automatically.
+Use questionTemplate('new-milestone-skills', 'BINARY') to confirm installing the research-backed recommendations.
+
+**If yes and research recommendations exist:** For each recommended repo URL in `SKILLS.md`, run `node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs skills:install --source <url>` — security scan runs automatically.
+
+**If yes and no research recommendations exist:** Fall back to manual discovery — display current skills and `https://agentskills.io`, then user provides GitHub URL(s) to install.
 
 **If no:** Continue to Step 9.
 <!-- /section -->
@@ -148,9 +164,10 @@ Display current skills and `https://agentskills.io`. Use questionTemplate('new-m
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-If INTENT.md exists: use desired outcomes (especially new ones) to guide category selection.
+Use `.planning/INTENT.md` as the enduring north star and `.planning/MILESTONE-INTENT.md` as the milestone-local strategy source. Desired outcomes come from project intent; priorities and non-goals for this milestone come from milestone intent.
 
 Read PROJECT.md for core value, milestone goals, existing requirements. If research exists: read FEATURES.md, extract feature categories. If no research: gather requirements through conversation.
+When lesson snapshot metadata is available from init, treat that frozen artifact as the milestone-scoping source of truth; do not query live lessons again for scope definition.
 
 **Scope each category** via questionTemplate('new-milestone-scope-category', 'MULTI_CHOICE'):
 - Present features by category with table stakes / differentiators
@@ -186,7 +203,8 @@ Task(prompt="
 - .planning/PROJECT.md
 - .planning/REQUIREMENTS.md
 - .planning/research/SUMMARY.md (if exists)
-- .planning/INTENT.md (if exists)
+- .planning/INTENT.md (if exists — project north star)
+- .planning/MILESTONE-INTENT.md (if exists — milestone strategy)
 - .planning/config.json
 - .planning/MILESTONES.md
 </files_to_read>
@@ -198,6 +216,7 @@ Create roadmap for milestone v[X.Y]:
 2. Derive phases from THIS MILESTONE's requirements only
 3. Map every requirement to exactly one phase
 4. Derive 2-5 success criteria per phase (observable user behaviors)
+4.5. Treat project intent as the durable north star and milestone intent as the current why-now/priorities/non-goals layer
 5. Validate 100% coverage
 6. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability)
 7. Return ROADMAP CREATED with summary
@@ -235,7 +254,8 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create
 | Artifact       | Location                    |
 |----------------|-----------------------------|
 | Project        | `.planning/PROJECT.md`      |
-| Intent         | `.planning/INTENT.md`       |
+| Project intent | `.planning/INTENT.md`       |
+| Milestone intent | `.planning/MILESTONE-INTENT.md` |
 | Research       | `.planning/research/`       |
 | Requirements   | `.planning/REQUIREMENTS.md` |
 | Roadmap        | `.planning/ROADMAP.md`      |
@@ -246,11 +266,11 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create
 
 **Phase [N]: [Phase Name]** — [Goal]
 
-`/bgsd-discuss-phase [N]` — gather context and clarify approach
+`/bgsd-plan discuss [N]` — gather context and clarify approach
 
 <sub>`/clear` first → fresh context window</sub>
 
-Also: `/bgsd-plan-phase [N]` — skip discussion, plan directly
+Also: `/bgsd-plan phase [N]` — skip discussion, plan directly
 ```
 <!-- /section -->
 
@@ -260,9 +280,10 @@ Also: `/bgsd-plan-phase [N]` — skip discussion, plan directly
 <success_criteria>
 - [ ] PROJECT.md updated with Current Milestone section
 - [ ] STATE.md reset for new milestone
-- [ ] Intent reviewed/created for new milestone → committed (if changed)
+- [ ] Project intent reviewed/created as enduring north star → committed (if changed)
+- [ ] MILESTONE-INTENT.md created or refreshed as the milestone strategy source
 - [ ] MILESTONE-CONTEXT.md consumed and deleted (if existed)
-- [ ] Research completed (if selected) — 4 parallel agents, milestone-aware
+- [ ] Research completed (if selected) — 5 parallel agents, milestone-aware
 - [ ] Requirements gathered and scoped per category
 - [ ] REQUIREMENTS.md created with REQ-IDs
 - [ ] bgsd-roadmapper spawned with phase numbering context
@@ -270,6 +291,6 @@ Also: `/bgsd-plan-phase [N]` — skip discussion, plan directly
 - [ ] User feedback incorporated (if any)
 - [ ] ROADMAP.md phases continue from previous milestone
 - [ ] All commits made
-- [ ] User knows next step: `/bgsd-discuss-phase [N]`
+- [ ] User knows next step: `/bgsd-plan discuss [N]`
 </success_criteria>
 <!-- /section -->

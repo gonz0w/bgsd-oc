@@ -2,14 +2,7 @@
   "bun": {
     "detected": "1.3.11"
   },
-  "model_profile": "balanced",
   "workflow": {
-    "research": true,
-    "plan_check": true,
-    "verifier": true,
-    "auto_advance": false
-  },
-  "git": {
-    "branching_strategy": "phase"
+    "research": true
   }
 }

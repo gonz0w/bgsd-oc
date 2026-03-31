@@ -5,7 +5,7 @@ subsystem: core
 tags: [rebrand, env-vars, config-paths, build-pipeline, naming]
 dependency_graph:
   requires: []
-  provides: [BGSD_DEBUG, BGSD_PROFILE, BGSD_HOME, bgsd-tools.cjs, bgsd-oc-package]
+  provides: [BGSD_DEBUG, BGSD_PROFILE, __OPENCODE_CONFIG__/bgsd-oc, bgsd-tools.cjs, bgsd-oc-package]
   affects: [72-02, 72-03, 72-04]
 tech_stack:
   added: []
@@ -56,7 +56,7 @@ Renamed all environment variables from GSD_ to BGSD_ prefix, config paths from g
 |----------|-----|-----|-------|
 | Debug env var | `GSD_DEBUG` | `BGSD_DEBUG` | output.js, profiler.js, safe-hook.js |
 | Profile env var | `GSD_PROFILE` | `BGSD_PROFILE` | profiler.js, router.js |
-| Home dir env var | `GSD_HOME` | `BGSD_HOME` | agent.js, plugin/index.js |
+| Home dir env var | `GSD_HOME` | `__OPENCODE_CONFIG__/bgsd-oc` | agent.js, plugin/index.js |
 | Cache env var | `GSD_CACHE_FORCE_MAP` | `BGSD_CACHE_FORCE_MAP` | router.js, cache.js |
 | Plugin dir env var | `GSD_PLUGIN_DIR` | `BGSD_PLUGIN_DIR` | features.js (2 locations) |
 | Background env var | `GSD_BG_ANALYSIS` | `BGSD_BG_ANALYSIS` | codebase.js |
@@ -66,7 +66,7 @@ Renamed all environment variables from GSD_ to BGSD_ prefix, config paths from g
 | MODEL_PROFILES keys | `gsd-*` | `bgsd-*` | constants.js (9 agent keys) |
 | Branch templates | `gsd/` | `bgsd/` | constants.js CONFIG_SCHEMA (2 defaults) |
 | Function names | `resolveGsdPaths` | `resolveBgsdPaths` | agent.js |
-| Variable names | `gsdHome`, `GSD_HOME` | `bgsdHome`, `BGSD_HOME` | agent.js, plugin/index.js |
+| Variable names | `gsdHome`, `GSD_HOME` | `bgsdHome`, `__OPENCODE_CONFIG__/bgsd-oc` | agent.js, plugin/index.js |
 | Worktree path | `/tmp/gsd-worktrees` | `/tmp/bgsd-worktrees` | worktree.js |
 
 ## Task 2: Update build pipeline, package.json, rebuild

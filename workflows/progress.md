@@ -178,7 +178,7 @@ Check if `{phase_num}-CONTEXT.md` exists in phase directory.
 **Phase {N}: {Name}** — {Goal from ROADMAP.md}
 <sub>✓ Context gathered, ready to plan</sub>
 
-`/bgsd-plan-phase {phase-number}`
+`/bgsd-plan phase {phase-number}`
 
 <sub>`/clear` first → fresh context window</sub>
 
@@ -194,15 +194,15 @@ Check if `{phase_num}-CONTEXT.md` exists in phase directory.
 
 **Phase {N}: {Name}** — {Goal from ROADMAP.md}
 
-`/bgsd-discuss-phase {phase}` — gather context and clarify approach
+`/bgsd-plan discuss {phase}` — gather context and clarify approach
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd-plan-phase {phase}` — skip discussion, plan directly
-- `/bgsd-list-assumptions {phase}` — see the agent's assumptions
+- `/bgsd-plan phase {phase}` — skip discussion, plan directly
+- `/bgsd-plan assumptions {phase}` — see the agent's assumptions
 
 ---
 ```
@@ -220,7 +220,7 @@ UAT.md exists with gaps (diagnosed issues). User needs to plan fixes.
 
 **{phase_num}-UAT.md** has {N} gaps requiring fixes.
 
-`/bgsd-plan-phase {phase} --gaps`
+`/bgsd-plan gaps {phase}`
 
 <sub>`/clear` first → fresh context window</sub>
 
@@ -267,14 +267,14 @@ Read ROADMAP.md to get the next phase's name and goal.
 
 **Phase {Z+1}: {Name}** — {Goal from ROADMAP.md}
 
-`/bgsd-discuss-phase {Z+1}` — gather context and clarify approach
+`/bgsd-plan discuss {Z+1}` — gather context and clarify approach
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd-plan-phase {Z+1}` — skip discussion, plan directly
+- `/bgsd-plan phase {Z+1}` — skip discussion, plan directly
 - `/bgsd-verify-work {Z}` — user acceptance test before continuing
 
 ---
@@ -336,7 +336,7 @@ Ready to plan the next milestone.
 </step>
 
 <step name="edge_cases">
-**Edge cases:** Phase complete but unplanned → offer `/bgsd-plan-phase [next]`. All complete → milestone completion. Blockers → highlight first. Handoff exists → mention, offer `/bgsd-resume`.
+**Edge cases:** Phase complete but unplanned → offer `/bgsd-plan phase [next]`. All complete → milestone completion. Blockers → highlight first. Handoff exists → mention, offer `/bgsd-resume`.
 </step>
 
 </process>

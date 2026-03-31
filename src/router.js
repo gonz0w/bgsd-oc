@@ -94,7 +94,7 @@ function lazyMemory() { return _modules.memory || (_modules.memory = require('./
 function lazyIntent() { return _modules.intent || (_modules.intent = require('./commands/intent')); }
 function lazyEnv() { return _modules.env || (_modules.env = require('./commands/env')); }
 function lazyMcp() { return _modules.mcp || (_modules.mcp = require('./commands/mcp')); }
-function lazyWorktree() { return _modules.worktree || (_modules.worktree = require('./commands/worktree')); }
+function lazyWorkspace() { return _modules.workspace || (_modules.workspace = require('./commands/workspace')); }
 function lazyCodebase() { return _modules.codebase || (_modules.codebase = require('./commands/codebase')); }
 function lazyTrajectory() { return _modules.trajectory || (_modules.trajectory = require('./commands/trajectory')); }
 function lazyGit() { return _modules.git || (_modules.git = require('./lib/git')); }
@@ -114,6 +114,15 @@ function lazySkills() { return _modules.skills || (_modules.skills = require('./
 function lazyWorkflow() { return _modules.workflow || (_modules.workflow = require('./commands/workflow')); }
 function lazyScaffold() { return _modules.scaffold || (_modules.scaffold = require('./commands/scaffold')); }
 function lazyQuestions() { return _modules.questions || (_modules.questions = require('./commands/questions')); }
+function lazyReview() { return _modules.review || (_modules.review = require('./commands/review')); }
+function lazySecurity() { return _modules.security || (_modules.security = require('./commands/security')); }
+function lazyRelease() { return _modules.release || (_modules.release = require('./commands/release')); }
+
+function parseOptionValue(args, flag) {
+  const idx = args.indexOf(flag);
+  if (idx === -1 || idx === args.length - 1) return null;
+  return args[idx + 1];
+}
 
 
 async function main() {
@@ -256,7 +265,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'execute', 'verify', 'util', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow', 'questions'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'phase', 'execute', 'verify', 'review', 'security', 'release', 'workspace', 'util', 'memory', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow', 'questions'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -272,7 +281,7 @@ async function main() {
   }
 
   if (!command) {
-    error('Usage: bgsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|worktree|tdd|test-run>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, research:<capabilities|yt-search|yt-transcript|collect|nlm-create|nlm-add-source|nlm-ask|nlm-report|score|gaps>, workflow:<baseline|compare|verify-structure|savings>');
+    error('Usage: bgsd-tools <namespace:command> [args] [--pretty] [--verbose]\nCommands: init:<workflow>, plan:<intent|requirements|roadmap|phases|find-phase|milestone|phase>, execute:<commit|rollback-info|session-diff|session-summary|velocity|tdd|test-run>, workspace <add|list|forget|cleanup|reconcile>, verify:<state|verify|assertions|search-decisions|search-lessons|review|context-budget|token-budget>, review:<scan|readiness>, security:<scan>, release:<bump|changelog|tag|pr>, util:<config-get|config-set|env|current-timestamp|list-todos|todo|memory|mcp|classify|frontmatter|progress|websearch|history-digest|trace-requirement|codebase|cache|agent>, memory:<list|add|remove|prune>, research:<capabilities|yt-search|yt-transcript|collect|nlm-create|nlm-add-source|nlm-ask|nlm-report|score|gaps>, workflow:<baseline|compare|verify-structure|savings>');
   }
 
   // --help / -h: print command help to stderr (never contaminates JSON stdout)
@@ -281,7 +290,14 @@ async function main() {
     const subForHelp = args[1] && !args[1].startsWith('-') ? args[1] : '';
     const compoundKey = subForHelp ? `${command} ${subForHelp}` : '';
     const helpKey = (compoundKey && COMMAND_HELP[compoundKey]) ? compoundKey : (command || '');
-    const helpText = COMMAND_HELP[helpKey];
+    const helpFallbacks = {
+      'review:readiness': 'Usage: bgsd-tools review:readiness [--pretty]\n\nReturn an advisory readiness snapshot for the current repository state.',
+      'release:bump': 'Usage: bgsd-tools release:bump\n\nScaffolded release command surface for Phase 148.',
+      'release:changelog': 'Usage: bgsd-tools release:changelog\n\nScaffolded release command surface for Phase 148.',
+      'release:tag': 'Usage: bgsd-tools release:tag\n\nScaffolded release command surface for Phase 148.',
+      'release:pr': 'Usage: bgsd-tools release:pr\n\nScaffolded release command surface for Phase 148.',
+    };
+    const helpText = COMMAND_HELP[helpKey] || helpFallbacks[helpKey];
     if (helpText) {
       process.stderr.write(helpText + '\n');
     } else {
@@ -352,6 +368,15 @@ Use without --exact for fuzzy matching.`);
           case 'resume':
             lazyInit().cmdInitResume(cwd, raw);
             break;
+          case 'review':
+            lazyInit().cmdInitReview(cwd, raw);
+            break;
+          case 'security':
+            lazyInit().cmdInitSecurity(cwd, raw);
+            break;
+          case 'release':
+            lazyInit().cmdInitRelease(cwd, raw);
+            break;
           case 'verify-work':
             lazyInit().cmdInitVerifyWork(cwd, restArgs[0], raw);
             break;
@@ -374,7 +399,7 @@ Use without --exact for fuzzy matching.`);
             lazyInit().cmdInitMemory(cwd, restArgs, raw);
             break;
           default:
-            error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, verify-work, phase-op, todos, milestone-op, map-codebase, progress, memory`);
+            error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, review, security, release, verify-work, phase-op, todos, milestone-op, map-codebase, progress, memory`);
         }
         break;
       }
@@ -497,6 +522,34 @@ Use without --exact for fuzzy matching.`);
         break;
       }
 
+      case 'phase': {
+        const subcommand = subCmd;
+        if (subcommand === 'snapshot') {
+          lazyPhase().cmdPhaseSnapshot(cwd, restArgs[0], raw);
+        } else {
+          error('Unknown phase subcommand. Available: snapshot');
+        }
+        break;
+      }
+
+      case 'workspace': {
+        const subcommand = subCmd;
+        if (subcommand === 'add') {
+          lazyWorkspace().cmdWorkspaceAdd(cwd, restArgs[0], raw);
+        } else if (subcommand === 'list') {
+          lazyWorkspace().cmdWorkspaceList(cwd, raw);
+        } else if (subcommand === 'forget') {
+          lazyWorkspace().cmdWorkspaceForget(cwd, restArgs[0], raw);
+        } else if (subcommand === 'cleanup') {
+          lazyWorkspace().cmdWorkspaceCleanup(cwd, raw);
+        } else if (subcommand === 'reconcile') {
+          lazyWorkspace().cmdWorkspaceReconcile(cwd, restArgs[0], raw);
+        } else {
+          error('Unknown workspace subcommand. Available: add, list, forget, cleanup, reconcile');
+        }
+        break;
+      }
+
       // execute namespace
       case 'execute': {
         const subcommand = subCmd;
@@ -519,33 +572,22 @@ Use without --exact for fuzzy matching.`);
           lazyFeatures().cmdSessionSummary(cwd, raw);
         } else if (subcommand === 'velocity') {
           lazyFeatures().cmdVelocity(cwd, raw);
-        } else if (subcommand === 'worktree') {
-          const wtSub = restArgs[0];
-          if (wtSub === 'create') {
-            lazyWorktree().cmdWorktreeCreate(cwd, restArgs[1], raw);
-          } else if (wtSub === 'list') {
-            lazyWorktree().cmdWorktreeList(cwd, raw);
-          } else if (wtSub === 'remove') {
-            lazyWorktree().cmdWorktreeRemove(cwd, restArgs[1], raw);
-          } else if (wtSub === 'cleanup') {
-            lazyWorktree().cmdWorktreeCleanup(cwd, raw);
-          } else if (wtSub === 'merge') {
-            lazyWorktree().cmdWorktreeMerge(cwd, restArgs[1], raw);
-          } else if (wtSub === 'check-overlap') {
-            lazyWorktree().cmdWorktreeCheckOverlap(cwd, restArgs[1], raw);
-          } else {
-            error('Unknown worktree subcommand. Available: create, list, remove, cleanup, merge, check-overlap');
-          }
         } else if (subcommand === 'tdd') {
           const tddSub = restArgs[0];
           const tddTestCmdIdx = restArgs.indexOf('--test-cmd');
           const tddTestFileIdx = restArgs.indexOf('--test-file');
           const tddPhaseIdx = restArgs.indexOf('--phase');
+          const tddPlanIdx = restArgs.indexOf('--plan');
+          const tddStageIdx = restArgs.indexOf('--stage');
+          const tddProofIdx = restArgs.indexOf('--proof');
           const tddFilesIdx = restArgs.indexOf('--files');
           const tddArgs = {
             'test-cmd': tddTestCmdIdx !== -1 ? restArgs[tddTestCmdIdx + 1] : null,
             'test-file': tddTestFileIdx !== -1 ? restArgs[tddTestFileIdx + 1] : null,
             phase: tddPhaseIdx !== -1 ? restArgs[tddPhaseIdx + 1] : null,
+            plan: tddPlanIdx !== -1 ? restArgs[tddPlanIdx + 1] : null,
+            stage: tddStageIdx !== -1 ? restArgs[tddStageIdx + 1] : null,
+            proof: tddProofIdx !== -1 ? restArgs[tddProofIdx + 1] : null,
             files: tddFilesIdx !== -1 ? restArgs[tddFilesIdx + 1] : null,
           };
           lazyMisc().cmdTdd(cwd, tddSub, tddArgs, raw);
@@ -563,7 +605,7 @@ Use without --exact for fuzzy matching.`);
             default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint, list, pivot, compare, choose, dead-ends');
           }
         } else {
-          error(`Unknown execute subcommand: ${subcommand}. Available: commit, rollback-info, session-diff, session-summary, velocity, worktree, tdd, test-run, trajectory`);
+          error(`Unknown execute subcommand: ${subcommand}. Available: commit, rollback-info, session-diff, session-summary, velocity, tdd, test-run, trajectory`);
         }
         break;
       }
@@ -649,6 +691,29 @@ Use without --exact for fuzzy matching.`);
               stopped_at: stoppedIdx !== -1 ? restArgs[stoppedIdx + 1] : null,
               resume_file: resumeIdx !== -1 ? restArgs[resumeIdx + 1] : 'None',
             }, raw);
+          } else if (stateSub === 'complete-plan') {
+            const phaseIdx = restArgs.indexOf('--phase');
+            const planIdx = restArgs.indexOf('--plan');
+            const durationIdx = restArgs.indexOf('--duration');
+            const tasksIdx = restArgs.indexOf('--tasks');
+            const filesIdx = restArgs.indexOf('--files');
+            const decisionSummaryIdx = restArgs.indexOf('--decision-summary');
+            const decisionRationaleIdx = restArgs.indexOf('--decision-rationale');
+            const stoppedIdx = restArgs.indexOf('--stopped-at');
+            const resumeIdx = restArgs.indexOf('--resume-file');
+            lazyState().cmdStateCompletePlan(cwd, {
+              phase: phaseIdx !== -1 ? restArgs[phaseIdx + 1] : null,
+              plan: planIdx !== -1 ? restArgs[planIdx + 1] : null,
+              duration: durationIdx !== -1 ? restArgs[durationIdx + 1] : null,
+              tasks: tasksIdx !== -1 ? restArgs[tasksIdx + 1] : null,
+              files: filesIdx !== -1 ? restArgs[filesIdx + 1] : null,
+              decision_summary: decisionSummaryIdx !== -1 ? restArgs[decisionSummaryIdx + 1] : null,
+              decision_rationale: decisionRationaleIdx !== -1 ? restArgs[decisionRationaleIdx + 1] : null,
+              stopped_at: stoppedIdx !== -1 ? restArgs[stoppedIdx + 1] : null,
+                resume_file: resumeIdx !== -1 ? restArgs[resumeIdx + 1] : 'None',
+            }, raw);
+          } else if (stateSub === 'handoff') {
+            lazyState().cmdStateHandoff(cwd, restArgs.slice(1), raw);
           } else if (stateSub === 'validate') {
             const fix = restArgs.includes('--fix');
             lazyState().cmdStateValidate(cwd, { fix }, raw);
@@ -792,6 +857,34 @@ Use without --exact for fuzzy matching.`);
         } else {
           error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, handoff, agents, generate`);
         }
+        break;
+      }
+
+      case 'review': {
+        const subcommand = subCmd;
+        if (subcommand === 'scan') {
+          lazyReview().cmdReviewScan(cwd, restArgs, raw);
+        } else if (subcommand === 'readiness') {
+          lazyReview().cmdReviewReadiness(cwd, restArgs, raw);
+        } else {
+          error('Unknown review subcommand. Available: scan, readiness');
+        }
+        break;
+      }
+
+      case 'security': {
+        const subcommand = subCmd;
+        if (subcommand === 'scan') {
+          lazySecurity().cmdSecurityScan(cwd, restArgs, raw);
+        } else {
+          error('Unknown security subcommand. Available: scan');
+        }
+        break;
+      }
+
+      case 'release': {
+        const subcommand = subCmd;
+        lazyRelease().cmdRelease(cwd, subcommand, restArgs, raw);
         break;
       }
 
@@ -1302,6 +1395,36 @@ Examples:
         break;
       }
 
+      case 'memory': {
+        const subcommand = subCmd;
+        if (subcommand === 'list') {
+          lazyMemory().cmdStructuredMemoryList(cwd, {}, raw);
+        } else if (subcommand === 'add') {
+          lazyMemory().cmdStructuredMemoryAdd(cwd, {
+            section: parseOptionValue(restArgs, '--section'),
+            type: parseOptionValue(restArgs, '--type'),
+            text: parseOptionValue(restArgs, '--text'),
+            source: parseOptionValue(restArgs, '--source'),
+            keep: parseOptionValue(restArgs, '--keep'),
+            status: parseOptionValue(restArgs, '--status'),
+            expires: parseOptionValue(restArgs, '--expires'),
+            replaces: parseOptionValue(restArgs, '--replaces'),
+          }, raw);
+        } else if (subcommand === 'remove') {
+          lazyMemory().cmdStructuredMemoryRemove(cwd, {
+            id: parseOptionValue(restArgs, '--id') || restArgs[1] || null,
+          }, raw);
+        } else if (subcommand === 'prune') {
+          lazyMemory().cmdStructuredMemoryPrune(cwd, {
+            threshold: parseOptionValue(restArgs, '--threshold') || parseOptionValue(restArgs, '--threshold-days'),
+            apply: restArgs.includes('--apply'),
+          }, raw);
+        } else {
+          error('Unknown memory subcommand. Available: list, add, remove, prune');
+        }
+        break;
+      }
+
       // research namespace
       case 'research': {
         if (subCmd === 'capabilities') {
@@ -1405,8 +1528,6 @@ Examples:
           lazyLessons().cmdLessonsCapture(cwd, parseLessonsOptions(restArgs), raw);
         } else if (subcommand === 'list') {
           lazyLessons().cmdLessonsList(cwd, parseLessonsOptions(restArgs), raw);
-        } else if (subcommand === 'migrate') {
-          lazyLessons().cmdLessonsMigrate(cwd, {}, raw);
         } else if (subcommand === 'analyze') {
           const agentIdx = restArgs.indexOf('--agent');
           lazyLessons().cmdLessonsAnalyze(cwd, {
@@ -1425,7 +1546,7 @@ Examples:
         } else if (subcommand === 'deviation-capture') {
           lazyLessons().cmdDeviationCapture(cwd, parseLessonsOptions(restArgs), raw);
         } else {
-          error(`Unknown lessons subcommand: ${subcommand}. Available: capture, list, migrate, analyze, suggest, compact, deviation-capture`);
+          error(`Unknown lessons subcommand: ${subcommand}. Available: capture, list, analyze, suggest, compact, deviation-capture`);
         }
         break;
       }
@@ -1510,13 +1631,13 @@ Examples:
 
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, detect, lessons, skills, workflow, questions`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, workspace, util, research, cache, audit, decisions, detect, lessons, skills, workflow, questions`);
     }
     return; // Exit after handling namespaced command
   }
 
   // No command matched any namespace — unknown
-  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, util, research, cache, audit, decisions, lessons, skills, workflow`);
+  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, workspace, util, research, cache, audit, decisions, lessons, skills, workflow`);
 }
 
 // Track command execution in history (Phase 97: UX Polish)

@@ -42,7 +42,7 @@ const PHRASES = [
   { phrase: 'project health', command: 'health', intent: 'query' },
   
   { phrase: 'search decisions', command: 'util:search-decisions', intent: 'query' },
-  { phrase: 'find lessons', command: 'util:search-lessons', intent: 'query' }
+  { phrase: 'find lessons', command: 'verify:search-lessons', intent: 'query' }
 ];
 
 // Short aliases (backward compatibility)

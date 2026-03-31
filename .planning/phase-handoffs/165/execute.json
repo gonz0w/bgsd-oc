@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "165",
+  "step": "execute",
+  "status": "complete",
+  "run_id": "165-2026-03-30T19-27-51-601Z",
+  "source_fingerprint": "b710b0f90edb942d",
+  "created_at": "2026-03-30T20:17:52.780Z",
+  "updated_at": "2026-03-30T20:17:52.780Z",
+  "summary": "Execution complete for Phase 165",
+  "resume_target": {
+    "phase": "165",
+    "step": "execute",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-verify-work 165"
+  },
+  "context": {}
+}

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { normalizePhaseName, cachedReadFile, findPhaseInternal, getPhaseTree, invalidateFileCache } = require('../lib/helpers');
+const { normalizePhaseName, cachedReadFile, findPhaseInternal, getPhaseTree, invalidateFileCache, readRoadmapWithTddNormalization, normalizeTddHintValue } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 
 // ─── Roadmap Commands ────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
 
   try {
-    const content = cachedReadFile(roadmapPath);
+    const content = readRoadmapWithTddNormalization(cwd);
     if (!content) {
       output({ found: false, error: 'ROADMAP.md not found' }, raw, '');
       return;
@@ -74,7 +74,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
 
     // Extract TDD hint if present (recommended, required, or none/absent)
     const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
 
     output(
       {
@@ -97,7 +97,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
 
 function cmdRoadmapAnalyze(cwd, raw) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const content = cachedReadFile(roadmapPath);
+  const content = readRoadmapWithTddNormalization(cwd);
 
   if (!content) {
     output({ error: 'ROADMAP.md not found', milestones: [], phases: [], current_phase: null }, raw);
@@ -129,7 +129,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
 
     // Extract TDD hint if present
     const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
 
     // Check completion on disk — use cached phase tree (single scan)
     const normalized = normalizePhaseName(phaseNum);
@@ -286,12 +286,14 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
   roadmapContent = roadmapContent.replace(planCountPattern, `$1${planCountText}`);
 
   // If complete: check checkbox
+  const checkboxPattern = new RegExp(
+    `(-\\s*\\[)(?:x| )(\\]\\s*\\*\\*Phase\\s+${phaseEscaped}:[^\n]*?\\*\\*)(?:\\s*\\(completed [^)]+\\))?`,
+    'i'
+  );
   if (isComplete) {
-    const checkboxPattern = new RegExp(
-      `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseEscaped}[:\\s][^\\n]*)`,
-      'i'
-    );
     roadmapContent = roadmapContent.replace(checkboxPattern, `$1x$2 (completed ${today})`);
+  } else {
+    roadmapContent = roadmapContent.replace(checkboxPattern, `$1 $2`);
   }
 
   fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');

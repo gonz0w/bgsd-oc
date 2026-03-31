@@ -1,139 +1,54 @@
-/**
- * Severity Classification System
- * 
- * BLOCKER: Prevents task completion, must fix before proceeding
- * WARNING: Should fix, but task can proceed
- * INFO: FYI, no action required
- */
-
 const SEVERITY = {
   BLOCKER: 'BLOCKER',
   WARNING: 'WARNING',
   INFO: 'INFO'
 };
+const SEVERITY_ORDER = {
+  [SEVERITY.BLOCKER]: 0,
+  [SEVERITY.WARNING]: 1,
+  [SEVERITY.INFO]: 2,
+};
 
-/**
- * Classification rules for determining severity
- */
-const CLASSIFICATION_RULES = [
-  {
-    pattern: /syntax error|parse error|cannot import|cannot require/i,
-    severity: SEVERITY.BLOCKER,
-    reason: 'Code cannot run'
-  },
-  {
-    pattern: /missing|undefined|null reference|cannot read property/i,
-    severity: SEVERITY.BLOCKER,
-    reason: 'Runtime error will occur'
-  },
-  {
-    pattern: /security|vulnerability|injection|expose|credential/i,
-    severity: SEVERITY.BLOCKER,
-    reason: 'Security risk'
-  },
-  {
-    pattern: /deprecated|obsolete|outdated/i,
-    severity: SEVERITY.WARNING,
-    reason: 'Will need updating soon'
-  },
-  {
-    pattern: /unused|unreachable|dead code/i,
-    severity: SEVERITY.WARNING,
-    reason: 'Code smell'
-  },
-  {
-    pattern: /complexity|nesting|cognitive/i,
-    severity: SEVERITY.WARNING,
-    reason: 'Maintainability concern'
-  },
-  {
-    pattern: /note|tip|consider|suggestion/i,
-    severity: SEVERITY.INFO,
-    reason: 'Optional improvement'
-  }
-];
-
-/**
- * Classify a finding's severity
- * @param {Object} finding - Finding to classify
- * @returns {string} Severity level
- */
-function classifySeverity(finding) {
-  const message = finding.message || '';
-  
-  for (const rule of CLASSIFICATION_RULES) {
-    if (rule.pattern.test(message)) {
-      return {
-        severity: rule.severity,
-        reason: rule.reason
-      };
-    }
-  }
-  
-  // Default to WARNING if no rule matches
-  return { severity: SEVERITY.WARNING, reason: 'No specific classification' };
+function normalizeSeverity(value, fallback = SEVERITY.WARNING) {
+  const normalized = String(value || '').toUpperCase();
+  return Object.prototype.hasOwnProperty.call(SEVERITY_ORDER, normalized) ? normalized : fallback;
 }
 
-/**
- * Create a finding with severity
- * @param {Object} options - Finding options
- * @returns {Object} Finding with severity
- */
-function createFinding({ type, message, location, suggestion, autoClassify = true }) {
-  const finding = {
-    type,
-    message,
-    location,
-    suggestion
-  };
-  
-  if (autoClassify) {
-    const classification = classifySeverity(finding);
-    finding.severity = classification.severity;
-    finding.classificationReason = classification.reason;
-  } else {
-    finding.severity = SEVERITY.INFO;
-  }
-  
-  return finding;
+function compareSeverity(left, right) {
+  return (SEVERITY_ORDER[normalizeSeverity(left)] ?? 99) - (SEVERITY_ORDER[normalizeSeverity(right)] ?? 99);
 }
 
-/**
- * Filter findings by severity
- * @param {Array} findings - Array of findings
- * @param {string} minSeverity - Minimum severity to include
- * @returns {Array} Filtered findings
- */
-function filterBySeverity(findings, minSeverity = SEVERITY.INFO) {
-  const severityOrder = { BLOCKER: 0, WARNING: 1, INFO: 2 };
-  const minLevel = severityOrder[minSeverity];
-  
-  return findings.filter(f => severityOrder[f.severity] <= minLevel);
+function sortFindingsBySeverity(findings) {
+  return [...(findings || [])].sort((left, right) => {
+    const severityDiff = compareSeverity(left.severity, right.severity);
+    if (severityDiff !== 0) return severityDiff;
+    if ((left.path || '') !== (right.path || '')) return String(left.path || '').localeCompare(String(right.path || ''));
+    return (left.line || 0) - (right.line || 0);
+  });
 }
 
-/**
- * Get summary of findings by severity
- * @param {Array} findings - Array of findings
- * @returns {Object} Summary counts
- */
 function getSeveritySummary(findings) {
-  return {
-    blocker: findings.filter(f => f.severity === SEVERITY.BLOCKER).length,
-    warning: findings.filter(f => f.severity === SEVERITY.WARNING).length,
-    info: findings.filter(f => f.severity === SEVERITY.INFO).length,
-    total: findings.length
-  };
+  const summary = { blocker: 0, warning: 0, info: 0, total: 0 };
+  for (const finding of findings || []) {
+    const severity = normalizeSeverity(finding.severity);
+    if (severity === SEVERITY.BLOCKER) summary.blocker += 1;
+    else if (severity === SEVERITY.INFO) summary.info += 1;
+    else summary.warning += 1;
+    summary.total += 1;
+  }
+  return summary;
 }
 
-/**
- * Check if findings prevent task completion
- * @param {Array} findings - Array of findings
- * @returns {boolean} True if any blocker prevents completion
- */
 function blocksCompletion(findings) {
-  return findings.some(f => f.severity === SEVERITY.BLOCKER);
+  return (findings || []).some(finding => normalizeSeverity(finding.severity) === SEVERITY.BLOCKER);
 }
 
 module.exports = {
   SEVERITY,
+  SEVERITY_ORDER,
+  compareSeverity,
+  normalizeSeverity,
+  sortFindingsBySeverity,
+  getSeveritySummary,
+  blocksCompletion,
 };

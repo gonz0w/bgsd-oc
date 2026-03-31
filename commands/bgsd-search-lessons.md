@@ -1,8 +1,8 @@
 ---
-description: Search completed phase lessons
+description: Compatibility alias for `/bgsd-inspect search lessons`
 ---
 <objective>
-Search lessons learned from completed phases.
+Preserve the legacy lesson-search entrypoint while routing to the canonical inspect search behavior.
 </objective>
 
 <execution_context>
@@ -14,5 +14,9 @@ $ARGUMENTS: Search query
 </context>
 
 <process>
-Execute the cmd-search-lessons workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-search-lessons.md end-to-end.
+Treat `/bgsd-search-lessons` as a compatibility alias for `/bgsd-inspect search lessons`.
+
+Execute the same lesson-search workflow contract used by the canonical inspect family from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-search-lessons.md end-to-end with all provided arguments.
+
+Keep this alias read-only and compatibility-focused.
 </process>

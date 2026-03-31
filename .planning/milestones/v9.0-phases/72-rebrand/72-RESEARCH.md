@@ -6,7 +6,7 @@
 
 ## Summary
 
-Phase 72 is a comprehensive rename across ~614 active-code references spanning 7 directories (src/, commands/, workflows/, templates/, agents/, skills/, and root files). The rename touches 6 distinct naming patterns: config folder (`get-shit-done` -> `bgsd-oc`), CLI binary (`gsd-tools` -> `bgsd-tools`), environment variables (`GSD_HOME/DEBUG/PROFILE` -> `BGSD_HOME/DEBUG/PROFILE`), agent file names (`gsd-*.md` -> `bgsd-*.md`), agent name references in code, and all usage/help strings.
+Phase 72 is a comprehensive rename across ~614 active-code references spanning 7 directories (src/, commands/, workflows/, templates/, agents/, skills/, and root files). The rename touches 6 distinct naming patterns: config folder (`get-shit-done` -> `bgsd-oc`), CLI binary (`gsd-tools` -> `bgsd-tools`), environment variables (`GSD_HOME/DEBUG/PROFILE` -> `__OPENCODE_CONFIG__/bgsd-oc/DEBUG/PROFILE`), agent file names (`gsd-*.md` -> `bgsd-*.md`), agent name references in code, and all usage/help strings.
 
 Phase 71 already established the `BGSD_DEBUG` pattern in the plugin layer (`src/plugin/safe-hook.js`) and the `bgsd_` tool prefix convention, providing a migration template. The CLI source (`src/lib/output.js`, `src/lib/profiler.js`, `src/router.js`) still uses the old `GSD_DEBUG` and `GSD_PROFILE` patterns. The build pipeline (`build.cjs`) currently outputs to `bin/gsd-tools.cjs` and must be updated to `bin/bgsd-tools.cjs`. The `install.js` needs migration logic added for existing users.
 
@@ -17,7 +17,7 @@ Phase 71 already established the `BGSD_DEBUG` pattern in the plugin layer (`src/
 | ID | Requirement | Scope |
 |----|------------|-------|
 | RBND-01 | Config folder `get-shit-done` -> `bgsd-oc` | plugin.js, src/plugin/index.js, src/commands/agent.js, src/commands/features.js, deploy.sh, install.js, AGENTS.md |
-| RBND-02 | `GSD_HOME` -> `BGSD_HOME` | src/commands/agent.js (6 refs), src/plugin/index.js (2 refs), all 10 agents, 7+ skills, workflows, plugin.js |
+| RBND-02 | `GSD_HOME` -> `__OPENCODE_CONFIG__/bgsd-oc` | src/commands/agent.js (6 refs), src/plugin/index.js (2 refs), all 10 agents, 7+ skills, workflows, plugin.js |
 | RBND-03 | `GSD_DEBUG` -> `BGSD_DEBUG` | src/lib/output.js (2 refs), src/lib/profiler.js (2 refs), tests (14 refs) |
 | RBND-04 | `GSD_PROFILE` -> `BGSD_PROFILE` | src/lib/profiler.js (3 refs), src/router.js (2 refs), tests (10 refs) |
 | RBND-05 | CLI binary `gsd-tools.cjs` -> `bgsd-tools.cjs` | build.cjs (5 refs), package.json, tests (17 refs), src/lib/constants.js (149 usage strings), src/router.js (5 refs), src/commands/*.js (18 refs), deploy.sh, install.js |
@@ -36,7 +36,7 @@ Wave 1: Source Code (no external deps)
   - src/lib/output.js: GSD_DEBUG -> BGSD_DEBUG (2 lines)
   - src/lib/profiler.js: GSD_DEBUG -> BGSD_DEBUG (2 lines), GSD_PROFILE -> BGSD_PROFILE (3 lines)
   - src/router.js: GSD_PROFILE -> BGSD_PROFILE (2 lines), gsd-tools usage string (5 lines)
-  - src/commands/agent.js: GSD_HOME -> BGSD_HOME (7 lines), get-shit-done -> bgsd-oc (1 line)
+  - src/commands/agent.js: GSD_HOME -> __OPENCODE_CONFIG__/bgsd-oc (7 lines), get-shit-done -> bgsd-oc (1 line)
   - src/commands/features.js: get-shit-done -> bgsd-oc (1 line), gsd-tools -> bgsd-tools (1 line)
   - src/commands/codebase.js: gsd-tools -> bgsd-tools (1 line)
   - src/commands/profiler.js: gsd-tools -> bgsd-tools (7 lines)
@@ -44,7 +44,7 @@ Wave 1: Source Code (no external deps)
   - src/commands/worktree.js: gsd-tools -> bgsd-tools (4 lines)
   - src/commands/verify.js: gsd-tools -> bgsd-tools (2 lines)
   - src/lib/constants.js: gsd-tools -> bgsd-tools (149 usage strings)
-  - src/plugin/index.js: get-shit-done -> bgsd-oc, GSD_HOME -> BGSD_HOME (3 lines)
+  - src/plugin/index.js: get-shit-done -> bgsd-oc, GSD_HOME -> __OPENCODE_CONFIG__/bgsd-oc (3 lines)
 
 Wave 2: Build Pipeline (depends on Wave 1)
   - build.cjs: outfile gsd-tools.cjs -> bgsd-tools.cjs (5 refs), agent filter gsd-* -> bgsd-* (1 line)
@@ -52,14 +52,14 @@ Wave 2: Build Pipeline (depends on Wave 1)
 
 Wave 3: Agent Files (depends on Wave 2 for PATH SETUP paths)
   - Rename all 10 agents/gsd-*.md -> agents/bgsd-*.md
-  - Update PATH SETUP in each: get-shit-done -> bgsd-oc, GSD_HOME -> BGSD_HOME
-  - Update internal $GSD_HOME/bin/gsd-tools.cjs -> $BGSD_HOME/bin/bgsd-tools.cjs refs
+  - Update PATH SETUP in each: get-shit-done -> bgsd-oc, GSD_HOME -> __OPENCODE_CONFIG__/bgsd-oc
+  - Update internal $GSD_HOME/bin/gsd-tools.cjs -> __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs refs
 
 Wave 4: Workflows, Commands, Templates, Skills
   - workflows/*.md: get-shit-done -> bgsd-oc, gsd-tools -> bgsd-tools (41 files, ~250 refs)
   - commands/*.md: get-shit-done -> bgsd-oc (41 files, ~80 refs)
   - templates/*.md: get-shit-done -> bgsd-oc (6+ files)
-  - skills/*.md: gsd-tools -> bgsd-tools, GSD_HOME -> BGSD_HOME, gsd_home -> bgsd_home (8+ skills)
+  - skills/*.md: gsd-tools -> bgsd-tools, GSD_HOME -> __OPENCODE_CONFIG__/bgsd-oc, gsd_home -> bgsd_home (8+ skills)
 
 Wave 5: Infrastructure Files
   - deploy.sh: get-shit-done -> bgsd-oc, gsd-tools -> bgsd-tools, gsd-*.md -> bgsd-*.md
@@ -95,7 +95,7 @@ The current config path resolution is scattered across multiple files:
 
 | Old Name | New Name | Source Files | Test Refs |
 |----------|----------|-------------|-----------|
-| `GSD_HOME` | `BGSD_HOME` | `src/commands/agent.js` (7), `src/plugin/index.js` (2) | 3 |
+| `GSD_HOME` | `__OPENCODE_CONFIG__/bgsd-oc` | `src/commands/agent.js` (7), `src/plugin/index.js` (2) | 3 |
 | `GSD_DEBUG` | `BGSD_DEBUG` | `src/lib/output.js` (2), `src/lib/profiler.js` (2) | 14 |
 | `GSD_PROFILE` | `BGSD_PROFILE` | `src/lib/profiler.js` (3), `src/router.js` (2) | 10 |
 
@@ -122,10 +122,9 @@ GSD_HOME=$(ls -d $HOME/.config/*/get-shit-done 2>/dev/null | head -1)
 ```
 Must become:
 ```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
 ```
 
-Plus all internal `$GSD_HOME/bin/gsd-tools.cjs` references -> `$BGSD_HOME/bin/bgsd-tools.cjs`.
+Plus all internal `$GSD_HOME/bin/gsd-tools.cjs` references -> `__OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs`.
 
 ## Quantified Scope
 
@@ -259,7 +258,7 @@ output.env.GSD_HOME = gsdHome;
 
 // AFTER
 const bgsdHome = join(homedir(), '.config', 'opencode', 'bgsd-oc');
-output.env.BGSD_HOME = bgsdHome;
+plugin shell env injected the installed bGSD path at the time.
 ```
 
 ### Pattern 4: Agent PATH SETUP
@@ -270,8 +269,7 @@ GSD_HOME=$(ls -d $HOME/.config/*/get-shit-done 2>/dev/null | head -1)
 Then use `$GSD_HOME` in all subsequent commands.
 
 # AFTER
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-Then use `$BGSD_HOME` in all subsequent commands.
+Then use `$__OPENCODE_CONFIG__/bgsd-oc` in all subsequent commands.
 ```
 
 ### Pattern 5: install.js Migration Logic (RBND-07)
@@ -319,7 +317,7 @@ collectFiles('agents', (name) => name.startsWith('bgsd-') && name.endsWith('.md'
 |--------------|------------------|--------------|--------|
 | `gsd-tools.cjs` CLI binary | `bgsd-tools.cjs` (Phase 72) | v9.0 | All CLI invocations update |
 | `get-shit-done` config dir | `bgsd-oc` config dir | v9.0 | Install path changes |
-| `GSD_HOME/DEBUG/PROFILE` env vars | `BGSD_HOME/DEBUG/PROFILE` | v9.0 | All env references update |
+| `GSD_HOME/DEBUG/PROFILE` env vars | `__OPENCODE_CONFIG__/bgsd-oc/DEBUG/PROFILE` | v9.0 | All env references update |
 | `gsd-*.md` agent files | `bgsd-*.md` agent files | v9.0 | File names + all references update |
 | `BGSD_DEBUG` (plugin only, Phase 71) | `BGSD_DEBUG` (everywhere) | v9.0 | CLI source converges with plugin |
 

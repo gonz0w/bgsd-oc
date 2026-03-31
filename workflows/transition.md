@@ -153,15 +153,36 @@ Resume file: None
 <!-- section: offer_next -->
 <step name="offer_next_phase">
 
+Before offering the next phase route, run a brief lessons review so prompt/workflow improvements stay visible at phase boundaries:
+
+```bash
+RECENT_LESSONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:list --limit 8 2>/dev/null)
+LESSON_SUGGESTIONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:suggest 2>/dev/null)
+```
+
+If `RECENT_LESSONS.count > 0` or `LESSON_SUGGESTIONS.suggestion_count > 0`, show a compact `## Lessons Review` block before `## ▶ Next Up`:
+- `Recent captures:` up to 3 newest lessons (title, severity, type, affected_agents)
+- `Optimization suggestions:` up to 3 highest-priority suggestions from `lessons:suggest`
+- Close with: `Review whether these point to planner, workflow, or tool-use improvements before starting the next phase.`
+
+Keep this review advisory only. Do not block transition on lessons review, and do not create new lessons during this step.
+
 Pre-computed decisions: use `decisions.auto-advance` and `decisions.branch-handling` from `<bgsd-context>` if present.
+
+Treat auto-advance as fresh-context chaining, not as permission to keep driving from one long-lived transcript.
+
+- The additive fast path still uses the familiar yolo/`--auto` surface, but each hop should hand off to the next workflow through durable artifacts and a fresh context window.
+- Auto-advance may continue only after the prior workflow has already written or refreshed its durable handoff artifact for the current phase with the current expected fingerprint. Do not chain on summaries, session fields, or optimistic assumptions alone.
+- `discuss` remains the only clean-start exception for a same-phase restart; later steps should consume the validated handoff/resume contract instead of inventing a second continuation model.
+- Do not silently bypass the explicit resume summary when chain state already exists. If a handoff-backed resume path is available, preserve the `resume` / `inspect` / `restart` choice before continuing.
 
 Use `is_last_phase` from `plan:phase complete`:
 
 → Next action: `questionTemplate('transition-next-route', 'SINGLE_CHOICE')` (Plan more phases / Complete milestone)
 
 **Route A (more phases):** Check `ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null`
-- Yolo: CONTEXT.md → `/bgsd-plan-phase [X+1] --auto`, else `/bgsd-discuss-phase [X+1] --auto`
-- Interactive: Show `## ✓ Phase [X] Complete` + `## ▶ Next Up` block with `/bgsd-discuss-phase [X+1]` (no context) or `/bgsd-plan-phase [X+1]` (has context), `<sub>/clear first</sub>`
+- Yolo: spawn the next command in a fresh context window. CONTEXT.md → `/bgsd-plan phase [X+1] --auto`, else `/bgsd-plan discuss [X+1] --auto`
+- Interactive: Show `## ✓ Phase [X] Complete` + `## ▶ Next Up` block with `/bgsd-plan discuss [X+1]` (no context) or `/bgsd-plan phase [X+1]` (has context), `<sub>/clear first</sub>`
 
 **Route B (milestone complete):**
 ```bash

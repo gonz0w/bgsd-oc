@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "159",
+  "step": "plan",
+  "status": "complete",
+  "run_id": "159-2026-03-30T00-49-46-509Z",
+  "source_fingerprint": "8c6ffaa8425edc94",
+  "created_at": "2026-03-30T01:07:59.533Z",
+  "updated_at": "2026-03-30T04:17:33.083Z",
+  "summary": "Gap-closure plans ready for execution in Phase 159",
+  "resume_target": {
+    "phase": "159",
+    "step": "plan",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-execute-phase 159 --gaps-only"
+  },
+  "context": {}
+}

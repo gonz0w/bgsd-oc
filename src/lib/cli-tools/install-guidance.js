@@ -57,6 +57,42 @@ const TOOL_CONFIG = {
     },
     alternatives: 'Node.js yaml parser (js-yaml)'
   },
+  ast_grep: {
+    name: 'ast-grep',
+    aliases: ['sg'],
+    description: 'Syntax-aware structural code search and rewrite',
+    website: 'https://ast-grep.github.io/',
+    install: {
+      darwin: 'brew install ast-grep',
+      linux: 'cargo install ast-grep || brew install ast-grep',
+      win32: 'winget install ast-grep.ast-grep'
+    },
+    alternatives: 'ripgrep or grep (text-only search)'
+  },
+  sd: {
+    name: 'sd',
+    aliases: [],
+    description: 'Intuitive find and replace CLI',
+    website: 'https://github.com/chmln/sd',
+    install: {
+      darwin: 'brew install sd',
+      linux: 'cargo install sd || brew install sd',
+      win32: 'winget install chmln.sd'
+    },
+    alternatives: 'sed or perl one-liners'
+  },
+  hyperfine: {
+    name: 'hyperfine',
+    aliases: [],
+    description: 'Command-line benchmarking tool',
+    website: 'https://github.com/sharkdp/hyperfine',
+    install: {
+      darwin: 'brew install hyperfine',
+      linux: 'sudo apt install hyperfine',
+      win32: 'winget install sharkdp.hyperfine'
+    },
+    alternatives: 'time / manual repeated timing'
+  },
   bat: {
     name: 'bat',
     aliases: [],

@@ -1,184 +1,46 @@
-**Revision:** 26
+**Revision:** 29
 **Created:** 2026-02-25
-**Updated:** 2026-03-28
+**Updated:** 2026-03-30
 
 <objective>
-A high-performance agent orchestration engine that delivers enterprise-quality software through a complete AI development team — planning, execution, code review, security audit, release management, and cross-session learning — while maximizing LLM output per token by shifting administrative work to deterministic CLI operations.
+A high-performance agent orchestration engine that delivers enterprise-quality software through a complete AI development team while maximizing LLM output per token by shifting administrative work to deterministic CLI operations.
 </objective>
 
-<users>
-- Software developers using AI coding assistants (OpenCode) for project planning and execution
-- Solo developers managing complex multi-phase projects with AI assistance
-- Teams building enterprise applications that require review gates, security scanning, and release automation
-- The GSD plugin's own development workflow (self-referential: planning GSD improvements using GSD)
-</users>
-
 <outcomes>
-### v12.1 — Tool Integration & Agent Enhancement (delivered)
+### Pending milestone candidates
 
-**DO-86:** Support ripgrep, fd, jq, yq, bat, gh with unified capability detection and graceful degradation
-**DO-87:** Implement smarter agent routing based on task complexity and available agent capabilities
-**DO-88:** Create better inter-agent collaboration patterns with shared context and handoff optimization
-**DO-89:** Add decision functions for tool selection and multi-phase sequencing
-**DO-90:** Improve agent context efficiency through intelligent capability-based filtering
+**DO-117:** Explore dynamic model configuration and smarter profile management using `.planning/research/DYNAMIC-MODEL-CONFIG-PRD.md`
 
-### v13.0 — Closed-Loop Agent Evolution (delivered)
-
-**DO-91:** Enable project-local agent overrides — projects can evolve their own agents without modifying global config
-**DO-92:** Create lesson-driven agent improvement — execution experience in lessons.md feeds structured suggestions to improve agents and skills
-**DO-93:** Integrate agentskills.io skill discovery — surface relevant skills during milestone workflows so agents grow their capabilities
-**DO-94:** Add workflow hooks for agent improvement — verify-work and complete-milestone surface improvement opportunities from patterns
-**DO-95:** Enhance research workflow — better multi-source synthesis and quality scoring for improved planning and execution
-
-### v14.0 — LLM Workload Reduction (delivered)
-
-**DO-96:** Compress high-traffic workflows — top 10 workflows reduced by 40%+ tokens without losing behavioral logic
-**DO-97:** Pre-compute PLAN.md scaffolds — CLI generates task structure, file paths, and dependency data from roadmap; LLM fills only objectives and verification criteria
-**DO-98:** Pre-compute VERIFICATION.md scaffolds — CLI pre-fills success criteria, test results, and requirement status; LLM fills only judgment sections
-**DO-99:** Reduce per-invocation context load — workflows load only the sections relevant to their current step, not the full document
-
-### v15.0 — Workflow Questioning & Decision Quality (delivered)
-
-**DO-105:** Question design patterns with taxonomy of question types (motivation, concreteness, clarification, success) and better option generation methodology
-**DO-106:** Multi-select vs single-select guidelines based on decision nature — when to let users pick one vs many
-**DO-107:** Curated option sets for all milestone/phase discussion workflows — every question has 3-5 thoughtful choices
-**DO-108:** Agent prompts updated to generate thoughtful options before asking — never bare open-ended questions
-
-### v16.0 — Enterprise Developer Team (active)
-
-**DO-109:** Code review workflow (`/bgsd-review`) with structural audit, auto-fixable issue detection, and batched user questions — covering patterns like N+1 queries, race conditions, trust boundaries
-**DO-110:** Security audit workflow (`/bgsd-security`) with OWASP Top 10 coverage, secrets-in-code scanning, dependency vulnerability checks, and confidence-gated findings with false positive exclusions
-**DO-111:** Review readiness dashboard CLI command showing pre-ship status — tests pass, lint clean, coverage threshold, no TODOs in diff, changelog updated
-**DO-112:** Automated release workflow (`/bgsd-release`) with semver version bump, changelog generation from plan summaries, git tag, and PR creation
-**DO-113:** Structured agent memory (MEMORY.md) with project facts, user preferences, and environment patterns injected into agent prompts at session start for cross-session learning
-**DO-114:** Destructive command detection with safety guardrails — pattern-based detection of dangerous operations (rm -rf, DROP TABLE, force-push) with user confirmation gates
+**DO-121:** Explore a CMUX-first OpenCode UX that surfaces working, waiting, blocked, and idle state through sidebar status, progress, logs, and notifications using `research/CMUX-FIRST-UX-PRD.md`
 </outcomes>
-
-<criteria>
-### v12.1 — Tool Integration & Agent Enhancement (achieved)
-
-**SC-66:** All major CLI tools (ripgrep, fd, jq, yq, bat, gh) detected and available in workflows
-**SC-67:** Agent routing improved — 25%+ reduction in context overhead via capability-aware dispatch
-**SC-68:** All inter-agent handoffs use shared context patterns — RACI audit validates improvements
-**SC-69:** New decision functions for tool selection and phase sequencing with contract tests
-**SC-70:** Tool absence gracefully handled — workflows complete with degradation or clear guidance
-
-### v13.0 — Closed-Loop Agent Evolution (achieved)
-
-**SC-71:** A project can override any global agent by placing a file in `.planning/agents/` — verified by enricher detection
-**SC-72:** Lessons from verify-work and complete-milestone generate structured agent improvement suggestions
-**SC-73:** Users can browse and install skills from agentskills.io during milestone initialization
-**SC-74:** Deviation recovery patterns auto-captured as lesson entries after 3-failure recovery cycles
-**SC-75:** Research workflow produces quality-scored output linking findings to planning decisions
-
-### v14.0 — LLM Workload Reduction (achieved)
-
-**SC-76:** Top 10 workflows measured before/after with tokenx; average reduction >= 40%
-**SC-77:** `plan:generate` produces a PLAN.md scaffold with >= 60% of content pre-filled from CLI data
-**SC-78:** `verify:generate` produces a VERIFICATION.md scaffold with success criteria and test data pre-filled
-**SC-79:** Workflow compression preserves all behavioral logic — zero regressions in workflow execution
-
-### v15.0 — Workflow Questioning & Decision Quality (achieved)
-
-**SC-84:** Question taxonomy documented and applied — motivation/concreteness/clarification/success types guide option generation
-**SC-85:** Multi-select vs single-select decision tree implemented — workflows follow consistent selection pattern
-**SC-86:** All milestone/phase discussion workflows have 3-5 curated options per question — zero bare open-ended questions
-**SC-87:** Agent prompts enforce option-first questioning — any question asked by an agent includes 3-5 thoughtful choices
-
-### v16.0 — Enterprise Developer Team (active)
-
-**SC-88:** `/bgsd-review` workflow produces structured code review with auto-fix capability — findings categorized as AUTO-FIX, ASK, or INFO
-**SC-89:** `/bgsd-security` workflow scans for OWASP Top 10, hardcoded secrets, and dependency vulnerabilities with >= 8/10 confidence gate on findings
-**SC-90:** Review readiness dashboard CLI command returns JSON with pass/fail status for tests, lint, coverage, TODOs, and changelog
-**SC-91:** `/bgsd-release` workflow automates semver bump, CHANGELOG.md generation, git tag, and PR creation in a single command
-**SC-92:** MEMORY.md injected into agent system prompts at session start — agents demonstrate recall of project-specific facts across sessions
-**SC-93:** Destructive command patterns detected and blocked with user confirmation — zero false negatives on core patterns (rm -rf, DROP TABLE, force-push)
-</criteria>
-
-<constraints>
-### Technical
-- C-03: All operations are advisory — never block workflow execution
-- C-08: Map fallback must still work on Node <22.5 — SQLite is an acceleration layer, not a hard dependency
-- C-09: Markdown files remain human-readable and git-trackable — SQLite augments, doesn't hide data
-- C-10: Project-local agent improvements must stay inside `.planning/agents/` — never write to `~/.config`
-
-### Business
-- C-04: Backward compatible — projects without SQLite work exactly as before via Map fallback
-- C-05: Analysis adds value without adding ceremony — no mandatory steps
-</constraints>
-
-<health>
-### Quantitative
-- HM-08: All tests pass with zero failures after each phase
-- HM-09: Enricher completes in <50ms with warm SQLite cache
-- HM-10: Zero redundant file reads per enrichment pass
-
-### Qualitative
-The data layer should be invisible to users — workflows feel faster, decisions are instant, and the human-readable markdown files stay accurate. SQLite is infrastructure, not ceremony.
-</health>
 
 <history>
 ### v16.0 — 2026-03-28
-- **Updated** objective: Expanded from "maximizes LLM output per token" to include "enterprise-quality software through a complete AI development team"
-- **Added** user: Teams building enterprise applications requiring review gates, security scanning, release automation
-- **Marked delivered** v14.1 outcomes (DO-100 through DO-104) and v15.0 outcomes (DO-105 through DO-108)
-- **Marked achieved** v14.1 criteria (SC-80 through SC-83) and v15.0 criteria (SC-84 through SC-87)
-- **Added** outcomes: DO-109 through DO-114 for code review, security audit, review dashboard, release automation, agent memory, destructive command detection
-- **Added** criteria: SC-88 through SC-93 for v16.0 verification
-  - Reason: Milestone v16.0 initiated — enterprise developer team capabilities informed by gstack and hermes-agent competitive analysis
+- Archived delivered enterprise developer team outcomes and success criteria to `.planning/archive/INTENT-vv16.0.md`
+- Reset active intent to pending milestone seeds only
+- Promoted TDD reliability, workflow acceleration, and dynamic model configuration to the next planning candidates
 
-### v15.0 — 2026-03-19
-- **Added** outcomes: DO-105 through DO-108 for question taxonomy, multi-select guidelines, curated options, agent prompts
-- **Added** criteria: SC-84 through SC-87 for v15.0 verification
-  - Reason: Milestone v15.0 initiated — workflow questioning & decision quality improvement
+### v16.1 init — 2026-03-28
+- Selected TDD reliability plus workflow acceleration as the active milestone scope
+- Deferred dynamic model configuration to a later milestone candidate
 
-### v14.1 — 2026-03-17
-- **Added** outcomes: DO-100 through DO-104 for tool-aware routing, agent guidance, gh-preflight, validation, pruning
-- **Added** criteria: SC-80 through SC-83 for v14.1 verification
-  - Reason: Milestone v14.1 initiated — making v12.1 tool detection infrastructure actionable in workflows and agents
+### v16.1 complete — 2026-03-29
+- Archived delivered v16.1 outcomes and success criteria to `.planning/archive/INTENT-vv16.1.md`
+- Returned active intent to pending milestone candidates only
 
-### v14.0 — 2026-03-17 (milestone complete)
-- **Marked delivered** v14.0 outcomes (DO-96 through DO-99) — all delivered
-- **Marked achieved** v14.0 criteria (SC-76 through SC-79) — all achieved
-  - Reason: Milestone v14.0 complete — 41.1% avg workflow compression, scaffold generation, conditional elision shipped
+### v17.0 init — 2026-03-29
+- Selected JJ-first execution, command footprint reduction, and intent cascade as the active milestone scope
+- Deferred dynamic model configuration to a later milestone candidate again
+- Added CMUX-first OpenCode UX as a deferred milestone candidate seeded from `research/CMUX-FIRST-UX-PRD.md`
 
-### v14.0 — 2026-03-16
-- **Updated** objective: Sharpened from "data-driven" to "maximizes LLM reasoning and coding output per token by shifting administrative work to deterministic CLI operations"
-- **Archived** v13.0 outcomes (DO-91 through DO-95) — all delivered
-- **Archived** v13.0 criteria (SC-71 through SC-75) — all achieved
-- **Added** outcomes: DO-96 through DO-99 for workflow compression, scaffold generation, context reduction
-- **Added** criteria: SC-76 through SC-79 for v14.0 verification
-  - Reason: Milestone v14.0 initiated — LLM workload reduction, shifting admin work to CLI
+### v17.0 complete — 2026-03-30
+- Archived delivered v17.0 outcomes and success criteria to `.planning/archive/INTENT-vv17.0.md`
+- Returned active intent to pending milestone candidates only
 
-### v13.0 — 2026-03-15
-- **Added** outcomes: DO-91 through DO-95 for closed-loop agent evolution
-- **Added** criteria: SC-71 through SC-75 for v13.0 verification
-- **Added** constraint: C-10 (local agents never modify global config)
-  - Reason: Milestone v13.0 initiated — closed-loop learning, local agent overrides, skill discovery
-
-### v12.1 — 2026-03-15
-- **Added** outcomes: DO-86 through DO-90 for tool integration, agent routing, collaboration
-- **Added** criteria: SC-66 through SC-70 for v12.1 verification
-  - Reason: Milestone v12.1 initiated
-
-### v12.0 — 2026-03-15
-- **Archived** all v12.0 outcomes (DO-79 through DO-85) — all delivered
-  - Reason: Milestone v12.0 complete — SQLite-first data layer shipped
-- **Archived** all v12.0 criteria (SC-58 through SC-65) — all achieved
-  - Reason: Milestone v12.0 complete
-
-### v12.0 — 2026-03-14
-- **Updated** objective: Shifted from internal quality/housekeeping to SQLite-first data layer architecture
-- **Added** outcomes: DO-79 through DO-85 for structured tables, persistence, memory migration, enricher acceleration, decisions
-- **Added** criteria: SC-58 through SC-65 for v12.0 verification
-
-### v11.4 — 2026-03-13
-- **Reset** objective: Shifted from LLM offloading to internal quality and planning debt cleanup
-- **Archived** outcomes: DO-20 through DO-71 (44 outcomes delivered across v1.0-v11.3)
-- **Archived** criteria: SC-01 through SC-50 (35 criteria from prior milestones)
-
-(See `.planning/archive/INTENT-vv12.0.md` for full history)
+### v17.1 complete — 2026-03-30
+- Archived delivered v17.1 outcomes and success criteria to `.planning/archive/INTENT-vv17.1.md`
+- Returned active intent to pending milestone candidates only
 </history>
-<!-- Highest outcome ID: DO-114 -->
-<!-- Highest criteria ID: SC-93 -->
+
+<!-- Highest outcome ID: DO-121 -->
 <!-- Highest outcome ID: OUT-0 -->

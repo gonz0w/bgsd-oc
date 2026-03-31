@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "158",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "158-2026-03-29T20-30-40-400Z",
+  "source_fingerprint": "5448a2c90e59296d",
+  "created_at": "2026-03-29T20:30:40.400Z",
+  "updated_at": "2026-03-29T20:30:40.400Z",
+  "summary": "Discuss context ready for Phase 158",
+  "resume_target": {
+    "phase": "158",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/158-canonical-command-families/158-CONTEXT.md",
+    "next_command": "/bgsd-research-phase 158"
+  },
+  "context": {}
+}

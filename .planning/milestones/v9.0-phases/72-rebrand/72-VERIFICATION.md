@@ -71,7 +71,7 @@ must_haves:
       to: bin/bgsd-tools.test.cjs
       status: WIRED
     - from: agents/bgsd-*.md
-      to: "$BGSD_HOME/bin/bgsd-tools.cjs"
+      to: "__OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs"
       status: WIRED
 
 gaps:
@@ -133,12 +133,12 @@ gaps:
 | `src/lib/output.js` | ✓ | ✓ `BGSD_DEBUG` env check + `[BGSD_DEBUG]` prefix | ✓ Used by all debug logging | ✓ VERIFIED |
 | `src/lib/profiler.js` | ✓ | ✓ `BGSD_DEBUG` and `BGSD_PROFILE` checks | ✓ Used by router profiler | ✓ VERIFIED |
 | `src/lib/constants.js` | ✓ | ✓ All usage strings show `bgsd-tools`, MODEL_PROFILES keys `bgsd-*` | ✓ Imported across src/ | ✓ VERIFIED |
-| `src/commands/agent.js` | ✓ | ✓ `BGSD_HOME` resolution, `resolveBgsdPaths()` | ✓ Used for agent ops | ✓ VERIFIED |
+| `src/commands/agent.js` | ✓ | ✓ `__OPENCODE_CONFIG__/bgsd-oc` resolution, `resolveBgsdPaths()` | ✓ Used for agent ops | ✓ VERIFIED |
 | `build.cjs` | ✓ | ✓ `outfile: 'bin/bgsd-tools.cjs'`, filter `bgsd-*.md` | ✓ `npm run build` succeeds | ✓ VERIFIED |
 | `package.json` | ✓ | ✓ `name: "bgsd-oc"`, `bin: "bgsd-oc"`, test/files updated | ✓ `npm test` works | ✓ VERIFIED |
-| `agents/bgsd-planner.md` | ✓ | ✓ `BGSD_HOME` path setup, `bgsd-tools.cjs` refs | ✓ Spawned by workflows | ✓ VERIFIED |
-| `agents/bgsd-executor.md` | ✓ | ✓ `BGSD_HOME` path setup, `bgsd-tools.cjs` refs | ✓ Spawned by workflows | ✓ VERIFIED |
-| `agents/bgsd-verifier.md` | ✓ | ✓ `BGSD_HOME` path setup, `bgsd-tools.cjs` refs | ✓ Spawned by workflows | ✓ VERIFIED |
+| `agents/bgsd-planner.md` | ✓ | ✓ `__OPENCODE_CONFIG__/bgsd-oc` path setup, `bgsd-tools.cjs` refs | ✓ Spawned by workflows | ✓ VERIFIED |
+| `agents/bgsd-executor.md` | ✓ | ✓ `__OPENCODE_CONFIG__/bgsd-oc` path setup, `bgsd-tools.cjs` refs | ✓ Spawned by workflows | ✓ VERIFIED |
+| `agents/bgsd-verifier.md` | ✓ | ✓ `__OPENCODE_CONFIG__/bgsd-oc` path setup, `bgsd-tools.cjs` refs | ✓ Spawned by workflows | ✓ VERIFIED |
 | `install.js` | ✓ | ✓ DEST=`bgsd-oc`, migration logic, agent cleanup | ✓ `package.json` bin entry | ✓ VERIFIED |
 | `deploy.sh` | ✓ | ✓ DEST=`bgsd-oc`, agent glob `bgsd-*.md`, cleanup | ✓ Dev workflow entry point | ✓ VERIFIED |
 
@@ -152,7 +152,7 @@ gaps:
 | `build.cjs` | `bin/bgsd-tools.cjs` | esbuild outfile | ✓ WIRED |
 | `install.js` | `~/.config/opencode/bgsd-oc/` | DEST variable + migration logic | ✓ WIRED |
 | `deploy.sh` | `~/.config/opencode/bgsd-oc/` | DEST variable | ✓ WIRED |
-| `agents/bgsd-*.md` | `$BGSD_HOME/bin/bgsd-tools.cjs` | PATH SETUP block | ✓ WIRED |
+| `agents/bgsd-*.md` | `__OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs` | PATH SETUP block | ✓ WIRED |
 | `bin/bgsd-tools.test.cjs` | `bin/bgsd-tools.cjs` | TOOLS_PATH constant | ✓ WIRED |
 | `package.json` | `bin/bgsd-tools.test.cjs` | test script | ✓ WIRED |
 
@@ -161,7 +161,7 @@ gaps:
 | Req ID | Description | Status | Evidence |
 |--------|-------------|--------|----------|
 | RBND-01 | Config folder → `bgsd-oc` | ✓ Complete (not marked in REQUIREMENTS.md) | `src/commands/agent.js`, `src/plugin/index.js`, `install.js`, `deploy.sh` all reference `bgsd-oc` |
-| RBND-02 | `GSD_HOME` → `BGSD_HOME` | ✓ Complete (not marked in REQUIREMENTS.md) | Zero `GSD_HOME` matches in src/, agents use `BGSD_HOME` |
+| RBND-02 | `GSD_HOME` → `__OPENCODE_CONFIG__/bgsd-oc` | ✓ Complete (not marked in REQUIREMENTS.md) | Zero `GSD_HOME` matches in src/, agents use `__OPENCODE_CONFIG__/bgsd-oc` |
 | RBND-03 | `GSD_DEBUG` → `BGSD_DEBUG` | ✓ Complete | `output.js`, `profiler.js`, `safe-hook.js` all use `BGSD_DEBUG` |
 | RBND-04 | `GSD_PROFILE` → `BGSD_PROFILE` | ✓ Complete | `profiler.js`, `router.js` use `BGSD_PROFILE` |
 | RBND-05 | CLI binary → `bgsd-tools.cjs` | ✓ Complete | `build.cjs` outputs `bin/bgsd-tools.cjs`, `package.json` updated |

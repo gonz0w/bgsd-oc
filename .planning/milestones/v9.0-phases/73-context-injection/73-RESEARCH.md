@@ -298,7 +298,7 @@ export const BgsdPlugin = async ({ directory }) => {
     }),
     'shell.env': safeHook('shell.env', async (input, output) => {
       if (!output?.env) return;
-      output.env.BGSD_HOME = bgsdHome;
+      plugin shell env injected the installed bGSD path at the time.
     }),
     'experimental.chat.system.transform': parsersAvailable
       ? safeHook('system.transform', async (input, output) => {

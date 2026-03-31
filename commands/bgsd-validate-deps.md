@@ -1,8 +1,8 @@
 ---
-description: Validate phase dependency graph
+description: Compatibility alias for `/bgsd-inspect validate-deps`
 ---
 <objective>
-Validate phase dependency graph.
+Preserve the legacy dependency-validation entrypoint while routing to the canonical inspect validate-deps behavior.
 </objective>
 
 <execution_context>
@@ -14,5 +14,9 @@ $ARGUMENTS: Optional phase number
 </context>
 
 <process>
-Execute the cmd-validate-deps workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-validate-deps.md end-to-end.
+Treat `/bgsd-validate-deps` as a compatibility alias for `/bgsd-inspect validate-deps`.
+
+Execute the same dependency-validation workflow contract used by the canonical inspect family from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-validate-deps.md end-to-end with all provided arguments.
+
+Keep this alias read-only and compatibility-focused.
 </process>

@@ -1,15 +1,19 @@
 <purpose>
-TDD execution state machine with orchestrator-enforced gates.
+TDD execution workflow text aligned to the canonical `skills/tdd-execution/SKILL.md` contract.
 Followed by the executor when executing `type: tdd` plans.
 </purpose>
+
+> Canonical contract source: `skills/tdd-execution/SKILL.md`
+>
+> This workflow reuses that skill's RED / GREEN / REFACTOR terminology, `execute:tdd` command names, exact-command targeting, and structured proof contract. Phase 150 hardens execution semantics only; it does not reopen Phase 149 selection or severity rules.
 
 <state_machine>
 ```
 INIT → RED → [validate-red gate] → GREEN → [validate-green gate] → REFACTOR → [validate-refactor gate] → DONE
 ```
 
-Each transition requires a CLI validation gate to pass. No phase may be skipped.
-Each phase produces exactly one commit with `Agent-Type` and `GSD-Phase` trailers.
+Each transition uses the canonical `execute:tdd` validation commands. No phase may be skipped.
+Each phase produces the expected commit artifact with `Agent-Type` and `GSD-Phase` trailers.
 </state_machine>
 
 <step name="parse_tdd_plan" phase="INIT">
@@ -22,12 +26,19 @@ Read the PLAN.md `<feature>` element. Extract:
 - **Behavior cases:** from `<behavior>` — input/output expectations
 - **Implementation hints:** from `<implementation>` (used in GREEN only)
 
-Read test command from config.json `test_commands` field.
-Fallback: check `package.json` scripts.test, or detect `pytest`/`go test`/`cargo test`.
-Default: `npm test`.
+Read exact per-stage target commands from the plan's TDD target section.
+- **RED target command:** exact command expected to fail for the missing behavior
+- **GREEN target command:** exact command expected to pass after implementation
+- **REFACTOR target command:** exact command expected to keep passing after cleanup
+
+Default contract: GREEN and REFACTOR stay targeted-only by default. Reuse the RED selector unless the plan explicitly widens scope.
+
+If you need a non-blocking inspection run before a gate, use `execute:tdd auto-test` with the same exact target command and treat its proof payload as advisory only.
 
 ```bash
-TEST_CMD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd auto-test --test-cmd "npm test" 2>/dev/null | jq -r '.test_cmd // "npm test"')
+RED_TEST_CMD="<exact red target command from plan>"
+GREEN_TEST_CMD="<exact green target command from plan>"
+REFACTOR_TEST_CMD="<exact refactor target command from plan>"
 ```
 </step>
 
@@ -50,15 +61,23 @@ TEST_CMD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd auto-
    - If clean: proceed.
 
 3. Run validation gate:
-   ```bash
-    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "<test_command>"
-   ```
-   - If `valid: false` (test passed when it should fail):
-     Fix the test. The test must exercise genuinely missing behavior.
-     Common causes: testing existing functionality, wrong assertion, missing import.
-   - If `valid: true` (test fails as expected): Proceed to commit.
+     ```bash
+      node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "$RED_TEST_CMD"
+     ```
+    - If `valid: false` (target passed when it should fail, or the target command is missing):
+      Fix the target command or test. RED only passes when the exact declared target fails for real.
+      Common causes: testing existing functionality, wrong assertion, missing import.
+     - If `valid: true` (exact target fails as expected): Proceed to commit.
+     - Record the returned structured proof (`target_command`, `exit_code`, matched evidence snippet) as the RED audit trail.
 
-4. Commit the failing test:
+4. Persist the RED proof to the canonical audit sidecar before downstream summary work:
+   ```bash
+   RED_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "$RED_TEST_CMD" --raw)
+   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase "{phase}" --plan "{plan}" --stage red --proof "$RED_PROOF"
+   ```
+   The canonical sidecar becomes the durable proof source reused by fresh-context handoffs, resume inspection, and summary generation.
+
+5. Commit the failing test:
    ```bash
     node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "test({phase}-{plan}): add failing test for {feature}" \
       --files <test_file> \
@@ -66,7 +85,7 @@ TEST_CMD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd auto-
       --tdd-phase red
    ```
 
-**Iron Law:** NEVER write implementation code before the RED gate passes.
+**Expected RED artifact:** failing test plus `test({phase}-{plan})` commit. NEVER write implementation code before the RED gate passes.
 </step>
 
 <step name="green_phase" phase="GREEN">
@@ -89,13 +108,21 @@ TEST_CMD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd auto-
      Strip code that isn't exercised by a test.
 
 3. Run validation gate:
-   ```bash
-    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "<test_command>"
-   ```
-   - If `valid: false` (test still fails): Debug the implementation. Iterate until green.
-   - If `valid: true` (test passes): Proceed to commit.
+     ```bash
+      node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "$GREEN_TEST_CMD"
+     ```
+    - If `valid: false` (the exact declared target still fails): Debug the implementation. Iterate until green.
+     - If `valid: true` (the exact declared target passes): Proceed to commit.
+     - Preserve the returned structured proof (`target_command`, `exit_code`, matched evidence snippet) for the GREEN audit trail.
 
-4. Commit the implementation:
+4. Persist the GREEN proof into the same canonical audit sidecar:
+   ```bash
+   GREEN_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "$GREEN_TEST_CMD" --raw)
+   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase "{phase}" --plan "{plan}" --stage green --proof "$GREEN_PROOF"
+   ```
+   Keep this sidecar current so later execute → verify handoff refreshes preserve one deterministic proof package.
+
+5. Commit the implementation:
    ```bash
     node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "feat({phase}-{plan}): implement {feature}" \
       --files <source_file> \
@@ -119,14 +146,22 @@ TEST_CMD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd auto-
 2. If nothing to improve: skip directly to Step 5 (DONE).
 
 3. If refactoring, run validation gate after changes:
-   ```bash
-    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "<test_command>"
-   ```
-   - If `valid: false` (tests broke): **Undo the refactor.**
-     Either refactor in smaller steps or skip the refactor entirely.
-   - If `valid: true` (tests still pass): Proceed to commit.
+     ```bash
+      node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "$REFACTOR_TEST_CMD"
+     ```
+    - If `valid: false` (the declared refactor target regressed): **Undo the refactor.**
+      Either refactor in smaller steps or skip the refactor entirely.
+     - If `valid: true` (the exact target still passes): Proceed to commit.
+     - Preserve the returned structured proof (`target_command`, `exit_code`, matched evidence snippet) for the REFACTOR audit trail.
 
-4. Commit the refactored code:
+4. Persist the REFACTOR proof into the same canonical audit sidecar:
+   ```bash
+   REFACTOR_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "$REFACTOR_TEST_CMD" --raw)
+   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase "{phase}" --plan "{plan}" --stage refactor --proof "$REFACTOR_PROOF"
+   ```
+   This final sidecar state is what resumable fresh-context chains and downstream summaries should continue to re-render.
+
+5. Commit the refactored code:
    ```bash
     node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "refactor({phase}-{plan}): clean up {feature}" \
       --files <modified_files> \
@@ -163,6 +198,12 @@ TDD cycle complete. Return to the execute-plan workflow for SUMMARY creation.
 
 5. **Minimal GREEN implementation.**
    Code in GREEN should be just enough to pass the test. Extra code is untested code.
+
+6. **Contract authority lives in the shared skill.**
+   If wording here drifts from `skills/tdd-execution/SKILL.md`, update this workflow to match the skill.
+
+7. **Each gate validates the exact declared target command.**
+   RED rejects missing targets; GREEN and REFACTOR stay targeted-only unless the plan explicitly broadens scope.
 </enforcement_rules>
 
 <stuck_loop_detection>

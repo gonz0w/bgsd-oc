@@ -74,7 +74,7 @@ Override specific agents without changing the entire profile:
 
 Overrides take precedence over the profile. Valid values: `opus`, `sonnet`, `haiku`.
 
-**Switching profiles:** `/bgsd-set-profile <profile>` at runtime, or set `"model_profile"` in `.planning/config.json`.
+**Switching profiles:** `/bgsd-settings profile quality` at runtime, or set `"model_profile"` in `.planning/config.json`.
 <!-- /section -->
 
 <!-- section: rationale -->

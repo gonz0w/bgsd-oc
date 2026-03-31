@@ -100,7 +100,7 @@ Identify which plans can run simultaneously:
 
 **CLI for conflict detection:**
 ```bash
-bgsd-tools verify:plan-wave <phase-dir>
+bgsd-tools verify:verify plan-wave <phase-dir>
 ```
 
 Shows file conflicts within each wave and warns about unsafe parallelization.
@@ -112,7 +112,7 @@ Shows file conflicts within each wave and warns about unsafe parallelization.
 Use the CLI tool to validate wave assignments:
 
 ```bash
-bgsd-tools verify:plan-wave <phase-dir>
+bgsd-tools verify:verify plan-wave <phase-dir>
 ```
 
 **Output includes:**

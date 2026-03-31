@@ -1,6 +1,6 @@
 # /bgsd-search-lessons
 
-Search completed phase lessons for relevant patterns and insights. Surfaces lessons learned from past execution to inform current planning.
+Search completed phase lessons for relevant patterns and insights from the structured lessons store.
 
 **Usage:** `/bgsd-search-lessons <query>`
 
@@ -32,8 +32,9 @@ RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:search-lesso
 
 Parse the JSON output which includes:
 - `query`: The search query used
-- `matches[]`: Matching lessons with source, phase, text
-- `count`: Number of matches found
+- `matches[]` / `lessons[]`: Matching lessons with title, body, source, format, and metadata
+- `count` / `match_count`: Number of matches found
+- `canonical_source`: Structured lessons store path
 
 **Display format:**
 
@@ -43,13 +44,17 @@ Parse the JSON output which includes:
 **Found:** {count} match(es)
 
 {For each match:}
-### Phase {phase} — {source}
-{text}
+### {title}
+- Severity: {severity}
+- Type: {type}
+- Agents: {affected_agents}
+- Source: {source}
+{body}
 
 ---
 ```
 
-If no matches: "No lessons found matching '{query}'. Try broader terms or check that completed phases have documented lessons."
+If no matches: "No lessons found matching '{query}' in `.planning/memory/lessons.json`. Try broader terms or capture more structured lessons first."
 </step>
 
 </process>

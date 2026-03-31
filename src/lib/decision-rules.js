@@ -689,6 +689,56 @@ const DECISION_REGISTRY = [
     confidence_range: ['HIGH'],
     resolve: resolveSearchMode,
   },
+  {
+    id: 'structural-search-mode',
+    name: 'Structural Search Mode',
+    category: 'tool-routing',
+    description: 'Recommends syntax-aware search tool (ast-grep vs ripgrep vs node) based on tool availability',
+    inputs: ['tool_availability'],
+    outputs: ['ast-grep|ripgrep|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveStructuralSearchMode,
+  },
+  {
+    id: 'json-transform-mode',
+    name: 'JSON Transform Mode',
+    category: 'tool-routing',
+    description: 'Recommends JSON transform tool (jq vs node) based on tool availability',
+    inputs: ['tool_availability'],
+    outputs: ['jq|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveJsonTransformMode,
+  },
+  {
+    id: 'yaml-transform-mode',
+    name: 'YAML Transform Mode',
+    category: 'tool-routing',
+    description: 'Recommends YAML transform tool (yq vs node) based on tool availability',
+    inputs: ['tool_availability'],
+    outputs: ['yq|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveYamlTransformMode,
+  },
+  {
+    id: 'text-replace-mode',
+    name: 'Text Replace Mode',
+    category: 'tool-routing',
+    description: 'Recommends text replacement tool (sd vs node) based on tool availability',
+    inputs: ['tool_availability'],
+    outputs: ['sd|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveTextReplaceMode,
+  },
+  {
+    id: 'benchmark-mode',
+    name: 'Benchmark Mode',
+    category: 'tool-routing',
+    description: 'Recommends benchmark tool (hyperfine vs node) based on tool availability',
+    inputs: ['tool_availability'],
+    outputs: ['hyperfine|node'],
+    confidence_range: ['HIGH'],
+    resolve: resolveBenchmarkMode,
+  },
 ];
 
 // ─── Phase 141: Question taxonomy decision functions ─────────────────────────
@@ -706,9 +756,10 @@ function resolveQuestionType(state) {
 
   // Mapping of workflow+step to TAXONOMY type
   const questionTypeMap = {
-    'discuss-phase:area-select': TAXONOMY.SINGLE_CHOICE,
-    'discuss-phase:topic-select': TAXONOMY.MULTI_CHOICE,
-    'discuss-phase:depth-select': TAXONOMY.RANKING,
+    'discuss-phase:gray-areas': TAXONOMY.MULTI_CHOICE,
+    'discuss-phase:conflict-resolution': TAXONOMY.CLARIFICATION,
+    'discuss-phase:continue': TAXONOMY.SINGLE_CHOICE,
+    'discuss-phase:stress-test-response': TAXONOMY.SINGLE_CHOICE,
     'new-milestone:goal-type': TAXONOMY.SINGLE_CHOICE,
     'new-milestone:priority-set': TAXONOMY.RANKING,
     'new-milestone:constraint-add': TAXONOMY.FILTERING,
@@ -766,19 +817,19 @@ function resolveOptionGeneration(state) {
  * File discovery mode selection.
  * Recommends ripgrep vs Node.js vs fd based on tool availability and task scope.
  *
- * @param {object} state - { tool_availability: {ripgrep, fd, jq, yq, bat, gh}, scope: 'single-file'|'directory'|'project-wide' }
+ * @param {object} state - { tool_availability: {ripgrep, fd, jq, yq, ast_grep, sd, hyperfine, bat, gh}, scope: 'single-file'|'directory'|'project-wide' }
  * @returns {{ value: string, confidence: string, rule_id: string }}
  */
 function resolveFileDiscoveryMode(state) {
   const { tool_availability = {}, scope } = state || {};
 
-  // Single-file operations need no discovery tool
-  if (!scope || scope === 'single-file') {
+  // Single-file operations need no discovery tool when explicitly requested
+  if (scope === 'single-file') {
     return { value: 'node', confidence: 'HIGH', rule_id: 'file-discovery-mode' };
   }
 
-  // For directory or project-wide scope, prefer fd when available
-  if ((scope === 'directory' || scope === 'project-wide') && tool_availability.fd === true) {
+  // Prefer fd whenever discovery is needed and it is available
+  if (tool_availability.fd === true) {
     return { value: 'fd', confidence: 'HIGH', rule_id: 'file-discovery-mode' };
   }
 
@@ -809,6 +860,83 @@ function resolveSearchMode(state) {
 
   // Fallback: Node.js (does NOT respect .gitignore automatically)
   return { value: 'node', confidence: 'HIGH', rule_id: 'search-mode' };
+}
+
+/**
+ * Structural code search mode selection.
+ * Prefer ast-grep for syntax-aware matches, then ripgrep for text search, then Node.js.
+ *
+ * @param {object} state - { tool_availability: object }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveStructuralSearchMode(state) {
+  const { tool_availability = {} } = state || {};
+
+  if (tool_availability.ast_grep === true) {
+    return { value: 'ast-grep', confidence: 'HIGH', rule_id: 'structural-search-mode' };
+  }
+
+  if (tool_availability.ripgrep === true) {
+    return { value: 'ripgrep', confidence: 'HIGH', rule_id: 'structural-search-mode' };
+  }
+
+  return { value: 'node', confidence: 'HIGH', rule_id: 'structural-search-mode' };
+}
+
+/**
+ * JSON transform mode selection.
+ *
+ * @param {object} state - { tool_availability: object }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveJsonTransformMode(state) {
+  const { tool_availability = {} } = state || {};
+  if (tool_availability.jq === true) {
+    return { value: 'jq', confidence: 'HIGH', rule_id: 'json-transform-mode' };
+  }
+  return { value: 'node', confidence: 'HIGH', rule_id: 'json-transform-mode' };
+}
+
+/**
+ * YAML transform mode selection.
+ *
+ * @param {object} state - { tool_availability: object }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveYamlTransformMode(state) {
+  const { tool_availability = {} } = state || {};
+  if (tool_availability.yq === true) {
+    return { value: 'yq', confidence: 'HIGH', rule_id: 'yaml-transform-mode' };
+  }
+  return { value: 'node', confidence: 'HIGH', rule_id: 'yaml-transform-mode' };
+}
+
+/**
+ * Text replace mode selection.
+ *
+ * @param {object} state - { tool_availability: object }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveTextReplaceMode(state) {
+  const { tool_availability = {} } = state || {};
+  if (tool_availability.sd === true) {
+    return { value: 'sd', confidence: 'HIGH', rule_id: 'text-replace-mode' };
+  }
+  return { value: 'node', confidence: 'HIGH', rule_id: 'text-replace-mode' };
+}
+
+/**
+ * Benchmark mode selection.
+ *
+ * @param {object} state - { tool_availability: object }
+ * @returns {{ value: string, confidence: string, rule_id: string }}
+ */
+function resolveBenchmarkMode(state) {
+  const { tool_availability = {} } = state || {};
+  if (tool_availability.hyperfine === true) {
+    return { value: 'hyperfine', confidence: 'HIGH', rule_id: 'benchmark-mode' };
+  }
+  return { value: 'node', confidence: 'HIGH', rule_id: 'benchmark-mode' };
 }
 
 // ─── Aggregator ──────────────────────────────────────────────────────────────
@@ -872,6 +1000,11 @@ module.exports = {
   // Phase 127: Tool routing decision functions
   resolveFileDiscoveryMode,
   resolveSearchMode,
+  resolveStructuralSearchMode,
+  resolveJsonTransformMode,
+  resolveYamlTransformMode,
+  resolveTextReplaceMode,
+  resolveBenchmarkMode,
   // Registry and aggregator
   DECISION_REGISTRY,
   evaluateDecisions,

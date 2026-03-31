@@ -1,19 +1,21 @@
----
-description: Discuss and scope a phase before planning
+description: Compatibility alias for the canonical planning-family discuss action
 ---
 <objective>
-Discuss implementation decisions for a specific phase, then capture them in CONTEXT.md for downstream agents.
+Preserve the legacy discuss entrypoint while routing to canonical `/bgsd-plan discuss` behavior.
 </objective>
 
 <execution_context>
-@__OPENCODE_CONFIG__/bgsd-oc/workflows/discuss-phase.md
+@__OPENCODE_CONFIG__/bgsd-oc/commands/bgsd-plan.md
 </execution_context>
 
 <context>
-$ARGUMENTS: Phase number (e.g., 108)
+$ARGUMENTS: Phase number plus optional compatibility flags (e.g., `108`, `108 --fast`)
 </context>
 
 <process>
-Execute the discuss-phase workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/discuss-phase.md end-to-end.
-Pass phase number from arguments to workflow.
+Treat `/bgsd-discuss-phase` as a compatibility alias only.
+
+Translate the request to canonical `/bgsd-plan discuss $ARGUMENTS` behavior and follow the shared planning-family contract in @__OPENCODE_CONFIG__/bgsd-oc/commands/bgsd-plan.md.
+
+Keep compatibility intact, including legacy flags such as `--fast`, without making this alias the preferred path again.
 </process>

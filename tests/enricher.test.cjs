@@ -208,6 +208,57 @@ describe('Group 1: Zero redundant calls (ENR-01)', () => {
     assert.strictEqual(j1.summary_count, j2.summary_count, 'summary_count should be stable across calls');
   });
 
+  it('NODE_ENV=development alone does not emit enricher debug timing', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalDebug = process.env.BGSD_DEBUG;
+    const originalStderrWrite = process.stderr.write;
+    const lines = [];
+
+    try {
+      process.env.NODE_ENV = 'development';
+      delete process.env.BGSD_DEBUG;
+      process.stderr.write = (chunk, ...rest) => {
+        lines.push(String(chunk));
+        return originalStderrWrite.call(process.stderr, chunk, ...rest);
+      };
+
+      runEnrich(enrichCommand, tempDir);
+
+      assert.strictEqual(lines.filter(line => line.includes('[bgsd-enricher]')).length, 0, 'NODE_ENV alone should not enable enricher debug output');
+    } finally {
+      if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = originalNodeEnv;
+
+      if (originalDebug === undefined) delete process.env.BGSD_DEBUG;
+      else process.env.BGSD_DEBUG = originalDebug;
+
+      process.stderr.write = originalStderrWrite;
+    }
+  });
+
+  it('BGSD_DEBUG emits enricher debug timing', () => {
+    const originalDebug = process.env.BGSD_DEBUG;
+    const originalStderrWrite = process.stderr.write;
+    const lines = [];
+
+    try {
+      process.env.BGSD_DEBUG = '1';
+      process.stderr.write = (chunk, ...rest) => {
+        lines.push(String(chunk));
+        return originalStderrWrite.call(process.stderr, chunk, ...rest);
+      };
+
+      runEnrich(enrichCommand, tempDir);
+
+      assert.ok(lines.some(line => line.includes('[bgsd-enricher]')), 'BGSD_DEBUG should enable enricher debug output');
+    } finally {
+      if (originalDebug === undefined) delete process.env.BGSD_DEBUG;
+      else process.env.BGSD_DEBUG = originalDebug;
+
+      process.stderr.write = originalStderrWrite;
+    }
+  });
+
   it('non-bgsd command is not enriched (early return)', () => {
     const input = { command: 'not-bgsd', parts: ['not-bgsd'] };
     const output = { parts: [] };
@@ -451,6 +502,89 @@ describe('Group 3: Output shape invariance (ENR-02)', () => {
       }
     } finally {
       cleanupDir(noPlanDir);
+    }
+  });
+});
+
+describe('Phase 158 canonical family enrichment parity', () => {
+  let enrichCommand;
+  let tempDir;
+
+  before(async () => {
+    const mod = await import(PLUGIN_PATH);
+    enrichCommand = mod.enrichCommand;
+    tempDir = makePlanningProject('bgsd-enr-phase158-');
+  });
+
+  after(() => {
+    cleanupDir(tempDir);
+  });
+
+  function getAgentType(command) {
+    const input = { command, parts: [command] };
+    const output = { parts: [] };
+    enrichCommand(input, output, tempDir);
+    return parseEnrichmentOutput(output)?.agent_type;
+  }
+
+  it('canonical planning family command gets planner routing metadata', () => {
+    assert.strictEqual(getAgentType('bgsd-plan'), 'bgsd-planner');
+    assert.strictEqual(getAgentType('bgsd-plan-phase'), 'bgsd-planner');
+  });
+
+  it('canonical inspect family command gets executor routing metadata', () => {
+    assert.strictEqual(getAgentType('bgsd-inspect'), 'bgsd-executor');
+  });
+
+  it('canonical settings family and compatibility aliases share executor routing metadata', () => {
+    for (const command of ['bgsd-settings', 'bgsd-set-profile', 'bgsd-validate-config']) {
+      assert.strictEqual(getAgentType(command), 'bgsd-executor');
+    }
+  });
+});
+
+describe('Tool availability refresh behavior', () => {
+  let enrichCommand;
+  let BgsdPlugin;
+
+  before(async () => {
+    const mod = await import(PLUGIN_PATH);
+    enrichCommand = mod.enrichCommand;
+    BgsdPlugin = mod.BgsdPlugin;
+  });
+
+  it('enrichCommand refreshes missing tool cache and includes metadata', () => {
+    const tempDir = makePlanningProject('bgsd-enr-tools-');
+    const cachePath = path.join(tempDir, '.planning', '.cache', 'tools.json');
+
+    try {
+      assert.ok(!fs.existsSync(cachePath), 'fixture should start without a tool cache');
+
+      const { output } = runEnrich(enrichCommand, tempDir);
+      const enrichment = parseEnrichmentOutput(output);
+
+      assert.ok(fs.existsSync(cachePath), 'enrichment should populate the tool cache on first command');
+      assert.ok(enrichment.tool_availability_meta, 'enrichment should expose tool availability metadata');
+      assert.strictEqual(enrichment.tool_availability_meta.state, 'fresh', 'tool availability should be fresh after enrichment');
+      assert.ok(['cache', 'cli-refresh'].includes(enrichment.tool_availability_meta.source), 'metadata should identify cache or refresh source');
+      assert.ok(Object.values(enrichment.tool_availability).some((value) => value !== null), 'tool availability should contain known values after refresh');
+    } finally {
+      cleanupDir(tempDir);
+    }
+  });
+
+  it('plugin startup warms the tool cache for bgsd projects', async () => {
+    const tempDir = makePlanningProject('bgsd-enr-tools-startup-');
+    const cachePath = path.join(tempDir, '.planning', '.cache', 'tools.json');
+
+    try {
+      assert.ok(!fs.existsSync(cachePath), 'fixture should start without a tool cache');
+
+      await BgsdPlugin({ directory: tempDir });
+
+      assert.ok(fs.existsSync(cachePath), 'plugin startup should warm the tool cache');
+    } finally {
+      cleanupDir(tempDir);
     }
   });
 });

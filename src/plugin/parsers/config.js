@@ -1,12 +1,15 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import configContract from '../../lib/config-contract.js';
+
+const { buildDefaultConfig, normalizeConfig, serializeConfig } = configContract;
 
 /**
  * config.json parser for in-process reading.
  * Extracts configuration from .planning/config.json with schema defaults.
  *
- * Parsing logic extracted from src/lib/config.js (loadConfig).
- * Self-contained — defaults are inlined, no dependency on constants.js.
+ * Parsing logic reuses the shared config contract so CLI and plugin touched
+ * settings stay aligned on one schema-driven normalization path.
  */
 
 // Module-level cache: cwd → frozen parsed config
@@ -17,17 +20,6 @@ const _cache = new Map();
  * pull the entire CLI dependency graph into the plugin bundle.
  */
 const CONFIG_DEFAULTS = Object.freeze({
-  mode: 'interactive',
-  depth: 'standard',
-  model_profile: 'balanced',
-  commit_docs: true,
-  branching_strategy: 'none',
-  phase_branch_template: 'phase-{number}-{name}',
-  milestone_branch_template: '{version}',
-  parallelization: false,
-  research: true,
-  plan_checker: true,
-  verifier: true,
   staleness_threshold: 2,
   // Phase 75: Event-driven state sync settings
   idle_validation: Object.freeze({
@@ -77,14 +69,6 @@ const CONFIG_DEFAULTS = Object.freeze({
 });
 
 /**
- * Keys whose defaults are nested objects — require shallow merge
- * so user can override individual sub-keys while preserving other defaults.
- */
-const NESTED_OBJECT_KEYS = new Set([
-  'idle_validation', 'notifications', 'stuck_detection', 'file_watcher', 'advisory_guardrails',
-]);
-
-/**
  * Parse config.json from the given working directory (or CWD).
  * Returns a frozen object with all config fields and defaults applied.
  * Returns default config if file is missing or corrupt.
@@ -108,52 +92,18 @@ export function parseConfig(cwd) {
     parsed = JSON.parse(raw);
   } catch {
     // File missing or corrupt — use all defaults
-    const defaults = Object.freeze({ ...CONFIG_DEFAULTS });
+    const defaults = normalizeConfig({}, { extraDefaults: CONFIG_DEFAULTS });
     _cache.set(resolvedCwd, defaults);
     return defaults;
   }
 
-  // Build config with defaults — support nested workflow section and nested object merging
-  const result = {};
-  for (const [key, defaultValue] of Object.entries(CONFIG_DEFAULTS)) {
-    if (parsed[key] !== undefined) {
-      // Handle parallelization coercion: {enabled: true} → true
-      if (key === 'parallelization') {
-        if (typeof parsed[key] === 'boolean') {
-          result[key] = parsed[key];
-        } else if (typeof parsed[key] === 'object' && parsed[key] !== null && 'enabled' in parsed[key]) {
-          result[key] = parsed[key].enabled;
-        } else {
-          result[key] = defaultValue;
-        }
-      } else if (NESTED_OBJECT_KEYS.has(key)) {
-        // Shallow merge: user overrides + defaults for unset sub-keys
-        if (typeof parsed[key] === 'object' && parsed[key] !== null) {
-          result[key] = Object.freeze({ ...defaultValue, ...parsed[key] });
-        } else {
-          result[key] = defaultValue;
-        }
-      } else {
-        result[key] = parsed[key];
-      }
-    } else if (parsed.workflow && ['research', 'plan_checker', 'verifier'].includes(key)) {
-      // Check nested workflow section
-      const nestedKey = key === 'plan_checker' ? 'plan_check' : key;
-      if (parsed.workflow[nestedKey] !== undefined) {
-        result[key] = parsed.workflow[nestedKey];
-      } else if (parsed.workflow[key] !== undefined) {
-        result[key] = parsed.workflow[key];
-      } else {
-        result[key] = defaultValue;
-      }
-    } else {
-      result[key] = defaultValue;
-    }
-  }
-
-  const frozen = Object.freeze(result);
+  const frozen = normalizeConfig(parsed, { extraDefaults: CONFIG_DEFAULTS });
   _cache.set(resolvedCwd, frozen);
   return frozen;
+}
+
+export function buildDefaultConfigText() {
+  return serializeConfig(buildDefaultConfig());
 }
 
 /**

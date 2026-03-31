@@ -8,7 +8,7 @@ sections: [executor, planner]
 
 ## Purpose
 
-Provides the TDD methodology for both creating TDD plans (planner) and executing them (executor). TDD work is fundamentally heavier than standard tasks — it requires 2-3 execution cycles (RED, GREEN, REFACTOR), each with file reads, test runs, and potential debugging. This skill ensures consistent cycle discipline, proper commit granularity, and appropriate context budgeting.
+Provides the canonical TDD contract for both creating TDD plans (planner) and executing them (executor). This file is the single authoritative source for TDD structure, shared terminology, command names, and expected execution artifacts. TDD work is fundamentally heavier than standard tasks — it requires 2-3 execution cycles (RED, GREEN, REFACTOR), each with file reads, test runs, and potential debugging. Other docs, workflows, templates, and CLI help should defer to this skill instead of defining competing TDD rules.
 
 ## Placeholders
 
@@ -22,7 +22,22 @@ Provides the TDD methodology for both creating TDD plans (planner) and executing
 <!-- section: executor -->
 ### Executor: Running TDD Cycles
 
+**Authority:** Treat this skill as the canonical TDD contract. `tdd-reference.md` expands on the same contract; `workflows/tdd.md`, `workflows/execute-plan.md`, plan templates, and CLI help should reuse this vocabulary instead of inventing a second one.
+
 **Principle:** If you can describe the behavior as `expect(fn(input)).toBe(output)` before writing `fn`, TDD improves the result.
+
+**Shared command names:** `execute:tdd validate-red`, `execute:tdd validate-green`, `execute:tdd validate-refactor`, `execute:tdd auto-test`, `execute:tdd detect-antipattern`
+
+**Execution semantics:**
+- Each RED / GREEN / REFACTOR step declares the exact target command to run.
+- RED validates only when that exact target fails for real; a missing target command is invalid RED proof.
+- GREEN and REFACTOR are targeted-only by default and validate only when their exact target command passes.
+- Each validator returns structured proof with the exact target command, exit status, and matched pass/fail evidence snippet.
+
+**Expected artifacts:**
+- RED artifact: failing test plus a `test(...)` commit
+- GREEN artifact: minimal passing implementation plus a `feat(...)` commit
+- REFACTOR artifact: optional cleanup that keeps tests green plus a `refactor(...)` commit
 
 #### Step 1: Check Test Infrastructure
 
@@ -42,29 +57,32 @@ If this is the first TDD task, detect project type and install test framework if
 2. Create test file following project conventions
 3. Write tests describing expected behavior
 4. Run tests — they MUST fail
-5. Validate: `node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "<cmd>"`
+5. Validate: `node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd "<cmd>"`
 6. Commit: `test({{phase}}-{{plan}}): add failing test for [feature]`
 
 If the test passes instead of failing, investigate — the feature may already exist or the test may be wrong.
+If the command itself is missing, RED is invalid — fix the target command before proceeding.
 
 #### Step 3: GREEN — Minimal Implementation
 
 1. Read `<implementation>` from the plan
 2. Write minimal code to make tests pass
 3. Run tests — they MUST pass
-4. Validate: `node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "<cmd>"`
+4. Validate: `node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd "<cmd>"`
 5. Commit: `feat({{phase}}-{{plan}}): implement [feature]`
 
 If tests don't pass, debug and iterate. Don't skip to refactor.
+GREEN remains targeted-only unless the plan explicitly broadens the command.
 
 #### Step 4: REFACTOR (if needed)
 
 1. Clean up code — extract constants, rename variables, simplify logic
 2. Run tests — they MUST still pass
-3. Validate: `node $BGSD_HOME/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "<cmd>"`
+3. Validate: `node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd "<cmd>"`
 4. Commit only if changes made: `refactor({{phase}}-{{plan}}): clean up [feature]`
 
 If refactoring breaks tests, undo. Refactor in smaller steps.
+REFACTOR reuses the same targeted proof style by default.
 
 #### Error Handling
 
@@ -124,6 +142,11 @@ Output: [Working, tested feature]
 <feature>
   <name>[Feature name]</name>
   <files>[source file, test file]</files>
+  <tdd-targets>
+    <red>[exact command expected to fail]</red>
+    <green>[exact command expected to pass after implementation]</green>
+    <refactor>[exact command expected to keep passing after cleanup]</refactor>
+  </tdd-targets>
   <behavior>
     [Expected behavior in testable terms]
     Cases: input -> expected output
@@ -140,7 +163,7 @@ TDD plans target **~40% context** (lower than standard plans' ~50%). The RED-GRE
 
 Each TDD plan produces 2-3 atomic commits (test, feat, optional refactor).
 
-For detailed TDD reference material including framework setup, commit trailers, and anti-patterns, see: `tdd-reference.md`
+For detailed TDD reference material that elaborates on this canonical contract (framework setup, commit trailers, anti-patterns), see: `tdd-reference.md`
 
 ## Cross-references
 
@@ -151,7 +174,7 @@ For detailed TDD reference material including framework setup, commit trailers, 
 
 **RED phase commit:**
 ```bash
-node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "test(08-02): add failing test for email validation" \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "test(08-02): add failing test for email validation" \
   --files src/utils/__tests__/email.test.ts \
   --agent bgsd-executor \
   --tdd-phase red
@@ -159,7 +182,7 @@ node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "test(08-02): add failing test
 
 **GREEN phase commit:**
 ```bash
-node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "feat(08-02): implement email validation" \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "feat(08-02): implement email validation" \
   --files src/utils/email.ts \
   --agent bgsd-executor \
   --tdd-phase green

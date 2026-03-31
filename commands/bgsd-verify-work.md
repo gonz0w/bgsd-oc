@@ -17,6 +17,7 @@ Output: {phase_num}-UAT.md tracking all test results. If issues found: diagnosed
 <context>
 Phase: $ARGUMENTS (optional)
 - If provided: Test specific phase (e.g., "4")
+- Optional grouped mode: `--batch N` (e.g., `4 --batch 3`)
 - If not provided: Check for active sessions or prompt for phase
 
 Context files are resolved inside the workflow (`init verify-work`) and delegated via `<files_to_read>` blocks.

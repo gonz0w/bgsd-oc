@@ -210,7 +210,7 @@ describe('GARD-02: Planning file protection', () => {
     assert.strictEqual(planningCalls[0].severity, 'warning');
   });
 
-  test('direct write to .planning/STATE.md triggers warning naming /bgsd-progress', async () => {
+  test('direct write to .planning/STATE.md triggers warning naming /bgsd-inspect progress', async () => {
     const config = {};
     const guardrails = createAdvisoryGuardrails(tmpDir, notifier, config);
 
@@ -218,7 +218,7 @@ describe('GARD-02: Planning file protection', () => {
 
     const planningCalls = notifier.calls.filter(c => c.type === 'advisory-planning');
     assert.strictEqual(planningCalls.length, 1);
-    assert.ok(planningCalls[0].message.includes('/bgsd-progress'));
+    assert.ok(planningCalls[0].message.includes('/bgsd-inspect progress'));
   });
 
   test('direct write to unknown .planning/ file triggers generic warning', async () => {

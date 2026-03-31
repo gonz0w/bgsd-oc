@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { debugLog } = require('./output');
@@ -43,6 +44,180 @@ function safeReadFile(filePath) {
   }
 }
 
+function normalizeTddHintValue(value) {
+  if (value === null || value === undefined) return null;
+
+  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, '');
+  if (!raw) return null;
+
+  const tokenMatch = raw.match(/^(required|require|mandatory|must|enforced|recommended|recommend|suggested|prefer(?:red)?|true|yes|y|false|no|n|skip(?:ped)?|omit(?:ted)?|none|n\/a|na|not applicable)\b/);
+  const token = tokenMatch ? tokenMatch[1] : raw;
+
+  if (['required', 'require', 'mandatory', 'must', 'enforced'].includes(token)) return 'required';
+  if (['recommended', 'recommend', 'suggested', 'prefer', 'preferred', 'true', 'yes', 'y'].includes(token)) return 'recommended';
+  if (['false', 'no', 'n', 'skip', 'skipped', 'omit', 'omitted', 'none', 'n/a', 'na', 'not applicable'].includes(token)) return null;
+
+  return null;
+}
+
+function normalizePlanTddDecisionValue(value) {
+  if (value === null || value === undefined) return null;
+
+  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, '');
+  if (!raw) return null;
+
+  const tokenMatch = raw.match(/^(selected|select|tdd|true|yes|required|recommended|skipped|skip|false|no|none|omit(?:ted)?)\b/);
+  const token = tokenMatch ? tokenMatch[1] : raw;
+
+  if (['selected', 'select', 'tdd', 'true', 'yes', 'required', 'recommended'].includes(token)) return 'selected';
+  if (['skipped', 'skip', 'false', 'no', 'none', 'omit', 'omitted'].includes(token)) return 'skipped';
+
+  return null;
+}
+
+function buildCanonicalTddDecisionCallout(decision, rationale) {
+  if (!decision) return null;
+  const label = decision === 'selected' ? 'Selected' : 'Skipped';
+  const fallback = decision === 'selected'
+    ? 'this legacy plan already marked testable behavior for TDD, so it now uses the canonical visible decision callout.'
+    : 'this legacy plan already marked TDD as not selected, so it now uses the canonical visible decision callout.';
+  return `> **TDD Decision:** ${label} — ${String(rationale || fallback).trim()}`;
+}
+
+function normalizeRoadmapTddMetadata(content) {
+  if (!content || typeof content !== 'string') return { content, changed: false };
+
+  let changed = false;
+  const next = content.replace(/^(\*\*TDD:?\*\*:?\s*)([^\n]*)$/gim, (match, _prefix, rawValue) => {
+    const normalized = normalizeTddHintValue(rawValue);
+    const canonical = normalized ? `**TDD:** ${normalized}` : '';
+    if (canonical !== match) changed = true;
+    return canonical;
+  }).replace(/\n{3,}/g, '\n\n');
+
+  return { content: next, changed };
+}
+
+function readRoadmapWithTddNormalization(cwd) {
+  const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
+  const original = cachedReadFile(roadmapPath);
+  if (!original) return null;
+
+  const normalized = normalizeRoadmapTddMetadata(original);
+  if (normalized.changed) {
+    fs.writeFileSync(roadmapPath, normalized.content, 'utf-8');
+    invalidateFileCache(roadmapPath);
+    return normalized.content;
+  }
+
+  return original;
+}
+
+function normalizePlanTddMetadata(content) {
+  if (!content || typeof content !== 'string') return { content, changed: false, decision: null };
+
+  const frontmatter = require('./frontmatter').extractFrontmatter(content);
+  const newFrontmatter = { ...frontmatter };
+  let changed = false;
+
+  const canonicalMatch = content.match(/^>\s*\*\*TDD Decision:\*\*\s*(Selected|Skipped)\s*[—-]\s*(.+)$/im);
+  const legacyCalloutMatch = content.match(/^>\s*\*\*TDD(?: Decision)?\*\*\s*:?\s*(.+)$/im);
+
+  let decision = canonicalMatch ? canonicalMatch[1].toLowerCase() : null;
+  if (!decision) {
+    decision = normalizePlanTddDecisionValue(
+      newFrontmatter.tdd_decision ??
+      newFrontmatter.tddDecision ??
+      newFrontmatter.tdd ??
+      newFrontmatter['tdd-decision'] ??
+      newFrontmatter['tdd_decision'] ??
+      newFrontmatter['tddDecision'] ??
+      newFrontmatter['tdd-hint'] ??
+      newFrontmatter['tdd_hint']
+    );
+  }
+  if (!decision && String(newFrontmatter.type || '').trim().toLowerCase() === 'tdd') {
+    decision = 'selected';
+  }
+
+  const rationale = canonicalMatch?.[2]?.trim()
+    || newFrontmatter.tdd_rationale
+    || newFrontmatter.tddRationale
+    || newFrontmatter['tdd-rationale']
+    || newFrontmatter.tdd_reason
+    || newFrontmatter.tddReason
+    || newFrontmatter['tdd-reason']
+    || (legacyCalloutMatch ? legacyCalloutMatch[1].trim() : null);
+
+  for (const key of ['tdd', 'tdd_decision', 'tddDecision', 'tdd_rationale', 'tddRationale', 'tdd_reason', 'tddReason', 'tdd-hint', 'tdd_hint', 'tdd-rationale', 'tdd-reason']) {
+    if (Object.prototype.hasOwnProperty.call(newFrontmatter, key)) {
+      delete newFrontmatter[key];
+      changed = true;
+    }
+  }
+
+  if (decision === 'selected' && newFrontmatter.type !== 'tdd') {
+    newFrontmatter.type = 'tdd';
+    changed = true;
+  }
+  if (decision === 'skipped' && (!newFrontmatter.type || newFrontmatter.type === 'tdd')) {
+    newFrontmatter.type = 'execute';
+    changed = true;
+  }
+
+  let next = content;
+  if (JSON.stringify(frontmatter) !== JSON.stringify(newFrontmatter)) {
+    next = require('./frontmatter').spliceFrontmatter(next, newFrontmatter);
+    changed = true;
+  }
+
+  if (decision) {
+    const canonicalCallout = buildCanonicalTddDecisionCallout(decision, rationale);
+    if (canonicalMatch) {
+      if (canonicalMatch[0] !== canonicalCallout) {
+        next = next.replace(canonicalMatch[0], canonicalCallout);
+        changed = true;
+      }
+    } else if (legacyCalloutMatch) {
+      next = next.replace(legacyCalloutMatch[0], canonicalCallout);
+      changed = true;
+    } else {
+      const objectiveClose = next.indexOf('</objective>');
+      if (objectiveClose !== -1) {
+        const insertAt = objectiveClose + '</objective>'.length;
+        next = `${next.slice(0, insertAt)}\n\n${canonicalCallout}${next.slice(insertAt)}`;
+        changed = true;
+      }
+    }
+  }
+
+  return { content: next, changed, decision };
+}
+
+function normalizePlanFileTddMetadata(filePath) {
+  const original = safeReadFile(filePath);
+  if (!original) return { changed: false, decision: null };
+  const normalized = normalizePlanTddMetadata(original);
+  if (normalized.changed) {
+    fs.writeFileSync(filePath, normalized.content, 'utf-8');
+    invalidateFileCache(filePath);
+  }
+  return { changed: normalized.changed, decision: normalized.decision };
+}
+
+function normalizePhasePlanFilesTddMetadata(cwd, phaseInfo) {
+  const results = [];
+  if (!phaseInfo?.directory || !Array.isArray(phaseInfo.plans)) return results;
+
+  for (const planFile of phaseInfo.plans) {
+    const filePath = path.join(cwd, phaseInfo.directory, planFile);
+    const result = normalizePlanFileTddMetadata(filePath);
+    if (result.changed) results.push({ file: filePath, decision: result.decision });
+  }
+
+  return results;
+}
+
 /**
  * Cached wrapper around safeReadFile using persistent CacheEngine.
  * CacheEngine handles staleness detection via mtime comparison.
@@ -66,8 +241,7 @@ function cachedReadFile(filePath) {
     if (status.count === 0 && !_autoWarmMessageShown) {
       _autoWarmMessageShown = true;
       const fileCount = countPlanningFiles();
-      // Use console.warn for visibility but keep it brief
-      console.warn(`Warming cache... ${fileCount} files`);
+      writeDebugDiagnostic('[bGSD:cache]', `Warming cache... ${fileCount} files`);
     }
     cacheEngine.set(filePath, content);
   }
@@ -120,6 +294,13 @@ function invalidateFileCache(filePath) {
     cacheEngine.invalidate(filePath);
   } else {
     cacheEngine.clear();
+  }
+
+  if (!filePath || String(filePath).includes(`${path.sep}.planning${path.sep}`)) {
+    dirCache.clear();
+    _phaseTreeCache = null;
+    _phaseTreeCwd = null;
+    invalidateMilestoneCache();
   }
 }
 
@@ -233,6 +414,93 @@ function normalizePhaseName(phase) {
   const stripped = parts[0].replace(/^0+/, '') || '0';
   const padded = stripped.padStart(2, '0');
   return parts.length > 1 ? `${padded}.${parts[1]}` : padded;
+}
+
+function buildPhaseHandoffRunId(phase, timestamp = new Date()) {
+  const normalizedPhase = normalizePhaseName(String(phase || '')).trim() || 'unknown';
+  const iso = timestamp instanceof Date ? timestamp.toISOString() : new Date(timestamp || Date.now()).toISOString();
+  return `${normalizedPhase}-${iso.replace(/[:.]/g, '-').replace(/Z$/, 'Z')}`;
+}
+
+function buildPhaseHandoffSourceFingerprint(phase, runId) {
+  const normalizedPhase = normalizePhaseName(String(phase || '')).trim() || 'unknown';
+  const seed = `${normalizedPhase}:${String(runId || '').trim()}`;
+  return crypto.createHash('sha256').update(seed).digest('hex').slice(0, 16);
+}
+
+function normalizePhaseHandoffFingerprintContent(content) {
+  if (!content || typeof content !== 'string') return '';
+  return content
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/\s+$/g, ''))
+    .filter((line) => !/^\*\*(?:Date|Generated|Updated|Last updated|Completed|Last Activity|Status):\*\*/i.test(line.trim()))
+    .join('\n')
+    .trim();
+}
+
+function getPhaseRequirementFingerprintEntries(cwd, requirementIds = []) {
+  if (!Array.isArray(requirementIds) || requirementIds.length === 0) return [];
+
+  const requirementsPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const requirementsContent = safeReadFile(requirementsPath);
+  if (!requirementsContent) return [];
+
+  return requirementIds
+    .map((requirementId) => {
+      const safeId = String(requirementId || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (!safeId) return null;
+      const match = requirementsContent.match(new RegExp(`^\\s*-\\s+\\[[ x]\\]\\s+\\*\\*${safeId}\\*\\*:\\s*(.+)$`, 'im'));
+      return match ? `${safeId}: ${match[1].trim()}` : null;
+    })
+    .filter(Boolean);
+}
+
+function buildPhaseHandoffExpectedFingerprint(cwd, phase) {
+  const normalizedPhase = normalizePhaseName(String(phase || '')).trim() || 'unknown';
+  const fingerprintInputs = [`phase:${normalizedPhase}`];
+
+  const roadmapPhase = getRoadmapPhaseInternal(cwd, normalizedPhase);
+  const roadmapSection = normalizePhaseHandoffFingerprintContent(roadmapPhase?.section || '');
+  if (roadmapSection) fingerprintInputs.push(`roadmap:\n${roadmapSection}`);
+
+  const requirementEntries = getPhaseRequirementFingerprintEntries(cwd, roadmapPhase?.requirements || []);
+  if (requirementEntries.length > 0) {
+    fingerprintInputs.push(`requirements:\n${requirementEntries.sort().join('\n')}`);
+  }
+
+  const phaseInfo = findPhaseInternal(cwd, normalizedPhase);
+  const phaseFiles = phaseInfo?.directory
+    ? (cachedReaddirSync(path.join(cwd, phaseInfo.directory)) || [])
+    : [];
+  const canonicalFiles = phaseFiles.length > 0
+    ? phaseFiles
+        .filter((file) => (
+          file === 'CONTEXT.md'
+          || file === 'RESEARCH.md'
+          || file === 'PLAN.md'
+          || file.endsWith('-CONTEXT.md')
+          || file.endsWith('-RESEARCH.md')
+          || file.endsWith('-PLAN.md')
+        ))
+        .sort()
+    : [];
+
+  for (const file of canonicalFiles) {
+    const content = normalizePhaseHandoffFingerprintContent(safeReadFile(path.join(cwd, phaseInfo.directory, file)));
+    if (content) fingerprintInputs.push(`file:${file}\n${content}`);
+  }
+
+  const seed = fingerprintInputs.join('\n---\n');
+  return crypto.createHash('sha256').update(seed).digest('hex').slice(0, 16);
+}
+
+function buildDefaultPhaseHandoffSummary(step, status) {
+  const normalizedStep = String(step || '').trim() || 'workflow';
+  const label = normalizedStep.charAt(0).toUpperCase() + normalizedStep.slice(1);
+  if (String(status || '').trim() === 'blocked') return `${label} blocked`;
+  if (String(status || '').trim() === 'pending') return `${label} pending`;
+  return `${label} ready`;
 }
 
 /**
@@ -522,10 +790,13 @@ function getRoadmapPhaseInternal(cwd, phaseNum) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
 
   try {
-    const content = cachedReadFile(roadmapPath);
+    const content = readRoadmapWithTddNormalization(cwd);
     if (!content) return null;
-    const escapedPhase = phaseNum.toString().replace(/\./g, '\\.');
-    const phasePattern = cachedRegex(`#{2,4}\\s*Phase\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
+    const phaseStr = phaseNum.toString();
+    const normalizedPhase = normalizePhaseName(phaseStr);
+    const phaseAlternates = Array.from(new Set([phaseStr, normalizedPhase, normalizedPhase.replace(/^0+/, '') || '0']))
+      .map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const phasePattern = cachedRegex(`#{2,4}\\s*Phase\\s+(?:${phaseAlternates.join('|')}):\\s*([^\\n]+)`, 'i');
     const headerMatch = content.match(phasePattern);
     if (!headerMatch) return null;
 
@@ -539,17 +810,163 @@ function getRoadmapPhaseInternal(cwd, phaseNum) {
     const goalMatch = section.match(/\*\*Goal:?\*\*:?\s*([^\n]+)/i);
     const goal = goalMatch ? goalMatch[1].trim() : null;
 
+    const requirementsMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
+    const requirements = requirementsMatch
+      ? requirementsMatch[1]
+          .split(/[\s,]+/)
+          .map(item => item.replace(/[\[\]]/g, '').trim())
+          .filter(Boolean)
+      : [];
+
+    const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
+
     return {
       found: true,
       phase_number: phaseNum.toString(),
       phase_name: phaseName,
       goal,
+      requirements,
+      tdd,
       section,
     };
   } catch (e) {
     debugLog('roadmap.getPhaseInternal', 'read roadmap phase failed', e);
     return null;
   }
+}
+
+function buildPhaseSnapshotInternal(cwd, phase) {
+  if (!phase) return null;
+
+  const normalized = normalizePhaseName(String(phase));
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  const roadmapPhase = getRoadmapPhaseInternal(cwd, phase);
+
+  if (!phaseInfo && !roadmapPhase) {
+    return {
+      found: false,
+      phase: normalized,
+      error: 'Phase not found',
+      requirements: [],
+      artifacts: {
+        phase_dir: null,
+        context: null,
+        research: null,
+        verification: null,
+        uat: null,
+        plans: [],
+        summaries: [],
+      },
+      plan_index: {
+        plans: [],
+        waves: {},
+        incomplete: [],
+        has_checkpoints: false,
+      },
+    };
+  }
+
+  const phaseNumber = phaseInfo?.phase_number || normalized;
+  const phaseName = roadmapPhase?.phase_name || phaseInfo?.phase_name || null;
+  const phaseSlug = phaseInfo?.phase_slug || (phaseName ? generateSlugInternal(phaseName) : null);
+  const phaseDir = phaseInfo?.directory || null;
+  const phaseDirAbs = phaseDir ? path.join(cwd, phaseDir) : null;
+
+  const plans = phaseInfo?.plans || [];
+  const summaries = phaseInfo?.summaries || [];
+  const incompletePlans = phaseInfo?.incomplete_plans || [];
+  const waves = {};
+  const planInventory = [];
+  let hasCheckpoints = false;
+
+  for (const planFile of plans) {
+    const planPath = phaseDirAbs ? path.join(phaseDirAbs, planFile) : null;
+    const content = planPath ? cachedReadFile(planPath) : null;
+    const fm = content ? require('./frontmatter').extractFrontmatter(content) : {};
+    const wave = parseInt(fm.wave, 10) || 1;
+    const autonomous = fm.autonomous !== undefined ? (fm.autonomous === true || fm.autonomous === 'true') : true;
+    if (!autonomous) hasCheckpoints = true;
+
+    const id = planFile.replace('-PLAN.md', '').replace('PLAN.md', '');
+    const entry = {
+      id,
+      file: phaseDir ? path.join(phaseDir, planFile) : planFile,
+      wave,
+      autonomous,
+      has_summary: summaries.some(summary => summary.replace('-SUMMARY.md', '').replace('SUMMARY.md', '') === id),
+    };
+    if (fm.objective) entry.objective = fm.objective;
+    if (fm['files-modified']) {
+      entry.files_modified = Array.isArray(fm['files-modified']) ? fm['files-modified'] : [fm['files-modified']];
+    }
+    planInventory.push(entry);
+    const waveKey = String(wave);
+    if (!waves[waveKey]) waves[waveKey] = [];
+    waves[waveKey].push(id);
+  }
+
+  const artifactFromDir = suffix => {
+    if (!phaseDirAbs) return null;
+    try {
+      const entries = cachedReaddirSync(phaseDirAbs) || [];
+      const match = entries.find(file => file.endsWith(suffix) || file === suffix.replace(/^.*-/, ''));
+      return match ? path.join(phaseDir, match) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  return {
+    found: true,
+    phase: phaseNumber,
+    metadata: {
+      number: phaseNumber,
+      normalized: normalized,
+      name: phaseName,
+      slug: phaseSlug,
+      directory: phaseDir,
+      on_disk: !!phaseInfo,
+      roadmap_only: !phaseInfo && !!roadmapPhase,
+      archived: phaseInfo?.archived || null,
+      goal: roadmapPhase?.goal || null,
+      requirements: roadmapPhase?.requirements || [],
+    },
+    requirements: roadmapPhase?.requirements || [],
+    artifacts: {
+      phase_dir: phaseDir,
+      context: artifactFromDir('-CONTEXT.md'),
+      research: artifactFromDir('-RESEARCH.md'),
+      verification: artifactFromDir('-VERIFICATION.md'),
+      uat: artifactFromDir('-UAT.md'),
+      plans: phaseDir ? plans.map(file => path.join(phaseDir, file)) : [],
+      summaries: phaseDir ? summaries.map(file => path.join(phaseDir, file)) : [],
+    },
+    plan_index: {
+      plans: planInventory,
+      waves,
+      incomplete: incompletePlans.map(file => file.replace('-PLAN.md', '').replace('PLAN.md', '')),
+      has_checkpoints: hasCheckpoints,
+    },
+    execution_context: {
+      plan_count: plans.length,
+      summary_count: summaries.length,
+      incomplete_count: incompletePlans.length,
+      has_context: !!phaseInfo?.has_context,
+      has_research: !!phaseInfo?.has_research,
+      has_verification: !!phaseInfo?.has_verification,
+      incomplete_plans: incompletePlans,
+    },
+    roadmap: roadmapPhase ? {
+      found: true,
+      goal: roadmapPhase.goal,
+      requirements: roadmapPhase.requirements || [],
+    } : {
+      found: false,
+      goal: null,
+      requirements: [],
+    },
+  };
 }
 
 function pathExistsInternal(cwd, targetPath) {
@@ -561,6 +978,171 @@ function pathExistsInternal(cwd, targetPath) {
     debugLog('file.exists', 'stat failed', e);
     return false;
   }
+}
+
+function createWorkspaceEvidenceIndex(cwd, overrides = {}) {
+  const existsSync = overrides.existsSync || fs.existsSync;
+  const readFile = overrides.readFile || safeReadFile;
+  const cache = new Map();
+
+  return {
+    get(targetPath, options = {}) {
+      const includeContent = options.includeContent !== false;
+      const fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(cwd, targetPath);
+      const cacheKey = `${fullPath}:${includeContent ? 'content' : 'stat'}`;
+      if (cache.has(cacheKey)) return cache.get(cacheKey);
+
+      const exists = !!existsSync(fullPath);
+      const evidence = {
+        path: targetPath,
+        fullPath,
+        exists,
+        content: null,
+      };
+
+      if (includeContent && exists) {
+        evidence.content = readFile(fullPath);
+      }
+
+      cache.set(cacheKey, evidence);
+      return evidence;
+    },
+    clear() {
+      cache.clear();
+    },
+  };
+}
+
+const RUNTIME_FRESHNESS_RULES = [
+  {
+    id: 'cli-bundle',
+    sourcePrefixes: ['src/'],
+    artifactPath: 'bin/bgsd-tools.cjs',
+    buildCommand: 'npm run build',
+    description: 'rebuilt local CLI runtime',
+  },
+  {
+    id: 'plugin-bundle',
+    sourcePrefixes: ['src/plugin/'],
+    artifactPath: 'plugin.js',
+    buildCommand: 'npm run build',
+    description: 'rebuilt local plugin runtime',
+  },
+];
+
+function toIso(value) {
+  return value ? new Date(value).toISOString() : null;
+}
+
+function getRuntimeFreshness(cwd, changedFiles = []) {
+  const normalizedFiles = Array.from(new Set(
+    (Array.isArray(changedFiles) ? changedFiles : [])
+      .map((file) => String(file || '').trim().replace(/^\.\//, ''))
+      .filter(Boolean)
+  ));
+
+  const ruleSources = new Map();
+  for (const file of normalizedFiles) {
+    let selectedRule = null;
+    let selectedPrefixLength = -1;
+
+    for (const rule of RUNTIME_FRESHNESS_RULES) {
+      for (const prefix of rule.sourcePrefixes) {
+        if (!file.startsWith(prefix)) continue;
+        if (prefix.length > selectedPrefixLength) {
+          selectedRule = rule;
+          selectedPrefixLength = prefix.length;
+        }
+      }
+    }
+
+    if (!selectedRule) continue;
+    const existing = ruleSources.get(selectedRule.id) || [];
+    existing.push(file);
+    ruleSources.set(selectedRule.id, existing);
+  }
+
+  const relevantChecks = [];
+  for (const rule of RUNTIME_FRESHNESS_RULES) {
+    const relevantSources = ruleSources.get(rule.id) || [];
+    if (relevantSources.length === 0) continue;
+
+    const artifactFullPath = path.join(cwd, rule.artifactPath);
+    const artifactExists = fs.existsSync(artifactFullPath);
+    const artifactMtimeMs = artifactExists ? fs.statSync(artifactFullPath).mtimeMs : null;
+    const sourceEntries = relevantSources
+      .map((sourcePath) => {
+        const sourceFullPath = path.join(cwd, sourcePath);
+        if (!fs.existsSync(sourceFullPath)) return null;
+        const stat = fs.statSync(sourceFullPath);
+        return {
+          path: sourcePath,
+          mtime_ms: stat.mtimeMs,
+          mtime: toIso(stat.mtimeMs),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtime_ms - a.mtime_ms);
+
+    const newestSource = sourceEntries[0] || null;
+    if (!newestSource) continue;
+
+    let stale = false;
+    let reason = null;
+    if (!artifactExists) {
+      stale = true;
+      reason = 'missing_artifact';
+    } else if (artifactMtimeMs < newestSource.mtime_ms) {
+      stale = true;
+      reason = 'source_newer_than_artifact';
+    } else {
+      reason = 'fresh';
+    }
+
+    relevantChecks.push({
+      id: rule.id,
+      path: rule.artifactPath,
+      description: rule.description,
+      build_command: rule.buildCommand,
+      exists: artifactExists,
+      artifact_mtime: toIso(artifactMtimeMs),
+      stale,
+      reason,
+      sources: sourceEntries.map((entry) => entry.path),
+      newest_source: newestSource.path,
+      newest_source_mtime: newestSource.mtime,
+    });
+  }
+
+  if (relevantChecks.length === 0) {
+    return {
+      checked: false,
+      stale: false,
+      stale_sources: false,
+      stale_runtime: false,
+      build_command: null,
+      artifacts: [],
+      sources: [],
+      message: null,
+    };
+  }
+
+  const staleChecks = relevantChecks.filter((entry) => entry.stale);
+  const buildCommand = staleChecks[0]?.build_command || relevantChecks[0]?.build_command || null;
+  const uniqueSources = Array.from(new Set(relevantChecks.flatMap((entry) => entry.sources))).sort();
+
+  return {
+    checked: true,
+    stale: staleChecks.length > 0,
+    stale_sources: staleChecks.length > 0,
+    stale_runtime: staleChecks.length > 0,
+    build_command: buildCommand,
+    artifacts: relevantChecks,
+    sources: uniqueSources,
+    message: staleChecks.length > 0
+      ? `Local runtime artifacts are stale for the active checkout. Run \`${buildCommand}\` before trusting deliverables verification.`
+      : 'Local runtime artifacts are fresh for the active checkout.',
+  };
 }
 
 function generateSlugInternal(text) {
@@ -1048,6 +1630,10 @@ module.exports = {
   cachedReaddirSync,
   getPhaseTree,
   normalizePhaseName,
+  buildPhaseHandoffRunId,
+  buildPhaseHandoffExpectedFingerprint,
+  buildPhaseHandoffSourceFingerprint,
+  buildDefaultPhaseHandoffSummary,
   parseMustHavesBlock,
   sanitizeShellArg,
   isValidDateString,
@@ -1055,10 +1641,18 @@ module.exports = {
   getArchivedPhaseDirs,
   findPhaseInternal,
   getRoadmapPhaseInternal,
+  buildPhaseSnapshotInternal,
   pathExistsInternal,
+  createWorkspaceEvidenceIndex,
+  getRuntimeFreshness,
   generateSlugInternal,
   getMilestoneInfo,
   extractAtReferences,
+  normalizeTddHintValue,
+  readRoadmapWithTddNormalization,
+  normalizePlanTddMetadata,
+  normalizePlanFileTddMetadata,
+  normalizePhasePlanFilesTddMetadata,
   parseIntentMd,
   generateIntentMd,
   parsePlanIntent,

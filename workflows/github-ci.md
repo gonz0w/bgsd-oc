@@ -39,8 +39,7 @@ SCOPE=""
 
 ```bash
 # Check gh CLI authentication via structured preflight
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-GH_PREFLIGHT=$(node ${BGSD_HOME}/bin/bgsd-tools.cjs detect:gh-preflight 2>/dev/null)
+GH_PREFLIGHT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs detect:gh-preflight 2>/dev/null)
 ```
 
 Parse the JSON output: check `usable` field (boolean). Surface `warnings` array for version-specific issues.
@@ -206,14 +205,12 @@ If this workflow was invoked directly via `/bgsd-github-ci` (not spawned by exec
 
 Record CI decisions and session from agent's return:
 ```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-
 # Record key decisions from CI COMPLETE
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state add-decision \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state add-decision \
   --phase "ci" --summary "CI: ${STATUS} - ${PASSED} passed, ${FIXED} fixed, ${DISMISSED} dismissed"
 
 # Update session
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state record-session \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session \
   --stopped-at "CI: ${STATUS} - PR ${PR_URL}"
 ```
 

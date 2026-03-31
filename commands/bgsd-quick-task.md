@@ -1,8 +1,8 @@
 ---
-description: Quick task execution
+description: Compatibility alias for the canonical quick-entry command
 ---
 <objective>
-Execute a quick task without full phase planning.
+Preserve the legacy quick-task entrypoint while routing to the canonical quick workflow.
 </objective>
 
 <execution_context>
@@ -10,9 +10,11 @@ Execute a quick task without full phase planning.
 </execution_context>
 
 <context>
-$ARGUMENTS: Task description
+$ARGUMENTS: Task description or quick-execution request
 </context>
 
 <process>
-Execute the quick workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/quick.md end-to-end.
+Treat `/bgsd-quick-task` as a compatibility alias only.
+
+Execute the same quick workflow contract used by `/bgsd-quick` from @__OPENCODE_CONFIG__/bgsd-oc/workflows/quick.md end-to-end with all provided arguments.
 </process>

@@ -51,7 +51,7 @@ The full flow:
 2. **PROJECT.md** — Living project definition
 3. **INTENT.md** — Structured capture of objective, desired outcomes (prioritized P1-P3), success criteria, constraints
 4. **Workflow preferences** — Mode, depth, agent toggles, git strategy
-5. **Research** (optional) — 4 parallel researchers explore Stack, Features, Architecture, and Pitfalls. A synthesizer merges findings into `RESEARCH.md`
+5. **Research** (optional) — 5 parallel researchers explore Stack, Features, Architecture, Pitfalls, and Skills. A synthesizer merges findings into `RESEARCH.md`
 6. **Requirements** — Feature scoping per category, generating `REQUIREMENTS.md` with traceable IDs
 7. **Roadmap** — `gsd-roadmapper` agent creates phased plan with goals, dependencies, and success criteria
 
@@ -72,15 +72,15 @@ INTENT.md captures the "north star" for your project:
 After creation, use intent commands for ongoing alignment:
 
 ```bash
-# CLI operations (run via gsd-tools or through workflows)
-node bin/gsd-tools.cjs intent show                    # Compact summary
-node bin/gsd-tools.cjs intent show --full              # Full content
-node bin/gsd-tools.cjs intent show outcomes            # Specific section
-node bin/gsd-tools.cjs intent validate                 # Structure check
-node bin/gsd-tools.cjs intent trace                    # Outcomes -> plans matrix
-node bin/gsd-tools.cjs intent trace --gaps             # Show uncovered outcomes
-node bin/gsd-tools.cjs intent drift                    # Drift score (0-100)
-node bin/gsd-tools.cjs intent update --add outcomes --value "DO-05 [P2]: Export to PDF"
+# CLI operations (run via the `bgsd-tools` binary or through workflows)
+node bin/bgsd-tools.cjs plan:intent show                # Compact summary
+node bin/bgsd-tools.cjs plan:intent show --full         # Full content
+node bin/bgsd-tools.cjs plan:intent show outcomes       # Specific section
+node bin/bgsd-tools.cjs plan:intent validate            # Structure check
+node bin/bgsd-tools.cjs plan:intent trace               # Outcomes -> plans matrix
+node bin/bgsd-tools.cjs plan:intent trace --gaps        # Show uncovered outcomes
+node bin/bgsd-tools.cjs plan:intent drift               # Drift score (0-100)
+node bin/bgsd-tools.cjs plan:intent update --add outcomes --value "DO-05 [P2]: Export to PDF"
 ```
 
 **Drift scoring** measures alignment across 4 signals:
@@ -100,7 +100,7 @@ Score 0-30 = aligned, 31-60 = drifting, 61-100 = significantly misaligned.
 Before planning, see what the AI assumes:
 
 ```
-/bgsd-list-assumptions 1
+/bgsd-plan assumptions 1
 ```
 
 Surfaces assumptions across 5 areas with confidence levels:
@@ -117,12 +117,13 @@ No files created. Purely conversational. Correct assumptions before they become 
 Lock down implementation decisions:
 
 ```
-/bgsd-discuss-phase 1
+/bgsd-plan discuss 1
 ```
 
 bGSD identifies gray areas specific to your phase (layout decisions, behavior edge cases, ordering preferences) and lets you choose which to discuss. Produces `CONTEXT.md` with:
 
 - **Locked decisions** — choices the user made
+- **Stress-tested revisions** — decisions updated after adversarial review, plus any narrow follow-on clarifications they forced
 - **Agent's discretion** — areas the agent can decide
 - **Deferred ideas** — captured for later
 
@@ -131,7 +132,7 @@ bGSD identifies gray areas specific to your phase (layout decisions, behavior ed
 For complex or unfamiliar domains:
 
 ```
-/bgsd-research-phase 1
+/bgsd-plan research 1
 ```
 
 Spawns a `gsd-phase-researcher` agent that investigates:
@@ -145,7 +146,7 @@ Produces `{phase}-RESEARCH.md` consumed by the planner.
 ### Step 4: Plan
 
 ```
-/bgsd-plan-phase 1
+/bgsd-plan phase 1
 ```
 
 **Flags:**
@@ -229,7 +230,7 @@ Discovery uses Context7 MCP for library docs and optionally Brave Search for web
 ```
 /bgsd-execute-phase 1 --gaps-only
 ```
-Only executes plans created by `/bgsd-plan-phase --gaps` (from UAT gap closure).
+Only executes plans created by `/bgsd-plan gaps` (from UAT gap closure).
 
 ### Checkpoint Types
 
@@ -252,7 +253,7 @@ feat(auth): implement login endpoint [phase-01/plan-01/task-03]
 
 This enables precise rollback:
 ```
-/bgsd-rollback-info 01-01     # Shows commits and revert command for plan 01-01
+/bgsd-inspect rollback-info 01-01     # Shows commits and revert command for plan 01-01
 ```
 
 ---
@@ -282,7 +283,7 @@ Interactive testing flow:
 2. You test and report: pass, skip, or issue
 3. Issues get severity classification (inferred, never asked)
 4. Gaps are diagnosed by parallel debug agents
-5. Fix plans are generated for `/bgsd-execute-phase --gaps-only`
+5. Fix plans are generated for `/bgsd-execute-phase 1 --gaps-only`
 
 ### Milestone Audit
 
@@ -300,13 +301,13 @@ Spawns `gsd-verifier` to verify cross-phase wiring:
 Produces `MILESTONE-AUDIT.md`. If gaps found:
 
 ```
-/bgsd-plan-gaps     # Creates fix phases for all gaps
+/bgsd-plan gaps 1   # Creates fix plans for Phase 1 gaps
 ```
 
 ### Quality Scoring
 
 ```bash
-node bin/gsd-tools.cjs verify quality --phase 1 --raw
+node bin/bgsd-tools.cjs verify:quality --phase 1 --raw
 ```
 
 Composite A-F grade across 4 dimensions:
@@ -336,8 +337,8 @@ bGSD maintains 5 memory stores in `.planning/memory/`:
 ### Searching Memory
 
 ```
-/bgsd-search-decisions "database"      # Find past decisions
-/bgsd-search-lessons "auth"            # Find lessons learned
+/bgsd-inspect search decisions "database"  # Find past decisions
+/bgsd-inspect search lessons "auth"        # Find lessons learned
 ```
 
 ### Memory in Context
@@ -353,9 +354,9 @@ Memory is trimmed by priority when approaching token budget limits.
 ### Todo Management
 
 ```
-/bgsd-add-todo Fix the edge case in user validation
-/bgsd-check-todos                      # List and work on todos
-/bgsd-check-todos auth                 # Filter by area
+/bgsd-plan todo add "Fix the edge case in user validation"
+/bgsd-plan todo check                  # List and work on todos
+/bgsd-plan todo check auth             # Filter by area
 ```
 
 ---
@@ -370,10 +371,10 @@ Save a named checkpoint at the current state. Each checkpoint automatically capt
 
 ```bash
 # Basic checkpoint
-node bin/gsd-tools.cjs trajectory checkpoint auth-strategy
+node bin/bgsd-tools.cjs execute:trajectory checkpoint auth-strategy
 
 # With scope and description
-node bin/gsd-tools.cjs trajectory checkpoint auth-strategy \
+node bin/bgsd-tools.cjs execute:trajectory checkpoint auth-strategy \
   --scope phase \
   --description "JWT approach with refresh tokens"
 ```
@@ -392,13 +393,13 @@ Calling `checkpoint` again with the same name auto-increments the attempt number
 
 ```bash
 # List all checkpoints
-node bin/gsd-tools.cjs trajectory list
+node bin/bgsd-tools.cjs execute:trajectory list
 
 # Filter by scope or name
-node bin/gsd-tools.cjs trajectory list --scope phase --name auth-strategy
+node bin/bgsd-tools.cjs execute:trajectory list --scope phase --name auth-strategy
 
 # Limit results
-node bin/gsd-tools.cjs trajectory list --limit 5
+node bin/bgsd-tools.cjs execute:trajectory list --limit 5
 ```
 
 In a terminal, this renders a color-coded table showing:
@@ -419,10 +420,10 @@ Compare metrics across all non-abandoned attempts side-by-side. Best values high
 
 ```bash
 # Compare all attempts for a checkpoint
-node bin/gsd-tools.cjs trajectory compare auth-strategy
+node bin/bgsd-tools.cjs execute:trajectory compare auth-strategy
 
 # Scoped comparison
-node bin/gsd-tools.cjs trajectory compare try-redis --scope task
+node bin/bgsd-tools.cjs execute:trajectory compare try-redis --scope task
 ```
 
 Shows test results, LOC delta, and cyclomatic complexity per attempt with best/worst indicators.
@@ -433,13 +434,13 @@ When the current approach isn't working, pivot back to a previous checkpoint wit
 
 ```bash
 # Pivot back to the most recent checkpoint
-node bin/gsd-tools.cjs trajectory pivot auth-strategy --reason "JWT approach too complex"
+node bin/bgsd-tools.cjs execute:trajectory pivot auth-strategy --reason "JWT approach too complex"
 
 # Pivot to a specific attempt
-node bin/gsd-tools.cjs trajectory pivot auth-strategy --attempt 1 --reason "Attempt 1 was simpler"
+node bin/bgsd-tools.cjs execute:trajectory pivot auth-strategy --attempt 1 --reason "Attempt 1 was simpler"
 
 # Auto-stash dirty files before pivoting
-node bin/gsd-tools.cjs trajectory pivot auth-strategy --reason "..." --stash
+node bin/bgsd-tools.cjs execute:trajectory pivot auth-strategy --reason "..." --stash
 ```
 
 **What happens under the hood:**
@@ -454,10 +455,10 @@ When you've explored enough and want to commit to an approach, `choose` merges t
 
 ```bash
 # Select the winning attempt
-node bin/gsd-tools.cjs trajectory choose auth-strategy --attempt 2
+node bin/bgsd-tools.cjs execute:trajectory choose auth-strategy --attempt 2
 
 # With a reason for the journal
-node bin/gsd-tools.cjs trajectory choose auth-strategy --attempt 2 --reason "Better test coverage"
+node bin/bgsd-tools.cjs execute:trajectory choose auth-strategy --attempt 2 --reason "Better test coverage"
 ```
 
 **What happens under the hood:**
@@ -472,10 +473,10 @@ Roll back source code to any git ref while preserving planning state and root co
 
 ```bash
 # Preview changes (safe, read-only)
-node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --dry-run
+node bin/bgsd-tools.cjs util:git rewind --ref trajectory/phase/auth-strategy/attempt-1 --dry-run
 
 # Execute rewind
-node bin/gsd-tools.cjs git rewind --ref trajectory/phase/auth-strategy/attempt-1 --confirm
+node bin/bgsd-tools.cjs util:git rewind --ref trajectory/phase/auth-strategy/attempt-1 --confirm
 ```
 
 **Protected paths** (never rewound):
@@ -495,10 +496,10 @@ Create dedicated exploration branches for longer investigations:
 
 ```bash
 # Create a trajectory branch
-node bin/gsd-tools.cjs git trajectory-branch --phase 5 --slug auth-refactor
+node bin/bgsd-tools.cjs util:git trajectory-branch --phase 5 --slug auth-refactor
 
 # Create and push to origin
-node bin/gsd-tools.cjs git trajectory-branch --phase 5 --slug auth-refactor --push
+node bin/bgsd-tools.cjs util:git trajectory-branch --phase 5 --slug auth-refactor --push
 ```
 
 Creates branch at `gsd/trajectory/5-auth-refactor`. Unlike `trajectory checkpoint`, this **does** check out the new branch.
@@ -509,16 +510,16 @@ The trajectory memory store records more than just checkpoints. Use it as an exp
 
 ```bash
 # Record a decision
-node bin/gsd-tools.cjs memory write --store trajectories \
+node bin/bgsd-tools.cjs util:memory write --store trajectories \
   --entry '{"category":"decision","text":"JWT chosen over sessions for stateless scaling","confidence":"high"}'
 
 # Record an observation
-node bin/gsd-tools.cjs memory write --store trajectories \
+node bin/bgsd-tools.cjs util:memory write --store trajectories \
   --entry '{"category":"observation","text":"Redis sessions add 50ms latency per request"}'
 
 # Query the journal
-node bin/gsd-tools.cjs memory read --store trajectories --category decision
-node bin/gsd-tools.cjs memory read --store trajectories --from 2026-02-01 --limit 10
+node bin/bgsd-tools.cjs util:memory read --store trajectories --category decision
+node bin/bgsd-tools.cjs util:memory read --store trajectories --from 2026-02-01 --limit 10
 ```
 
 Valid categories: `checkpoint`, `decision`, `observation`, `correction`, `hypothesis`, `choose`
@@ -530,25 +531,25 @@ The trajectory store is **sacred** — it is never auto-compacted, so your explo
 
 ```bash
 # 1. Checkpoint current state before exploring
-node bin/gsd-tools.cjs trajectory checkpoint db-layer --description "Prisma ORM"
+node bin/bgsd-tools.cjs execute:trajectory checkpoint db-layer --description "Prisma ORM"
 
 # 2. Build approach A, run tests, iterate
 # ... write code ...
 
 # 3. Checkpoint approach A, start approach B
-node bin/gsd-tools.cjs trajectory checkpoint db-layer --description "Drizzle ORM"
+node bin/bgsd-tools.cjs execute:trajectory checkpoint db-layer --description "Drizzle ORM"
 
 # 4. Build approach B
 # ... write code ...
 
 # 5. Compare metrics across both attempts
-node bin/gsd-tools.cjs trajectory compare db-layer
+node bin/bgsd-tools.cjs execute:trajectory compare db-layer
 
 # 6. Approach B isn't working — pivot back to approach A
-node bin/gsd-tools.cjs trajectory pivot db-layer --attempt 1 --reason "Drizzle had 15% more test failures"
+node bin/bgsd-tools.cjs execute:trajectory pivot db-layer --attempt 1 --reason "Drizzle had 15% more test failures"
 
 # 7. Happy with approach A — choose it as the winner
-node bin/gsd-tools.cjs trajectory choose db-layer --attempt 1 --reason "Better type inference, fewer test failures"
+node bin/bgsd-tools.cjs execute:trajectory choose db-layer --attempt 1 --reason "Better type inference, fewer test failures"
 ```
 
 ---
@@ -600,7 +601,7 @@ Each plan executes in its own git worktree, merged back to main after completion
 Need to insert urgent work between phases 3 and 4?
 
 ```
-/bgsd-insert-phase 3 "Fix critical auth vulnerability"
+/bgsd-plan roadmap insert 3 "Fix critical auth vulnerability"
 ```
 
 Creates phase 3.1 with all the same planning/execution capabilities.
@@ -608,9 +609,9 @@ Creates phase 3.1 with all the same planning/execution capabilities.
 ### Roadmap Evolution
 
 ```
-/bgsd-add-phase "Add export functionality"     # Append to roadmap
-/bgsd-remove-phase 7                            # Remove unstarted phase
-/bgsd-insert-phase 4 "Emergency hotfix"         # Insert between phases
+/bgsd-plan roadmap add "Add export functionality"      # Append to roadmap
+/bgsd-plan roadmap remove 7                             # Remove unstarted phase
+/bgsd-plan roadmap insert 4 "Emergency hotfix"         # Insert between phases
 ```
 
 ### Debug Sessions
@@ -628,7 +629,7 @@ Persistent debug state survives `/clear`:
 ### Velocity Tracking
 
 ```bash
-node bin/gsd-tools.cjs velocity --raw
+node bin/bgsd-tools.cjs execute:velocity --raw
 ```
 
 Shows plans/day, average duration, and completion forecast based on historical execution metrics stored in STATE.md.
@@ -638,7 +639,7 @@ Shows plans/day, average duration, and completion forecast based on historical e
 Trace a single requirement through the entire system:
 
 ```bash
-node bin/gsd-tools.cjs trace-requirement REQ-03 --raw
+node bin/bgsd-tools.cjs util:trace-requirement REQ-03 --raw
 ```
 
 Shows: REQUIREMENTS.md entry -> which PLAN.md files address it -> which SUMMARY.md confirms it -> which actual files on disk implement it.
@@ -646,26 +647,26 @@ Shows: REQUIREMENTS.md entry -> which PLAN.md files address it -> which SUMMARY.
 ### Context Budget Management
 
 ```bash
-node bin/gsd-tools.cjs context-budget .planning/phases/01-setup/01-01-PLAN.md --raw
-node bin/gsd-tools.cjs context-budget baseline          # Save current baseline
-node bin/gsd-tools.cjs context-budget compare            # Compare to baseline
+node bin/bgsd-tools.cjs verify:context-budget .planning/phases/01-setup/01-01-PLAN.md --raw
+node bin/bgsd-tools.cjs verify:context-budget baseline  # Save current baseline
+node bin/bgsd-tools.cjs verify:context-budget compare   # Compare to baseline
 ```
 
 ### Codebase Intelligence
 
 ```bash
-node bin/gsd-tools.cjs codebase analyze --raw          # Full analysis
-node bin/gsd-tools.cjs codebase conventions --raw       # Extract naming patterns
-node bin/gsd-tools.cjs codebase deps --cycles --raw     # Dependency graph + cycles
-node bin/gsd-tools.cjs codebase impact src/auth.ts --raw  # Blast radius
-node bin/gsd-tools.cjs codebase lifecycle --raw          # Migration/schema patterns
+node bin/bgsd-tools.cjs util:codebase analyze --raw       # Full analysis
+node bin/bgsd-tools.cjs util:codebase conventions --raw   # Extract naming patterns
+node bin/bgsd-tools.cjs util:codebase deps --cycles --raw # Dependency graph + cycles
+node bin/bgsd-tools.cjs util:codebase impact src/auth.ts --raw  # Blast radius
+node bin/bgsd-tools.cjs util:codebase lifecycle --raw     # Migration/schema patterns
 ```
 
 ### Environment Detection
 
 ```bash
-node bin/gsd-tools.cjs env scan --raw          # Detect languages, tools, runtimes
-node bin/gsd-tools.cjs env status --raw         # Check manifest freshness
+node bin/bgsd-tools.cjs util:env scan --raw    # Detect languages, tools, runtimes
+node bin/bgsd-tools.cjs util:env status --raw  # Check manifest freshness
 ```
 
 Detects 26 language patterns, package managers, version managers, CI, test frameworks, linters, Docker, MCP servers, and monorepo configs.
@@ -673,9 +674,9 @@ Detects 26 language patterns, package managers, version managers, CI, test frame
 ### MCP Server Profiling
 
 ```bash
-node bin/gsd-tools.cjs mcp profile --raw          # Discover MCP servers, estimate token cost
-node bin/gsd-tools.cjs mcp profile --apply         # Disable recommended servers (backup first)
-node bin/gsd-tools.cjs mcp profile --restore       # Restore from backup
+node bin/bgsd-tools.cjs util:mcp profile --raw      # Discover MCP servers, estimate token cost
+node bin/bgsd-tools.cjs util:mcp profile --apply    # Disable recommended servers (backup first)
+node bin/bgsd-tools.cjs util:mcp profile --restore  # Restore from backup
 ```
 
 ---
@@ -750,11 +751,11 @@ node bin/gsd-tools.cjs mcp profile --restore       # Restore from backup
 ### Config Management
 
 ```bash
-node bin/gsd-tools.cjs config-ensure-section          # Initialize with defaults
-node bin/gsd-tools.cjs config-set model_profile quality  # Set a value
-node bin/gsd-tools.cjs config-get model_profile          # Get a value
-node bin/gsd-tools.cjs config-migrate                    # Add missing keys
-node bin/gsd-tools.cjs validate-config                   # Schema validation
+node bin/bgsd-tools.cjs util:config-ensure-section         # Initialize with defaults
+node bin/bgsd-tools.cjs util:config-set model_profile quality  # Set a value
+node bin/bgsd-tools.cjs util:config-get model_profile         # Get a value
+node bin/bgsd-tools.cjs util:config-migrate                  # Add missing keys
+node bin/bgsd-tools.cjs verify:validate-config               # Schema validation
 ```
 
 Or interactively:
@@ -779,19 +780,19 @@ Save preferred settings globally at `~/.gsd/defaults.json`. These are applied wh
 # -> Answer questions, approve research, review roadmap
 
 # 3. For each phase:
-/bgsd-list-assumptions 1        # Check AI's assumptions
-/bgsd-discuss-phase 1                  # Lock implementation decisions
-/bgsd-plan-phase 1 --research          # Plan with domain research
+/bgsd-plan assumptions 1         # Check AI's assumptions
+/bgsd-plan discuss 1             # Lock implementation decisions
+/bgsd-plan phase 1 --research          # Plan with domain research
 /bgsd-execute-phase 1                  # Execute with wave parallelism
 /bgsd-verify-work 1                    # Manual UAT testing
 
 # 4. If UAT finds gaps:
-/bgsd-plan-phase 1 --gaps              # Plan fixes for gaps
+/bgsd-plan gaps 1                      # Plan fixes for gaps
 /bgsd-execute-phase 1 --gaps-only      # Execute only gap plans
 
 # 5. Before milestone completion:
 /bgsd-audit-milestone                  # Cross-phase integration check
-/bgsd-plan-gaps              # Fix any integration gaps
+/bgsd-plan gaps                       # Fix any integration gaps
 
 # 6. Complete milestone:
 /bgsd-complete-milestone

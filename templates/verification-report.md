@@ -20,6 +20,16 @@ score: N/M must-haves verified
 **Verified:** {timestamp}
 **Status:** {passed | gaps_found | human_needed}
 
+## Intent Alignment
+
+**Verdict:** {aligned | partial | misaligned | not assessed}
+
+**Why:** {Short plain-language explanation tied to Local Purpose, Expected User Change, and Non-Goals.}
+
+**Rule:** If the core expected user change did not land, this verdict cannot be `partial`; it must be `misaligned`.
+
+**Legacy fallback:** If the phase has no explicit phase-intent block, use `not assessed` (or unavailable) with a plain reason instead of guessing.
+
 ## Goal Achievement
 
 ### Observable Truths
@@ -166,6 +176,11 @@ None — all verifiable items checked programmatically.
 - `gaps_found` — One or more critical gaps found
 - `human_needed` — Automated checks pass but human verification required
 
+**Intent alignment verdicts:**
+- `aligned | partial | misaligned`
+- `partial` is only for supporting or edge-shaping misses after the core expected user change landed
+- missing phase-intent block → `not assessed` / unavailable with a plain reason
+
 **Evidence types:**
 - For EXISTS: "File at path, exports X"
 - For SUBSTANTIVE: "N lines, has patterns X, Y, Z"
@@ -200,6 +215,14 @@ score: 2/5 must-haves verified
 **Phase Goal:** Working chat interface where users can send and receive messages
 **Verified:** 2025-01-15T14:30:00Z
 **Status:** gaps_found
+
+## Intent Alignment
+
+**Verdict:** misaligned
+
+**Why:** The phase promised users could send and receive messages, but the core expected user change did not land because the UI and API are still placeholder-heavy.
+
+**Rule:** If the core expected user change did not land, this verdict cannot be `partial`; it must be `misaligned`.
 
 ## Goal Achievement
 

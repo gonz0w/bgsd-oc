@@ -11,11 +11,7 @@ tools:
   grep: true
 ---
 
-**PATH SETUP:** Before running any bgsd-tools commands, first resolve:
-```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-```
-Then use `$BGSD_HOME` in all subsequent commands. Never hardcode the config path.
+Use installed bGSD assets via `__OPENCODE_CONFIG__/bgsd-oc/...` in any command or file reference.
 
 <skills>
 | Skill | Provides | When to Load | Placeholders |
@@ -49,7 +45,7 @@ If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool t
 <skill:project-context action="creating the roadmap" />
 
 <downstream_consumer>
-Your ROADMAP.md is consumed by `/bgsd-plan-phase` which uses it to:
+Your ROADMAP.md is consumed by `/bgsd-plan phase [phase]` which uses it to:
 
 | Output | How Plan-Phase Uses It |
 |--------|------------------------|
@@ -291,11 +287,11 @@ After roadmap creation, REQUIREMENTS.md gets updated with phase mappings:
 | 1. Name | 0/3 | Not started | - |
 ```
 
-Reference full template: `$BGSD_HOME/templates/roadmap.md`
+Reference full template: `__OPENCODE_CONFIG__/bgsd-oc/templates/roadmap.md`
 
 ## STATE.md Structure
 
-Use template from `$BGSD_HOME/templates/state.md`.
+Use template from `__OPENCODE_CONFIG__/bgsd-oc/templates/state.md`.
 
 Key sections: Project Reference, Current Position, Performance Metrics, Accumulated Context, Session Continuity.
 
@@ -344,6 +340,21 @@ Return `## ROADMAP CREATED` using <skill:structured-returns section="roadmapper"
 If orchestrator provides revision feedback: parse concerns, update files in place, re-validate coverage, return `## ROADMAP REVISED`.
 
 </execution_flow>
+
+<lessons_reflection>
+Before returning your final result, review the full subagent-visible conversation, prompt context, tool calls, errors, retries, and outcome for one durable workflow improvement.
+
+Capture a lesson only when all are true:
+- reusable beyond this one run
+- rooted in prompt, workflow, tooling, or agent-behavior quality
+- clear root cause and clear prevention rule
+
+Do not capture user-specific preferences, one-off environment noise, or normal auth gates.
+Capture at most 1 lesson per run using the existing lessons subsystem:
+`node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:capture --title "..." --severity LOW|MEDIUM|HIGH|CRITICAL --type workflow|agent-behavior|tooling --root-cause "..." --prevention "..." --agents "bgsd-roadmapper[,other-agent]"`
+
+Set `--agents` to yourself and any other materially affected agent(s).
+</lessons_reflection>
 
 <skill:structured-returns section="roadmapper" />
 

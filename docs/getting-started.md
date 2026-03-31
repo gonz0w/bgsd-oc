@@ -65,13 +65,13 @@ Created .planning/:
   STATE.md         - Project state tracker
   config.json      - Workflow configuration
 
-Next up: /bgsd-plan-phase 1
+Next up: /bgsd-plan phase 1
 ```
 
 ### Step 2: Plan the First Phase
 
 ```
-/bgsd-plan-phase 1
+/bgsd-plan phase 1
 ```
 
 bGSD reads your roadmap, understands the phase goal, and creates executable plans. Each plan is a detailed task breakdown with:
@@ -111,13 +111,13 @@ Wave 2: [01-03 IN PROGRESS]
 ### Step 4: Check Progress
 
 ```
-/bgsd-progress
+/bgsd-inspect progress
 ```
 
 Shows milestone progress, recent work, and intelligently routes you to the next action:
 
-- More plans to execute? Routes to `/bgsd-execute-phase`
-- Phase needs planning? Routes to `/bgsd-plan-phase`
+- More plans to execute? Routes to `/bgsd-execute-phase 1`
+- Phase needs planning? Routes to `/bgsd-plan phase 2`
 - All phases done? Routes to `/bgsd-complete-milestone`
 
 ### Step 5: Continue Through Phases
@@ -125,9 +125,9 @@ Shows milestone progress, recent work, and intelligently routes you to the next 
 Repeat the plan-execute cycle for each phase:
 
 ```
-/bgsd-plan-phase 2
+/bgsd-plan phase 2
 /bgsd-execute-phase 2
-/bgsd-plan-phase 3
+/bgsd-plan phase 3
 /bgsd-execute-phase 3
 ...
 ```
@@ -193,13 +193,13 @@ When you're unsure which implementation approach to take, bGSD's trajectory syst
 
 ```bash
 # 1. You've written some code for approach A. Checkpoint it:
-node bin/gsd-tools.cjs trajectory checkpoint auth-flow --description "JWT tokens with refresh"
+node bin/bgsd-tools.cjs execute:trajectory checkpoint auth-flow --description "JWT tokens with refresh"
 
 # 2. Keep coding — try approach B instead. Checkpoint again:
-node bin/gsd-tools.cjs trajectory checkpoint auth-flow --description "Session-based with Redis"
+node bin/bgsd-tools.cjs execute:trajectory checkpoint auth-flow --description "Session-based with Redis"
 
 # 3. See all your checkpoints with auto-collected metrics:
-node bin/gsd-tools.cjs trajectory list
+node bin/bgsd-tools.cjs execute:trajectory list
 ```
 
 The `trajectory list` command shows a table with:
@@ -214,7 +214,7 @@ Compare metrics across all your attempts:
 
 ```bash
 # Side-by-side comparison (best values highlighted green, worst red)
-node bin/gsd-tools.cjs trajectory compare auth-flow
+node bin/bgsd-tools.cjs execute:trajectory compare auth-flow
 ```
 
 ### Pivoting When Something Isn't Working
@@ -223,7 +223,7 @@ If approach B isn't working and you want to go back to approach A:
 
 ```bash
 # Pivot back with a reason (auto-archives current work, rewinds to checkpoint)
-node bin/gsd-tools.cjs trajectory pivot auth-flow --reason "Session approach too complex for our API"
+node bin/bgsd-tools.cjs execute:trajectory pivot auth-flow --reason "Session approach too complex for our API"
 ```
 
 This automatically:
@@ -237,7 +237,7 @@ When you've decided on the best approach:
 
 ```bash
 # Merge the winner, archive alternatives as tags, clean up branches
-node bin/gsd-tools.cjs trajectory choose auth-flow --attempt 1 --reason "Better test coverage"
+node bin/bgsd-tools.cjs execute:trajectory choose auth-flow --attempt 1 --reason "Better test coverage"
 ```
 
 ### Scoping Checkpoints
@@ -246,13 +246,13 @@ Use `--scope` to organize checkpoints by granularity:
 
 ```bash
 # Phase-level (default)
-node bin/gsd-tools.cjs trajectory checkpoint my-feature --scope phase
+node bin/bgsd-tools.cjs execute:trajectory checkpoint my-feature --scope phase
 
 # Task-level
-node bin/gsd-tools.cjs trajectory checkpoint db-schema --scope task
+node bin/bgsd-tools.cjs execute:trajectory checkpoint db-schema --scope task
 
 # Filter by scope when listing
-node bin/gsd-tools.cjs trajectory list --scope task
+node bin/bgsd-tools.cjs execute:trajectory list --scope task
 ```
 
 ### Recording Exploration Notes
@@ -261,10 +261,10 @@ The trajectory journal also stores decisions and observations:
 
 ```bash
 # Record a decision during exploration
-node bin/gsd-tools.cjs memory write --store trajectories --entry '{"category":"decision","text":"Chose JWT over sessions because of stateless API requirement","confidence":"high"}'
+node bin/bgsd-tools.cjs util:memory write --store trajectories --entry '{"category":"decision","text":"Chose JWT over sessions because of stateless API requirement","confidence":"high"}'
 
 # Read back your trajectory journal
-node bin/gsd-tools.cjs memory read --store trajectories
+node bin/bgsd-tools.cjs util:memory read --store trajectories
 ```
 
 ---
@@ -284,8 +284,8 @@ If you're adding bGSD to an existing codebase, map it first:
 
 ```
 /bgsd-help                   # Full command reference
-/bgsd-health                 # Check .planning/ directory integrity
-/bgsd-progress               # Current state and next action
+/bgsd-inspect health         # Check .planning/ directory integrity
+/bgsd-inspect progress       # Current state and next action
 ```
 
 ### Debugging Issues
@@ -334,13 +334,13 @@ Restart OpenCode after installation. bGSD registers commands at `~/.config/openc
 
 ### Plans seem too large or too small
 
-Adjust planning depth in `/bgsd-settings`, or use `/bgsd-discuss-phase` before planning to lock down scope.
+Adjust planning depth in `/bgsd-settings`, or use `/bgsd-plan discuss 1` before planning to lock down scope.
 
 ### Want to skip research/verification
 
 ```
-/bgsd-plan-phase 1 --skip-research    # Skip research phase
-/bgsd-settings                         # Toggle agents off permanently
+/bgsd-plan phase 1 --skip-research    # Skip research phase
+/bgsd-settings                        # Toggle agents off permanently
 ```
 
 ### Context window filling up

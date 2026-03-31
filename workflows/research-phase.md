@@ -1,7 +1,7 @@
 <purpose>
 Research how to implement a phase. Spawns bgsd-phase-researcher with phase context.
 
-Standalone research command. For most workflows, use `/bgsd-plan-phase` which integrates research automatically.
+Standalone research command. For most workflows, use `/bgsd-plan phase <phase-number>` which integrates research automatically.
 </purpose>
 
 <process>
@@ -20,9 +20,9 @@ Resolve model for:
 Extract `PHASE` from `$ARGUMENTS` (first non-flag token). **Phase number is required.** If no phase number provided:
 ```
 ERROR: Phase number required.
-Usage: /bgsd-research-phase <phase-number>
-Example: /bgsd-research-phase 92
-Use /bgsd-progress to see available phases.
+Usage: /bgsd-plan research <phase-number>
+Example: /bgsd-plan research 92
+Use /bgsd-inspect progress to see available phases.
 ```
 Exit.
 
@@ -48,14 +48,30 @@ If doesn't exist: Continue.
 
 **If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
 
-Extract from `<bgsd-context>` JSON: `phase_dir`, `padded_phase`, `phase_number`, `commit_docs`, `state_path`, `requirements_path`, `context_path`, `research_path`.
+Extract from `<bgsd-context>` JSON: `phase_dir`, `padded_phase`, `phase_number`, `commit_docs`, `state_path`, `requirements_path`, `context_path`, `research_path`, `resume_summary`, `effective_intent`, `jj_planning_context`.
 
 Use paths from `<bgsd-context>` (do not inline file contents in orchestrator context):
 - `requirements_path`
 - `context_path`
 - `state_path`
 
-Present summary with phase description and what files the researcher will load.
+Treat injected `effective_intent` as the default planning-alignment contract and injected `jj_planning_context` as advisory capability context only. Do not depend on live workspace inventory.
+
+If explicit file-ownership or overlap evidence suggests low-risk parallelism, the researcher may note a manual preference for safe low-overlap sibling work. Do not turn that into an automatic routing heuristic.
+
+Present summary with phase description, effective intent, advisory JJ capability context, and what files the researcher will load.
+
+## Step 3.2: Gate Active Chain Continuation
+
+Treat chain state as additive:
+
+- If `resume_summary` is absent: standalone research continues normally.
+- If `resume_summary` is present and `latest_valid_step == "discuss"`: offer the exact `resume` / `inspect` / `restart` contract and use the latest valid artifact as the continuation source.
+- If `resume_summary` is present but `valid` is false: fail closed. Show `repair_guidance`, stop, and do not guess continuation from `STATE.md` or partial markdown artifacts.
+- If `resume_summary` is present but points at a later step than `discuss`: fail closed with repair or restart guidance instead of silently restarting research.
+- If the active handoff is stale (`stale_sources` true or equivalent validation warning): rebuild from source, validate that the reconstructed state now matches the current expected fingerprint, and only then allow research continuation.
+
+When a corrupt newest artifact exists beside an older valid one, continue from the latest valid artifact rather than the newest file blindly.
 
 ## Step 3.5: Collect Research Sources
 
@@ -117,12 +133,14 @@ Mode: ecosystem
 - {requirements_path} (Requirements)
 - {context_path} (Phase context from discuss-phase, if exists)
 - {state_path} (Prior project decisions and blockers)
-- .planning/INTENT.md (Project intent — objective, desired outcomes, target users. Skip if absent.)
 </files_to_read>
 
 <additional_context>
 **Phase description:** {phase_description}
-If INTENT.md exists: scope research to align with stated project objective and desired outcomes. Prioritize findings relevant to P1 outcomes.
+Use injected `effective_intent` as the default source for project objective, milestone focus, and relevant desired outcomes. Prioritize findings relevant to the most important active outcomes.
+Use injected `jj_planning_context` only as capability context. Do not rely on live workspace inventory.
+If explicit overlap evidence supports it, you may mention a manual preference for safe low-overlap sibling work. Do not auto-route or recommend siblings heuristically.
+Read raw intent source docs only when direct editing or source-text review is genuinely necessary.
 
 {If TIER < 4 AND AGENT_CONTEXT is non-empty:}
 The following sources were collected automatically from web search and YouTube. Use them to ground your research findings. Cite sources by URL when referencing specific information.
@@ -132,7 +150,7 @@ The following sources were collected automatically from web search and YouTube. 
 </additional_context>
 
 <downstream_consumer>
-Your RESEARCH.md will be loaded by `/bgsd-plan-phase` which uses specific sections:
+Your RESEARCH.md will be loaded by `/bgsd-plan phase <phase-number>` which uses specific sections:
 - `## Standard Stack` → Plans use these libraries
 - `## Architecture Patterns` → Task structure follows these
 - `## Don't Hand-Roll` → Tasks NEVER build custom solutions for listed problems
@@ -164,6 +182,17 @@ Write to: .planning/phases/${PHASE}-{slug}/${PHASE}-RESEARCH.md
 
 **`## RESEARCH COMPLETE`:** Display summary, offer: Plan phase, Dig deeper, Review full, Done.
 
+Before offering the next step or `--auto` continuation, write or refresh the durable `research` handoff artifact:
+
+```bash
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \
+  --phase "${PHASE}" \
+  --step research \
+  --summary "Research ready for Phase ${PHASE}" \
+  --resume-file "${research_path}" \
+  --next-command "/bgsd-plan phase ${PHASE}"
+```
+
 **`## CHECKPOINT REACHED`:** Present to user, get response, spawn continuation.
 
 **`## RESEARCH INCONCLUSIVE`:** Show what was attempted, offer: Add context, Try different mode, Manual.
@@ -189,7 +218,7 @@ Continue research for Phase {phase_number}: {phase_name}
 
 ```
 Task(
-  prompt="First, read __OPENCODE_CONFIG__/agents/bgsd-phase-researcher.md for your role and instructions.\n\n" + continuation_prompt,
+  prompt="First, read __OPENCODE_CONFIG__/agents/bgsd-phase-researcher.md for your role and instructions.\n\n" + continuation_prompt + "\n\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.",
   subagent_type="general",
   model="{researcher_model}",
   description="Continue research Phase {phase}"

@@ -1,12 +1,11 @@
----
-description: Research phase requirements before planning
+description: Compatibility alias for the canonical planning-family research action
 ---
 <objective>
-Research and investigate requirements for a specific phase.
+Preserve the legacy research entrypoint while routing to canonical `/bgsd-plan research` behavior.
 </objective>
 
 <execution_context>
-@__OPENCODE_CONFIG__/bgsd-oc/workflows/research-phase.md
+@__OPENCODE_CONFIG__/bgsd-oc/commands/bgsd-plan.md
 </execution_context>
 
 <context>
@@ -14,6 +13,9 @@ $ARGUMENTS: Phase number (e.g., 108)
 </context>
 
 <process>
-Execute the research-phase workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/research-phase.md end-to-end.
-Pass phase number from arguments to workflow.
+Treat `/bgsd-research-phase` as a compatibility alias only.
+
+Translate the request to canonical `/bgsd-plan research $ARGUMENTS` behavior and follow the shared planning-family contract in @__OPENCODE_CONFIG__/bgsd-oc/commands/bgsd-plan.md.
+
+Do not present this alias as the preferred path.
 </process>

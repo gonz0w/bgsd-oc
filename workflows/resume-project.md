@@ -111,9 +111,9 @@ Route based on selection:
   ```
   ## ▶ Next Up
   **Phase [N]: [Name]** — [Goal]
-  `/bgsd-plan-phase [N]`
+  `/bgsd-plan phase [N]`
   <sub>`/clear` first → fresh context window</sub>
-  **Also available:** `/bgsd-discuss-phase [N]`
+  **Also available:** `/bgsd-plan discuss [N]`
   ```
 
 - **Transition** → `./transition.md`

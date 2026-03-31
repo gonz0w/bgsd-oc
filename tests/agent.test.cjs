@@ -11,9 +11,20 @@ const { execSync } = require('child_process');
 const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
 
 describe('agent manifests: AGENT_MANIFESTS structure', () => {
-  test('has entries for all 6 agent types', () => {
+  test('has entries for all supported agent types', () => {
     const ctx = require('../src/lib/context');
-    const types = ['bgsd-executor', 'bgsd-verifier', 'bgsd-planner', 'bgsd-phase-researcher', 'bgsd-plan-checker', 'bgsd-reviewer'];
+    const types = [
+      'bgsd-executor',
+      'bgsd-verifier',
+      'bgsd-planner',
+      'bgsd-phase-researcher',
+      'bgsd-plan-checker',
+      'bgsd-reviewer',
+      'bgsd-roadmapper',
+      'bgsd-project-researcher',
+      'bgsd-debugger',
+      'bgsd-codebase-mapper',
+    ];
     for (const t of types) {
       assert.ok(ctx.AGENT_MANIFESTS[t], `Missing manifest for ${t}`);
       assert.ok(Array.isArray(ctx.AGENT_MANIFESTS[t].fields), `${t} should have fields array`);
@@ -35,19 +46,23 @@ describe('agent manifests: AGENT_MANIFESTS structure', () => {
 describe('agent manifests: scopeContextForAgent', () => {
   const ctx = require('../src/lib/context');
 
-  test('bgsd-executor gets task_routing but not intent_drift', () => {
+  test('bgsd-executor gets workspace metadata but not intent_drift', () => {
     const result = {
       phase_dir: '/test', phase_number: '38', phase_name: 'test',
       plans: [], incomplete_plans: [], plan_count: 0, incomplete_count: 0,
       branch_name: 'gsd/phase-38', commit_docs: true, verifier_enabled: true,
+      workspace_enabled: true,
+      workspace_config: { base_path: '/tmp/workspaces', max_concurrent: 3 },
+      workspace_active: [],
+      file_overlaps: [],
       task_routing: { plans: [] }, env_summary: 'node',
       intent_drift: { score: 20 }, intent_summary: 'Build stuff',
-      worktree_config: {}, worktree_active: [], file_overlaps: [],
       codebase_stats: { total: 100 }, codebase_freshness: null,
     };
     const scoped = ctx.scopeContextForAgent(result, 'bgsd-executor');
     assert.strictEqual(scoped._agent, 'bgsd-executor');
     assert.ok('task_routing' in scoped, 'Should include task_routing');
+    assert.ok('workspace_config' in scoped, 'Should include workspace_config');
     assert.ok(!('intent_drift' in scoped), 'Should exclude intent_drift');
     assert.ok(!('worktree_config' in scoped), 'Should exclude worktree_config');
   });
@@ -56,14 +71,69 @@ describe('agent manifests: scopeContextForAgent', () => {
     const result = {
       phase_dir: '/test', phase_number: '38', phase_name: 'test',
       plans: [], summaries: [], verifier_enabled: true,
+      effective_intent: { advisory: true },
+      workspace_active: [{ plan_id: '38-01' }], workspace_config: { max_concurrent: 3 },
       task_routing: { plans: [] }, env_summary: 'node',
       intent_drift: { score: 20 }, codebase_stats: { total: 100 },
     };
     const scoped = ctx.scopeContextForAgent(result, 'bgsd-verifier');
     assert.strictEqual(scoped._agent, 'bgsd-verifier');
     assert.ok('phase_dir' in scoped, 'Should include phase_dir');
+    assert.deepStrictEqual(scoped.effective_intent, { advisory: true }, 'Should preserve effective_intent');
     assert.ok(!('task_routing' in scoped), 'Should exclude task_routing');
     assert.ok(!('env_summary' in scoped), 'Should exclude env_summary');
+    assert.ok(!('workspace_active' in scoped), 'Should exclude workspace_active');
+    assert.ok(!('workspace_config' in scoped), 'Should exclude workspace_config');
+  });
+
+  test('planning and research agents keep effective_intent in scoped payloads', () => {
+    const result = {
+      phase_dir: '/test',
+      phase_number: '157',
+      phase_name: 'Planning Context Cascade',
+      plan_count: 4,
+      research_enabled: true,
+      plan_checker_enabled: true,
+      intent_summary: { objective: 'north star' },
+      effective_intent: { advisory: true, effective: { objective: 'current focus' } },
+      tool_availability: { fd: true },
+      workspace_active: [{ name: '157-03' }],
+      workspace_config: { base_path: '/tmp/ws', max_concurrent: 3 },
+      decisions: { 'search-mode': { value: 'ripgrep' } },
+      env_summary: 'node',
+      verifier_enabled: true,
+      plans: ['157-03-PLAN.md'],
+      incomplete_plans: ['157-03-PLAN.md'],
+    };
+
+    for (const agentType of ['bgsd-planner', 'bgsd-phase-researcher', 'bgsd-roadmapper', 'bgsd-project-researcher']) {
+      const scoped = ctx.scopeContextForAgent(result, agentType);
+      assert.deepStrictEqual(scoped.effective_intent, result.effective_intent, `${agentType} should preserve effective_intent`);
+    }
+  });
+
+  test('cached manifest mirror keeps effective_intent for scoped planning agents', () => {
+    const { generateAgentContexts } = require('../src/lib/codebase-intel');
+    const tmpDir = createTempProject();
+
+    try {
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State\n\n## Current Position\n\n**Phase:** 157\n**Current Plan:** 03\n**Total Plans in Phase:** 4\n**Status:** Ready to execute\n**Last Activity:** 2026-03-29\n`);
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap\n\n### Phase 157: Planning Context Cascade\n**Goal:** Keep compact intent context aligned\n**Plans:** 4 plans\n`);
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'INTENT.md'), `# Intent\n\n<objective>Project objective</objective>\n`);
+      fs.writeFileSync(path.join(tmpDir, '.planning', 'MILESTONE-INTENT.md'), `# Milestone Intent\n\n<objective>Milestone focus</objective>\n`);
+      const phaseDir = path.join(tmpDir, '.planning', 'phases', '157-planning-context-cascade');
+      fs.mkdirSync(phaseDir, { recursive: true });
+      fs.writeFileSync(path.join(phaseDir, '157-CONTEXT.md'), `# Context\n\n<domain>\nGoal\n</domain>\n\n<decisions>\n- Keep intent compact.\n</decisions>\n\n<specifics>\n- Phase purpose: Ensure scoped agents keep effective intent.\n</specifics>\n`);
+
+      const contexts = generateAgentContexts(tmpDir, { stats: { total_files: 1, total_lines: 1 }, git_commit_hash: 'abc123', generated_at: new Date().toISOString() });
+
+      for (const agentType of ['bgsd-planner', 'bgsd-phase-researcher', 'bgsd-roadmapper', 'bgsd-project-researcher', 'bgsd-verifier']) {
+        assert.ok(contexts[agentType], `Expected cached context for ${agentType}`);
+        assert.ok(contexts[agentType].effective_intent, `${agentType} cached context should include effective_intent`);
+      }
+    } finally {
+      cleanup(tmpDir);
+    }
   });
 
   test('unknown agent type returns full result', () => {
@@ -79,9 +149,11 @@ describe('agent manifests: scopeContextForAgent', () => {
       phase_dir: '/test', phase_number: '38', phase_name: 'test',
       plans: [], incomplete_plans: [], plan_count: 0, incomplete_count: 0,
       branch_name: 'gsd/38', commit_docs: true, verifier_enabled: true,
+      workspace_enabled: true,
+      workspace_config: { base_path: '/tmp/workspaces', max_concurrent: 3 },
+      workspace_active: [], file_overlaps: [],
       task_routing: null, env_summary: null,
       intent_drift: { score: 5 }, intent_summary: 'test',
-      worktree_config: {}, worktree_active: [], file_overlaps: [],
       codebase_stats: null, codebase_freshness: null,
       codebase_conventions: null, codebase_dependencies: null,
     };
@@ -209,6 +281,7 @@ describe('agent manifests: init --agent integration', () => {
     assert.ok(parsed._savings, 'Should include _savings');
     assert.ok('phase_dir' in parsed, 'Should include phase_dir');
     assert.ok('task_routing' in parsed, 'Should include task_routing');
+    assert.ok('workspace_config' in parsed, 'Should include workspace_config');
     assert.ok(!('intent_drift' in parsed), 'Should not include intent_drift');
     assert.ok(!('worktree_config' in parsed), 'Should not include worktree_config');
   });
@@ -339,8 +412,16 @@ describe('buildTaskContext: integration tests (CLI)', () => {
     // codebase-intel.js imports output.js, git.js, helpers.js — check at least one dep is present
     const hasDep = paths.includes('src/lib/output.js') || paths.includes('src/lib/git.js') || paths.includes('src/lib/helpers.js');
     assert.ok(hasDep, `Expected at least one dependency of codebase-intel.js in context. Got: ${paths.join(', ')}`);
-    // Check importers are also present (codebase.js imports codebase-intel.js)
-    const hasImporter = paths.includes('src/commands/codebase.js') || paths.includes('src/commands/init.js') || paths.includes('src/lib/deps.js');
+    // Check importers are also present. Keep this list broad enough to match the
+    // current codebase as command/context wiring evolves.
+    const hasImporter = [
+      'src/commands/codebase.js',
+      'src/commands/init.js',
+      'src/lib/deps.js',
+      'src/commands/misc.js',
+      'src/commands/features.js',
+      'src/lib/context.js',
+    ].some(importer => paths.includes(importer));
     assert.ok(hasImporter, `Expected at least one importer of codebase-intel.js in context. Got: ${paths.join(', ')}`);
   });
 });
@@ -370,13 +451,33 @@ describe('review command', () => {
 });
 
 describe('tdd', () => {
+  test('execute:tdd help sources expose canonical contract commands', () => {
+    const constants = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'constants.js'), 'utf-8');
+    const commandHelp = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'command-help.js'), 'utf-8');
+
+    assert.match(constants, /Canonical TDD contract command surfaces\./);
+    assert.match(constants, /exact-command validation and\s+structured proof/i);
+    assert.match(commandHelp, /Run exact-command TDD contract checks and proof helpers/);
+    assert.match(constants, /validate-red/);
+    assert.match(constants, /validate-green/);
+    assert.match(constants, /validate-refactor/);
+    assert.match(constants, /auto-test/);
+    assert.match(constants, /detect-antipattern/);
+  });
+
   test('validate-red succeeds when test fails (exit 1)', () => {
     const result = runGsdTools('execute:tdd validate-red --test-cmd "exit 1"');
     assert.ok(result.success, `Command failed: ${result.error}`);
     const parsed = JSON.parse(result.output);
     assert.strictEqual(parsed.phase, 'red');
     assert.strictEqual(parsed.valid, true);
+    assert.strictEqual(parsed.target_command, 'exit 1');
     assert.strictEqual(parsed.test_exit_code, 1);
+    assert.strictEqual(parsed.proof.target_command, 'exit 1');
+    assert.strictEqual(parsed.proof.exit_code, 1);
+    assert.strictEqual(parsed.proof.expected_outcome, 'fail');
+    assert.strictEqual(parsed.proof.observed_outcome, 'fail');
+    assert.strictEqual(typeof parsed.proof.evidence.snippet, 'string');
   });
 
   test('validate-red fails when test passes (exit 0)', () => {
@@ -388,12 +489,25 @@ describe('tdd', () => {
     assert.strictEqual(parsed.test_exit_code, 0);
   });
 
+  test('validate-red rejects missing target command', () => {
+    const result = runGsdTools('execute:tdd validate-red --test-cmd "definitely-not-a-real-bgsd-command-12345"');
+    assert.ok(!result.success, 'Should fail when red target command is missing');
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'red');
+    assert.strictEqual(parsed.valid, false);
+    assert.strictEqual(parsed.proof.target_missing, true);
+    assert.strictEqual(parsed.proof.evidence.type, 'missing-target');
+  });
+
   test('validate-green succeeds when test passes (exit 0)', () => {
     const result = runGsdTools('execute:tdd validate-green --test-cmd "exit 0"');
     assert.ok(result.success, `Command failed: ${result.error}`);
     const parsed = JSON.parse(result.output);
     assert.strictEqual(parsed.phase, 'green');
     assert.strictEqual(parsed.valid, true);
+    assert.strictEqual(parsed.target_command, 'exit 0');
+    assert.strictEqual(parsed.proof.expected_outcome, 'pass');
+    assert.strictEqual(parsed.proof.observed_outcome, 'pass');
   });
 
   test('validate-green fails when test fails (exit 1)', () => {
@@ -410,6 +524,16 @@ describe('tdd', () => {
     const parsed = JSON.parse(result.output);
     assert.strictEqual(parsed.phase, 'refactor');
     assert.strictEqual(parsed.valid, true);
+    assert.strictEqual(parsed.proof.expected_outcome, 'pass');
+  });
+
+  test('validate-refactor rejects regressions when target fails', () => {
+    const result = runGsdTools('execute:tdd validate-refactor --test-cmd "exit 1"');
+    assert.ok(!result.success, 'Should fail when refactor target regresses');
+    const parsed = JSON.parse(result.output);
+    assert.strictEqual(parsed.phase, 'refactor');
+    assert.strictEqual(parsed.valid, false);
+    assert.strictEqual(parsed.proof.observed_outcome, 'fail');
   });
 
   test('auto-test reports pass', () => {
@@ -418,6 +542,8 @@ describe('tdd', () => {
     const parsed = JSON.parse(result.output);
     assert.strictEqual(parsed.passed, true);
     assert.strictEqual(parsed.exit_code, 0);
+    assert.strictEqual(parsed.target_command, 'exit 0');
+    assert.strictEqual(parsed.proof.target_command, 'exit 0');
   });
 
   test('auto-test reports fail', () => {
@@ -606,10 +732,10 @@ Some performance data.
 Some accomplishments.
 `);
 
-    // Run validate-contracts against phase 01 with BGSD_HOME pointing to tmpDir
-    // We can't easily override BGSD_HOME for the CLI, so test the module directly
+    // Run validate-contracts against phase 01 with plugin assets rooted at tmpDir
+    // We can't easily override plugin asset resolution for the CLI here, so test the module directly
     const agentModule = require('../src/commands/agent');
-    // The module uses resolveBgsdPaths which reads BGSD_HOME env
+    // The module resolves plugin paths internally
     // For this test, we verify the parseContractArrays and contentHasSection logic
     assert.ok(agentModule.parseRaciMatrix, 'parseRaciMatrix should be exported');
   });
@@ -628,4 +754,3 @@ Some accomplishments.
     }
   });
 });
-

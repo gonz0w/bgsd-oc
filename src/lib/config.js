@@ -1,13 +1,25 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { CONFIG_SCHEMA } = require('./constants');
-const { debugLog } = require('./output');
+const { normalizeConfig } = require('./config-contract');
+const { debugLog, error } = require('./output');
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 /** Module-level config cache — keyed by cwd, lives for single CLI invocation */
 const _configCache = new Map();
+
+function readRawConfig(cwd) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  const raw = fs.readFileSync(configPath, 'utf-8');
+  const parsed = JSON.parse(raw);
+
+  if (parsed && typeof parsed === 'object' && Object.prototype.hasOwnProperty.call(parsed, 'worktree')) {
+    error('Legacy `.planning/config.json.worktree` is no longer supported. Migrate to `.planning/config.json.workspace` with supported JJ settings like `base_path` and `max_concurrent` before running bGSD commands.');
+  }
+
+  return parsed;
+}
 
 function loadConfig(cwd) {
   if (_configCache.has(cwd)) {
@@ -15,48 +27,23 @@ function loadConfig(cwd) {
     return _configCache.get(cwd);
   }
 
-  const configPath = path.join(cwd, '.planning', 'config.json');
-
-  // Build defaults from CONFIG_SCHEMA
-  const defaults = {};
-  for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
-    defaults[key] = def.default;
-  }
-
   try {
-    const raw = fs.readFileSync(configPath, 'utf-8');
-    const parsed = JSON.parse(raw);
-
-    // Lookup priority: flat key → nested path → aliases
-    const get = (key, def) => {
-      if (parsed[key] !== undefined) return parsed[key];
-      if (def.nested && parsed[def.nested.section] && parsed[def.nested.section][def.nested.field] !== undefined) {
-        return parsed[def.nested.section][def.nested.field];
-      }
-      for (const alias of def.aliases) {
-        if (parsed[alias] !== undefined) return parsed[alias];
-      }
-      return undefined;
-    };
-
-    const result = {};
-    for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
-      if (def.coerce === 'parallelization') {
-        // Special coercion: {enabled: true} → true
-        const val = get(key, def);
-        if (typeof val === 'boolean') { result[key] = val; }
-        else if (typeof val === 'object' && val !== null && 'enabled' in val) { result[key] = val.enabled; }
-        else { result[key] = def.default; }
-      } else {
-        result[key] = get(key, def) ?? def.default;
-      }
-    }
+    const result = normalizeConfig(readRawConfig(cwd), { freeze: false });
     _configCache.set(cwd, result);
     return result;
   } catch (e) {
     debugLog('config.load', 'parse config.json failed, using defaults', e);
+    const defaults = normalizeConfig({}, { freeze: false });
     _configCache.set(cwd, defaults);
     return defaults;
+  }
+}
+
+function invalidateConfigCache(cwd) {
+  if (cwd) {
+    _configCache.delete(cwd);
+  } else {
+    _configCache.clear();
   }
 }
 
@@ -73,4 +60,4 @@ function isGitIgnored(cwd, targetPath) {
   }
 }
 
-module.exports = { loadConfig, isGitIgnored };
+module.exports = { loadConfig, readRawConfig, isGitIgnored, invalidateConfigCache };

@@ -48,11 +48,8 @@
     "min_plans_for_parallel": 2
   },
 
-  "worktree": {
-    "enabled": false,
-    "base_path": "/tmp/bgsd-worktrees",
-    "sync_files": [".env", ".env.local", ".planning/config.json"],
-    "setup_hooks": [],
+  "workspace": {
+    "base_path": "/tmp/gsd-workspaces",
     "max_concurrent": 3
   },
 

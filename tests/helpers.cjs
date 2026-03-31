@@ -6,7 +6,7 @@ const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 const TOOLS_PATH = path.join(__dirname, '..', 'bin', 'bgsd-tools.cjs');
 
@@ -42,6 +42,11 @@ function runGsdTools(args, cwd = process.cwd()) {
   }
 }
 
+// Helper for repo-sensitive commands that must execute from the target repo.
+function runGsdToolsInRepo(args, repoDir) {
+  return runGsdTools(args, repoDir);
+}
+
 // Helper that captures both stdout and stderr separately
 function runGsdToolsFull(args, cwd = process.cwd()) {
   try {
@@ -70,6 +75,91 @@ function createTempProject() {
 
 function cleanup(tmpDir) {
   fs.rmSync(tmpDir, { recursive: true, force: true });
+}
+
+function hasJj() {
+  const result = spawnSync('jj', ['--version'], { stdio: 'ignore' });
+  return result.status === 0;
+}
+
+function initJjRepo(tmpDir) {
+  execSync('jj git init', { cwd: tmpDir, stdio: 'pipe' });
+}
+
+function initColocatedCommitRepo(tmpDir, options = {}) {
+  const { detachHead = false } = options;
+  execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
+  fs.writeFileSync(path.join(tmpDir, '.gitkeep'), '');
+  execSync('git add . && git commit -m "init"', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('jj git init --colocate .', { cwd: tmpDir, stdio: 'pipe' });
+
+  if (detachHead) {
+    const head = execSync('git rev-parse HEAD', { cwd: tmpDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    execSync(`git checkout ${head}`, { cwd: tmpDir, stdio: 'pipe' });
+  }
+}
+
+function initWorkspaceProject(configOverrides = {}) {
+  const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-ws-test-'));
+  const workspaceBase = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-ws-base-'));
+
+  execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
+  fs.writeFileSync(path.join(tmpDir, 'README.md'), '# Test\n');
+  execSync('git add . && git commit -m "init"', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('jj git init --colocate .', { cwd: tmpDir, stdio: 'pipe' });
+
+  fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '155-jj-workspaces'), { recursive: true });
+  fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({
+    mode: 'yolo',
+    workspace: {
+      base_path: workspaceBase,
+      max_concurrent: 3,
+      ...configOverrides,
+    },
+  }, null, 2));
+  execSync('jj status', { cwd: tmpDir, stdio: 'pipe' });
+  execSync('jj commit -m "test setup"', { cwd: tmpDir, stdio: 'pipe' });
+
+  return { tmpDir, workspaceBase };
+}
+
+function createManagedWorkspace(repoDir, planId) {
+  const addData = JSON.parse(runGsdToolsInRepo(`workspace add ${planId}`, repoDir).output);
+  return addData.workspace;
+}
+
+function markWorkspaceStale(repoDir, workspaceDir) {
+  const workspaceChange = execSync('jj log -r @ --no-graph -T "change_id.shortest(8)"', {
+    cwd: workspaceDir,
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  }).trim();
+
+  fs.writeFileSync(path.join(repoDir, 'stale.txt'), 'repo rewrite\n');
+  execSync('jj status', { cwd: repoDir, stdio: 'pipe' });
+  execSync(`jj squash --from @ --into ${workspaceChange}`, { cwd: repoDir, stdio: 'pipe' });
+
+  return workspaceChange;
+}
+
+function markWorkspaceDivergent(repoDir, workspaceDir) {
+  fs.writeFileSync(path.join(workspaceDir, 'conflict.txt'), 'workspace version\n');
+  execSync('jj status', { cwd: workspaceDir, stdio: 'pipe' });
+  const workspaceChange = execSync('jj log -r @ --no-graph -T "change_id.shortest(8)"', {
+    cwd: workspaceDir,
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  }).trim();
+
+  fs.writeFileSync(path.join(repoDir, 'conflict.txt'), 'default rewrite\n');
+  execSync('jj status', { cwd: repoDir, stdio: 'pipe' });
+  execSync(`jj squash --from @ --into ${workspaceChange}`, { cwd: repoDir, stdio: 'pipe' });
+
+  return workspaceChange;
 }
 
 // ── State fixture ──────────────────────────────────────────────────────────
@@ -284,10 +374,18 @@ function createParityProject(opts) {
 module.exports = {
   TOOLS_PATH,
   runGsdTools,
+  runGsdToolsInRepo,
   runGsdToolsFull,
   createTempProject,
   createParityProject,
   cleanup,
+  hasJj,
+  initJjRepo,
+  initColocatedCommitRepo,
+  initWorkspaceProject,
+  createManagedWorkspace,
+  markWorkspaceStale,
+  markWorkspaceDivergent,
   STATE_FIXTURE,
   writeStateFixture,
   snapshotCompare,

@@ -21,8 +21,10 @@ must_haves:
       provides: "[Test coverage for feature]"
 ---
 
+<!-- Canonical TDD contract lives in skills/tdd-execution/SKILL.md. -->
 <!-- TDD Plan: One feature per plan. RED → GREEN → REFACTOR cycle. -->
-<!-- Produces 2-3 atomic commits: test() → feat() → refactor() (optional) -->
+<!-- Each phase declares its exact target command. GREEN and REFACTOR stay targeted-only by default. -->
+<!-- Expected artifacts: failing test commit → passing implementation commit → optional refactor commit, plus structured proof for each gate. -->
 
 <objective>
 [What feature is being built and why TDD improves the result.]
@@ -34,7 +36,8 @@ Output: [Working, tested feature with 2-3 commits.]
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md
 @__OPENCODE_CONFIG__/bgsd-oc/templates/summary.md
-@__OPENCODE_CONFIG__/bgsd-oc/references/tdd.md
+@__OPENCODE_CONFIG__/bgsd-oc/skills/tdd-execution/SKILL.md
+@__OPENCODE_CONFIG__/bgsd-oc/skills/tdd-execution/tdd-reference.md
 </execution_context>
 
 <context>
@@ -47,6 +50,11 @@ Output: [Working, tested feature with 2-3 commits.]
 <feature>
   <name>[Feature name]</name>
   <files>[source file], [test file]</files>
+  <tdd-targets>
+    <red>[Exact command that should fail in RED]</red>
+    <green>[Exact command that should pass in GREEN; usually same selector as RED]</green>
+    <refactor>[Exact command that should keep passing in REFACTOR; usually same selector as GREEN]</refactor>
+  </tdd-targets>
   <behavior>
 [Expected behavior described in testable terms.]
 
@@ -63,9 +71,9 @@ data structures, library choices, and integration points.]
 </feature>
 
 <!-- Execution follows RED → GREEN → REFACTOR automatically. -->
-<!-- RED:      Write failing tests from <behavior>. Commit: test({phase}-{plan}): add failing test for [feature] -->
-<!-- GREEN:    Implement minimal code from <implementation>. Commit: feat({phase}-{plan}): implement [feature] -->
-<!-- REFACTOR: Clean up if needed. Commit: refactor({phase}-{plan}): clean up [feature] -->
+<!-- RED:      Write failing tests from <behavior> and validate the exact <tdd-targets><red> command. Commit: test({phase}-{plan}): add failing test for [feature] -->
+<!-- GREEN:    Implement minimal code from <implementation> and validate the exact <tdd-targets><green> command. Commit: feat({phase}-{plan}): implement [feature] -->
+<!-- REFACTOR: Clean up if needed and validate the exact <tdd-targets><refactor> command. Commit: refactor({phase}-{plan}): clean up [feature] -->
 
 <verification>
 [Test command that proves the feature works.]
@@ -79,6 +87,7 @@ data structures, library choices, and integration points.]
 - [ ] Implementation passes test (GREEN)
 - [ ] Refactor complete if needed (REFACTOR)
 - [ ] All 2-3 commits present in git history
+- [ ] Each validation result records exact target command, exit status, and evidence snippet
 - [ ] No regressions in existing test suite
 </success_criteria>
 

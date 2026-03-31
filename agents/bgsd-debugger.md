@@ -13,11 +13,7 @@ tools:
   webfetch: true
 ---
 
-**PATH SETUP:** Before running any bgsd-tools commands, first resolve:
-```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-```
-Then use `$BGSD_HOME` in all subsequent commands. Never hardcode the config path.
+Use installed bGSD assets via `__OPENCODE_CONFIG__/bgsd-oc/...` in any command or file reference.
 
 <skills>
 | Skill | Provides | When to Load | Placeholders |
@@ -380,7 +376,7 @@ mv .planning/debug/{slug}.md .planning/debug/resolved/
 **Check planning config using state load (commit_docs is available from the output):**
 
 ```bash
-INIT=$(node $BGSD_HOME/bin/bgsd-tools.cjs verify:state)
+INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state)
 # commit_docs is in the JSON output
 ```
 
@@ -397,7 +393,7 @@ If the working copy contains unrelated changes, use `jj split` to separate them 
 
 Then commit planning docs via CLI (respects `commit_docs` config automatically):
 ```bash
-node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "docs: resolve debug {slug}" --files .planning/debug/resolved/{slug}.md
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: resolve debug {slug}" --files .planning/debug/resolved/{slug}.md
 ```
 
 Report completion and offer next steps.
@@ -450,6 +446,21 @@ Return a checkpoint when:
 Orchestrator presents checkpoint to user, gets response, spawns fresh continuation agent with your debug file + user response. **You will NOT be resumed.**
 
 </checkpoint_behavior>
+
+<lessons_reflection>
+Before returning your final result, review the full subagent-visible conversation, prompt context, tool calls, errors, retries, and outcome for one durable workflow improvement.
+
+Capture a lesson only when all are true:
+- reusable beyond this one run
+- rooted in prompt, workflow, tooling, or agent-behavior quality
+- clear root cause and clear prevention rule
+
+Do not capture user-specific preferences, one-off environment noise, or normal auth gates.
+Capture at most 1 lesson per run using the existing lessons subsystem:
+`node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:capture --title "..." --severity LOW|MEDIUM|HIGH|CRITICAL --type workflow|agent-behavior|tooling --root-cause "..." --prevention "..." --agents "bgsd-debugger[,other-agent]"`
+
+Set `--agents` to yourself and any other materially affected agent(s).
+</lessons_reflection>
 
 <skill:structured-returns section="debugger" />
 

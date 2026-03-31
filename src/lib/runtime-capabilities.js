@@ -16,6 +16,38 @@
  */
 
 const os = require('os');
+const { isDebugEnabled, writeDebugDiagnostic } = require('./output');
+
+let _compileCacheEnvMemo = null;
+
+function readCompileCacheEnvState() {
+  const rawValue = process.env.BGSD_COMPILE_CACHE;
+  if (_compileCacheEnvMemo && _compileCacheEnvMemo.rawValue === rawValue) {
+    return _compileCacheEnvMemo;
+  }
+
+  let state;
+  if (rawValue === undefined) {
+    state = { rawValue, enabled: false, source: 'default', invalid: false, warned: false };
+  } else if (rawValue === '1' || rawValue === 'true') {
+    state = { rawValue, enabled: true, source: 'env', invalid: false, warned: false };
+  } else if (rawValue === '0' || rawValue === 'false') {
+    state = { rawValue, enabled: false, source: 'env', invalid: false, warned: false };
+  } else {
+    state = { rawValue, enabled: false, source: 'env-invalid', invalid: true, warned: false };
+  }
+
+  _compileCacheEnvMemo = state;
+  return state;
+}
+
+function emitInvalidCompileCacheWarning(envValue) {
+  writeDebugDiagnostic(
+    '[runtime-capabilities]',
+    `Invalid BGSD_COMPILE_CACHE value: ${envValue}. Expected 0, 1, true, or false.`,
+    { allowVerbose: true }
+  );
+}
 
 /**
  * Parse Node.js version string into comparable parts.
@@ -87,17 +119,15 @@ function detectCompileCacheSupport() {
  *   source: Where the setting came from ("env", "config", "default")
  */
 function isCompileCacheEnabled() {
-  // Check BGSD_COMPILE_CACHE env var first
-  const envValue = process.env.BGSD_COMPILE_CACHE;
-  if (envValue !== undefined) {
-    if (envValue === '1' || envValue === 'true') {
-      return { enabled: true, source: 'env' };
+  const envState = readCompileCacheEnvState();
+  if (envState.source === 'env') {
+    return { enabled: envState.enabled, source: envState.source };
+  }
+  if (envState.source === 'env-invalid') {
+    if (!envState.warned) {
+      emitInvalidCompileCacheWarning(envState.rawValue);
+      envState.warned = true;
     }
-    if (envValue === '0' || envValue === 'false') {
-      return { enabled: false, source: 'env' };
-    }
-    // Invalid value - treat as disabled with warning
-    console.warn(`[runtime-capabilities] Invalid BGSD_COMPILE_CACHE value: ${envValue}. Expected 0, 1, true, or false.`);
     return { enabled: false, source: 'env-invalid' };
   }
 
@@ -151,7 +181,9 @@ function getCompileCacheArgs() {
   return {
     useCache: false,
     args: [],
-    reason: 'Default: compile-cache disabled for safety (RUNT-03 fallback)',
+    reason: source === 'env-invalid'
+      ? 'Invalid BGSD_COMPILE_CACHE value - compile-cache stays disabled until set to 0, 1, true, or false'
+      : 'Default: compile-cache disabled for safety (RUNT-03 fallback)',
   };
 }
 
@@ -165,16 +197,16 @@ function getCompileCacheArgs() {
  * @param {boolean} options.verbose - Whether to show info messages (default: false)
  */
 function diagnoseCompileCache(options = {}) {
-  const verbose = options.verbose || process.env.BGSD_DEBUG === '1';
+  const verbose = options.verbose || isDebugEnabled({ allowVerbose: true });
   const { supported, reason: supportReason } = detectCompileCacheSupport();
   const { enabled, source } = isCompileCacheEnabled();
   const { useCache, args, reason } = getCompileCacheArgs();
 
   if (verbose) {
-    console.error(`[runtime-capabilities] Compile-cache diagnostics:`);
-    console.error(`  Runtime support: ${supported ? 'YES' : 'NO'} - ${supportReason}`);
-    console.error(`  User setting: ${source} - ${enabled ? 'enabled' : 'disabled'}`);
-    console.error(`  Active: ${useCache ? 'YES' : 'NO'} - ${reason}`);
+    writeDebugDiagnostic('[runtime-capabilities]', 'Compile-cache diagnostics:', { allowVerbose: true });
+    writeDebugDiagnostic('[runtime-capabilities]', `  Runtime support: ${supported ? 'YES' : 'NO'} - ${supportReason}`, { allowVerbose: true });
+    writeDebugDiagnostic('[runtime-capabilities]', `  User setting: ${source} - ${enabled ? 'enabled' : 'disabled'}`, { allowVerbose: true });
+    writeDebugDiagnostic('[runtime-capabilities]', `  Active: ${useCache ? 'YES' : 'NO'} - ${reason}`, { allowVerbose: true });
   }
 
   return {

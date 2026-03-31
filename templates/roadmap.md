@@ -121,9 +121,10 @@ Phases execute in numeric order: 2 → 2.1 → 2.2 → 3 → 3.1 → 4
 - Run `validate roadmap` to detect and `validate roadmap --repair` to fix parity issues
 
 **TDD field (optional):**
-- `recommended` — Planner should create `type: tdd` plans for business logic, validation, algorithms
-- `required` — All plans with testable behavior MUST use `type: tdd`; checker flags violations
-- Omit the field when TDD doesn't apply (config, UI layout, documentation phases)
+- `recommended` — Planner should create `type: tdd` plans for business logic, validation, algorithms; checker reports non-TDD eligible-plan mismatches as warnings
+- `required` — All plans with testable behavior MUST use `type: tdd`; checker reports violations as blockers
+- Omit the field when TDD doesn't apply (config, UI layout, documentation phases); checker still reports the deterministic TDD selection path as info instead of staying silent
+- This field controls Phase 149 selection/rationale severity only; it does **not** add Phase 150 `execute:tdd` semantic enforcement by itself
 - The planner uses this hint to decide plan type; the checker validates compliance
 
 **Success criteria:**

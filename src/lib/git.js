@@ -53,6 +53,39 @@ function structuredLog(cwd, opts = {}) {
   const lines = logResult.stdout.split('\n').filter(Boolean);
   const commits = [];
 
+  function parseTrailers(body) {
+    const trailers = {};
+    if (!body) return trailers;
+
+    const trailerLines = body.split('\n').map(line => line.trimEnd());
+    let idx = trailerLines.length - 1;
+    const parsed = [];
+
+    while (idx >= 0) {
+      const line = trailerLines[idx].trim();
+      if (!line) {
+        idx--;
+        continue;
+      }
+      const match = line.match(/^([A-Za-z0-9-]+):\s*(.+)$/);
+      if (!match) break;
+      parsed.unshift({ key: match[1], value: match[2] });
+      idx--;
+    }
+
+    for (const trailer of parsed) {
+      if (trailers[trailer.key] === undefined) {
+        trailers[trailer.key] = trailer.value;
+      } else if (Array.isArray(trailers[trailer.key])) {
+        trailers[trailer.key].push(trailer.value);
+      } else {
+        trailers[trailer.key] = [trailers[trailer.key], trailer.value];
+      }
+    }
+
+    return trailers;
+  }
+
   for (const line of lines) {
     const parts = line.split('|');
     if (parts.length < 5) continue;
@@ -62,6 +95,9 @@ function structuredLog(cwd, opts = {}) {
     const email = parts[2];
     const date = parts[3];
     const message = parts.slice(4).join('|'); // message may contain pipes
+    const bodyResult = execGit(cwd, ['show', '-s', '--format=%B', hash]);
+    const body = bodyResult.exitCode === 0 ? bodyResult.stdout : '';
+    const trailers = parseTrailers(body);
 
     // Get file stats for this commit
     const statResult = execGit(cwd, ['diff-tree', '--no-commit-id', '--numstat', '-r', hash]);
@@ -93,6 +129,8 @@ function structuredLog(cwd, opts = {}) {
       email,
       date,
       message,
+      body,
+      trailers,
       conventional,
       files,
       file_count: files.length,
@@ -389,4 +427,24 @@ function trajectoryBranch(cwd, opts = {}) {
   return { created: true, branch: bn, pushed: false };
 }
 
-module.exports = { execGit, structuredLog, diffSummary, blame, branchInfo, selectiveRewind, trajectoryBranch };
+function currentBranch(cwd) {
+  const result = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  return result.exitCode === 0 ? result.stdout : null;
+}
+
+function createAnnotatedTag(cwd, tagName, message) {
+  return execGit(cwd, ['tag', '-a', tagName, '-m', message]);
+}
+
+function deleteLocalTag(cwd, tagName) {
+  return execGit(cwd, ['tag', '-d', tagName]);
+}
+
+function pushRefspecs(cwd, remote, refspecs = [], opts = {}) {
+  const args = ['push'];
+  if (opts.set_upstream) args.push('-u');
+  args.push(remote, ...refspecs);
+  return execGit(cwd, args);
+}
+
+module.exports = { execGit, structuredLog, diffSummary, blame, branchInfo, selectiveRewind, trajectoryBranch, currentBranch, createAnnotatedTag, deleteLocalTag, pushRefspecs };

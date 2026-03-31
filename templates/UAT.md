@@ -47,6 +47,18 @@ reason: [why skipped]
 
 ...
 
+## Intent Alignment
+
+verdict: aligned | partial | misaligned | not assessed
+summary: [plain-language explanation tied to the phase's local purpose and expected user change]
+rule: [If the core expected user change did not land, the verdict cannot be `partial`]
+fallback: [If the phase has no explicit phase-intent block, say `not assessed` or unavailable and explain why plainly]
+
+## Requirement Coverage
+
+summary: [what requirements or intended outcomes were covered during UAT]
+separate_from_intent_alignment: true
+
 ## Summary
 
 total: [N]
@@ -57,7 +69,7 @@ skipped: [N]
 
 ## Gaps
 
-<!-- YAML format for plan-phase --gaps consumption -->
+<!-- YAML format for `/bgsd-plan gaps 12` consumption -->
 - truth: "[expected behavior from test]"
   status: failed
   reason: "User reported: [verbatim response]"
@@ -95,10 +107,20 @@ skipped: [N]
 - OVERWRITE counts after each response
 - Tracks: total, passed, issues, pending, skipped
 
+**Intent Alignment:**
+- OVERWRITE with one final verdict: `aligned`, `partial`, `misaligned`, or `not assessed`
+- Keep this separate from Requirement Coverage
+- If the core expected user change missed, do not use `partial`
+- If no explicit phase-intent block exists, use the `not assessed` / unavailable fallback with a plain reason
+
+**Requirement Coverage:**
+- Keep separate from Intent Alignment
+- Summarize which requirements or intended outcomes were actually exercised in UAT
+
 **Gaps:**
 - APPEND only when issue found (YAML format)
 - After diagnosis: fill `root_cause`, `artifacts`, `missing`, `debug_session`
-- This section feeds directly into /bgsd-plan-phase --gaps
+- This section feeds directly into `/bgsd-plan gaps 12`
 
 </section_rules>
 
@@ -112,7 +134,7 @@ skipped: [N]
 4. UAT.md Gaps section updated with diagnosis:
    - Each gap gets `root_cause`, `artifacts`, `missing`, `debug_session` filled
 5. status → "diagnosed"
-6. Ready for /bgsd-plan-phase --gaps with root causes
+6. Ready for `/bgsd-plan gaps 12` with root causes
 
 **After diagnosis:**
 ```yaml
@@ -153,6 +175,7 @@ skipped: [N]
 **On completion:**
 - status → "complete"
 - Current Test → "[testing complete]"
+- Intent Alignment → final plain-language verdict recorded before or alongside Requirement Coverage
 - Commit file
 - Present summary with next steps
 
@@ -220,6 +243,18 @@ result: pass
 ### 6. Comment Count
 expected: Post shows accurate count, increments when adding comment
 result: pass
+
+## Intent Alignment
+
+verdict: partial
+summary: Users can create and view comments, but the expected immediate post-submit update missed on one tested path.
+rule: The core expected user change landed, so `partial` is acceptable here.
+fallback: n/a
+
+## Requirement Coverage
+
+summary: UAT exercised comment viewing, creation, reply, nesting, deletion, and count updates as separate checks.
+separate_from_intent_alignment: true
 
 ## Summary
 

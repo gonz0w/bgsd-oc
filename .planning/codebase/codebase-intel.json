@@ -1832,7 +1832,6 @@
         "src/commands/intent.js",
         "src/commands/env.js",
         "src/commands/mcp.js",
-        "src/commands/worktree.js",
         "src/commands/codebase.js",
         "src/commands/trajectory.js",
         "src/lib/git.js",
@@ -1846,6 +1845,7 @@
       "tests/agent.test.cjs": [
         "tests/helpers.cjs",
         "src/lib/context.js",
+        "src/lib/codebase-intel.js",
         "src/commands/agent.js"
       ],
       "tests/codebase.test.cjs": [
@@ -1870,10 +1870,13 @@
         "tests/helpers.cjs"
       ],
       "tests/integration.test.cjs": [
-        "tests/helpers.cjs"
+        "tests/helpers.cjs",
+        "src/lib/helpers.js",
+        "src/lib/context.js"
       ],
       "tests/intent.test.cjs": [
-        "tests/helpers.cjs"
+        "tests/helpers.cjs",
+        "src/commands/intent.js"
       ],
       "tests/memory.test.cjs": [
         "tests/helpers.cjs"
@@ -1960,7 +1963,6 @@
         "src/commands/intent.js",
         "src/commands/env.js",
         "src/commands/codebase.js",
-        "src/commands/worktree.js",
         "src/lib/codebase-intel.js",
         "src/commands/research.js",
         "src/commands/trajectory.js",
@@ -2043,12 +2045,6 @@
         "src/lib/cli-tools/index.js",
         "src/lib/config.js"
       ],
-      "src/commands/worktree.js": [
-        "src/lib/output.js",
-        "src/lib/git.js",
-        "src/lib/config.js",
-        "src/lib/frontmatter.js"
-      ],
       "src/lib/ast.js": [
         "src/lib/codebase-intel.js",
         "src/lib/adapters/discovery.js"
@@ -2057,6 +2053,7 @@
         "src/lib/output.js",
         "src/lib/git.js",
         "src/lib/helpers.js",
+        "src/commands/intent.js",
         "src/lib/adapters/discovery.js",
         "src/lib/cli-tools/index.js"
       ],
@@ -2310,7 +2307,6 @@
         "src/commands/tools.js",
         "src/commands/trajectory.js",
         "src/commands/verify.js",
-        "src/commands/worktree.js",
         "src/lib/codebase-intel.js",
         "src/lib/config.js",
         "src/lib/context.js",
@@ -2335,7 +2331,6 @@
         "src/commands/research.js",
         "src/commands/state.js",
         "src/commands/verify.js",
-        "src/commands/worktree.js",
         "src/lib/helpers.js",
         "src/lib/cli-tools/fallback.js"
       ],
@@ -2368,7 +2363,9 @@
       ],
       "src/commands/intent.js": [
         "src/router.js",
-        "src/commands/init.js"
+        "tests/intent.test.cjs",
+        "src/commands/init.js",
+        "src/lib/codebase-intel.js"
       ],
       "src/commands/env.js": [
         "src/router.js",
@@ -2377,10 +2374,6 @@
       ],
       "src/commands/mcp.js": [
         "src/router.js"
-      ],
-      "src/commands/worktree.js": [
-        "src/router.js",
-        "src/commands/init.js"
       ],
       "src/commands/codebase.js": [
         "src/router.js",
@@ -2401,7 +2394,6 @@
         "src/commands/state.js",
         "src/commands/trajectory.js",
         "src/commands/verify.js",
-        "src/commands/worktree.js",
         "src/lib/codebase-intel.js",
         "src/lib/context.js",
         "src/lib/adapters/discovery.js"
@@ -2449,9 +2441,22 @@
       "src/lib/context.js": [
         "tests/agent.test.cjs",
         "tests/infra.test.cjs",
+        "tests/integration.test.cjs",
         "src/commands/codebase.js",
         "src/commands/features.js",
         "src/commands/init.js"
+      ],
+      "src/lib/codebase-intel.js": [
+        "tests/agent.test.cjs",
+        "src/commands/codebase.js",
+        "src/commands/features.js",
+        "src/commands/init.js",
+        "src/commands/misc.js",
+        "src/lib/ast.js",
+        "src/lib/context.js",
+        "src/lib/conventions.js",
+        "src/lib/deps.js",
+        "src/lib/orchestration.js"
       ],
       "src/lib/deps.js": [
         "tests/codebase.test.cjs",
@@ -2467,6 +2472,7 @@
       ],
       "src/lib/helpers.js": [
         "tests/infra.test.cjs",
+        "tests/integration.test.cjs",
         "src/commands/agent.js",
         "src/commands/features.js",
         "src/commands/init.js",
@@ -2492,7 +2498,6 @@
         "src/commands/phase.js",
         "src/commands/roadmap.js",
         "src/commands/verify.js",
-        "src/commands/worktree.js",
         "src/lib/helpers.js",
         "src/lib/orchestration.js"
       ],
@@ -2500,17 +2505,6 @@
         "src/commands/cache.js",
         "src/commands/research.js",
         "src/lib/helpers.js"
-      ],
-      "src/lib/codebase-intel.js": [
-        "src/commands/codebase.js",
-        "src/commands/features.js",
-        "src/commands/init.js",
-        "src/commands/misc.js",
-        "src/lib/ast.js",
-        "src/lib/context.js",
-        "src/lib/conventions.js",
-        "src/lib/deps.js",
-        "src/lib/orchestration.js"
       ],
       "src/lib/conventions.js": [
         "src/commands/codebase.js"
@@ -2696,13 +2690,13 @@
     },
     "stats": {
       "total_files_parsed": 112,
-      "total_edges": 284,
+      "total_edges": 283,
       "languages_parsed": [
         "javascript"
       ],
-      "parse_errors": 2
+      "parse_errors": 3
     },
-    "built_at": "2026-03-28T17:01:56.823Z"
+    "built_at": "2026-03-30T12:13:29.920Z"
   },
   "conventions": {
     "naming": {

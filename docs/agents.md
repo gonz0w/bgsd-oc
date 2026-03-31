@@ -25,7 +25,7 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 **Outputs:** One or more PLAN.md files with YAML frontmatter (phase, plan, type, wave, dependencies, must_haves) and XML task definitions.
 
-**Spawned by:** `/bgsd-plan-phase`, `/bgsd-quick`
+**Spawned by:** `/bgsd-plan phase [phase]`, `/bgsd-quick`
 
 **Key behaviors:**
 - Breaks phase goals into numbered tasks with file paths and instructions
@@ -43,7 +43,7 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 **Outputs:** Code changes, SUMMARY.md documenting what was built, git commits with trailers.
 
-**Spawned by:** `/bgsd-execute-phase`, `/bgsd-quick`
+**Spawned by:** `/bgsd-execute-phase [phase]`, `/bgsd-quick`
 
 **Key behaviors:**
 - Follows task instructions sequentially
@@ -63,7 +63,7 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 **Outputs:** VERIFICATION.md with pass/gaps_found/human_needed status.
 
-**Spawned by:** `/bgsd-execute-phase` (after all plans complete)
+**Spawned by:** `/bgsd-execute-phase [phase]` (after all plans complete)
 
 **Key behaviors:**
 - Checks truths: Are behavioral claims actually true in the codebase?
@@ -84,7 +84,7 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 **Outputs:** Review findings with severity classification, integrated into SUMMARY.md.
 
-**Triggered by:** `/bgsd-execute-phase` (post-execution review step in `execute-plan.md`)
+**Triggered by:** `/bgsd-execute-phase [phase]` (post-execution review step in `execute-plan.md`)
 
 **Key behaviors:**
 - Two-stage review:
@@ -127,7 +127,7 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 **Outputs:** Revision feedback or approval.
 
-**Spawned by:** `/bgsd-plan-phase` (when `plan_checker` enabled)
+**Spawned by:** `/bgsd-plan phase [phase]` (when `plan_checker` enabled)
 
 **Key behaviors:**
 - Checks task specificity (no vague instructions)
@@ -146,7 +146,7 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 **Outputs:** `{phase}-RESEARCH.md` consumed by the planner.
 
-**Spawned by:** `/bgsd-plan-phase --research`, `/bgsd-research-phase`
+**Spawned by:** `/bgsd-plan phase [phase] --research`, `/bgsd-plan research [phase]`
 
 **Key behaviors:**
 - Investigates ecosystem standard approaches
@@ -178,19 +178,20 @@ bGSD uses 10 specialized AI agents, each purpose-built for a specific task. Agen
 
 #### gsd-project-researcher
 
-**Role:** Parallel domain research before roadmap creation. Four instances run simultaneously.
+**Role:** Parallel domain research before roadmap creation. Five instances run simultaneously.
 
 **Inputs:** Project description, assigned focus area.
 
-**Outputs:** Research document (STACK.md, FEATURES.md, ARCHITECTURE.md, or PITFALLS.md).
+**Outputs:** Research document (`STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`, or `SKILLS.md`).
 
-**Spawned by:** `/bgsd-new-project`, `/bgsd-new-milestone` (4 parallel instances)
+**Spawned by:** `/bgsd-new-project`, `/bgsd-new-milestone` (5 parallel instances)
 
 **Focus areas:**
 - **Stack** — Technology choices, dependencies, tooling
 - **Features** — Feature analysis, competitive landscape
 - **Architecture** — Design patterns, module structure
 - **Pitfalls** — Known problems, anti-patterns, risk areas
+- **Skills** — Project-local skill recommendations worth proposing after research
 
 ---
 
@@ -305,8 +306,8 @@ Each agent gets a **fresh context window**. There is no shared conversation hist
 |----------|----------------|-------|
 | `/bgsd-new-project` | gsd-project-researcher | 4 (Stack, Features, Architecture, Pitfalls) |
 | `/bgsd-map-codebase` | gsd-codebase-mapper | 4 (tech, arch, quality, concerns) |
-| `/bgsd-execute-phase` | gsd-executor | N per wave (independent plans) |
-| `/bgsd-verify-work` | debug agents | N per UAT gap |
+| `/bgsd-execute-phase [phase]` | gsd-executor | N per wave (independent plans) |
+| `/bgsd-verify-work [phase]` | debug agents | N per UAT gap |
 
 ---
 
@@ -370,10 +371,10 @@ Agents can be customized per-project without modifying upstream definitions. Loc
 ### Commands
 
 ```bash
-gsd-tools agent list-local              # List all project-local overrides
-gsd-tools agent override <agent-type>   # Create a local override (copies upstream as starting point)
-gsd-tools agent diff <agent-type>       # Show diff between local and upstream
-gsd-tools agent sync <agent-type>       # Pull upstream changes into local override
+node bin/bgsd-tools.cjs util:agent list-local              # List all project-local overrides
+node bin/bgsd-tools.cjs util:agent override <agent-type>   # Create a local override (copies upstream as starting point)
+node bin/bgsd-tools.cjs util:agent diff <agent-type>       # Show diff between local and upstream
+node bin/bgsd-tools.cjs util:agent sync <agent-type>       # Pull upstream changes into local override
 ```
 
 ### How it works

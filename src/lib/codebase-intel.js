@@ -5,6 +5,7 @@ const path = require('path');
 const { debugLog } = require('./output');
 const { execGit } = require('./git');
 const { cachedReadFile } = require('./helpers');
+const { getEffectiveIntent } = require('../commands/intent');
 const {
   LANGUAGE_MAP,
   SKIP_DIRS,
@@ -460,17 +461,17 @@ const AGENT_MANIFESTS = {
   },
   'bgsd-verifier': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'summaries',
-             'verifier_enabled'],
+             'verifier_enabled', 'effective_intent'],
     optional: ['codebase_stats'],
   },
   'bgsd-planner': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count',
-             'research_enabled', 'plan_checker_enabled', 'intent_summary'],
+             'research_enabled', 'plan_checker_enabled', 'intent_summary', 'effective_intent'],
     optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
-               'codebase_freshness', 'env_summary'],
+                'codebase_freshness', 'env_summary'],
   },
   'bgsd-phase-researcher': {
-    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary'],
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary', 'effective_intent'],
     optional: ['codebase_stats', 'env_summary'],
   },
   'bgsd-plan-checker': {
@@ -480,6 +481,14 @@ const AGENT_MANIFESTS = {
   'bgsd-reviewer': {
     fields: ['phase_dir', 'phase_number', 'phase_name', 'codebase_conventions', 'codebase_dependencies'],
     optional: ['codebase_stats'],
+  },
+  'bgsd-roadmapper': {
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count', 'intent_summary', 'effective_intent'],
+    optional: ['codebase_stats'],
+  },
+  'bgsd-project-researcher': {
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary', 'effective_intent'],
+    optional: ['codebase_stats', 'env_summary'],
   },
 };
 
@@ -571,7 +580,14 @@ function generateAgentContexts(cwd, intel) {
     research_enabled: configInfo.research,
     plan_checker_enabled: configInfo.plan_checker,
     intent_summary: null,
+    effective_intent: null,
   };
+
+  try {
+    baseContext.effective_intent = getEffectiveIntent(cwd, phaseInfo.phase ? { phase: phaseInfo.phase } : {});
+  } catch (e) {
+    debugLog('codebase.generateAgentContexts', 'effective intent unavailable for cached contexts', e);
+  }
 
   // Generate scoped context for each agent type
   for (const [agentType, manifest] of Object.entries(AGENT_MANIFESTS)) {

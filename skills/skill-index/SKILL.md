@@ -7,8 +7,8 @@ agents: [all]
 
 # Skill Index
 
-**Generated:** 2026-03-28T17:12:25.390Z
-**Total skills:** 30
+**Generated:** 2026-03-30T14:37:15.535Z
+**Total skills:** 31
 
 | Skill | Type | Agents | Description |
 |-------|------|--------|-------------|
@@ -22,12 +22,13 @@ agents: [all]
 | debugger-investigation | agent-specific | debugger | Investigation techniques for debuggers — binary search, rubber duck debugging, minimal reproduction, working backwards, differential debugging, observability-first, comment-out-everything, git bisect, technique selection guide, and technique composition patterns. |
 | debugger-research-reasoning | agent-specific | debugger | Decision framework for debuggers — when to research externally (unfamiliar errors, library behavior, domain gaps, platform differences) vs when to reason through code (your code, logic errors, observable behavior), with a decision tree and balance indicators. |
 | debugger-verification | agent-specific | debugger | Debug fix verification methodology — what "verified" means (5 criteria), reproduction verification, regression testing, environment verification, stability testing, test-first debugging, verification checklist, and red flags indicating insufficient verification. |
+| decision-conflict-questioning | shared | planner, roadmapper, orchestrator | Conflict-driven clarification for phase discussions — only question when intent, requirements, prior decisions, or tradeoffs are in tension, and present concrete alternatives instead of generic why-prompts. |
 | deviation-rules | shared | executor, github-ci | Auto-fix decision framework for handling unexpected issues during execution — classifying bugs, missing functionality, blocking issues, and architectural changes with clear rules for when to fix automatically vs escalate to the user. |
 | executor-continuation | agent-specific | executor | Context window continuation handling for executors — saving execution state before context exhaustion, resumption protocol for fresh agents, and completed task verification on resume. |
 | git-integration | shared | executor, github-ci | VCS workflow patterns for bGSD using jj (Jujutsu, colocated with Git) — commit points (what to commit and when), commit message formats for initialization/task/plan/handoff, per-task commit rationale, example log, and anti-patterns to avoid. |
 | goal-backward | shared | planner, verifier, plan-checker, roadmapper | Goal-backward verification methodology — deriving observable truths, required artifacts, wiring connections, and key links from a stated goal. Used to create must-haves for plans and verify phase achievement. |
 | model-profiles | shared | planner, executor, verifier, debugger, roadmapper, project-researcher, phase-researcher, codebase-mapper, plan-checker, github-ci | AI model selection profiles for bGSD agents — quality/balanced/budget profile definitions, per-agent model assignments, resolution logic, per-agent overrides, and design rationale for why each agent uses its assigned model tier. |
-| phase-argument-parsing | shared | planner, executor, verifier, roadmapper | Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via bgsd-tools find-phase, and directory lookup patterns. |
+| phase-argument-parsing | shared | planner, executor, verifier, roadmapper | Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via the `bgsd-tools plan:find-phase` route, and directory lookup patterns. |
 | planner-checkpoints | agent-specific | planner | Checkpoint planning guidelines for planners — when to use each checkpoint type (human-verify 90%, decision 9%, human-action 1%), XML templates, authentication gates, writing rules, and anti-patterns to avoid. |
 | planner-dependency-graph | agent-specific | planner | Dependency graph construction for planners — recording needs/creates per task, wave analysis, vertical slices vs horizontal layers, and file ownership rules for parallel execution. |
 | planner-gap-closure | agent-specific | planner | Gap closure planning methodology — creating plans from verification or UAT failures. Covers finding gap sources, parsing gap data, loading existing SUMMARYs, grouping gaps into plans, and writing gap closure PLAN.md files. |
@@ -37,7 +38,7 @@ agents: [all]
 | questioning | shared | planner, roadmapper, debugger | Collaborative questioning methodology for project initialization — dream extraction philosophy, question types (motivation, concreteness, clarification, success), context checklist, decision gates, and anti-patterns to avoid during user questioning. |
 | raci | shared | planner, executor, verifier, debugger, roadmapper, project-researcher, phase-researcher, codebase-mapper, plan-checker, github-ci | Agent responsibility matrix and handoff contracts — which agent owns each lifecycle step, what artifacts pass between agents, required sections in handoff documents, and how receiving agents consume them. |
 | research-patterns | shared | phase-researcher, project-researcher | Research methodology for phase and project researchers — RAG tool selection strategy, source verification protocol, confidence assessment, and citation requirements for producing reliable research documents. |
-| research-pipeline | shared | orchestrator | Research + synthesize pipeline shared by new-milestone and new-project — 4 parallel bgsd-project-researcher spawns (Stack, Features, Architecture, Pitfalls), synthesizer spawn, and research quality scoring with retry loop. |
+| research-pipeline | shared | orchestrator | Research + synthesize pipeline shared by new-milestone and new-project — 5 parallel bgsd-project-researcher spawns (Stack, Features, Architecture, Pitfalls, Skills), synthesizer spawn, and research quality scoring with retry loop. |
 | state-update-protocol | shared | executor, github-ci | STATE.md and ROADMAP.md update procedures after plan completion — advancing position, recording metrics, adding decisions, updating session continuity, and marking requirements complete. |
 | structured-returns | shared | executor, planner, verifier, debugger, github-ci, roadmapper, codebase-mapper, project-researcher, phase-researcher, plan-checker | Agent-specific structured return formats for orchestrator communication. Each agent has a defined return template. Load specific sections via section attribute to get only the relevant format. |
 | tdd-execution | shared | executor, planner | TDD red-green-refactor execution flow with CLI validation gates, commit protocol per phase, and context budget guidance. Covers both executor (running cycles) and planner (structuring TDD plans) perspectives. |

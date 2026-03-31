@@ -12,6 +12,7 @@ const os = require('os');
 const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
 const { getDb, closeAll, MapDatabase } = require('../src/lib/db');
 const { PlanningCache } = require('../src/lib/planning-cache');
+const { createMilestoneLessonSnapshot, deriveLessonRemediationBuckets } = require('../src/commands/lessons');
 
 describe('memory commands', () => {
   let tmpDir;
@@ -191,6 +192,326 @@ describe('memory commands', () => {
     assert.strictEqual(bookmarks.entry_count, 1);
     assert.ok(decisions.size_bytes > 0, 'should have non-zero size');
     assert.ok(decisions.last_modified, 'should have last_modified');
+  });
+});
+
+describe('lesson snapshot helpers', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('createMilestoneLessonSnapshot preserves lessons.json bytes and records source metadata', () => {
+    const memoryDir = path.join(tmpDir, '.planning', 'memory');
+    fs.mkdirSync(memoryDir, { recursive: true });
+    const lessonsJson = JSON.stringify([
+      {
+        id: 'lesson-a',
+        date: '2026-03-30T00:00:00Z',
+        title: 'JJ commit retries need a safe path',
+        severity: 'HIGH',
+        type: 'workflow',
+        root_cause: 'Dirty JJ workspaces caused repeated commit retries.',
+        prevention_rule: 'Use a JJ-safe commit flow.',
+        affected_agents: ['bgsd-executor'],
+      },
+    ], null, 2);
+    fs.writeFileSync(path.join(memoryDir, 'lessons.json'), lessonsJson, 'utf-8');
+
+    const snapshotResult = createMilestoneLessonSnapshot(tmpDir, { version: 'v18.0', name: 'Test Milestone' });
+    assert.ok(snapshotResult.snapshot_path.endsWith('v18.0-lessons-snapshot.json'), 'snapshot path should be milestone-owned');
+    assert.strictEqual(snapshotResult.snapshot.compact_summary.inspect_path, snapshotResult.snapshot_path, 'snapshot summary should expose its inspect path');
+    assert.strictEqual(snapshotResult.snapshot.source.path, '.planning/memory/lessons.json');
+    assert.strictEqual(snapshotResult.snapshot.source.lesson_count, 1);
+    assert.ok(snapshotResult.snapshot.source.source_hash, 'snapshot should record source hash');
+    assert.strictEqual(fs.readFileSync(path.join(memoryDir, 'lessons.json'), 'utf-8'), lessonsJson, 'helper must not mutate lessons.json');
+  });
+
+  test('deriveLessonRemediationBuckets emits stable named buckets with exact lesson IDs', () => {
+    const buckets = deriveLessonRemediationBuckets([
+      {
+        id: 'lesson-jj',
+        title: 'JJ workspace commit retries',
+        root_cause: 'JJ workspace commit flow drifted.',
+        prevention_rule: 'Use the JJ-safe path.',
+        severity: 'HIGH',
+        type: 'workflow',
+        affected_agents: ['bgsd-executor'],
+      },
+      {
+        id: 'lesson-guidance',
+        title: 'Workflow guidance drifted from the shipped command surface',
+        root_cause: 'Workflow guidance referenced stale commands.',
+        prevention_rule: 'Keep command-surface guidance in sync.',
+        severity: 'MEDIUM',
+        type: 'tooling',
+        affected_agents: ['bgsd-planner'],
+      },
+    ]);
+
+    assert.ok(buckets.some(bucket => bucket.id === 'jj-safe-commit-reliability' && bucket.lesson_ids.includes('lesson-jj')));
+    assert.ok(buckets.some(bucket => bucket.id === 'workflow-guidance-integrity' && bucket.lesson_ids.includes('lesson-guidance')));
+    assert.ok(buckets.every(bucket => typeof bucket.name === 'string' && bucket.name.length > 0), 'bucket names should be stable and human-readable');
+    assert.ok(buckets.every(bucket => Array.isArray(bucket.lesson_ids)), 'bucket schema should include lesson_ids');
+  });
+});
+
+describe('structured MEMORY.md commands', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  function memoryFile() {
+    return path.join(tmpDir, '.planning', 'MEMORY.md');
+  }
+
+  function readMemoryFile() {
+    return fs.readFileSync(memoryFile(), 'utf-8');
+  }
+
+  test('memory:list bootstraps MEMORY.md with five required sections', () => {
+    const result = runGsdTools('memory:list', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const payload = JSON.parse(result.output);
+    assert.ok(fs.existsSync(memoryFile()), 'MEMORY.md should be created');
+    assert.deepStrictEqual(payload.section_order, [
+      'Active / Recent',
+      'Project Facts',
+      'User Preferences',
+      'Environment Patterns',
+      'Correction History',
+    ]);
+
+    const content = readMemoryFile();
+    for (const section of payload.section_order) {
+      assert.ok(content.includes(`## ${section}`), `Expected section ${section}`);
+    }
+  });
+
+  test('memory:add writes deterministic IDs and metadata timestamps', () => {
+    const add1 = runGsdTools('memory:add --section "Project Facts" --type project-fact --text "CLI stays single-file" --source AGENTS.md', tmpDir);
+    assert.ok(add1.success, `First add failed: ${add1.error}`);
+    const add2 = runGsdTools('memory:add --section "User Preferences" --type user-preference --text "Prefer predictable structure" --keep always --status active', tmpDir);
+    assert.ok(add2.success, `Second add failed: ${add2.error}`);
+
+    const content = readMemoryFile();
+    assert.match(content, /\*\*MEM-001\*\* \[project-fact\] CLI stays single-file/);
+    assert.match(content, /\*\*MEM-002\*\* \[user-preference\] Prefer predictable structure/);
+    assert.match(content, /- Added: \d{4}-\d{2}-\d{2}/);
+    assert.match(content, /- Updated: \d{4}-\d{2}-\d{2}/);
+    assert.ok(content.includes('  - Keep: always'), 'Keep metadata should be written when present');
+    assert.ok(content.includes('  - Status: active'), 'Status metadata should be written when present');
+  });
+
+  test('parser and serializer preserve supported hand-edited metadata fields', () => {
+    const handEdited = `# Agent Memory
+
+## Active / Recent
+
+## Project Facts
+- **MEM-001** [project-fact] CLI is single-file and zero-dependency.
+  - Added: 2026-03-28
+  - Updated: 2026-03-28
+  - Source: AGENTS.md
+  - Keep: always
+  - Status: active
+  - Expires: 2026-12-31
+
+- **MEM-002** [project-fact] Old duplicate fact.
+  - Added: 2026-01-01
+  - Updated: 2026-01-01
+  - Replaces: MEM-001
+
+## User Preferences
+
+## Environment Patterns
+
+## Correction History
+`;
+    fs.writeFileSync(memoryFile(), handEdited);
+
+    const remove = runGsdTools('memory:remove --id MEM-002', tmpDir);
+    assert.ok(remove.success, `Remove failed: ${remove.error}`);
+
+    const content = readMemoryFile();
+    assert.ok(content.includes('**MEM-001** [project-fact] CLI is single-file and zero-dependency.'), 'Primary entry should remain');
+    assert.ok(content.includes('  - Source: AGENTS.md'), 'Source metadata should round-trip');
+    assert.ok(content.includes('  - Keep: always'), 'Keep metadata should round-trip');
+    assert.ok(content.includes('  - Status: active'), 'Status metadata should round-trip');
+    assert.ok(content.includes('  - Expires: 2026-12-31'), 'Expires metadata should round-trip');
+    assert.ok(!content.includes('MEM-002'), 'Removed entry should be gone');
+  });
+
+  test('memory:list groups entries by canonical section order', () => {
+    fs.writeFileSync(memoryFile(), `# Agent Memory
+
+## Active / Recent
+- **MEM-001** [project-fact] Recently used fact.
+  - Added: 2026-03-28
+  - Updated: 2026-03-28
+
+## Project Facts
+- **MEM-002** [project-fact] CLI bundles to one file.
+  - Added: 2026-03-20
+  - Updated: 2026-03-20
+
+## User Preferences
+
+## Environment Patterns
+- **MEM-003** [environment-pattern] Tests run with node:test.
+  - Added: 2026-03-18
+  - Updated: 2026-03-18
+
+## Correction History
+`);
+
+    const result = runGsdTools('memory:list', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const payload = JSON.parse(result.output);
+    assert.deepStrictEqual(payload.sections.map(section => section.name), payload.section_order);
+    assert.strictEqual(payload.sections[0].entries[0].id, 'MEM-001');
+    assert.strictEqual(payload.sections[1].entries[0].id, 'MEM-002');
+    assert.strictEqual(payload.sections[3].entries[0].id, 'MEM-003');
+  });
+
+  test('memory:remove removes by stable ID and leaves neighbors untouched', () => {
+    runGsdTools('memory:add --section "Project Facts" --text "First fact"', tmpDir);
+    runGsdTools('memory:add --section "Project Facts" --text "Second fact"', tmpDir);
+    runGsdTools('memory:add --section "Project Facts" --text "Third fact"', tmpDir);
+
+    const remove = runGsdTools('memory:remove --id MEM-002', tmpDir);
+    assert.ok(remove.success, `Remove failed: ${remove.error}`);
+
+    const content = readMemoryFile();
+    assert.ok(content.includes('**MEM-001** [project-fact] First fact'));
+    assert.ok(!content.includes('**MEM-002** [project-fact] Second fact'));
+    assert.ok(content.includes('**MEM-003** [project-fact] Third fact'));
+  });
+
+  test('memory:prune preview reports threshold, section, reason, and age', () => {
+    fs.writeFileSync(memoryFile(), `# Agent Memory
+
+## Active / Recent
+
+## Project Facts
+
+## User Preferences
+
+## Environment Patterns
+
+## Correction History
+- **MEM-010** [correction] Stop suggesting hidden global config edits.
+  - Added: 2025-01-01
+  - Updated: 2025-01-01
+  - Status: inactive
+`);
+
+    const result = runGsdTools('memory:prune --threshold 30', tmpDir);
+    assert.ok(result.success, `Prune preview failed: ${result.error}`);
+
+    const payload = JSON.parse(result.output);
+    assert.strictEqual(payload.preview, true);
+    assert.strictEqual(payload.threshold_days, 30);
+    assert.strictEqual(payload.candidate_count, 1);
+    assert.strictEqual(payload.candidates[0].id, 'MEM-010');
+    assert.strictEqual(payload.candidates[0].section, 'Correction History');
+    assert.strictEqual(payload.candidates[0].reason, 'inactive');
+    assert.ok(typeof payload.candidates[0].age_days === 'number' && payload.candidates[0].age_days >= 30);
+  });
+
+  test('memory:prune excludes pinned and active entries from candidates', () => {
+    fs.writeFileSync(memoryFile(), `# Agent Memory
+
+## Active / Recent
+- **MEM-001** [project-fact] Current focus belongs here.
+  - Added: 2025-01-01
+  - Updated: 2025-01-01
+
+## Project Facts
+- **MEM-002** [project-fact] This is pinned forever.
+  - Added: 2025-01-01
+  - Updated: 2025-01-01
+  - Keep: always
+
+## User Preferences
+
+## Environment Patterns
+- **MEM-003** [environment-pattern] Old non-pinned pattern.
+  - Added: 2025-01-01
+  - Updated: 2025-01-01
+
+## Correction History
+`);
+
+    const result = runGsdTools('memory:prune --threshold 30', tmpDir);
+    assert.ok(result.success, `Prune preview failed: ${result.error}`);
+
+    const payload = JSON.parse(result.output);
+    const ids = payload.candidates.map(candidate => candidate.id);
+    assert.deepStrictEqual(ids, ['MEM-003']);
+  });
+
+  test('memory:prune only mutates file with --apply', () => {
+    fs.writeFileSync(memoryFile(), `# Agent Memory
+
+## Active / Recent
+
+## Project Facts
+- **MEM-001** [project-fact] Replace me.
+  - Added: 2025-01-01
+  - Updated: 2025-01-01
+
+- **MEM-002** [project-fact] Newer replacement.
+  - Added: 2026-03-01
+  - Updated: 2026-03-01
+  - Replaces: MEM-001
+
+## User Preferences
+
+## Environment Patterns
+
+## Correction History
+`);
+
+    const before = readMemoryFile();
+    const preview = runGsdTools('memory:prune --threshold 30', tmpDir);
+    assert.ok(preview.success, `Preview failed: ${preview.error}`);
+    assert.strictEqual(readMemoryFile(), before, 'Preview must not change file');
+
+    const apply = runGsdTools('memory:prune --threshold 30 --apply', tmpDir);
+    assert.ok(apply.success, `Apply failed: ${apply.error}`);
+    const payload = JSON.parse(apply.output);
+    assert.strictEqual(payload.applied, true);
+    assert.deepStrictEqual(payload.removed_ids, ['MEM-001']);
+
+    const after = readMemoryFile();
+    assert.ok(!after.includes('**MEM-001**'), 'Applied prune should remove candidate');
+    assert.ok(after.includes('**MEM-002**'), 'Replacement entry should remain');
+  });
+
+  test('legacy util:memory commands still work alongside structured memory commands', () => {
+    const legacy = runGsdTools(`util:memory write --store decisions --entry '{"summary":"Legacy decision"}'`, tmpDir);
+    assert.ok(legacy.success, `Legacy util:memory write failed: ${legacy.error}`);
+
+    const structured = runGsdTools('memory:add --section "Project Facts" --text "Structured fact"', tmpDir);
+    assert.ok(structured.success, `Structured memory add failed: ${structured.error}`);
+
+    const decisionsPath = path.join(tmpDir, '.planning', 'memory', 'decisions.json');
+    assert.ok(fs.existsSync(decisionsPath), 'Legacy JSON store should still exist');
+    assert.ok(fs.existsSync(memoryFile()), 'Structured MEMORY.md should also exist');
   });
 });
 
@@ -1117,8 +1438,9 @@ describe('memory dual-write via CLI', () => {
 
     // Verify SQLite
     closeAll();
+    const dbCwd = fs.realpathSync(tmpDir);
     const db = getDb(tmpDir);
-    const row = db.prepare('SELECT * FROM memory_decisions WHERE cwd = ? AND summary = ?').get(tmpDir, 'dual-write test decision');
+    const row = db.prepare('SELECT * FROM memory_decisions WHERE cwd = ? AND summary = ?').get(dbCwd, 'dual-write test decision');
     assert.ok(row, 'entry should exist in SQLite memory_decisions table');
   });
 
@@ -1129,8 +1451,9 @@ describe('memory dual-write via CLI', () => {
 
     // Verify SQLite
     closeAll();
+    const dbCwd = fs.realpathSync(tmpDir);
     const db = getDb(tmpDir);
-    const row = db.prepare('SELECT * FROM memory_bookmarks WHERE cwd = ? AND phase = ?').get(tmpDir, '121');
+    const row = db.prepare('SELECT * FROM memory_bookmarks WHERE cwd = ? AND phase = ?').get(dbCwd, '121');
     assert.ok(row, 'bookmark should exist in SQLite memory_bookmarks table');
     assert.strictEqual(row.plan, '03', 'plan column should match');
     assert.strictEqual(row.task, 1, 'task column should match');
@@ -1160,4 +1483,3 @@ describe('memory dual-write via CLI', () => {
     }
   });
 });
-

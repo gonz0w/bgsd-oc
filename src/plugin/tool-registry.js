@@ -8,6 +8,8 @@
  * Registration is permanent for the session — no unregistration.
  */
 
+import { writeDebugDiagnostic } from './debug-contract.js';
+
 // Validation pattern: bgsd_ prefix followed by lowercase letter, then lowercase alphanumeric + underscores
 const TOOL_NAME_PATTERN = /^bgsd_[a-z][a-z0-9_]*$/;
 const BGSD_PREFIX = 'bgsd_';
@@ -43,7 +45,7 @@ export function createToolRegistry(safeHookFn) {
 
     // Duplicate detection
     if (registry.has(normalized)) {
-      console.warn(`[bGSD] Tool '${normalized}' already registered — overwriting`);
+      writeDebugDiagnostic('[bGSD:tool-registry]', `Tool '${normalized}' already registered — overwriting`);
     }
 
     // Wrap handler in safeHook

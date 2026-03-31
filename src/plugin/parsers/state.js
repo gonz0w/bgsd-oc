@@ -236,11 +236,22 @@ export function parseState(cwd) {
 export function invalidateState(cwd) {
   if (cwd) {
     _cache.delete(cwd);
-    // Also clear SQLite session_state so the next call re-parses from disk
+    // Also clear related SQLite session tables so the next call re-reads from disk
+    // and no stale derived views survive a mutation.
     try {
       const db = getDb(cwd);
       if (db.backend === 'sqlite') {
-        db.prepare('DELETE FROM session_state WHERE cwd = ?').run(cwd);
+        const tables = [
+          'session_state',
+          'session_metrics',
+          'session_decisions',
+          'session_todos',
+          'session_blockers',
+          'session_continuity',
+        ];
+        for (const table of tables) {
+          db.prepare(`DELETE FROM ${table} WHERE cwd = ?`).run(cwd);
+        }
       }
     } catch { /* non-fatal — in-memory cache already cleared */ }
   } else {

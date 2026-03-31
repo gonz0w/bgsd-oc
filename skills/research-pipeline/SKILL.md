@@ -1,6 +1,6 @@
 ---
 name: research-pipeline
-description: Research + synthesize pipeline shared by new-milestone and new-project — 4 parallel bgsd-project-researcher spawns (Stack, Features, Architecture, Pitfalls), synthesizer spawn, and research quality scoring with retry loop.
+description: Research + synthesize pipeline shared by new-milestone and new-project — 5 parallel bgsd-project-researcher spawns (Stack, Features, Architecture, Pitfalls, Skills), synthesizer spawn, and research quality scoring with retry loop.
 type: shared
 agents: [orchestrator]
 sections: [spawn-researchers, synthesize, score]
@@ -8,7 +8,7 @@ sections: [spawn-researchers, synthesize, score]
 
 ## Purpose
 
-Provides the standard 4-researcher + synthesizer pipeline used in `new-milestone.md` (Step 8) and `new-project.md` (Step 6). Each dimension researcher writes its file to `.planning/research/`, then the synthesizer aggregates into `SUMMARY.md`. After synthesis, the quality scoring loop checks confidence levels and offers re-research for LOW confidence files.
+Provides the standard 5-researcher + synthesizer pipeline used in `new-milestone.md` (Step 8) and `new-project.md` (Step 6). Each dimension researcher writes its file to `.planning/research/`, then the synthesizer aggregates into `SUMMARY.md`. After synthesis, the quality scoring loop checks confidence levels and offers re-research for LOW confidence files.
 
 ## Placeholders
 
@@ -22,19 +22,19 @@ Provides the standard 4-researcher + synthesizer pipeline used in `new-milestone
 
 <!-- section: spawn-researchers -->
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- bGSD ► RESEARCHING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  bGSD ► RESEARCHING
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-◆ Spawning 4 researchers in parallel...
-  → Stack, Features, Architecture, Pitfalls
+ ◆ Spawning 5 researchers in parallel...
+   → Stack, Features, Architecture, Pitfalls, Skills
 ```
 
 ```bash
 mkdir -p .planning/research
 ```
 
-Spawn 4 parallel `bgsd-project-researcher` agents using this template with dimension-specific fields:
+Spawn 5 parallel `bgsd-project-researcher` agents using this template with dimension-specific fields:
 
 **Common structure for all 4 researchers:**
 ```
@@ -64,16 +64,16 @@ Use template: __OPENCODE_CONFIG__/bgsd-oc/templates/research-project/{FILE}
 
 **Dimension-specific fields:**
 
-| Field | Stack | Features | Architecture | Pitfalls |
-|-------|-------|----------|--------------|----------|
-| QUESTION | What stack additions/changes are needed for [new features]? | How do [target features] typically work? Expected behavior? | How do [target features] integrate with existing architecture? | Common mistakes when adding [target features] to [domain]? |
-| CONSUMER | Specific libraries with versions for NEW capabilities, integration points, what NOT to add | Table stakes vs differentiators vs anti-features, complexity noted, dependencies on existing | Integration points, new components, data flow changes, suggested build order | Warning signs, prevention strategy, which phase should address it |
-| GATES | Versions current (verify with Context7), rationale explains WHY, integration considered | Categories clear, complexity noted, dependencies identified | Integration points identified, new vs modified explicit, build order considers deps | Pitfalls specific to adding these features, integration pitfalls covered, prevention actionable |
-| FILE | STACK.md | FEATURES.md | ARCHITECTURE.md | PITFALLS.md |
+| Field | Stack | Features | Architecture | Pitfalls | Skills |
+|-------|-------|----------|--------------|----------|--------|
+| QUESTION | What stack additions/changes are needed for [new features]? | How do [target features] typically work? Expected behavior? | How do [target features] integrate with existing architecture? | Common mistakes when adding [target features] to [domain]? | Which project-local AI coding skills from agentskills.io or GitHub would materially help implement [new features] in this codebase? |
+| CONSUMER | Specific libraries with versions for NEW capabilities, integration points, what NOT to add | Table stakes vs differentiators vs anti-features, complexity noted, dependencies on existing | Integration points, new components, data flow changes, suggested build order | Warning signs, prevention strategy, which phase should address it | 0-5 concrete skill recommendations with repo URLs, fit rationale, when they help, and confidence; recommend none if nothing is compelling |
+| GATES | Versions current (verify with Context7), rationale explains WHY, integration considered | Categories clear, complexity noted, dependencies identified | Integration points identified, new vs modified explicit, build order considers deps | Pitfalls specific to adding these features, integration pitfalls covered, prevention actionable | Each recommendation links to a real repo, clearly states why it matches this milestone, and avoids generic or low-confidence suggestions |
+| FILE | STACK.md | FEATURES.md | ARCHITECTURE.md | PITFALLS.md | SKILLS.md |
 <!-- /section -->
 
 <!-- section: synthesize -->
-After all 4 researchers complete, spawn synthesizer:
+After all 5 researchers complete, spawn synthesizer:
 
 ```
 Task(prompt="
@@ -84,6 +84,7 @@ Synthesize research outputs into SUMMARY.md.
 - .planning/research/FEATURES.md
 - .planning/research/ARCHITECTURE.md
 - .planning/research/PITFALLS.md
+- .planning/research/SKILLS.md
 </files_to_read>
 
 Write to: .planning/research/SUMMARY.md
@@ -101,6 +102,7 @@ Display key findings from SUMMARY.md:
 **Stack additions:** [from SUMMARY.md]
 **Feature table stakes:** [from SUMMARY.md]
 **Watch Out For:** [from SUMMARY.md]
+**Recommended skills:** [from SUMMARY.md, if any]
 ```
 <!-- /section -->
 
@@ -110,7 +112,7 @@ Display key findings from SUMMARY.md:
 For each research file in `.planning/research/`:
 
 ```bash
-SCORE=$(node $BGSD_HOME/bin/bgsd-tools.cjs research:score "$RESEARCH_FILE")
+SCORE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs research:score "$RESEARCH_FILE")
 ```
 
 Display profile summary for each file:

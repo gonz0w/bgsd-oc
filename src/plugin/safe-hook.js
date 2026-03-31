@@ -65,6 +65,14 @@ export function safeHook(name, fn, options = {}) {
     });
   }
 
+  function writeOperatorMessage(message) {
+    try {
+      process.stderr.write(`[bGSD] ${message}\n`);
+    } catch {
+      // Best effort only
+    }
+  }
+
   return async function wrappedHook(input, output) {
     // Circuit breaker: skip if disabled
     if (disabled) {
@@ -113,18 +121,18 @@ export function safeHook(name, fn, options = {}) {
     getLogger().write('ERROR', errorMessage, correlationId, {
       hookName: name,
       stack: lastError.stack,
+      emitToStderr: false,
     });
-
-    // Toast notification
-    console.log(`[bGSD] Hook failed: ${name} [${correlationId}]`);
+    writeOperatorMessage(`Hook failed: ${name} [${correlationId}] - ${lastError.message}`);
 
     // Circuit breaker: disable after 3 consecutive failures
     if (consecutiveFailures >= 3) {
       disabled = true;
-      console.log(`[bGSD] Hook ${name} disabled after repeated failures`);
       getLogger().write('ERROR', `Circuit breaker tripped: hook "${name}" disabled after ${consecutiveFailures} consecutive failures`, correlationId, {
         hookName: name,
+        emitToStderr: false,
       });
+      writeOperatorMessage(`Hook ${name} disabled after ${consecutiveFailures} consecutive failures [${correlationId}]`);
     }
   };
 }

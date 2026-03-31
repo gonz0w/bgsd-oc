@@ -79,7 +79,7 @@ Standardizes how agents present "what's next" after completing work. The continu
 
 ## ▶ Next Up
 **Phase 3: Core Features** — User dashboard, settings, data export
-`/bgsd-plan-phase 3`
+`/bgsd-plan phase 3`
 ```
 
 **Milestone Complete:**

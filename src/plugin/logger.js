@@ -84,10 +84,12 @@ export function createLogger(logDir) {
 
       appendFileSync(logPath, line);
 
-      // Also write errors to stderr for immediate visibility
-      if (level === 'ERROR') {
-        process.stderr.write(`[bGSD]${corrPart} ${message}\n`);
-      }
+       const emitToStderr = extra?.emitToStderr !== false;
+
+       // Also write errors to stderr for immediate visibility
+       if (level === 'ERROR' && emitToStderr) {
+         process.stderr.write(`[bGSD]${corrPart} ${message}\n`);
+       }
     } catch {
       // Last resort: try stderr
       try {

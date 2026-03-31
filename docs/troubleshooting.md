@@ -34,9 +34,9 @@ Common issues and solutions for bGSD.
 ### Plans seem too large or too small
 
 **Fix:** Adjust planning depth:
-- Use `/bgsd-discuss-phase` before planning to lock down scope
+- Use `/bgsd-plan discuss 1` before planning to lock down scope
 - Set `depth` in config: `"quick"`, `"standard"`, or `"deep"`
-- Use `/bgsd-list-assumptions` to check what the AI assumes before planning
+- Use `/bgsd-plan assumptions 1` to check what the AI assumes before planning
 
 ### Plan quality review keeps requesting revisions
 
@@ -44,7 +44,7 @@ Common issues and solutions for bGSD.
 
 **Fix:**
 - This is normal — plans improve through review
-- Skip review with `--skip-verify` flag: `/bgsd-plan-phase 1 --skip-verify`
+- Skip review with `--skip-verify` flag: `/bgsd-plan phase 1 --skip-verify`
 - Disable permanently: set `plan_checker: false` in config
 
 ### "No phase found" errors
@@ -53,8 +53,8 @@ Common issues and solutions for bGSD.
 
 **Fix:**
 1. Check ROADMAP.md for valid phase numbers
-2. Run `node bin/gsd-tools.cjs find-phase <N>` to check phase directory
-3. Run `/bgsd-health` to check .planning/ integrity
+2. Run `node bin/bgsd-tools.cjs plan:find-phase <N>` to check phase directory
+3. Run `/bgsd-inspect health` to check `.planning/` integrity
 
 ---
 
@@ -77,7 +77,7 @@ bGSD is designed for context resets. All state lives in `.planning/` files, not 
 **Cause:** Context exhaustion, agent error, or checkpoint requiring human input.
 
 **Fix:**
-1. Run `/bgsd-progress` to see current state
+1. Run `/bgsd-inspect progress` to see current state
 2. Run `/bgsd-resume` to restore context
 3. Continue with `/bgsd-execute-phase <N>` — it picks up where it left off
 
@@ -110,10 +110,10 @@ bGSD is designed for context resets. All state lives in `.planning/` files, not 
 
 **Fix:**
 ```bash
-node bin/gsd-tools.cjs state validate --fix    # Auto-fix unambiguous issues
+node bin/bgsd-tools.cjs verify:state validate --fix    # Auto-fix unambiguous issues
 ```
 
-Or run `/bgsd-health --repair` for full integrity check.
+Or run `/bgsd-inspect health` for an inspection-only integrity check.
 
 ### "Two sources of truth" confusion
 
@@ -121,14 +121,14 @@ Or run `/bgsd-health --repair` for full integrity check.
 
 **Fix:** STATE.md is always authoritative. Memory files are advisory caches. Run:
 ```bash
-node bin/gsd-tools.cjs state validate --fix
+node bin/bgsd-tools.cjs verify:state validate --fix
 ```
 
 ### Progress shows wrong phase
 
 **Fix:**
 ```bash
-node bin/gsd-tools.cjs state update-progress    # Recalculate from disk
+node bin/bgsd-tools.cjs verify:state update-progress    # Recalculate from disk
 ```
 
 ---
@@ -151,7 +151,7 @@ node bin/gsd-tools.cjs state update-progress    # Recalculate from disk
 
 **Fix:**
 ```
-/bgsd-rollback-info <plan-id>    # Shows exact revert command
+/bgsd-inspect rollback-info 159-08    # Shows commits and the revert command for a plan
 ```
 
 Each task gets its own commit, enabling precise rollback.
@@ -163,10 +163,10 @@ Each task gets its own commit, enabling precise rollback.
 ### CLI commands slow
 
 **Fix:**
-1. Check bundle size: `ls -la bin/gsd-tools.cjs` (should be ~1058KB)
-2. Enable profiling: `GSD_PROFILE=1 node bin/gsd-tools.cjs <command>`
-3. Check for stale codebase analysis: `node bin/gsd-tools.cjs codebase status`
-4. Warm the SQLite cache: `node bin/gsd-tools.cjs cache warm`
+1. Check bundle size: `ls -la bin/bgsd-tools.cjs` (should be ~1058KB)
+2. Enable profiling: `GSD_PROFILE=1 node bin/bgsd-tools.cjs <command>`
+3. Check for stale codebase analysis: `node bin/bgsd-tools.cjs util:codebase status`
+4. Warm the SQLite cache: `node bin/bgsd-tools.cjs util:cache warm`
 
 ### SQLite caching issues
 
@@ -174,13 +174,13 @@ If SQLite caching issues occur on Node <22.5, bGSD falls back to in-memory Map c
 
 To check cache status:
 ```bash
-node bin/gsd-tools.cjs cache stats
+node bin/bgsd-tools.cjs util:cache status
 ```
 
 ### Workflows consuming too many tokens
 
 **Fix:**
-1. Check token usage: `/bgsd-context-budget`
+1. Check token usage: `/bgsd-inspect context-budget 159-09`
 2. Use `--compact` flag for init commands
 3. Set context target: `context_target_percent: 50` in config
 4. Ensure agent context manifests are working (v7.0+)
@@ -193,8 +193,8 @@ node bin/gsd-tools.cjs cache stats
 
 **Fix:**
 ```bash
-node bin/gsd-tools.cjs validate-config    # Shows validation errors
-node bin/gsd-tools.cjs config-migrate     # Add missing keys with defaults
+node bin/bgsd-tools.cjs verify:validate-config    # Shows validation errors
+node bin/bgsd-tools.cjs util:config-migrate       # Add missing keys with defaults
 ```
 
 ### Settings not taking effect
@@ -210,7 +210,7 @@ node bin/gsd-tools.cjs config-migrate     # Add missing keys with defaults
 Enable detailed logging for any issue:
 
 ```bash
-GSD_DEBUG=1 node bin/gsd-tools.cjs <command> --raw
+GSD_DEBUG=1 node bin/bgsd-tools.cjs <command> --raw
 ```
 
 This enables stderr logging for all 96 catch blocks, showing exactly where issues occur.
@@ -220,7 +220,7 @@ This enables stderr logging for all 96 catch blocks, showing exactly where issue
 ## Getting Help
 
 - Run `/bgsd-help` for the full command reference
-- Run `/bgsd-health` to check system integrity
+- Run `/bgsd-inspect health` to check system integrity
 - Check [GitHub Issues](https://github.com/gonz0w/bgsd-oc/issues) for known problems
 - See [Architecture](architecture.md) for understanding how the system works internally
 

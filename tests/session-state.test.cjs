@@ -774,6 +774,101 @@ describe('Group 4: STATE.md round-trip regeneration (SES-02)', () => {
   });
 });
 
+describe('Group 4.5: complete-plan dual-write', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = makeTempDir('bgsd-ses-complete-plan-');
+    closeAll();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State
+
+## Current Position
+
+**Phase:** 5 of 12 (API Layer)
+**Current Plan:** 1
+**Total Plans in Phase:** 3
+**Status:** In progress
+**Last Activity:** 2026-03-10
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: -
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+## Accumulated Context
+
+### Decisions
+
+None yet.
+
+### Blockers/Concerns
+
+None.
+
+## Session Continuity
+
+**Last session:** 2026-03-10T14:22:00.000Z
+**Stopped at:** Completed 0005-01-PLAN.md
+**Resume file:** None
+`);
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '05-api-layer');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '05-01-PLAN.md'), '# Plan 1\n');
+    fs.writeFileSync(path.join(phaseDir, '05-02-PLAN.md'), '# Plan 2\n');
+    fs.writeFileSync(path.join(phaseDir, '05-03-PLAN.md'), '# Plan 3\n');
+    fs.writeFileSync(path.join(phaseDir, '05-01-SUMMARY.md'), '# Summary 1\n');
+  });
+
+  afterEach(() => {
+    closeAll();
+    removeTempDir(tmpDir);
+  });
+
+  it('writes state, decisions, metrics, and continuity to SQLite-backed stores', () => {
+    if (!hasSQLiteSupport()) return;
+
+    const stateModule = require('../src/commands/state.js');
+    stateModule.cmdStateCompletePlan(tmpDir, {
+      phase: '151',
+      plan: '03',
+      duration: '14 min',
+      tasks: '2',
+      files: '4',
+      decision_summary: 'Atomic core write',
+      decision_rationale: 'Keep durable state aligned',
+      stopped_at: 'Completed 151-03-PLAN.md',
+      resume_file: 'None',
+    }, true);
+
+    const db = getDb(tmpDir);
+    const cache = new PlanningCache(db);
+    const state = cache.getSessionState(tmpDir);
+    assert.ok(state, 'session state should exist');
+    assert.strictEqual(state.current_plan, '2', 'current plan should be advanced in SQLite');
+    assert.strictEqual(state.progress, 33, 'progress should be updated in SQLite');
+
+    const decisions = cache.getSessionDecisions(tmpDir);
+    assert.ok(decisions.entries.some(d => d.summary === 'Atomic core write'), 'decision should be written to SQLite');
+
+    const metrics = cache.getSessionMetrics(tmpDir);
+    assert.ok(metrics.entries.some(m => m.phase === '151' && m.plan === '03'), 'metric tail should be written to SQLite');
+
+    const continuity = cache.getSessionContinuity(tmpDir);
+    assert.ok(continuity, 'continuity row should exist');
+    assert.strictEqual(continuity.stopped_at, 'Completed 151-03-PLAN.md', 'continuity should be updated in SQLite');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Group 5: Manual edit re-import
 // ---------------------------------------------------------------------------

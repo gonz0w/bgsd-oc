@@ -157,6 +157,15 @@ describe('Contract: Chain B decision consumer coverage — TEST-02', () => {
       'workflows/execute-plan.md should reference decisions.search-mode');
   });
 
+  test('Consumer location: verification-routing consumed by execute-plan.md (decisions.verification-routing pattern)', () => {
+    const executePlan = allConsumerFiles.find(f => f.file.endsWith('execute-plan.md'));
+    assert.ok(executePlan, 'workflows/execute-plan.md should exist in consumer file list');
+
+    const hasDecisionRef = /decisions\.verification-routing/.test(executePlan.content);
+    assert.ok(hasDecisionRef,
+      'workflows/execute-plan.md should reference decisions.verification-routing');
+  });
+
   test('Consumer location: tool_availability consumed by bgsd-executor.md', () => {
     const executor = allConsumerFiles.find(f => f.file.endsWith('bgsd-executor.md'));
     assert.ok(executor, 'agents/bgsd-executor.md should exist in consumer file list');

@@ -8,7 +8,7 @@ tags: [lessons, json, memory, schema-validation, commonjs, javascript]
 requires: []
 provides:
   - "lessons:capture command with LESSON_SCHEMA validation (6 required fields, severity/type normalization)"
-  - "lessons:migrate command converting free-form lessons.md sections to type:environment entries"
+  - "Structured lessons live directly in .planning/memory/lessons.json; migration-era markdown ingestion was later retired"
   - "lessons:list command with --type/--severity/--since/--limit/--query filters"
   - "util:memory read --store lessons --type/--since/--severity filter support (LESSON-06)"
   - ".planning/memory/lessons.json as the structured lessons backing store"
@@ -37,7 +37,7 @@ key-files:
 
 key-decisions:
   - "validateLesson() receives pre-built entry object (id/date added by cmdLessonsCapture) — separation keeps validation pure"
-  - "cmdLessonsMigrate uses type:environment as sentinel per LESSON-02 requirement — all legacy entries get this type"
+  - "Initial rollout included a migration sentinel strategy for environment-type historical entries; the repo later standardized on structured lessons only"
   - "parseLessonsOptions() defined as local function inside router case block — avoids polluting outer scope"
   - "lessons-specific filters in cmdMemoryRead use options.type/options.since/options.severity naming (distinct from trajectory 'from'/'to')"
 
@@ -50,7 +50,7 @@ requirements-completed:
   - LESSON-02
   - LESSON-03
   - LESSON-06
-one-liner: "Structured lesson capture with LESSON_SCHEMA validation, free-form migration to type:environment, filtered listing, and enhanced memory read for the lessons store"
+one-liner: "Structured lesson capture with LESSON_SCHEMA validation, filtered listing, and enhanced memory read for the lessons store"
 
 # Metrics
 duration: 10min
@@ -59,7 +59,7 @@ completed: 2026-03-15
 
 # Phase 130 Plan 01: Lesson Schema & Analysis Pipeline — Core Infrastructure Summary
 
-**Structured lesson capture with LESSON_SCHEMA validation, free-form migration to type:environment, filtered listing, and enhanced memory read for the lessons store**
+**Structured lesson capture with LESSON_SCHEMA validation, filtered listing, and enhanced memory read for the lessons store**
 
 ## Performance
 
@@ -70,34 +70,34 @@ completed: 2026-03-15
 - **Files modified:** 9
 
 ## Accomplishments
-- Created `src/commands/lessons.js` with LESSON_SCHEMA (6 required fields), `validateLesson()` normalizing severity/type/agents, `cmdLessonsCapture` writing structured UUID+date entries to `.planning/memory/lessons.json`, `cmdLessonsMigrate` parsing markdown headings into `type:environment` entries, and `cmdLessonsList` with 5-filter support
-- Registered `lessons` as a top-level namespace in `src/router.js` with lazy loader and full capture/list/migrate dispatch; enhanced `util:memory read` to parse and pass `--type`, `--since`, `--severity` for LESSON-06 pagination support
-- Added `COMMAND_HELP` entries for all 3 lessons commands in `constants.js`, updated `commandDiscovery.js` with lessons namespace routing map and category, and `command-help.js` with COMMAND_BRIEF and COMMAND_RELATED entries
+- Created `src/commands/lessons.js` with LESSON_SCHEMA (6 required fields), `validateLesson()` normalizing severity/type/agents, `cmdLessonsCapture` writing structured UUID+date entries to `.planning/memory/lessons.json`, and `cmdLessonsList` with 5-filter support
+- Registered `lessons` as a top-level namespace in `src/router.js` with lazy loader and structured command dispatch; enhanced `util:memory read` to parse and pass `--type`, `--since`, `--severity` for LESSON-06 pagination support
+- Added lessons command help entries in `constants.js`, updated `commandDiscovery.js` with lessons namespace routing map and category, and `command-help.js` with COMMAND_BRIEF and COMMAND_RELATED entries
 
 ## Task Commits
 
 Each task was committed atomically:
 
-1. **Task 1: Create src/commands/lessons.js with schema, capture, migrate, and list commands** - `27b5793` (feat)
+1. **Task 1: Create src/commands/lessons.js with schema, capture, and list commands** - `27b5793` (feat)
 2. **Task 2: Register lessons namespace in router + enhance memory read filters + add help text** - `b95047d` (feat)
 
 **Plan metadata:** `8a5c83d` (docs: complete plan)
 
 ## Files Created/Modified
 
-- `src/commands/lessons.js` - New module: LESSON_SCHEMA, validateLesson, cmdLessonsCapture, cmdLessonsMigrate, cmdLessonsList
+- `src/commands/lessons.js` - New module: LESSON_SCHEMA, validateLesson, cmdLessonsCapture, cmdLessonsList
 - `src/router.js` - Added lazyLessons(), lessons namespace case, --type/--since/--severity in memory read path
 - `src/commands/memory.js` - Added lessons-specific filter block in cmdMemoryRead (LESSON-06)
-- `src/lib/constants.js` - Added COMMAND_HELP entries for lessons:capture, lessons:list, lessons:migrate
+- `src/lib/constants.js` - Added COMMAND_HELP entries for lessons:capture and lessons:list
 - `src/lib/commandDiscovery.js` - Added lessons to COMMAND_CATEGORIES and routerImplementations
 - `src/lib/command-help.js` - Added Lessons category, COMMAND_BRIEF entries, COMMAND_RELATED entries
-- `.planning/memory/lessons.json` - Seeded with test capture entry + migrated lesson from lessons.md
+- `.planning/memory/lessons.json` - Seeded with structured lesson entries
 - `bin/bgsd-tools.cjs` - Rebuilt with all changes
 
 ## Decisions Made
 
 - `validateLesson()` receives a pre-built entry object (with `id`/`date` already set by the caller) — keeps validation pure and testable in isolation
-- `cmdLessonsMigrate` uses `type: 'environment'` as sentinel per LESSON-02 requirement — allows downstream analysis to exclude legacy entries from improvement suggestions
+- The lessons store is intentionally structured JSON in `.planning/memory/lessons.json`, enabling later analysis and suggestions to avoid depending on free-form markdown parsing
 - `parseLessonsOptions()` defined as a local function inside the router `case 'lessons':` block — avoids polluting the outer scope, follows the ad-hoc pattern used elsewhere
 - Lessons-specific filters in `cmdMemoryRead` use `options.type`/`options.since`/`options.severity` naming to avoid collision with trajectory filter options (`from`/`to`/`category`)
 

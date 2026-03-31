@@ -288,6 +288,48 @@ function checkAuth(options = {}) {
   );
 }
 
+/**
+ * Create a pull request via gh CLI.
+ * @param {object} options - PR creation options
+ * @returns {object} - { success, usedFallback, result, error }
+ */
+function createPullRequest(options = {}) {
+  const {
+    title,
+    body,
+    base,
+    head,
+    draft = false,
+    timeout = DEFAULT_TIMEOUT_MS,
+  } = options;
+
+  return withToolFallback(
+    'gh',
+    () => {
+      const args = ['pr', 'create', '--title', title, '--body', body, '--base', base, '--head', head];
+      if (draft) args.push('--draft');
+
+      const output = execFileSync('gh', args, {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout,
+        windowsHide: true,
+      }).trim();
+
+      return {
+        url: output.split('\n').find((line) => /^https?:\/\//.test(line)) || output,
+        title,
+        body,
+        base,
+        head,
+      };
+    },
+    () => {
+      throw new Error('GitHub CLI (gh) is required for PR operations. Install from https://cli.github.com/');
+    }
+  );
+}
+
 module.exports = {
   listPRs,
   getPR,
@@ -296,5 +338,6 @@ module.exports = {
   getRepoInfo,
   isGhAvailable,
   checkAuth,
-  isGhUsable
+  isGhUsable,
+  createPullRequest
 };

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { output, error, debugLog } = require('../lib/output');
 const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
+const { mutateJsonStore } = require('../lib/json-store-mutator');
 
 // ─── Memory Commands ─────────────────────────────────────────────────────────
 
@@ -15,11 +16,350 @@ const COMPACT_KEEP_RECENT = 10;
 const VALID_CATEGORIES = ['decision', 'observation', 'correction', 'hypothesis'];
 const VALID_CONFIDENCE = ['high', 'medium', 'low'];
 
+const MEMORY_FILE = path.join('.planning', 'MEMORY.md');
+const MEMORY_TITLE = '# Agent Memory';
+const MEMORY_SECTIONS = [
+  'Active / Recent',
+  'Project Facts',
+  'User Preferences',
+  'Environment Patterns',
+  'Correction History',
+];
+const MEMORY_SECTION_DEFAULT_TYPE = {
+  'Active / Recent': 'project-fact',
+  'Project Facts': 'project-fact',
+  'User Preferences': 'user-preference',
+  'Environment Patterns': 'environment-pattern',
+  'Correction History': 'correction',
+};
+const MEMORY_ALLOWED_TYPES = ['project-fact', 'user-preference', 'environment-pattern', 'correction'];
+const MEMORY_METADATA_ORDER = ['Added', 'Updated', 'Source', 'Keep', 'Status', 'Expires', 'Replaces'];
+const MEMORY_METADATA_REQUIRED = ['Added', 'Updated'];
+const MEMORY_KEEP_ALWAYS = new Set(['always', 'pinned', 'pin', 'true', 'yes']);
+const MEMORY_ACTIVE_STATUSES = new Set(['active', 'current', 'in-use', 'in_use']);
+const DEFAULT_PRUNE_THRESHOLD_DAYS = 90;
+
 // Store name → filename overrides (default: `${store}.json`)
 const STORE_FILES = { trajectories: 'trajectory.json' };
 
 function storeFilename(store) {
   return STORE_FILES[store] || `${store}.json`;
+}
+
+function getMemoryFilePath(cwd) {
+  return path.join(cwd, MEMORY_FILE);
+}
+
+function normalizeMemorySection(section) {
+  if (!section) return null;
+  const trimmed = String(section).trim().toLowerCase();
+  const match = MEMORY_SECTIONS.find(name => name.toLowerCase() === trimmed);
+  return match || null;
+}
+
+function normalizeMemoryType(type, section) {
+  if (!type || !String(type).trim()) {
+    return MEMORY_SECTION_DEFAULT_TYPE[section] || 'project-fact';
+  }
+  const trimmed = String(type).trim().toLowerCase();
+  if (!MEMORY_ALLOWED_TYPES.includes(trimmed)) {
+    error(`Invalid --type. Must be one of: ${MEMORY_ALLOWED_TYPES.join(', ')}`);
+  }
+  return trimmed;
+}
+
+function canonicalMetadataKey(key) {
+  if (!key) return null;
+  const trimmed = String(key).trim().toLowerCase();
+  const match = MEMORY_METADATA_ORDER.find(name => name.toLowerCase() === trimmed);
+  return match || null;
+}
+
+function currentMemoryDate() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function parseMemoryDate(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00.000Z` : raw;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function diffDays(from, to) {
+  const ms = to.getTime() - from.getTime();
+  return Math.floor(ms / 86400000);
+}
+
+function normalizeMemoryText(value) {
+  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function redactMemoryText(value, max = 72) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
+function sortMemoryMetadata(metadata) {
+  const ordered = {};
+  for (const key of MEMORY_METADATA_ORDER) {
+    if (metadata[key] !== undefined && metadata[key] !== null && String(metadata[key]).trim() !== '') {
+      ordered[key] = String(metadata[key]).trim();
+    }
+  }
+  return ordered;
+}
+
+function createEmptyStructuredMemory() {
+  return {
+    title: MEMORY_TITLE,
+    sections: MEMORY_SECTIONS.map(name => ({ name, entries: [] })),
+  };
+}
+
+function structuredMemoryToMap(doc) {
+  const map = new Map();
+  for (const section of doc.sections) {
+    map.set(section.name, section);
+  }
+  return map;
+}
+
+function serializeStructuredMemory(doc) {
+  const lines = [doc.title || MEMORY_TITLE, ''];
+  const sectionMap = structuredMemoryToMap(doc);
+
+  for (const sectionName of MEMORY_SECTIONS) {
+    const section = sectionMap.get(sectionName) || { name: sectionName, entries: [] };
+    lines.push(`## ${sectionName}`);
+
+    for (const entry of section.entries) {
+      lines.push(`- **${entry.id}** [${entry.type}] ${entry.text}`);
+      const metadata = sortMemoryMetadata(entry.metadata || {});
+      for (const key of MEMORY_METADATA_ORDER) {
+        if (metadata[key]) {
+          lines.push(`  - ${key}: ${metadata[key]}`);
+        }
+      }
+      lines.push('');
+    }
+
+    if (lines[lines.length - 1] === '') {
+      // keep a single blank line between sections
+    } else {
+      lines.push('');
+    }
+  }
+
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+  return `${lines.join('\n')}\n`;
+}
+
+function parseStructuredMemory(content) {
+  const lines = String(content || '').replace(/\r\n/g, '\n').split('\n');
+  const doc = createEmptyStructuredMemory();
+  const sectionMap = structuredMemoryToMap(doc);
+
+  let currentSection = null;
+  let currentEntry = null;
+
+  function finalizeEntry() {
+    if (!currentSection || !currentEntry) return;
+    const metadata = { ...(currentEntry.metadata || {}) };
+    const today = currentMemoryDate();
+    if (!metadata.Added) metadata.Added = today;
+    if (!metadata.Updated) metadata.Updated = metadata.Added || today;
+    currentEntry.metadata = sortMemoryMetadata(metadata);
+    currentSection.entries.push(currentEntry);
+    currentEntry = null;
+  }
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^##\s+(.+?)\s*$/);
+    if (sectionMatch) {
+      finalizeEntry();
+      currentSection = sectionMap.get(normalizeMemorySection(sectionMatch[1]));
+      continue;
+    }
+
+    if (!currentSection) continue;
+
+    const entryMatch = line.match(/^-\s+\*\*(MEM-\d+)\*\*(?:\s+\[([^\]]+)\])?\s+(.+?)\s*$/);
+    if (entryMatch) {
+      finalizeEntry();
+      currentEntry = {
+        id: entryMatch[1],
+        type: normalizeMemoryType(entryMatch[2], currentSection.name),
+        text: entryMatch[3].trim(),
+        metadata: {},
+      };
+      continue;
+    }
+
+    const metadataMatch = line.match(/^\s{2,}-\s+([^:]+):\s*(.*?)\s*$/);
+    if (metadataMatch && currentEntry) {
+      const key = canonicalMetadataKey(metadataMatch[1]);
+      if (key) currentEntry.metadata[key] = metadataMatch[2];
+    }
+  }
+
+  finalizeEntry();
+  return doc;
+}
+
+function ensureStructuredMemoryFile(cwd) {
+  const filePath = getMemoryFilePath(cwd);
+  if (!fs.existsSync(filePath)) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, serializeStructuredMemory(createEmptyStructuredMemory()), 'utf-8');
+  }
+  return filePath;
+}
+
+function loadStructuredMemory(cwd) {
+  const filePath = ensureStructuredMemoryFile(cwd);
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  const doc = parseStructuredMemory(raw);
+  return { filePath, doc };
+}
+
+function writeStructuredMemory(cwd, doc) {
+  const filePath = ensureStructuredMemoryFile(cwd);
+  fs.writeFileSync(filePath, serializeStructuredMemory(doc), 'utf-8');
+  return filePath;
+}
+
+function getAllStructuredEntries(doc) {
+  return doc.sections.flatMap(section => section.entries.map(entry => ({ ...entry, section: section.name })));
+}
+
+function nextStructuredMemoryId(doc) {
+  const max = getAllStructuredEntries(doc).reduce((highest, entry) => {
+    const match = entry.id && entry.id.match(/^MEM-(\d+)$/);
+    const value = match ? parseInt(match[1], 10) : 0;
+    return Math.max(highest, value);
+  }, 0);
+  return `MEM-${String(max + 1).padStart(3, '0')}`;
+}
+
+function buildStructuredListPayload(doc, filePath) {
+  const sections = MEMORY_SECTIONS.map(name => {
+    const section = doc.sections.find(item => item.name === name) || { name, entries: [] };
+    return {
+      name,
+      count: section.entries.length,
+      entries: section.entries.map(entry => ({
+        id: entry.id,
+        type: entry.type,
+        text: entry.text,
+        metadata: sortMemoryMetadata(entry.metadata || {}),
+      })),
+    };
+  });
+
+  return {
+    file: filePath,
+    section_order: MEMORY_SECTIONS.slice(),
+    total_entries: sections.reduce((sum, section) => sum + section.count, 0),
+    sections,
+  };
+}
+
+function getReplacedIds(doc) {
+  const replaced = new Set();
+  for (const entry of getAllStructuredEntries(doc)) {
+    const value = entry.metadata && entry.metadata.Replaces;
+    if (!value) continue;
+    for (const part of String(value).split(',')) {
+      const trimmed = part.trim();
+      if (trimmed) replaced.add(trimmed);
+    }
+  }
+  return replaced;
+}
+
+function getDuplicateIds(doc) {
+  const groups = new Map();
+  for (const entry of getAllStructuredEntries(doc)) {
+    const key = `${entry.type}::${normalizeMemoryText(entry.text)}`;
+    const list = groups.get(key) || [];
+    list.push(entry);
+    groups.set(key, list);
+  }
+
+  const duplicates = new Set();
+  for (const entries of groups.values()) {
+    if (entries.length < 2) continue;
+    const sorted = entries.slice().sort((a, b) => {
+      const aDate = parseMemoryDate(a.metadata && (a.metadata.Updated || a.metadata.Added));
+      const bDate = parseMemoryDate(b.metadata && (b.metadata.Updated || b.metadata.Added));
+      return (bDate ? bDate.getTime() : 0) - (aDate ? aDate.getTime() : 0);
+    });
+    for (let i = 1; i < sorted.length; i++) duplicates.add(sorted[i].id);
+  }
+  return duplicates;
+}
+
+function computePruneCandidates(doc, thresholdDays = DEFAULT_PRUNE_THRESHOLD_DAYS) {
+  const now = new Date();
+  const replacedIds = getReplacedIds(doc);
+  const duplicateIds = getDuplicateIds(doc);
+  const candidates = [];
+
+  for (const section of doc.sections) {
+    for (const entry of section.entries) {
+      const metadata = entry.metadata || {};
+      if (section.name === 'Active / Recent') continue;
+
+      const keepValue = normalizeMemoryText(metadata.Keep);
+      if (MEMORY_KEEP_ALWAYS.has(keepValue)) continue;
+
+      const statusValue = normalizeMemoryText(metadata.Status);
+      if (MEMORY_ACTIVE_STATUSES.has(statusValue)) continue;
+
+      const updatedAt = parseMemoryDate(metadata.Updated) || parseMemoryDate(metadata.Added);
+      const ageDays = updatedAt ? diffDays(updatedAt, now) : null;
+
+      let reason = null;
+      if (replacedIds.has(entry.id)) {
+        reason = 'superseded';
+      } else if (duplicateIds.has(entry.id)) {
+        reason = 'duplicate';
+      } else if (statusValue === 'inactive' || statusValue === 'stale' || statusValue === 'archived') {
+        reason = 'inactive';
+      } else if (ageDays !== null && ageDays >= thresholdDays) {
+        reason = 'old';
+      }
+
+      if (!reason) continue;
+      if (ageDays !== null && ageDays < thresholdDays && (reason === 'inactive' || reason === 'duplicate' || reason === 'superseded')) {
+        continue;
+      }
+
+      candidates.push({
+        id: entry.id,
+        type: entry.type,
+        section: section.name,
+        reason,
+        age_days: ageDays,
+        text: redactMemoryText(entry.text),
+      });
+    }
+  }
+
+  return candidates.sort((a, b) => {
+    if ((b.age_days || 0) !== (a.age_days || 0)) return (b.age_days || 0) - (a.age_days || 0);
+    return a.id.localeCompare(b.id);
+  });
+}
+
+function parseOptionValue(restArgs, flag) {
+  const idx = restArgs.indexOf(flag);
+  if (idx === -1 || idx === restArgs.length - 1) return null;
+  return restArgs[idx + 1];
 }
 
 /**
@@ -53,92 +393,76 @@ function cmdMemoryWrite(cwd, options, raw) {
     error(`Invalid JSON in --entry: ${e.message}`);
   }
 
-  // Ensure directory exists
   const memDir = path.join(cwd, '.planning', 'memory');
   fs.mkdirSync(memDir, { recursive: true });
 
   const filePath = path.join(memDir, storeFilename(store));
 
-  // Read existing entries
-  let entries = [];
-  try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    entries = JSON.parse(raw);
-    if (!Array.isArray(entries)) entries = [];
-  } catch (e) {
-    debugLog('memory.write', 'read failed, starting fresh', e);
-    entries = [];
-  }
+  const mutation = mutateJsonStore(cwd, {
+    filePath,
+    defaultValue: [],
+    transform(currentEntries) {
+      const entries = Array.isArray(currentEntries) ? currentEntries : [];
+      const nextEntry = { ...entry };
 
-  // Add timestamp if not present
-  if (!entry.timestamp) {
-    entry.timestamp = new Date().toISOString();
-  }
-
-  // Store-specific behavior
-  if (store === 'trajectories') {
-    // Validate required fields
-    if (!entry.category || !VALID_CATEGORIES.includes(entry.category)) {
-      error(`Invalid or missing category. Must be one of: ${VALID_CATEGORIES.join(', ')}`);
-    }
-    if (!entry.text || typeof entry.text !== 'string' || entry.text.trim() === '') {
-      error('Missing or empty text field. Trajectory entries require non-empty text.');
-    }
-
-    // Validate optional metadata
-    if (entry.confidence !== undefined && !VALID_CONFIDENCE.includes(entry.confidence)) {
-      error(`Invalid confidence. Must be one of: ${VALID_CONFIDENCE.join(', ')}`);
-    }
-    if (entry.tags !== undefined) {
-      if (!Array.isArray(entry.tags) || !entry.tags.every(t => typeof t === 'string')) {
-        error('Invalid tags. Must be an array of strings.');
+      if (!nextEntry.timestamp) {
+        nextEntry.timestamp = new Date().toISOString();
       }
-    }
-    if (entry.references !== undefined) {
-      if (!Array.isArray(entry.references) || !entry.references.every(r => typeof r === 'string')) {
-        error('Invalid references. Must be an array of strings.');
+
+      if (store === 'trajectories') {
+        if (!nextEntry.category || !VALID_CATEGORIES.includes(nextEntry.category)) {
+          error(`Invalid or missing category. Must be one of: ${VALID_CATEGORIES.join(', ')}`);
+        }
+        if (!nextEntry.text || typeof nextEntry.text !== 'string' || nextEntry.text.trim() === '') {
+          error('Missing or empty text field. Trajectory entries require non-empty text.');
+        }
+        if (nextEntry.confidence !== undefined && !VALID_CONFIDENCE.includes(nextEntry.confidence)) {
+          error(`Invalid confidence. Must be one of: ${VALID_CONFIDENCE.join(', ')}`);
+        }
+        if (nextEntry.tags !== undefined) {
+          if (!Array.isArray(nextEntry.tags) || !nextEntry.tags.every(t => typeof t === 'string')) {
+            error('Invalid tags. Must be an array of strings.');
+          }
+        }
+        if (nextEntry.references !== undefined) {
+          if (!Array.isArray(nextEntry.references) || !nextEntry.references.every(r => typeof r === 'string')) {
+            error('Invalid references. Must be an array of strings.');
+          }
+        }
+        if (nextEntry.phase !== undefined && typeof nextEntry.phase !== 'string' && typeof nextEntry.phase !== 'number') {
+          error('Invalid phase. Must be a string or number.');
+        }
+
+        let id;
+        const existingIds = new Set(entries.map(e => e.id));
+        do {
+          id = 'tj-' + crypto.randomBytes(3).toString('hex');
+        } while (existingIds.has(id));
+        nextEntry.id = id;
+        entries.push(nextEntry);
+      } else if (store === 'bookmarks') {
+        entries.unshift(nextEntry);
+        if (entries.length > BOOKMARKS_MAX) {
+          entries.splice(BOOKMARKS_MAX);
+        }
+      } else {
+        entries.push(nextEntry);
       }
-    }
-    if (entry.phase !== undefined && typeof entry.phase !== 'string' && typeof entry.phase !== 'number') {
-      error('Invalid phase. Must be a string or number.');
-    }
 
-    // Auto-generate unique short ID
-    let id;
-    const existingIds = new Set(entries.map(e => e.id));
-    do {
-      id = 'tj-' + crypto.randomBytes(3).toString('hex');
-    } while (existingIds.has(id));
-    entry.id = id;
+      return {
+        nextData: entries,
+        result: { entry: nextEntry, entry_count: entries.length },
+      };
+    },
+    sqliteMirror({ result }) {
+      const db = getDb(cwd);
+      const cache = new PlanningCache(db);
+      cache.writeMemoryEntry(cwd, store, result.entry);
+    },
+  });
 
-    entries.push(entry);
-  } else if (store === 'bookmarks') {
-    // New entry at index 0, trim to max
-    entries.unshift(entry);
-    if (entries.length > BOOKMARKS_MAX) {
-      entries = entries.slice(0, BOOKMARKS_MAX);
-    }
-  } else {
-    // decisions, lessons, todos: simple append, NEVER prune decisions/lessons
-    entries.push(entry);
-  }
-
-  // Write back
-  fs.writeFileSync(filePath, JSON.stringify(entries, null, 2), 'utf-8');
-
-  // Dual-write to SQLite (best-effort — warn on failure, don't roll back JSON)
-  try {
-    const db = getDb(cwd);
-    const cache = new PlanningCache(db);
-    cache.writeMemoryEntry(cwd, store, entry);
-  } catch (e) {
-    debugLog('memory.write', 'SQLite dual-write failed', e);
-  }
-
-  const result = { written: true, store, entry_count: entries.length };
-
-  // Warn if store exceeds compaction threshold (not for sacred stores)
-  if (!SACRED_STORES.includes(store) && entries.length > COMPACT_THRESHOLD) {
+  const result = { written: true, store, entry_count: mutation.entry_count };
+  if (!SACRED_STORES.includes(store) && mutation.entry_count > COMPACT_THRESHOLD) {
     result.compact_needed = true;
     result.threshold = COMPACT_THRESHOLD;
   }
@@ -171,12 +495,10 @@ function cmdMemoryRead(cwd, options, raw) {
 
   const total = entries.length;
 
-  // SQL-first search when query is present
   if (query) {
     try {
       const db = getDb(cwd);
       const cache = new PlanningCache(db);
-      // Trigger auto-migration if tables are empty
       cache.migrateMemoryStores(cwd);
       const sqlResult = cache.searchMemory(cwd, store, query, {
         phase: phase || null,
@@ -184,43 +506,30 @@ function cmdMemoryRead(cwd, options, raw) {
         limit: limit ? parseInt(limit, 10) : null,
       });
       if (sqlResult && sqlResult.entries.length > 0) {
-        // SQL search succeeded — use its results; total reflects JSON store size for consistency
         output({ entries: sqlResult.entries, count: sqlResult.entries.length, store, total, source: 'sql' });
         return;
       }
-      // SQL returned empty — fall through to JSON-based search
     } catch (e) {
       debugLog('memory.read', 'SQL search failed, falling back to JSON', e);
     }
   }
 
-  // Filter by phase
   if (phase) {
     entries = entries.filter(e => e.phase && String(e.phase) === String(phase));
   }
 
-  // Filter by query (case-insensitive match on all string values)
   if (query) {
     const q = query.toLowerCase();
-    entries = entries.filter(e => {
-      return Object.values(e).some(v => {
-        if (typeof v === 'string') return v.toLowerCase().includes(q);
-        return false;
-      });
-    });
+    entries = entries.filter(e => Object.values(e).some(v => typeof v === 'string' && v.toLowerCase().includes(q)));
   }
 
-  // Trajectory-specific filters
   if (store === 'trajectories') {
     if (category) {
       entries = entries.filter(e => e.category === category);
     }
     if (tags) {
       const requiredTags = tags.split(',').map(t => t.trim());
-      entries = entries.filter(e => {
-        if (!Array.isArray(e.tags)) return false;
-        return requiredTags.every(rt => e.tags.includes(rt));
-      });
+      entries = entries.filter(e => Array.isArray(e.tags) && requiredTags.every(rt => e.tags.includes(rt)));
     }
     if (from) {
       entries = entries.filter(e => e.timestamp && e.timestamp >= from);
@@ -228,14 +537,11 @@ function cmdMemoryRead(cwd, options, raw) {
     if (to) {
       entries = entries.filter(e => e.timestamp && e.timestamp <= to + 'T23:59:59.999Z');
     }
-
-    // Default sort: newest first (reverse). --asc keeps chronological order.
     if (!asc) {
       entries = entries.slice().reverse();
     }
   }
 
-  // Lessons-specific filters (LESSON-06)
   if (store === 'lessons') {
     if (options.type) {
       entries = entries.filter(e => e.type && e.type.toLowerCase() === options.type.toLowerCase());
@@ -246,7 +552,6 @@ function cmdMemoryRead(cwd, options, raw) {
     if (options.severity) {
       entries = entries.filter(e => e.severity && e.severity.toUpperCase() === options.severity.toUpperCase());
     }
-    // Default sort: newest first
     if (!asc) {
       entries = entries.slice().sort((a, b) => {
         const da = a.date || '';
@@ -256,7 +561,6 @@ function cmdMemoryRead(cwd, options, raw) {
     }
   }
 
-  // Slice by limit
   if (limit && parseInt(limit, 10) > 0) {
     entries = entries.slice(0, parseInt(limit, 10));
   }
@@ -293,7 +597,6 @@ function cmdMemoryList(cwd, options, raw) {
     }
   } catch (e) {
     debugLog('memory.list', 'readdir failed', e);
-    // No memory dir yet — return empty list
   }
 
   output({ stores, memory_dir: memDir });
@@ -307,7 +610,6 @@ function cmdMemoryCompact(cwd, options, raw) {
   const { store, threshold: thresholdStr, dryRun } = options;
   const threshold = thresholdStr ? parseInt(thresholdStr, 10) : COMPACT_THRESHOLD;
 
-  // If a specific store is requested, validate it
   if (store && !VALID_STORES.includes(store)) {
     error(`Invalid store. Must be one of: ${VALID_STORES.join(', ')}`);
   }
@@ -325,7 +627,6 @@ function cmdMemoryCompact(cwd, options, raw) {
   };
 
   for (const s of storesToProcess) {
-    // Sacred data: never compact
     if (SACRED_STORES.includes(s)) {
       result.sacred_skipped.push(s);
       continue;
@@ -346,7 +647,6 @@ function cmdMemoryCompact(cwd, options, raw) {
     const beforeCount = entries.length;
     result.entries_before[s] = beforeCount;
 
-    // Only compact if above threshold
     if (beforeCount <= threshold) {
       result.entries_after[s] = beforeCount;
       result.summaries_created[s] = 0;
@@ -358,7 +658,6 @@ function cmdMemoryCompact(cwd, options, raw) {
     let summariesCreated = 0;
 
     if (s === 'bookmarks') {
-      // Keep COMPACT_KEEP_RECENT most recent entries (index 0 = newest)
       const kept = entries.slice(0, COMPACT_KEEP_RECENT);
       const old = entries.slice(COMPACT_KEEP_RECENT);
       const summarized = old.map(e => {
@@ -375,7 +674,6 @@ function cmdMemoryCompact(cwd, options, raw) {
       summariesCreated = summarized.length;
       compactedEntries = [...kept, ...summarized];
     } else if (s === 'todos') {
-      // Keep active (non-completed) todos, summarize completed ones
       const active = [];
       const completedSummaries = [];
       for (const e of entries) {
@@ -395,7 +693,6 @@ function cmdMemoryCompact(cwd, options, raw) {
       summariesCreated = completedSummaries.length;
       compactedEntries = [...active, ...completedSummaries];
     } else {
-      // Unknown non-sacred store — skip
       result.entries_after[s] = beforeCount;
       result.summaries_created[s] = 0;
       result.stores_processed.push(s);
@@ -405,29 +702,138 @@ function cmdMemoryCompact(cwd, options, raw) {
     result.entries_after[s] = compactedEntries.length;
     result.summaries_created[s] = summariesCreated;
     result.stores_processed.push(s);
+    if (summariesCreated > 0) result.compacted = true;
 
-    if (summariesCreated > 0) {
-      result.compacted = true;
-    }
-
-    // Write back unless dry-run
     if (!dryRun) {
       fs.mkdirSync(memDir, { recursive: true });
       fs.writeFileSync(filePath, JSON.stringify(compactedEntries, null, 2), 'utf-8');
     }
   }
 
-  // If only sacred stores were requested, return special response
   if (store && SACRED_STORES.includes(store)) {
     output({ compacted: false, reason: 'sacred_data' });
     return;
   }
 
-  if (dryRun) {
-    result.dry_run = true;
-  }
-
+  if (dryRun) result.dry_run = true;
   output(result);
 }
 
-module.exports = { cmdMemoryWrite, cmdMemoryRead, cmdMemoryList, cmdMemoryEnsureDir, cmdMemoryCompact };
+function cmdStructuredMemoryList(cwd, options, raw) {
+  const { filePath, doc } = loadStructuredMemory(cwd);
+  output(buildStructuredListPayload(doc, filePath));
+}
+
+function cmdStructuredMemoryAdd(cwd, options, raw) {
+  const section = normalizeMemorySection(options.section);
+  if (!section) {
+    error(`Missing or invalid --section. Must be one of: ${MEMORY_SECTIONS.join(', ')}`);
+  }
+  if (!options.text || !String(options.text).trim()) {
+    error('Missing --text');
+  }
+
+  const { doc } = loadStructuredMemory(cwd);
+  const sectionObj = doc.sections.find(item => item.name === section);
+  const id = nextStructuredMemoryId(doc);
+  const today = currentMemoryDate();
+  const entry = {
+    id,
+    type: normalizeMemoryType(options.type, section),
+    text: String(options.text).trim(),
+    metadata: sortMemoryMetadata({
+      Added: today,
+      Updated: today,
+      Source: options.source,
+      Keep: options.keep,
+      Status: options.status,
+      Expires: options.expires,
+      Replaces: options.replaces,
+    }),
+  };
+
+  sectionObj.entries.push(entry);
+  const filePath = writeStructuredMemory(cwd, doc);
+
+  output({
+    added: true,
+    file: filePath,
+    entry: {
+      id: entry.id,
+      section,
+      type: entry.type,
+      text: entry.text,
+      metadata: entry.metadata,
+    },
+  });
+}
+
+function cmdStructuredMemoryRemove(cwd, options, raw) {
+  const id = String(options.id || '').trim();
+  if (!id) error('Missing --id');
+
+  const { doc } = loadStructuredMemory(cwd);
+  for (const section of doc.sections) {
+    const index = section.entries.findIndex(entry => entry.id === id);
+    if (index === -1) continue;
+    const [removed] = section.entries.splice(index, 1);
+    const filePath = writeStructuredMemory(cwd, doc);
+    output({ removed: true, file: filePath, id, section: section.name, entry: removed });
+    return;
+  }
+
+  error(`Memory entry not found: ${id}`);
+}
+
+function cmdStructuredMemoryPrune(cwd, options, raw) {
+  const threshold = options.threshold ? parseInt(options.threshold, 10) : DEFAULT_PRUNE_THRESHOLD_DAYS;
+  if (Number.isNaN(threshold) || threshold < 0) {
+    error('Invalid --threshold. Must be a non-negative integer.');
+  }
+
+  const { doc } = loadStructuredMemory(cwd);
+  const candidates = computePruneCandidates(doc, threshold);
+
+  if (!options.apply) {
+    output({
+      preview: true,
+      threshold_days: threshold,
+      candidate_count: candidates.length,
+      candidates,
+    });
+    return;
+  }
+
+  const idsToRemove = new Set(candidates.map(candidate => candidate.id));
+  for (const section of doc.sections) {
+    section.entries = section.entries.filter(entry => !idsToRemove.has(entry.id));
+  }
+  const filePath = writeStructuredMemory(cwd, doc);
+
+  output({
+    preview: false,
+    applied: true,
+    file: filePath,
+    threshold_days: threshold,
+    removed_count: candidates.length,
+    removed_ids: candidates.map(candidate => candidate.id),
+    candidates,
+  });
+}
+
+module.exports = {
+  cmdMemoryWrite,
+  cmdMemoryRead,
+  cmdMemoryList,
+  cmdMemoryEnsureDir,
+  cmdMemoryCompact,
+  cmdStructuredMemoryList,
+  cmdStructuredMemoryAdd,
+  cmdStructuredMemoryRemove,
+  cmdStructuredMemoryPrune,
+  parseStructuredMemory,
+  serializeStructuredMemory,
+  computePruneCandidates,
+  MEMORY_SECTIONS,
+  MEMORY_METADATA_ORDER,
+};

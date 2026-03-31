@@ -18,7 +18,7 @@ Read STATE.md before starting.
 <step name="initialize" priority="first">
 <skill:bgsd-context-init />
 
-Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `commit_docs`, `pre_flight_validation`, `worktree_enabled`, `worktree_config`, `worktree_active`, `file_overlaps`, `handoff_tool_context`, `capability_level` (from `handoff_tool_context.capability_level`).
+Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `verification_route` (from `decisions.verification-routing.value`), `commit_docs`, `pre_flight_validation`, `workspace_enabled`, `workspace_config`, `workspace_active`, `file_overlaps`, `handoff_tool_context`, `capability_level` (from `handoff_tool_context.capability_level`, may be `UNKNOWN`), `resume_summary`.
 
 **`phase_number` is the authoritative phase — it comes from the user's argument as resolved by the bGSD plugin. Never infer or auto-select a different phase.**
 
@@ -27,7 +27,7 @@ Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `ph
 ERROR: Phase number required.
 Usage: /bgsd-execute-phase <phase-number> [flags]
 Example: /bgsd-execute-phase 92
-Use /bgsd-progress to see available phases.
+Use /bgsd-inspect progress to see available phases.
 ```
 Exit.
 
@@ -42,6 +42,19 @@ CI_FLAG=""
 ```
 
 `plan_count` 0 → error: no plans found for phase. No STATE.md but `.planning/` exists → offer reconstruct. `parallelization` false → sequential.
+</step>
+<!-- /section -->
+
+<!-- section: handoff_gating -->
+<step name="gate_chain_continuation">
+Use `resume_summary` as the authoritative continuation contract whenever handoff state exists.
+
+- If `resume_summary` is absent: standalone `/bgsd-execute-phase` works normally.
+- If `resume_summary` is present and `latest_valid_step` is `plan` or `execute`: continue from the latest valid artifact instead of guessing from partial summaries, plan counts, or `STATE.md`.
+- If `resume_summary.valid` is false: fail closed, present `repair_guidance`, and stop. Do not continue execution on missing or invalid chain state.
+- If the newest artifact is corrupt but an older one is valid: trust the latest valid artifact, not the newest file blindly.
+- If source drift is detected (`stale_sources` true or the latest artifact fingerprint no longer matches the refreshed phase snapshot's expected fingerprint): warn, rebuild from source, validate that the reconstructed state now matches the current expected fingerprint, and only then allow continuation.
+- If the rebuild still cannot produce a valid handoff: stop with repair or restart guidance.
 </step>
 <!-- /section -->
 
@@ -74,8 +87,8 @@ Issues → yolo: log, proceed. Interactive: present, ask proceed/stop.
 Skip if `pre_flight_validation` false or `--skip-validate`. Run `verify:state validate --fix` then `verify:state validate`. Display fixed count, status table on warnings/errors. Errors → yolo: continue with banner. Interactive: ask fix or `--skip-validate`.
 </step>
 
-<step name="preflight_worktree_check">
-Skip if `worktree_enabled` false. If overlaps within wave → display table (yolo: advisory, proceed; interactive: ask). Display worktree config summary. If `worktree_active` non-empty: display, consider cleanup.
+<step name="preflight_workspace_check">
+Skip if `workspace_enabled` false. If overlaps within wave → display table (yolo: advisory, proceed; interactive: ask). Display workspace config summary. If `workspace_active` non-empty: display, consider cleanup.
 </step>
 
 <step name="preflight_convention_check">
@@ -121,17 +134,17 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 2. Describe what's being built (2-3 sentences from each plan's `<objective>`)
 3. Choose execution mode:
 
-**Mode A: Worktree-based parallel** (`worktree_enabled` + parallel + multi-plan wave)
+**Mode A: Workspace-based parallel** (`workspace_enabled` + parallel + multi-plan wave)
 
-  a. `execute:worktree create {plan_id}` for each plan. Fail → fall back to sequential.
+  a. `workspace add {plan_id}` for each runnable plan in the wave so every plan gets its own managed JJ workspace. Fail → fall back to sequential.
   b. Inject codebase context (same as Mode B).
-  c. Spawn in worktree dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{worktree_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in worktree at {worktree_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
-  d. Monitor: check `{worktree_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`.
-  e. Wait. Separate successes/failures.
-  f. Sequential merge (smallest first): `execute:worktree merge {plan_id}`. Run test if configured. Conflicts → "Resolve manually" / "Skip plan" / "Abort wave". Yolo: skip, log.
-  g. Cleanup: `execute:worktree cleanup`
+  c. Spawn in workspace dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{workspace_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
+  d. Monitor each workspace independently: check `{workspace_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`, track commit/summary status per workspace, and keep the plan → workspace mapping visible in wave reporting.
+  e. Wait. Separate healthy/successful workspaces from failed or recovery-needed workspaces. Report partial-wave outcomes honestly instead of collapsing the whole wave into one success/failure bit.
+  f. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace, use the returned status/recovery preview to reconcile healthy workspaces immediately, and leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
+  g. Cleanup: keep failed or divergent workspaces during recovery work, and only let `workspace cleanup` remove obsolete failed workspaces after successful phase completion confirms they are no longer needed.
 
-**Mode B: Standard execution** (worktree disabled OR single-plan OR no parallelization)
+**Mode B: Standard execution** (workspace disabled OR single-plan OR no parallelization)
 
   Before each executor, inject codebase context if available:
   ```bash
@@ -155,6 +168,12 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
       Load checkpoints.md sections 'types' and 'guidelines' via extract-sections if plan has autonomous: false.
       Load tdd.md only if plan type is 'tdd'.
       </execution_context>
+
+      Verification route: {verification_route}. Apply it as: `skip` = no extra broad-suite reruns beyond explicit plan checks, `light` = focused verification only, `full` = one broad regression gate at plan end or overall verification, never per edit.
+
+      When changed deliverables include generated runtime artifacts (for example `plugin.js` or `bin/bgsd-tools.cjs`), verify against the repo-local current checkout plus the rebuilt local runtime in this repo. Never trust stale generated artifacts: run `npm run build`, then rerun the focused proof against the rebuilt local runtime before reporting success.
+
+      If the phase exposes an explicit phase-intent block, require verification to report a separate Intent Alignment verdict before or alongside Requirement Coverage using the locked ladder `aligned | partial | misaligned`. If the core expected user change did not land, the verdict cannot be `partial`. If the phase lacks the explicit phase-intent block, require `not assessed` / unavailable wording with a plain reason instead of a guessed verdict.
 
       Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection.
 
@@ -221,6 +240,18 @@ After all waves, report:
 - Wave status table
 - Plan one-liners from SUMMARYs
 - Aggregated issues (or "None")
+
+Before verification or any fresh-context continuation, write or refresh the durable `execute` handoff artifact:
+
+```bash
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \
+  --phase "${PHASE_NUMBER}" \
+  --step execute \
+  --summary "Execution complete for Phase ${PHASE_NUMBER}" \
+  --next-command "/bgsd-verify-work ${PHASE_NUMBER}"
+```
+
+If the phase already produced canonical `*-TDD-AUDIT.json` proof sidecars, the shared handoff runtime preserves deterministic proof metadata in `context` automatically so resume inspection, the execute → verify boundary, and downstream summary rendering do not silently drop TDD evidence.
 </step>
 <!-- /section -->
 
@@ -252,6 +283,10 @@ Phase directory: {phase_dir}
 Phase goal: {goal from ROADMAP.md}
 Phase requirement IDs: {phase_req_ids}
 Check must_haves against actual codebase.
+Assess intent alignment as a separate judgment from requirement coverage using the active phase intent when available.
+Use the locked verdict ladder `aligned | partial | misaligned`; if the core expected user change missed, force `misaligned`.
+If no explicit phase-intent block exists, report intent alignment as `not assessed` / unavailable with a plain reason instead of guessing.
+Surface Intent Alignment before or alongside Requirement Coverage in VERIFICATION.md.
 Cross-reference requirement IDs from PLAN frontmatter against REQUIREMENTS.md.
 Create VERIFICATION.md.",
   subagent_type="bgsd-verifier",
@@ -262,7 +297,7 @@ Create VERIFICATION.md.",
 Read status from VERIFICATION.md:
 - `passed` → update_roadmap
 - `human_needed` → present items for human testing
-- `gaps_found` → present gap summary, offer `/bgsd-plan-phase {X} --gaps`
+- `gaps_found` → present gap summary, offer `/bgsd-plan gaps {X}`
 </step>
 <!-- /section -->
 
@@ -282,7 +317,7 @@ If `gaps_found`: skip (verify_phase_goal already presented gap-closure path).
 
 **Auto-advance** (`--auto` OR `config-get workflow.auto_advance` true, AND verification passed): read and follow `transition.md` inline, passing `--auto`.
 
-**Otherwise:** Workflow ends. User runs `/bgsd-progress` or invokes transition manually.
+**Otherwise:** Workflow ends. User runs `/bgsd-inspect progress` or invokes transition manually. `transition.md` now includes an advisory lessons review block that surfaces recent lesson captures plus `lessons:suggest` optimization guidance before the next-phase handoff.
 </step>
 <!-- /section -->
 

@@ -90,7 +90,7 @@ Task(
 - Display root cause and evidence summary
 - Offer options:
   - "Fix now" - spawn fix subagent
-  - "Plan fix" - suggest /bgsd-plan-phase --gaps
+  - "Plan fix" - suggest /bgsd-plan gaps
   - "Manual fix" - done
 
 **If `## CHECKPOINT REACHED`:**

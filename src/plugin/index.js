@@ -1,8 +1,8 @@
+import { existsSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import { safeHook } from './safe-hook.js';
 import { createToolRegistry } from './tool-registry.js';
-import { buildSystemPrompt, buildCompactionContext } from './context-builder.js';
+import { buildSystemPrompt, buildCompactionContext, buildMemorySnapshot } from './context-builder.js';
 import { enrichCommand } from './command-enricher.js';
 import { getProjectState } from './project-state.js';
 import { getTools } from './tools/index.js';
@@ -12,6 +12,8 @@ import { createIdleValidator } from './idle-validator.js';
 import { createStuckDetector } from './stuck-detector.js';
 import { createAdvisoryGuardrails } from './advisory-guardrails.js';
 import { parseConfig } from './parsers/config.js';
+import { writeDebugDiagnostic } from './debug-contract.js';
+import { getToolAvailability } from './tool-availability.js';
 
 // Re-export parsers, tool registry, and safeHook for external consumption
 export { parseState, invalidateState } from './parsers/state.js';
@@ -22,7 +24,7 @@ export { parseProject, invalidateProject } from './parsers/project.js';
 export { parseIntent, invalidateIntent } from './parsers/intent.js';
 export { invalidateAll } from './parsers/index.js';
 export { getProjectState } from './project-state.js';
-export { buildSystemPrompt, buildCompactionContext } from './context-builder.js';
+export { buildSystemPrompt, buildCompactionContext, buildMemorySnapshot } from './context-builder.js';
 export { enrichCommand, elideConditionalSections } from './command-enricher.js';
 export { createToolRegistry } from './tool-registry.js';
 export { safeHook } from './safe-hook.js';
@@ -37,7 +39,6 @@ export { createAdvisoryGuardrails } from './advisory-guardrails.js';
  *
  * Provides session lifecycle integration for the bGSD planning system:
  * - Session greeting with plugin availability notice
- * - BGSD_HOME environment variable injection for workflow resolution
  * - System prompt injection with current project state (Phase 73 P01)
  * - Enhanced compaction with structured XML context preservation (Phase 73 P02)
  * - Command enrichment: auto-injects init-equivalent context for /bgsd-* commands (Phase 73 P02)
@@ -48,13 +49,12 @@ export { createAdvisoryGuardrails } from './advisory-guardrails.js';
  * - Notification system with dual-channel routing (OS + context injection)
  * - Advisory guardrails: convention, planning file, test suggestion warnings (Phase 76)
  *
- * Hooks registered (6 total):
- * 1. shell.env — BGSD_HOME injection
- * 2. experimental.chat.system.transform — compact system prompt + notification injection
- * 3. experimental.session.compacting — structured XML context preservation
- * 4. command.execute.before — slash command enrichment
- * 5. event — session.idle + file.watcher.updated dispatch
- * 6. tool.execute.after — stuck/loop detection
+ * Hooks registered (5 total):
+ * 1. experimental.chat.system.transform — compact system prompt + notification injection
+ * 2. experimental.session.compacting — structured XML context preservation
+ * 3. command.execute.before — slash command enrichment
+ * 4. event — session.idle + file.watcher.updated dispatch
+ * 5. tool.execute.after — stuck/loop detection
  *
  * All hooks are wrapped in safeHook for universal error boundary protection:
  * retry, timeout, circuit breaker, correlation-ID logging.
@@ -63,8 +63,6 @@ export { createAdvisoryGuardrails } from './advisory-guardrails.js';
  * Source uses ESM imports — esbuild produces clean ESM output.
  */
 export const BgsdPlugin = async ({ directory, $ }) => {
-  const bgsdHome = join(homedir(), '.config', 'opencode', 'bgsd-oc');
-
   // Initialize tool registry
   const registry = createToolRegistry(safeHook);
 
@@ -72,9 +70,84 @@ export const BgsdPlugin = async ({ directory, $ }) => {
   const projectDir = directory || process.cwd();
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
+
+  // Best-effort tool cache warmup so first subagent handoffs have fresh availability data.
+  try {
+    if (existsSync(join(projectDir, '.planning'))) {
+      getToolAvailability(projectDir, { refreshIfNeeded: true });
+    }
+  } catch {
+    // Tool cache warmup is advisory only.
+  }
+
+  const memorySnapshotState = {
+    text: null,
+    stale: false,
+    staleNoticeSent: false,
+    buildWarningsSent: false,
+  };
+
+  async function notifyMemorySnapshotBuildWarnings(snapshot) {
+    if (memorySnapshotState.buildWarningsSent || !snapshot) return;
+
+    for (const warning of snapshot.blockedWarnings || []) {
+      const message = warning.category === 'parse-failure'
+        ? 'MEMORY.md could not be parsed, so no memory snapshot was injected.'
+        : `Blocked ${warning.count} MEMORY.md entr${warning.count === 1 ? 'y' : 'ies'} (${warning.category}): ${warning.snippet}`;
+      await notifier.notify({
+        type: 'memory-blocked',
+        severity: 'info',
+        message,
+      });
+    }
+
+    if (snapshot.budgetWarning) {
+      await notifier.notify({
+        type: 'memory-budget',
+        severity: 'info',
+        message: snapshot.budgetWarning,
+      });
+    }
+
+    memorySnapshotState.buildWarningsSent = true;
+  }
+
+  async function getOrBuildMemorySnapshot(cwd) {
+    if (memorySnapshotState.text !== null) {
+      return memorySnapshotState.text;
+    }
+
+    const snapshot = buildMemorySnapshot(cwd);
+    memorySnapshotState.text = snapshot.text || '';
+    await notifyMemorySnapshotBuildWarnings(snapshot);
+    return memorySnapshotState.text;
+  }
+
+  async function handleExternalPlanningChange(filePath) {
+    if (!filePath || !filePath.endsWith(join('.planning', 'MEMORY.md'))) {
+      return;
+    }
+    if (memorySnapshotState.text === null || memorySnapshotState.stale) {
+      return;
+    }
+
+    memorySnapshotState.stale = true;
+    if (!memorySnapshotState.staleNoticeSent) {
+      memorySnapshotState.staleNoticeSent = true;
+      await notifier.notify({
+        type: 'memory-stale',
+        severity: 'info',
+        message: 'MEMORY.md changed on disk; restart or refresh the session to load the new snapshot.',
+      });
+    }
+  }
+
   const fileWatcher = createFileWatcher(projectDir, {
     debounceMs: config.file_watcher?.debounce_ms || 200,
     maxPaths: config.file_watcher?.max_watched_paths || 500,
+    onExternalChange: (filePath) => {
+      void handleExternalPlanningChange(filePath);
+    },
   });
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config);
   const stuckDetector = createStuckDetector(notifier, config);
@@ -94,17 +167,9 @@ export const BgsdPlugin = async ({ directory, $ }) => {
       getProjectState(projectDir);
     } catch {
       // Warm-up failure is non-fatal — enricher falls back to cold-cache parse
-      if (process.env.BGSD_DEBUG) {
-        // eslint-disable-next-line no-console
-        console.error('[bgsd-plugin] background warm-up failed (non-fatal)');
-      }
+      writeDebugDiagnostic('[bgsd-plugin]', 'background warm-up failed (non-fatal)');
     }
   }, 0);
-
-  const shellEnv = safeHook('shell.env', async (input, output) => {
-    if (!output || !output.env) return;
-    output.env.BGSD_HOME = bgsdHome;
-  });
 
   // Enhanced compaction: structured XML blocks preserving project, task, decisions, intent, session
   // Replaces Phase 71's raw STATE.md dump with rich context per CONTEXT.md decisions
@@ -118,7 +183,8 @@ export const BgsdPlugin = async ({ directory, $ }) => {
 
   const systemTransform = safeHook('system.transform', async (input, output) => {
     const sysDir = directory || process.cwd();
-    const prompt = buildSystemPrompt(sysDir);
+    const memorySnapshot = await getOrBuildMemorySnapshot(sysDir);
+    const prompt = buildSystemPrompt(sysDir, { memorySnapshot });
     if (prompt && output && output.system) {
       output.system.push(prompt);
     }
@@ -153,6 +219,7 @@ export const BgsdPlugin = async ({ directory, $ }) => {
     if (event.type === 'file.watcher.updated') {
       const { invalidateAll } = await import('./parsers/index.js');
       invalidateAll(projectDir);
+      await handleExternalPlanningChange(event.path || event.filePath || null);
     }
   });
 
@@ -163,7 +230,6 @@ export const BgsdPlugin = async ({ directory, $ }) => {
   });
 
   return {
-    'shell.env': shellEnv,
     'experimental.session.compacting': compacting,
     'experimental.chat.system.transform': systemTransform,
     'command.execute.before': commandEnrich,

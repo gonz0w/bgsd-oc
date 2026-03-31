@@ -24,6 +24,8 @@ Template for `.planning/research/SUMMARY.md` — executive summary of project re
 
 **Architecture:** [one-liner: primary pattern and major components]
 
+**Recommended skills:** [none, or 1-3 skill names with brief fit rationale]
+
 **Top pitfalls:**
 1. [Pitfall] — [how to avoid]
 2. [Pitfall] — [how to avoid]
@@ -88,6 +90,15 @@ Template for `.planning/research/SUMMARY.md` — executive summary of project re
 1. **[Pitfall]** — [how to avoid]
 2. **[Pitfall]** — [how to avoid]
 3. **[Pitfall]** — [how to avoid]
+
+### Recommended Skills
+
+[Summary from SKILLS.md — 1 short paragraph]
+
+- [Skill] — [why it fits this milestone] — [repo URL]
+- [Skill] — [why it fits this milestone] — [repo URL]
+
+[If none: "No strong project-local skill recommendations from research."]
 <!-- /section -->
 
 <!-- section: roadmap_implications -->

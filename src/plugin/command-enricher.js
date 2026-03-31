@@ -2,6 +2,8 @@ import { getProjectState } from './project-state.js';
 import { parsePlans } from './parsers/index.js';
 import { evaluateDecisions } from '../lib/decision-rules.js';
 import { getDb, PlanningCache } from './lib/db-cache.js';
+import { isDebugEnabled, writeDebugDiagnostic } from './debug-contract.js';
+import { computeCapabilityLevel, getToolAvailability } from './tool-availability.js';
 import { readdirSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -46,11 +48,11 @@ export function enrichCommand(input, output, cwd) {
   try {
     projectState = getProjectState(resolvedCwd);
   } catch (err) {
-    // Enrichment failure — tell agent to run /bgsd-health
+    // Enrichment failure — tell agent to run /bgsd-inspect health
     if (output.parts) {
       output.parts.unshift({
         type: 'text',
-        text: '<bgsd-context>\n{"error": "Failed to load project state. Run /bgsd-health to diagnose."}\n</bgsd-context>',
+        text: '<bgsd-context>\n{"error": "Failed to load project state. Run /bgsd-inspect health to diagnose."}\n</bgsd-context>',
       });
     }
     return;
@@ -343,6 +345,11 @@ export function enrichCommand(input, output, cwd) {
       'bgsd-execute-plan':     'bgsd-executor',
       'bgsd-quick':            'bgsd-executor',
       'bgsd-quick-task':       'bgsd-executor',
+      'bgsd-settings':         'bgsd-executor',
+      'bgsd-set-profile':      'bgsd-executor',
+      'bgsd-validate-config':  'bgsd-executor',
+      'bgsd-inspect':          'bgsd-executor',
+      'bgsd-plan':             'bgsd-planner',
       'bgsd-plan-phase':       'bgsd-planner',
       'bgsd-discuss-phase':    'bgsd-planner',
       'bgsd-research-phase':   'bgsd-phase-researcher',
@@ -455,26 +462,15 @@ export function enrichCommand(input, output, cwd) {
   } catch { /* commit-strategy inputs failed */ }
 
   // Phase 127: tool_availability for agent routing
-  // Read from the file cache written by bgsd-tools.cjs detect:tools — avoids child_process in ESM plugin.
-  // Falls back to all-false if cache is absent or stale (conservative default).
+  // Prefer fresh cache, refresh via detect:tools when missing/stale, and fall back to explicit unknowns.
   try {
-    const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (matches detector.js)
-    const cacheFilePath = join(resolvedCwd, '.planning', '.cache', 'tools.json');
-    let toolAvailability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
-    if (existsSync(cacheFilePath)) {
-      try {
-        const cacheData = JSON.parse(readFileSync(cacheFilePath, 'utf-8'));
-        if (cacheData && cacheData.timestamp && (Date.now() - cacheData.timestamp) < CACHE_TTL_MS && cacheData.results) {
-          for (const toolName of ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh']) {
-            toolAvailability[toolName] = Boolean(cacheData.results[toolName] && cacheData.results[toolName].available);
-          }
-        }
-      } catch { /* ignore malformed cache */ }
-    }
-    enrichment.tool_availability = toolAvailability;
+    const toolContext = getToolAvailability(resolvedCwd, { refreshIfNeeded: true });
+    enrichment.tool_availability = toolContext.tool_availability;
+    enrichment.tool_availability_meta = toolContext.tool_availability_meta;
   } catch {
-    // Non-fatal: default all false if cache read fails
-    enrichment.tool_availability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
+    // Non-fatal: fall back to explicit unknown state if cache read/refresh fails unexpectedly.
+    enrichment.tool_availability = { ripgrep: null, fd: null, jq: null, yq: null, ast_grep: null, sd: null, hyperfine: null, bat: null, gh: null };
+    enrichment.tool_availability_meta = { state: 'unknown', source: 'fallback' };
   }
 
   // LOCAL-07: Expose local agent overrides in bgsd-context
@@ -529,16 +525,10 @@ export function enrichCommand(input, output, cwd) {
   // Handoff tool context (capability_level only — sole confirmed consumer field)
   try {
     const ta = enrichment.tool_availability || {};
-    const toolCount = Object.values(ta).filter(v => v === true).length;
-
-    // Capability level thresholds
-    let capabilityLevel = 'MEDIUM';
-    if (toolCount >= 5) capabilityLevel = 'HIGH';
-    else if (toolCount <= 1) capabilityLevel = 'LOW';
-
+    const capabilityLevel = computeCapabilityLevel(ta);
     enrichment.handoff_tool_context = { capability_level: capabilityLevel };
   } catch {
-    enrichment.handoff_tool_context = { capability_level: 'LOW' };
+    enrichment.handoff_tool_context = { capability_level: 'UNKNOWN' };
   }
 
   // In-process decision evaluation (ENGINE-02: no subprocess overhead)
@@ -555,11 +545,7 @@ export function enrichCommand(input, output, cwd) {
     : Date.now() - _t0;
   enrichment._enrichment_ms = parseFloat(_elapsed.toFixed(3));
 
-  // Debug logging when BGSD_DEBUG is set or NODE_ENV === 'development'
-  if (process.env.BGSD_DEBUG || process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line no-console
-    console.error(`[bgsd-enricher] ${command} enriched in ${_elapsed.toFixed(1)}ms`);
-  }
+  writeDebugDiagnostic('[bgsd-enricher]', `${command} enriched in ${_elapsed.toFixed(1)}ms`);
 
   // Prepend enrichment as <bgsd-context> XML block
   if (output.parts) {
@@ -623,17 +609,14 @@ export function enrichCommand(input, output, cwd) {
         output.parts[0].text = `<bgsd-context>\n${JSON.stringify(enrichment, null, 2)}\n</bgsd-context>`;
       }
 
-      if (process.env.BGSD_DEBUG) {
-        // eslint-disable-next-line no-console
-        console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(', ')}) ~${totalTokensSaved} tokens saved`);
+      if (isDebugEnabled()) {
+        writeDebugDiagnostic('[bgsd-enricher]', `elision: removed ${sectionsElided} sections (${allElidedNames.join(', ')}) ~${totalTokensSaved} tokens saved`);
         if (allDanglingWarnings.length > 0) {
-          // eslint-disable-next-line no-console
-          console.error(`[bgsd-enricher] dangling references found: ${allDanglingWarnings.map(w => w.section).join(', ')}`);
+          writeDebugDiagnostic('[bgsd-enricher]', `dangling references found: ${allDanglingWarnings.map(w => w.section).join(', ')}`);
         }
       }
-    } else if (allDanglingWarnings.length > 0 && process.env.BGSD_DEBUG) {
-      // eslint-disable-next-line no-console
-      console.error(`[bgsd-enricher] dangling references found (no elision): ${allDanglingWarnings.map(w => w.section).join(', ')}`);
+    } else if (allDanglingWarnings.length > 0 && isDebugEnabled()) {
+      writeDebugDiagnostic('[bgsd-enricher]', `dangling references found (no elision): ${allDanglingWarnings.map(w => w.section).join(', ')}`);
     }
   }
 }

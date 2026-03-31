@@ -29,9 +29,9 @@ describe('CLI Tools Detection Suite', () => {
   // ──────────────────────────────────────────────────────────────────────────
 
   describe('detector.js — TOOLS constant', () => {
-    test('has exactly 6 entries', () => {
+    test('has exactly 9 entries', () => {
       const toolCount = Object.keys(detector.TOOLS).length;
-      assert.strictEqual(toolCount, 6, `Expected 6 tools, got ${toolCount}`);
+      assert.strictEqual(toolCount, 9, `Expected 9 tools, got ${toolCount}`);
     });
 
     test('each tool has name, aliases, description', () => {
@@ -122,11 +122,11 @@ describe('CLI Tools Detection Suite', () => {
       detector.clearCache();
     });
 
-    test('returns object with all 6 tool keys', () => {
+    test('returns object with all registered tool keys', () => {
       const status = detector.getToolStatus();
       assert.ok(typeof status === 'object', 'should return object');
       
-      const expectedTools = ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh'];
+      const expectedTools = Object.keys(detector.TOOLS);
       for (const tool of expectedTools) {
         assert.ok(status[tool], `missing tool: ${tool}`);
       }
@@ -295,19 +295,26 @@ describe('CLI Tools Detection Suite', () => {
       assert.ok(!fs.existsSync(cachePath), 'cache file should be deleted after clearCache');
     });
 
-    test('expired file cache (>5min) triggers fresh detection', () => {
+    test('expired file cache (>TTL) triggers fresh detection', () => {
       detector.getToolStatus();
       const cachePath = path.join(tmpDir, 'tools.json');
       
-      // Modify file to old timestamp (6 minutes ago)
+      // Modify file to old timestamp older than the configured TTL.
       const content = fs.readFileSync(cachePath, 'utf8');
       const data = JSON.parse(content);
-      data.timestamp = Date.now() - 6 * 60 * 1000; // 6 minutes ago
+      data.timestamp = Date.now() - detector.CACHE_TTL_MS - 1000;
       fs.writeFileSync(cachePath, JSON.stringify(data, null, 2));
       
       detector.clearCache(); // Clear in-memory cache
       const result = detector.getToolStatus();
       assert.ok(typeof result === 'object', 'should get fresh detection result');
+    });
+
+    test('refreshToolStatus() bypasses a fresh file cache', () => {
+      const first = detector.getToolStatus();
+      const refreshed = detector.refreshToolStatus();
+      assert.ok(typeof first === 'object' && typeof refreshed === 'object', 'both calls should return tool status objects');
+      assert.deepStrictEqual(Object.keys(refreshed).sort(), Object.keys(first).sort(), 'refresh should preserve tool set');
     });
 
     test('corrupted cache file falls back gracefully', () => {
@@ -394,8 +401,8 @@ describe('CLI Tools Detection Suite', () => {
       assert.ok(validPlatforms.includes(result.platform), `platform should be one of ${validPlatforms.join(', ')}`);
     });
 
-    test('all 6 core tools have guidance', () => {
-      const tools = ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh'];
+    test('all registered tools have guidance', () => {
+      const tools = ['ripgrep', 'fd', 'jq', 'yq', 'ast_grep', 'sd', 'hyperfine', 'bat', 'gh'];
       for (const tool of tools) {
         const result = guidance.getInstallGuidance(tool);
         assert.ok(result, `${tool} should have guidance`);
@@ -585,14 +592,14 @@ describe('CLI Tools Detection Suite', () => {
       }
     });
 
-    test('array has exactly 6 elements', () => {
+    test('array has exactly one element per registered tool', () => {
       const output = execSync(`node "${TOOLS_PATH}" detect:tools`, {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
       const data = JSON.parse(output.trim());
-      assert.strictEqual(data.length, 6, `should have 6 tools, got ${data.length}`);
+      assert.strictEqual(data.length, Object.keys(detector.TOOLS).length, `should have ${Object.keys(detector.TOOLS).length} tools, got ${data.length}`);
     });
 
     test('available tools have path and version fields', () => {
@@ -626,7 +633,7 @@ describe('CLI Tools Detection Suite', () => {
       }
     });
 
-    test('output contains all 6 expected tools', () => {
+    test('output contains all expected tools', () => {
       const output = execSync(`node "${TOOLS_PATH}" detect:tools`, {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe']
@@ -634,9 +641,9 @@ describe('CLI Tools Detection Suite', () => {
       
       const data = JSON.parse(output.trim());
       const names = data.map(t => t.name).sort();
-      const expected = ['bat', 'fd', 'gh', 'jq', 'ripgrep', 'yq'];
+      const expected = Object.keys(detector.TOOLS).sort();
       
-      assert.deepStrictEqual(names, expected, 'should contain all 6 tools');
+      assert.deepStrictEqual(names, expected, 'should contain all registered tools');
     });
   });
 

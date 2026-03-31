@@ -794,3 +794,387 @@ describe('workflow:verify-structure (integration)', () => {
     }
   });
 });
+
+describe('Phase 150 TDD execution semantics contract', () => {
+  test('canonical skill, workflow, template, and help share exact-command TDD language', () => {
+    const skill = fs.readFileSync(path.join(process.cwd(), 'skills', 'tdd-execution', 'SKILL.md'), 'utf-8');
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'tdd.md'), 'utf-8');
+    const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');
+    const template = fs.readFileSync(path.join(process.cwd(), 'templates', 'plans', 'tdd.md'), 'utf-8');
+    const constants = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'constants.js'), 'utf-8');
+
+    assert.match(skill, /single authoritative source/i);
+    assert.match(skill, /Each RED \/ GREEN \/ REFACTOR step declares the exact target command to run\./i);
+    assert.match(workflow, /exact-command targeting/i);
+    assert.match(executePlan, /exact declared target commands/i);
+    assert.match(template, /Each phase declares its exact target command\./);
+    assert.match(constants, /exact-command validation and\s+structured proof/i);
+
+    for (const token of ['validate-red', 'validate-green', 'validate-refactor', 'auto-test']) {
+      assert.match(skill, new RegExp(token));
+      assert.match(workflow, new RegExp(token));
+      assert.match(constants, new RegExp(token));
+    }
+  });
+
+  test('reference and workflow lock Phase 150 semantics without reopening Phase 149 selection scope', () => {
+    const reference = fs.readFileSync(path.join(process.cwd(), 'skills', 'tdd-execution', 'tdd-reference.md'), 'utf-8');
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'tdd.md'), 'utf-8');
+
+    assert.match(reference, /exact-command validation per phase/i);
+    assert.match(reference, /It does \*\*not\*\* reopen Phase 149 TDD selection or severity rules\./);
+    assert.match(workflow, /does not reopen Phase 149 selection or severity rules\./);
+  });
+
+  test('template and workflow require targeted proof details', () => {
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'tdd.md'), 'utf-8');
+    const template = fs.readFileSync(path.join(process.cwd(), 'templates', 'plans', 'tdd.md'), 'utf-8');
+
+    assert.match(template, /<tdd-targets>/);
+    assert.match(template, /exact target command, exit status, and evidence snippet/i);
+    assert.match(workflow, /structured proof \(`target_command`, `exit_code`, matched evidence snippet\)/i);
+    assert.match(workflow, /GREEN and REFACTOR stay targeted-only by default/i);
+    assert.match(workflow, /durable proof source reused by fresh-context handoffs, resume inspection, and summary generation/i);
+  });
+
+  test('plan-phase workflow preserves the checker severity ladder including omitted-hint info output', () => {
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'plan-phase.md'), 'utf-8');
+
+    assert.match(workflow, /`recommended` upgrades TDD-eligible `type: execute` plans to checker warnings/i);
+    assert.match(workflow, /`required` upgrades them to blockers/i);
+    assert.match(workflow, /omitted hints still produce checker info/i);
+    assert.match(workflow, /selection\/rationale severity only, not Phase 150 `execute:tdd` semantic enforcement/i);
+  });
+});
+
+describe('Phase 164 planning metadata approval contract', () => {
+  test('plan approval workflow and agent prompts require the semantic plan-structure gate', () => {
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'plan-phase.md'), 'utf-8');
+    const planner = fs.readFileSync(path.join(process.cwd(), 'agents', 'bgsd-planner.md'), 'utf-8');
+    const checker = fs.readFileSync(path.join(process.cwd(), 'agents', 'bgsd-plan-checker.md'), 'utf-8');
+
+    assert.match(workflow, /Before plans are treated as approval-ready, run `verify:verify plan-structure`/i);
+    assert.match(workflow, /malformed or inconclusive verifier-facing `must_haves` artifacts\/key_links metadata as blockers/i);
+    assert.match(planner, /approval-time semantic gate for verifier-facing metadata/i);
+    assert.match(planner, /Do not treat a visible `must_haves` field as sufficient/i);
+    assert.match(checker, /A plan is not approval-ready unless `verify:verify plan-structure` confirms the shared verifier-consumable metadata contract/i);
+    assert.match(checker, /Do \*\*not\*\* rely on `util:frontmatter get \.\.\. --field must_haves` or field presence alone for approval/i);
+  });
+});
+
+describe('Phase 151 workflow acceleration contracts', () => {
+  test('verify-work keeps one-at-a-time as default and adds batch drill-down semantics', () => {
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+    const command = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-verify-work.md'), 'utf-8');
+
+    assert.match(workflow, /No `--batch` → keep the default one-test-at-a-time flow\./);
+    assert.match(workflow, /`--batch N` → enable grouped verification mode with batch size `N`/);
+    assert.match(workflow, /present a compact grouped summary first/i);
+    assert.match(workflow, /if the group passes cleanly, mark every test in that group passed/i);
+    assert.match(workflow, /if the group does \*\*not\*\* pass cleanly, drill down into that group only using the normal exact one-test-at-a-time flow/i);
+    assert.match(workflow, /after the failing group is resolved, return to grouped mode for later clean-path groups/i);
+    assert.match(command, /Optional grouped mode: `--batch N`/);
+  });
+
+  test('discuss-phase wrapper keeps fast mode as compatibility wording only', () => {
+    const command = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-discuss-phase.md'), 'utf-8');
+
+    assert.match(command, /optional compatibility flags \(e\.g\., `108`, `108 --fast`\)/i);
+    assert.match(command, /compatibility alias only/i);
+    assert.match(command, /legacy flags such as `--fast`/i);
+    assert.match(command, /without making this alias the preferred path again/i);
+  });
+});
+
+describe('Phase 152 downstream handoff gating contracts', () => {
+  test('repair guidance and latest valid artifact rules stay explicit across downstream workflows', () => {
+    const research = fs.readFileSync(path.join(process.cwd(), 'workflows', 'research-phase.md'), 'utf-8');
+    const plan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'plan-phase.md'), 'utf-8');
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+    const verify = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+
+    assert.match(research, /fail closed/i);
+    assert.match(research, /latest valid artifact/i);
+    assert.match(research, /repair or restart guidance/i);
+    assert.match(research, /current expected fingerprint/i);
+
+    assert.match(plan, /fail closed/i);
+    assert.match(plan, /repair_guidance/i);
+    assert.match(plan, /latest-valid-artifact based/i);
+    assert.match(plan, /current expected fingerprint/i);
+
+    assert.match(execute, /Use `resume_summary` as the authoritative continuation contract/i);
+    assert.match(execute, /latest valid artifact/i);
+    assert.match(execute, /stale_sources/i);
+    assert.match(execute, /rebuild from source/i);
+    assert.match(execute, /expected fingerprint/i);
+
+    assert.match(verify, /repair_guidance/i);
+    assert.match(verify, /latest valid artifact/i);
+    assert.match(verify, /corrupt/i);
+    assert.match(verify, /current expected fingerprint/i);
+  });
+
+  test('standalone downstream commands remain explicit even after chain gating is added', () => {
+    const research = fs.readFileSync(path.join(process.cwd(), 'workflows', 'research-phase.md'), 'utf-8');
+    const plan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'plan-phase.md'), 'utf-8');
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+    const verify = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+
+    assert.match(research, /standalone research continues normally/i);
+    assert.match(plan, /standalone `\/bgsd-plan phase <phase-number>` works normally, and the legacy standalone phase alias remains reference-only compatibility guidance/i);
+    assert.match(execute, /standalone `\/bgsd-execute-phase` works normally/i);
+    assert.match(verify, /standalone `\/bgsd-verify-work` continues to work normally/i);
+  });
+
+  test('proof continuity wording stays explicit across TDD execute and verify workflows', () => {
+    const tdd = fs.readFileSync(path.join(process.cwd(), 'workflows', 'tdd.md'), 'utf-8');
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+    const verify = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+
+    assert.match(tdd, /durable proof source reused by fresh-context handoffs, resume inspection, and summary generation/i);
+    assert.match(tdd, /execute → verify handoff refreshes preserve one deterministic proof package/i);
+    assert.match(tdd, /resumable fresh-context chains and downstream summaries should continue to re-render/i);
+    assert.match(execute, /resume inspection, the execute → verify boundary, and downstream summary rendering/i);
+    assert.match(verify, /resume inspection, downstream resume, and summary steps/i);
+  });
+});
+
+describe('Phase 156 JJ-first workspace guidance contracts', () => {
+  test('workspace help surfaces teach inspection and recovery instead of legacy worktree behavior', () => {
+    const constants = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'constants.js'), 'utf-8');
+    const help = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'command-help.js'), 'utf-8');
+    const discovery = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'commandDiscovery.js'), 'utf-8');
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+
+    assert.match(constants, /Manage JJ workspaces for local execution isolation and recovery\./);
+    assert.match(constants, /preview reconcile actions/i);
+    assert.match(constants, /recovery-needed runs/i);
+    assert.doesNotMatch(constants, /Phase 155 reconcile context/);
+
+    assert.match(help, /JJ-first workspace execution and recovery guidance/i);
+    assert.match(help, /Inspect, recover, and clean up JJ execution workspaces/);
+    assert.match(help, /workspace recovery/);
+
+    assert.match(discovery, /JJ-first workspace autocomplete hints/i);
+    assert.match(discovery, /Workspace Recovery/);
+
+    assert.match(execute, /`workspace add \{plan_id\}` for each runnable plan/i);
+    assert.match(execute, /returned status\/recovery preview/i);
+    assert.match(execute, /partial-wave outcomes honestly/i);
+    assert.doesNotMatch(execute, /manual follow-up may still be required/);
+  });
+});
+
+describe('Phase 157 planning context cascade workflow contracts', () => {
+  test('new-milestone gives milestone strategy a single owned home', () => {
+    const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'new-milestone.md'), 'utf-8');
+    const template = fs.readFileSync(path.join(process.cwd(), 'templates', 'MILESTONE-INTENT.md'), 'utf-8');
+
+    assert.match(template, /milestone-local direction/i);
+    assert.match(template, /\.planning\/MILESTONE-INTENT\.md/);
+    assert.match(template, /\.planning\/INTENT\.md` = enduring project north star/i);
+
+    assert.match(workflow, /create or refresh `?\.planning\/MILESTONE-INTENT\.md`?/i);
+    assert.match(workflow, /single owned home for milestone-specific why-now strategy/i);
+    assert.match(workflow, /project north star and durable outcomes/i);
+    assert.match(workflow, /Do \*\*not\*\* evolve `?\.planning\/INTENT\.md`? just to capture temporary milestone focus/i);
+    assert.match(workflow, /Roadmapper inputs must distinguish the two layers explicitly/i);
+  });
+
+  test('plan-phase research-phase and verify-work prefer effective intent plus advisory JJ capability context', () => {
+    const plan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'plan-phase.md'), 'utf-8');
+    const research = fs.readFileSync(path.join(process.cwd(), 'workflows', 'research-phase.md'), 'utf-8');
+    const verify = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+
+    assert.match(plan, /`effective_intent` is the default compact contract/i);
+    assert.match(plan, /`jj_planning_context` is advisory capability context only/i);
+    assert.match(plan, /may manually prefer safe low-overlap sibling work/i);
+    assert.match(plan, /do not depend on live workspace inventory/i);
+    assert.doesNotMatch(plan, /Also read: \.planning\/INTENT\.md/);
+
+    assert.match(research, /Treat injected `effective_intent` as the default planning-alignment contract/i);
+    assert.match(research, /Do not depend on live workspace inventory/i);
+    assert.match(research, /manual preference for safe low-overlap sibling work/i);
+    assert.doesNotMatch(research, /- \.planning\/INTENT\.md \(Project intent/i);
+
+    assert.match(verify, /Use injected `effective_intent` as the default intent contract/i);
+    assert.match(verify, /Use injected `jj_planning_context` only as advisory capability context/i);
+    assert.match(verify, /manually prefer safe low-overlap sibling work/i);
+    assert.doesNotMatch(verify, /Also read \.planning\/INTENT\.md if it exists/i);
+  });
+});
+
+describe('Phase 158 canonical wrapper contracts', () => {
+  test('quick canonical command and compatibility alias stay on the same workflow contract', () => {
+    const quick = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-quick.md'), 'utf-8');
+    const quickAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-quick-task.md'), 'utf-8');
+
+    assert.match(quick, /canonical quick-entry command/i);
+    assert.match(quick, /preferred quick-entry command/i);
+    assert.match(quickAlias, /compatibility alias/i);
+    assert.match(quickAlias, /compatibility alias only/i);
+
+    for (const commandText of [quick, quickAlias]) {
+      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/workflows\/quick\.md/);
+      assert.match(commandText, /all provided arguments/i);
+    }
+  });
+
+  test('canonical plan and inspect wrappers exist as executable family entrypoints', () => {
+    const plan = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-plan.md'), 'utf-8');
+    const inspect = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-inspect.md'), 'utf-8');
+    const settings = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-settings.md'), 'utf-8');
+
+    assert.match(plan, /canonical planning-family command/i);
+    assert.match(plan, /canonical planning umbrella/i);
+    assert.match(plan, /phase <phase-number> \[flags\].*plan-phase\.md/is);
+    assert.match(plan, /discuss <phase-number> \[flags\].*discuss-phase\.md/is);
+    assert.match(plan, /research <phase-number> \[flags\].*research-phase\.md/is);
+    assert.match(plan, /assumptions <phase-number> \[flags\].*list-phase-assumptions\.md/is);
+    assert.match(plan, /roadmap add\|insert\|remove.*roadmap mutation/is);
+    assert.match(plan, /todo add\|check.*plan-scoped todo/is);
+    assert.match(plan, /Settings and read-only inspection remain separate canonical families/i);
+    assert.match(plan, /Do not preload sibling planning-family workflows into context/i);
+    assert.match(plan, /use the Read tool to load only the selected workflow file/i);
+    assert.match(plan, /Do not read non-selected sibling workflows unless the selected workflow explicitly requires them/i);
+
+    assert.match(inspect, /canonical read-only diagnostics command family/i);
+    assert.match(inspect, /canonical read-only diagnostics hub/i);
+    assert.match(inspect, /Do not preload sibling inspect-family workflows into context/i);
+    assert.match(inspect, /use the Read tool to load only the selected workflow file/i);
+    assert.match(inspect, /velocity[\s\S]*cmd-velocity\.md/i);
+    assert.match(inspect, /context-budget[\s\S]*cmd-context-budget\.md/i);
+    assert.match(inspect, /session-diff[\s\S]*cmd-session-diff\.md/i);
+    assert.match(inspect, /rollback-info[\s\S]*cmd-rollback-info\.md/i);
+    assert.match(inspect, /validate-deps[\s\S]*cmd-validate-deps\.md/i);
+    assert.match(inspect, /read-only diagnostics boundary/i);
+
+    assert.match(settings, /canonical settings-family command/i);
+    assert.match(settings, /Do not preload sibling settings-family workflows into context/i);
+    assert.match(settings, /use the Read tool to load only the selected workflow file/i);
+  });
+
+  test('remaining inspect aliases are thin compatibility shims into `/bgsd-inspect` sub-actions', () => {
+    const expectations = [
+      ['bgsd-velocity.md', /compatibility alias/i, /\/bgsd-inspect velocity/i, /cmd-velocity\.md/i],
+      ['bgsd-context-budget.md', /compatibility alias/i, /\/bgsd-inspect context-budget/i, /cmd-context-budget\.md/i],
+      ['bgsd-session-diff.md', /compatibility alias/i, /\/bgsd-inspect session-diff/i, /cmd-session-diff\.md/i],
+      ['bgsd-rollback-info.md', /compatibility alias/i, /\/bgsd-inspect rollback-info/i, /cmd-rollback-info\.md/i],
+      ['bgsd-validate-deps.md', /compatibility alias/i, /\/bgsd-inspect validate-deps/i, /cmd-validate-deps\.md/i]
+    ];
+
+    for (const [fileName, compatibilityPattern, canonicalPattern, workflowPattern] of expectations) {
+      const commandText = fs.readFileSync(path.join(process.cwd(), 'commands', fileName), 'utf-8');
+      assert.match(commandText, compatibilityPattern);
+      assert.match(commandText, canonicalPattern);
+      assert.match(commandText, workflowPattern);
+      assert.match(commandText, /Keep this alias read-only and compatibility-focused/i);
+    }
+  });
+
+  test('legacy planning aliases are thin compatibility shims into `/bgsd-plan` sub-actions', () => {
+    const planAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-plan-phase.md'), 'utf-8');
+    const discussAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-discuss-phase.md'), 'utf-8');
+    const researchAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-research-phase.md'), 'utf-8');
+    const assumptionsAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-list-assumptions.md'), 'utf-8');
+
+    const expectations = [
+      [planAlias, /compatibility alias/i, /\/bgsd-plan phase \$ARGUMENTS/i],
+      [discussAlias, /compatibility alias/i, /\/bgsd-plan discuss \$ARGUMENTS/i],
+      [researchAlias, /compatibility alias/i, /\/bgsd-plan research \$ARGUMENTS/i],
+      [assumptionsAlias, /compatibility alias/i, /\/bgsd-plan assumptions \$ARGUMENTS/i]
+    ];
+
+    for (const [commandText, compatibilityPattern, canonicalPattern] of expectations) {
+      assert.match(commandText, compatibilityPattern);
+      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-plan\.md/);
+      assert.match(commandText, canonicalPattern);
+      assert.match(commandText, /Do not present this alias as the preferred path|without making this alias the preferred path again/i);
+    }
+  });
+
+  test('runtime handoff defaults prefer canonical planning-family commands', () => {
+    const initCommand = fs.readFileSync(path.join(process.cwd(), 'src', 'commands', 'init.js'), 'utf-8');
+
+    assert.match(initCommand, /return `\/bgsd-plan research \$\{safePhase\}`;/, 'discuss-step handoffs should default to canonical research routing');
+    assert.match(initCommand, /`\/bgsd-plan discuss \$\{safePhase\}`/, 'restart guidance should default to canonical discuss routing');
+    assert.doesNotMatch(initCommand, /\/bgsd-research-phase \$\{safePhase\}|\/bgsd-discuss-phase \$\{safePhase\}/, 'runtime handoff defaults should not regress to legacy planning-prep aliases');
+  });
+
+  test('roadmap gap and todo aliases preserve canonical routing parity through `/bgsd-plan`', () => {
+    const expectations = [
+      ['bgsd-add-phase.md', /compatibility alias/i, /\/bgsd-plan roadmap add \$ARGUMENTS/i, /Phase description/i],
+      ['bgsd-insert-phase.md', /compatibility alias/i, /\/bgsd-plan roadmap insert \$ARGUMENTS/i, /Position and phase description/i],
+      ['bgsd-remove-phase.md', /compatibility alias/i, /\/bgsd-plan roadmap remove \$ARGUMENTS/i, /Phase number to remove/i],
+      ['bgsd-plan-gaps.md', /compatibility alias/i, /\/bgsd-plan gaps \$ARGUMENTS/i, /existing gap-planning entrypoint/i],
+      ['bgsd-add-todo.md', /compatibility alias/i, /\/bgsd-plan todo add \$ARGUMENTS/i, /plan-scoped/i],
+      ['bgsd-check-todos.md', /compatibility alias/i, /\/bgsd-plan todo check \$ARGUMENTS/i, /plan-scoped/i]
+    ];
+
+    for (const [fileName, compatibilityPattern, canonicalPattern, scopePattern] of expectations) {
+      const commandText = fs.readFileSync(path.join(process.cwd(), 'commands', fileName), 'utf-8');
+      assert.match(commandText, compatibilityPattern);
+      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-plan\.md/);
+      assert.match(commandText, canonicalPattern);
+      assert.match(commandText, scopePattern);
+    }
+  });
+
+  test('settings canonical family and legacy aliases stay on one shared settings contract', () => {
+    const settings = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-settings.md'), 'utf-8');
+    const setProfile = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-set-profile.md'), 'utf-8');
+    const validateConfig = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-validate-config.md'), 'utf-8');
+
+    assert.match(settings, /canonical settings family/i);
+    assert.match(settings, /`profile <name>`/i);
+    assert.match(settings, /`validate \[config-path\]`/i);
+    assert.match(settings, /keep `\/bgsd-settings` separate from the canonical planning and read-only inspection families/i);
+
+    for (const commandText of [setProfile, validateConfig]) {
+      assert.match(commandText, /compatibility alias/i);
+      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-settings\.md/);
+      assert.match(commandText, /do not present this alias as the preferred path/i);
+    }
+
+    assert.match(setProfile, /\/bgsd-settings profile \$ARGUMENTS/i);
+    assert.match(validateConfig, /\/bgsd-settings validate \$ARGUMENTS/i);
+  });
+
+  test('help workflow prefers canonical planning inspect and settings family names on touched surfaces', () => {
+    const help = fs.readFileSync(path.join(process.cwd(), 'workflows', 'help.md'), 'utf-8');
+
+    assert.match(help, /\/bgsd-plan phase 1/);
+    assert.match(help, /\/bgsd-plan roadmap insert 12/);
+    assert.match(help, /\/bgsd-plan todo add "Fix modal z-index"/);
+    assert.match(help, /\/bgsd-settings profile quality/);
+    assert.match(help, /\/bgsd-settings validate \.planning\/config\.json/);
+    assert.match(help, /\/bgsd-inspect health/);
+    assert.match(help, /\/bgsd-inspect trace CMD-04/);
+  });
+});
+
+describe('Phase 165 repo-local rebuilt-runtime workflow contracts', () => {
+  test('execute and verify workflows require repo-local current-checkout proof plus rebuilt local runtime validation', () => {
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+    const verify = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+
+    assert.match(execute, /repo-local current checkout plus the rebuilt local runtime/i);
+    assert.match(execute, /Never trust stale generated artifacts/i);
+    assert.match(execute, /run `npm run build`, then rerun the focused proof/i);
+
+    assert.match(verify, /depends on generated runtime artifacts/i);
+    assert.match(verify, /validate the repo-local current checkout and rebuild the local runtime before asking the user to trust shipped output/i);
+    assert.match(verify, /The agent runs `npm run build`, reruns the focused proof against the rebuilt local runtime/i);
+  });
+});
+
+describe('Phase 166 completion metadata workflow contracts', () => {
+  test('execute-plan uses the repaired completion path and readback repair wording', () => {
+    const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');
+
+    assert.match(executePlan, /verify:state complete-plan/i, 'workflow should use the batched completion command');
+    assert.match(executePlan, /read back and repair stale STATE or ROADMAP summary fields/i, 'workflow should require focused metadata readback repair');
+    assert.match(executePlan, /active plan rather than ambient workspace noise/i, 'workflow should describe the plan-scoped completion contract');
+  });
+});

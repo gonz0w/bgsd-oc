@@ -31,6 +31,7 @@ const {
 } = require('../src/lib/db');
 
 const { PlanningCache } = require('../src/lib/planning-cache');
+const { createMilestoneLessonSnapshot } = require('../src/commands/lessons');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1057,5 +1058,53 @@ describe('Group 8: MapDatabase Fallback', () => {
     assert.doesNotThrow(() => {
       cache.invalidateFile('/any/path.md');
     }, 'invalidateFile should be a no-op on MapDatabase, not throw');
+  });
+});
+
+describe('lesson snapshot source-of-truth integration', () => {
+  let tempDir;
+  let db;
+  let cache;
+
+  beforeEach(() => {
+    closeAll();
+    ({ dir: tempDir } = makePlanningDir('bgsd-lesson-snapshot-'));
+    db = getDb(tempDir);
+    cache = new PlanningCache(db);
+    fs.mkdirSync(path.join(tempDir, '.planning', 'memory'), { recursive: true });
+  });
+
+  afterEach(() => {
+    closeAll();
+    removeTempDir(tempDir);
+  });
+
+  it('milestone lesson snapshot freezes the canonical JSON store instead of SQLite-only additions', () => {
+    fs.writeFileSync(path.join(tempDir, '.planning', 'memory', 'lessons.json'), JSON.stringify([
+      {
+        id: 'json-lesson-1',
+        title: 'Canonical JSON lesson',
+        severity: 'MEDIUM',
+        type: 'workflow',
+        root_cause: 'The JSON store is the milestone baseline.',
+        prevention_rule: 'Freeze the JSON file at milestone start.',
+        affected_agents: ['bgsd-roadmapper'],
+      },
+    ], null, 2));
+
+    cache.writeMemoryEntry(tempDir, 'lessons', {
+      id: 'sqlite-only-lesson',
+      summary: 'SQLite-only lesson',
+      severity: 'LOW',
+      type: 'tooling',
+      root_cause: 'This should not leak into the frozen JSON snapshot.',
+      prevention_rule: 'Read the canonical JSON lessons store for milestone freezing.',
+      affected_agents: ['bgsd-executor'],
+      timestamp: '2026-03-30T00:00:00Z',
+    });
+
+    const result = createMilestoneLessonSnapshot(tempDir, { version: 'v18.0', name: 'Snapshot Test' });
+    assert.deepStrictEqual(result.snapshot.lessons.map(lesson => lesson.id), ['json-lesson-1']);
+    assert.strictEqual(result.snapshot.source.lesson_count, 1, 'snapshot should report only canonical JSON lessons');
   });
 });

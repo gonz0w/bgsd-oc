@@ -38,6 +38,8 @@ const CONFIG_SCHEMA = {
   context_window:            { type: 'number',  default: 200000,                          description: 'Context window size in tokens',                    aliases: [], nested: null },
   context_target_percent:    { type: 'number',  default: 50,                              description: 'Target context utilization percent (1-100)',        aliases: [], nested: null },
   runtime:                   { type: 'string',  default: 'auto',                           description: 'Runtime to use (auto/bun/node)',                aliases: [], nested: null },
+  workspace_base_path:       { type: 'string',  default: '/tmp/gsd-workspaces',          description: 'Base path for managed JJ execution workspaces',   aliases: [], nested: { section: 'workspace', field: 'base_path' } },
+  workspace_max_concurrent:  { type: 'number',  default: 3,                              description: 'Maximum managed JJ workspaces per project',       aliases: [], nested: { section: 'workspace', field: 'max_concurrent' } },
 
   // ─── RAG Research Pipeline ───
   rag_enabled:               { type: 'boolean', default: true,                            description: 'Enable RAG-powered research pipeline',              aliases: [], nested: { section: 'workflow', field: 'rag' } },
@@ -58,6 +60,9 @@ const CONFIG_SCHEMA = {
   tools_fd:                  { type: 'boolean', default: true,                            description: 'Enable fd for file discovery',                   aliases: [], nested: { section: 'tools', field: 'fd' } },
   tools_jq:                  { type: 'boolean', default: true,                            description: 'Enable jq for JSON transformation',              aliases: [], nested: { section: 'tools', field: 'jq' } },
   tools_yq:                  { type: 'boolean', default: true,                            description: 'Enable yq for YAML transformation',              aliases: [], nested: { section: 'tools', field: 'yq' } },
+  tools_ast_grep:            { type: 'boolean', default: true,                            description: 'Enable ast-grep for syntax-aware code search',   aliases: [], nested: { section: 'tools', field: 'ast_grep' } },
+  tools_sd:                  { type: 'boolean', default: true,                            description: 'Enable sd for fast text replacement',            aliases: [], nested: { section: 'tools', field: 'sd' } },
+  tools_hyperfine:           { type: 'boolean', default: true,                            description: 'Enable hyperfine for command benchmarking',      aliases: [], nested: { section: 'tools', field: 'hyperfine' } },
   tools_bat:                 { type: 'boolean', default: true,                            description: 'Enable bat for syntax highlighting',             aliases: [], nested: { section: 'tools', field: 'bat' } },
   tools_gh:                  { type: 'boolean', default: true,                            description: 'Enable gh for GitHub operations',                aliases: [], nested: { section: 'tools', field: 'gh' } },
 };
@@ -66,8 +71,8 @@ const CONFIG_SCHEMA = {
 
 const COMMAND_HELP = {
 
-  'util:codebase context': `Usage: bgsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
-       bgsd-tools codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
+  'util:codebase context': `Usage: bgsd-tools util:codebase context --files <file1> [file2] ... [--plan <path>]
+       bgsd-tools util:codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
 
 Assemble per-file architectural context from cached intel.
 
@@ -84,10 +89,10 @@ Options:
 Output (--task): { task_files, context_files: [{path, score, reason, signatures?}], stats }
 
 Examples:
-  bgsd-tools codebase context --files src/lib/ast.js
-  bgsd-tools codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
+  bgsd-tools util:codebase context --files src/lib/ast.js
+  bgsd-tools util:codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
 
-  'util:codebase ast': `Usage: bgsd-tools codebase ast <file>
+  'util:codebase ast': `Usage: bgsd-tools util:codebase ast <file>
 
 Extract function, class, and method signatures from a source file.
 
@@ -100,10 +105,10 @@ Arguments:
 Output: { file, language, signatures: [{name, type, params, line, async, generator}], count }
 
 Examples:
-  bgsd-tools codebase ast src/lib/ast.js
-  bgsd-tools codebase ast app.py`,
+  bgsd-tools util:codebase ast src/lib/ast.js
+  bgsd-tools util:codebase ast app.py`,
 
-  'util:codebase exports': `Usage: bgsd-tools codebase exports <file>
+  'util:codebase exports': `Usage: bgsd-tools util:codebase exports <file>
 
 Extract the export surface from a JS/TS module.
 
@@ -116,10 +121,10 @@ Arguments:
 Output: { file, type, named, default, re_exports, cjs_exports }
 
 Examples:
-  bgsd-tools codebase exports src/lib/ast.js
-  bgsd-tools codebase exports src/router.js`,
+  bgsd-tools util:codebase exports src/lib/ast.js
+  bgsd-tools util:codebase exports src/router.js`,
 
-  'util:codebase complexity': `Usage: bgsd-tools codebase complexity <file>
+  'util:codebase complexity': `Usage: bgsd-tools util:codebase complexity <file>
 
 Compute per-function cyclomatic complexity for a source file.
 
@@ -137,10 +142,10 @@ Output: { file, module_complexity, functions: [{name, line, complexity, nesting_
 Color coding (formatted mode): green(1-5), yellow(6-10), red(11+)
 
 Examples:
-  bgsd-tools codebase complexity src/router.js
-  bgsd-tools codebase complexity src/lib/ast.js`,
+  bgsd-tools util:codebase complexity src/router.js
+  bgsd-tools util:codebase complexity src/lib/ast.js`,
 
-  'util:codebase repo-map': `Usage: bgsd-tools codebase repo-map [--budget <tokens>]
+  'util:codebase repo-map': `Usage: bgsd-tools util:codebase repo-map [--budget <tokens>]
 
 Generate a compact repository map from AST signatures.
 
@@ -155,10 +160,10 @@ Output (raw): { summary, files_included, total_signatures, token_estimate }
 Output (formatted): The summary text directly
 
 Examples:
-  bgsd-tools codebase repo-map
-  bgsd-tools codebase repo-map --budget 500`,
+  bgsd-tools util:codebase repo-map
+  bgsd-tools util:codebase repo-map --budget 500`,
 
-  'execute:trajectory': `Usage: bgsd-tools trajectory <subcommand> [options]
+  'execute:trajectory': `Usage: bgsd-tools execute:trajectory <subcommand> [options]
 
 Trajectory engineering commands.
 
@@ -191,17 +196,17 @@ journal entry to the trajectories memory store with test count, LOC delta,
 and cyclomatic complexity metrics.
 
 Examples:
-  bgsd-tools trajectory checkpoint explore-auth
-  bgsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"
-  bgsd-tools trajectory list
-  bgsd-tools trajectory list --scope phase --limit 5
-  bgsd-tools trajectory compare my-feat
-  bgsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
-  bgsd-tools trajectory choose my-feat --attempt 2 --reason "Better test coverage"
-  bgsd-tools trajectory dead-ends
-  bgsd-tools trajectory dead-ends --scope task --limit 5`,
+  bgsd-tools execute:trajectory checkpoint explore-auth
+  bgsd-tools execute:trajectory checkpoint try-redis --scope task --description "Redis caching approach"
+  bgsd-tools execute:trajectory list
+  bgsd-tools execute:trajectory list --scope phase --limit 5
+  bgsd-tools execute:trajectory compare my-feat
+  bgsd-tools execute:trajectory pivot explore-auth --reason "JWT approach too complex"
+  bgsd-tools execute:trajectory choose my-feat --attempt 2 --reason "Better test coverage"
+  bgsd-tools execute:trajectory dead-ends
+  bgsd-tools execute:trajectory dead-ends --scope task --limit 5`,
 
-  'execute:trajectory compare': `Usage: bgsd-tools trajectory compare <name> [--scope <scope>]
+  'execute:trajectory compare': `Usage: bgsd-tools execute:trajectory compare <name> [--scope <scope>]
 
 Compare metrics across all attempts for a named checkpoint.
 Shows test results, LOC delta, and cyclomatic complexity side-by-side.
@@ -216,10 +221,10 @@ Options:
 Output: { checkpoint, scope, attempt_count, attempts, best_per_metric, worst_per_metric }
 
 Examples:
-  bgsd-tools trajectory compare my-feat
-  bgsd-tools trajectory compare try-redis --scope task`,
+  bgsd-tools execute:trajectory compare my-feat
+  bgsd-tools execute:trajectory compare try-redis --scope task`,
 
-  'execute:trajectory choose': `Usage: bgsd-tools trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
+  'execute:trajectory choose': `Usage: bgsd-tools execute:trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
 
 Select the winning attempt, merge its code, archive non-chosen attempts as tags,
 and delete all trajectory working branches.
@@ -239,10 +244,10 @@ What happens:
   4. Journal records the choice with rationale
 
 Examples:
-  bgsd-tools trajectory choose my-feat --attempt 2
-  bgsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
+  bgsd-tools execute:trajectory choose my-feat --attempt 2
+  bgsd-tools execute:trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
 
-  'execute:trajectory pivot': `Usage: bgsd-tools trajectory pivot <checkpoint> --reason "what failed and why"
+  'execute:trajectory pivot': `Usage: bgsd-tools execute:trajectory pivot <checkpoint> --reason "what failed and why"
 
 Abandon current approach with recorded reasoning and rewind to checkpoint.
 Auto-checkpoints current work as abandoned attempt before rewinding.
@@ -259,11 +264,11 @@ Options:
 Output: { pivoted, checkpoint, target_ref, abandoned_branch, files_rewound, stash_used }
 
 Examples:
-  bgsd-tools trajectory pivot explore-auth --reason "JWT approach too complex, session-based simpler"
-  bgsd-tools trajectory pivot try-redis --scope task --reason "Redis overkill for this cache size"
-  bgsd-tools trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"`,
+  bgsd-tools execute:trajectory pivot explore-auth --reason "JWT approach too complex, session-based simpler"
+  bgsd-tools execute:trajectory pivot try-redis --scope task --reason "Redis overkill for this cache size"
+  bgsd-tools execute:trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"`,
 
-  'execute:trajectory dead-ends': `Usage: bgsd-tools trajectory dead-ends [--scope <scope>] [--name <name>] [--limit <N>] [--token-cap <N>]
+  'execute:trajectory dead-ends': `Usage: bgsd-tools execute:trajectory dead-ends [--scope <scope>] [--name <name>] [--limit <N>] [--token-cap <N>]
 
 Query journal for failed approaches (pivot/abandon entries).
 Shows "what NOT to do" context with reasons from pivot entries.
@@ -277,10 +282,10 @@ Options:
 Output: { dead_ends, count, scope_filter, name_filter, context }
 
 Examples:
-  bgsd-tools trajectory dead-ends
-  bgsd-tools trajectory dead-ends --scope task --limit 5`,
+  bgsd-tools execute:trajectory dead-ends
+  bgsd-tools execute:trajectory dead-ends --scope task --limit 5`,
 
-  'util:classify plan': `Usage: bgsd-tools classify plan <plan-path>
+  'util:classify plan': `Usage: bgsd-tools util:classify plan <plan-path>
 
 Classify all tasks in a plan file with 1-5 complexity scores.
 
@@ -292,9 +297,9 @@ Model mapping: score 1-2 → sonnet, score 3 → sonnet, score 4-5 → opus
 Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
 
 Examples:
-  bgsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
+  bgsd-tools util:classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
 
-  'util:classify phase': `Usage: bgsd-tools classify phase <phase-number>
+  'util:classify phase': `Usage: bgsd-tools util:classify phase <phase-number>
 
 Classify all incomplete plans in a phase and determine execution mode.
 
@@ -307,10 +312,10 @@ Execution modes:
 Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason, waves } }
 
 Examples:
-  bgsd-tools classify phase 39
-  bgsd-tools classify phase 38`,
+  bgsd-tools util:classify phase 39
+  bgsd-tools util:classify phase 38`,
 
-  'util:git': `Usage: bgsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
+  'util:git': `Usage: bgsd-tools util:git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
 
 Structured git intelligence — JSON output for agents and workflows.
 
@@ -332,13 +337,13 @@ Subcommands:
     Local-only by default. --push to push to origin.
 
 Examples:
-  bgsd-tools git log --count 5
-  bgsd-tools git diff-summary --from main --to HEAD
-  bgsd-tools git blame src/router.js
-  bgsd-tools git branch-info
-  bgsd-tools git rewind --ref HEAD~3 --dry-run
-  bgsd-tools git rewind --ref abc123 --confirm
-  bgsd-tools git trajectory-branch --phase 45 --slug decision-journal`,
+  bgsd-tools util:git log --count 5
+  bgsd-tools util:git diff-summary --from main --to HEAD
+  bgsd-tools util:git blame src/router.js
+  bgsd-tools util:git branch-info
+  bgsd-tools util:git rewind --ref HEAD~3 --dry-run
+  bgsd-tools util:git rewind --ref abc123 --confirm
+  bgsd-tools util:git trajectory-branch --phase 45 --slug decision-journal`,
 
   // ─── Namespaced Command Help (user-facing only) ──────────────────────────────
 
@@ -388,6 +393,10 @@ Subcommands:
   insert <after> <desc>  Insert decimal phase
   remove <phase> [--force]  Remove phase
   complete <phase>       Mark phase done`,
+  'phase:snapshot': `Usage: bgsd-tools phase:snapshot <phase>
+
+Return a compact phase snapshot with metadata, requirement IDs, artifact paths,
+plan index data, and common execution context in one additive payload.`,
 
   // execute namespace
   'execute:commit': `Usage: bgsd-tools execute:commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
@@ -405,26 +414,45 @@ Session handoff summary.`,
   'execute:velocity': `Usage: bgsd-tools execute:velocity
 
 Calculate planning velocity and completion forecast.`,
-  'execute:worktree': `Usage: bgsd-tools execute:worktree <subcommand> [options]
+  'workspace': `Usage: bgsd-tools workspace <subcommand> [options]
 
-Manage git worktrees for parallel execution.
+Manage JJ workspaces for local execution isolation and recovery.
 
 Subcommands:
-  create <plan-id>    Create isolated worktree
-  list                List active worktrees
-  remove <plan-id>    Remove a worktree
-  cleanup             Remove all worktrees
-  merge <plan-id>     Merge worktree back
-  check-overlap       Check for file overlaps`,
+  add <plan-id>                Create a managed JJ workspace for a plan
+  list                         List managed JJ workspaces for this project
+  forget <plan-id|name>        Stop tracking a managed workspace
+  cleanup                      Forget managed workspaces and delete their directories
+  reconcile <plan-id|name>     Inspect recovery state and preview reconcile actions`,
+  'workspace list': `Usage: bgsd-tools workspace list
+
+List the JJ workspaces managed under this project's configured workspace base path, including recovery-needed runs.`,
+  'workspace add': `Usage: bgsd-tools workspace add <plan-id>
+
+Create a managed JJ workspace using the deterministic phase-plan workspace name.`,
+  'workspace forget': `Usage: bgsd-tools workspace forget <plan-id|workspace-name>
+
+Forget a managed JJ workspace without deleting its directory.`,
+  'workspace cleanup': `Usage: bgsd-tools workspace cleanup
+
+Forget every managed JJ workspace for this project and remove only directories that are no longer needed after recovery work.`,
+  'workspace reconcile': `Usage: bgsd-tools workspace reconcile <plan-id|workspace-name>
+
+Inspect a managed JJ workspace, report JJ-backed recovery context, and preview reconcile actions before follow-up mutation.`,
   'execute:tdd': `Usage: bgsd-tools execute:tdd <subcommand> [options]
 
-TDD validation gates.
+Canonical TDD contract command surfaces.
+
+Shared contract: RED / GREEN / REFACTOR phases with exact-command validation and
+structured proof documented in skills/tdd-execution/SKILL.md.
 
 Subcommands:
-  validate-red --test-cmd "cmd"       Verify test fails
-  validate-green --test-cmd "cmd"     Verify test passes
-  validate-refactor --test-cmd "cmd" Same as validate-green
-  auto-test --test-cmd "cmd"         Run test, report result`,
+  validate-red --test-cmd "cmd"       Verify exact target fails (missing target is invalid)
+  validate-green --test-cmd "cmd"     Verify exact target passes
+  validate-refactor --test-cmd "cmd"  Verify exact target still passes
+  auto-test --test-cmd "cmd"          Run target, report proof payload
+  detect-antipattern --phase <p> --files <files>
+                                        Check for TDD contract drift`,
   'execute:test-run': `Usage: bgsd-tools execute:test-run
 
 Run project tests and parse output.`,
@@ -436,7 +464,7 @@ Manage project state in STATE.md.
 
 Subcommands:
   load | get <field> | update <field> <value> | patch --key value ...
-  advance-plan | update-progress
+  advance-plan | update-progress | handoff <write|show|validate|clear>
   record-metric --phase P --plan N --duration D [--tasks T] [--files F]
   add-decision --phase P --summary S [--rationale R]
   add-blocker --text "..." | resolve-blocker --text "..."
@@ -472,10 +500,84 @@ Subcommands:
 Search decisions in STATE.md and archives.`,
   'verify:search-lessons': `Usage: bgsd-tools verify:search-lessons <query>
 
-Search tasks/lessons.md for patterns.`,
+Search .planning/memory/lessons.json for relevant lessons.`,
   'verify:review': `Usage: bgsd-tools verify:review <phase> <plan>
 
 Review context for reviewer agent.`,
+  'review:scan': `Usage: bgsd-tools review:scan [--range A...B | --base A --head B] [--findings-file path]
+
+Resolve a deterministic review target before any review rules run.
+
+Default behavior:
+  - Uses the staged diff when staged changes exist
+  - Returns a promptable fallback when nothing is staged
+  - Emits incomplete-scope warnings for nearby unstaged/untracked work
+  - Applies exact rule_id + path exclusions from .planning/review-exclusions.json
+
+Options:
+  --range A...B          Review an explicit commit range
+  --base A --head B      Equivalent explicit commit-range form
+  --findings-file path   Seed findings JSON before exclusion filtering (useful for tests/workflows)
+
+  Examples:
+  bgsd-tools review:scan
+  bgsd-tools review:scan --range HEAD~1...HEAD
+  bgsd-tools review:scan --findings-file .planning/tmp/findings.json`,
+  'review:readiness': `Usage: bgsd-tools review:readiness [--pretty]
+
+Return an advisory readiness snapshot for the current repository state.
+
+Checks:
+  - tests passing
+  - lint clean
+  - review findings resolved
+  - security findings resolved
+  - TODO markers in current diff
+  - changelog updated in current diff
+
+Output:
+  - JSON when piped
+  - terse advisory board in TTY/--pretty mode
+
+This command is advisory-only and never blocks release flow.`,
+  'security:scan': `Usage: bgsd-tools security:scan [--target path] [--findings-file path]
+
+Run the deterministic security scan pipeline.
+
+Default behavior:
+  - Scans the current repository root unless --target narrows scope
+  - Normalizes all engine findings into one security contract
+  - Applies confidence bands (high, medium, low) with a default 8/10 high gate
+  - Loads finding-level exclusions from .planning/security-exclusions.json
+
+Options:
+  --target path          Explicit scan target (defaults to repo root)
+  --findings-file path   Seed findings JSON before exclusion filtering (useful for tests/workflows)
+
+  Examples:
+  bgsd-tools security:scan
+  bgsd-tools security:scan --target src
+  bgsd-tools security:scan --findings-file .planning/tmp/security-findings.json`,
+  'release:bump': `Usage: bgsd-tools release:bump [--override <major|minor|patch>] [--version <x.y.z>]
+
+Preview the proposed release version from conventional commits since the last tag.
+
+The command is advisory-only and never mutates git state. Manual overrides beat automatic inference.`,
+  'release:changelog': `Usage: bgsd-tools release:changelog [--override <major|minor|patch>] [--version <x.y.z>]
+
+Preview grouped release notes from plan summaries plus conventional commits since the last tag.
+
+The command is advisory-only and never writes tags, branches, PRs, or changelog changes.`,
+  'release:tag': `Usage: bgsd-tools release:tag
+
+Scaffolded release command surface for Phase 148.
+
+This command is routed and help-visible now; tag automation lands in later plans.`,
+  'release:pr': `Usage: bgsd-tools release:pr
+
+Scaffolded release command surface for Phase 148.
+
+This command is routed and help-visible now; PR automation lands in later plans.`,
   'verify:context-budget': `Usage: bgsd-tools verify:context-budget <subcommand|path> [options]
 
 Measure token consumption across workflows.
@@ -553,6 +655,40 @@ Subcommands:
   list                                    List stores
   ensure-dir                              Create directory
   compact [--store <name>] [--threshold N]  Compact old entries`,
+  'memory:list': `Usage: bgsd-tools memory:list
+
+List canonical MEMORY.md entries grouped by section.
+
+Outputs the same five sections users edit in .planning/MEMORY.md:
+  Active / Recent
+  Project Facts
+  User Preferences
+  Environment Patterns
+  Correction History`,
+  'memory:add': `Usage: bgsd-tools memory:add --section "Project Facts" --text "..." [options]
+
+Add a structured entry to .planning/MEMORY.md.
+
+Required:
+  --section <name>   One of the canonical MEMORY.md sections
+  --text <text>      Human-readable memory text
+
+Optional:
+  --type <type>      project-fact | user-preference | environment-pattern | correction
+  --source <text>    Provenance note
+  --keep <value>     Pin hint such as always
+  --status <value>   Status marker such as active/inactive
+  --expires <date>   Optional expiry date
+  --replaces <id>    Stable memory ID this entry supersedes`,
+  'memory:remove': `Usage: bgsd-tools memory:remove --id MEM-001
+
+Remove a single MEMORY.md entry by stable ID.`,
+  'memory:prune': `Usage: bgsd-tools memory:prune [--threshold 90] [--apply]
+
+Preview stale structured-memory entries before deletion.
+
+Default behavior is preview-only. Use --apply to actually delete candidates.
+Candidates protect Active / Recent entries and Keep: always markers.`,
   'util:mcp': `Usage: bgsd-tools util:mcp <subcommand> [options]
 
 MCP server management.
@@ -635,6 +771,10 @@ Agent management.
 Subcommands:
   audit                                Audit agent lifecycle coverage against RACI matrix
   list                                 List all agents
+  list-local                           List project-local overrides in .opencode/agents/
+  override <name>                      Create a local override from the installed agent
+  diff <name>                          Show diff between local and installed agent
+  sync <name> [--accept|--reject]      Review or apply upstream agent updates
   validate-contracts [--phase N]       Check agent outputs match declared contracts`,
 
   // research namespace
@@ -1577,26 +1717,6 @@ Examples:
   bgsd-tools lessons:list --type agent-behavior --severity HIGH
   bgsd-tools lessons:list --since 2026-03-01 --limit 5
   bgsd-tools lessons:list --query "auth"`,
-
-  'lessons:migrate': `Usage: bgsd-tools lessons:migrate
-
-Migrate free-form lessons.md to structured format.
-
-Searches for lessons.md at:
-  - <cwd>/lessons.md
-  - <cwd>/tasks/lessons.md
-  - <cwd>/.planning/lessons.md
-
-Each heading section becomes a structured entry with:
-  - type: environment
-  - severity: MEDIUM (default)
-  - prevention_rule: "Migrated from free-form lessons — review and update"
-  - affected_agents: [] (review and populate)
-
-Output: { migrated, sources, entry_count }
-
-Examples:
-  bgsd-tools lessons:migrate`,
 
   'lessons:analyze': `Usage: bgsd-tools lessons:analyze [--agent <name>]
 

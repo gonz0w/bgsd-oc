@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { TOOLS_PATH, runGsdTools, createTempProject, cleanup, STATE_FIXTURE, writeStateFixture } = require('./helpers.cjs');
+const { TOOLS_PATH, runGsdTools, createTempProject, cleanup, STATE_FIXTURE, writeStateFixture, hasJj, initJjRepo } = require('./helpers.cjs');
 
 describe('state-snapshot command', () => {
   let tmpDir;
@@ -509,6 +509,172 @@ describe('state record-metric command', () => {
   });
 });
 
+describe('state complete-plan command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    writeStateFixture(tmpDir);
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('batches core plan completion updates in one command', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan 1\n');
+    fs.writeFileSync(path.join(phaseDir, '01-02-PLAN.md'), '# Plan 2\n');
+    fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary 1\n');
+
+    const result = runGsdTools('verify:state complete-plan --phase 151 --plan 03 --duration "12 min" --tasks 2 --files 5 --decision-summary "Batched plan finalization" --decision-rationale "Keep core state writes together" --stopped-at "Completed 151-03-PLAN.md" --resume-file "None"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.completed, true, 'command should succeed');
+    assert.strictEqual(output.core.current_plan, 2, 'should advance plan');
+    assert.strictEqual(output.core.progress, 50, 'should refresh progress from summaries on disk');
+    assert.deepStrictEqual(output.warnings, [], 'should have no warnings on happy path');
+
+    const content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    assert.ok(content.includes('**Current Plan:** 2'), 'STATE.md should advance current plan');
+    assert.ok(content.includes('**Progress:** [█████░░░░░] 50%'), 'STATE.md should update progress');
+    assert.ok(content.includes('Batched plan finalization'), 'STATE.md should append decision');
+    assert.ok(content.includes('Phase 151 P03'), 'STATE.md should append metric row');
+    assert.ok(content.includes('**Stopped at:** Completed 151-03-PLAN.md'), 'STATE.md should update session continuity');
+  });
+
+  test('reports tail warnings when metric append cannot be written', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      STATE_FIXTURE.replace(/## Performance Metrics[\s\S]*?## Accumulated Context/, '## Accumulated Context')
+    );
+
+    const result = runGsdTools('verify:state complete-plan --phase 151 --plan 03 --duration "12 min" --tasks 2 --files 5 --decision-summary "Batched plan finalization" --stopped-at "Completed 151-03-PLAN.md" --resume-file "None"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.completed, true, 'core should still succeed');
+    assert.strictEqual(output.warnings.length, 1, 'should emit one tail warning');
+    assert.strictEqual(output.warnings[0].step, 'record-metric');
+    assert.match(output.warnings[0].recovery, /verify:state record-metric/, 'warning should include recovery guidance');
+
+    const content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    assert.ok(content.includes('**Current Plan:** 2'), 'core updates should persist');
+    assert.ok(content.includes('Batched plan finalization'), 'decision should still be written');
+  });
+
+  test('refreshes stale plan totals and current focus from on-disk phase truth', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '151-execution-realism');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '151-01-PLAN.md'), '# Plan 1\n');
+    fs.writeFileSync(path.join(phaseDir, '151-02-PLAN.md'), '# Plan 2\n');
+    fs.writeFileSync(path.join(phaseDir, '151-01-SUMMARY.md'), '# Summary 1\n');
+    fs.writeFileSync(path.join(phaseDir, '151-02-SUMMARY.md'), '# Summary 2\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+## Project Reference
+
+**Current focus:** stale focus text from the previous plan
+
+## Current Position
+
+**Phase:** 151 of 200 (Execution Realism)
+**Current Plan:** 1
+**Total Plans in Phase:** 9
+**Status:** In progress
+**Last Activity:** 2026-03-30
+
+**Progress:** [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: -
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+## Accumulated Context
+
+### Decisions
+
+None yet.
+
+### Blockers/Concerns
+
+None.
+
+## Session Continuity
+
+**Last session:** 2026-03-30T00:00:00.000Z
+**Stopped at:** Completed 151-01-PLAN.md
+**Resume file:** None
+`
+    );
+
+    const result = runGsdTools('verify:state complete-plan --phase 151 --plan 02 --duration "12 min" --tasks 3 --files 4 --stopped-at "Completed 151-02-PLAN.md" --resume-file "None"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.completed, true, 'command should succeed');
+    assert.strictEqual(output.core.current_plan, 2, 'last completed plan should stay aligned to disk truth');
+    assert.strictEqual(output.core.total_plans, 2, 'should recompute total plans from phase inventory');
+    assert.deepStrictEqual(output.warnings, [], 'should repair stale fields inline instead of warning');
+
+    const content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    assert.ok(content.includes('**Current Plan:** 2'), 'STATE.md should repair current plan from disk truth');
+    assert.ok(content.includes('**Total Plans in Phase:** 2'), 'STATE.md should repair total plans from disk truth');
+    assert.ok(content.includes('**Current focus:** Phase 151 complete — ready for verification'), 'STATE.md should repair stale focus text');
+    assert.ok(content.includes('**Status:** Phase complete — ready for verification'), 'STATE.md should mark the phase complete');
+  });
+
+  test('roadmap update-plan-progress repairs stale progress wording from on-disk truth', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '151-execution-realism');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '151-01-PLAN.md'), '# Plan 1\n');
+    fs.writeFileSync(path.join(phaseDir, '151-02-PLAN.md'), '# Plan 2\n');
+    fs.writeFileSync(path.join(phaseDir, '151-01-SUMMARY.md'), '# Summary 1\n');
+    fs.writeFileSync(path.join(phaseDir, '151-02-SUMMARY.md'), '# Summary 2\n');
+
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+- [ ] **Phase 151: Execution Realism**
+
+### Phase 151: Execution Realism
+**Goal:** Keep completion metadata truthful
+**Plans:** 1/9 plans executed
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 151. Execution Realism | 1/9 | In Progress|  |
+`
+    );
+
+    const result = runGsdTools('plan:roadmap update-plan-progress 151', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const roadmap = fs.readFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), 'utf-8');
+    assert.ok(roadmap.includes('- [x] **Phase 151: Execution Realism** (completed '), 'Checklist summary should be repaired to complete');
+    assert.ok(roadmap.includes('**Plans:** 2/2 plans complete'), 'Detail summary should be repaired from disk truth');
+    assert.ok(roadmap.includes('| 151. Execution Realism | 2/2 | Complete'), 'Progress table row should be repaired from disk truth');
+    assert.ok(!roadmap.includes('1/9'), 'Stale roadmap wording should be removed');
+  });
+});
+
 describe('state validate', () => {
   let tmpDir;
 
@@ -1001,7 +1167,8 @@ describe('state validate pre-flight', () => {
     cleanup(tmpDir);
   });
 
-  test('init execute-phase includes pre_flight_validation field', () => {
+  test('init execute-phase includes pre_flight_validation field', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
     // Set up minimal valid phase structure
     fs.writeFileSync(
       path.join(tmpDir, '.planning', 'ROADMAP.md'),
@@ -1032,6 +1199,8 @@ describe('state validate pre-flight', () => {
 `
     );
 
+    initJjRepo(tmpDir);
+
     const result = runGsdTools('init:execute-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
@@ -1041,7 +1210,8 @@ describe('state validate pre-flight', () => {
     assert.strictEqual(output.pre_flight_validation, true, 'should default to true');
   });
 
-  test('pre_flight_validation respects config gates.pre_flight_validation: false', () => {
+  test('pre_flight_validation respects config gates.pre_flight_validation: false', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
     // Set up minimal valid phase structure with config that disables pre-flight
     fs.writeFileSync(
       path.join(tmpDir, '.planning', 'ROADMAP.md'),
@@ -1077,6 +1247,8 @@ describe('state validate pre-flight', () => {
       path.join(tmpDir, '.planning', 'config.json'),
       JSON.stringify({ gates: { pre_flight_validation: false } }, null, 2)
     );
+
+    initJjRepo(tmpDir);
 
     const result = runGsdTools('init:execute-phase 1', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
@@ -1218,7 +1390,8 @@ None.
     assert.ok(issueTypes.includes('plan_count_drift'), 'should include plan_count_drift');
   });
 
-  test('init execute-phase compact mode includes pre_flight_validation', () => {
+  test('init execute-phase compact mode includes pre_flight_validation', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
     // Set up minimal valid phase structure
     fs.writeFileSync(
       path.join(tmpDir, '.planning', 'ROADMAP.md'),
@@ -1249,6 +1422,8 @@ None.
 `
     );
 
+    initJjRepo(tmpDir);
+
     const result = runGsdTools('init:execute-phase 1 --compact', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
@@ -1258,3 +1433,162 @@ None.
   });
 });
 
+describe('state handoff command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('writes a phase handoff artifact and selects the latest valid step', () => {
+    let result = runGsdTools('verify:state handoff write --phase 152 --step discuss --run-id run-1 --source-fingerprint fp-1 --summary "Discuss done"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    let output = JSON.parse(result.output);
+    assert.strictEqual(output.written, true, 'write should succeed');
+    assert.strictEqual(output.latest_valid_step, 'discuss', 'latest step should start at discuss');
+
+    result = runGsdTools('verify:state handoff write --phase 152 --step plan --run-id run-1 --source-fingerprint fp-1 --summary "Plan ready"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    output = JSON.parse(result.output);
+    assert.strictEqual(output.latest_valid_step, 'plan', 'latest step should advance to plan');
+
+    const validate = runGsdTools('verify:state handoff validate --phase 152', tmpDir);
+    assert.ok(validate.success, `Validate failed: ${validate.error}`);
+    const validateOutput = JSON.parse(validate.output);
+    assert.strictEqual(validateOutput.valid, true, 'handoff should be resumable');
+    assert.strictEqual(validateOutput.latest_valid_step, 'plan', 'validate should return plan as latest valid step');
+    assert.strictEqual(validateOutput.selected_run_id, 'run-1', 'validate should preserve run id');
+  });
+
+  test('phase handoff write derives canonical payload defaults for production callers', () => {
+    const result = runGsdTools('verify:state handoff write --phase 152 --step discuss --summary "Discuss done" --resume-file ".planning/phases/152/152-CONTEXT.md" --next-command "/bgsd-plan research 152"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.written, true, 'write should succeed without manual run inputs');
+    assert.match(output.artifact.run_id, /^152-/, 'run id should be derived from the phase');
+    assert.match(output.artifact.source_fingerprint, /^[0-9a-f]{16}$/, 'source fingerprint should be derived automatically');
+    assert.strictEqual(output.artifact.resume_target.resume_file, '.planning/phases/152/152-CONTEXT.md', 'resume target should include resume file');
+    assert.strictEqual(output.artifact.resume_target.next_command, '/bgsd-plan research 152', 'resume target should include next command');
+  });
+
+  test('source fingerprint stays stable across same-phase run refreshes', () => {
+    let result = runGsdTools('verify:state handoff write --phase 152 --step discuss --summary "Discuss done"', tmpDir);
+    assert.ok(result.success, `Discuss write failed: ${result.error}`);
+    const discussOutput = JSON.parse(result.output);
+
+    result = runGsdTools('verify:state handoff write --phase 152 --step research --summary "Research done"', tmpDir);
+    assert.ok(result.success, `Research write failed: ${result.error}`);
+    const researchOutput = JSON.parse(result.output);
+
+    assert.strictEqual(researchOutput.artifact.run_id, discussOutput.artifact.run_id, 'same run should be reused after discuss');
+    assert.strictEqual(researchOutput.artifact.source_fingerprint, discussOutput.artifact.source_fingerprint, 'same run should reuse the fingerprint');
+  });
+
+  test('falls back to the previous valid step when the newest artifact is corrupt', () => {
+    let result = runGsdTools('verify:state handoff write --phase 152 --step discuss --run-id run-1 --source-fingerprint fp-1', tmpDir);
+    assert.ok(result.success, `Discuss write failed: ${result.error}`);
+    result = runGsdTools('verify:state handoff write --phase 152 --step research --run-id run-1 --source-fingerprint fp-1', tmpDir);
+    assert.ok(result.success, `Research write failed: ${result.error}`);
+
+    const corruptPath = path.join(tmpDir, '.planning', 'phase-handoffs', '152', 'plan.json');
+    fs.mkdirSync(path.dirname(corruptPath), { recursive: true });
+    fs.writeFileSync(corruptPath, '{not valid json\n', 'utf-8');
+
+    const validate = runGsdTools('verify:state handoff validate --phase 152', tmpDir);
+    assert.ok(validate.success, `Validate failed: ${validate.error}`);
+    const output = JSON.parse(validate.output);
+    assert.strictEqual(output.valid, true, 'older valid artifact should still be resumable');
+    assert.strictEqual(output.latest_valid_step, 'research', 'should fall back to research');
+    assert.strictEqual(output.invalid_artifacts.length, 1, 'should report the corrupt artifact');
+  });
+
+  test('replaces the previous same-phase run once a new run artifact is valid', () => {
+    let result = runGsdTools('verify:state handoff write --phase 152 --step execute --run-id run-old --source-fingerprint fp-old', tmpDir);
+    assert.ok(result.success, `Old run write failed: ${result.error}`);
+
+    result = runGsdTools('verify:state handoff write --phase 152 --step discuss --run-id run-new --source-fingerprint fp-new', tmpDir);
+    assert.ok(result.success, `New run write failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(output.replaced_runs, ['run-old'], 'new valid run should replace old run');
+
+    const validate = runGsdTools('verify:state handoff validate --phase 152', tmpDir);
+    assert.ok(validate.success, `Validate failed: ${validate.error}`);
+    const validateOutput = JSON.parse(validate.output);
+    assert.strictEqual(validateOutput.selected_run_id, 'run-new', 'new run should be selected');
+    assert.strictEqual(validateOutput.valid_artifacts.length, 1, 'old run artifacts should be removed');
+    assert.strictEqual(validateOutput.latest_valid_step, 'discuss', 'new run latest step should be discuss');
+  });
+
+  test('same-phase run restart keeps the old chain until the new discuss handoff is valid', () => {
+    let result = runGsdTools('verify:state handoff write --phase 152 --step plan --summary "Plan ready"', tmpDir);
+    assert.ok(result.success, `Initial write failed: ${result.error}`);
+    const firstOutput = JSON.parse(result.output);
+
+    result = runGsdTools('verify:state handoff write --phase 152 --step discuss --summary "Restarted discuss"', tmpDir);
+    assert.ok(result.success, `Restart write failed: ${result.error}`);
+    const secondOutput = JSON.parse(result.output);
+
+    assert.notStrictEqual(secondOutput.artifact.run_id, firstOutput.artifact.run_id, 'restart discuss should create a fresh run id');
+    assert.deepStrictEqual(secondOutput.replaced_runs, [firstOutput.artifact.run_id], 'previous run should only be replaced after the new discuss write succeeds');
+  });
+
+  test('reports repair guidance when the source fingerprint is stale', () => {
+    const result = runGsdTools('verify:state handoff write --phase 152 --step plan --run-id run-1 --source-fingerprint fp-1', tmpDir);
+    assert.ok(result.success, `Write failed: ${result.error}`);
+
+    const validate = runGsdTools('verify:state handoff validate --phase 152 --expected-fingerprint fp-2', tmpDir);
+    assert.ok(validate.success, `Validate command should still succeed: ${validate.error}`);
+    const output = JSON.parse(validate.output);
+    assert.strictEqual(output.valid, false, 'stale fingerprint should block resume');
+    assert.strictEqual(output.stale_sources, true, 'stale source flag should be set');
+    assert.strictEqual(output.latest_valid_step, 'plan', 'latest valid step should still be reported');
+    assert.strictEqual(output.repair_guidance.action, 'repair', 'repair guidance should be returned');
+    assert.match(output.repair_guidance.commands[0], /verify:state handoff clear --phase 152/, 'repair guidance should point to clear command');
+  });
+
+  test('phase handoff write preserves discovered TDD proof metadata across later step refreshes', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '0152-proof-phase');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '0152-01-TDD-AUDIT.json'), JSON.stringify({
+      phases: {
+        red: { target_command: 'node --test tests/proof.test.cjs', exit_code: 1 },
+        green: { target_command: 'node --test tests/proof.test.cjs', exit_code: 0 }
+      }
+    }, null, 2));
+
+    let result = runGsdTools('verify:state handoff write --phase 152 --step execute --summary "Execution complete"', tmpDir);
+    assert.ok(result.success, `execute handoff write failed: ${result.error}`);
+    let output = JSON.parse(result.output);
+    assert.ok(output.artifact.context.tdd_audits.some((entry) => entry.path.endsWith('0152-01-TDD-AUDIT.json')), 'execute write should discover the canonical TDD audit artifact');
+    assert.deepStrictEqual(output.artifact.context.tdd_audits[0].stages, ['red', 'green'], 'discovered metadata should preserve deterministic stage coverage');
+
+    result = runGsdTools('verify:state handoff write --phase 152 --step verify --summary "Verification complete"', tmpDir);
+    assert.ok(result.success, `verify handoff write failed: ${result.error}`);
+    output = JSON.parse(result.output);
+    assert.ok(output.artifact.context.tdd_audits.some((entry) => entry.path.endsWith('0152-01-TDD-AUDIT.json')), 'later handoff writes should carry forward proof metadata without re-passing context');
+  });
+
+  test('same-phase discuss restart does not inherit proof metadata from the replaced run', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '0152-proof-phase');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '0152-01-TDD-AUDIT.json'), JSON.stringify({
+      phases: {
+        red: { target_command: 'node --test tests/proof.test.cjs', exit_code: 1 }
+      }
+    }, null, 2));
+
+    let result = runGsdTools('verify:state handoff write --phase 152 --step execute --summary "Execution complete"', tmpDir);
+    assert.ok(result.success, `execute handoff write failed: ${result.error}`);
+
+    fs.unlinkSync(path.join(phaseDir, '0152-01-TDD-AUDIT.json'));
+    result = runGsdTools('verify:state handoff write --phase 152 --step discuss --summary "Restarted discuss"', tmpDir);
+    assert.ok(result.success, `discuss restart failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(output.artifact.context, {}, 'new discuss run should start clean when no current proof artifact exists');
+  });
+});

@@ -1,5 +1,5 @@
 <purpose>
-Create all phases necessary to close gaps identified by `/bgsd-audit-milestone`. Reads MILESTONE-AUDIT.md, groups gaps into logical phases, creates phase entries in ROADMAP.md, and offers to plan each phase. One command creates all fix phases — no manual `/bgsd-add-phase` per gap.
+Create all phases necessary to close gaps identified by `/bgsd-audit-milestone`. Reads MILESTONE-AUDIT.md, groups gaps into logical phases, creates phase entries in ROADMAP.md, and offers to plan each phase. One command creates all fix phases — no manual roadmap-add step per gap.
 </purpose>
 
 <required_reading>
@@ -162,16 +162,16 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs(roadmap
 
 ## ▶ Next Up
 
-**Plan first gap closure phase**
+**Plan first gap-closure slice**
 
-`/bgsd-plan-phase {N}`
+`/bgsd-plan gaps {N}`
 
 <sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- `/bgsd-execute-phase {N}` — if plans already exist
+- `/bgsd-execute-phase {N} --gaps-only` — if gap plans already exist
 - `cat .planning/ROADMAP.md` — see updated roadmap
 
 ---
@@ -270,5 +270,5 @@ becomes:
 - [ ] Coverage count updated in REQUIREMENTS.md
 - [ ] Phase directories created
 - [ ] Changes committed (includes REQUIREMENTS.md)
-- [ ] User knows to run `/bgsd-plan-phase` next
+- [ ] User knows to run `/bgsd-plan gaps <phase>` next when explicitly closing gaps
 </success_criteria>

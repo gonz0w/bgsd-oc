@@ -96,9 +96,9 @@ Output directly (not code block). Route:
 
 **passed:** `## ✓ Milestone {version} — Audit Passed` | Score: {N}/{M} | Report: .planning/v{version}-MILESTONE-AUDIT.md | Next: `/bgsd-complete-milestone {version}`
 
-**gaps_found:** `## ⚠ Milestone {version} — Gaps Found` | Score: {N}/{M} | List unsatisfied REQs, cross-phase issues, broken flows | Next: `/bgsd-plan-gaps`
+**gaps_found:** `## ⚠ Milestone {version} — Gaps Found` | Score: {N}/{M} | List unsatisfied REQs, cross-phase issues, broken flows | Next: `/bgsd-plan gaps`
 
-**tech_debt:** `## ⚡ Milestone {version} — Tech Debt Review` | Score: {N}/{M} | Tech debt by phase | Options: A) `/bgsd-complete-milestone {version}` B) `/bgsd-plan-gaps`
+**tech_debt:** `## ⚡ Milestone {version} — Tech Debt Review` | Score: {N}/{M} | Tech debt by phase | Options: A) `/bgsd-complete-milestone {version}` B) `/bgsd-plan gaps`
 
 All routes: `<sub>/clear first → fresh context window</sub>`
 </offer_next>

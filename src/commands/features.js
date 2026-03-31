@@ -11,12 +11,14 @@ const { safeReadFile, cachedReadFile, findPhaseInternal, getArchivedPhaseDirs, n
 const { cachedRegex } = require('../lib/regex-cache');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
+const { createPlanMetadataContext } = require('../lib/plan-metadata');
 const { estimateTokens, estimateJsonTokens, checkBudget } = require('../lib/context');
 const { readIntel } = require('../lib/codebase-intel');
 const { getTransitiveDependents, buildDependencyGraph } = require('../lib/deps');
 const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS, progressBar, colorByPercent } = require('../lib/format');
 const { catWithHighlight } = require('../lib/cli-tools');
 const { isToolEnabled } = require('../lib/cli-tools/fallback');
+const { searchLessons } = require('./lessons');
 
 function cmdSessionDiff(cwd, raw) {
   // Get last activity from STATE.md
@@ -513,61 +515,7 @@ function cmdSearchLessons(cwd, query, raw) {
   if (!query) {
     error('Query string required for lessons search');
   }
-
-  const queryLower = query.toLowerCase();
-  const queryWords = queryLower.split(/\s+/);
-  const results = [];
-
-  // Search tasks/lessons.md and .planning/lessons.md
-  const candidatePaths = [
-    path.join(cwd, 'tasks', 'lessons.md'),
-    path.join(cwd, '.planning', 'lessons.md'),
-  ];
-  const searchPaths = candidatePaths.filter(p => {
-    try { fs.statSync(p); return true; } catch { return false; }
-  });
-  if (searchPaths.length === 0) {
-    output({ query, match_count: 0, lessons: [], message: 'No lessons file found (checked tasks/lessons.md and .planning/lessons.md)' }, raw);
-    return;
-  }
-
-  for (const searchPath of searchPaths) {
-    const content = cachedReadFile(searchPath);
-    if (!content) continue;
-
-    // Parse lessons — look for patterns like "## Lesson" or "### Pattern" or "- **Title**: description"
-    const sections = content.split(/(?=^#{1,3}\s)/m).filter(Boolean);
-    for (const section of sections) {
-      const titleMatch = section.match(/^#{1,3}\s+(.+)/);
-      const title = titleMatch ? titleMatch[1].trim() : 'Untitled';
-      const body = section.replace(/^#{1,3}\s+.+\n?/, '').trim();
-
-      let score = 0;
-      const sectionLower = section.toLowerCase();
-      for (const word of queryWords) {
-        if (sectionLower.includes(word)) score += 1;
-        // Boost for title matches
-        if (title.toLowerCase().includes(word)) score += 2;
-      }
-
-      if (score > 0) {
-        results.push({
-          title,
-          body: body.slice(0, 300) + (body.length > 300 ? '...' : ''),
-          score,
-          source: path.relative(cwd, searchPath),
-        });
-      }
-    }
-  }
-
-  results.sort((a, b) => b.score - a.score);
-
-  output({
-    query,
-    match_count: results.length,
-    lessons: results.slice(0, 15),
-  }, raw);
+  output(searchLessons(cwd, query), raw);
 }
 
 function cmdCodebaseImpact(cwd, filePaths, raw) {
@@ -1002,22 +950,22 @@ function cmdTraceRequirement(cwd, reqId, raw) {
   const phaseTree = getPhaseTree(cwd);
   const phaseNorm = normalizePhaseName(trace.phase);
   const phaseEntry = phaseTree.get(phaseNorm);
+  const metadataContext = createPlanMetadataContext({ cwd });
+  const phasePlans = phaseEntry ? metadataContext.listPhasePlans(trace.phase) : [];
 
   if (phaseEntry) {
     // Check PLANs
-    for (const plan of phaseEntry.plans) {
-      const content = cachedReadFile(path.join(phaseEntry.fullPath, plan));
-      if (!content) continue;
-      const fm = extractFrontmatter(content);
-      const reqs = fm.requirements || [];
+    for (const planMetadata of phasePlans) {
+      const fm = planMetadata.frontmatter || {};
+      const reqs = Array.isArray(fm.requirements) ? fm.requirements : (fm.requirements ? [fm.requirements] : []);
       if (reqs.some(r => r.toUpperCase().includes(reqUpper))) {
         trace.plans.push({
-          file: plan,
-          has_summary: phaseEntry.summaries.includes(plan.replace('-PLAN.md', '-SUMMARY.md')),
+          file: path.basename(planMetadata.relativePath),
+          has_summary: phaseEntry.summaries.includes(path.basename(planMetadata.relativePath).replace('-PLAN.md', '-SUMMARY.md')),
         });
 
         // Get files from plan's files_modified
-        const planFiles = fm.files_modified || [];
+        const planFiles = Array.isArray(fm.files_modified) ? fm.files_modified : (fm.files_modified ? [fm.files_modified] : []);
         trace.files.push(...planFiles);
       }
     }
@@ -1055,16 +1003,10 @@ function cmdTraceRequirement(cwd, reqId, raw) {
       const planTruths = new Set();
 
       if (phaseEntry) {
-        for (const plan of phaseEntry.plans) {
-          const planContent = cachedReadFile(path.join(phaseEntry.fullPath, plan));
-          if (!planContent) continue;
-          const fm = extractFrontmatter(planContent);
-          // Extract must_haves.truths
-          if (fm.must_haves && fm.must_haves.truths) {
-            const truths = Array.isArray(fm.must_haves.truths) ? fm.must_haves.truths : [fm.must_haves.truths];
-            for (const t of truths) {
-              if (typeof t === 'string') planTruths.add(t.toLowerCase());
-            }
+        for (const planMetadata of phasePlans) {
+          const truths = planMetadata.mustHaves?.truths?.items || [];
+          for (const truth of truths) {
+            if (truth?.text) planTruths.add(truth.text.toLowerCase());
           }
         }
       }

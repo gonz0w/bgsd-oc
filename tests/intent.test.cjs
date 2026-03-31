@@ -8,7 +8,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
+const { TOOLS_PATH, runGsdTools, createTempProject, cleanup, initJjRepo } = require('./helpers.cjs');
+const { parseMilestoneIntentMd, getEffectiveIntent } = require('../src/commands/intent.js');
+const { parsePhaseIntentContractFromContext, parsePhaseIntentFromContext } = require('../src/lib/phase-context.js');
 
 describe('intent commands', () => {
   let tmpDir;
@@ -870,6 +872,7 @@ Test plan objective.
     test('pre-flight: init execute-phase intent_drift null when no INTENT.md', () => {
       // Create minimal project structure (no INTENT.md)
       createRoadmap(tmpDir, 14, 17);
+      initJjRepo(tmpDir);
       fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), '{}', 'utf-8');
       fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State\n## Current Position\n**Phase:** 14', 'utf-8');
       fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase'), { recursive: true });
@@ -959,6 +962,7 @@ Test plan objective.
     test('init execute-phase includes intent_summary field', () => {
       createPopulatedIntent(tmpDir);
       createRoadmap(tmpDir, 14, 17);
+      initJjRepo(tmpDir);
       fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), '{}', 'utf-8');
       fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State\n## Current Position\n**Phase:** 14', 'utf-8');
       fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '14-first-phase'), { recursive: true });
@@ -1011,6 +1015,223 @@ Test plan objective.
       // In compact mode (default), null intent fields are omitted
       assert.ok(!data.intent_summary, 'intent_summary should be absent/falsy when no INTENT.md');
       assert.ok(!data.intent_path, 'intent_path should be absent/falsy when no INTENT.md');
+    });
+  });
+
+  describe('effective intent layering', () => {
+    const REAL_PHASE_160_CONTEXT = path.join(__dirname, '..', '.planning', 'phases', '160-phase-intent-alignment-verification', '160-CONTEXT.md');
+
+    function createRoadmap(dir, phaseStart, phaseEnd) {
+      const roadmapContent = `# Roadmap
+
+## Milestones
+
+- 🔵 **v17.0 Test Milestone** — Phases ${phaseStart}-${phaseEnd} (active)
+
+## Phases
+
+### Phase ${phaseStart}: Planning Context Cascade
+**Goal**: Layer milestone and phase intent
+**Plans:** 1 plan
+`;
+      fs.writeFileSync(path.join(dir, '.planning', 'ROADMAP.md'), roadmapContent, 'utf-8');
+    }
+
+    function createMilestoneIntent(dir) {
+      const content = `# MILESTONE-INTENT
+
+## Why Now
+Planning surfaces need compact layered purpose without raw intent-document dumps.
+
+## Target Outcomes
+- DO-02: Keep the current milestone focused on visible planning value
+
+## Priorities
+- Keep lower intent layers advisory-only
+- Prefer compact injected context over raw markdown payloads
+
+## Non-Goals
+- No live workspace inventory in planning intent
+`;
+      fs.writeFileSync(path.join(dir, '.planning', 'MILESTONE-INTENT.md'), content, 'utf-8');
+    }
+
+    function createPhaseContext(dir) {
+      const phaseDir = path.join(dir, '.planning', 'phases', '157-planning-context-cascade');
+      fs.mkdirSync(phaseDir, { recursive: true });
+      fs.writeFileSync(path.join(phaseDir, '157-CONTEXT.md'), `# Phase 157 Context
+
+<phase_intent>
+## Phase Intent
+- **Local Purpose:** Add compact milestone and phase intent so planning flows can refine current focus without replacing the project north star.
+- **Expected User Change:** Before: planning users had to infer the current phase purpose from broad context prose. After: planning users can read an explicit phase-local intent block that states the local purpose and user-facing change.
+  - Planning users can see the local purpose without reconstructing it from multiple sections
+  - Planning users can tell which adjacent improvements this phase is not trying to solve
+- **Non-Goals:**
+  - Do not add sibling-plan recommendation heuristics in this phase.
+</phase_intent>
+
+<domain>
+## Phase Boundary
+Add compact milestone and phase intent so planning flows can refine current focus without replacing the project north star.
+</domain>
+`, 'utf-8');
+    }
+
+    test('parses milestone intent contract into compact fields', () => {
+      const parsed = parseMilestoneIntentMd(`# MILESTONE-INTENT
+
+## Why Now
+The milestone matters now because planner context still depends on raw INTENT.md reads.
+
+## Target Outcomes
+- DO-120: Compact effective intent reaches planning surfaces
+
+## Priorities
+- Keep intent advisory-only
+
+## Non-Goals
+- Do not rewrite project intent for temporary priorities
+`);
+
+      assert.strictEqual(parsed.why_now, 'The milestone matters now because planner context still depends on raw INTENT.md reads.');
+      assert.strictEqual(parsed.target_outcomes[0].id, 'DO-120');
+      assert.strictEqual(parsed.priorities[0], 'Keep intent advisory-only');
+      assert.strictEqual(parsed.non_goals[0], 'Do not rewrite project intent for temporary priorities');
+    });
+
+    test('phase-local intent parses the explicit phase-intent block', () => {
+      const parsed = parsePhaseIntentFromContext(`<domain>
+## Phase Boundary
+Keep phase-local purpose lightweight and additive.
+</domain>
+
+<phase_intent>
+## Phase Intent
+- **Local Purpose:** Keep phase-local purpose lightweight and additive.
+- **Expected User Change:** Before: users had to infer why the phase mattered from generic discussion notes. After: users can read one explicit before/after claim that states the intended user-facing change.
+  - Users can see the local purpose without scanning multiple sections
+  - Users can judge the phase by the promised change instead of vague prose
+- **Non-Goals:**
+  - No separate top-level phase intent file.
+</phase_intent>`);
+
+      assert.strictEqual(parsed.purpose, 'Keep phase-local purpose lightweight and additive.');
+      assert.strictEqual(parsed.expected_change, 'Before: users had to infer why the phase mattered from generic discussion notes. After: users can read one explicit before/after claim that states the intended user-facing change.');
+      assert.deepStrictEqual(parsed.non_goals, ['No separate top-level phase intent file.']);
+    });
+
+    test('phase-local intent returns null for legacy context without explicit intent block', () => {
+      const parsed = parsePhaseIntentFromContext(`<domain>
+## Phase Boundary
+Keep phase-local purpose lightweight and additive.
+</domain>
+
+<specifics>
+## Specific Ideas
+- Users should understand why the phase matters.
+</specifics>
+
+<deferred>
+## Deferred Ideas
+- No separate top-level phase intent file.
+</deferred>`);
+
+      assert.strictEqual(parsed, null);
+    });
+
+    test('effective_intent reads explicit phase-local intent without replacing project north star', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 157, 160);
+      createMilestoneIntent(tmpDir);
+      createPhaseContext(tmpDir);
+
+      const effectiveIntent = getEffectiveIntent(tmpDir, { phase: '157' });
+
+      assert.strictEqual(effectiveIntent.advisory, true, 'effective_intent should stay advisory-only');
+      assert.strictEqual(effectiveIntent.project.objective, 'Build a CLI tool for project planning');
+      assert.strictEqual(effectiveIntent.effective.objective, 'Build a CLI tool for project planning', 'phase or milestone intent must not replace project objective');
+      assert.strictEqual(effectiveIntent.milestone.why_now, 'Planning surfaces need compact layered purpose without raw intent-document dumps.');
+      assert.strictEqual(effectiveIntent.phase.purpose, 'Add compact milestone and phase intent so planning flows can refine current focus without replacing the project north star.');
+      assert.ok(effectiveIntent.effective.outcomes.some(outcome => outcome.id === 'DO-01'), 'project P1 outcomes should remain visible');
+      assert.ok(effectiveIntent.effective.outcomes.some(outcome => outcome.id === 'DO-02'), 'milestone outcomes should refine, not replace, project outcomes');
+      assert.strictEqual(effectiveIntent.metadata.partial, false, 'all layers available should not be partial');
+      assert.deepStrictEqual(effectiveIntent.warnings, []);
+    });
+
+    test('partial intent context leaves legacy phase-local intent unavailable instead of guessed', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 157, 160);
+      createMilestoneIntent(tmpDir);
+
+      const phaseDir = path.join(tmpDir, '.planning', 'phases', '157-planning-context-cascade');
+      fs.mkdirSync(phaseDir, { recursive: true });
+      fs.writeFileSync(path.join(phaseDir, '157-CONTEXT.md'), `# Phase 157 Context
+
+<domain>
+## Phase Boundary
+Add compact milestone and phase intent so planning flows can refine current focus without replacing the project north star.
+</domain>
+
+<specifics>
+## Specific Ideas
+- Planning users should see current milestone focus before phase-local refinements.
+</specifics>
+
+<deferred>
+## Deferred Ideas
+- Do not add sibling-plan recommendation heuristics in this phase.
+</deferred>
+`, 'utf-8');
+
+      const effectiveIntent = getEffectiveIntent(tmpDir, { phase: '157' });
+
+      assert.strictEqual(effectiveIntent.phase, null, 'legacy contexts should not get guessed phase intent');
+      assert.strictEqual(effectiveIntent.metadata.partial, true, 'missing explicit phase block should be marked partial');
+      assert.ok(effectiveIntent.metadata.missing_layers.includes('phase'), 'phase layer should be marked missing');
+      assert.ok(effectiveIntent.warnings.some(warning => /missing an explicit `Phase Intent` block/i.test(warning)), 'warning should explain that phase-local intent is unavailable');
+    });
+
+    test('real Phase 160 legacy context keeps source parsing phase-intent-free', () => {
+      const legacyContext = fs.readFileSync(REAL_PHASE_160_CONTEXT, 'utf-8');
+
+      const parsedIntent = parsePhaseIntentFromContext(legacyContext);
+      const parsedContract = parsePhaseIntentContractFromContext(legacyContext);
+
+      assert.strictEqual(parsedIntent, null, 'real legacy Phase 160 context should not expose parsed phase intent');
+      assert.strictEqual(parsedContract.status, 'missing_explicit_phase_intent', 'real legacy context should use the explicit no-guess fallback contract');
+      assert.strictEqual(parsedContract.intent, null, 'real legacy context should keep phase-local intent absent');
+      assert.match(parsedContract.reason, /explicit `Phase Intent` block/i, 'fallback reason should explain why phase-local intent is unavailable');
+    });
+
+    test('real Phase 160 legacy context keeps effective_intent phase-local intent unavailable', () => {
+      const effectiveIntent = getEffectiveIntent(path.join(__dirname, '..'), { phase: '160' });
+
+      assert.strictEqual(effectiveIntent.phase, null, 'real legacy Phase 160 context should not get guessed phase intent');
+      assert.strictEqual(effectiveIntent.metadata.partial, true, 'real legacy context should remain partial');
+      assert.ok(effectiveIntent.metadata.missing_layers.includes('phase'), 'phase layer should remain missing for the real legacy context');
+      assert.ok(effectiveIntent.warnings.some(warning => /missing an explicit `Phase Intent` block/i.test(warning)), 'warning should keep the explicit no-guess explanation');
+    });
+
+    test('missing milestone intent warns visibly and never creates files in hot path', () => {
+      createPopulatedIntent(tmpDir);
+      createRoadmap(tmpDir, 157, 160);
+      createPhaseContext(tmpDir);
+
+      const milestonePath = path.join(tmpDir, '.planning', 'MILESTONE-INTENT.md');
+      assert.ok(!fs.existsSync(milestonePath), 'fixture should start without milestone intent');
+
+      const effectiveIntent = getEffectiveIntent(tmpDir, { phase: '157' });
+      const cliResult = runGsdTools('plan:intent show effective 157', tmpDir);
+      assert.ok(cliResult.success, `intent show effective failed: ${cliResult.error}`);
+      const cliData = JSON.parse(cliResult.output);
+      const cliEffectiveIntent = cliData.effective_intent || cliData;
+
+      assert.strictEqual(effectiveIntent.metadata.partial, true, 'missing milestone layer should be marked partial');
+      assert.ok(effectiveIntent.metadata.missing_layers.includes('milestone'), 'milestone should be marked missing');
+      assert.ok(effectiveIntent.warnings.some(warning => warning.includes('MILESTONE-INTENT.md')), 'warning should mention missing milestone intent');
+      assert.ok(!fs.existsSync(milestonePath), 'effective_intent computation must not create milestone intent files');
+      assert.ok(cliEffectiveIntent.warnings.some(warning => warning.includes('MILESTONE-INTENT.md')), 'CLI output should expose the partial-layer warning');
     });
   });
 
@@ -1199,4 +1420,3 @@ Team velocity and developer satisfaction with the planning workflow.
     });
   });
 });
-

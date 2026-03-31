@@ -101,44 +101,44 @@ const AGENT_MANIFESTS = {
     tool_dependency_level: 'high',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'incomplete_plans',
              'plan_count', 'incomplete_count', 'branch_name', 'commit_docs',
-             'verifier_enabled', 'task_routing', 'env_summary', 'tool_availability'],
-    optional: ['codebase_conventions', 'codebase_dependencies', 'decisions'],
-    exclude: ['intent_drift', 'intent_summary', 'worktree_config', 'worktree_active',
-              'file_overlaps', 'codebase_freshness', 'codebase_stats'],
+             'verifier_enabled', 'workspace_enabled', 'workspace_config', 'workspace_active',
+             'file_overlaps', 'task_routing', 'env_summary', 'tool_availability'],
+    optional: ['codebase_conventions', 'codebase_dependencies', 'decisions', 'tool_availability_meta'],
+    exclude: ['intent_drift', 'intent_summary', 'codebase_freshness', 'codebase_stats'],
   },
   'bgsd-verifier': {
     tool_dependency_level: 'low',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'summaries',
-             'verifier_enabled'],
+             'verifier_enabled', 'effective_intent'],
     optional: ['codebase_stats', 'decisions'],
-    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
-              'worktree_active', 'file_overlaps', 'env_summary', 'branch_name',
-              'codebase_conventions', 'codebase_dependencies', 'tool_availability'],
+    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'workspace_enabled', 'workspace_config',
+                'workspace_active', 'file_overlaps', 'env_summary', 'branch_name',
+                'codebase_conventions', 'codebase_dependencies', 'tool_availability'],
   },
   'bgsd-planner': {
     tool_dependency_level: 'medium',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count',
-             'research_enabled', 'plan_checker_enabled', 'intent_summary', 'tool_availability'],
+             'research_enabled', 'plan_checker_enabled', 'intent_summary', 'effective_intent', 'tool_availability'],
     optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
-               'codebase_freshness', 'env_summary', 'decisions'],
-    exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
-              'branch_name'],
+                'codebase_freshness', 'env_summary', 'decisions', 'tool_availability_meta'],
+    exclude: ['task_routing', 'workspace_enabled', 'workspace_config', 'workspace_active', 'file_overlaps',
+                'branch_name'],
   },
   'bgsd-phase-researcher': {
     tool_dependency_level: 'low',
-    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary'],
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary', 'effective_intent'],
     optional: ['codebase_stats', 'env_summary', 'decisions'],
-    exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
-              'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans',
-              'tool_availability'],
+    exclude: ['task_routing', 'workspace_enabled', 'workspace_config', 'workspace_active', 'file_overlaps',
+                'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans',
+                'tool_availability'],
   },
   'bgsd-plan-checker': {
     tool_dependency_level: 'low',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'plan_count'],
     optional: ['codebase_stats', 'codebase_dependencies', 'decisions'],
-    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
-              'worktree_active', 'file_overlaps', 'env_summary', 'branch_name',
-              'tool_availability'],
+    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'workspace_enabled', 'workspace_config',
+               'workspace_active', 'file_overlaps', 'env_summary', 'branch_name',
+               'tool_availability'],
   },
   'bgsd-reviewer': {
     tool_dependency_level: 'low',
@@ -149,36 +149,36 @@ const AGENT_MANIFESTS = {
   },
   'bgsd-roadmapper': {
     tool_dependency_level: 'low',
-    fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count', 'intent_summary'],
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'plan_count', 'intent_summary', 'effective_intent'],
     optional: ['codebase_stats', 'decisions'],
-    exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
-              'branch_name', 'verifier_enabled', 'env_summary', 'tool_availability'],
+    exclude: ['task_routing', 'workspace_enabled', 'workspace_config', 'workspace_active', 'file_overlaps',
+                'branch_name', 'verifier_enabled', 'env_summary', 'tool_availability'],
   },
   'bgsd-project-researcher': {
     tool_dependency_level: 'low',
-    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary'],
+    fields: ['phase_dir', 'phase_number', 'phase_name', 'intent_summary', 'effective_intent'],
     optional: ['codebase_stats', 'env_summary', 'decisions'],
-    exclude: ['task_routing', 'worktree_config', 'worktree_active', 'file_overlaps',
-              'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans',
-              'tool_availability'],
+    exclude: ['task_routing', 'workspace_enabled', 'workspace_config', 'workspace_active', 'file_overlaps',
+                'branch_name', 'verifier_enabled', 'plans', 'incomplete_plans',
+                'tool_availability'],
   },
   'bgsd-debugger': {
     tool_dependency_level: 'high',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'plans', 'branch_name',
              'env_summary', 'tool_availability'],
     optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
-               'codebase_freshness', 'decisions'],
-    exclude: ['intent_drift', 'worktree_config', 'worktree_active', 'file_overlaps',
-              'plan_count', 'verifier_enabled'],
+               'codebase_freshness', 'decisions', 'tool_availability_meta'],
+    exclude: ['intent_drift', 'workspace_enabled', 'workspace_config', 'workspace_active', 'file_overlaps',
+               'plan_count', 'verifier_enabled'],
   },
   'bgsd-codebase-mapper': {
     tool_dependency_level: 'high',
     fields: ['phase_dir', 'phase_number', 'phase_name', 'branch_name',
              'env_summary', 'tool_availability'],
     optional: ['codebase_stats', 'codebase_conventions', 'codebase_dependencies',
-               'codebase_freshness', 'decisions'],
-    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'worktree_config',
-              'worktree_active', 'file_overlaps'],
+               'codebase_freshness', 'decisions', 'tool_availability_meta'],
+    exclude: ['intent_drift', 'intent_summary', 'task_routing', 'workspace_enabled', 'workspace_config',
+               'workspace_active', 'file_overlaps'],
   },
 };
 
@@ -214,7 +214,7 @@ function scopeContextForAgent(result, agentType) {
     delete scoped.tool_availability;
     // Remove tool-routing decisions (file-discovery-mode, search-mode, json-transform-mode)
     if (scoped.decisions && typeof scoped.decisions === 'object') {
-      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'json-transform-mode'];
+      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'structural-search-mode', 'json-transform-mode', 'yaml-transform-mode', 'text-replace-mode', 'benchmark-mode'];
       const filteredDecisions = {};
       for (const [key, val] of Object.entries(scoped.decisions)) {
         if (!toolRoutingIds.includes(key)) {
@@ -227,7 +227,7 @@ function scopeContextForAgent(result, agentType) {
     // Keep tool_availability (planner needs it for planning context)
     // Remove tool-routing decisions (planner doesn't need runtime tool choices)
     if (scoped.decisions && typeof scoped.decisions === 'object') {
-      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'json-transform-mode'];
+      const toolRoutingIds = ['file-discovery-mode', 'search-mode', 'structural-search-mode', 'json-transform-mode', 'yaml-transform-mode', 'text-replace-mode', 'benchmark-mode'];
       const filteredDecisions = {};
       for (const [key, val] of Object.entries(scoped.decisions)) {
         if (!toolRoutingIds.includes(key)) {

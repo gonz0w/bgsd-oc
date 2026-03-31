@@ -1,9 +1,12 @@
 /**
- * commandDiscovery.js - Command discoverability with autocomplete hints
+ * commandDiscovery.js - Command discoverability with JJ-first workspace autocomplete hints
  * Part of Phase 97: UX Polish - Task 2
- * 
- * Provides command suggestions, aliases, and fuzzy matching.
+ *
+ * Provides command suggestions, aliases, fuzzy matching, and command-integrity validation.
  */
+
+const fs = require('fs');
+const path = require('path');
 
 const COMMAND_ALIASES = {
   'p': 'plan',
@@ -45,7 +48,11 @@ const COMMAND_ALIASES = {
 const COMMAND_CATEGORIES = {
   workflow: {
     name: 'Workflow',
-    commands: ['init:new-project', 'init:execute-phase', 'init:plan-phase', 'plan:phase', 'execute:phase', 'verify:state']
+      commands: ['init:new-project', 'init:execute-phase', 'init:plan-phase', 'plan:phase', 'execute:phase', 'verify:state']
+  },
+  workspace: {
+    name: 'Workspace Recovery',
+    commands: ['workspace']
   },
   planning: {
     name: 'Planning',
@@ -65,7 +72,7 @@ const COMMAND_CATEGORIES = {
   },
   lessons: {
     name: 'Lessons',
-    commands: ['lessons:capture', 'lessons:list', 'lessons:migrate', 'lessons:deviation-capture']
+    commands: ['lessons:capture', 'lessons:list', 'lessons:analyze', 'lessons:suggest', 'lessons:compact', 'lessons:deviation-capture']
   },
   skills: {
     name: 'Skills',
@@ -102,10 +109,16 @@ const COMMAND_TREE = {
     'session-diff': null,
     'session-summary': null,
     'velocity': null,
-    'worktree': null,
     'tdd': null,
     'test-run': null,
     'trajectory': null
+  },
+  'workspace': {
+    'add': null,
+    'list': null,
+    'forget': null,
+    'cleanup': null,
+    'reconcile': null
   },
   'verify': {
     'state': null,
@@ -360,7 +373,7 @@ function getAllCommands() {
       'plan:intent', 'plan:requirements', 'plan:roadmap', 'plan:phases', 'plan:find-phase',
       'plan:milestone', 'plan:phase',
       'execute:commit', 'execute:rollback-info', 'execute:session-diff', 'execute:session-summary',
-      'execute:velocity', 'execute:worktree', 'execute:tdd', 'execute:test-run', 'execute:trajectory',
+      'execute:velocity', 'execute:tdd', 'execute:test-run', 'execute:trajectory', 'workspace', 'workspace add', 'workspace list', 'workspace forget', 'workspace cleanup', 'workspace reconcile',
       'verify:state', 'verify:verify', 'verify:assertions', 'verify:search-decisions', 'verify:search-lessons',
       'verify:review', 'verify:context-budget', 'verify:token-budget',
       'util:config-get', 'util:config-set', 'util:env', 'util:current-timestamp', 'util:list-todos',
@@ -469,7 +482,6 @@ function validateCommandRegistry() {
       'session-diff': null,
       'session-summary': null,
       'velocity': null,
-      'worktree': ['create', 'list', 'remove', 'cleanup', 'merge', 'check-overlap'],
       'tdd': null,
       'test-run': null,
       'trajectory': {
@@ -481,6 +493,7 @@ function validateCommandRegistry() {
         'dead-ends': null
       }
     },
+    'workspace': ['add', 'list', 'forget', 'cleanup', 'reconcile'],
     'verify': {
       'state': ['update', 'get', 'patch', 'advance-plan', 'record-metric', 'update-progress', 'add-decision', 'add-blocker', 'resolve-blocker', 'record-session', 'validate'],
       'verify': null,
@@ -554,15 +567,6 @@ function validateCommandRegistry() {
       'validate-artifacts': null,
       'settings': null,
       'parity-check': null,
-      'verify-path-exists': null,
-      'config-ensure-section': null,
-      'scaffold': null,
-      'phase-plan-index': null,
-      'state-snapshot': null,
-      'summary-extract': null,
-      'summary-generate': null,
-      'quick-summary': null,
-      'extract-sections': null,
       'tools': null,
       'runtime': null,
       'recovery': null,
@@ -724,6 +728,521 @@ function validateCommandRegistry() {
   };
 }
 
+const VALIDATION_SURFACE_SPECS = [
+  { root: 'docs', extensions: ['.md'], surface: 'docs' },
+  { root: 'workflows', extensions: ['.md'], surface: 'workflow' },
+  { root: 'agents', extensions: ['.md'], surface: 'agent' },
+  { root: 'skills', extensions: ['.md'], surface: 'skill' },
+  { root: 'templates', extensions: ['.md'], surface: 'template' },
+  { root: 'plugin.js', extensions: ['.js'], surface: 'runtime' },
+];
+
+function normalizeSlashCommandExample(example) {
+  if (!example) return '';
+  const cleaned = example
+    .replace(/`/g, '')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .trim();
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  const kept = [];
+  for (const token of tokens) {
+    if (
+      token === '$ARGUMENTS' ||
+      token === '[flags]' ||
+      token === '[options]' ||
+      /^\[[^\]]+\]$/.test(token) ||
+      /^\{[^}]+\}$/.test(token) ||
+      /^<[^>]+>$/.test(token) ||
+      token.includes('$')
+    ) {
+      break;
+    }
+    kept.push(token.replace(/[),.;:]+$/, ''));
+  }
+  return kept.join(' ').trim();
+}
+
+function walkFiles(rootPath, allowedExtensions, collected = []) {
+  if (!fs.existsSync(rootPath)) return collected;
+  const stats = fs.statSync(rootPath);
+  if (stats.isFile()) {
+    if (allowedExtensions.includes(path.extname(rootPath))) {
+      collected.push(rootPath);
+    }
+    return collected;
+  }
+
+  for (const entry of fs.readdirSync(rootPath, { withFileTypes: true })) {
+    const fullPath = path.join(rootPath, entry.name);
+    if (entry.isDirectory()) {
+      walkFiles(fullPath, allowedExtensions, collected);
+      continue;
+    }
+    if (allowedExtensions.includes(path.extname(entry.name))) {
+      collected.push(fullPath);
+    }
+  }
+  return collected;
+}
+
+function inferSlashAliasMetadata(commandPath, content) {
+  const slashCommand = `/${path.basename(commandPath, '.md')}`;
+  const aliasPatterns = [
+    /routing to (?:the )?canonical `([^`]+)` behavior/i,
+    /Translate the request to canonical `([^`]+)` behavior/i,
+    /compatibility alias for `([^`]+)`/i,
+  ];
+
+  for (const pattern of aliasPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      return {
+        slashCommand,
+        isAlias: true,
+        canonical: normalizeSlashCommandExample(match[1]),
+      };
+    }
+  }
+
+  return {
+    slashCommand,
+    isAlias: false,
+    canonical: slashCommand,
+  };
+}
+
+function getSlashCommandInventory(cwd = process.cwd()) {
+  const manifestPath = path.join(cwd, 'bin', 'manifest.json');
+  const commandsDir = path.join(cwd, 'commands');
+
+  let commandFiles = [];
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      commandFiles = (manifest.files || []).filter(file => /^commands\/bgsd-[^/]+\.md$/.test(file));
+    } catch {
+      commandFiles = [];
+    }
+  }
+
+  if (commandFiles.length === 0 && fs.existsSync(commandsDir)) {
+    commandFiles = fs.readdirSync(commandsDir)
+      .filter(file => /^bgsd-[^/]+\.md$/.test(file))
+      .map(file => path.join('commands', file));
+  }
+
+  const slashCommands = new Set();
+  const canonicalCommands = new Set();
+  const aliasToCanonical = new Map();
+
+  for (const relativeFile of commandFiles) {
+    const fullPath = path.join(cwd, relativeFile);
+    if (!fs.existsSync(fullPath)) continue;
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const metadata = inferSlashAliasMetadata(fullPath, content);
+    slashCommands.add(metadata.slashCommand);
+    if (metadata.isAlias) {
+      aliasToCanonical.set(metadata.slashCommand, metadata.canonical || metadata.slashCommand);
+      if (metadata.canonical) canonicalCommands.add(metadata.canonical);
+    } else {
+      canonicalCommands.add(metadata.slashCommand);
+    }
+  }
+
+  return {
+    slashCommands: Array.from(slashCommands).sort(),
+    canonicalCommands: Array.from(canonicalCommands).sort(),
+    aliasToCanonical: Object.fromEntries(Array.from(aliasToCanonical.entries()).sort(([a], [b]) => a.localeCompare(b))),
+  };
+}
+
+function getCliCommandInventory() {
+  try {
+    const { COMMAND_HELP } = require('./constants');
+    return Object.keys(COMMAND_HELP).sort();
+  } catch {
+    return getAllCommands();
+  }
+}
+
+function collectValidationSurfaces(cwd = process.cwd()) {
+  const surfaces = [];
+
+  for (const spec of VALIDATION_SURFACE_SPECS) {
+    const fullRoot = path.join(cwd, spec.root);
+    for (const filePath of walkFiles(fullRoot, spec.extensions)) {
+      surfaces.push({
+        surface: spec.surface,
+        path: path.relative(cwd, filePath).replace(/\\/g, '/'),
+        content: fs.readFileSync(filePath, 'utf8'),
+      });
+    }
+  }
+
+  return surfaces.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function cleanCommandCapture(command) {
+  return command
+    .trim()
+    .replace(/[),.;:]+$/, '')
+    .replace(/\s+/g, ' ');
+}
+
+function countSlashCommandsInLine(lineText = '') {
+  return (lineText.match(/\/bgsd-[a-z0-9-]+/gi) || []).length;
+}
+
+function hasReferenceSyntax(command = '') {
+  return /(\[[^\]]+\]|\{[^}]+\}|<[^>]+>|\|)/.test(command);
+}
+
+function isReferenceOnlyMetadataLine(lineText = '') {
+  return /^\s*description\s*:/i.test(lineText || '');
+}
+
+function isXmlTagMention(mention) {
+  const lineText = mention.lineText || '';
+  const command = mention.text || '';
+  const tagName = command.replace(/^\//, '');
+  return lineText.includes(`<${tagName}>`) || lineText.includes(`</${tagName}>`);
+}
+
+function getWorkflowSelfCommand(surfacePath) {
+  if (!/^workflows\/.+\.md$/i.test(surfacePath || '')) return null;
+  const base = path.basename(surfacePath, '.md');
+  if (!base) return null;
+  const commandName = base.startsWith('cmd-') ? base.slice(4) : base;
+  return `/bgsd-${commandName}`;
+}
+
+function isWorkflowSelfReference(surfacePath, mention) {
+  const selfCommand = getWorkflowSelfCommand(surfacePath);
+  if (!selfCommand) return false;
+  const baseCommand = (mention.text || '').split(/\s+/)[0];
+  return baseCommand === selfCommand;
+}
+
+function isReferenceOutputFence(mention) {
+  if (!mention.inFence) return false;
+  const context = `${mention.fenceLabel || ''}\n${mention.fenceLeadIn || ''}`;
+  return /(usage|example|examples|display format|format and display results|present|completion summary|footer|errors|warnings|info|would you like|if no .*provided|if repairs were performed|if errors exist|if warnings exist|if info exists)/i.test(context);
+}
+
+function isReferenceStyleMention(mention) {
+  const lineText = mention.lineText || '';
+  const markdownTableLine = /^\s*\|/.test(lineText);
+  const referenceHints = /\b(reference|references|matrix|ownership|owner|index|table|routes?|family|families|canonical planning-family|sub-action|responsible|accountable|consulted|preferred canonical|compatibility alias|historical context)\b/i.test(lineText);
+  const runnableHints = /\b(run|next|then|continue|fix|switch|execute|retry)\b/i.test(lineText);
+  const slashCommandCount = countSlashCommandsInLine(lineText);
+  const usageLine = /^\s*(#\s+\/bgsd-|\*\*Usage:\*\*)/i.test(lineText);
+  const antiPatternLine = /^\s*-\s+do(?:\s+not|n't)\b/i.test(lineText);
+  const variableAssignmentLine = /^\s*[A-Z0-9_]+\s*=\s*["'`].*\/bgsd-/i.test(lineText);
+  const firstSlashIndex = lineText.search(/\/bgsd-[a-z0-9-]+/i);
+  const mentionIndex = mention.text ? lineText.indexOf(mention.text) : -1;
+
+   if (isXmlTagMention(mention) || isReferenceOutputFence(mention) || usageLine || antiPatternLine || variableAssignmentLine) {
+    return true;
+   }
+
+  if (/compatibility alias/i.test(lineText) && mentionIndex > firstSlashIndex) {
+    return true;
+  }
+
+   if (isReferenceOnlyMetadataLine(lineText) && !runnableHints) {
+    return true;
+  }
+
+  if (markdownTableLine && hasReferenceSyntax(mention.text)) {
+    return true;
+  }
+
+  if (!runnableHints && referenceHints && (hasReferenceSyntax(mention.text) || slashCommandCount > 1)) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractCommandMentions(content) {
+  const mentions = [];
+  const lines = content.split(/\r?\n/);
+  const slashRegex = /(^|[\s`"'([<{|:;-])(?<command>\/bgsd-[a-z0-9-]+(?:\s+(?:\[[^\]]+\]|\{[^}]+\}|<[^>]+>|[^\s`"'<>()[\]{}]+))*)/gi;
+  const cliRegex = /(?:^|[^a-z0-9-])((?:(?:bgsd-tools|gsd-tools)\s+(?:[a-z0-9-]+(?::[a-z0-9-]+)?)(?:\s+(?:--[a-z0-9-]+(?:=[^\s`"'<>()[\]{}]+)?|[a-z0-9./:_-]+))*|node\s+[^\s`"'<>()[\]{}]*bgsd-tools\.cjs\s+(?:[a-z0-9-]+(?::[a-z0-9-]+)?)(?:\s+(?:--[a-z0-9-]+(?:=[^\s`"'<>()[\]{}]+)?|[a-z0-9./:_-]+))*))/gi;
+  let inFence = false;
+  let fenceLabel = '';
+  let fenceLeadIn = '';
+  let lastNonEmptyLine = '';
+  let previousNonEmptyLine = '';
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (/^```/.test(trimmed)) {
+      if (!inFence) {
+        inFence = true;
+        fenceLabel = lastNonEmptyLine;
+        fenceLeadIn = previousNonEmptyLine;
+      } else {
+        inFence = false;
+        fenceLabel = '';
+        fenceLeadIn = '';
+      }
+      return;
+    }
+
+    let match;
+    while ((match = slashRegex.exec(line)) !== null) {
+      const text = cleanCommandCapture(match.groups?.command || match[0]);
+      const nextChar = line[match.index + match[0].length] || '';
+      if (nextChar === '/') continue;
+      mentions.push({
+        type: 'slash',
+        line: index + 1,
+        text,
+        lineText: line,
+        inFence,
+        fenceLabel,
+        fenceLeadIn,
+      });
+    }
+    while ((match = cliRegex.exec(line)) !== null) {
+      mentions.push({
+        type: 'cli',
+        line: index + 1,
+        text: cleanCommandCapture(match[1]),
+        lineText: line,
+        inFence,
+        fenceLabel,
+        fenceLeadIn,
+      });
+    }
+
+    if (trimmed) {
+      previousNonEmptyLine = lastNonEmptyLine;
+      lastNonEmptyLine = line;
+    }
+  });
+
+  return mentions;
+}
+
+function detectGapContext(surfacePath, lineText) {
+  return /gap/i.test(surfacePath) || /\bgaps?\b/i.test(lineText);
+}
+
+function buildSlashSuggestion(baseCommand, args, aliasToCanonical) {
+  const canonical = aliasToCanonical[baseCommand];
+  if (!canonical) return null;
+  return [canonical, ...args].filter(Boolean).join(' ').trim();
+}
+
+function validateSlashMention(mention, surfacePath, surfaceType, slashInventory) {
+  const issues = [];
+  const tokens = mention.text.split(/\s+/).filter(Boolean);
+  const baseCommand = tokens[0];
+  const args = tokens.slice(1);
+  const slashSet = new Set(slashInventory.slashCommands);
+  const referenceStyle = isReferenceStyleMention(mention) || isWorkflowSelfReference(surfacePath, mention);
+
+  if (referenceStyle) {
+    return issues;
+  }
+
+  if (!slashSet.has(baseCommand)) {
+    issues.push({
+      kind: 'nonexistent-command',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      message: `Unknown slash command ${baseCommand}`,
+    });
+    return issues;
+  }
+
+  if (slashInventory.aliasToCanonical[baseCommand]) {
+    issues.push({
+      kind: 'legacy-command',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      suggestion: buildSlashSuggestion(baseCommand, args, slashInventory.aliasToCanonical),
+      message: `${baseCommand} is a compatibility alias and should not appear in surfaced guidance`,
+    });
+  }
+
+  if (!referenceStyle && baseCommand === '/bgsd-plan' && ['phase', 'discuss', 'research', 'assumptions'].includes(args[0])) {
+    if (!args[1] || args[1].startsWith('--')) {
+      issues.push({
+        kind: 'missing-argument',
+        surface: surfaceType,
+        file: surfacePath,
+        line: mention.line,
+        command: mention.text,
+        message: `${baseCommand} ${args[0]} requires a phase argument`,
+      });
+    }
+  }
+
+  if (!referenceStyle && baseCommand === '/bgsd-settings' && args[0] === 'profile' && (!args[1] || args[1].startsWith('--'))) {
+    issues.push({
+      kind: 'missing-argument',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      message: '/bgsd-settings profile requires a profile argument',
+    });
+  }
+
+  if (!referenceStyle && baseCommand === '/bgsd-execute-phase' && detectGapContext(surfacePath, mention.lineText) && !args.includes('--gaps-only')) {
+    issues.push({
+      kind: 'missing-flag',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      suggestion: `${mention.text} --gaps-only`.trim(),
+      message: '/bgsd-execute-phase must include --gaps-only in gap-focused guidance',
+    });
+  }
+
+  if (!referenceStyle && baseCommand === '/bgsd-plan' && detectGapContext(surfacePath, mention.lineText) && args[0] === 'phase') {
+    issues.push({
+      kind: 'wrong-command',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      suggestion: ['/bgsd-plan gaps', args[1]].filter(Boolean).join(' '),
+      message: 'Gap-focused guidance should use /bgsd-plan gaps rather than /bgsd-plan phase',
+    });
+  }
+
+  return issues;
+}
+
+function validateCliMention(mention, surfacePath, surfaceType, cliInventory) {
+  const issues = [];
+  const tokens = mention.text.split(/\s+/).filter(Boolean);
+  const binary = tokens.shift();
+  const args = tokens;
+  const referenceStyle = isReferenceStyleMention(mention);
+
+  if (referenceStyle) {
+    return issues;
+  }
+
+  let commandBinary = binary;
+  if ((binary === 'node' || binary === 'nodejs') && args[0] && /(?:^|[\\/])bgsd-tools\.cjs$/i.test(args[0])) {
+    commandBinary = 'bgsd-tools';
+    args.shift();
+  }
+
+  const firstArg = args[0] || '';
+  const knownRoots = new Set(
+    cliInventory.flatMap(command => {
+      const firstToken = command.split(/\s+/)[0];
+      return [firstToken, firstToken.split(':')[0]];
+    })
+  );
+
+  if (firstArg && !firstArg.includes(':') && !firstArg.includes('-') && !knownRoots.has(firstArg)) {
+    return issues;
+  }
+
+  if (commandBinary === 'gsd-tools') {
+    issues.push({
+      kind: 'legacy-command',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      suggestion: ['bgsd-tools', ...args].join(' '),
+      message: 'Use bgsd-tools instead of the legacy gsd-tools binary name',
+    });
+  }
+
+  const candidates = [];
+  for (let length = Math.min(3, args.length); length >= 1; length -= 1) {
+    candidates.push(args.slice(0, length).join(' '));
+  }
+  const matched = candidates.find(candidate => cliInventory.includes(candidate));
+
+  if (!matched) {
+    issues.push({
+      kind: 'nonexistent-command',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      message: `Unknown CLI command in surfaced guidance: ${mention.text}`,
+    });
+  }
+
+  return issues;
+}
+
+function groupIntegrityIssues(issues) {
+  const groups = new Map();
+
+  for (const issue of issues) {
+    const key = `${issue.surface}:${issue.file}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        surface: issue.surface,
+        file: issue.file,
+        issueCount: 0,
+        issues: [],
+      });
+    }
+    const group = groups.get(key);
+    group.issueCount += 1;
+    group.issues.push(issue);
+  }
+
+  return Array.from(groups.values()).sort((a, b) => a.file.localeCompare(b.file));
+}
+
+function validateCommandIntegrity(options = {}) {
+  const cwd = options.cwd || process.cwd();
+  const slashInventory = options.slashInventory || getSlashCommandInventory(cwd);
+  const cliInventory = options.cliInventory || getCliCommandInventory();
+  const surfaces = Array.isArray(options.surfaces) ? options.surfaces : collectValidationSurfaces(cwd);
+  const issues = [];
+
+  for (const surface of surfaces) {
+    for (const mention of extractCommandMentions(surface.content || '')) {
+      if (mention.type === 'slash') {
+        issues.push(...validateSlashMention(mention, surface.path, surface.surface || 'surface', slashInventory));
+      } else if (mention.type === 'cli') {
+        issues.push(...validateCliMention(mention, surface.path, surface.surface || 'surface', cliInventory));
+      }
+    }
+  }
+
+  const groupedIssues = groupIntegrityIssues(issues);
+
+  return {
+    valid: issues.length === 0,
+    surfaceCount: surfaces.length,
+    issueCount: issues.length,
+    groupedIssueCount: groupedIssues.length,
+    message: issues.length === 0
+      ? `All ${surfaces.length} surfaced files passed command integrity validation`
+      : `${issues.length} command integrity issue(s) found across ${groupedIssues.length} surfaced file(s)`,
+    inventories: {
+      slashCommands: slashInventory.slashCommands,
+      canonicalSlashCommands: slashInventory.canonicalCommands,
+      cliCommands: cliInventory,
+    },
+    issues,
+    groupedIssues,
+  };
+}
+
 module.exports = {
   COMMAND_TREE,
   getAutocompleteHints,
@@ -734,7 +1253,10 @@ module.exports = {
   generateCommandManifest,
   getAllCommands,
   validateCommandRegistry,
-  validateArtifacts
+  validateArtifacts,
+  validateCommandIntegrity,
+  getSlashCommandInventory,
+  collectValidationSurfaces,
 };
 
 /**
@@ -742,9 +1264,6 @@ module.exports = {
  * Checks for common structural issues that cause build/deploy problems
  */
 function validateArtifacts(cwd = process.cwd()) {
-  const fs = require('fs');
-  const path = require('path');
-  
   const errors = [];
   const warnings = [];
   
@@ -760,10 +1279,11 @@ function validateArtifacts(cwd = process.cwd()) {
   if (fs.existsSync(milestonesPath)) {
     const content = fs.readFileSync(milestonesPath, 'utf8');
     
-    // Check for balanced ## headers (should be even for details/summary pairs)
+    // Check that milestone sections are separated cleanly to avoid malformed merges.
     const h2Matches = content.match(/^##\s+.+$/gm) || [];
-    if (h2Matches.length % 2 !== 0) {
-      warnings.push({ file: 'MILESTONES.md', issue: `Unbalanced ## headers (${h2Matches.length} found) - check for missing closing headers` });
+    const separators = content.match(/^---$/gm) || [];
+    if (h2Matches.length > 0 && separators.length > 0 && separators.length !== h2Matches.length) {
+      warnings.push({ file: 'MILESTONES.md', issue: `Milestone section separators mismatch (${h2Matches.length} headings, ${separators.length} separators)` });
     }
     
     // Check for valid date formats (YYYY-MM-DD)

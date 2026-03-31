@@ -40,7 +40,7 @@ export const bgsd_plan = {
       if (!roadmap) {
         return JSON.stringify({
           error: 'runtime_error',
-          message: 'ROADMAP.md could not be parsed. Run /bgsd-health to diagnose.',
+          message: 'ROADMAP.md could not be parsed. Run /bgsd-inspect health to diagnose.',
         });
       }
 

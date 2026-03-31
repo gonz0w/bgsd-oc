@@ -96,7 +96,7 @@ GIT_HASH=$(jj log -r @- --no-graph -T 'commit_id.shortest(8)')
 
 Save execution progress after each task commit:
 ```bash
-node $BGSD_HOME/bin/bgsd-tools.cjs util:memory write --store bookmarks \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:memory write --store bookmarks \
   --entry '{"phase":"${PHASE}","plan":"${PLAN}","task":${TASK_NUM},"total_tasks":${TOTAL_TASKS},"git_head":"'$(jj log -r @- --no-graph -T 'commit_id.shortest(8)')'"}'
 ```
 

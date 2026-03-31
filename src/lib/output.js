@@ -1,6 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-
 // ─── Temp File Cleanup ───────────────────────────────────────────────────────
 
 const _tmpFiles = [];
@@ -90,6 +87,8 @@ function outputMode() {
  * tmpfile fallback. Extracted from output() for dual-mode routing.
  */
 function outputJSON(result, rawValue) {
+  const fs = require('fs');
+  const path = require('path');
   // In json mode, ALWAYS output structured JSON — ignore rawValue.
   // rawValue was a legacy --raw feature for plain text output.
   // With TTY auto-detection, piped contexts get JSON, TTY gets formatted.
@@ -187,11 +186,50 @@ function error(message) {
   process.exit(1);
 }
 
-function debugLog(context, message, err) {
-  if (!process.env.BGSD_DEBUG) return;
-  let line = `[BGSD_DEBUG] ${context}: ${message}`;
-  if (err) line += ` | ${err.message || err}`;
-  process.stderr.write(line + '\n');
+function isTruthyDebugValue(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized !== '' && normalized !== '0' && normalized !== 'false' && normalized !== 'off';
 }
 
-module.exports = { filterFields, output, status, error, debugLog };
+function isVerboseModeEnabled() {
+  return global._gsdCompactMode === false;
+}
+
+function isDebugEnabled(options = {}) {
+  const env = options.env || process.env;
+  if (isTruthyDebugValue(env && env.BGSD_DEBUG)) {
+    return true;
+  }
+
+  if (options.allowVerbose === false) {
+    return false;
+  }
+
+  return isVerboseModeEnabled();
+}
+
+function writeDebugDiagnostic(prefix, message, options = {}) {
+  if (!isDebugEnabled(options)) {
+    return false;
+  }
+
+  process.stderr.write(`${prefix} ${message}\n`);
+  return true;
+}
+
+function debugLog(context, message, err) {
+  writeDebugDiagnostic('[BGSD_DEBUG]', `${context}: ${message}${err ? ` | ${err.message || err}` : ''}`);
+}
+
+module.exports = {
+  filterFields,
+  output,
+  status,
+  error,
+  debugLog,
+  isDebugEnabled,
+  isVerboseModeEnabled,
+  writeDebugDiagnostic,
+};

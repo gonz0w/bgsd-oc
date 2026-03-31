@@ -318,6 +318,64 @@ src/index.js
   });
 });
 
+describe('verify search-lessons', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'memory'), { recursive: true });
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('searches canonical structured lessons store first', () => {
+    const lessons = [
+      {
+        id: 'lesson-1',
+        date: '2026-03-29T16:29:05.074Z',
+        title: 'Planner should inspect structured lesson feedback',
+        severity: 'MEDIUM',
+        type: 'workflow',
+        root_cause: 'Phase planning skipped recent structured lessons and repeated an avoidable mistake.',
+        prevention_rule: 'Search .planning/memory/lessons.json before planning complex work.',
+        affected_agents: ['bgsd-planner']
+      }
+    ];
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'memory', 'lessons.json'),
+      JSON.stringify(lessons, null, 2)
+    );
+
+    const result = runGsdTools('verify:search-lessons structured feedback', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.match_count, 1);
+    assert.strictEqual(output.count, 1);
+    assert.strictEqual(output.canonical_source, '.planning/memory/lessons.json');
+    assert.strictEqual(output.lessons[0].source, '.planning/memory/lessons.json');
+    assert.strictEqual(output.lessons[0].format, 'structured');
+    assert.strictEqual(output.matches[0].title, 'Planner should inspect structured lesson feedback');
+    assert.deepStrictEqual(output.searched_sources, ['.planning/memory/lessons.json']);
+  });
+
+  test('does not read legacy markdown lesson files', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'lessons.md'),
+      '# Lessons Learned\n\n## Legacy Testing Lesson\nRun broader regression coverage before shipping planner changes.\n'
+    );
+
+    const result = runGsdTools('verify:search-lessons regression', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.match_count, 0);
+    assert.strictEqual(output.message, 'No lessons found in .planning/memory/lessons.json');
+  });
+});
+
 describe('verify deliverables', () => {
   let tmpDir;
 
@@ -374,6 +432,111 @@ describe('verify deliverables', () => {
     const data = JSON.parse(result.output);
     assert.strictEqual(data.framework, 'npm', 'should detect npm from package.json');
     assert.strictEqual(data.test_result, 'pass', 'test should pass');
+  });
+
+  test('uses repo-local artifact and key-link evidence instead of file existence only', () => {
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-evidence',
+      scripts: { test: 'echo "1 passing"' },
+    }));
+
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'artifact.js'), 'module.exports = { value: "stale" };\n');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'source.js'), 'const value = "no-link-here";\n');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'target.js'), 'module.exports = {};\n');
+
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '165-truth');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const planPath = path.join(phaseDir, '165-02-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: 165-truth
+plan: 02
+type: execute
+wave: 1
+depends_on: []
+files_modified:
+  - src/artifact.js
+autonomous: true
+requirements:
+  - VERIFY-03
+must_haves:
+  artifacts:
+    - path: src/artifact.js
+      contains: fresh-value
+  key_links:
+    - from: src/source.js
+      to: src/target.js
+      pattern: linkedRuntimeValue
+---
+
+# Plan
+`);
+
+    const result = runGsdTools(`verify:verify deliverables --plan ${planPath}`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.test_result, 'pass');
+    assert.strictEqual(data.artifacts_ok, false, 'artifact content mismatch should fail repo-local evidence');
+    assert.strictEqual(data.key_links_ok, false, 'missing key-link pattern should fail repo-local evidence');
+    assert.strictEqual(data.verdict, 'fail', 'deliverables should not pass on existence-only evidence');
+    assert.ok(Array.isArray(data.artifact_checks), 'artifact checks should be included for repair guidance');
+    assert.ok(Array.isArray(data.key_link_checks), 'key-link checks should be included for repair guidance');
+  });
+
+  test('fails loudly with rebuild guidance when runtime-sensitive source is newer than local runtime artifact', () => {
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-runtime-freshness',
+      scripts: { test: 'echo "2 passing"' },
+    }));
+
+    fs.mkdirSync(path.join(tmpDir, 'src', 'commands'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'bin'), { recursive: true });
+    const sourcePath = path.join(tmpDir, 'src', 'commands', 'verify.js');
+    const artifactPath = path.join(tmpDir, 'bin', 'bgsd-tools.cjs');
+    fs.writeFileSync(sourcePath, '// newer source\n');
+    fs.writeFileSync(artifactPath, '// stale bundle\n');
+
+    const oldDate = new Date('2026-03-30T00:00:00Z');
+    const newDate = new Date('2026-03-30T01:00:00Z');
+    fs.utimesSync(artifactPath, oldDate, oldDate);
+    fs.utimesSync(sourcePath, newDate, newDate);
+
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '165-truth');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const planPath = path.join(phaseDir, '165-02-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: 165-truth
+plan: 02
+type: execute
+wave: 1
+depends_on: []
+files_modified:
+  - src/commands/verify.js
+autonomous: true
+requirements:
+  - EXEC-03
+must_haves:
+  artifacts:
+    - path: src/commands/verify.js
+      contains: newer source
+  key_links: []
+---
+
+# Plan
+`);
+
+    const result = runGsdTools(`verify:verify deliverables --plan ${planPath}`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.test_result, 'pass');
+    assert.strictEqual(data.verdict, 'fail', 'stale local runtime should block deliverables pass');
+    assert.ok(data.runtime_freshness, 'runtime freshness metadata should be returned');
+    assert.strictEqual(data.runtime_freshness.stale, true, 'runtime freshness should flag stale runtime');
+    assert.strictEqual(data.runtime_freshness.build_command, 'npm run build');
+    assert.ok(data.runtime_freshness.artifacts.some((entry) => entry.path === 'bin/bgsd-tools.cjs' && entry.stale), 'CLI runtime artifact should be marked stale');
+    assert.match(data.runtime_freshness.message, /npm run build/i, 'output should include actionable rebuild guidance');
   });
 });
 
@@ -898,6 +1061,90 @@ src/router.js
     assert.strictEqual(data.template_compliance.missing_fields.length, 0, 'no missing fields');
     assert.strictEqual(data.template_compliance.type_issues.length, 0, 'no type issues');
   });
+
+  test('blocks plans whose verifier-facing must_haves metadata is inconclusive', () => {
+    const planContent = `---
+phase: "12"
+plan: "05"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/commands/verify.js]
+autonomous: true
+requirements: [PLAN-01]
+must_haves:
+  truths:
+    - "Planner approval rejects malformed metadata"
+  artifacts:
+    - path:
+  key_links:
+    - from:
+---
+# Plan 12-05: Malformed metadata
+
+<task id="1">
+<name>Validate metadata</name>
+<files>
+src/commands/verify.js
+</files>
+<action>Check semantic metadata gate</action>
+<verify>node --test tests/verify.test.cjs</verify>
+<done>Malformed metadata blocked</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'malformed-metadata-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify:verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.valid, false, 'should reject malformed verifier-facing metadata');
+    assert.ok(data.errors.some(i => i.includes('must_haves.artifacts metadata was present but yielded no actionable entries')),
+      'should surface artifacts metadata failure');
+    assert.ok(data.errors.some(i => i.includes('must_haves.key_links metadata was present but yielded no actionable entries')),
+      'should surface key_links metadata failure');
+    assert.ok(data.template_compliance.type_issues.some(i => i.includes('must_haves.artifacts metadata was present but yielded no actionable entries')),
+      'template compliance should include semantic metadata blocker');
+  });
+
+  test('blocks plans that only include non-verifier must_haves truths', () => {
+    const planContent = `---
+phase: "12"
+plan: "06"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/commands/verify.js]
+autonomous: true
+requirements: [PLAN-01]
+must_haves:
+  truths:
+    - "Planner approval shares verifier metadata contract"
+---
+# Plan 12-06: Truths only
+
+<task id="1">
+<name>Validate metadata</name>
+<files>
+src/commands/verify.js
+</files>
+<action>Check semantic metadata gate</action>
+<verify>node --test tests/verify.test.cjs</verify>
+<done>Approval requires verifier-facing metadata</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'truths-only-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify:verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.valid, false, 'truths-only metadata should not be approval-ready');
+    assert.ok(data.errors.some(i => i.includes('must_haves verifier-facing metadata needs actionable artifacts or key_links for approval')),
+      'should require actionable artifacts or key_links');
+  });
 });
 
 describe('verify quality', () => {
@@ -1291,6 +1538,18 @@ describe('assertions commands', () => {
   });
 });
 
+describe('Phase 149 TDD checker severity contract', () => {
+  test('plan checker documents blocker warning info severity ladder without silent omission', () => {
+    const checker = fs.readFileSync(path.join(process.cwd(), 'agents', 'bgsd-plan-checker.md'), 'utf-8');
+
+    assert.match(checker, /`required`[\s\S]*\*\*blocker\*\*/i);
+    assert.match(checker, /`recommended`[\s\S]*\*\*warning\*\*/i);
+    assert.match(checker, /null\/absent[\s\S]*\*\*info\*\*/i);
+    assert.match(checker, /omitted hints never disappear silently/i);
+    assert.match(checker, /Do \*\*not\*\* invent Phase 150 `execute:tdd` semantic-proof obligations here\./i);
+  });
+});
+
 describe('verify requirements with assertions', () => {
   let tmpDir;
 
@@ -1628,4 +1887,3 @@ must_haves:
     assert.strictEqual(niceFormatting.planned, false, 'unplanned assertion should have planned: false');
   });
 });
-

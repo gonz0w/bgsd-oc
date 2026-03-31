@@ -190,7 +190,7 @@ export function createNotifier($, directory) {
         pendingContext.push({
           type: 'dnd-summary',
           severity: 'info',
-          message: `${count} notification${count === 1 ? '' : 's'} suppressed during DND. Use /bgsd-notifications to review.`,
+          message: `${count} notification${count === 1 ? '' : 's'} suppressed during DND. DND summaries are informational only and are not replayable by command.`,
           timestamp: Date.now(),
         });
       }

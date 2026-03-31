@@ -6,14 +6,18 @@ const { output, error, debugLog } = require('../lib/output');
 const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
 const { banner, sectionHeader, progressBar, formatTable, summaryLine, actionHint, color, SYMBOLS, colorByPercent } = require('../lib/format');
-const { loadConfig } = require('../lib/config');
-const { safeReadFile, cachedReadFile, findPhaseInternal, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree } = require('../lib/helpers');
+const { loadConfig, readRawConfig } = require('../lib/config');
+const { safeReadFile, cachedReadFile, findPhaseInternal, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree, normalizePhasePlanFilesTddMetadata, buildPhaseSnapshotInternal, buildPhaseHandoffExpectedFingerprint, getRuntimeFreshness } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
-const { getIntentDriftData, getIntentSummary } = require('./intent');
+const { buildPhaseHandoffValidation, listPhaseHandoffArtifacts } = require('../lib/phase-handoff');
+const { getQuestionTemplate } = require('../lib/questions');
+const { getIntentDriftData, getIntentSummary, getEffectiveIntent } = require('./intent');
 const { autoTriggerEnvScan, formatEnvSummary, readEnvManifest } = require('./env');
 const { autoTriggerCodebaseIntel, readCodebaseIntel } = require('./codebase');
-const { getWorktreeConfig, parseWorktreeListPorcelain, getPhaseFilesModified } = require('./worktree');
+const { createMilestoneLessonSnapshot } = require('./lessons');
+const { requireJjForExecution, buildPlanningCapabilityContext } = require('../lib/jj');
+const { getPhaseFilesModified, listActiveWorkspaceInventory } = require('./workspace');
 const { getStalenessAge } = require('../lib/codebase-intel');
 
 /**
@@ -139,20 +143,185 @@ function formatCodebaseContext(intel, cwd) {
   return { codebase_stats, codebase_conventions, codebase_dependencies, codebase_freshness };
 }
 
+function getSnapshotArtifacts(snapshot) {
+  const artifacts = snapshot?.artifacts || {};
+  return {
+    context_path: artifacts.context || undefined,
+    research_path: artifacts.research || undefined,
+    verification_path: artifacts.verification || undefined,
+    uat_path: artifacts.uat || undefined,
+    plan_paths: Array.isArray(artifacts.plans) ? artifacts.plans : [],
+    summary_paths: Array.isArray(artifacts.summaries) ? artifacts.summaries : [],
+  };
+}
+
+function getSnapshotPhaseInfo(cwd, phase) {
+  const snapshot = buildPhaseSnapshotInternal(cwd, phase);
+  if (!snapshot?.found) {
+    return { snapshot: null, metadata: null, artifacts: getSnapshotArtifacts(null), phaseInfo: null };
+  }
+
+  const metadata = snapshot.metadata || {};
+  return {
+    snapshot,
+    metadata,
+    artifacts: getSnapshotArtifacts(snapshot),
+    phaseInfo: metadata.directory ? findPhaseInternal(cwd, metadata.number || phase) : null,
+  };
+}
+
+function summarizeRuntimeFreshnessForPlans(cwd, planPaths = []) {
+  const filesModified = [];
+
+  for (const planPath of planPaths) {
+    const fullPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+    const content = safeReadFile(fullPath);
+    if (!content) continue;
+    const frontmatter = extractFrontmatter(content);
+    const files = Array.isArray(frontmatter.files_modified)
+      ? frontmatter.files_modified
+      : frontmatter.files_modified
+        ? [frontmatter.files_modified]
+        : [];
+    filesModified.push(...files);
+  }
+
+  return getRuntimeFreshness(cwd, filesModified);
+}
+
+function buildPhaseHandoffOptionContract() {
+  const template = getQuestionTemplate('phase-handoff-resume-summary') || {};
+  return Array.isArray(template.options)
+    ? template.options.map(({ id, label, description }) => ({ id, label, description: description || null }))
+    : [
+        { id: 'resume', label: 'Resume', description: 'Continue from the latest valid handoff artifact' },
+        { id: 'inspect', label: 'Inspect', description: 'Review the active handoff details before continuing' },
+        { id: 'restart', label: 'Restart', description: 'Clear the handoff set and restart from discuss' },
+      ];
+}
+
+function derivePhaseHandoffNextSafeCommand(phase, latestArtifact) {
+  const normalizedPhase = normalizePhaseName(String(phase || '')).trim();
+  if (!normalizedPhase || !latestArtifact) return null;
+
+  const explicitCommand = latestArtifact.resume_target && typeof latestArtifact.resume_target.next_command === 'string'
+    ? latestArtifact.resume_target.next_command.trim()
+    : '';
+  if (explicitCommand) return explicitCommand;
+
+  const safePhase = /^[A-Za-z0-9._-]+$/.test(normalizedPhase) ? normalizedPhase : sanitizeShellArg(normalizedPhase);
+  switch (latestArtifact.step) {
+    case 'discuss':
+      return `/bgsd-plan research ${safePhase}`;
+    case 'research':
+      return `/bgsd-plan phase ${safePhase}`;
+    case 'plan':
+      return `/bgsd-execute-phase ${safePhase}`;
+    case 'execute':
+      return `/bgsd-verify-work ${safePhase}`;
+    default:
+      return null;
+  }
+}
+
+function buildPhaseHandoffResumeSummary(cwd, phase, phaseName) {
+  const normalizedPhase = normalizePhaseName(String(phase || '')).trim();
+  if (!normalizedPhase) return null;
+
+  const entries = listPhaseHandoffArtifacts(cwd, normalizedPhase);
+  if (entries.length === 0) return null;
+
+  const expectedFingerprint = buildPhaseHandoffExpectedFingerprint(cwd, normalizedPhase);
+  const validation = buildPhaseHandoffValidation(entries, { phase: normalizedPhase, expected_fingerprint: expectedFingerprint });
+  const latestArtifact = validation.latest_valid_artifact || null;
+  const extractTddAudits = (artifact) => {
+    const audits = artifact && artifact.context && Array.isArray(artifact.context.tdd_audits)
+      ? artifact.context.tdd_audits
+      : [];
+    return audits.map((entry) => ({ ...entry }));
+  };
+  const latestArtifactFile = validation.valid_artifacts.find((artifact) => (
+    latestArtifact
+      && artifact.step === latestArtifact.step
+      && artifact.run_id === validation.selected_run_id
+  )) || null;
+  const producedArtifacts = validation.valid_artifacts.map((artifact) => {
+    const sourceEntry = entries.find((entry) => entry.valid && entry.file === artifact.file);
+    return {
+      ...artifact,
+      tdd_audits: extractTddAudits(sourceEntry && sourceEntry.artifact),
+    };
+  });
+  const nextSafeCommand = derivePhaseHandoffNextSafeCommand(normalizedPhase, latestArtifact);
+  const optionContract = buildPhaseHandoffOptionContract();
+  const safePhase = /^[A-Za-z0-9._-]+$/.test(normalizedPhase) ? normalizedPhase : sanitizeShellArg(normalizedPhase);
+  const defaultRestartCommands = [
+    `node /Users/cam/.config/opencode/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff clear --phase ${normalizedPhase}`,
+    `/bgsd-plan discuss ${safePhase}`,
+  ];
+
+  return {
+    available: true,
+    phase: normalizedPhase,
+    phase_name: phaseName || null,
+    artifact_count: entries.length,
+    selected_run_id: validation.selected_run_id,
+    expected_fingerprint: expectedFingerprint,
+    latest_valid_step: validation.latest_valid_step,
+    next_safe_command: nextSafeCommand,
+    valid: validation.valid,
+    stale_sources: validation.stale_sources,
+    options: optionContract,
+    inspection: {
+      latest_valid_artifact: latestArtifact
+        ? {
+            file: latestArtifactFile ? latestArtifactFile.file : null,
+            step: latestArtifact.step,
+            status: latestArtifact.status,
+            updated_at: latestArtifact.updated_at,
+            summary: latestArtifact.summary || '',
+            source_fingerprint: latestArtifact.source_fingerprint,
+            resume_target: latestArtifact.resume_target || {},
+            tdd_audits: extractTddAudits(latestArtifact),
+          }
+        : null,
+      produced_artifacts: producedArtifacts,
+      invalid_artifacts: validation.invalid_artifacts,
+    },
+    repair_guidance: validation.repair_guidance || {
+      action: 'restart',
+      message: 'Clear the current handoff artifacts and restart from discuss to rebuild deterministic chain state.',
+      commands: defaultRestartCommands,
+    },
+  };
+}
+
+function buildJjPlanningContext(rawConfig) {
+  return buildPlanningCapabilityContext({
+    workspace: {
+      base_path: rawConfig?.workspace?.base_path,
+      max_concurrent: rawConfig?.workspace?.max_concurrent,
+    },
+  });
+}
+
 function cmdInitExecutePhase(cwd, phase, raw) {
   if (!phase) {
     error('phase required for init execute-phase');
   }
 
   const config = loadConfig(cwd);
-  const phaseInfo = findPhaseInternal(cwd, phase);
+  requireJjForExecution(cwd, 'init:execute-phase');
+  const snapshotInfo = getSnapshotPhaseInfo(cwd, phase);
+  const snapshot = snapshotInfo.snapshot;
+  const metadata = snapshotInfo.metadata;
   const milestone = getMilestoneInfo(cwd);
+  const handoffResumeSummary = buildPhaseHandoffResumeSummary(cwd, metadata?.number || phase, metadata?.name || null);
 
-  // Read raw config for gates (not in CONFIG_SCHEMA) — use cachedReadFile to avoid redundant I/O
+  // Read raw config for gates and workspace metadata (not in CONFIG_SCHEMA)
   let rawConfig = {};
   try {
-    const rawConfigContent = cachedReadFile(path.join(cwd, '.planning', 'config.json'));
-    if (rawConfigContent) rawConfig = JSON.parse(rawConfigContent);
+    rawConfig = readRawConfig(cwd) || {};
   } catch (e) { debugLog('init.executePhase', 'raw config read failed', e); }
 
   const result = {
@@ -169,24 +338,24 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     verifier_enabled: config.verifier,
 
     // Phase info
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    phase_name: phaseInfo?.phase_name || null,
-    phase_slug: phaseInfo?.phase_slug || null,
+    phase_found: !!snapshot,
+    phase_dir: metadata?.directory || null,
+    phase_number: metadata?.number || null,
+    phase_name: metadata?.name || null,
+    phase_slug: metadata?.slug || null,
 
     // Plan inventory
-    plans: phaseInfo?.plans || [],
-    summaries: phaseInfo?.summaries || [],
-    incomplete_plans: phaseInfo?.incomplete_plans || [],
-    plan_count: phaseInfo?.plans?.length || 0,
-    incomplete_count: phaseInfo?.incomplete_plans?.length || 0,
+    plans: snapshotInfo.artifacts.plan_paths.map(planPath => path.basename(planPath)),
+    summaries: snapshotInfo.artifacts.summary_paths.map(summaryPath => path.basename(summaryPath)),
+    incomplete_plans: snapshot?.execution_context?.incomplete_plans || [],
+    plan_count: snapshot?.execution_context?.plan_count || 0,
+    incomplete_count: snapshot?.execution_context?.incomplete_count || 0,
 
     // Branch name (pre-computed)
-    branch_name: config.branching_strategy === 'phase' && phaseInfo
+    branch_name: config.branching_strategy === 'phase' && metadata?.number
       ? config.phase_branch_template
-          .replace('{phase}', phaseInfo.phase_number)
-          .replace('{slug}', phaseInfo.phase_slug || 'phase')
+          .replace('{phase}', metadata.number)
+          .replace('{slug}', metadata.slug || 'phase')
       : config.branching_strategy === 'milestone'
         ? config.milestone_branch_template
             .replace('{milestone}', milestone.version)
@@ -201,15 +370,13 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     // Gates
     pre_flight_validation: rawConfig.gates?.pre_flight_validation !== false,
 
-    // Worktree parallelism
-    worktree_enabled: rawConfig.worktree?.enabled || false,
-    worktree_config: {
-      base_path: rawConfig.worktree?.base_path || '/tmp/gsd-worktrees',
-      sync_files: rawConfig.worktree?.sync_files || ['.env', '.env.local', '.planning/config.json'],
-      setup_hooks: rawConfig.worktree?.setup_hooks || [],
-      max_concurrent: rawConfig.worktree?.max_concurrent || 3,
+    // JJ workspace execution metadata
+    workspace_enabled: true,
+    workspace_config: {
+      base_path: rawConfig.workspace?.base_path || '/tmp/gsd-workspaces',
+      max_concurrent: rawConfig.workspace?.max_concurrent || 3,
     },
-    worktree_active: [],
+    workspace_active: [],
     file_overlaps: [],
 
     // File existence
@@ -229,7 +396,9 @@ function cmdInitExecutePhase(cwd, phase, raw) {
 
     // Trajectory dead-end context (null if no failed approaches)
     previous_attempts: null,
+    runtime_freshness: summarizeRuntimeFreshnessForPlans(cwd, snapshot?.artifacts?.plans || []),
   };
+  if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
 
   // Advisory intent summary — never crash, never block
   try {
@@ -361,11 +530,12 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   try {
     const { classifyPlan, selectExecutionMode } = require('../lib/orchestration');
     const planClassifications = [];
-    for (const planFile of (phaseInfo?.incomplete_plans || [])) {
-      const planPath = path.join(cwd, phaseInfo.directory, planFile);
-      const classification = classifyPlan(planPath, cwd);
-      if (classification) planClassifications.push(classification);
-    }
+      for (const planFile of (snapshot?.execution_context?.incomplete_plans || [])) {
+        const planPath = metadata?.directory ? path.join(cwd, metadata.directory, planFile) : null;
+        if (!planPath) continue;
+        const classification = classifyPlan(planPath, cwd);
+        if (classification) planClassifications.push(classification);
+      }
 
     if (planClassifications.length > 0) {
       result.task_routing = {
@@ -381,49 +551,33 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     result.task_routing = null;
   }
 
-  // Worktree context — populate active worktrees and file overlaps when enabled
+  // Workspace context — overlap analysis stays relevant for JJ-backed execution
   try {
-    if (result.worktree_enabled) {
-      // Get active worktrees for this project
-      const wtListResult = execGit(cwd, ['worktree', 'list', '--porcelain']);
-      if (wtListResult.exitCode === 0) {
-        const wtConfig = getWorktreeConfig(cwd);
-        const projectName = path.basename(cwd);
-        const projectBase = path.join(wtConfig.base_path, projectName);
-        const allWts = parseWorktreeListPorcelain(wtListResult.stdout);
-        result.worktree_active = allWts
-          .filter(wt => wt.path && wt.path.startsWith(projectBase + '/'))
-          .map(wt => ({
-            plan_id: path.basename(wt.path),
-            branch: wt.branch || null,
-            path: wt.path,
-          }));
-      }
-
-      // File overlap analysis for the phase
-      if (phaseInfo?.phase_number) {
-        const phasePlans = getPhaseFilesModified(cwd, phaseInfo.phase_number);
-        const overlaps = [];
-        const checked = new Set();
-        for (let i = 0; i < phasePlans.length; i++) {
-          for (let j = i + 1; j < phasePlans.length; j++) {
-            const a = phasePlans[i];
-            const b = phasePlans[j];
-            if (a.wave !== b.wave) continue;
-            const pairKey = `${a.planId}:${b.planId}`;
-            if (checked.has(pairKey)) continue;
-            checked.add(pairKey);
-            const sharedFiles = a.files_modified.filter(f => b.files_modified.includes(f));
-            if (sharedFiles.length > 0) {
-              overlaps.push({ plans: [a.planId, b.planId], files: sharedFiles, wave: a.wave });
-            }
+    if (metadata?.number) {
+      result.workspace_active = listActiveWorkspaceInventory(cwd, metadata.number);
+    }
+    if (metadata?.number) {
+      const phasePlans = getPhaseFilesModified(cwd, metadata.number);
+      const overlaps = [];
+      const checked = new Set();
+      for (let i = 0; i < phasePlans.length; i++) {
+        for (let j = i + 1; j < phasePlans.length; j++) {
+          const a = phasePlans[i];
+          const b = phasePlans[j];
+          if (a.wave !== b.wave) continue;
+          const pairKey = `${a.planId}:${b.planId}`;
+          if (checked.has(pairKey)) continue;
+          checked.add(pairKey);
+          const sharedFiles = a.files_modified.filter(f => b.files_modified.includes(f));
+          if (sharedFiles.length > 0) {
+            overlaps.push({ plans: [a.planId, b.planId], files: sharedFiles, wave: a.wave });
           }
         }
-        result.file_overlaps = overlaps;
       }
+      result.file_overlaps = overlaps;
     }
   } catch (e) {
-    debugLog('init.executePhase', 'worktree context failed (non-blocking)', e);
+    debugLog('init.executePhase', 'workspace context failed (non-blocking)', e);
   }
 
   // Agent-scoped context — filter output to agent-declared fields
@@ -461,14 +615,16 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       codebase_conventions: result.codebase_conventions || null,
       codebase_dependencies: result.codebase_dependencies || null,
       codebase_freshness: result.codebase_freshness || null,
-      worktree_enabled: result.worktree_enabled,
-      worktree_config: result.worktree_config,
-      worktree_active: result.worktree_active,
+      workspace_enabled: result.workspace_enabled,
+      workspace_config: result.workspace_config,
+      workspace_active: result.workspace_active,
       file_overlaps: result.file_overlaps,
       task_routing: result.task_routing || null,
       previous_attempts: result.previous_attempts || null,
       rag_capabilities: result.rag_capabilities || null,
+      runtime_freshness: result.runtime_freshness && result.runtime_freshness.checked ? result.runtime_freshness : null,
     };
+    if (result.resume_summary) compactResult.resume_summary = result.resume_summary;
     if (global._gsdManifestMode) {
       compactResult._manifest = {
         files: [
@@ -481,8 +637,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     return output(compactResult, raw);
   }
 
-  // Trim null/disabled sections from verbose output to reduce token waste
-  if (!result.worktree_enabled) { delete result.worktree_config; delete result.worktree_active; delete result.file_overlaps; }
+  // Trim null sections from verbose output to reduce token waste
   if (result.intent_drift === null) delete result.intent_drift;
   if (result.intent_summary === null) delete result.intent_summary;
   if (result.env_summary === null) { delete result.env_summary; delete result.env_languages; delete result.env_stale; }
@@ -492,6 +647,8 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   if (result.codebase_freshness === null) delete result.codebase_freshness;
   if (result.previous_attempts === null) delete result.previous_attempts;
   if (result.rag_capabilities === null) delete result.rag_capabilities;
+  if (!result.runtime_freshness || !result.runtime_freshness.checked) delete result.runtime_freshness;
+  if (!result.resume_summary) delete result.resume_summary;
 
   output(result, raw);
 }
@@ -502,7 +659,17 @@ function cmdInitPlanPhase(cwd, phase, raw) {
   }
 
   const config = loadConfig(cwd);
-  const phaseInfo = findPhaseInternal(cwd, phase);
+  const snapshotInfo = getSnapshotPhaseInfo(cwd, phase);
+  const snapshot = snapshotInfo.snapshot;
+  const metadata = snapshotInfo.metadata;
+  const phaseInfo = snapshotInfo.phaseInfo;
+  const roadmapPhase = getRoadmapPhaseInternal(cwd, phase);
+  const handoffResumeSummary = buildPhaseHandoffResumeSummary(cwd, metadata?.number || phase, metadata?.name || null);
+  normalizePhasePlanFilesTddMetadata(cwd, phaseInfo);
+  let rawConfig = {};
+  try {
+    rawConfig = readRawConfig(cwd) || {};
+  } catch (e) { debugLog('init.planPhase', 'raw config read failed', e); }
 
   const result = {
     // Models
@@ -516,18 +683,19 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     commit_docs: config.commit_docs,
 
     // Phase info
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    phase_name: phaseInfo?.phase_name || null,
-    phase_slug: phaseInfo?.phase_slug || null,
-    padded_phase: phaseInfo?.phase_number?.padStart(2, '0') || null,
+    phase_found: !!snapshot,
+    phase_dir: metadata?.directory || null,
+    phase_number: metadata?.number || null,
+    phase_name: metadata?.name || null,
+    phase_slug: metadata?.slug || null,
+    padded_phase: metadata?.number?.padStart(2, '0') || null,
+    tdd: roadmapPhase?.tdd || null,
 
     // Existing artifacts
-    has_research: phaseInfo?.has_research || false,
-    has_context: phaseInfo?.has_context || false,
-    has_plans: (phaseInfo?.plans?.length || 0) > 0,
-    plan_count: phaseInfo?.plans?.length || 0,
+    has_research: !!snapshot?.execution_context?.has_research,
+    has_context: !!snapshot?.execution_context?.has_context,
+    has_plans: (snapshot?.execution_context?.plan_count || 0) > 0,
+    plan_count: snapshot?.execution_context?.plan_count || 0,
 
     // Environment
     planning_exists: pathExistsInternal(cwd, '.planning'),
@@ -541,11 +709,15 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     // Intent context (null if no INTENT.md)
     intent_summary: null,
     intent_path: null,
+    effective_intent: null,
+    jj_planning_context: buildJjPlanningContext(rawConfig),
   };
+  if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
 
   // Advisory intent summary — never crash, never block
   try {
     result.intent_summary = getIntentSummary(cwd);
+    result.effective_intent = getEffectiveIntent(cwd, { phase: metadata?.number || phase });
     const intentFile = path.join(cwd, '.planning', 'INTENT.md');
     if (fs.existsSync(intentFile)) {
       result.intent_path = '.planning/INTENT.md';
@@ -603,28 +775,11 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     result.rag_capabilities = null;
   }
 
-  if (phaseInfo?.directory) {
-    // Find *-CONTEXT.md in phase directory
-    const phaseDirFull = path.join(cwd, phaseInfo.directory);
-    try {
-      const files = fs.readdirSync(phaseDirFull);
-      const contextFile = files.find(f => f.endsWith('-CONTEXT.md') || f === 'CONTEXT.md');
-      if (contextFile) {
-        result.context_path = path.join(phaseInfo.directory, contextFile);
-      }
-      const researchFile = files.find(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
-      if (researchFile) {
-        result.research_path = path.join(phaseInfo.directory, researchFile);
-      }
-      const verificationFile = files.find(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md');
-      if (verificationFile) {
-        result.verification_path = path.join(phaseInfo.directory, verificationFile);
-      }
-      const uatFile = files.find(f => f.endsWith('-UAT.md') || f === 'UAT.md');
-      if (uatFile) {
-        result.uat_path = path.join(phaseInfo.directory, uatFile);
-      }
-    } catch (e) { debugLog('init.planPhase', 'read phase files failed', e); }
+  if (snapshot) {
+    if (snapshotInfo.artifacts.context_path) result.context_path = snapshotInfo.artifacts.context_path;
+    if (snapshotInfo.artifacts.research_path) result.research_path = snapshotInfo.artifacts.research_path;
+    if (snapshotInfo.artifacts.verification_path) result.verification_path = snapshotInfo.artifacts.verification_path;
+    if (snapshotInfo.artifacts.uat_path) result.uat_path = snapshotInfo.artifacts.uat_path;
   }
 
   // Agent-scoped context — filter output to agent-declared fields
@@ -654,6 +809,8 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     };
     if (result.intent_summary) compactResult.intent_summary = result.intent_summary;
     if (result.intent_path) compactResult.intent_path = result.intent_path;
+    if (result.effective_intent) compactResult.effective_intent = result.effective_intent;
+    if (result.jj_planning_context) compactResult.jj_planning_context = result.jj_planning_context;
     if (result.codebase_stats) compactResult.codebase_stats = result.codebase_stats;
     if (result.codebase_conventions) compactResult.codebase_conventions = result.codebase_conventions;
     if (result.codebase_dependencies) compactResult.codebase_dependencies = result.codebase_dependencies;
@@ -662,7 +819,9 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     if (result.research_path) compactResult.research_path = result.research_path;
     if (result.verification_path) compactResult.verification_path = result.verification_path;
     if (result.uat_path) compactResult.uat_path = result.uat_path;
+    if (result.tdd !== null) compactResult.tdd = result.tdd;
     if (result.rag_capabilities) compactResult.rag_capabilities = result.rag_capabilities;
+    if (result.resume_summary) compactResult.resume_summary = result.resume_summary;
 
     if (global._gsdManifestMode) {
       const manifestFiles = [
@@ -682,11 +841,13 @@ function cmdInitPlanPhase(cwd, phase, raw) {
   // Trim null intent fields from verbose output
   if (result.intent_summary === null) delete result.intent_summary;
   if (result.intent_path === null) delete result.intent_path;
+  if (result.effective_intent === null) delete result.effective_intent;
   if (result.rag_capabilities === null) delete result.rag_capabilities;
   if (result.codebase_stats === null) delete result.codebase_stats;
   if (result.codebase_conventions === null) delete result.codebase_conventions;
   if (result.codebase_dependencies === null) delete result.codebase_dependencies;
   if (result.codebase_freshness === null) delete result.codebase_freshness;
+  if (!result.resume_summary) delete result.resume_summary;
 
   output(result, raw);
 }
@@ -784,6 +945,10 @@ function cmdInitNewProject(cwd, raw) {
 function cmdInitNewMilestone(cwd, raw) {
   const config = loadConfig(cwd);
   const milestone = getMilestoneInfo(cwd);
+  let rawConfig = {};
+  try {
+    rawConfig = readRawConfig(cwd) || {};
+  } catch (e) { debugLog('init.newMilestone', 'raw config read failed', e); }
 
   const result = {
     // Models
@@ -808,7 +973,43 @@ function cmdInitNewMilestone(cwd, raw) {
     project_path: '.planning/PROJECT.md',
     roadmap_path: '.planning/ROADMAP.md',
     state_path: '.planning/STATE.md',
+
+    // Advisory planning context
+    effective_intent: null,
+    jj_planning_context: buildJjPlanningContext(rawConfig),
   };
+
+  try {
+    const lessonSnapshot = createMilestoneLessonSnapshot(cwd, milestone);
+    result.lesson_snapshot_path = lessonSnapshot.snapshot_path;
+    result.lesson_snapshot_generated_at = lessonSnapshot.snapshot.generated_at;
+    result.lesson_snapshot_lesson_count = lessonSnapshot.snapshot.source?.lesson_count || 0;
+    result.lesson_snapshot_source_hash = lessonSnapshot.snapshot.source?.source_hash || null;
+    result.lesson_snapshot_metadata = {
+      milestone: lessonSnapshot.snapshot.milestone,
+      grouping_version: lessonSnapshot.snapshot.grouping_version,
+      source: lessonSnapshot.snapshot.source,
+      reused: lessonSnapshot.reused,
+    };
+    result.remediation_summary = lessonSnapshot.snapshot.compact_summary;
+    result.remediation_buckets = Array.isArray(lessonSnapshot.snapshot.buckets)
+      ? lessonSnapshot.snapshot.buckets.map(bucket => ({
+          id: bucket.id,
+          name: bucket.name,
+          summary: bucket.summary,
+          lesson_ids: Array.isArray(bucket.lesson_ids) ? bucket.lesson_ids : [],
+          counts: bucket.counts || null,
+        }))
+      : [];
+  } catch (e) {
+    debugLog('init.newMilestone', 'lesson snapshot creation failed (non-blocking)', e);
+  }
+
+  try {
+    result.effective_intent = getEffectiveIntent(cwd);
+  } catch (e) {
+    debugLog('init.newMilestone', 'effective intent failed (non-blocking)', e);
+  }
 
   if (global._gsdCompactMode) {
     const manifestFiles = [];
@@ -824,6 +1025,11 @@ function cmdInitNewMilestone(cwd, raw) {
       state_exists: result.state_exists,
       research_enabled: result.research_enabled,
     };
+    if (result.effective_intent) compactResult.effective_intent = result.effective_intent;
+    if (result.jj_planning_context) compactResult.jj_planning_context = result.jj_planning_context;
+    if (result.lesson_snapshot_path) compactResult.lesson_snapshot_path = result.lesson_snapshot_path;
+    if (result.lesson_snapshot_lesson_count != null) compactResult.lesson_snapshot_lesson_count = result.lesson_snapshot_lesson_count;
+    if (result.remediation_summary) compactResult.remediation_summary = result.remediation_summary;
     if (global._gsdManifestMode) {
       compactResult._manifest = { files: manifestFiles };
     }
@@ -835,6 +1041,7 @@ function cmdInitNewMilestone(cwd, raw) {
 
 function cmdInitQuick(cwd, description, raw) {
   const config = loadConfig(cwd);
+  requireJjForExecution(cwd, 'init:quick');
   const now = new Date();
   const slug = description ? generateSlugInternal(description)?.substring(0, 40) : null;
 
@@ -920,6 +1127,11 @@ function cmdInitResume(cwd, raw) {
     interruptedAgentId = fs.readFileSync(path.join(cwd, '.planning', 'current-agent-id.txt'), 'utf-8').trim();
   } catch (e) { debugLog('init.resume', 'read failed', e); }
 
+  const stateContent = safeReadFile(path.join(cwd, '.planning', 'STATE.md'));
+  const currentPhase = parseCurrentPhaseFromState(stateContent);
+  const phaseInfo = currentPhase ? findPhaseInternal(cwd, currentPhase) : null;
+  const handoffResumeSummary = buildPhaseHandoffResumeSummary(cwd, currentPhase, phaseInfo?.phase_name || null);
+
   const result = {
     // File existence
     state_exists: pathExistsInternal(cwd, '.planning/STATE.md'),
@@ -939,6 +1151,7 @@ function cmdInitResume(cwd, raw) {
     // Config
     commit_docs: config.commit_docs,
   };
+  if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
 
   // Environment context — inject compact summary
   try {
@@ -961,6 +1174,7 @@ function cmdInitResume(cwd, raw) {
       interrupted_agent_id: result.interrupted_agent_id,
       env_summary: result.env_summary || null,
     };
+    if (result.resume_summary) compactResult.resume_summary = result.resume_summary;
     if (global._gsdManifestMode) {
       compactResult._manifest = { files: manifestFiles };
     }
@@ -976,7 +1190,14 @@ function cmdInitVerifyWork(cwd, phase, raw) {
   }
 
   const config = loadConfig(cwd);
-  const phaseInfo = findPhaseInternal(cwd, phase);
+  const snapshotInfo = getSnapshotPhaseInfo(cwd, phase);
+  const snapshot = snapshotInfo.snapshot;
+  const metadata = snapshotInfo.metadata;
+  const handoffResumeSummary = buildPhaseHandoffResumeSummary(cwd, metadata?.number || phase, metadata?.name || null);
+  let rawConfig = {};
+  try {
+    rawConfig = readRawConfig(cwd) || {};
+  } catch (e) { debugLog('init.verifyWork', 'raw config read failed', e); }
 
   const result = {
     // Models
@@ -987,29 +1208,34 @@ function cmdInitVerifyWork(cwd, phase, raw) {
     commit_docs: config.commit_docs,
 
     // Phase info
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    phase_name: phaseInfo?.phase_name || null,
+    phase_found: !!snapshot,
+    phase_dir: metadata?.directory || null,
+    phase_number: metadata?.number || null,
+    phase_name: metadata?.name || null,
 
     // Existing artifacts
-    has_verification: phaseInfo?.has_verification || false,
+    has_verification: !!snapshot?.execution_context?.has_verification,
+
+    // Advisory planning + verification context
+    effective_intent: null,
+    jj_planning_context: buildJjPlanningContext(rawConfig),
   };
+  if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
+
+  try {
+    result.effective_intent = getEffectiveIntent(cwd, { phase: metadata?.number || phase });
+  } catch (e) {
+    debugLog('init.verifyWork', 'effective intent failed (non-blocking)', e);
+  }
 
   if (global._gsdCompactMode) {
     const manifestFiles = [];
-    // Include plan and summary files from phase dir
-    if (phaseInfo?.directory) {
-      try {
-        const phaseFiles = fs.readdirSync(path.join(cwd, phaseInfo.directory));
-        phaseFiles.filter(f => f.endsWith('-PLAN.md')).forEach(f => {
-          manifestFiles.push({ path: `${phaseInfo.directory}/${f}`, required: true });
-        });
-        phaseFiles.filter(f => f.endsWith('-SUMMARY.md')).forEach(f => {
-          manifestFiles.push({ path: `${phaseInfo.directory}/${f}`, required: true });
-        });
-      } catch (e) { debugLog('init.verifyWork', 'manifest scan failed', e); }
-    }
+    snapshotInfo.artifacts.plan_paths.forEach(file => {
+      manifestFiles.push({ path: file, required: true });
+    });
+    snapshotInfo.artifacts.summary_paths.forEach(file => {
+      manifestFiles.push({ path: file, required: true });
+    });
     if (pathExistsInternal(cwd, '.planning/ROADMAP.md')) {
       manifestFiles.push({ path: '.planning/ROADMAP.md', sections: [`Phase ${result.phase_number || ''}`], required: true });
     }
@@ -1021,6 +1247,9 @@ function cmdInitVerifyWork(cwd, phase, raw) {
       phase_name: result.phase_name,
       has_verification: result.has_verification,
     };
+    if (result.effective_intent) compactResult.effective_intent = result.effective_intent;
+    if (result.jj_planning_context) compactResult.jj_planning_context = result.jj_planning_context;
+    if (result.resume_summary) compactResult.resume_summary = result.resume_summary;
     if (global._gsdManifestMode) {
       compactResult._manifest = { files: manifestFiles };
     }
@@ -1030,30 +1259,131 @@ function cmdInitVerifyWork(cwd, phase, raw) {
   output(result, raw);
 }
 
+function parseCurrentPhaseFromState(stateContent) {
+  if (!stateContent) return null;
+
+  const phaseMatch = stateContent.match(/\*\*Phase:\*\*\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (phaseMatch) return phaseMatch[1];
+
+  const focusMatch = stateContent.match(/\*\*Current focus:\*\*\s*Phase\s+([0-9]+(?:\.[0-9]+)?)/i);
+  if (focusMatch) return focusMatch[1];
+
+  return null;
+}
+
+function parseCurrentPlanFromState(stateContent) {
+  if (!stateContent) return null;
+  const planMatch = stateContent.match(/\*\*(?:Current Plan|Plan):\*\*\s*([0-9]+)/i);
+  return planMatch ? planMatch[1].padStart(2, '0') : null;
+}
+
+function buildReviewInitResult(cwd) {
+  const config = loadConfig(cwd);
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const stateContent = safeReadFile(statePath);
+  const currentPhase = parseCurrentPhaseFromState(stateContent);
+  const phaseInfo = currentPhase ? findPhaseInternal(cwd, currentPhase) : null;
+  const currentPlan = parseCurrentPlanFromState(stateContent);
+
+  return {
+    review_model: resolveModelInternal(cwd, 'bgsd-reviewer'),
+    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
+    commit_docs: config.commit_docs,
+    phase_found: !!phaseInfo,
+    phase_dir: phaseInfo?.directory || null,
+    phase_number: phaseInfo?.phase_number || currentPhase || null,
+    phase_name: phaseInfo?.phase_name || null,
+    phase_slug: phaseInfo?.phase_slug || null,
+    current_plan: currentPlan,
+    plan_path: phaseInfo && currentPlan ? `${phaseInfo.directory}/${phaseInfo.phase_number}-${currentPlan}-PLAN.md` : null,
+    workflow_path: 'workflows/review.md',
+    review_command: 'review:scan',
+    state_path: '.planning/STATE.md',
+    roadmap_path: '.planning/ROADMAP.md',
+    config_path: '.planning/config.json',
+  };
+}
+
+function cmdInitReview(cwd, raw) {
+  output(buildReviewInitResult(cwd), raw);
+}
+
+function buildSecurityInitResult(cwd) {
+  const config = loadConfig(cwd);
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const stateContent = safeReadFile(statePath);
+  const currentPhase = parseCurrentPhaseFromState(stateContent);
+  const phaseInfo = currentPhase ? findPhaseInternal(cwd, currentPhase) : null;
+  const currentPlan = parseCurrentPlanFromState(stateContent);
+
+  return {
+    workflow_model: resolveModelInternal(cwd, 'bgsd-executor'),
+    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
+    commit_docs: config.commit_docs,
+    phase_found: !!phaseInfo,
+    phase_dir: phaseInfo?.directory || null,
+    phase_number: phaseInfo?.phase_number || currentPhase || null,
+    phase_name: phaseInfo?.phase_name || null,
+    phase_slug: phaseInfo?.phase_slug || null,
+    current_plan: currentPlan,
+    plan_path: phaseInfo && currentPlan ? `${phaseInfo.directory}/${phaseInfo.phase_number}-${currentPlan}-PLAN.md` : null,
+    workflow_path: 'workflows/security.md',
+    security_command: 'security:scan',
+    report_path: phaseInfo ? `${phaseInfo.directory}/security-report.json` : null,
+    state_path: '.planning/STATE.md',
+    roadmap_path: '.planning/ROADMAP.md',
+    config_path: '.planning/config.json',
+    exclusions_path: '.planning/security-exclusions.json',
+  };
+}
+
+function cmdInitSecurity(cwd, raw) {
+  output(buildSecurityInitResult(cwd), raw);
+}
+
+function buildReleaseInitResult(cwd) {
+  const config = loadConfig(cwd);
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const stateContent = safeReadFile(statePath);
+  const currentPhase = parseCurrentPhaseFromState(stateContent);
+  const phaseInfo = currentPhase ? findPhaseInternal(cwd, currentPhase) : null;
+  const currentPlan = parseCurrentPlanFromState(stateContent);
+
+  return {
+    workflow_model: resolveModelInternal(cwd, 'bgsd-executor'),
+    verifier_model: resolveModelInternal(cwd, 'bgsd-verifier'),
+    commit_docs: config.commit_docs,
+    phase_found: !!phaseInfo,
+    phase_dir: phaseInfo?.directory || null,
+    phase_number: phaseInfo?.phase_number || currentPhase || null,
+    phase_name: phaseInfo?.phase_name || null,
+    phase_slug: phaseInfo?.phase_slug || null,
+    current_plan: currentPlan,
+    plan_path: phaseInfo && currentPlan ? `${phaseInfo.directory}/${phaseInfo.phase_number}-${currentPlan}-PLAN.md` : null,
+    workflow_path: 'workflows/release.md',
+    release_commands: {
+      bump: 'release:bump',
+      changelog: 'release:changelog',
+      tag: 'release:tag',
+      pr: 'release:pr',
+    },
+    release_state_path: '.planning/release-state.json',
+    state_path: '.planning/STATE.md',
+    roadmap_path: '.planning/ROADMAP.md',
+    config_path: '.planning/config.json',
+  };
+}
+
+function cmdInitRelease(cwd, raw) {
+  output(buildReleaseInitResult(cwd), raw);
+}
+
 function cmdInitPhaseOp(cwd, phase, raw) {
   const config = loadConfig(cwd);
-  let phaseInfo = findPhaseInternal(cwd, phase);
-
-  // Fallback to ROADMAP.md if no directory exists (e.g., Plans: TBD)
-  if (!phaseInfo) {
-    const roadmapPhase = getRoadmapPhaseInternal(cwd, phase);
-    if (roadmapPhase?.found) {
-      const phaseName = roadmapPhase.phase_name;
-      phaseInfo = {
-        found: true,
-        directory: null,
-        phase_number: roadmapPhase.phase_number,
-        phase_name: phaseName,
-        phase_slug: phaseName ? phaseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : null,
-        plans: [],
-        summaries: [],
-        incomplete_plans: [],
-        has_research: false,
-        has_context: false,
-        has_verification: false,
-      };
-    }
-  }
+  const snapshotInfo = getSnapshotPhaseInfo(cwd, phase);
+  const snapshot = snapshotInfo.snapshot;
+  const metadata = snapshotInfo.metadata;
+  const handoffResumeSummary = buildPhaseHandoffResumeSummary(cwd, metadata?.number || phase, metadata?.name || null);
 
   const result = {
     // Config
@@ -1061,19 +1391,19 @@ function cmdInitPhaseOp(cwd, phase, raw) {
     brave_search: config.brave_search,
 
     // Phase info
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    phase_name: phaseInfo?.phase_name || null,
-    phase_slug: phaseInfo?.phase_slug || null,
-    padded_phase: phaseInfo?.phase_number?.padStart(2, '0') || null,
+    phase_found: !!snapshot,
+    phase_dir: metadata?.directory || null,
+    phase_number: metadata?.number || null,
+    phase_name: metadata?.name || null,
+    phase_slug: metadata?.slug || null,
+    padded_phase: metadata?.number?.padStart(2, '0') || null,
 
     // Existing artifacts
-    has_research: phaseInfo?.has_research || false,
-    has_context: phaseInfo?.has_context || false,
-    has_plans: (phaseInfo?.plans?.length || 0) > 0,
-    has_verification: phaseInfo?.has_verification || false,
-    plan_count: phaseInfo?.plans?.length || 0,
+    has_research: !!snapshot?.execution_context?.has_research,
+    has_context: !!snapshot?.execution_context?.has_context,
+    has_plans: (snapshot?.execution_context?.plan_count || 0) > 0,
+    has_verification: !!snapshot?.execution_context?.has_verification,
+    plan_count: snapshot?.execution_context?.plan_count || 0,
 
     // File existence
     roadmap_exists: pathExistsInternal(cwd, '.planning/ROADMAP.md'),
@@ -1084,28 +1414,13 @@ function cmdInitPhaseOp(cwd, phase, raw) {
     roadmap_path: '.planning/ROADMAP.md',
     requirements_path: '.planning/REQUIREMENTS.md',
   };
+  if (handoffResumeSummary) result.resume_summary = handoffResumeSummary;
 
-  if (phaseInfo?.directory) {
-    const phaseDirFull = path.join(cwd, phaseInfo.directory);
-    try {
-      const files = fs.readdirSync(phaseDirFull);
-      const contextFile = files.find(f => f.endsWith('-CONTEXT.md') || f === 'CONTEXT.md');
-      if (contextFile) {
-        result.context_path = path.join(phaseInfo.directory, contextFile);
-      }
-      const researchFile = files.find(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
-      if (researchFile) {
-        result.research_path = path.join(phaseInfo.directory, researchFile);
-      }
-      const verificationFile = files.find(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md');
-      if (verificationFile) {
-        result.verification_path = path.join(phaseInfo.directory, verificationFile);
-      }
-      const uatFile = files.find(f => f.endsWith('-UAT.md') || f === 'UAT.md');
-      if (uatFile) {
-        result.uat_path = path.join(phaseInfo.directory, uatFile);
-      }
-    } catch (e) { debugLog('init.phaseOp', 'read phase files failed', e); }
+  if (snapshot) {
+    if (snapshotInfo.artifacts.context_path) result.context_path = snapshotInfo.artifacts.context_path;
+    if (snapshotInfo.artifacts.research_path) result.research_path = snapshotInfo.artifacts.research_path;
+    if (snapshotInfo.artifacts.verification_path) result.verification_path = snapshotInfo.artifacts.verification_path;
+    if (snapshotInfo.artifacts.uat_path) result.uat_path = snapshotInfo.artifacts.uat_path;
   }
 
   // Codebase intelligence — read existing intel (fast) or auto-trigger if --refresh
@@ -1146,6 +1461,7 @@ function cmdInitPhaseOp(cwd, phase, raw) {
       has_verification: result.has_verification,
       plan_count: result.plan_count,
     };
+    if (result.resume_summary) compactResult.resume_summary = result.resume_summary;
     if (result.context_path) compactResult.context_path = result.context_path;
     if (result.research_path) compactResult.research_path = result.research_path;
     if (result.verification_path) compactResult.verification_path = result.verification_path;
@@ -1943,6 +2259,9 @@ module.exports = {
   cmdInitNewMilestone,
   cmdInitQuick,
   cmdInitResume,
+  cmdInitReview,
+  cmdInitSecurity,
+  cmdInitRelease,
   cmdInitVerifyWork,
   cmdInitPhaseOp,
   cmdInitTodos,
@@ -1950,4 +2269,7 @@ module.exports = {
   cmdInitMapCodebase,
   cmdInitProgress,
   cmdInitMemory,
+  buildReviewInitResult,
+  buildSecurityInitResult,
+  buildReleaseInitResult,
 };

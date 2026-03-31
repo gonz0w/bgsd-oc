@@ -105,15 +105,15 @@ The CI agent's state update behavior depends on invocation:
 **Full state update sequence after plan completion:**
 ```bash
 # After SUMMARY.md written and self-checked
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state advance-plan
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state update-progress
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state record-metric \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state advance-plan
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state update-progress
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-metric \
   --phase "03-auth" --plan "02" --duration "18 min" \
   --tasks "3" --files "5"
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state add-decision \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state add-decision \
   --phase "03-auth" --summary "Used jose instead of jsonwebtoken for Edge compatibility"
-node $BGSD_HOME/bin/bgsd-tools.cjs verify:state record-session \
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session \
   --stopped-at "Completed 03-02-PLAN.md"
-node $BGSD_HOME/bin/bgsd-tools.cjs plan:roadmap update-plan-progress "03"
-node $BGSD_HOME/bin/bgsd-tools.cjs plan:requirements mark-complete AUTH-01 AUTH-02
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap update-plan-progress "03"
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:requirements mark-complete AUTH-01 AUTH-02
 ```

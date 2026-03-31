@@ -5,7 +5,7 @@ import { homedir } from 'os';
 import { createLogger } from './logger.js';
 import { parseState, invalidateState } from './parsers/state.js';
 import { parseRoadmap, invalidateRoadmap } from './parsers/roadmap.js';
-import { parseConfig, invalidateConfig } from './parsers/config.js';
+import { parseConfig, invalidateConfig, buildDefaultConfigText } from './parsers/config.js';
 
 /**
  * Idle validator — debounced STATE.md validation with auto-fix on session idle.
@@ -202,8 +202,8 @@ export function createIdleValidator(cwd, notifier, fileWatcher, config) {
               await notifier.notify({
                 type: 'phase-complete',
                 severity: 'warning',
-                message: `Phase ${phaseNum} complete! Next: Phase ${nextPhase.number} (${nextPhase.name})`,
-                action: `Next: /bgsd-plan-phase ${nextPhase.number}`,
+                message: `Phase ${phaseNum} complete! Next: Phase ${nextPhase.number} (${nextPhase.name}). Verify against this repo's current checkout, and rebuild the local runtime before trusting generated guidance if runtime surfaces changed.`,
+                action: `Next: /bgsd-plan phase ${nextPhase.number}`,
               });
             }
           }
@@ -235,13 +235,7 @@ export function createIdleValidator(cwd, notifier, fileWatcher, config) {
             JSON.parse(raw); // Just validate it's valid JSON
           } catch {
             // Corrupt config.json — write defaults
-            const defaults = {
-              mode: 'interactive',
-              depth: 'standard',
-              model_profile: 'balanced',
-              commit_docs: true,
-            };
-            writeTracked(configPath, JSON.stringify(defaults, null, 2) + '\n');
+            writeTracked(configPath, buildDefaultConfigText());
             invalidateConfig(cwd);
             anyFix = true;
             getLogger().write('WARN', `Idle validation: auto-fixed corrupt config.json with defaults`);

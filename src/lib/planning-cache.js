@@ -1253,6 +1253,168 @@ class PlanningCache {
   }
 
   /**
+   * Replace the touched session bundle in one SQLite transaction.
+   *
+   * Used by canonical mutators that compute one next model before writing
+   * STATE.md and SQLite.
+   *
+   * @param {string} cwd
+   * @param {{ state?: object, decisions?: object[], blockers?: object[], continuity?: object|null }} bundle
+   * @returns {{ stored: boolean }|null}
+   */
+  storeSessionBundle(cwd, bundle) {
+    if (this._isMap()) return null;
+    try {
+      this._db.exec('BEGIN');
+
+      if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'state')) {
+        const state = bundle.state || {};
+        this._stmt(
+          'ss_upsert_bundle',
+          `INSERT OR REPLACE INTO session_state
+           (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          cwd,
+          state.phase_number || null,
+          state.phase_name || null,
+          state.total_phases != null ? state.total_phases : null,
+          state.current_plan || null,
+          state.status || null,
+          state.last_activity || null,
+          state.progress != null ? state.progress : null,
+          state.milestone || null,
+          JSON.stringify(state)
+        );
+      }
+
+      if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'decisions')) {
+        this._stmt('sd_delete_bundle', 'DELETE FROM session_decisions WHERE cwd = ?').run(cwd);
+        const decisions = Array.isArray(bundle.decisions) ? bundle.decisions : [];
+        if (decisions.length > 0) {
+          const insertDecision = this._stmt(
+            'sd_insert_bundle',
+            'INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          );
+          for (const decision of decisions) {
+            insertDecision.run(
+              cwd,
+              decision.milestone || null,
+              decision.phase || null,
+              decision.summary || null,
+              decision.rationale || null,
+              decision.timestamp || null,
+              JSON.stringify(decision)
+            );
+          }
+        }
+      }
+
+      if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'blockers')) {
+        this._stmt('sb_delete_bundle', 'DELETE FROM session_blockers WHERE cwd = ?').run(cwd);
+        const blockers = Array.isArray(bundle.blockers) ? bundle.blockers : [];
+        if (blockers.length > 0) {
+          const insertBlocker = this._stmt(
+            'sb_insert_bundle',
+            'INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)'
+          );
+          for (const blocker of blockers) {
+            insertBlocker.run(
+              cwd,
+              blocker.text || '',
+              blocker.status || 'open',
+              blocker.created_at || null,
+              JSON.stringify(blocker)
+            );
+          }
+        }
+      }
+
+      if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'continuity')) {
+        if (bundle.continuity) {
+          this._stmt(
+            'sc_upsert_bundle',
+            'INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)'
+          ).run(
+            cwd,
+            bundle.continuity.last_session || null,
+            bundle.continuity.stopped_at || null,
+            bundle.continuity.next_step || null,
+            JSON.stringify(bundle.continuity)
+          );
+        } else {
+          this._stmt('sc_delete_bundle', 'DELETE FROM session_continuity WHERE cwd = ?').run(cwd);
+        }
+      }
+
+      this._db.exec('COMMIT');
+      return { stored: true };
+    } catch {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      return null;
+    }
+  }
+
+  /**
+   * Write the durable plan-completion core in one SQLite transaction.
+   * Upserts session_state and appends any provided decision rows together.
+   *
+   * @param {string} cwd
+   * @param {{ state: object, decisions?: object[] }} payload
+   * @returns {{ stored: boolean, decisions_written: number }|null}
+   */
+  storeSessionCompletionCore(cwd, payload) {
+    if (this._isMap()) return null;
+    try {
+      const state = payload?.state || {};
+      const decisions = Array.isArray(payload?.decisions) ? payload.decisions : [];
+
+      this._db.exec('BEGIN');
+      this._stmt(
+        'ss_upsert_completion_core',
+        `INSERT OR REPLACE INTO session_state
+         (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        cwd,
+        state.phase_number || null,
+        state.phase_name || null,
+        state.total_phases != null ? state.total_phases : null,
+        state.current_plan || null,
+        state.status || null,
+        state.last_activity || null,
+        state.progress != null ? state.progress : null,
+        state.milestone || null,
+        JSON.stringify(state)
+      );
+
+      if (decisions.length > 0) {
+        const insertDecision = this._stmt(
+          'sd_ins_completion_core',
+          'INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        );
+        for (const decision of decisions) {
+          insertDecision.run(
+            cwd,
+            decision.milestone || null,
+            decision.phase || null,
+            decision.summary || null,
+            decision.rationale || null,
+            decision.timestamp || null,
+            JSON.stringify(decision)
+          );
+        }
+      }
+
+      this._db.exec('COMMIT');
+      return { stored: true, decisions_written: decisions.length };
+    } catch {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      return null;
+    }
+  }
+
+  /**
    * Query session_decisions for cwd.
    *
    * @param {string} cwd - Project root directory

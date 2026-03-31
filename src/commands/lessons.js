@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { output, error, debugLog } = require('../lib/output');
 const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
+const { mutateJsonStore } = require('../lib/json-store-mutator');
 
 // ─── Lesson Schema ────────────────────────────────────────────────────────────
 
@@ -94,11 +95,129 @@ function readLessonsStore(cwd) {
   }
 }
 
+function readLessonsStoreIfPresent(cwd) {
+  const filePath = path.join(cwd, '.planning', 'memory', 'lessons.json');
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildLessonSearchBody(entry) {
+  const bodyParts = [
+    entry.root_cause,
+    entry.prevention_rule,
+  ].filter(Boolean);
+  const body = bodyParts.join('\n\n').trim();
+  return body.slice(0, 300) + (body.length > 300 ? '...' : '');
+}
+
+function scoreLessonText(text, queryWords) {
+  let score = 0;
+  const haystack = String(text || '').toLowerCase();
+  for (const word of queryWords) {
+    if (haystack.includes(word)) score += 1;
+  }
+  return score;
+}
+
+function searchStructuredLessons(cwd, queryWords) {
+  const entries = readLessonsStoreIfPresent(cwd);
+  const results = [];
+
+  for (const entry of entries) {
+    const affectedAgents = Array.isArray(entry.affected_agents)
+      ? entry.affected_agents
+      : (typeof entry.affected_agents === 'string' && entry.affected_agents.trim()
+          ? entry.affected_agents.split(',').map(s => s.trim()).filter(Boolean)
+          : []);
+
+    const title = entry.title || 'Untitled';
+    const searchableText = [
+      title,
+      entry.root_cause,
+      entry.prevention_rule,
+      entry.type,
+      entry.severity,
+      affectedAgents.join(' '),
+    ].filter(Boolean).join('\n');
+
+    let score = scoreLessonText(searchableText, queryWords);
+    score += scoreLessonText(title, queryWords) * 2;
+
+    if (score > 0) {
+      results.push({
+        title,
+        body: buildLessonSearchBody(entry),
+        score,
+        source: '.planning/memory/lessons.json',
+        format: 'structured',
+        date: entry.date || null,
+        severity: entry.severity || null,
+        type: entry.type || null,
+        affected_agents: affectedAgents,
+        id: entry.id || null,
+      });
+    }
+  }
+
+  return results;
+}
+
+function searchLessons(cwd, query) {
+  const queryWords = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const results = searchStructuredLessons(cwd, queryWords);
+
+  results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return String(b.date || '').localeCompare(String(a.date || ''));
+  });
+
+  const limited = results.slice(0, 15);
+  return {
+    query,
+    count: limited.length,
+    match_count: limited.length,
+    matches: limited,
+    lessons: limited,
+    searched_sources: ['.planning/memory/lessons.json'],
+    canonical_source: '.planning/memory/lessons.json',
+    message: limited.length === 0
+      ? 'No lessons found in .planning/memory/lessons.json'
+      : undefined,
+  };
+}
+
 function writeLessonsStore(cwd, entries) {
   const memDir = path.join(cwd, '.planning', 'memory');
   fs.mkdirSync(memDir, { recursive: true });
   const filePath = path.join(memDir, 'lessons.json');
   fs.writeFileSync(filePath, JSON.stringify(entries, null, 2), 'utf-8');
+}
+
+function appendLessonEntry(cwd, entry) {
+  const filePath = path.join(cwd, '.planning', 'memory', 'lessons.json');
+  return mutateJsonStore(cwd, {
+    filePath,
+    defaultValue: [],
+    transform(entries) {
+      const nextEntries = Array.isArray(entries) ? entries : [];
+      nextEntries.push(entry);
+      return {
+        nextData: nextEntries,
+        result: { entry_count: nextEntries.length },
+      };
+    },
+    sqliteMirror() {
+      const db = getDb(cwd);
+      const cache = new PlanningCache(db);
+      cache.writeMemoryEntry(cwd, 'lessons', entry);
+    },
+  });
 }
 
 // ─── Capture ──────────────────────────────────────────────────────────────────
@@ -129,18 +248,7 @@ function cmdLessonsCapture(cwd, options, raw) {
 
   const normalized = validation.normalized;
 
-  const entries = readLessonsStore(cwd);
-  entries.push(normalized);
-  writeLessonsStore(cwd, entries);
-
-  // Dual-write to SQLite (best-effort)
-  try {
-    const db = getDb(cwd);
-    const cache = new PlanningCache(db);
-    cache.writeMemoryEntry(cwd, 'lessons', normalized);
-  } catch (e) {
-    debugLog('lessons.capture', 'SQLite dual-write failed', e);
-  }
+  const mutation = appendLessonEntry(cwd, normalized);
 
   output({
     captured: true,
@@ -148,7 +256,7 @@ function cmdLessonsCapture(cwd, options, raw) {
     title: normalized.title,
     severity: normalized.severity,
     type: normalized.type,
-    entry_count: entries.length,
+    entry_count: mutation.entry_count,
   });
 }
 
@@ -214,25 +322,14 @@ function cmdDeviationCapture(cwd, options, raw) {
 
     const normalized = validation.normalized;
 
-    // Store
-    entries.push(normalized);
-    writeLessonsStore(cwd, entries);
-
-    // Dual-write to SQLite (best-effort)
-    try {
-      const db = getDb(cwd);
-      const cache = new PlanningCache(db);
-      cache.writeMemoryEntry(cwd, 'lessons', normalized);
-    } catch (e) {
-      debugLog('lessons.deviation-capture', 'SQLite dual-write failed', e);
-    }
+    const mutation = appendLessonEntry(cwd, normalized);
 
     output({
       captured: true,
       id: normalized.id,
       title: normalized.title,
       type: 'deviation-recovery',
-      entry_count: entries.length,
+      entry_count: mutation.entry_count,
       deviation_rule: rule,
       failure_count: failureCount,
       agent: normalized.affected_agents,
@@ -241,107 +338,6 @@ function cmdDeviationCapture(cwd, options, raw) {
     // Non-blocking: swallow all errors
     debugLog('lessons.deviation-capture', 'Error swallowed (non-blocking)', e);
   }
-}
-
-// ─── Migrate ──────────────────────────────────────────────────────────────────
-
-/**
- * Migrate free-form lessons.md to structured format.
- * Searches: cwd/lessons.md, cwd/tasks/lessons.md, cwd/.planning/lessons.md
- */
-function cmdLessonsMigrate(cwd, options, raw) {
-  const searchPaths = [
-    path.join(cwd, 'lessons.md'),
-    path.join(cwd, 'tasks', 'lessons.md'),
-    path.join(cwd, '.planning', 'lessons.md'),
-  ];
-
-  const foundFiles = searchPaths.filter(p => {
-    try {
-      return fs.existsSync(p);
-    } catch {
-      return false;
-    }
-  });
-
-  if (foundFiles.length === 0) {
-    output({ migrated: 0, sources: [], message: 'No lessons.md files found to migrate' });
-    return;
-  }
-
-  const existingEntries = readLessonsStore(cwd);
-  const migrated = [];
-
-  for (const filePath of foundFiles) {
-    let content;
-    let mtime;
-    try {
-      content = fs.readFileSync(filePath, 'utf-8');
-      mtime = fs.statSync(filePath).mtime.toISOString();
-    } catch (e) {
-      debugLog('lessons.migrate', `Failed to read ${filePath}`, e);
-      continue;
-    }
-
-    // Split by ## or ### headings
-    const sections = content.split(/^(?=#{2,3}\s)/m).filter(s => s.trim());
-
-    for (const section of sections) {
-      const lines = section.split('\n');
-      const headingLine = lines[0] || '';
-      const headingMatch = headingLine.match(/^#{2,3}\s+(.+)$/);
-      if (!headingMatch) continue;
-
-      const title = headingMatch[1].trim();
-      if (!title) continue;
-
-      // Extract body (lines after heading)
-      const bodyLines = lines.slice(1).filter(l => l.trim());
-      const bodyText = bodyLines.join('\n').trim();
-
-      // Try to extract date from section (e.g. "2026-02-28: ...")
-      let entryDate = mtime;
-      const dateMatch = title.match(/^(\d{4}-\d{2}-\d{2})/) || bodyText.match(/^(\d{4}-\d{2}-\d{2})/);
-      if (dateMatch) {
-        try {
-          entryDate = new Date(dateMatch[1]).toISOString();
-        } catch {
-          entryDate = mtime;
-        }
-      }
-
-      // Root cause: first paragraph trimmed to 500 chars
-      const rootCause = bodyText.substring(0, 500);
-
-      const entry = {
-        id: crypto.randomUUID(),
-        date: entryDate,
-        title,
-        severity: 'MEDIUM',
-        type: 'environment',
-        root_cause: rootCause || 'Migrated from free-form lessons',
-        prevention_rule: 'Migrated from free-form lessons — review and update',
-        affected_agents: [],
-        migrated_from: filePath,
-      };
-
-      migrated.push(entry);
-    }
-  }
-
-  if (migrated.length === 0) {
-    output({ migrated: 0, sources: foundFiles, message: 'No sections found in lessons files' });
-    return;
-  }
-
-  const allEntries = existingEntries.concat(migrated);
-  writeLessonsStore(cwd, allEntries);
-
-  output({
-    migrated: migrated.length,
-    sources: foundFiles,
-    entry_count: allEntries.length,
-  });
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────
@@ -716,9 +712,9 @@ function cmdLessonsCompact(cwd, options, raw) {
 module.exports = {
   LESSON_SCHEMA,
   validateLesson,
+  searchLessons,
   cmdLessonsCapture,
   cmdDeviationCapture,
-  cmdLessonsMigrate,
   cmdLessonsList,
   cmdLessonsAnalyze,
   cmdLessonsSuggest,

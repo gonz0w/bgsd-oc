@@ -6,15 +6,14 @@ const { output, error, debugLog } = require('../lib/output');
 const { loadConfig } = require('../lib/config');
 const { safeReadFile } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
+const { resolvePluginDirs } = require('../lib/plugin-paths');
 
 /**
- * Resolve BGSD_HOME and agents directory paths
+ * Resolve plugin asset directories for runtime and tests.
  */
 function resolveBgsdPaths() {
-  const BGSD_HOME = process.env.BGSD_HOME || 
-    path.join(process.env.HOME || '/tmp', '.config', 'oc', 'bgsd-oc');
-  const agentsDir = path.join(path.dirname(BGSD_HOME), 'agents');
-  return { BGSD_HOME, agentsDir };
+  const { pluginRoot, agentsDir, referencesDir } = resolvePluginDirs();
+  return { pluginRoot, agentsDir, referencesDir };
 }
 
 /**
@@ -165,13 +164,13 @@ function scanAgents(agentsDir) {
 /**
  * Resolve the path to RACI.md
  * Checks in priority order:
- * 1. BGSD_HOME/references/ (deployed canonical location)
+ * 1. plugin references/ (deployed canonical location)
  * 2. cwd/references/ (dev workspace — before deploy)
  * 3. agents/RACI.md (legacy fallback)
  */
-function resolveRaciPath(BGSD_HOME, agentsDir) {
-  // Primary: BGSD_HOME/references/RACI.md (deployed canonical location per 66-01)
-  const refPath = path.join(BGSD_HOME, 'references', 'RACI.md');
+function resolveRaciPath(pluginRoot, referencesDir, agentsDir) {
+  // Primary: plugin references/RACI.md (deployed canonical location per 66-01)
+  const refPath = path.join(referencesDir || path.join(pluginRoot, 'references'), 'RACI.md');
   if (fs.existsSync(refPath)) return refPath;
   
   // Dev workspace: cwd/references/RACI.md (pre-deploy)
@@ -245,8 +244,8 @@ function parseRaciMatrix(raciPath) {
  * Reads lifecycle steps dynamically from RACI.md, falls back to hardcoded list
  */
 function cmdAgentAudit(cwd, raw) {
-  const { BGSD_HOME, agentsDir } = resolveBgsdPaths();
-  const raciPath = resolveRaciPath(BGSD_HOME, agentsDir);
+  const { pluginRoot, agentsDir, referencesDir } = resolveBgsdPaths();
+  const raciPath = resolveRaciPath(pluginRoot, referencesDir, agentsDir);
   
   // Check prerequisites
   if (!raciPath) {
@@ -331,7 +330,7 @@ function cmdAgentAudit(cwd, raw) {
  * With --phase N: also checks actual output files for required sections
  */
 function cmdAgentValidateContracts(cwd, raw, args) {
-  const { BGSD_HOME, agentsDir } = resolveBgsdPaths();
+  const { agentsDir } = resolveBgsdPaths();
   
   // Parse --phase argument
   const phaseIdx = (args || []).indexOf('--phase');

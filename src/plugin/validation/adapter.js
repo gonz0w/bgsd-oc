@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import { z } from 'zod';
 import { resolveValidationFlags } from './flags.js';
+import { writeDebugDiagnostic } from '../debug-contract.js';
 
 function mapFieldToValibot(fieldSpec) {
   let schema;
@@ -106,11 +107,7 @@ function firstErrorMessage(result, schemaSpec) {
 }
 
 function emitDebugMarker(toolName, engine) {
-  if (process.env.GSD_DEBUG !== '1') {
-    return;
-  }
-
-  process.stderr.write(`[bGSD:validation-engine] ${toolName}:${engine}\n`);
+  writeDebugDiagnostic('[bGSD:validation-engine]', `${toolName}:${engine}`);
 }
 
 function runValidation(engine, schemaSpec, source) {
@@ -134,10 +131,6 @@ function normalizeDebugResult(result, engine) {
 }
 
 function emitShadowCompareDiagnostics(toolName, schemaSpec, source, primaryEngine, primaryResult) {
-  if (process.env.GSD_DEBUG !== '1') {
-    return;
-  }
-
   const shadowEngine = primaryEngine === 'valibot' ? 'zod' : 'valibot';
   const shadowResult = runValidation(shadowEngine, schemaSpec, source);
 
@@ -145,7 +138,7 @@ function emitShadowCompareDiagnostics(toolName, schemaSpec, source, primaryEngin
   const shadowNormalized = normalizeDebugResult(shadowResult, shadowEngine);
   const parity = JSON.stringify(primaryNormalized) === JSON.stringify(shadowNormalized) ? 'match' : 'mismatch';
 
-  process.stderr.write(`[bGSD:validation-shadow] ${toolName}:${primaryEngine}->${shadowEngine}:${parity}\n`);
+  writeDebugDiagnostic('[bGSD:validation-shadow]', `${toolName}:${primaryEngine}->${shadowEngine}:${parity}`);
 }
 
 export function createObjectSchema(shape) {

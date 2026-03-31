@@ -33,11 +33,15 @@ export const bgsd_context = {
       }
 
       const { plans } = projectState;
+      const phaseNumber = projectState.state?.phase?.match(/^(\d+(?:\.\d+)?)/)?.[1] || null;
 
       if (!plans || plans.length === 0) {
+        const nextCommand = phaseNumber ? `/bgsd-plan phase ${phaseNumber}` : '/bgsd-inspect progress';
         return JSON.stringify({
           error: 'validation_error',
-          message: 'No plans found for current phase. Run /bgsd-plan-phase to create plans.',
+          message: phaseNumber
+            ? `No plans found for current phase. Run ${nextCommand} to create plans.`
+            : `No plans found for the active phase. Run ${nextCommand} to confirm the current phase before planning.`,
         });
       }
 

@@ -879,9 +879,9 @@ describe('Phase 127: Tool routing decision functions', () => {
       assert.strictEqual(result.value, 'node');
     });
 
-    it('missing scope defaults to node (no tool needed)', () => {
+    it('missing scope defaults to fd when discovery tooling is available', () => {
       const result = resolveFileDiscoveryMode({ tool_availability: { fd: true } });
-      assert.strictEqual(result.value, 'node');
+      assert.strictEqual(result.value, 'fd');
     });
 
     it('missing tool_availability defaults gracefully to node', () => {
@@ -1010,12 +1010,17 @@ describe('Phase 127: Tool routing decision functions', () => {
   // ─── DECISION_REGISTRY integration ─────────────────────────────────────────
 
   describe('DECISION_REGISTRY integration', () => {
-    it('two remaining tool-routing rules appear in DECISION_REGISTRY', () => {
+    it('tool-routing rules appear in DECISION_REGISTRY', () => {
       const toolRoutingRules = DECISION_REGISTRY.filter(r => r.category === 'tool-routing');
-      assert.strictEqual(toolRoutingRules.length, 2, `Expected 2 tool-routing rules, got ${toolRoutingRules.length}`);
+      assert.strictEqual(toolRoutingRules.length, 7, `Expected 7 tool-routing rules, got ${toolRoutingRules.length}`);
       const ids = toolRoutingRules.map(r => r.id);
       assert.ok(ids.includes('file-discovery-mode'), 'file-discovery-mode should be in registry');
       assert.ok(ids.includes('search-mode'), 'search-mode should be in registry');
+      assert.ok(ids.includes('structural-search-mode'), 'structural-search-mode should be in registry');
+      assert.ok(ids.includes('json-transform-mode'), 'json-transform-mode should be in registry');
+      assert.ok(ids.includes('yaml-transform-mode'), 'yaml-transform-mode should be in registry');
+      assert.ok(ids.includes('text-replace-mode'), 'text-replace-mode should be in registry');
+      assert.ok(ids.includes('benchmark-mode'), 'benchmark-mode should be in registry');
     });
 
     it('each registry entry has required fields: id, name, category, inputs, outputs, confidence_range, resolve', () => {
@@ -1042,5 +1047,4 @@ describe('Phase 127: Tool routing decision functions', () => {
 
   });
 });
-
 

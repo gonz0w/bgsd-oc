@@ -1,6 +1,6 @@
 ---
 name: phase-argument-parsing
-description: Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via bgsd-tools find-phase, and directory lookup patterns.
+description: Phase argument parsing and normalization — extracting phase numbers from user input, zero-padding, decimal suffix handling, validation via the `bgsd-tools plan:find-phase` route, and directory lookup patterns.
 type: shared
 agents: [planner, executor, verifier, roadmapper]
 sections: [extraction, normalization, validation, directory-lookup]
@@ -14,7 +14,7 @@ Multiple agents need to parse phase arguments from user input. This skill standa
 
 | Placeholder | Description | Example |
 |-------------|-------------|---------|
-| `{{bgsd_home}}` | Path to bgsd-tools installation | `$BGSD_HOME` |
+| `{{bgsd_home}}` | Path to bgsd-tools installation | `__OPENCODE_CONFIG__/bgsd-oc` |
 
 ## Content
 
@@ -28,7 +28,7 @@ From `$ARGUMENTS`:
 <!-- /section -->
 
 <!-- section: normalization -->
-### Using bgsd-tools (Recommended)
+### Using `bgsd-tools plan:find-phase` (Recommended)
 
 The `find-phase` command handles normalization and validation in one step:
 

@@ -19,14 +19,14 @@ If `todo_count` is 0:
 ```
 No pending todos.
 
-Todos are captured during work sessions with /bgsd-add-todo.
+Todos are captured during work sessions with /bgsd-plan todo add.
 
 ---
 
 Would you like to:
 
-1. Continue with current phase (/bgsd-progress)
-2. Add a todo now (/bgsd-add-todo)
+1. Review current phase status (/bgsd-inspect progress)
+2. Add a todo now (/bgsd-plan todo add "Describe the todo")
 ```
 
 Exit.
@@ -34,8 +34,8 @@ Exit.
 
 <step name="parse_filter">
 Check for area filter in arguments:
-- `/bgsd-check-todos` → show all
-- `/bgsd-check-todos api` → filter to area:api only
+- `/bgsd-plan todo check` → show all
+- `/bgsd-plan todo check api` → filter to area:api only
 </step>
 
 <step name="list_todos">
@@ -53,7 +53,7 @@ Pending Todos:
 ---
 
 Reply with a number to view details, or:
-- `/bgsd-check-todos [area]` to filter by area
+- `/bgsd-plan todo check [area]` to filter by area
 - `q` to exit
 ```
 
@@ -121,7 +121,7 @@ Update STATE.md todo count. Present problem/solution context. Begin work or ask 
 Note todo reference in phase planning notes. Keep in pending. Return to list or exit.
 
 **Create a phase:**
-Display: `/bgsd-add-phase [description from todo]`
+Display: `/bgsd-plan roadmap add [description from todo]`
 Keep in pending. User runs command in fresh context.
 
 **Brainstorm approach:**

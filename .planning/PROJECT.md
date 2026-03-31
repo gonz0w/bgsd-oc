@@ -2,27 +2,70 @@
 
 ## What This Is
 
-A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-six versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling), v14.0 (LLM workload reduction — workflow measurement, 41.1% avg compression across 10 workflows, 3 shared skills extracted, scaffold generation, conditional section elision), and v14.1 (tool-aware agent routing — 4 workflows and 3 agents consume tool detection decisions, E2E + contract validation tests, DECISION_REGISTRY pruned 22→19, 1677 tests passing).
+A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-seven versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling), v14.0 (LLM workload reduction — workflow measurement, 41.1% avg compression across 10 workflows, 3 shared skills extracted, scaffold generation, conditional section elision), and v14.1 (tool-aware agent routing — 4 workflows and 3 agents consume tool detection decisions, E2E + contract validation tests, DECISION_REGISTRY pruned 22→19, 1677 tests passing).
 
 ## Core Value
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v16.0 Enterprise Developer Team
+## Current Milestone: None active
 
-**Goal:** Transform bGSD from a planning/execution engine into a complete enterprise development team — adding code review, security audit, release pipeline, structured agent memory, and safety guardrails. Inspired by competitive analysis of gstack (sprint lifecycle) and hermes-agent (self-improvement, memory).
+**Status:** v17.1 Workflow Reliability & Foundation Hardening shipped on 2026-03-30.
+**Next milestone setup:** Use `/bgsd-new-milestone` when ready to define the next roadmap slice.
 
-**Target features:**
-- Code review workflow (`/bgsd-review`) with structural audit, auto-fix, and batched user questions
-- Security audit workflow (`/bgsd-security`) with OWASP Top 10, secrets scanning, dependency checks, confidence-gated findings
-- Review readiness dashboard CLI command showing pre-ship status (tests, lint, coverage, TODOs)
-- Automated release workflow (`/bgsd-release`) with semver version bump, changelog generation, git tag, PR creation
-- Structured agent memory (MEMORY.md) injected into prompts for cross-session learning
-- Destructive command detection and safety guardrails for production-dangerous operations
+## Milestone Status
+
+**Current milestone:** None active
+**Next step:** Define the next milestone with `/bgsd-new-milestone`
 
 ## Current State
 
-**Last shipped:** v15.0 Workflow Questioning & Decision Quality (2026-03-20)
+**Last shipped:** v17.1 Workflow Reliability & Foundation Hardening (2026-03-30)
+**Now planning:** No active milestone - ready for next milestone definition
+
+<details>
+<summary>Latest shipment: v17.1 Workflow Reliability & Foundation Hardening (shipped 2026-03-30)</summary>
+
+- Shared mutation contracts now unify touched state/session, JSON-backed memory, config, handoff, and plugin progress writes behind locked or atomic update paths
+- Planning and verifier flows now consume one truthful `must_haves` metadata contract with shared indexes and approval-time semantic gates
+- JJ execution now supports path-scoped fallback commits in dirty or detached colocated workspaces while verification checks repo-local runtime freshness
+- Plan realism analysis and completion repair now catch stale guidance earlier and recompute summary, focus, and progress metadata from on-disk truth
+- Touched CLI and plugin diagnostics now use one shared `BGSD_DEBUG` or `--verbose` contract with quiet defaults and explicit investigation output
+
+</details>
+
+<details>
+<summary>Previous: v17.0 JJ Workspaces, Intent Cascade & Command Simplification (shipped 2026-03-30)</summary>
+
+- JJ-first execution now gates execution entrypoints, replaces Git worktree guidance with JJ workspace commands, and ships stale/divergent recovery diagnostics
+- Canonical `/bgsd-quick`, `/bgsd-plan`, `/bgsd-inspect`, and `/bgsd-settings` families now anchor the surfaced command model while legacy entrypoints remain compatibility aliases
+- Help, workflows, docs, templates, skills, and plugin runtime guidance now validate against a shared command-integrity contract so surfaced next steps stay executable
+- Milestone, project, and phase intent now cascade through compact `effective_intent` payloads, while phase-local intent is explicit in context artifacts
+- Verification and UAT now report intent alignment separately from requirement coverage, and legacy Phase 160-style contexts keep a no-guess fallback that matches source and bundled runtime
+
+</details>
+
+<details>
+<summary>Previous: v16.1 Workflow Reliability & Acceleration (shipped 2026-03-29)</summary>
+
+- Deterministic TDD selection, rationale, and severity guidance now stay aligned across planner, checker, workflows, templates, docs, and CLI help
+- `execute:tdd` now enforces exact-command RED/GREEN/REFACTOR validation with structured proof payloads and trailer-aware summary rendering
+- `phase:snapshot`, snapshot-backed init reuse, and batched `verify:state complete-plan` reduce repeated discovery and fragmented plan-finalization work
+- Cached plan indexing, durable handoff artifacts, resume freshness enforcement, and proof-preserving fresh-context chaining now operate in the production workflow path
+- Production-created TDD audit sidecars now survive resumable handoff refreshes, surface in resume inspection, and re-render in downstream summaries through one end-to-end regression
+
+</details>
+
+<details>
+<summary>Previous: v16.0 Enterprise Developer Team (shipped 2026-03-28)</summary>
+
+- Added destructive-command safety guardrails with Unicode-aware detection, sandbox bypass, and advisory confirmation
+- Added structured agent memory with `MEMORY.md`, management CLI, frozen prompt snapshots, and unsafe-entry blocking
+- Added `/bgsd-review` scan-first workflow with auto-fix routing, ASK batching, and bootstrap-driven orchestration
+- Added `/bgsd-security` security workflow with OWASP coverage, secrets scanning, dependency advisory checks, and verifier reporting
+- Added `review:readiness` plus `/bgsd-release` with dry-run release preview, changelog drafting, resumable tag/PR flow, and github-ci handoff
+
+</details>
 
 <details>
 <summary>Previous: v15.0 Workflow Questioning & Decision Quality (shipped 2026-03-20)</summary>
@@ -314,14 +357,44 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 - ✓ E2E + contract validation: 13 E2E tests prove tool-dependent decision outputs; 11 contract tests prove zero orphaned Chain B rules — v14.1
 - ✓ Infrastructure pruning: handoff_tool_context simplified to capability_level only; 3 orphaned decision rules removed; DECISION_REGISTRY at 19 entries — v14.1
 
-### Active
+- ✓ Destructive command detection with advisory confirmation, Unicode normalization, and sandbox bypass — v16.0
+- ✓ Structured `MEMORY.md` storage with CLI management, frozen snapshots, and unsafe-entry screening — v16.0
+- ✓ `/bgsd-review` workflow with scan-first analysis, safe auto-fix routing, and ASK batching — v16.0
+- ✓ `/bgsd-security` workflow with OWASP coverage, secrets scanning, dependency advisory checks, and verifier assessment — v16.0
+- ✓ `review:readiness` advisory dashboard for ship-readiness signals — v16.0
+- ✓ `/bgsd-release` dry-run release workflow with semver bump, changelog drafting, resumable tag/PR automation, and github-ci handoff — v16.0
 
-- Code review workflow with structural audit, auto-fix capability, and batched user questions — v16.0
-- Security audit workflow with OWASP Top 10, secrets scanning, dependency vulnerability checks — v16.0
-- Review readiness dashboard CLI command for pre-ship status checking — v16.0
-- Automated release workflow with semver version bump, changelog generation, git tag, PR creation — v16.0
-- Structured agent memory (MEMORY.md) with cross-session learning injected into prompts — v16.0
-- Destructive command detection with safety guardrails for production-dangerous operations — v16.0
+- ✓ Deterministic TDD selection, rationale visibility, and severity-aligned canonical TDD contract across planner, checker, workflows, templates, and docs — v16.1
+- ✓ Exact-command `execute:tdd` validation with structured proof payloads and trailer-aware summary audit rendering — v16.1
+- ✓ Shared `phase:snapshot`, snapshot-backed init reuse, and batched `verify:state complete-plan` plan finalization — v16.1
+- ✓ Cached plan indexing, durable handoff artifacts, runtime resume freshness checks, and resumable fresh-context delivery through production workflow wiring — v16.1
+- ✓ Shared mutation and storage contracts now keep touched state/session, config, handoff, and JSON-backed planning data on one canonical write path — v17.1
+- ✓ Truthful shared plan metadata and approval-time semantic gates now keep planner, checker, and verifier `must_haves` handling aligned — v17.1
+- ✓ JJ path-scoped fallback commits and repo-local runtime freshness verification now make detached or dirty execution states reliable — v17.1
+- ✓ Plan realism analysis plus plan-scoped completion readback repair now keep execution guidance and summary/state metadata aligned to on-disk truth — v17.1
+- ✓ Shared `BGSD_DEBUG` or `--verbose` diagnostics now keep default CLI and plugin runs quiet while preserving explicit reliability investigation output — v17.1
+- ✓ JJ-first execution gate plus JJ workspace lifecycle and recovery-first diagnostics — v17.0
+- ✓ Canonical `/bgsd-quick`, `/bgsd-plan`, `/bgsd-inspect`, and `/bgsd-settings` command families with compatibility aliases — v17.0
+- ✓ Inventory-backed command-integrity validation for help, docs, workflows, skills, templates, and runtime guidance — v17.0
+- ✓ Milestone, phase, and effective-intent cascade across planning and verification surfaces — v17.0
+- ✓ Explicit phase-intent blocks and separate intent-alignment verdicts in verifier and UAT flows — v17.0
+- ✓ Shared no-guess legacy phase-intent fallback parity between source and bundled runtime — v17.0
+
+### Backlog Seeds
+
+- TDD reliability follow-up using `.planning/research/TDD-RELIABILITY-PRD.md` as the planning seed
+- Workflow acceleration follow-up using `.planning/research/WORKFLOW-ACCELERATION-PRD.md` as the planning seed
+- Dynamic model configuration follow-up using `.planning/research/DYNAMIC-MODEL-CONFIG-PRD.md` as the planning seed
+- Greenfield compatibility cleanup follow-up using `.planning/research/GREENFIELD-COMPAT-CLEANUP-PRD.md` as the planning seed
+- CMUX-first OpenCode UX follow-up using `research/CMUX-FIRST-UX-PRD.md` and `research/CMUX-FIRST-UX-BACKLOG.md` as the planning seeds
+- Multi-user repo coordination follow-up using `.planning/research/MULTI-USER-REPO-COORDINATION-PRD.md` and `.planning/research/MULTI-USER-REPO-COORDINATION-BACKLOG.md` as the planning seeds
+- Clarify legacy `verify:state` `Plan` alias expectations or explicitly deprecate them in a follow-up reliability slice
+- Refresh stale integration fixtures that still assume pre-164 empty `must_haves` approval semantics
+- Add a narrower plugin smoke slice for post-audit confidence without broad test-run timeouts
+- Add help-text coverage for `verify:state complete-plan` so the routed command is discoverable in CLI help
+- Run a real editor-driven fresh-context chain to confirm `resume` / `inspect` / `restart` UX matches the tested contract
+- Inspect a real generated summary in the normal workflow to confirm preserved TDD proof rendering is clear for humans
+- Browser-based E2E testing, post-deploy monitoring, and cross-model validation remain deferred to later milestones
 
 ### Out of Scope
 
@@ -427,6 +500,19 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 | Hardcoded SUMMARY baselines in workflow:savings | On-disk baselines all post-compression; SUMMARY data provides pre-compression reference | Good — accurate historical comparison |
 | Non-blocking dangling reference check | Warnings in _elision debug field, no enrichment failure | Good — observability without risk |
 | Scaffold merge idempotency | Re-running preserves LLM-written judgment sections while refreshing data sections | Good — safe to re-run |
+| Canonical TDD contract in one skill-backed source | Phase 149 needed planner, checker, templates, workflows, and help text to stop drifting independently | Good — selection, rationale, and severity guidance now stay aligned |
+| Shared phase snapshot plus cache-backed init reuse | High-traffic workflows were paying repeated discovery costs for the same phase metadata | Good — snapshot/init paths now stay additive while avoiding rescans |
+| Durable handoffs validated with canonical phase-input fingerprints | Fresh-context resume needed real stale-source enforcement at production entrypoints, not only contract text | Good — resume now fails closed on stale inputs while preserving repair and inspection paths |
+| TDD audit sidecars preserved through resumable handoff refreshes | End-to-end proof delivery needed one durable proof source that survives execute -> verify -> summary transitions | Good — proof continuity is now visible in resume inspection and downstream summaries |
+| JJ-first execution replaces Git worktrees | Execution isolation and recovery had outgrown worktree-shaped local flows | Good — JJ gating, workspace lifecycle commands, and op-log recovery now define the supported execution model |
+| Canonical grouped command families over many top-level wrappers | Users needed a smaller, teachable surface without breaking existing entrypoints overnight | Good — `/bgsd-plan`, `/bgsd-inspect`, and `/bgsd-settings` now anchor surfaced guidance while aliases still resolve |
+| `effective_intent` as the compact planning/verifier contract | Raw intent document injection was noisy and inconsistent across surfaces | Good — project, milestone, and phase purpose now layer into one compact payload |
+| Legacy phase-intent fallback must be explicit and shared | Verification drift across source and bundle made intent alignment unstable on older contexts | Good — legacy contexts stay `not assessed` unless they carry the explicit phase-intent block |
+| Canonical mutation paths over duplicated planning writes | Reliability hardening needed state/session, JSON-backed memory, config, and plugin progress to stop drifting across separate write implementations | Good — touched milestone flows now share lock-safe or atomic contracts instead of independent mutation code |
+| Shared verifier-facing metadata normalization and approval gates | Real plans were using multiple `must_haves` shapes and weak approval checks were allowing misleading metadata through | Good — planner, checker, and verifier now use one truthful metadata contract with loud inconclusive failures |
+| Repo-local runtime truth over ambient bundle assumptions | JJ execution and verification were unreliable when local source and generated runtime drifted apart | Good — deliverables verification and workflow guidance now prove the active checkout against rebuilt local artifacts |
+| Disk-truth completion repair over ambient workspace heuristics | Summary generation and complete-plan metadata were drifting when dirty workspaces or stale in-memory fields leaked into finalization | Good — plan-scoped files, totals, focus, and roadmap/state wording now recompute from on-disk truth before success returns |
+| One debug contract with quiet defaults | Reliability investigations needed explicit diagnostics without noisy normal-path stdout or duplicated stderr chatter | Good — touched CLI and plugin flows now share `BGSD_DEBUG` or `--verbose` gating with clean default output |
 
 ---
 
@@ -434,4 +520,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-28 after v16.0 milestone start*
+*Last updated: 2026-03-30 after completing milestone v17.1 Workflow Reliability & Foundation Hardening*

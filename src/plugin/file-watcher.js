@@ -27,11 +27,11 @@ import { createLogger } from './logger.js';
  * Create a file watcher instance for a project directory.
  *
  * @param {string} cwd - Project working directory
- * @param {{ debounceMs?: number, maxWatchedPaths?: number }} [options] - Configuration
+ * @param {{ debounceMs?: number, maxWatchedPaths?: number, onExternalChange?: Function }} [options] - Configuration
  * @returns {{ start: Function, stop: Function, trackSelfWrite: Function, isWatching: Function }}
  */
 export function createFileWatcher(cwd, options = {}) {
-  const { debounceMs = 200, maxWatchedPaths = 500 } = options;
+  const { debounceMs = 200, maxWatchedPaths = 500, onExternalChange = null } = options;
 
   const planningDir = join(cwd, '.planning');
 
@@ -71,6 +71,15 @@ export function createFileWatcher(cwd, options = {}) {
 
     if (externalPaths.length > 0) {
       invalidateAll(cwd);
+      if (typeof onExternalChange === 'function') {
+        for (const filePath of externalPaths) {
+          try {
+            onExternalChange(filePath);
+          } catch {
+            // External change callbacks are best-effort only.
+          }
+        }
+      }
     }
   }
 

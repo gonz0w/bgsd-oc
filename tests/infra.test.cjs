@@ -64,6 +64,22 @@ describe('debug logging', () => {
     }
   });
 
+  test('verbose mode enables debug output without BGSD_DEBUG', () => {
+    const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-debug-'));
+    try {
+      const cleanEnv = { ...process.env };
+      delete cleanEnv.BGSD_DEBUG;
+      const result = runWithStderr('init:progress --verbose', {
+        cwd: tmpDir,
+        env: cleanEnv,
+      });
+      const debugLines = (result.stderr || '').split('\n').filter(l => l.includes('[BGSD_DEBUG]'));
+      assert.ok(debugLines.length > 0, `Expected verbose mode debug output, got: ${result.stderr.slice(0, 200)}`);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('stdout JSON remains valid when BGSD_DEBUG=1', () => {
     // current-timestamp (without --raw) always succeeds and returns JSON
     const result = runWithStderr('util:current-timestamp', {
@@ -93,6 +109,55 @@ describe('debug logging', () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('quiet default runtime diagnostics', () => {
+  test('invalid compile-cache env stays quiet by default', () => {
+    const { spawnSync } = require('child_process');
+    const script = `
+      const { isCompileCacheEnabled, getCompileCacheArgs, diagnoseCompileCache } = require('./src/lib/runtime-capabilities');
+      const enabled = isCompileCacheEnabled();
+      const args = getCompileCacheArgs();
+      const diagnostics = diagnoseCompileCache();
+      process.stdout.write(JSON.stringify({ enabled, args, diagnostics }));
+    `;
+
+    const result = spawnSync(process.execPath, ['-e', script], {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      env: { ...process.env, BGSD_COMPILE_CACHE: 'maybe', BGSD_DEBUG: '' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    assert.strictEqual(result.status, 0, `script should exit cleanly: ${result.stderr}`);
+    assert.strictEqual(result.stderr.trim(), '', 'default invalid env path should stay quiet');
+
+    const parsed = JSON.parse(result.stdout);
+    assert.strictEqual(parsed.enabled.source, 'env-invalid', 'invalid env should still be classified');
+    assert.strictEqual(parsed.args.useCache, false, 'invalid env should not enable compile cache');
+  });
+
+  test('invalid compile-cache env emits one debug diagnostic when BGSD_DEBUG=1', () => {
+    const { spawnSync } = require('child_process');
+    const script = `
+      const { isCompileCacheEnabled, getCompileCacheArgs, diagnoseCompileCache } = require('./src/lib/runtime-capabilities');
+      isCompileCacheEnabled();
+      getCompileCacheArgs();
+      diagnoseCompileCache();
+      process.stdout.write('ok');
+    `;
+
+    const result = spawnSync(process.execPath, ['-e', script], {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf-8',
+      env: { ...process.env, BGSD_COMPILE_CACHE: 'maybe', BGSD_DEBUG: '1' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    assert.strictEqual(result.status, 0, `script should exit cleanly: ${result.stderr}`);
+    const matches = (result.stderr.match(/Invalid BGSD_COMPILE_CACHE value: maybe/g) || []).length;
+    assert.strictEqual(matches, 1, `expected one invalid-value diagnostic, got ${matches}: ${result.stderr}`);
   });
 });
 
@@ -355,7 +420,7 @@ describe('config-migrate command', () => {
       git: { branching_strategy: 'none', phase_branch_template: 'gsd/phase-{phase}-{slug}', milestone_branch_template: 'gsd/{milestone}-{slug}' },
       workflow: { research: true, plan_check: true, verifier: true, rag: true, rag_timeout: 30 },
       optimization: { valibot: true, valibot_fallback: false, discovery: 'optimized', compile_cache: false, sqlite_cache: true },
-      tools: { ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true },
+      tools: { ripgrep: true, fd: true, jq: true, yq: true, ast_grep: true, sd: true, hyperfine: true, bat: true, gh: true },
       ytdlp_path: '',
       nlm_path: '',
       mcp_config_path: '',
@@ -854,4 +919,3 @@ describe('compact default behavior', () => {
 
 // profiler tests removed — src/lib/profiler.js module was intentionally deleted
 // (Phase 114: Test Suite Stabilization)
-

@@ -1,8 +1,8 @@
 ---
-description: Show project progress and status
+description: Compatibility alias for `/bgsd-inspect progress`
 ---
 <objective>
-Show project progress and status.
+Preserve the legacy progress entrypoint while routing to the canonical inspect progress behavior.
 </objective>
 
 <execution_context>
@@ -10,9 +10,13 @@ Show project progress and status.
 </execution_context>
 
 <context>
-$ARGUMENTS: Optional arguments
+$ARGUMENTS: Optional progress arguments
 </context>
 
 <process>
-Execute the progress workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/progress.md end-to-end.
+Treat `/bgsd-progress` as a compatibility alias for `/bgsd-inspect progress`.
+
+Execute the same progress workflow contract used by the canonical inspect family from @__OPENCODE_CONFIG__/bgsd-oc/workflows/progress.md end-to-end with all provided arguments.
+
+Keep this alias read-only and compatibility-focused.
 </process>

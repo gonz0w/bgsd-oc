@@ -73,7 +73,7 @@ Task(
 
 ```
 Task(
-  prompt="Read __OPENCODE_CONFIG__/agents/bgsd-planner.md. Revise ${QUICK_DIR}/${next_num}-PLAN.md. Issues: ${structured_issues}. Targeted updates only, do NOT replan. Return what changed.",
+  prompt="Read __OPENCODE_CONFIG__/agents/bgsd-planner.md. Revise ${QUICK_DIR}/${next_num}-PLAN.md. Issues: ${structured_issues}. Targeted updates only, do NOT replan. Return what changed. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.",
   subagent_type="general",
   model="{planner_model}",
   description="Revise quick plan: ${DESCRIPTION}"

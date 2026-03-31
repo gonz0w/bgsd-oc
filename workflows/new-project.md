@@ -19,7 +19,7 @@ If `--auto` flag: requires idea document, skip brownfield/questioning, YOLO impl
 
 Parse `<bgsd-context>` JSON for: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `project_exists`, `needs_codebase_map`, `has_git`, `project_path`.
 
-If `project_exists` true → error, use `/bgsd-progress`. If `has_git` false → `git init`.
+If `project_exists` true → error, use `/bgsd-inspect progress`. If `has_git` false → `git init`.
 <!-- /section -->
 
 <!-- section: brownfield_check -->
@@ -139,7 +139,7 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create
 <!-- section: done -->
 ## 9. Done
 
-Present: project name, artifact locations, phase/requirement counts. **Auto:** `/bgsd-discuss-phase 1 --auto`. **Interactive:** Next Up block with `/bgsd-discuss-phase 1`.
+Present: project name, artifact locations, phase/requirement counts. **Auto:** `/bgsd-plan discuss 1 --auto`. **Interactive:** Next Up block with `/bgsd-plan discuss 1`.
 <!-- /section -->
 
 </process>

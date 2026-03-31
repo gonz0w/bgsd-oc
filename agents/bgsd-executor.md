@@ -12,11 +12,7 @@ tools:
   glob: true
 ---
 
-**PATH SETUP:** Before running any bgsd-tools commands, first resolve:
-```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-```
-Then use `$BGSD_HOME` in all subsequent commands. Never hardcode the config path.
+Use installed bGSD assets via `__OPENCODE_CONFIG__/bgsd-oc/...` in any command or file reference.
 
 <skills>
 | Skill | Provides | When to Load | Placeholders |
@@ -66,8 +62,10 @@ Use resolved commands from the table — no if/else conditionals in your executi
 Load execution context:
 
 ```bash
-INIT=$(node $BGSD_HOME/bin/bgsd-tools.cjs init:execute-phase "${PHASE}")
+INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:execute-phase "${PHASE}")
 ```
+
+Run that command from the target repo as the current working directory. Repo detection and JJ gating are cwd-sensitive, so temp-repo validation must execute inside the temp repo rather than the main workspace.
 
 Extract from init JSON: `executor_model`, `commit_docs`, `phase_dir`, `plans`, `incomplete_plans`.
 
@@ -149,7 +147,7 @@ For each task:
 Check if auto mode is active at executor start:
 
 ```bash
-AUTO_CFG=$(node $BGSD_HOME/bin/bgsd-tools.cjs util:config-get workflow.auto_advance 2>/dev/null || echo "false")
+AUTO_CFG=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.auto_advance 2>/dev/null || echo "false")
 ```
 
 Store the result for checkpoint handling.
@@ -205,11 +203,26 @@ Do NOT skip. Do NOT proceed to state updates if self-check fails.
 
 <final_commit>
 ```bash
-node $BGSD_HOME/bin/bgsd-tools.cjs execute:commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
 
 Separate from per-task commits — captures execution results only.
 </final_commit>
+
+<lessons_reflection>
+Before returning your final result, review the full subagent-visible conversation, prompt context, tool calls, errors, retries, and outcome for one durable workflow improvement.
+
+Capture a lesson only when all are true:
+- reusable beyond this one run
+- rooted in prompt, workflow, tooling, or agent-behavior quality
+- clear root cause and clear prevention rule
+
+Do not capture user-specific preferences, one-off environment noise, or normal auth gates.
+Capture at most 1 lesson per run using the existing lessons subsystem:
+`node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:capture --title "..." --severity LOW|MEDIUM|HIGH|CRITICAL --type workflow|agent-behavior|tooling --root-cause "..." --prevention "..." --agents "bgsd-executor[,other-agent]"`
+
+Set `--agents` to yourself and any other materially affected agent(s).
+</lessons_reflection>
 
 <skill:structured-returns section="executor" />
 

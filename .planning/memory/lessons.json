@@ -12,14 +12,923 @@
     ]
   },
   {
-    "id": "47bc0a0a-273f-47bc-b47d-38f0f88d2ccb",
-    "date": "2026-02-28T00:00:00.000Z",
-    "title": "2026-02-28: Anthropic Auth Plugin System Prompt Mangling",
+    "id": "52774a39-7796-487a-9a94-d7c4d01fe87d",
+    "date": "2026-03-29T15:36:04.873Z",
+    "title": "Researcher persistence instruction should mention apply_patch fallback",
     "severity": "MEDIUM",
-    "type": "environment",
-    "root_cause": "**Severity:** Critical — caused days of debugging, directory confusion, broken path references\n**Root Cause:**\nThe auth plugin (v0.0.13) performs a global text replacement on the entire system prompt before sending it to Anthropic's API. This is done because Anthropic's OAuth endpoint blocks requests containing the literal editor name.\nThe replacement logic in the plugin's `index.mjs`:\n```javascript\n// In experimental.chat.system.transform AND in the fetch() interceptor:\ntext.replace(/OpenCode/g",
-    "prevention_rule": "Migrated from free-form lessons — review and update",
-    "affected_agents": [],
-    "migrated_from": "/mnt/raid/DEV/bgsd-oc/lessons.md"
+    "type": "tooling",
+    "root_cause": "The phase-researcher instructions say RESEARCH.md must always be persisted with the Write tool, but some agent runtimes expose apply_patch and not Write. That creates avoidable hesitation and retries even though file persistence is still possible.",
+    "prevention_rule": "Update researcher instructions to say: use Write when available; otherwise use apply_patch or the environment's supported file-write tool. Keep the requirement about persisting to disk, not the exact tool name.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "dd7d30eb-2611-43ee-8d74-bd1b239eac23",
+    "date": "2026-03-29T16:05:59.154Z",
+    "title": "Verify cwd-sensitive CLI flows from the target repo",
+    "severity": "LOW",
+    "type": "agent-behavior",
+    "root_cause": "Temp-repo verification initially invoked the CLI from the main workspace, so cwd-sensitive JJ detection exercised the wrong repository and hid the real setup-hint behavior.",
+    "prevention_rule": "When validating repo-detection or init commands, run the CLI with the temp repo as cwd (or change into it explicitly) before trusting the result.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "79591bb5-f9c2-41cd-ae2d-f9f430a50717",
+    "date": "2026-03-29T16:24:10.279Z",
+    "title": "Execution-init gate changes need shared backend-ready test fixtures",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Execution-init broad regression fixtures created temp planning projects without initializing the backend required by the newly enforced JJ execution gate, so contract and integration coverage drifted behind the shipped runtime contract.",
+    "prevention_rule": "When execution entrypoints gain stricter prerequisites, add or reuse a shared fixture helper that initializes the required backend (for example JJ) and update every execution-init test to use it before broad regression runs.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "e7fc46db-0f24-4559-99bb-01c492dd033f",
+    "date": "2026-03-29T16:29:05.074Z",
+    "title": "Plan artifact verifier misses nested must_haves blocks in plan frontmatter",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The built-in verify:verify artifacts and verify:verify key-links commands returned 'No must_haves.* found' for Phase 155 plans even though the frontmatter clearly contains nested must_haves truth/artifact/key_link arrays, forcing manual verification instead of the intended fast path.",
+    "prevention_rule": "Before relying on verify:verify artifacts/key-links in verifier workflows, validate the parser against current PLAN.md frontmatter shape and add regression coverage for nested must_haves arrays so verification automation matches planner output.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "047d0363-6ba0-4043-b78e-f965327d6932",
+    "date": "2026-03-29T17:02:57.250Z",
+    "title": "Plan checker should always re-run structural validation after requested fixes",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Re-check requests can rely on stale prior findings unless the checker re-validates current plan files after mandatory rereads.",
+    "prevention_rule": "For every re-check, reread the requested plan files first, then rerun plan-structure validation before issuing a final pass/fail judgment.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "f763bda3-e511-4cbb-b407-bc7230dc77eb",
+    "date": "2026-03-29T17:38:54.455Z",
+    "title": "verify:state complete-plan should tolerate ready-to-plan STATE headers",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The executor workflow relied on verify:state complete-plan, but the command could not parse STATE.md when Current Plan was 'None' and Total Plans in Phase was '0' even though phase plans existed on disk.",
+    "prevention_rule": "Make complete-plan fall back to roadmap/phase inventory when STATE.md is still in a ready-to-plan shape so executors can finalize the first plan without manual STATE edits.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "fa514149-34a7-4872-b287-1d5073125794",
+    "date": "2026-03-29T17:48:23.458Z",
+    "title": "Scope summary generation to plan-owned files during parallel wave execution",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "util:summary-generate inferred file lists from the concurrent working tree, so the generated 156-03 summary included files from sibling plan execution instead of only this plan's artifacts.",
+    "prevention_rule": "When multiple wave plans can land concurrently, summary generation should derive changed files from the plan's task commits or declared files_modified list rather than the full repo diff.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "1d1e3dfa-dfe7-4e8c-b98a-cac19a17a5fd",
+    "date": "2026-03-29T17:48:45.662Z",
+    "title": "execute:commit blocks jj detached-head task commits",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute:commit helper still performs Git detached-head safety checks even when plan execution is happening in a JJ-first colocated workflow where atomic commits are created with jj split/commit.",
+    "prevention_rule": "Detect colocated JJ execution and skip Git detached-head blocking in execute:commit, or route executor task commits through JJ-native commit creation before Git safety checks run.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "ad543bcc-d486-4970-8dc6-80644b3323fb",
+    "date": "2026-03-29T17:51:12.196Z",
+    "title": "Verifier should fall back when artifact checker misses nested must_haves",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The installed verify:verify artifacts/key-links command reported 'No must_haves' for Phase 156 plan files even though nested must_haves data was present in frontmatter, which can create false negatives during verification.",
+    "prevention_rule": "When automated artifact/key-link verification returns missing-metadata errors, verifiers should confirm the plan frontmatter manually and continue with direct file/wiring checks instead of treating the command result as authoritative.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "67a8b3e0-b8bb-47b0-8d9b-03b4360af1da",
+    "date": "2026-03-29T18:24:57.745Z",
+    "title": "Plan checks should compare deferred context decisions against roadmap success criteria",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase context can intentionally defer automation details while ROADMAP success criteria still require an observable user-facing outcome, so a plan may look context-compliant yet still miss the phase goal.",
+    "prevention_rule": "During plan verification, explicitly map each roadmap success criterion to planned tasks after checking context compliance, and flag cases where deferred implementation details remove the user-facing behavior the roadmap still promises.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "bcd79368-b20a-43d3-95a0-44005e9c4943",
+    "date": "2026-03-29T18:45:02.340Z",
+    "title": "Fall back to jj when execute:commit hits detached HEAD",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The git-backed execute:commit helper assumes an attached HEAD, but JJ colocated workspaces can present detached HEAD state during executor runs even when normal jj commits are valid.",
+    "prevention_rule": "When execute:commit fails with a detached-head pre-check in a JJ-backed repo, fall back to a path-scoped jj commit for the metadata files instead of retrying the git helper unchanged.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "0b942d1e-2201-4198-8285-beed917acf30",
+    "date": "2026-03-29T19:00:51.703Z",
+    "title": "Use path-scoped jj commit when execute:commit hits detached-head preflight in colocated workspaces",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The generic execute:commit helper performs Git branch and dirty-tree prechecks that can reject valid JJ colocated execution states even when a path-scoped metadata commit is safe and intended.",
+    "prevention_rule": "When plan execution runs inside a JJ colocated workspace with unrelated working-copy changes, prefer a path-scoped jj commit for summary/state metadata instead of relying on execute:commit Git preflights.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "7ec9413d-0ae3-46ce-afc3-6449acf4ee3e",
+    "date": "2026-03-29T19:09:01.304Z",
+    "title": "Mirror agent-context manifest updates across runtime and cached paths",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Agent-facing context fields can land in init output first while runtime scoping manifests or cached agent-context generators still omit them, leaving downstream consumers inconsistent.",
+    "prevention_rule": "When adding a new agent-facing context field, update both src/lib/context.js and src/lib/codebase-intel.js in the same task and add scoped integration coverage for at least one live init path plus one cached-context path.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "fadaaadd-e881-4156-acf2-5c55e953de59",
+    "date": "2026-03-29T19:17:38.403Z",
+    "title": "Use jj split for executor commits in detached-head JJ workspaces",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute:commit helper rejected this repo state because task execution happened in a detached-head JJ workspace with unrelated working-copy changes, while the executor still needed atomic path-scoped commits.",
+    "prevention_rule": "When executor tasks run in JJ-backed detached-head workspaces, prefer non-interactive path-scoped \u001b[?1049h\u001b[?1000h\u001b[?1002h\u001b[?1003h\u001b[?1015h\u001b[?1006h commits for task and metadata commits instead of assuming execute:commit can always stage files safely.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "3201f4bd-e12d-49be-b1f3-5dd53c5d83b2",
+    "date": "2026-03-29T19:20:00.499Z",
+    "title": "Validate PLAN must_haves serialization before verification",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase PLAN frontmatter serialized must_haves.artifacts and key_links with malformed quoted YAML, so verify:verify artifacts/key-links could not parse them and automated verification had to fall back to manual checks.",
+    "prevention_rule": "Have planner/checker reject malformed must_haves YAML and run verify:verify artifacts/key-links against generated PLANs before execution or verification handoff.",
+    "affected_agents": [
+      "bgsd-verifier",
+      "bgsd-planner",
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "2a456522-a382-4477-9a7d-e045d22d972d",
+    "date": "2026-03-29T19:33:21.903Z",
+    "title": "Plan checker should validate verifier-consumable must_haves format",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Plan frontmatter can pass generic schema validation while nested must_haves artifact/key-link entries are still parsed as plain strings, so verification tools report missing artifacts/key_links later in the workflow.",
+    "prevention_rule": "During plan checking, always run verifier-facing artifact/key-link extraction (not just schema validation) on any plan that edits or relies on must_haves metadata before approving it.",
+    "affected_agents": [
+      "bgsd-plan-checker",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "0bbafff2-2575-4994-a083-14bcb44e1c2d",
+    "date": "2026-03-29T19:36:26.924Z",
+    "title": "Phase re-verification should target gap-closure evidence explicitly",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Re-verification prompts that mention a targeted revised gap-closure plan can still leave the checker to infer whether prior verification gaps should be treated as the primary pass/fail axis.",
+    "prevention_rule": "When requesting plan re-verification after a revision, explicitly name the prior blocker/warning IDs or truths to re-check so plan checkers can map the new plan against those exact gaps without ambiguity.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "6325f524-bce9-423b-a9a6-5ba6bbed130f",
+    "date": "2026-03-29T19:49:45.672Z",
+    "title": "Execute-plan verification examples can drift from live verify subcommands",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The plan and execute workflow still referenced , but the live CLI only supports subcommands like  and , forcing an executor-time fallback during plan completion.",
+    "prevention_rule": "Keep workflow templates and generated plan verification examples synced to the current  contract, and add a regression that rejects stale subcommand names in plan/workflow docs.",
+    "affected_agents": [
+      "bgsd-executor",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "9eb785f0-d2a8-44ff-98c3-f2911f2c11dc",
+    "date": "2026-03-29T19:53:32.136Z",
+    "title": "Use repo-local CLI for undeployed verification",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Verification commands initially used the installed bgsd-tools binary from the editor config, which can lag behind the working tree and hide newly added runtime fields during codebase verification.",
+    "prevention_rule": "When verifying changes in the development workspace, prefer the repo-local ./bin/bgsd-tools.cjs for runtime checks and use installed assets only for shared workflow/template references unless deployment parity is the thing being verified.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "19e00779-d506-4abf-9726-e4ed912cafb0",
+    "date": "2026-03-29T20:41:01.958Z",
+    "title": "Phase research should follow intent-linked PRDs for scope boundaries",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase research prompts require roadmap/context files but do not explicitly tell researchers to read the milestone PRD linked from INTENT/requirements traceability, so command-surface phases can accidentally blend canonical-surface work with later help/audit phases.",
+    "prevention_rule": "When a phase maps to an intent outcome with a linked PRD, researcher workflows should explicitly read that PRD or instruct the agent to trace from INTENT/REQUIREMENTS to the milestone PRD before finalizing scope and plan slices.",
+    "affected_agents": [
+      "bgsd-phase-researcher",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "8f7a0bcb-e275-4fab-abd8-795121d1c83d",
+    "date": "2026-03-29T20:46:46.451Z",
+    "title": "Planner instructions should use current plan validation commands",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The planner instructions still referenced legacy validation invocations ( and ) after the CLI moved to namespaced forms, which caused avoidable validation retries during planning.",
+    "prevention_rule": "Keep agent prompts aligned with the shipped CLI by validating documented command examples against the current command registry whenever command namespaces change; update planner guidance to use  and .",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "e6d50153-3185-43a4-a20c-655ef6f42fe7",
+    "date": "2026-03-29T20:52:50.167Z",
+    "title": "Align planning skills with shipped wave-validation commands",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The planner dependency and scope skills reference a  command that is not implemented in the current bgsd-tools CLI, which leads agents to spend a validation step on a guaranteed failure during plan revision or creation.",
+    "prevention_rule": "Keep skill examples synced to shipped CLI commands or add a compatibility alias so advertised wave-validation commands always exist before agents are told to use them.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "20ad1308-0a20-430d-bd2d-073a8fc9e4ff",
+    "date": "2026-03-29T21:00:20.538Z",
+    "title": "Use full-file rewrites when splitting plans with embedded XML sections",
+    "severity": "MEDIUM",
+    "type": "agent-behavior",
+    "root_cause": "When a plan revision required carving one PLAN.md into multiple new files, a partial patch against repeated XML-like sections appended new plan text into the existing file instead of cleanly separating artifacts, creating an avoidable repair cycle.",
+    "prevention_rule": "When revision work moves large contiguous sections between PLAN.md files, prefer rewriting the affected file(s) wholesale and then adding new files separately instead of patching around repeated section markers.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "c405ac11-b17d-42a0-90cb-2cd26fa0b35f",
+    "date": "2026-03-29T21:46:45.626Z",
+    "title": "Keep execute-plan verification steps aligned with shipped CLI commands",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The execute-plan workflow still instructs executors to run verify:references even though the current CLI no longer exposes that subcommand, forcing manual fallback verification during plan completion.",
+    "prevention_rule": "When workflow verification steps name a CLI command, add a contract test that the command exists or update the workflow whenever the command surface changes.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "00020418-8ec8-4879-b116-b520a1e64b61",
+    "date": "2026-03-29T21:53:57.237Z",
+    "title": "Plan executor should not rely on execute:commit when JJ working copy has unrelated changes",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute-plan workflow directs executors to use execute:commit, but in this JJ colocated workspace that helper hard-blocked on detached HEAD and dirty-tree checks even though path-scoped jj commits were the correct safe operation.",
+    "prevention_rule": "When the repo is JJ-backed, executor guidance should prefer path-scoped jj commit for task and metadata commits, or execute:commit should support JJ dirty-working-copy flows explicitly.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "9ae6b6c5-ddaf-4e3f-8715-bfae94d38ed8",
+    "date": "2026-03-29T22:21:22.952Z",
+    "title": "Executor metadata commits need JJ-aware detached-HEAD handling",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute:commit helper enforces Git branch and clean-tree prechecks that reject JJ workspace execution on detached HEAD, even when task-scoped JJ commits are the supported flow.",
+    "prevention_rule": "When execution runs in a JJ colocated repo, metadata and task commit helpers should detect detached-HEAD Git state and fall back to JJ-native file-scoped commit paths instead of blocking.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "1ae0cf2b-3fbd-470a-8527-7d3c27b7673e",
+    "date": "2026-03-29T22:31:35.781Z",
+    "title": "Rebuild bundled plugin before enricher parity tests",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Executor updated src/plugin/command-enricher.js, but tests/enricher.test.cjs imports plugin.js. Running parity tests before rebuilding left the bundled runtime stale and produced false failures.",
+    "prevention_rule": "When a plan touches src/plugin/*.js or other bundled runtime sources, run npm run build before verification commands that exercise plugin.js or the built CLI artifacts.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "0a3d7276-233a-4b53-8a72-179f5b293f09",
+    "date": "2026-03-29T22:35:13.683Z",
+    "title": "Phase verifiers should scan beyond touched guidance surfaces",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase 158's automated tests proved canonical wrappers and touched help surfaces, but broader user-facing docs and workflow next-step messages still recommended legacy commands, so task-level completion signals overstated phase-goal achievement.",
+    "prevention_rule": "When a phase success criterion mentions preferred guidance or discoverability, verification must grep the wider docs/workflows/plugin messaging surface for legacy recommendations instead of relying only on touched-file regressions or SUMMARY claims.",
+    "affected_agents": [
+      "bgsd-verifier",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "a88cf472-b7c0-4a25-b78c-878a179a2e04",
+    "date": "2026-03-29T22:55:00.910Z",
+    "title": "Planner workflow referenced unavailable plan-wave verifier",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The planner workflow and skills still describe a  validation step even though the shipped CLI no longer exposes that subcommand, so wave-validation attempts fail during planning.",
+    "prevention_rule": "Keep workflow examples synchronized with the current CLI surface and add a lightweight command-reference check for workflow-mentioned  subcommands before release.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "33adea8f-00aa-4f64-9ce1-5009364f5522",
+    "date": "2026-03-29T23:16:34.719Z",
+    "title": "Prefer jj path commits when execute:commit is blocked by detached dirty repos",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The documented execute:commit helper enforces git detached-head and dirty-tree checks even when the repository is being executed through jj with path-scoped atomic commits available.",
+    "prevention_rule": "Executor workflows in jj-backed repos should fall back directly to 'jj commit <paths> -m ...' for atomic task and metadata commits when execute:commit reports detached-head or dirty-tree blockers.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "13386930-fee6-4eff-a060-c566d32b38a6",
+    "date": "2026-03-29T23:16:35.173Z",
+    "title": "Summary scaffolds should ignore unrelated dirty files",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "util:summary-generate inferred changed files from the ambient working copy in a repo with unrelated edits, so the generated 158-08 summary incorrectly listed tests/init.test.cjs as a plan file.",
+    "prevention_rule": "When generating plan summaries, derive file lists from the plan's task commits or declared plan files instead of the full dirty working copy.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "d8b6a89f-bc37-4c16-ab15-c5fedf0274bc",
+    "date": "2026-03-29T23:17:09.589Z",
+    "title": "Prefer jj split over execute:commit in detached dirty JJ workspaces",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute:commit helper enforces clean-tree and attached-HEAD checks that fail in normal jj executor working copies with unrelated background planning changes, even when task files can be isolated safely.",
+    "prevention_rule": "When executors need atomic file-scoped commits in a colocated jj repo, use jj split with explicit file paths instead of execute:commit so task changes can be committed without touching unrelated workspace changes.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "b47d4ea0-bcd2-4847-8b8c-c710689ca1b6",
+    "date": "2026-03-29T23:17:17.906Z",
+    "title": "Summary scaffolds should ignore unrelated working-copy changes during plan execution",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "util:summary-generate inferred files from the full dirty working copy in a repo with many unrelated uncommitted changes, so the initial summary draft listed files from other plans instead of the executed plan.",
+    "prevention_rule": "When generating plan summaries, scope file and commit discovery to the plan's task commits or explicit task file set instead of the ambient working copy state.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "6d00cc23-460b-4fe8-b93b-574f6936ba32",
+    "date": "2026-03-29T23:23:02.074Z",
+    "title": "Prefer jj path commits when execute:commit blocks in detached JJ workspaces",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The generic execute:commit helper enforces clean git-tree checks that fail in detached JJ-backed workspaces with ambient planning-file changes, even when the executor only needs to commit one path atomically.",
+    "prevention_rule": "When a JJ colocated repo is intentionally detached and carries unrelated working-copy changes, fall back to 'jj commit <paths> -m ...' so task commits can stay atomic without pulling unrelated files into the commit.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "6826c409-f506-4bb5-b124-5a5943a7f196",
+    "date": "2026-03-29T23:27:07.304Z",
+    "title": "Verifier artifact parser misses inline must_haves arrays",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The verify:verify artifacts and verify:verify key-links commands reported missing must_haves data on Phase 158 plans even though the plans contain valid inline-array must_haves frontmatter. The verifier tooling appears to parse these frontmatter shapes inconsistently.",
+    "prevention_rule": "Before relying on verifier-helper commands for gap-closure plans, test them against one representative plan that uses the current frontmatter style. If parsing fails, fall back to manual evidence gathering and track parser support as a tooling gap.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "1d956f9e-b1a8-4b03-ab67-31c9892b415c",
+    "date": "2026-03-29T23:34:13.474Z",
+    "title": "Prefer direct plan reads for nested must_haves verification",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The util:frontmatter get helper flattens nested must_haves structures into partial string lists, which loses artifact and key_link detail needed for plan-check verification.",
+    "prevention_rule": "When verifying PLAN.md must_haves, treat the Read output as the source of truth and use frontmatter helpers only for simple scalar fields unless nested structure fidelity is confirmed.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "ea978218-d3bd-4a54-b32f-1c1fa92bb38d",
+    "date": "2026-03-29T23:43:09.219Z",
+    "title": "Avoid task-order verification dependencies in execute plans",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Plan 158-13 assigned Task 1 verification to a regression file that the plan only created in Task 3, forcing execution-time split/verification choreography to keep per-task commits atomic.",
+    "prevention_rule": "When a task's verify command depends on a new regression file or helper artifact, either create that artifact in the same task or order the regression task before any task that references it.",
+    "affected_agents": [
+      "bgsd-executor",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "18628e31-8e95-4baf-b1fb-235d1c1852ba",
+    "date": "2026-03-29T23:45:20.821Z",
+    "title": "Artifact verifier can false-negative on valid must_haves arrays",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The verify:verify artifacts and key-links commands reported 'No must_haves... found' for 158-13-PLAN.md even though the plan frontmatter contains nested must_haves.artifacts and must_haves.key_links arrays. This makes verifier automation under-report valid verification inputs.",
+    "prevention_rule": "Before trusting verifier-tool output, cross-check the PLAN frontmatter directly when a 'No must_haves... found' error appears on a plan that clearly declares must_haves. The tool should be fixed to parse nested arrays reliably or emit a clearer parse diagnostic.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "78970514-5c28-4e9a-be6a-ae83b7a6b6ec",
+    "date": "2026-03-30T00:02:42.973Z",
+    "title": "Phase verification should scan full canonical alias family",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Gap-closure plans and focused regressions can prove only the last cited evidence slice, while phase-level command-family goals may still have legacy-preferred guidance on untouched docs or workflows.",
+    "prevention_rule": "During re-verification of command-surface phases, run a family-wide grep for both canonical and legacy aliases across shipped docs/workflows before declaring the phase passed, even if all focused regression suites pass.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "3023cb34-ad1e-4a8d-87ee-9243ef5fc084",
+    "date": "2026-03-30T01:07:31.443Z",
+    "title": "Plan checker should treat roadmap TDD omissions as explicit info findings",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Phase-level roadmap entries may omit a TDD hint, which can make TDD review appear skipped unless the checker reports the deterministic selection path explicitly.",
+    "prevention_rule": "When roadmap TDD is null or absent, always emit an explicit info-level TDD visibility result instead of silently passing the dimension.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "112ef75e-53bc-4c62-a9ab-40706089578d",
+    "date": "2026-03-30T01:22:33.134Z",
+    "title": "Verify requirement helper results before assuming completion",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The plan finalization helper  can report  for an existing requirement ID, leaving execution metadata inconsistent unless the result is checked explicitly.",
+    "prevention_rule": "After running requirement-completion helpers, verify the target requirement changed in REQUIREMENTS.md and fall back to a direct metadata update when the helper reports not_found unexpectedly.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "26d7b747-8e7b-4daa-96ee-2d1745d5a480",
+    "date": "2026-03-30T01:31:31.514Z",
+    "title": "Metadata commit helper should tolerate expected detached-head execution",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "execute:commit reuses a generic git pre-commit guard that blocks detached HEAD, but phase executors in this workspace commonly run on detached HEAD while still needing final metadata commits.",
+    "prevention_rule": "Allow execute-plan metadata commits on detached HEAD or provide a documented executor-safe commit path that keeps file-scoped safety checks without rejecting expected detached-head runs.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "13e416ef-b008-40a0-bb35-7480b3d27f9f",
+    "date": "2026-03-30T01:40:21.154Z",
+    "title": "Make validate-commands raw output consumable inside executor shells",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The validator emits an @file indirection path whose target is not readable by a follow-up shell step, so executors cannot inspect pass/fail details after successful runs.",
+    "prevention_rule": "For commands that emit @file indirection, provide a stable stdout/json mode or guarantee the referenced file remains readable for immediate subprocess inspection in the same shell.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "7bedcdfd-9cc8-4297-aab8-d6c2a6feb5cb",
+    "date": "2026-03-30T01:42:43.482Z",
+    "title": "Validate surfaced command excerpts instead of whole agent prompts",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The shared command-integrity validator scans slash-like substrings, so full agent/skill files produced false failures from config-path placeholders such as __OPENCODE_CONFIG__/bgsd-oc and non-guidance CLI snippets.",
+    "prevention_rule": "When locking command guidance surfaces, feed the validator curated user-facing command excerpts (or pre-filtered guidance lines) while keeping exact-file assertions separate for full-file wording coverage.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "ca48c068-c634-41fe-b4e6-033672977ec5",
+    "date": "2026-03-30T01:47:48.998Z",
+    "title": "Use concrete command snippets for focused guidance validator tests",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The shared command validator scans whole workflow files literally, so placeholders like [N] and __OPENCODE_CONFIG__ path tokens create noisy failures unrelated to the touched guidance slice.",
+    "prevention_rule": "When a plan needs validator-backed proof for specific workflow guidance, feed the validator concrete extracted or synthesized command snippets for the targeted examples instead of asserting whole prompt files must validate cleanly.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "8d866050-7e9c-4e10-86ae-a6bbb52aaacf",
+    "date": "2026-03-30T01:48:32.503Z",
+    "title": "Focused validator snippets should avoid slash-like CLI path tokens",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The shared command validator treats path fragments like /bgsd-tools inside node bin/bgsd-tools.cjs examples as slash-command mentions, which creates false positives when validating documentation snippets.",
+    "prevention_rule": "When using focused validateCommandIntegrity coverage on doc excerpts, feed canonical slash commands and bare bgsd-tools CLI invocations instead of raw node bin/... paths unless the validator is extended to ignore executable paths.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "4b0a4c25-d8a1-4e8b-a28e-d7e1c23aa970",
+    "date": "2026-03-30T01:54:56.558Z",
+    "title": "Focused validator fixtures can mask phase-scope command drift",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase 159 added narrow validator-backed tests that passed against curated substrings, but verification did not require checking repo-wide validator overlap on the actual touched files. That allowed genuine stale guidance in touched help/doc surfaces to remain despite green focused suites.",
+    "prevention_rule": "For command-surface phases, verification should always compare full validateCommandIntegrity() results against the plan's touched-file set and treat any real touched-file overlap as a phase gap unless explicitly classified as validator false positive.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "003427b7-f573-4614-b93d-80360af67c13",
+    "date": "2026-03-30T02:05:12.719Z",
+    "title": "Planner wave-validation guidance references unavailable CLI command",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The planner skills describe a verify:plan-wave validation step, but the current CLI does not expose that subcommand, so agents waste a verification attempt and must fall back to manual wave checks.",
+    "prevention_rule": "Keep planner skills and CLI help synced; before recommending a validation command in planning workflows, ensure the command exists or document the supported replacement explicitly.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "a021759f-8c60-44f0-8f85-5bb3440a2038",
+    "date": "2026-03-30T02:16:12.351Z",
+    "title": "Add false-positive smoke checks after command-validator regex edits",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Focused validator tests covered placeholder tables but missed config-path placeholder strings like __OPENCODE_CONFIG__/bgsd-oc, so a repo-wide false positive survived until final verification.",
+    "prevention_rule": "After changing command-extraction regexes, run one repo-wide smoke check for known false-positive families (for example placeholder path fragments and reference tables) before declaring the plan complete.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "d057b944-d212-4d0b-b322-a20735ac970a",
+    "date": "2026-03-30T02:25:22.514Z",
+    "title": "State and roadmap summary fields can drift after automated plan completion",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "verify:state complete-plan and roadmap update-plan-progress updated completion markers and recent metrics but left high-level summary fields like Current focus, total plan count summaries, and roadmap executed-plan text stale in this repo state.",
+    "prevention_rule": "After automated state updates, always run a focused readback of STATE.md and ROADMAP.md summary lines and patch any stale high-level fields before the final metadata commit.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "740e1488-7bca-42dc-a86e-ab7ba8bbb5d8",
+    "date": "2026-03-30T02:28:04.422Z",
+    "title": "Artifact verifier misses phase plan must_haves on plain-string frontmatter",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The verifier workflow assumes verify:verify artifacts and verify:verify key-links can consume any PLAN.md must_haves block, but Phase 159 Plan 08 still returned 'No must_haves.artifacts found' and 'No must_haves.key_links found' despite both keys existing as plain string lists in frontmatter.",
+    "prevention_rule": "Before relying on bgsd-tools artifact/key-link verification output, confirm the plan's must_haves schema matches the parser or fall back to manual verification when the tool reports missing sections unexpectedly.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "63997e00-fd0b-44fc-a1af-a2da6fe48912",
+    "date": "2026-03-30T02:38:22.339Z",
+    "title": "Planner guidance references unavailable verify:plan-wave command",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "Planner skill text and workflow examples still mention verify:plan-wave, but the shipped CLI exposes validate-dependencies instead, causing avoidable validation dead ends during planning.",
+    "prevention_rule": "Keep planner skills and workflow command examples synced to the live CLI command inventory, and contract-test referenced planner validation commands from agent prompts against the built tool.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "96076868-0870-43b5-85a8-a8da920d6bdf",
+    "date": "2026-03-30T02:39:34.178Z",
+    "title": "Differentiate gap-closure coverage from full-phase coverage",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Plan-checker requirement-coverage rules are phase-wide by default, but gap-closure verification operates on a narrower set of unresolved verification gaps. Without explicitly separating those scopes, a checker can raise false blockers for requirements already verified in earlier plans.",
+    "prevention_rule": "When verifying gap-closure plans, first compare the verification report's unresolved truths/requirements against roadmap requirements, then require direct coverage only for still-open requirements while treating already-verified phase requirements as satisfied context rather than plan-local obligations.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "3a5e1bff-8863-4ff2-a620-7d792f199829",
+    "date": "2026-03-30T02:48:52.162Z",
+    "title": "Run docs regressions before removing canonical route callouts",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "A structural docs cleanup consolidated multiple canonical route notes into one table, but the focused docs regression still treated several exact route-callout lines as part of the shipped contract.",
+    "prevention_rule": "When shrinking or consolidating user-facing command docs, run the focused guidance regression before finalizing the rewrite and preserve any exact route-callout wording that tests enforce unless the test contract is intentionally updated.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "9732327b-0325-4b8f-af93-651b93106434",
+    "date": "2026-03-30T02:55:42.189Z",
+    "title": "Prefer jj commit when execute:commit rejects detached-head JJ workspaces",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The execute-plan workflow still points executors at execute:commit for per-task commits, but jj-based execution often runs on detached HEADs with unrelated workspace changes, causing git-style pre-commit checks to block otherwise valid atomic task commits.",
+    "prevention_rule": "When the repo is executing under jj and per-task file-scoped commits are needed, prefer jj commit with explicit filesets instead of retrying execute:commit after detached-head dirty-tree failures.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "88e83d1b-8b7d-4eb0-9fdd-7b78f0af4a94",
+    "date": "2026-03-30T03:04:58.417Z",
+    "title": "Verifier should prefer local repo validator over installed binary for source-truth checks",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Phase verification initially used the installed bgsd-tools binary, which validated a different built state than the source tree under review and produced misleading command-integrity results.",
+    "prevention_rule": "When verifying source-code changes in this workspace, run the repo-local bin or require the local src module for behavior checks, and reserve installed assets for workflow references only.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "7702ce64-e047-4dfe-9e16-adc0f869db5f",
+    "date": "2026-03-30T03:30:47.577Z",
+    "title": "verify:state complete-plan can leave stale phase totals after added plans",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "STATE.md still carried Phase 159 P11 totals even after complete-plan ran because the command reused stale current-plan and total-plan values instead of refreshing from the current phase inventory.",
+    "prevention_rule": "Have complete-plan recalculate current plan and total plans from on-disk phase plans/summaries before writing Current Position and focus text, or emit a warning when those values stay unchanged after plan completion.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "57a7c7e5-2cd5-4493-87f0-7a0f1fe19d74",
+    "date": "2026-03-30T03:36:02.106Z",
+    "title": "Prefer direct validator invocation when raw output is file-indirected",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The util:validate-commands --raw CLI can emit an ephemeral @file: pointer instead of inline JSON, and the temp payload may disappear before verification agents can inspect it.",
+    "prevention_rule": "When verification needs command-integrity evidence, use a stable output mode (inline JSON or explicit destination file) or call validateCommandIntegrity() directly so evidence remains inspectable.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "c12dae44-f622-4584-abc7-eca3475aa4c8",
+    "date": "2026-03-30T03:56:59.619Z",
+    "title": "Avoid bare bgsd-tools phrasing in narrative prose",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "The command-integrity validator treats a binary name followed by free text as a potential runnable CLI example, so explanatory prose like 'run via bgsd-tools or through workflows' can create false positives.",
+    "prevention_rule": "When documentation mentions the binary generically, isolate  in backticks or describe it as 'the CLI' without a following pseudo-command token.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "ab4c43ad-ab5f-4df2-bcdb-2d63774200d8",
+    "date": "2026-03-30T04:00:56.351Z",
+    "title": "Verification should compare shipped CLI audits with in-repo validator output",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase verification can rely on the installed CLI audit alone, but the shipped binary may lag the in-repo source or summarize issues too coarsely, hiding concrete surfaced-file failures needed for goal-level verification.",
+    "prevention_rule": "When verifying command-surface integrity in the dev workspace, run the shipped audit and also invoke the current repo's validateCommandIntegrity helper (or rebuild first) so verdicts use file-level evidence from the actual code under review.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "f739d662-e1cb-4baa-9fe7-485c1aeaa278",
+    "date": "2026-03-30T04:15:33.786Z",
+    "title": "Run scope estimation before finalizing gap-plan batches",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Initial gap-closure drafts grouped four-file cleanup slices that passed structure validation but still exceeded the planner context budget; scope pressure only surfaced after explicit util:estimate-scope checks.",
+    "prevention_rule": "After drafting gap-closure plans, run util:estimate-scope immediately and split any four-file medium slices before treating the plan set as final.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "03a20dab-f953-4a45-8a33-c27007358456",
+    "date": "2026-03-30T04:24:32.537Z",
+    "title": "Summary scaffolds can overcount files in dirty JJ workspaces",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "util:summary-generate inferred file lists from a workspace that contained unrelated colocated changes, so the generated SUMMARY.md included many untouched test files for this plan.",
+    "prevention_rule": "When executing in a dirty JJ workspace, treat generated summary file lists as draft-only and replace them with plan-scoped touched files before self-check or metadata commit.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "1bfa967e-5a77-4ca9-9052-f089fde99881",
+    "date": "2026-03-30T04:25:20.369Z",
+    "title": "Add a path-scoped commit fallback when execute:commit blocks in shared detached workspaces",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Parallel phase executors can share a detached workspace with unrelated in-flight changes, causing execute:commit to refuse atomic task commits even when the requested file slice is correct.",
+    "prevention_rule": "When execute:commit reports detached-head or dirty-tree blockers in a shared execution workspace, fall back to explicit path-scoped VCS commits (or automated jj split) for the task files instead of stopping plan execution.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "d75c6147-f4cb-4566-944f-d48fc5b0019f",
+    "date": "2026-03-30T04:25:40.090Z",
+    "title": "Review generated summaries against dirty working copies",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "util:summary-generate populated Plan 159-19's summary with unrelated files from the existing dirty working copy, so blindly accepting scaffolded file lists would have documented work outside the task scope.",
+    "prevention_rule": "When summary scaffolding runs in a dirty workspace, compare generated file lists and metrics against the plan's touched files and committed task artifacts before finalizing SUMMARY.md.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "42ce59c5-fc88-40c3-b61a-9c30d697d604",
+    "date": "2026-03-30T04:25:41.743Z",
+    "title": "Use jj path commits in parallel plan waves",
+    "severity": "HIGH",
+    "type": "workflow",
+    "root_cause": "A git add/commit attempt in a concurrently changing jj-colocated workspace picked up unrelated index state, producing a non-atomic local commit.",
+    "prevention_rule": "During parallel phase execution, commit task and metadata files with 'jj commit <paths>' only, and avoid git staging commands in shared detached-head workspaces.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "81e6e1e9-1c26-4903-af49-005ce1cd4fe9",
+    "date": "2026-03-30T04:25:50.316Z",
+    "title": "List plugin source modules alongside bundle targets in runtime plans",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "The plan named src/lib/constants.js as the source artifact for runtime guidance fixes, but the stale strings actually lived in multiple src/plugin modules that build plugin.js. That mismatch forced extra discovery during execution.",
+    "prevention_rule": "When a gap-closure plan targets shipped plugin.js behavior, cite the concrete src/plugin source modules that emit the runtime strings in files_modified or context so executors can patch the real source without detouring through unrelated artifacts.",
+    "affected_agents": [
+      "bgsd-executor",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "02f1a3de-96c9-4c2d-82c2-dca6869b3a87",
+    "date": "2026-03-30T04:36:35.388Z",
+    "title": "Fall back to path-scoped jj commits when execute:commit blocks detached dirty workspaces",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The execute:commit helper enforces git branch and clean-tree assumptions that do not hold in jj-first executor runs with preserved unrelated workspace changes.",
+    "prevention_rule": "When an executor must preserve unrelated changes in a detached or dirty jj workspace, use path-scoped jj commit/jj squash for atomic task and metadata commits instead of retrying execute:commit.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "f2f899ce-f010-457a-a9bc-5bb6dce1ba83",
+    "date": "2026-03-30T04:40:25.273Z",
+    "title": "Artifact verifier should fail loudly on empty plan extraction",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The verify:verify artifacts and key-links commands returned success with zero items for Phase 159 plans even though those plans clearly contain must_haves.artifacts and must_haves.key_links, which can mislead verifiers during re-verification.",
+    "prevention_rule": "When artifact or key-link extraction finds zero items in a plan that declares must_haves, the verifier tooling should surface a warning or non-zero result instead of reporting all_passed/all_verified true with empty arrays.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "817badc1-9824-4355-822a-95833384ba69",
+    "date": "2026-03-30T05:12:15.875Z",
+    "title": "execute:commit can fail on dirty trees during path-scoped plan commits",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute:commit helper rejects dirty worktrees even when the requested files are isolated, so phase-planning runs can fail to persist valid PLAN.md changes in active development workspaces.",
+    "prevention_rule": "When commit_docs workflows are expected to commit only specific planning artifacts, either allow safe path-scoped commits on dirty trees or surface a built-in fallback recommendation before the helper aborts.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "4ef335a3-6e19-4deb-a6b8-1ee4f497bf8a",
+    "date": "2026-03-30T05:24:01.545Z",
+    "title": "Executor task commits need a partial-commit fallback when execute:commit blocks on unrelated changes",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The executor workflow prefers execute:commit, but that helper currently fails on dirty trees even when the task owns a small path-scoped subset of files. In repos with expected unrelated edits, this blocks atomic task commits unless the agent invents a manual fallback mid-run.",
+    "prevention_rule": "When execute:commit reports a dirty-tree blocker, immediately route to a documented path-scoped fallback (for example git commit on explicit files or a noninteractive jj split flow) instead of treating the commit path as blocked.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "ff52de67-442f-4b86-baf0-5e8d51250877",
+    "date": "2026-03-30T05:30:45.290Z",
+    "title": "Path-scoped metadata commits need a dirty-tree fallback",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "execute:commit still blocks when unrelated working-tree changes exist, even if the requested --files set is fully scoped to plan artifacts.",
+    "prevention_rule": "Executors should check for unrelated dirty-tree entries before final metadata commits and immediately fall back to a path-scoped git commit when execute:commit rejects an otherwise scoped artifact set.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "d2db81b5-2fd1-4719-9d62-85c3b57a39fa",
+    "date": "2026-03-30T05:33:35.061Z",
+    "title": "Artifact verification helper misses nested must_haves arrays",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "The verifier workflow relies on verify:verify artifacts/key-links, but those commands returned 'No must_haves.* found in frontmatter' for Phase 160 plans that clearly contain nested must_haves YAML, forcing manual verification.",
+    "prevention_rule": "Make verify:verify parse nested must_haves frontmatter structures used by current PLAN.md files, and add a regression covering multi-item truths/artifacts/key_links arrays.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "46bb07c1-c0c6-4854-a27b-8ad56001b771",
+    "date": "2026-03-30T05:40:10.513Z",
+    "title": "Cross-phase audits should compare src and bundled runtime for shipped parser contracts",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "This repo ships behavior from bin/bgsd-tools.cjs, but source modules can diverge after workflow changes; relying on only src or only runtime can miss intent-contract mismatches until a future rebuild.",
+    "prevention_rule": "During milestone audits of shipped workflows, compare at least one critical contract through both source modules and the bundled CLI whenever the project keeps a generated bin artifact in-repo.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "f14820dd-c46e-4a94-b40b-fcc1fcf372cb",
+    "date": "2026-03-30T12:45:11.402Z",
+    "title": "Use path-scoped jj commits when execute:commit is blocked in detached dirty workspaces",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The execute:commit helper enforces detached-head and dirty-tree guards, but executor runs often occur in JJ working copies that already contain unrelated planning artifacts, so helper-based metadata commits fail even when task files are safely isolatable.",
+    "prevention_rule": "When jj status already shows unrelated workspace changes in a detached execution context, prefer path-scoped jj commit for atomic task or metadata commits instead of retrying execute:commit.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "216a7111-db99-4beb-a7f6-7c3384271dcf",
+    "date": "2026-03-30T12:57:02.192Z",
+    "title": "Prefer path-scoped jj commits when execution helper sees detached dirty workspaces",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The execute:commit helper assumes a clean attached Git-style working tree, but executor runs can occur in detached JJ workspaces that already contain unrelated planning changes.",
+    "prevention_rule": "When a plan runs in a detached or dirty JJ workspace, switch immediately to path-scoped 'jj commit <files> -m ...' for task and metadata commits so atomic commits stay isolated from unrelated changes.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "210797de-e58a-4b88-806a-1438fb5cf26d",
+    "date": "2026-03-30T12:59:57.807Z",
+    "title": "Fallback to manual verification when helper reports zero artifacts",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "The artifact/key-link verification helper can return a successful result with total=0 when a plan's must-have metadata is not surfaced as expected, which can falsely look like a completed check.",
+    "prevention_rule": "When verify:verify artifacts or key-links returns zero items for a plan that clearly declares must_haves, treat it as inconclusive and manually verify the declared artifacts, wiring, and runtime commands before writing VERIFICATION.md.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
   }
 ]

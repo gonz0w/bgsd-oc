@@ -5,6 +5,7 @@ const path = require('path');
 const { DECISION_REGISTRY, evaluateDecisions } = require('../lib/decision-rules');
 const { output } = require('../lib/output');
 const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS } = require('../lib/format');
+const { resolvePluginDirs } = require('../lib/plugin-paths');
 
 // ─── TTY Formatters ──────────────────────────────────────────────────────────
 
@@ -143,29 +144,15 @@ function formatDecisionsSavings(data) {
 
 /**
  * Resolve the workflows directory.
- * Priority: override → bin-relative (dev workspace) → BGSD_HOME → __dirname-relative
- * In development: bin/ is at project root, so ../workflows works.
- * In production: BGSD_HOME points to the installed plugin directory.
+ * Priority: override → resolved plugin workflows directory
  *
  * @param {string} [overrideDir] - Optional explicit workflows directory
  * @returns {string} Path to workflows directory
  */
 function resolveWorkflowsDir(overrideDir) {
   if (overrideDir && fs.existsSync(overrideDir)) return overrideDir;
-
-  // From bin/bgsd-tools.cjs: go up one to project root, then into workflows/
-  // This works in dev workspace where bin/ and workflows/ are siblings
-  const binRelative = path.resolve(path.dirname(process.argv[1] || __filename), '..', 'workflows');
-  if (fs.existsSync(binRelative)) return binRelative;
-
-  const BGSD_HOME = process.env.BGSD_HOME ||
-    path.resolve(__dirname, '..', '..');
-  const workflowsDir = path.join(BGSD_HOME, 'workflows');
-  if (fs.existsSync(workflowsDir)) return workflowsDir;
-
-  // Fallback: dev workspace via __dirname
-  const devWorkflows = path.resolve(__dirname, '..', '..', 'workflows');
-  return devWorkflows;
+  const { workflowsDir } = resolvePluginDirs();
+  return workflowsDir;
 }
 
 /**

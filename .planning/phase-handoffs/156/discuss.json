@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "156",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "156-2026-03-29T16-49-48-700Z",
+  "source_fingerprint": "b6c8fa7601b235f1",
+  "created_at": "2026-03-29T16:49:48.700Z",
+  "updated_at": "2026-03-29T16:49:48.700Z",
+  "summary": "Discuss context ready for Phase 156",
+  "resume_target": {
+    "phase": "156",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/156-jj-parallel-waves-recovery-coverage/156-CONTEXT.md",
+    "next_command": "/bgsd-research-phase 156"
+  },
+  "context": {}
+}

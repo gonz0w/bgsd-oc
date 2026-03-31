@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { TOOLS_PATH, runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
+const { TOOLS_PATH, runGsdTools, createTempProject, cleanup, hasJj, initColocatedCommitRepo } = require('./helpers.cjs');
 
 describe('history-digest command', () => {
   let tmpDir;
@@ -2464,6 +2464,44 @@ describe('pre-commit checks', () => {
     // Should have at least 2 failures (detached_head + dirty_tree)
     assert.ok(data.failures.length >= 2, `Should report multiple failures, got ${data.failures.length}`);
   });
+
+  test('detached JJ colocated repo uses path-scoped fallback instead of blocking', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    cleanup(tmpDir);
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ commit_docs: true }), 'utf-8');
+    initColocatedCommitRepo(tmpDir, { detachHead: true });
+
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'detached.md'), 'detached fallback\n');
+
+    const result = runGsdTools('execute:commit "test commit" --files .planning/detached.md', tmpDir);
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.committed, true, 'Should commit successfully through fallback');
+    assert.strictEqual(data.reason, 'committed', 'Should preserve committed reason');
+    assert.strictEqual(data.commit_path, 'jj_fallback', 'Should report JJ fallback path');
+    assert.ok(data.hash, 'Should return a hash');
+  });
+
+  test('dirty JJ colocated repo keeps unrelated files dirty after path-scoped fallback', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    cleanup(tmpDir);
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ commit_docs: true }), 'utf-8');
+    initColocatedCommitRepo(tmpDir);
+
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'dirty-fallback.md'), 'path scoped\n');
+    fs.writeFileSync(path.join(tmpDir, 'dirty.txt'), 'leave me dirty\n');
+
+    const result = runGsdTools('execute:commit "test commit" --files .planning/dirty-fallback.md', tmpDir);
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.committed, true, 'Should commit successfully through fallback');
+    assert.strictEqual(data.reason, 'committed', 'Should preserve committed reason');
+    assert.strictEqual(data.commit_path, 'jj_fallback', 'Should report JJ fallback path');
+
+    const status = execSync('jj status', { cwd: tmpDir, encoding: 'utf-8' });
+    assert.match(status, /dirty\.txt/, 'Unrelated dirty file should remain in working copy');
+    assert.doesNotMatch(status, /dirty-fallback\.md/, 'Committed path should not remain dirty');
+  });
 });
 
 describe('commit --agent attribution', () => {
@@ -2497,5 +2535,22 @@ describe('commit --agent attribution', () => {
     const body = execSync('git log --format=%b -1', { cwd: tmpDir, encoding: 'utf-8' }).trim();
     assert.ok(!body.includes('Agent-Type'), `Commit body should NOT contain Agent-Type, got: ${body}`);
   });
-});
 
+  test('JJ fallback preserves trailers for path-scoped commits', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    cleanup(tmpDir);
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ commit_docs: true }), 'utf-8');
+    initColocatedCommitRepo(tmpDir, { detachHead: true });
+
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'agent-fallback.md'), 'test\n');
+    const result = runGsdTools('execute:commit "test: fallback agent attribution" --files .planning/agent-fallback.md --agent bgsd-executor --tdd-phase green', tmpDir);
+    const data = JSON.parse(result.output);
+    assert.ok(data.committed, 'Should commit successfully');
+    assert.strictEqual(data.reason, 'committed', 'Should preserve committed reason');
+    assert.strictEqual(data.commit_path, 'jj_fallback', 'Should use fallback path');
+    const body = execSync('git log --format=%b -1', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+    assert.ok(body.includes('Agent-Type: bgsd-executor'), `Commit body should contain Agent-Type trailer, got: ${body}`);
+    assert.ok(body.includes('GSD-Phase: green'), `Commit body should contain GSD-Phase trailer, got: ${body}`);
+  });
+});

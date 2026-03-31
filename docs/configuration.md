@@ -8,7 +8,7 @@ Complete reference for all bGSD configuration options. Configuration lives in `.
 
 ```
 /bgsd-settings                              # Interactive configuration
-/bgsd-set-profile quality                   # Quick model switch
+/bgsd-settings profile quality              # Quick model switch
 ```
 
 CLI commands:

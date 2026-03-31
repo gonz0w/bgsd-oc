@@ -70,15 +70,37 @@ const OPTION_TEMPLATES = {
     typeHint: 'SINGLE_CHOICE'
   },
   'discuss-gray-areas': {
-    question: 'Which areas do you want to discuss?',
-    options: [],
-    typeHint: 'MULTI_CHOICE'
+    question: 'How should we handle these ranked gray areas?',
+    options: [
+      { id: 'work-ranked', label: 'Work high to low', description: 'Resolve High-impact gray areas first, then continue only as far as needed', diversity: { certainty: 0.8 } },
+      { id: 'review-ranked', label: 'Review the ranking', description: 'Inspect why each gray area was ranked before we start resolving them', diversity: { certainty: 0.5 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'discuss-low-risk-path': {
+    question: 'How should we handle these low-risk defaults?',
+    options: [
+      { id: 'lock-defaults', label: 'Lock defaults and continue', description: 'Accept the proposed defaults, keep them distinct from hard locks, and move on to any remaining gray areas', diversity: { certainty: 0.8 } },
+      { id: 'discuss-one', label: 'Discuss one of them', description: 'Pull a proposed default back into the normal clarification loop before locking it', diversity: { certainty: 0.4 } },
+      { id: 'skip-defaults', label: 'Skip defaults', description: 'Do not record these yet — continue with the normal gray-area menu', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
   },
   'discuss-socratic-continue': {
     question: 'More questions about this area, or move to next?',
     options: [
-      { id: 'more', label: 'More questions', diversity: { certainty: 0.4 } },
+      { id: 'more', label: 'Keep refining', diversity: { certainty: 0.4 } },
       { id: 'next', label: 'Next area', diversity: { certainty: 0.8 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'discuss-conflict-resolution': {
+    question: 'How should we handle this tension?',
+    options: [
+      { id: 'lock', label: 'Lock a direction', description: 'Make this a concrete phase decision now', diversity: { certainty: 0.8 } },
+      { id: 'default', label: 'Use a default', description: 'Prefer a default pattern unless a later detail forces an exception', diversity: { approach: 0.6 } },
+      { id: 'delegate', label: 'Agent decides', description: 'Leave this to downstream planning or execution within stated constraints', diversity: { approach: 0.4 } },
+      { id: 'defer', label: 'Defer and note it', description: 'Record the tradeoff but leave the final choice for a later phase or context', diversity: { scope: 0.2 } }
     ],
     typeHint: 'SINGLE_CHOICE'
   },
@@ -86,12 +108,21 @@ const OPTION_TEMPLATES = {
     question: 'Any of those points change your thinking?',
     options: [
       { id: 'proceed', label: 'No changes — proceed', diversity: { certainty: 0.8 } },
-      { id: 'revisit', label: 'Revisit a decision', diversity: { certainty: 0.3 } }
+      { id: 'revisit', label: 'Changed something — check knock-on effects', description: 'Record the revision and immediately validate downstream gray areas', diversity: { certainty: 0.3 } }
     ],
     typeHint: 'SINGLE_CHOICE'
   },
 
   // execute-phase workflow templates
+  'phase-handoff-resume-summary': {
+    question: 'How should we continue from this handoff?',
+    options: [
+      { id: 'resume', label: 'Resume', description: 'Continue from the latest valid handoff artifact', diversity: { certainty: 0.8 } },
+      { id: 'inspect', label: 'Inspect', description: 'Review the active handoff details before continuing', diversity: { certainty: 0.5 } },
+      { id: 'restart', label: 'Restart', description: 'Clear the handoff set and restart from discuss', diversity: { certainty: 0.2 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
   'execute-checkpoint-verify': {
     question: 'Verification result:',
     options: [
@@ -135,6 +166,16 @@ const OPTION_TEMPLATES = {
       { id: 'add-more', label: 'Add more plans', diversity: { scope: 0.3 } },
       { id: 'view', label: 'View existing plans', diversity: { scope: 0.5 } },
       { id: 'replan', label: 'Replan', diversity: { scope: 0.8 } }
+    ],
+    typeHint: 'SINGLE_CHOICE'
+  },
+  'plan-phase-high-impact-gray-area': {
+    question: 'This high-impact gray area will change the plan. How should we handle it?',
+    options: [
+      { id: 'lock', label: 'Lock a direction', description: 'Decide now so the planner can commit to a concrete structure', diversity: { certainty: 0.8 } },
+      { id: 'default', label: 'Use a default', description: 'Adopt the safest default and continue planning with it explicitly recorded', diversity: { certainty: 0.5 } },
+      { id: 'delegate', label: 'Agent decides', description: 'Let the planner choose within stated constraints and record that discretion', diversity: { certainty: 0.3 } },
+      { id: 'defer', label: 'Defer and constrain', description: 'Keep the choice open, but record the limit so planning does not guess beyond it', diversity: { certainty: 0.2 } }
     ],
     typeHint: 'SINGLE_CHOICE'
   },
@@ -306,7 +347,7 @@ const OPTION_TEMPLATES = {
     typeHint: 'SINGLE_CHOICE'
   },
   'new-milestone-skills': {
-    question: 'Install any skills before defining requirements?',
+    question: 'Install recommended project-local skills before defining requirements?',
     options: [
       { id: 'yes', label: 'Yes', diversity: { certainty: 1.0 } },
       { id: 'no', label: 'No', diversity: { certainty: 0.0 } }

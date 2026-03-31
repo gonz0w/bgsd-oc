@@ -1,7 +1,7 @@
 /**
  * CLI Tool Detection Module
  * 
- * Detects availability of CLI tools (ripgrep, fd, jq, yq, bat, gh) with 5-minute caching.
+ * Detects availability of CLI tools (ripgrep, fd, jq, yq, ast-grep, sd, hyperfine, bat, gh) with 30-minute caching.
  * Uses execFileSync with array args to prevent shell injection.
  * Supports file-based cache (cross-invocation persistence), cross-platform PATH resolution,
  * and version comparison for feature flagging.
@@ -13,7 +13,7 @@ const path = require('path');
 
 // Cache for tool detection results (in-memory)
 const toolCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 // File cache path override (for testing)
 let cachePath = null;
@@ -41,6 +41,21 @@ const TOOLS = {
     name: 'yq',
     aliases: [],
     description: 'YAML processor'
+  },
+  ast_grep: {
+    name: 'ast-grep',
+    aliases: ['sg'],
+    description: 'Syntax-aware structural code search and rewrite'
+  },
+  sd: {
+    name: 'sd',
+    aliases: [],
+    description: 'Intuitive find and replace CLI'
+  },
+  hyperfine: {
+    name: 'hyperfine',
+    aliases: [],
+    description: 'Command-line benchmarking tool'
   },
   bat: {
     name: 'bat',
@@ -84,7 +99,7 @@ function loadFileCache() {
     const contents = fs.readFileSync(filePath, 'utf8');
     const data = JSON.parse(contents);
     
-    // Check if cache is still valid (< 5 minutes old)
+    // Check if cache is still valid (< 30 minutes old)
     if (!data.timestamp || (Date.now() - data.timestamp) >= CACHE_TTL_MS) {
       return null;
     }
@@ -345,24 +360,9 @@ function detectTool(toolName) {
  * Get status for all supported tools
  * @returns {object} - { toolName: { available, path, name, description, version? } }
  */
-function getToolStatus() {
-  // Try loading from file cache first
-  const fileCached = loadFileCache();
-  
-  if (fileCached) {
-    // Use file cache and populate in-memory cache
-    for (const [toolName, toolInfo] of Object.entries(fileCached)) {
-      toolCache.set(toolName.toLowerCase(), {
-        result: toolInfo,
-        timestamp: Date.now()
-      });
-    }
-    return fileCached;
-  }
-  
-  // Perform fresh detection
+function detectAllTools() {
   const status = {};
-  
+
   for (const toolName of Object.keys(TOOLS)) {
     const result = detectTool(toolName);
     status[toolName] = {
@@ -373,10 +373,37 @@ function getToolStatus() {
       version: result.version || null
     };
   }
-  
+
+  return status;
+}
+
+function refreshToolStatus() {
+  const status = detectAllTools();
+
   // Save to file cache for next invocation
   saveFileCache(status);
-  
+
+  return status;
+}
+
+function getToolStatus() {
+  // Try loading from file cache first
+  const fileCached = loadFileCache();
+
+  if (fileCached) {
+    // Use file cache and populate in-memory cache
+    for (const [toolName, toolInfo] of Object.entries(fileCached)) {
+      toolCache.set(toolName.toLowerCase(), {
+        result: toolInfo,
+        timestamp: Date.now()
+      });
+    }
+    return fileCached;
+  }
+
+  // Perform fresh detection
+  const status = refreshToolStatus();
+
   return status;
 }
 
@@ -401,6 +428,7 @@ module.exports = {
   TOOLS,
   detectTool,
   getToolStatus,
+  refreshToolStatus,
   clearCache,
   parseVersion,
   meetsMinVersion,

@@ -165,13 +165,13 @@ Display:
 | Git Branching        | {None/Per Phase/Per Milestone} |
 | Saved as Defaults    | {Yes/No} |
 
-These settings apply to future /bgsd-plan-phase and /bgsd-execute-phase runs.
+These settings apply to future /bgsd-plan phase and /bgsd-execute-phase runs.
 
 Quick commands:
-- /bgsd-set-profile <profile> — switch model profile
-- /bgsd-plan-phase --research — force research
-- /bgsd-plan-phase --skip-research — skip research
-- /bgsd-plan-phase --skip-verify — skip plan check
+- /bgsd-settings profile <profile> — switch model profile (`/bgsd-set-profile` remains a compatibility alias)
+- /bgsd-plan phase <phase> --research — force research
+- /bgsd-plan phase <phase> --skip-research — skip research
+- /bgsd-plan phase <phase> --skip-verify — skip plan check
 ```
 </step>
 

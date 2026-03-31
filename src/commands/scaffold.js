@@ -10,6 +10,7 @@ const path = require('path');
 const { output } = require('../lib/output');
 const { findPhaseInternal, getRoadmapPhaseInternal, cachedReadFile } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
+const { createPlanMetadataContext } = require('../lib/plan-metadata');
 const {
   DATA_MARKER,
   JUDGMENT_MARKER,
@@ -117,25 +118,10 @@ function detectNextPlanNumber(phaseDir, paddedPhase) {
   }
 }
 
-/**
- * Extract must_haves from a PLAN.md file body (truths, artifacts, key_links).
- */
-function extractMustHaves(planContent) {
-  if (!planContent) return { truths: [], artifacts: [], key_links: [] };
-
+function extractLegacyMustHavesFromBody(planContent) {
   const truths = [];
   const artifacts = [];
   const key_links = [];
-
-  // Extract from frontmatter first
-  const fm = extractFrontmatter(planContent);
-  if (fm.must_haves) {
-    if (Array.isArray(fm.must_haves.truths)) truths.push(...fm.must_haves.truths);
-    if (Array.isArray(fm.must_haves.artifacts)) artifacts.push(...fm.must_haves.artifacts);
-    if (Array.isArray(fm.must_haves.key_links)) key_links.push(...fm.must_haves.key_links);
-  }
-
-  // Also look for ```yaml must_haves block in body
   const yamlBlockMatch = planContent.match(/```yaml\s*\nmust_haves:\s*\n([\s\S]*?)```/);
   if (yamlBlockMatch) {
     const block = yamlBlockMatch[1];
@@ -176,6 +162,32 @@ function extractMustHaves(planContent) {
   }
 
   return { truths, artifacts, key_links };
+}
+
+/**
+ * Extract must_haves from normalized frontmatter metadata, with legacy body fallback.
+ */
+function extractMustHaves(planContent, planMetadata) {
+  if (!planContent) return { truths: [], artifacts: [], key_links: [] };
+
+  const normalized = planMetadata?.mustHaves;
+  const truths = normalized?.truths?.items.map(item => item.text) || [];
+  const artifacts = normalized?.artifacts?.items.map(item => ({
+    path: item.path,
+    provides: item.provides || '',
+  })) || [];
+  const key_links = normalized?.keyLinks?.items.map(item => ({
+    from: item.from,
+    to: item.to,
+    via: item.via || '',
+    pattern: item.pattern || null,
+  })) || [];
+
+  if (truths.length > 0 || artifacts.length > 0 || key_links.length > 0) {
+    return { truths, artifacts, key_links };
+  }
+
+  return extractLegacyMustHavesFromBody(planContent);
 }
 
 // ─── cmdPlanGenerate ──────────────────────────────────────────────────────────
@@ -410,14 +422,14 @@ function cmdVerifyGenerate(cwd, args, raw) {
     const allTruths = [];
     const allArtifacts = [];
     const allKeyLinks = [];
+    const metadataContext = createPlanMetadataContext({ cwd });
 
     try {
-      const phaseFiles = fs.readdirSync(phaseDir);
-      const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').sort();
-      for (const pf of planFiles) {
-        const content = cachedReadFile(path.join(phaseDir, pf));
+      const planFiles = metadataContext.listPhasePlans(phaseArg);
+      for (const planMetadata of planFiles) {
+        const content = cachedReadFile(path.join(cwd, planMetadata.relativePath));
         if (!content) continue;
-        const mh = extractMustHaves(content);
+        const mh = extractMustHaves(content, planMetadata);
         allTruths.push(...mh.truths);
         allArtifacts.push(...mh.artifacts);
         allKeyLinks.push(...mh.key_links);

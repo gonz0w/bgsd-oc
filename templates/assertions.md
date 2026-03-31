@@ -75,7 +75,7 @@
 
 ## Assertion → Plan Flow
 
-During `/bgsd-plan-phase`, the planner:
+During `/bgsd-plan phase 12`, the planner:
 1. Reads ASSERTIONS.md for the phase's requirements
 2. Uses must-have assertions as the source for `must_haves.truths` in PLAN.md frontmatter
 3. Each plan's truths map back to specific assertions

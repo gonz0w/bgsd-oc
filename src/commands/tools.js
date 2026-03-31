@@ -7,7 +7,7 @@ const { output } = require('../lib/output');
 
 /**
  * CLI command to check tool availability
- * Shows which CLI tools (ripgrep, fd, jq, yq, bat, gh) are available vs unavailable
+ * Shows which CLI tools are available vs unavailable
  */
 function cmdToolsStatus(cwd, raw) {
   const status = getToolStatus();

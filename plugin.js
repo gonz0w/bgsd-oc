@@ -1179,7 +1179,17 @@ function invalidateState(cwd) {
     try {
       const db = getDb(cwd);
       if (db.backend === "sqlite") {
-        db.prepare("DELETE FROM session_state WHERE cwd = ?").run(cwd);
+        const tables = [
+          "session_state",
+          "session_metrics",
+          "session_decisions",
+          "session_todos",
+          "session_blockers",
+          "session_continuity"
+        ];
+        for (const table of tables) {
+          db.prepare(`DELETE FROM ${table} WHERE cwd = ?`).run(cwd);
+        }
       }
     } catch {
     }
@@ -1196,8 +1206,45 @@ var init_state = __esm({
 });
 
 // src/plugin/parsers/roadmap.js
-import { readFileSync as readFileSync2 } from "fs";
+import { readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "fs";
 import { join as join5 } from "path";
+function normalizeTddHintValue(value) {
+  if (value === null || value === void 0) return null;
+  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, "");
+  if (!raw) return null;
+  const tokenMatch = raw.match(/^(required|require|mandatory|must|enforced|recommended|recommend|suggested|prefer(?:red)?|true|yes|y|false|no|n|skip(?:ped)?|omit(?:ted)?|none|n\/a|na|not applicable)\b/);
+  const token = tokenMatch ? tokenMatch[1] : raw;
+  if (["required", "require", "mandatory", "must", "enforced"].includes(token)) return "required";
+  if (["recommended", "recommend", "suggested", "prefer", "preferred", "true", "yes", "y"].includes(token)) return "recommended";
+  if (["false", "no", "n", "skip", "skipped", "omit", "omitted", "none", "n/a", "na", "not applicable"].includes(token)) return null;
+  return null;
+}
+function normalizeRoadmapTddMetadata(raw) {
+  if (!raw || typeof raw !== "string") return { content: raw, changed: false };
+  let changed = false;
+  const content = raw.replace(/^(\*\*TDD:?\*\*:?\s*)([^\n]*)$/gim, (match, _prefix, value) => {
+    const normalized = normalizeTddHintValue(value);
+    const canonical = normalized ? `**TDD:** ${normalized}` : "";
+    if (canonical !== match) changed = true;
+    return canonical;
+  }).replace(/\n{3,}/g, "\n\n");
+  return { content, changed };
+}
+function readRoadmapWithTddNormalization(cwd) {
+  const roadmapPath = join5(cwd, ".planning", "ROADMAP.md");
+  let raw;
+  try {
+    raw = readFileSync2(roadmapPath, "utf-8");
+  } catch {
+    return null;
+  }
+  const normalized = normalizeRoadmapTddMetadata(raw);
+  if (normalized.changed) {
+    writeFileSync2(roadmapPath, normalized.content, "utf-8");
+    return normalized.content;
+  }
+  return raw;
+}
 function _getPlanningCache(cwd) {
   try {
     const db = getDb(cwd);
@@ -1240,7 +1287,7 @@ function parsePhases(content) {
     const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
     const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
     const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
     const escaped = number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, "i");
     const status = checkboxPattern.test(content) ? "complete" : "incomplete";
@@ -1294,7 +1341,7 @@ function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedC
       status: row.status || "incomplete",
       planCount: row.plan_count != null ? row.plan_count : 0,
       goal: row.goal || null,
-      tdd: tddMatch ? tddMatch[1].trim().toLowerCase() : null,
+      tdd: tddMatch ? normalizeTddHintValue(tddMatch[1]) : null,
       section: sec
     });
   });
@@ -1329,7 +1376,7 @@ function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedC
         total: parseInt(plansMatch[2], 10)
       } : null;
       const tddMatch2 = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-      const tdd = tddMatch2 ? tddMatch2[1].trim().toLowerCase() : found.tdd;
+      const tdd = tddMatch2 ? normalizeTddHintValue(tddMatch2[1]) : found.tdd;
       return Object.freeze({
         number: found.number,
         name: found.name,
@@ -1373,7 +1420,7 @@ function parseRoadmap(cwd) {
   }
   let raw;
   try {
-    raw = readFileSync2(roadmapPath, "utf-8");
+    raw = readRoadmapWithTddNormalization(resolvedCwd) || readFileSync2(roadmapPath, "utf-8");
   } catch {
     return null;
   }
@@ -1760,6 +1807,2028 @@ var init_plan = __esm({
   }
 });
 
+// src/lib/constants.js
+var require_constants = __commonJS({
+  "src/lib/constants.js"(exports, module) {
+    var VALID_TRAJECTORY_SCOPES = ["task", "plan", "phase"];
+    var MODEL_PROFILES = {
+      "bgsd-planner": { quality: "opus", balanced: "opus", budget: "sonnet" },
+      "bgsd-roadmapper": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
+      "bgsd-executor": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
+      "bgsd-phase-researcher": { quality: "opus", balanced: "sonnet", budget: "haiku" },
+      "bgsd-project-researcher": { quality: "opus", balanced: "sonnet", budget: "haiku" },
+      "bgsd-debugger": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
+      "bgsd-codebase-mapper": { quality: "sonnet", balanced: "haiku", budget: "haiku" },
+      "bgsd-verifier": { quality: "sonnet", balanced: "sonnet", budget: "haiku" },
+      "bgsd-plan-checker": { quality: "sonnet", balanced: "sonnet", budget: "haiku" }
+    };
+    var CONFIG_SCHEMA = {
+      model_profile: { type: "string", default: "balanced", description: "Active model profile (quality/balanced/budget)", aliases: [], nested: null },
+      commit_docs: { type: "boolean", default: true, description: "Auto-commit planning docs", aliases: [], nested: { section: "planning", field: "commit_docs" } },
+      search_gitignored: { type: "boolean", default: false, description: "Include gitignored files in searches", aliases: [], nested: { section: "planning", field: "search_gitignored" } },
+      branching_strategy: { type: "string", default: "none", description: "Git branching strategy", aliases: [], nested: { section: "git", field: "branching_strategy" } },
+      phase_branch_template: { type: "string", default: "bgsd/phase-{phase}-{slug}", description: "Phase branch name template", aliases: [], nested: { section: "git", field: "phase_branch_template" } },
+      milestone_branch_template: { type: "string", default: "bgsd/{milestone}-{slug}", description: "Milestone branch name template", aliases: [], nested: { section: "git", field: "milestone_branch_template" } },
+      research: { type: "boolean", default: true, description: "Enable research phase", aliases: ["research_enabled"], nested: { section: "workflow", field: "research" } },
+      plan_checker: { type: "boolean", default: true, description: "Enable plan checking", aliases: [], nested: { section: "workflow", field: "plan_check" } },
+      verifier: { type: "boolean", default: true, description: "Enable verification phase", aliases: [], nested: { section: "workflow", field: "verifier" } },
+      parallelization: { type: "boolean", default: true, description: "Enable parallel plan execution", aliases: [], nested: null, coerce: "parallelization" },
+      brave_search: { type: "boolean", default: false, description: "Enable Brave Search API", aliases: [], nested: null },
+      mode: { type: "string", default: "interactive", description: "Execution mode (interactive or yolo)", aliases: [], nested: null },
+      depth: { type: "string", default: "standard", description: "Planning depth", aliases: [], nested: null },
+      test_commands: { type: "object", default: {}, description: "Test commands by framework", aliases: [], nested: null },
+      test_gate: { type: "boolean", default: true, description: "Block plan completion on test failure", aliases: [], nested: null },
+      context_window: { type: "number", default: 2e5, description: "Context window size in tokens", aliases: [], nested: null },
+      context_target_percent: { type: "number", default: 50, description: "Target context utilization percent (1-100)", aliases: [], nested: null },
+      runtime: { type: "string", default: "auto", description: "Runtime to use (auto/bun/node)", aliases: [], nested: null },
+      workspace_base_path: { type: "string", default: "/tmp/gsd-workspaces", description: "Base path for managed JJ execution workspaces", aliases: [], nested: { section: "workspace", field: "base_path" } },
+      workspace_max_concurrent: { type: "number", default: 3, description: "Maximum managed JJ workspaces per project", aliases: [], nested: { section: "workspace", field: "max_concurrent" } },
+      // ─── RAG Research Pipeline ───
+      rag_enabled: { type: "boolean", default: true, description: "Enable RAG-powered research pipeline", aliases: [], nested: { section: "workflow", field: "rag" } },
+      rag_timeout: { type: "number", default: 30, description: "Per-tool research timeout in seconds", aliases: [], nested: { section: "workflow", field: "rag_timeout" } },
+      ytdlp_path: { type: "string", default: "", description: "Path to yt-dlp binary (auto-detects if empty)", aliases: [], nested: null },
+      nlm_path: { type: "string", default: "", description: "Path to notebooklm-py binary (auto-detects if empty)", aliases: [], nested: null },
+      mcp_config_path: { type: "string", default: "", description: "Path to MCP server config file (auto-detects if empty)", aliases: [], nested: null },
+      // ─── Dependency-Backed Optimizations ───
+      optimization: { type: "object", default: {}, description: "Optimization flags for dependency-backed features", aliases: [], nested: null },
+      optimization_valibot: { type: "boolean", default: true, description: "Use valibot for schema validation", aliases: [], nested: { section: "optimization", field: "valibot" }, env: "BGSD_DEP_VALIBOT" },
+      optimization_discovery: { type: "string", default: "optimized", description: "File discovery mode", aliases: [], nested: { section: "optimization", field: "discovery" }, env: "BGSD_DISCOVERY_MODE", values: ["optimized", "legacy"] },
+      optimization_compile_cache: { type: "boolean", default: false, description: "Enable Node.js compile-cache", aliases: [], nested: { section: "optimization", field: "compile_cache" }, env: "BGSD_COMPILE_CACHE" },
+      optimization_sqlite_cache: { type: "boolean", default: true, description: "SQLite statement caching", aliases: [], nested: { section: "optimization", field: "sqlite_cache" }, env: "BGSD_SQLITE_STATEMENT_CACHE" },
+      // ─── CLI Tool Toggles ───
+      tools_ripgrep: { type: "boolean", default: true, description: "Enable ripgrep for content search", aliases: [], nested: { section: "tools", field: "ripgrep" } },
+      tools_fd: { type: "boolean", default: true, description: "Enable fd for file discovery", aliases: [], nested: { section: "tools", field: "fd" } },
+      tools_jq: { type: "boolean", default: true, description: "Enable jq for JSON transformation", aliases: [], nested: { section: "tools", field: "jq" } },
+      tools_yq: { type: "boolean", default: true, description: "Enable yq for YAML transformation", aliases: [], nested: { section: "tools", field: "yq" } },
+      tools_ast_grep: { type: "boolean", default: true, description: "Enable ast-grep for syntax-aware code search", aliases: [], nested: { section: "tools", field: "ast_grep" } },
+      tools_sd: { type: "boolean", default: true, description: "Enable sd for fast text replacement", aliases: [], nested: { section: "tools", field: "sd" } },
+      tools_hyperfine: { type: "boolean", default: true, description: "Enable hyperfine for command benchmarking", aliases: [], nested: { section: "tools", field: "hyperfine" } },
+      tools_bat: { type: "boolean", default: true, description: "Enable bat for syntax highlighting", aliases: [], nested: { section: "tools", field: "bat" } },
+      tools_gh: { type: "boolean", default: true, description: "Enable gh for GitHub operations", aliases: [], nested: { section: "tools", field: "gh" } }
+    };
+    var COMMAND_HELP = {
+      "util:codebase context": `Usage: bgsd-tools util:codebase context --files <file1> [file2] ... [--plan <path>]
+       bgsd-tools util:codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
+
+Assemble per-file architectural context from cached intel.
+
+Mode 1 (--files): Full context with imports, dependents, conventions, risk levels.
+Mode 2 (--task):  Task-scoped context using dep graph + relevance scoring.
+  Returns only files relevant to the task with scores and optional AST signatures.
+
+Options:
+  --files <paths>    Target file paths for full context mode
+  --task <paths>     Comma-separated task files for scoped context mode
+  --plan <path>      Plan file for scope signal (reads files_modified)
+  --budget <tokens>  Token budget for task-scoped output (default: 3000)
+
+Output (--task): { task_files, context_files: [{path, score, reason, signatures?}], stats }
+
+Examples:
+  bgsd-tools util:codebase context --files src/lib/ast.js
+  bgsd-tools util:codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
+      "util:codebase ast": `Usage: bgsd-tools util:codebase ast <file>
+
+Extract function, class, and method signatures from a source file.
+
+For JS/TS: Uses acorn AST parsing with TypeScript stripping.
+For Python, Go, Rust, Ruby, Elixir, Java, PHP: Uses regex-based extraction.
+
+Arguments:
+  file   Source file path to analyze
+
+Output: { file, language, signatures: [{name, type, params, line, async, generator}], count }
+
+Examples:
+  bgsd-tools util:codebase ast src/lib/ast.js
+  bgsd-tools util:codebase ast app.py`,
+      "util:codebase exports": `Usage: bgsd-tools util:codebase exports <file>
+
+Extract the export surface from a JS/TS module.
+
+Detects ESM exports (named, default, re-exports) and CJS exports
+(module.exports, exports patterns). Reports module type (esm/cjs/mixed).
+
+Arguments:
+  file   Source file path to analyze
+
+Output: { file, type, named, default, re_exports, cjs_exports }
+
+Examples:
+  bgsd-tools util:codebase exports src/lib/ast.js
+  bgsd-tools util:codebase exports src/router.js`,
+      "util:codebase complexity": `Usage: bgsd-tools util:codebase complexity <file>
+
+Compute per-function cyclomatic complexity for a source file.
+
+For JS/TS: Uses acorn AST to walk each function body, counting branching
+nodes (if, for, while, switch, catch, ternary, logical operators) and
+tracking max nesting depth.
+
+For other languages: Uses regex approximation counting branching keywords.
+
+Arguments:
+  file   Source file path to analyze
+
+Output: { file, module_complexity, functions: [{name, line, complexity, nesting_max}] }
+
+Color coding (formatted mode): green(1-5), yellow(6-10), red(11+)
+
+Examples:
+  bgsd-tools util:codebase complexity src/router.js
+  bgsd-tools util:codebase complexity src/lib/ast.js`,
+      "util:codebase repo-map": `Usage: bgsd-tools util:codebase repo-map [--budget <tokens>]
+
+Generate a compact repository map from AST signatures.
+
+Walks all source files, extracts function/class/method signatures and
+exports, then builds a compact text summary sorted by signature density.
+Designed for agent context injection (~1k tokens by default).
+
+Options:
+  --budget <tokens>   Token budget for output (default: 1000)
+
+Output (raw): { summary, files_included, total_signatures, token_estimate }
+Output (formatted): The summary text directly
+
+Examples:
+  bgsd-tools util:codebase repo-map
+  bgsd-tools util:codebase repo-map --budget 500`,
+      "execute:trajectory": `Usage: bgsd-tools execute:trajectory <subcommand> [options]
+
+Trajectory engineering commands.
+
+Subcommands:
+  checkpoint <name>  Create named checkpoint with auto-metrics
+    --scope <scope>       Scope level (default: phase)
+    --description <text>  Optional context description
+  list               List all checkpoints with metrics
+    --scope <scope>       Filter by scope
+    --name <name>         Filter by checkpoint name
+    --limit <N>           Limit results
+  compare <name>     Compare metrics across all attempts for a checkpoint
+    --scope <scope>       Scope level (default: phase)
+  pivot <checkpoint>   Abandon current approach, rewind to checkpoint
+    --scope <scope>       Scope level (default: phase)
+    --reason <text>       Why this approach is being abandoned (required)
+    --attempt <N>         Target specific attempt (default: most recent)
+    --stash               Auto-stash dirty working tree before pivot
+  choose <name> --attempt <N>   Select winner, archive rest, clean up
+    --scope <scope>       Scope level (default: phase)
+    --reason <text>       Why this attempt was chosen (recorded in journal)
+  dead-ends              Query journal for failed approaches
+    --scope <scope>       Filter by scope (task, plan, phase)
+    --name <name>         Filter by checkpoint name
+    --limit <N>           Max results (default: 10)
+    --token-cap <N>       Token cap for context output (default: 500)
+
+Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
+journal entry to the trajectories memory store with test count, LOC delta,
+and cyclomatic complexity metrics.
+
+Examples:
+  bgsd-tools execute:trajectory checkpoint explore-auth
+  bgsd-tools execute:trajectory checkpoint try-redis --scope task --description "Redis caching approach"
+  bgsd-tools execute:trajectory list
+  bgsd-tools execute:trajectory list --scope phase --limit 5
+  bgsd-tools execute:trajectory compare my-feat
+  bgsd-tools execute:trajectory pivot explore-auth --reason "JWT approach too complex"
+  bgsd-tools execute:trajectory choose my-feat --attempt 2 --reason "Better test coverage"
+  bgsd-tools execute:trajectory dead-ends
+  bgsd-tools execute:trajectory dead-ends --scope task --limit 5`,
+      "execute:trajectory compare": `Usage: bgsd-tools execute:trajectory compare <name> [--scope <scope>]
+
+Compare metrics across all attempts for a named checkpoint.
+Shows test results, LOC delta, and cyclomatic complexity side-by-side.
+Best values highlighted green, worst highlighted red.
+
+Arguments:
+  name              Checkpoint name to compare attempts for
+
+Options:
+  --scope <scope>   Scope level (default: phase)
+
+Output: { checkpoint, scope, attempt_count, attempts, best_per_metric, worst_per_metric }
+
+Examples:
+  bgsd-tools execute:trajectory compare my-feat
+  bgsd-tools execute:trajectory compare try-redis --scope task`,
+      "execute:trajectory choose": `Usage: bgsd-tools execute:trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
+
+Select the winning attempt, merge its code, archive non-chosen attempts as tags,
+and delete all trajectory working branches.
+
+Arguments:
+  name              Checkpoint name to finalize
+
+Options:
+  --attempt <N>     Required. The winning attempt number
+  --scope <scope>   Scope level (default: phase)
+  --reason "text"   Why this attempt was chosen (recorded in journal)
+
+What happens:
+  1. Winning attempt branch is merged into current branch (--no-ff)
+  2. Non-chosen attempt branches are archived as lightweight git tags
+  3. All trajectory working branches are deleted (tags preserved)
+  4. Journal records the choice with rationale
+
+Examples:
+  bgsd-tools execute:trajectory choose my-feat --attempt 2
+  bgsd-tools execute:trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
+      "execute:trajectory pivot": `Usage: bgsd-tools execute:trajectory pivot <checkpoint> --reason "what failed and why"
+
+Abandon current approach with recorded reasoning and rewind to checkpoint.
+Auto-checkpoints current work as abandoned attempt before rewinding.
+
+Arguments:
+  checkpoint          Name of checkpoint to rewind to
+
+Options:
+  --scope <scope>     Scope level (default: phase)
+  --reason <text>     Structured reason for abandoning (required)
+  --attempt <N>       Target specific attempt number (default: most recent)
+  --stash             Auto-stash dirty working tree before pivot
+
+Output: { pivoted, checkpoint, target_ref, abandoned_branch, files_rewound, stash_used }
+
+Examples:
+  bgsd-tools execute:trajectory pivot explore-auth --reason "JWT approach too complex, session-based simpler"
+  bgsd-tools execute:trajectory pivot try-redis --scope task --reason "Redis overkill for this cache size"
+  bgsd-tools execute:trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"`,
+      "execute:trajectory dead-ends": `Usage: bgsd-tools execute:trajectory dead-ends [--scope <scope>] [--name <name>] [--limit <N>] [--token-cap <N>]
+
+Query journal for failed approaches (pivot/abandon entries).
+Shows "what NOT to do" context with reasons from pivot entries.
+
+Options:
+  --scope <scope>   Filter by scope (task, plan, phase)
+  --name <name>     Filter by checkpoint name
+  --limit <N>       Max results (default: 10)
+  --token-cap <N>   Token cap for context output (default: 500)
+
+Output: { dead_ends, count, scope_filter, name_filter, context }
+
+Examples:
+  bgsd-tools execute:trajectory dead-ends
+  bgsd-tools execute:trajectory dead-ends --scope task --limit 5`,
+      "util:classify plan": `Usage: bgsd-tools util:classify plan <plan-path>
+
+Classify all tasks in a plan file with 1-5 complexity scores.
+
+Scoring factors: file count, cross-module blast radius, test requirements,
+checkpoint complexity, action length.
+
+Model mapping: score 1-2 \u2192 sonnet, score 3 \u2192 sonnet, score 4-5 \u2192 opus
+
+Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
+
+Examples:
+  bgsd-tools util:classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
+      "util:classify phase": `Usage: bgsd-tools util:classify phase <phase-number>
+
+Classify all incomplete plans in a phase and determine execution mode.
+
+Execution modes:
+  single      1 plan with 1-2 tasks
+  parallel    Multiple plans in same wave, no file overlaps
+  sequential  Plans with checkpoint tasks
+  pipeline    Plans spanning 3+ waves
+
+Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason, waves } }
+
+Examples:
+  bgsd-tools util:classify phase 39
+  bgsd-tools util:classify phase 38`,
+      "util:git": `Usage: bgsd-tools util:git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
+
+Structured git intelligence \u2014 JSON output for agents and workflows.
+
+Subcommands:
+  log [--count N] [--since D] [--until D] [--author A] [--path P]
+    Structured commit log with file stats and conventional commit parsing.
+  diff-summary [--from ref] [--to ref] [--path P]
+    Diff stats between two refs (default: HEAD~1..HEAD).
+  blame <file>
+    Line-to-commit/author mapping for a file.
+  branch-info
+    Current branch state: detached, shallow, dirty, rebasing, upstream.
+  rewind --ref <ref> [--confirm] [--dry-run]
+    Selective code rewind protecting .planning/ and root configs.
+    Shows diff summary of changes. --dry-run previews without modifying.
+    --confirm executes the rewind. Auto-stashes dirty working tree.
+  trajectory-branch --phase <N> --slug <name> [--push]
+    Create branch in gsd/trajectory/{phase}-{slug} namespace.
+    Local-only by default. --push to push to origin.
+
+Examples:
+  bgsd-tools util:git log --count 5
+  bgsd-tools util:git diff-summary --from main --to HEAD
+  bgsd-tools util:git blame src/router.js
+  bgsd-tools util:git branch-info
+  bgsd-tools util:git rewind --ref HEAD~3 --dry-run
+  bgsd-tools util:git rewind --ref abc123 --confirm
+  bgsd-tools util:git trajectory-branch --phase 45 --slug decision-journal`,
+      // ─── Namespaced Command Help (user-facing only) ──────────────────────────────
+      // plan namespace
+      "plan:intent": `Usage: bgsd-tools plan:intent <subcommand> [options]
+
+Manage project intent in INTENT.md.
+
+Subcommands:
+  create      Create a new INTENT.md
+  show        Display intent summary
+  read        Read intent as JSON
+  update      Update INTENT.md sections
+  validate    Validate INTENT.md structure
+  trace       Traceability matrix
+  drift       Drift analysis`,
+      "plan:intent show": `Usage: bgsd-tools plan:intent show [section] [--full]
+
+Display intent summary from INTENT.md.`,
+      "plan:requirements": `Usage: bgsd-tools plan:requirements mark-complete <ids>
+
+Mark requirement IDs as complete.`,
+      "plan:roadmap": `Usage: bgsd-tools plan:roadmap <subcommand> [args]
+
+Roadmap operations.
+
+Subcommands:
+  get-phase <phase>   Extract phase section from ROADMAP.md
+  analyze             Full roadmap parse with disk status
+  update-plan-progress <N>  Update progress table row from disk`,
+      "plan:phases": `Usage: bgsd-tools plan:phases list [options]
+
+List phase directories with metadata.`,
+      "plan:find-phase": `Usage: bgsd-tools plan:find-phase <phase>
+
+Find a phase directory by number.`,
+      "plan:milestone": `Usage: bgsd-tools plan:milestone complete <version> [options]
+
+Complete a milestone.`,
+      "plan:phase": `Usage: bgsd-tools plan:phase <subcommand> [args]
+
+Phase lifecycle operations.
+
+Subcommands:
+  next-decimal <phase>   Calculate next decimal phase
+  add <description>       Append new phase
+  insert <after> <desc>  Insert decimal phase
+  remove <phase> [--force]  Remove phase
+  complete <phase>       Mark phase done`,
+      "phase:snapshot": `Usage: bgsd-tools phase:snapshot <phase>
+
+Return a compact phase snapshot with metadata, requirement IDs, artifact paths,
+plan index data, and common execution context in one additive payload.`,
+      // execute namespace
+      "execute:commit": `Usage: bgsd-tools execute:commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
+
+Commit planning documents to git.`,
+      "execute:rollback-info": `Usage: bgsd-tools execute:rollback-info <plan-id>
+
+Show commits and revert command for a plan.`,
+      "execute:session-diff": `Usage: bgsd-tools execute:session-diff
+
+Show git commits since last session activity.`,
+      "execute:session-summary": `Usage: bgsd-tools execute:session-summary
+
+Session handoff summary.`,
+      "execute:velocity": `Usage: bgsd-tools execute:velocity
+
+Calculate planning velocity and completion forecast.`,
+      "workspace": `Usage: bgsd-tools workspace <subcommand> [options]
+
+Manage JJ workspaces for local execution isolation and recovery.
+
+Subcommands:
+  add <plan-id>                Create a managed JJ workspace for a plan
+  list                         List managed JJ workspaces for this project
+  forget <plan-id|name>        Stop tracking a managed workspace
+  cleanup                      Forget managed workspaces and delete their directories
+  reconcile <plan-id|name>     Inspect recovery state and preview reconcile actions`,
+      "workspace list": `Usage: bgsd-tools workspace list
+
+List the JJ workspaces managed under this project's configured workspace base path, including recovery-needed runs.`,
+      "workspace add": `Usage: bgsd-tools workspace add <plan-id>
+
+Create a managed JJ workspace using the deterministic phase-plan workspace name.`,
+      "workspace forget": `Usage: bgsd-tools workspace forget <plan-id|workspace-name>
+
+Forget a managed JJ workspace without deleting its directory.`,
+      "workspace cleanup": `Usage: bgsd-tools workspace cleanup
+
+Forget every managed JJ workspace for this project and remove only directories that are no longer needed after recovery work.`,
+      "workspace reconcile": `Usage: bgsd-tools workspace reconcile <plan-id|workspace-name>
+
+Inspect a managed JJ workspace, report JJ-backed recovery context, and preview reconcile actions before follow-up mutation.`,
+      "execute:tdd": `Usage: bgsd-tools execute:tdd <subcommand> [options]
+
+Canonical TDD contract command surfaces.
+
+Shared contract: RED / GREEN / REFACTOR phases with exact-command validation and
+structured proof documented in skills/tdd-execution/SKILL.md.
+
+Subcommands:
+  validate-red --test-cmd "cmd"       Verify exact target fails (missing target is invalid)
+  validate-green --test-cmd "cmd"     Verify exact target passes
+  validate-refactor --test-cmd "cmd"  Verify exact target still passes
+  auto-test --test-cmd "cmd"          Run target, report proof payload
+  detect-antipattern --phase <p> --files <files>
+                                        Check for TDD contract drift`,
+      "execute:test-run": `Usage: bgsd-tools execute:test-run
+
+Run project tests and parse output.`,
+      // verify namespace
+      "verify:state": `Usage: bgsd-tools verify:state <subcommand> [options]
+
+Manage project state in STATE.md.
+
+Subcommands:
+  load | get <field> | update <field> <value> | patch --key value ...
+  advance-plan | update-progress | handoff <write|show|validate|clear>
+  record-metric --phase P --plan N --duration D [--tasks T] [--files F]
+  add-decision --phase P --summary S [--rationale R]
+  add-blocker --text "..." | resolve-blocker --text "..."
+  record-session --stopped-at "..." [--resume-file path]
+  validate [--fix]`,
+      "verify:verify": `Usage: bgsd-tools verify:verify <subcommand> [args]
+
+Verification suite for planning documents.
+
+Subcommands:
+  plan-structure <file>        Check PLAN.md structure
+  phase-completeness <phase>   Check all plans have summaries
+  references <file>            Check @-refs and paths resolve
+  commits <h1> [h2] ...       Batch verify commit hashes
+  artifacts <plan-file>        Check must_haves.artifacts
+  key-links <plan-file>        Check must_haves.key_links
+  analyze-plan <plan-file>     Analyze plan complexity
+  deliverables [--plan file]   Run tests + verify deliverables
+  requirements                 Check REQUIREMENTS.md coverage
+  regression [--before f] [--after f]  Detect regressions
+  plan-wave <phase-dir>        Check file conflicts
+  plan-deps <phase-dir>        Check dependency cycles
+  quality [--plan f] [--phase N]  Composite quality score`,
+      "verify:assertions": `Usage: bgsd-tools verify:assertions <subcommand> [options]
+
+Manage structured acceptance criteria.
+
+Subcommands:
+  list [--req SREQ-01]    List assertions by requirement
+  validate                Check assertion format and coverage`,
+      "verify:search-decisions": `Usage: bgsd-tools verify:search-decisions <query>
+
+Search decisions in STATE.md and archives.`,
+      "verify:search-lessons": `Usage: bgsd-tools verify:search-lessons <query>
+
+Search .planning/memory/lessons.json for relevant lessons.`,
+      "verify:review": `Usage: bgsd-tools verify:review <phase> <plan>
+
+Review context for reviewer agent.`,
+      "review:scan": `Usage: bgsd-tools review:scan [--range A...B | --base A --head B] [--findings-file path]
+
+Resolve a deterministic review target before any review rules run.
+
+Default behavior:
+  - Uses the staged diff when staged changes exist
+  - Returns a promptable fallback when nothing is staged
+  - Emits incomplete-scope warnings for nearby unstaged/untracked work
+  - Applies exact rule_id + path exclusions from .planning/review-exclusions.json
+
+Options:
+  --range A...B          Review an explicit commit range
+  --base A --head B      Equivalent explicit commit-range form
+  --findings-file path   Seed findings JSON before exclusion filtering (useful for tests/workflows)
+
+  Examples:
+  bgsd-tools review:scan
+  bgsd-tools review:scan --range HEAD~1...HEAD
+  bgsd-tools review:scan --findings-file .planning/tmp/findings.json`,
+      "review:readiness": `Usage: bgsd-tools review:readiness [--pretty]
+
+Return an advisory readiness snapshot for the current repository state.
+
+Checks:
+  - tests passing
+  - lint clean
+  - review findings resolved
+  - security findings resolved
+  - TODO markers in current diff
+  - changelog updated in current diff
+
+Output:
+  - JSON when piped
+  - terse advisory board in TTY/--pretty mode
+
+This command is advisory-only and never blocks release flow.`,
+      "security:scan": `Usage: bgsd-tools security:scan [--target path] [--findings-file path]
+
+Run the deterministic security scan pipeline.
+
+Default behavior:
+  - Scans the current repository root unless --target narrows scope
+  - Normalizes all engine findings into one security contract
+  - Applies confidence bands (high, medium, low) with a default 8/10 high gate
+  - Loads finding-level exclusions from .planning/security-exclusions.json
+
+Options:
+  --target path          Explicit scan target (defaults to repo root)
+  --findings-file path   Seed findings JSON before exclusion filtering (useful for tests/workflows)
+
+  Examples:
+  bgsd-tools security:scan
+  bgsd-tools security:scan --target src
+  bgsd-tools security:scan --findings-file .planning/tmp/security-findings.json`,
+      "release:bump": `Usage: bgsd-tools release:bump [--override <major|minor|patch>] [--version <x.y.z>]
+
+Preview the proposed release version from conventional commits since the last tag.
+
+The command is advisory-only and never mutates git state. Manual overrides beat automatic inference.`,
+      "release:changelog": `Usage: bgsd-tools release:changelog [--override <major|minor|patch>] [--version <x.y.z>]
+
+Preview grouped release notes from plan summaries plus conventional commits since the last tag.
+
+The command is advisory-only and never writes tags, branches, PRs, or changelog changes.`,
+      "release:tag": `Usage: bgsd-tools release:tag
+
+Scaffolded release command surface for Phase 148.
+
+This command is routed and help-visible now; tag automation lands in later plans.`,
+      "release:pr": `Usage: bgsd-tools release:pr
+
+Scaffolded release command surface for Phase 148.
+
+This command is routed and help-visible now; PR automation lands in later plans.`,
+      "verify:context-budget": `Usage: bgsd-tools verify:context-budget <subcommand|path> [options]
+
+Measure token consumption across workflows.
+
+Subcommands:
+  <path>                    Estimate tokens for a file
+  baseline                  Measure all workflows, save baseline
+  compare [baseline-path]   Compare current vs baseline`,
+      "verify:token-budget": `Usage: bgsd-tools verify:token-budget
+
+Show token counts for workflow files vs budgets.`,
+      "verify:handoff": `Usage: bgsd-tools verify:handoff [options]
+
+Validate agent handoff context transfer.
+
+Options:
+  --preview              Show what context would transfer between agents
+  --from <agent>        Source agent name
+  --to <agent>          Target agent name
+  --validate <context>  Validate handoff completeness (state|plan|tasks|summary|all)
+
+Examples:
+  bgsd-tools verify:handoff --preview --from planner --to executor
+  bgsd-tools verify:handoff --validate state`,
+      "verify:agents": `Usage: bgsd-tools verify:agents [options]
+
+Verify agent boundary contracts and capabilities.
+
+Options:
+  --verify              Verify specific agent contract
+  --contracts           Show all handoff contracts
+  --check-overlap       Check for capability overlap
+  --from <agent>        Source agent name
+  --to <agent>          Target agent name
+
+Examples:
+  bgsd-tools verify:agents --contracts
+  bgsd-tools verify:agents --verify --from planner --to executor
+  bgsd-tools verify:agents --check-overlap`,
+      // util namespace
+      "util:config-get": `Usage: bgsd-tools util:config-get <key.path>
+
+Get configuration value from .planning/config.json.`,
+      "util:config-set": `Usage: bgsd-tools util:config-set <key.path> <value>
+
+Set configuration value in .planning/config.json.`,
+      "util:config-migrate": `Usage: bgsd-tools util:config-migrate
+
+Migrate .planning/config.json to match CONFIG_SCHEMA.
+Adds missing keys with default values. Never overwrites existing values.
+Creates backup before writing changes.`,
+      "util:env": `Usage: bgsd-tools util:env <subcommand> [options]
+
+Detect project languages, tools, and runtimes.
+
+Subcommands:
+  scan [--force] [--verbose]  Detect and write manifest
+  status                      Check manifest freshness`,
+      "util:current-timestamp": `Usage: bgsd-tools util:current-timestamp [format]
+
+Return current UTC timestamp.`,
+      "util:list-todos": `Usage: bgsd-tools util:list-todos [area]
+
+Count and enumerate pending todos.`,
+      "util:todo": `Usage: bgsd-tools util:todo complete <filename>
+
+Mark todo as complete.`,
+      "util:memory": `Usage: bgsd-tools util:memory <subcommand> [options]
+
+Persistent memory store.
+
+Subcommands:
+  write --store <name> --entry '{json}'   Write entry
+  read --store <name> [options]           Read entries
+  list                                    List stores
+  ensure-dir                              Create directory
+  compact [--store <name>] [--threshold N]  Compact old entries`,
+      "memory:list": `Usage: bgsd-tools memory:list
+
+List canonical MEMORY.md entries grouped by section.
+
+Outputs the same five sections users edit in .planning/MEMORY.md:
+  Active / Recent
+  Project Facts
+  User Preferences
+  Environment Patterns
+  Correction History`,
+      "memory:add": `Usage: bgsd-tools memory:add --section "Project Facts" --text "..." [options]
+
+Add a structured entry to .planning/MEMORY.md.
+
+Required:
+  --section <name>   One of the canonical MEMORY.md sections
+  --text <text>      Human-readable memory text
+
+Optional:
+  --type <type>      project-fact | user-preference | environment-pattern | correction
+  --source <text>    Provenance note
+  --keep <value>     Pin hint such as always
+  --status <value>   Status marker such as active/inactive
+  --expires <date>   Optional expiry date
+  --replaces <id>    Stable memory ID this entry supersedes`,
+      "memory:remove": `Usage: bgsd-tools memory:remove --id MEM-001
+
+Remove a single MEMORY.md entry by stable ID.`,
+      "memory:prune": `Usage: bgsd-tools memory:prune [--threshold 90] [--apply]
+
+Preview stale structured-memory entries before deletion.
+
+Default behavior is preview-only. Use --apply to actually delete candidates.
+Candidates protect Active / Recent entries and Keep: always markers.`,
+      "util:mcp": `Usage: bgsd-tools util:mcp <subcommand> [options]
+
+MCP server management.
+
+Subcommands:
+  profile [--window N] [--apply] [--restore]  Manage profiles`,
+      "util:classify": `Usage: bgsd-tools util:classify <plan|phase> <path-or-number>
+
+Classify complexity and recommend execution strategy.`,
+      "util:frontmatter": `Usage: bgsd-tools util:frontmatter <subcommand> <file> [options]
+
+CRUD operations on YAML frontmatter.
+
+Subcommands:
+  get <file> [--field key]        Extract frontmatter as JSON
+  set <file> --field k --value v  Update single field
+  merge <file> --data '{json}'    Merge JSON into frontmatter
+  validate <file> --schema type   Validate format`,
+      "util:validate-commands": `Usage: bgsd-tools util:validate-commands
+
+Validate command registry - checks help text alignment with routing.
+
+Compares COMMAND_HELP keys against router implementations to detect:
+- Commands in help that have no routing
+- Missing help text for implemented commands
+- Format inconsistencies (space vs colon)
+
+Exit code 0 if all valid, non-zero if issues found.`,
+      "util:validate-artifacts": `Usage: bgsd-tools util:validate-artifacts
+
+Validate planning artifacts for structural issues.
+
+Checks:
+- MILESTONES.md: Balanced headers, valid date formats
+- PROJECT.md: Balanced <details> tags, no strikethrough in out-of-scope
+- Required files exist: STATE.md, ROADMAP.md
+
+Exit code 0 if all valid, non-zero if errors found.`,
+      "util:progress": `Usage: bgsd-tools util:progress [format]
+
+Render progress in various formats.`,
+      "util:websearch": `Usage: bgsd-tools util:websearch <query> [--limit N] [--freshness day|week|month]
+
+Search web via Brave Search API.`,
+      "util:history-digest": `Usage: bgsd-tools util:history-digest [--limit N] [--phases N1,N2] [--slim]
+
+Aggregate all SUMMARY.md data into digest.`,
+      "util:trace-requirement": `Usage: bgsd-tools util:trace-requirement <req-id>
+
+Trace requirement from spec to files on disk.`,
+      "util:codebase": `Usage: bgsd-tools util:codebase <subcommand> [options]
+
+Codebase intelligence.
+
+Subcommands:
+  analyze                  Full codebase analysis
+  status                   Current codebase status
+  conventions              Extract code conventions
+  rules                    Extract linting rules
+  deps                     Dependency analysis
+  impact                   Module blast radius
+  context                  Architectural context
+  lifecycle                Lifecycle analysis
+  ast                      Function signatures
+  exports                  Export surface
+  complexity               Cyclomatic complexity
+  repo-map                 Repository map`,
+      "util:cache": `Usage: bgsd-tools util:cache <subcommand> [options]
+
+Cache management.
+
+Subcommands:
+  status                   Show cache backend and entry count
+  clear                    Clear cache
+  warm [files...]          Pre-populate cache`,
+      "util:agent": `Usage: bgsd-tools util:agent <subcommand> [options]
+
+Agent management.
+
+Subcommands:
+  audit                                Audit agent lifecycle coverage against RACI matrix
+  list                                 List all agents
+  list-local                           List project-local overrides in .opencode/agents/
+  override <name>                      Create a local override from the installed agent
+  diff <name>                          Show diff between local and installed agent
+  sync <name> [--accept|--reject]      Review or apply upstream agent updates
+  validate-contracts [--phase N]       Check agent outputs match declared contracts`,
+      // research namespace
+      "research": `Usage: bgsd-tools research <subcommand> [options]
+
+Research infrastructure commands.
+
+Subcommands:
+  capabilities    Report available research tools, tier, and recommendations
+  yt-search       Search YouTube via yt-dlp with filtering and quality scoring
+  yt-transcript   Extract clean plain-text transcript from YouTube video
+  collect         Orchestrate multi-source collection pipeline with tier degradation
+  nlm-create      Create a NotebookLM notebook
+  nlm-add-source  Add a source (URL, file, YouTube) to a NotebookLM notebook`,
+      "research capabilities": `Usage: bgsd-tools research capabilities
+
+Report available research tools, current degradation tier, and recommendations.
+
+Detects: yt-dlp (YouTube), notebooklm-py (RAG synthesis), Brave Search MCP, Context7 MCP, Exa MCP.
+Shows: 4-tier degradation level, per-tool status, install hints for missing tools.
+
+Output: { rag_enabled, current_tier, tiers, cli_tools, mcp_servers, recommendations }`,
+      "research:capabilities": `Usage: bgsd-tools research:capabilities
+
+Report available research tools, current degradation tier, and recommendations.
+
+Detects: yt-dlp (YouTube), notebooklm-py (RAG synthesis), Brave Search MCP, Context7 MCP, Exa MCP.
+Shows: 4-tier degradation level, per-tool status, install hints for missing tools.
+
+Output: { rag_enabled, current_tier, tiers, cli_tools, mcp_servers, recommendations }`,
+      "research yt-search": `Usage: bgsd-tools research yt-search "topic" [options]
+
+Search YouTube via yt-dlp and return structured, filtered, quality-scored results.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --count N          Pre-filter result count (default: 10)
+  --max-age DAYS     Maximum video age in days (default: 730 = ~2 years)
+  --min-duration SEC Minimum duration in seconds (default: 300 = 5 min)
+  --max-duration SEC Maximum duration in seconds (default: 3600 = 60 min)
+  --min-views N      Minimum view count (default: 0)
+
+Output: { query, pre_filter_count, post_filter_count, results: [{ id, title, channel, duration, view_count, upload_date, url, description, quality_score }] }
+
+Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30pts bell curve at 15-20min).
+
+Examples:
+  bgsd-tools research yt-search "nodejs streams tutorial"
+  bgsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
+      "research:yt-search": `Usage: bgsd-tools research:yt-search "topic" [options]
+
+Search YouTube via yt-dlp and return structured, filtered, quality-scored results.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --count N          Pre-filter result count (default: 10)
+  --max-age DAYS     Maximum video age in days (default: 730 = ~2 years)
+  --min-duration SEC Minimum duration in seconds (default: 300 = 5 min)
+  --max-duration SEC Maximum duration in seconds (default: 3600 = 60 min)
+  --min-views N      Minimum view count (default: 0)
+
+Output: { query, pre_filter_count, post_filter_count, results: [{ id, title, channel, duration, view_count, upload_date, url, description, quality_score }] }
+
+Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30pts bell curve at 15-20min).
+
+Examples:
+  bgsd-tools research:yt-search "nodejs streams tutorial"
+  bgsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
+      "research yt-transcript": `Usage: bgsd-tools research yt-transcript <video-id|url> [options]
+
+Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
+
+Arguments:
+  video-id|url       YouTube video ID or full URL (required)
+
+Options:
+  --timestamps       Preserve [HH:MM:SS] timestamp markers (default: stripped)
+  --lang LANG        Subtitle language code (default: en)
+
+Output: { video_id, has_subtitles, language, auto_generated, transcript, word_count, char_count }
+
+When no subtitles are available: { video_id, has_subtitles: false, message: "No subtitles available" }
+When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip install yt-dlp" }
+
+Full transcript is always returned \u2014 no truncation in JSON output.
+
+Examples:
+  bgsd-tools research yt-transcript dQw4w9WgXcQ
+  bgsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  bgsd-tools research yt-transcript dQw4w9WgXcQ --timestamps
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+      "research:yt-transcript": `Usage: bgsd-tools research:yt-transcript <video-id|url> [options]
+
+Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
+
+Arguments:
+  video-id|url       YouTube video ID or full URL (required)
+
+Options:
+  --timestamps       Preserve [HH:MM:SS] timestamp markers (default: stripped)
+  --lang LANG        Subtitle language code (default: en)
+
+Output: { video_id, has_subtitles, language, auto_generated, transcript, word_count, char_count }
+
+When no subtitles are available: { video_id, has_subtitles: false, message: "No subtitles available" }
+When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip install yt-dlp" }
+
+Full transcript is always returned \u2014 no truncation in JSON output.
+
+Examples:
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ
+  bgsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
+  bgsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
+      "research collect": `Usage: bgsd-tools research collect "topic" [options]
+
+Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --quick            Bypass pipeline entirely, return tier 4 with empty sources
+
+Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
+
+Tiers:
+  1 \u2014 Full RAG (all tools + NotebookLM synthesis)
+  2 \u2014 Sources without synthesis (YouTube + MCP, LLM synthesizes)
+  3 \u2014 Brave/Context7 only (web search, no video)
+  4 \u2014 Pure LLM (no external sources)
+
+Pipeline stages:
+  [1/3] Web sources via Brave Search API (util:websearch subprocess)
+  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
+  [3/3] Context7 availability note (MCP \u2014 agent accesses directly)
+
+agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
+At Tier 4 (--quick or no tools), agent_context is empty string.
+
+Examples:
+  bgsd-tools research collect "nodejs subprocess patterns"
+  bgsd-tools research:collect --quick "test query"
+  bgsd-tools research:collect "react hooks" --pretty`,
+      "research:collect": `Usage: bgsd-tools research:collect "topic" [options]
+
+Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
+
+Arguments:
+  topic              Search query (required)
+
+Options:
+  --quick            Bypass pipeline entirely, return tier 4 with empty sources
+
+Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
+
+Tiers:
+  1 \u2014 Full RAG (all tools + NotebookLM synthesis)
+  2 \u2014 Sources without synthesis (YouTube + MCP, LLM synthesizes)
+  3 \u2014 Brave/Context7 only (web search, no video)
+  4 \u2014 Pure LLM (no external sources)
+
+Pipeline stages:
+  [1/3] Web sources via Brave Search API (util:websearch subprocess)
+  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
+  [3/3] Context7 availability note (MCP \u2014 agent accesses directly)
+
+agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
+At Tier 4 (--quick or no tools), agent_context is empty string.
+
+Examples:
+  bgsd-tools research:collect "nodejs subprocess patterns"
+  bgsd-tools research:collect --quick "test query"
+  bgsd-tools research:collect "react hooks" --pretty`,
+      "research nlm-create": `Usage: bgsd-tools research nlm-create "title"
+
+Create a NotebookLM notebook and return its ID.
+
+Arguments:
+  title              Notebook title (required)
+
+Checks binary availability and auth health before execution.
+Missing binary returns install hint. Expired auth returns re-auth instructions.
+
+Output: { notebook_id, title, raw_output }
+Error: { error, install_hint | reauth_command }
+
+Examples:
+  bgsd-tools research nlm-create "GSD Research Notes"
+  bgsd-tools research:nlm-create "Phase 59 Sources"`,
+      "research:nlm-create": `Usage: bgsd-tools research:nlm-create "title"
+
+Create a NotebookLM notebook and return its ID.
+
+Arguments:
+  title              Notebook title (required)
+
+Checks binary availability and auth health before execution.
+Missing binary returns install hint. Expired auth returns re-auth instructions.
+
+Output: { notebook_id, title, raw_output }
+Error: { error, install_hint | reauth_command }
+
+Examples:
+  bgsd-tools research:nlm-create "GSD Research Notes"
+  bgsd-tools research:nlm-create "Phase 59 Sources"`,
+      "research nlm-add-source": `Usage: bgsd-tools research nlm-add-source <notebook-id> "source-url-or-path"
+
+Add a source (URL, YouTube URL, local file) to a NotebookLM notebook.
+
+Arguments:
+  notebook-id        Notebook ID from nlm-create (required)
+  source-url-or-path Source URL or local file path (required)
+
+Sets the active notebook first, then adds the source. Uses 60s timeout for source processing.
+Checks binary availability and auth health before execution.
+
+Output: { notebook_id, source_url, raw_output }
+Error: { error, install_hint | reauth_command | details }
+
+Examples:
+  bgsd-tools research nlm-add-source abc123 "https://example.com/docs"
+  bgsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
+  bgsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
+      "research:nlm-add-source": `Usage: bgsd-tools research:nlm-add-source <notebook-id> "source-url-or-path"
+
+Add a source (URL, YouTube URL, local file) to a NotebookLM notebook.
+
+Arguments:
+  notebook-id        Notebook ID from nlm-create (required)
+  source-url-or-path Source URL or local file path (required)
+
+Sets the active notebook first, then adds the source. Uses 60s timeout for source processing.
+Checks binary availability and auth health before execution.
+
+Output: { notebook_id, source_url, raw_output }
+Error: { error, install_hint | reauth_command | details }
+
+Examples:
+  bgsd-tools research:nlm-add-source abc123 "https://example.com/docs"
+  bgsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
+  bgsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
+      "research nlm-ask": `Usage: bgsd-tools research nlm-ask <notebook-id> "question" [--new]
+
+Ask a question against a NotebookLM notebook and receive a grounded answer with citations.
+
+Arguments:
+  notebook-id  Notebook ID to ask against (required)
+  question     Question text (required, remaining positional args joined)
+
+Options:
+  --new        Start a fresh conversation (clears conversation history)
+
+Sets the active notebook first, then sends the question. Uses 30s timeout.
+Checks binary availability and auth health before execution.
+
+Output: { notebook_id, question, answer, references, raw_output }
+Error: { error, install_hint | reauth_command | details }
+
+Examples:
+  bgsd-tools research nlm-ask abc123 "What are the key themes?"
+  bgsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
+      "research:nlm-ask": `Usage: bgsd-tools research:nlm-ask <notebook-id> "question" [--new]
+
+Ask a question against a NotebookLM notebook and receive a grounded answer with citations.
+
+Arguments:
+  notebook-id  Notebook ID to ask against (required)
+  question     Question text (required, remaining positional args joined)
+
+Options:
+  --new        Start a fresh conversation (clears conversation history)
+
+Sets the active notebook first, then sends the question. Uses 30s timeout.
+Checks binary availability and auth health before execution.
+
+Output: { notebook_id, question, answer, references, raw_output }
+Error: { error, install_hint | reauth_command | details }
+
+Examples:
+  bgsd-tools research:nlm-ask abc123 "What are the key themes?"
+  bgsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
+      "research nlm-report": `Usage: bgsd-tools research nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
+
+Generate a structured report from a NotebookLM notebook.
+
+Arguments:
+  notebook-id  Notebook ID to generate report from (required)
+
+Options:
+  --type TYPE   Report type: briefing-doc (default), study-guide, blog-post
+  --prompt "text"  Custom report prompt (optional)
+
+Uses 60s timeout \u2014 report generation is slow. Sets active notebook first.
+Checks binary availability and auth health before execution.
+
+Output: { notebook_id, report_type, content, raw_output }
+Error: { error, install_hint | reauth_command | details }
+
+Examples:
+  bgsd-tools research nlm-report abc123 --type briefing-doc
+  bgsd-tools research:nlm-report abc123 --type study-guide
+  bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
+      "research:nlm-report": `Usage: bgsd-tools research:nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
+
+Generate a structured report from a NotebookLM notebook.
+
+Arguments:
+  notebook-id  Notebook ID to generate report from (required)
+
+Options:
+  --type TYPE   Report type: briefing-doc (default), study-guide, blog-post
+  --prompt "text"  Custom report prompt (optional)
+
+Uses 60s timeout \u2014 report generation is slow. Sets active notebook first.
+Checks binary availability and auth health before execution.
+
+Output: { notebook_id, report_type, content, raw_output }
+Error: { error, install_hint | reauth_command | details }
+
+Examples:
+  bgsd-tools research:nlm-report abc123 --type briefing-doc
+  bgsd-tools research:nlm-report abc123 --type study-guide
+  bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
+      "research:collect --resume": "Resume interrupted research session from last completed stage",
+      "research collect --resume": "Resume interrupted research session from last completed stage",
+      "research:score": `Usage: bgsd-tools research:score <path>
+
+Score a RESEARCH.md file and return a structured quality profile.
+
+Arguments:
+  path    Path to a RESEARCH.md file (required)
+
+Analyzes source count, confidence breakdown, official docs presence, source age,
+flagged gaps, and multi-source conflicts. Writes cache to research-score.json
+in the same directory.
+
+Output: {
+  source_count: number,
+  high_confidence_pct: number,
+  oldest_source_days: number,
+  has_official_docs: boolean,
+  confidence_level: "HIGH" | "MEDIUM" | "LOW",
+  flagged_gaps: [{ gap, severity, suggestion }],
+  conflicts: [{ claim, source_a, source_b }]
+}
+
+Examples:
+  bgsd-tools research:score .planning/phases/0133-enhanced-research-workflow/0133-RESEARCH.md
+  bgsd-tools research:score .planning/research/STACK.md --raw`,
+      "research:gaps": `Usage: bgsd-tools research:gaps <path>
+
+Extract flagged gaps from a cached research quality profile.
+
+Arguments:
+  path    Path to a RESEARCH.md file (required \u2014 used to locate research-score.json cache)
+
+Note: Reads from research-score.json cache in the same directory as <path>.
+Run research:score first to generate the cache.
+
+Output: { flagged_gaps: [{ gap, severity, suggestion }] }
+Error: { error: "No cached score found. Run research:score first." }
+
+Examples:
+  bgsd-tools research:gaps .planning/phases/0133-enhanced-research-workflow/0133-RESEARCH.md
+  bgsd-tools research:gaps .planning/research/STACK.md --raw`,
+      // audit namespace
+      // decisions namespace
+      "decisions:list": `Usage: bgsd-tools decisions:list
+
+List all registered decision rules with category, confidence range, and description.
+
+Groups rules by category with section headers. Shows total rules and categories.
+
+Output: { rules, summary: { total_rules, categories, category_list } }
+
+Examples:
+  bgsd-tools decisions:list
+  bgsd-tools decisions:list --raw`,
+      "decisions:inspect": `Usage: bgsd-tools decisions:inspect <rule_id>
+
+Show full details of a specific decision rule.
+
+Arguments:
+  rule_id    The rule identifier (e.g., progress-route, context-gate)
+
+Output: { id, name, category, description, inputs, outputs, confidence_range }
+
+If rule not found, shows available rule IDs.
+
+Examples:
+  bgsd-tools decisions:inspect progress-route
+  bgsd-tools decisions:inspect context-gate --raw`,
+      "decisions:evaluate": `Usage: bgsd-tools decisions:evaluate <rule_id> [--state '{json}']
+
+Evaluate a decision rule against a given state object.
+
+Arguments:
+  rule_id          The rule identifier to evaluate
+
+Options:
+  --state '{json}' JSON state object with input values for the rule
+
+Output: { value, confidence, rule_id, metadata? }
+
+If --state is omitted, evaluates with empty state (default values).
+
+Examples:
+  bgsd-tools decisions:evaluate context-gate --state '{"context_present":true}'
+  bgsd-tools decisions:evaluate progress-route --state '{"plan_count":3,"summary_count":1,"roadmap_exists":true,"project_exists":true,"state_exists":true}'
+  bgsd-tools decisions:evaluate auto-advance --state '{"auto_advance_config":true}' --raw`,
+      "decisions:savings": `Usage: bgsd-tools decisions:savings
+
+Show before/after LLM reasoning step counts per workflow.
+
+Reports savings from decision offloading \u2014 how many LLM reasoning steps
+each workflow used to perform vs how many remain after pre-computed decisions.
+
+Output: { workflows: [{workflow, before, after, saved, decisions}], totals: {before, after, saved, percent_reduction}, note }
+
+Examples:
+  bgsd-tools decisions:savings
+  bgsd-tools decisions:savings --raw`,
+      "audit:scan": `Usage: bgsd-tools audit:scan
+
+Scan workflows and agents for LLM-offloadable decisions with rubric scoring and token estimates.
+
+Scans all workflow .md files and agent definitions for decision points where
+the LLM currently reasons about things that deterministic code could handle.
+Each candidate is scored against a 7-criteria rubric (3 critical + 4 preferred)
+and assigned a token savings estimate.
+
+Output: { candidates, offloadable, keep_in_llm, summary }
+
+Summary includes: total_candidates, offloadable_count, keep_count,
+estimated_total_savings, savings_by_category
+
+Examples:
+  bgsd-tools audit:scan
+  bgsd-tools audit:scan --raw`,
+      // Missing COMMAND_HELP entries - adding per plan 115-04
+      // util namespace (20 commands)
+      "util:settings": `Usage: bgsd-tools util:settings [key]
+
+List all bGSD settings or get a specific value.
+
+Arguments:
+  key          Optional key path (e.g., "model_profile", "workflow.auto_advance")
+
+Output: All settings with current values, types, and defaults, or single value.
+
+Examples:
+  bgsd-tools util:settings
+  bgsd-tools util:settings model_profile`,
+      "util:parity-check": `Usage: bgsd-tools util:parity-check
+
+Check feature parity between production config and development config.
+
+Compares settings in .planning/config.json against expected production defaults
+and reports any gaps or mismatches.
+
+Output: { parity_ok, differences: [...] }
+
+Examples:
+  bgsd-tools util:parity-check`,
+      "util:resolve-model": `Usage: bgsd-tools util:resolve-model <agent-type>
+
+Resolve which model to use for a given agent type based on profile settings.
+
+Arguments:
+  agent-type    Agent type (e.g., "bgsd-planner", "bgsd-executor")
+
+Uses model_profile config (quality/balanced/budget) to select appropriate model.
+
+Output: { agent_type, profile, resolved_model, quality_model, balanced_model, budget_model }
+
+Examples:
+  bgsd-tools util:resolve-model bgsd-planner
+  bgsd-tools util:resolve-model bgsd-executor`,
+      "util:verify-path-exists": `Usage: bgsd-tools util:verify-path-exists <path>
+
+Verify that a path exists in the project.
+
+Arguments:
+  path         Path to verify (file or directory)
+
+Returns whether the path exists and its type (file/directory).
+
+Output: { path, exists: true|false, type: "file"|"directory"|"none" }
+
+Examples:
+  bgsd-tools util:verify-path-exists .planning/STATE.md
+  bgsd-tools util:verify-path-exists src/lib`,
+      "util:config-ensure-section": `Usage: bgsd-tools util:config-ensure-section
+
+Ensure all required sections exist in .planning/config.json.
+
+Creates missing sections with empty defaults. Does not overwrite existing values.
+
+Output: { added: [...], existing: [...], config_ensured: true }
+
+Examples:
+  bgsd-tools util:config-ensure-section`,
+      "util:scaffold": `Usage: bgsd-tools util:scaffold <type> [--path path]
+
+Scaffold common planning files and structures.
+
+Arguments:
+  type         Type to scaffold (plan|phase|milestone|summary)
+
+Options:
+  --path       Target path for scaffold operation
+
+Output: { scaffolded: [...], errors: [...] }
+
+Examples:
+  bgsd-tools util:scaffold plan --path .planning/phases/99-test
+  bgsd-tools util:scaffold phase`,
+      "util:phase-plan-index": `Usage: bgsd-tools util:phase-plan-index <phase>
+
+Build or update phase plan index file.
+
+Arguments:
+  phase        Phase number or directory
+
+Creates/updates .planning/phases/{phase}/INDEX.json with plan metadata.
+
+Output: { phase, plans_indexed, index_path }
+
+Examples:
+  bgsd-tools util:phase-plan-index 99
+  bgsd-tools util:phase-plan-index .planning/phases/99-test`,
+      "util:state-snapshot": `Usage: bgsd-tools util:state-snapshot
+
+Create a point-in-time snapshot of STATE.md.
+
+Captures current phase, plan position, blockers, decisions, and metrics.
+
+Output: { timestamp, phase, plan, position, blockers: [...], decisions: [...] }
+
+Examples:
+  bgsd-tools util:state-snapshot`,
+      "util:summary-extract": `Usage: bgsd-tools util:summary-extract <summary-path> [fields...]
+
+Extract specific fields from a SUMMARY.md file.
+
+Arguments:
+  summary-path  Path to SUMMARY.md file
+  fields       Field names to extract (default: all)
+
+Output: JSON with extracted field values.
+
+Examples:
+  bgsd-tools util:summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md one-liner
+  bgsd-tools util:summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md`,
+      "util:summary-generate": `Usage: bgsd-tools util:summary-generate <phase> <plan>
+
+Generate SUMMARY.md scaffold from PLAN.md.
+
+Arguments:
+  phase        Phase number (e.g., "01", "99")
+  plan         Plan number (e.g., "01", "04")
+
+Creates a structured SUMMARY.md template based on PLAN.md frontmatter and tasks.
+
+Output: JSON with generated sections and todo_remaining count.
+
+Examples:
+  bgsd-tools util:summary-generate 01 01
+  bgsd-tools util:summary-generate 99 04`,
+      "util:quick-summary": `Usage: bgsd-tools util:quick-summary [options]
+
+Generate a quick task summary from current state.
+
+Options:
+  --plan <path>    Plan file to summarize
+  --format         Output format (text|json)
+
+Output: Summary of tasks, completion status, and time estimates.
+
+Examples:
+  bgsd-tools util:quick-summary
+  bgsd-tools util:quick-summary --plan .planning/phases/01-foundation/01-01-PLAN.md`,
+      "util:extract-sections": `Usage: bgsd-tools util:extract-sections <file> <section>...
+
+Extract specific sections from a markdown file.
+
+Arguments:
+  file         Source markdown file
+  sections     Section names to extract (e.g., "context", "tasks")
+
+Output: JSON with section content.
+
+Examples:
+  bgsd-tools util:extract-sections .planning/PROJECT.md description goals`,
+      "util:tools": `Usage: bgsd-tools util:tools [options]
+
+Check status of external tools and dependencies.
+
+Options:
+  --detailed    Show detailed version info
+  --json        Output as JSON
+
+Detects: Node.js, Bun, git, yt-dlp, notebooklm-py, MCP servers.
+
+Output: { tools: [...], all_available: true|false }
+
+Examples:
+  bgsd-tools util:tools
+  bgsd-tools util:tools --detailed`,
+      "util:runtime": `Usage: bgsd-tools util:runtime [options]
+
+Show runtime information and benchmarks.
+
+Options:
+  --benchmark   Run quick benchmark
+  --details     Show detailed timing
+
+Reports runtime version, memory usage, and command execution times.
+
+Output: { runtime, version, memory, benchmark_results: {...} }
+
+Examples:
+  bgsd-tools util:runtime
+  bgsd-tools util:runtime --benchmark`,
+      "util:recovery": `Usage: bgsd-tools util:recovery <subcommand> [options]
+
+Auto-recovery and stuck task resolution.
+
+Subcommands:
+  analyze <error>     Analyze error and suggest fix
+  checkpoint <json>  Restore from checkpoint
+  stuck <task-id>     Diagnose why task is stuck
+
+Examples:
+  bgsd-tools util:recovery analyze "Cannot read property 'foo' of undefined"
+  bgsd-tools util:recovery checkpoint '{"files":["a.js"],"type":"auto"}'
+  bgsd-tools util:recovery stuck task-123`,
+      "util:history": `Usage: bgsd-tools util:history [options]
+
+Lookup command history and recent activity.
+
+Options:
+  --limit N         Number of entries (default: 10)
+  --command <cmd>   Filter by command
+  --since <date>    Filter since date
+
+Output: { entries: [...], count }
+
+Examples:
+  bgsd-tools util:history
+  bgsd-tools util:history --limit 20
+  bgsd-tools util:history --command util:settings`,
+      "util:examples": `Usage: bgsd-tools util:examples [command]
+
+Show usage examples for a command or list all examples.
+
+Arguments:
+  command      Optional command to get examples for
+
+Output: { examples: [...] }
+
+Examples:
+  bgsd-tools util:examples
+  bgsd-tools util:examples util:codebase`,
+      "util:analyze-deps": `Usage: bgsd-tools util:analyze-deps [path]
+
+Analyze dependencies for a file or entire project.
+
+Arguments:
+  path         Optional file or directory path
+
+Output: { dependencies: [...], dev_dependencies: [...], circular: [...] }
+
+Examples:
+  bgsd-tools util:analyze-deps
+  bgsd-tools util:analyze-deps src/lib/utils.js`,
+      "util:estimate-scope": `Usage: bgsd-tools util:estimate-scope <plan-path>
+
+Estimate token scope for executing a plan.
+
+Arguments:
+  plan-path    Path to PLAN.md file
+
+Analyzes task count, file modifications, and complexity to estimate context budget.
+
+Output: { estimated_tokens, tasks, files, complexity, recommendation }
+
+Examples:
+  bgsd-tools util:estimate-scope .planning/phases/01-foundation/01-01-PLAN.md`,
+      "util:test-coverage": `Usage: bgsd-tools util:test-coverage [options]
+
+Show test coverage information.
+
+Options:
+  --summary     Show summary only
+  --file <path> Coverage for specific file
+
+Output: { lines_covered, lines_total, percentage, uncovered_lines: [...] }
+
+Examples:
+  bgsd-tools util:test-coverage
+  bgsd-tools util:test-coverage --summary`,
+      // verify namespace (7 commands)
+      "verify:regression": `Usage: bgsd-tools verify:regression [options]
+
+Detect regressions by comparing before/after states.
+
+Options:
+  --before <ref>    Before commit/tag (default: HEAD~1)
+  --after <ref>     After commit/tag (default: HEAD)
+  --plan <path>    Check plan-specific regressions
+
+Runs test suite and compares outputs to detect behavioral changes.
+
+Output: { regressions_found: N, details: [...] }
+
+Examples:
+  bgsd-tools verify:regression
+  bgsd-tools verify:regression --before main --after HEAD
+  bgsd-tools verify:regression --plan .planning/phases/01-foundation/01-01-PLAN.md`,
+      "verify:quality": `Usage: bgsd-tools verify:quality [options]
+
+Run composite quality checks on planning documents.
+
+Options:
+  --plan <path>    Check specific plan
+  --phase <N>      Check entire phase
+  --score          Show numeric score
+
+Checks: structure, references, must_haves, key_links, dependencies.
+
+Output: { quality_score, issues: [...], warnings: [...] }
+
+Examples:
+  bgsd-tools verify:quality
+  bgsd-tools verify:quality --phase 01
+  bgsd-tools verify:quality --plan .planning/phases/01-foundation/01-01-PLAN.md --score`,
+      "verify:summary": `Usage: bgsd-tools verify:summary <summary-path>
+
+Verify SUMMARY.md completeness and correctness.
+
+Arguments:
+  summary-path  Path to SUMMARY.md file
+
+Checks: required sections, frontmatter completeness, task commit references.
+
+Output: { valid: true|false, issues: [...], completeness_score }
+
+Examples:
+  bgsd-tools verify:summary .planning/phases/01-foundation/01-01-SUMMARY.md`,
+      "verify:validate consistency": `Usage: bgsd-tools verify:validate consistency
+
+Validate consistency across planning documents.
+
+Checks: phase numbers match directories, plan numbers are sequential,
+references resolve correctly, no orphaned files.
+
+Output: { consistent: true|false, issues: [...] }
+
+Examples:
+  bgsd-tools verify:validate consistency`,
+      "verify:validate health": `Usage: bgsd-tools verify:validate health [options]
+
+Validate project health indicators.
+
+Options:
+  --detailed     Show detailed health metrics
+
+Checks: test pass rate, recent commit activity, blocker count, phase progress.
+
+Output: { healthy: true|false, metrics: {...}, recommendations: [...] }
+
+Examples:
+  bgsd-tools verify:validate health
+  bgsd-tools verify:validate health --detailed`,
+      "verify:validate-dependencies": `Usage: bgsd-tools verify:validate-dependencies
+
+Validate phase and plan dependencies.
+
+Checks: no circular dependencies, all required phases exist,
+plan depends_on references valid.
+
+Output: { valid: true|false, cycles: [...], missing: [...], warnings: [...] }
+
+Examples:
+  bgsd-tools verify:validate-dependencies`,
+      "verify:validate-config": `Usage: bgsd-tools verify:validate-config [options]
+
+Validate .planning/config.json against schema.
+
+Options:
+  --fix          Auto-fix trivial issues
+  --detailed     Show detailed validation results
+
+Checks: required keys present, types correct, defaults applied.
+
+Output: { valid: true|false, issues: [...], fixed: [...] }
+
+Examples:
+  bgsd-tools verify:validate-config
+  bgsd-tools verify:validate-config --fix`,
+      // cache namespace (5 commands)
+      "cache:research-stats": `Usage: bgsd-tools cache:research-stats
+
+Show research cache statistics.
+
+Reports entry count, hits, and misses for research results cached via
+the research:collect command.
+
+Output: { count, hits, misses, hit_rate_percent }
+
+Examples:
+  bgsd-tools cache:research-stats`,
+      "cache:research-clear": `Usage: bgsd-tools cache:research-clear
+
+Clear all research cache entries.
+
+Removes cached research results from the research_cache table.
+Does not affect general file cache.
+
+Output: { cleared: true, entries_removed: N }
+
+Examples:
+  bgsd-tools cache:research-clear`,
+      "cache:status": `Usage: bgsd-tools cache:status
+
+Show cache backend type and entry count.
+
+Reports which cache backend is active (memory/SQLite) and total entries.
+
+Output: { backend, count, hits, misses }
+
+Examples:
+  bgsd-tools cache:status`,
+      "cache:clear": `Usage: bgsd-tools cache:clear
+
+Clear all cache entries.
+
+Removes all entries from the active cache backend.
+Does not affect research cache.
+
+Output: { cleared: true, entries_removed: N }
+
+Examples:
+  bgsd-tools cache:clear`,
+      "cache:warm": `Usage: bgsd-tools cache:warm [files...]
+
+Pre-populate cache with file contents.
+
+Arguments:
+  files        Optional file paths to cache (default: all .planning/ files)
+
+Discovers and caches planning documents for faster subsequent access.
+
+Output: { warmed: N, elapsed_ms: M }
+
+Examples:
+  bgsd-tools cache:warm
+  bgsd-tools cache:warm .planning/STATE.md .planning/ROADMAP.md`,
+      // lessons namespace (Phase 130)
+      "lessons:capture": `Usage: bgsd-tools lessons:capture --title <text> --severity <level> --type <type> --root-cause <text> --prevention <text> --agents <list>
+
+Capture a structured lesson entry to .planning/memory/lessons.json.
+
+Required options:
+  --title <text>        Short description of the lesson
+  --severity <level>    LOW | MEDIUM | HIGH | CRITICAL
+  --type <type>         workflow | agent-behavior | tooling | environment
+  --root-cause <text>   What caused the issue
+  --prevention <text>   Rule to prevent recurrence
+  --agents <list>       Comma-separated affected agent types
+
+Output: { captured, id, title, severity, type, entry_count }
+
+Examples:
+  bgsd-tools lessons:capture --title "Missing validation" --severity HIGH --type tooling --root-cause "No input checks" --prevention "Add input validation" --agents bgsd-executor
+  bgsd-tools lessons:capture --title "Auth failure" --severity CRITICAL --type agent-behavior --root-cause "Token expired" --prevention "Check expiry before use" --agents "bgsd-executor,bgsd-planner"`,
+      "lessons:list": `Usage: bgsd-tools lessons:list [options]
+
+List structured lesson entries with optional filters.
+
+Options:
+  --type <type>         Filter by type (workflow | agent-behavior | tooling | environment)
+  --severity <level>    Filter by severity (LOW | MEDIUM | HIGH | CRITICAL)
+  --since <date>        Filter by date >= ISO date (e.g. 2026-03-01)
+  --limit <N>           Maximum results (default: 20)
+  --query <text>        Substring search on title, root_cause, prevention_rule
+
+Output: { entries, count, filtered_total, total, filters }
+
+Examples:
+  bgsd-tools lessons:list
+  bgsd-tools lessons:list --type agent-behavior --severity HIGH
+  bgsd-tools lessons:list --since 2026-03-01 --limit 5
+  bgsd-tools lessons:list --query "auth"`,
+      "lessons:analyze": `Usage: bgsd-tools lessons:analyze [--agent <name>]
+
+Analyze recurrent patterns in the lesson store, grouped by affected agent and type.
+Only shows groups with \u22652 supporting lessons (noise filter).
+
+Options:
+  --agent <name>    Filter results to a specific agent (e.g., bgsd-executor)
+
+Output: { groups, group_count, total_lessons_analyzed, filter }
+
+Each group contains:
+  - agent, pattern_type, count, severity_distribution
+  - common_root_causes, lessons (id, title, date, severity)
+
+Examples:
+  bgsd-tools lessons:analyze
+  bgsd-tools lessons:analyze --agent bgsd-executor`,
+      "lessons:suggest": `Usage: bgsd-tools lessons:suggest [--agent <name>]
+
+Generate structured improvement suggestions from lesson patterns.
+Excludes type:environment entries (migrated free-form lessons).
+Only generates suggestions for groups with \u22652 supporting lessons.
+Advisory only \u2014 never auto-applied.
+
+Options:
+  --agent <name>    Filter suggestions to a specific agent
+
+Output: { suggestions, suggestion_count, advisory_note, filter }
+
+Each suggestion contains:
+  - agent, suggestion_type (behavioral|workflow|tooling|general)
+  - summary, supporting_lessons (count + ids), severity, prevention_rules
+
+Examples:
+  bgsd-tools lessons:suggest
+  bgsd-tools lessons:suggest --agent bgsd-executor`,
+      "lessons:deviation-capture": `Usage: bgsd-tools lessons:deviation-capture --rule <number> --failure-count <number> --behavioral-change <text> --agent <name>
+
+Captures a deviation recovery pattern as a structured lesson entry.
+Only Rule 1 (code bug) recoveries are captured \u2014 all other rules are silently filtered.
+Capped at 3 entries per milestone to prevent noise.
+
+Options:
+  --rule               Deviation rule number (1=bug, 2=missing, 3=blocking, 4=architectural)
+  --failure-count      Number of failed attempts before successful recovery
+  --behavioral-change  Description of what behavioral change fixed the issue
+  --agent              Name of the agent that performed the recovery
+
+Examples:
+  bgsd-tools lessons:deviation-capture --rule 1 --failure-count 2 --behavioral-change "Added null check before property access" --agent bgsd-executor
+  bgsd-tools lessons:deviation-capture --rule 3 --failure-count 1 --behavioral-change "Reinstalled deps" --agent bgsd-executor  # \u2192 silently filtered (Rule 3)`,
+      "lessons:compact": `Usage: bgsd-tools lessons:compact [--threshold <N>]
+
+Deduplicate the lesson store by normalized root_cause when entry count exceeds threshold.
+Groups entries with identical root causes, keeps the latest entry per group.
+Merges unique prevention rules and preserves highest severity across the group.
+
+Options:
+  --threshold <N>   Compaction threshold (default: 100). If count < threshold, no-op.
+
+Output when below threshold: { compacted: false, reason, count, threshold }
+Output when compacted:       { compacted: true, before, after, removed, groups_merged }
+
+Examples:
+  bgsd-tools lessons:compact
+  bgsd-tools lessons:compact --threshold 50`,
+      "skills:list": `Usage: bgsd-tools skills:list
+
+List all installed project-local skills with their descriptions and scan status.
+
+Skills are stored in .agents/skills/<name>/SKILL.md within the project.
+
+Output: Array of { name, description, scan_status } or "No skills installed."
+
+Examples:
+  bgsd-tools skills:list`,
+      "skills:install": `Usage: bgsd-tools skills:install --source <github-url> [--confirm]
+         bgsd-tools skills:install <owner/repo> [--confirm]
+
+Install a skill from a GitHub repository with mandatory 41-pattern security scan.
+
+The install pipeline:
+  1. Fetch repository contents via GitHub API (no git clone required)
+  2. Verify SKILL.md exists in repo root (required)
+  3. Run 41-pattern security scan across all files
+  4. DANGEROUS findings: hard block \u2014 install is refused, no override
+  5. WARN findings: show count, prompt confirmation (or use --confirm to auto-accept)
+  6. Write skill to .agents/skills/<name>/ on confirmation
+  7. Log to .agents/skill-audit.json
+
+Options:
+  --source <url>   GitHub URL (https://github.com/owner/repo or owner/repo)
+  --confirm        Auto-accept warn-level findings without interactive prompt
+
+Examples:
+  bgsd-tools skills:install --source owner/my-skill
+  bgsd-tools skills:install https://github.com/owner/my-skill --confirm`,
+      "skills:validate": `Usage: bgsd-tools skills:validate --name <skill-name> [--verbose]
+
+Re-scan an installed skill against the 41-pattern security scanner.
+Useful after manual edits or to verify an existing skill's safety.
+
+Options:
+  --name <name>   Name of the installed skill to validate
+  --verbose       Show full matched code snippets for each finding
+
+Output: Scan report with severity-first grouping (dangerous > warn > info), category
+checklist (\u2713/\u2717 per category), count summary, and overall verdict.
+
+Examples:
+  bgsd-tools skills:validate --name my-skill
+  bgsd-tools skills:validate --name my-skill --verbose`,
+      "skills:remove": `Usage: bgsd-tools skills:remove --name <skill-name>
+
+Remove an installed project-local skill. Deletes the skill directory from
+.agents/skills/<name>/ and logs the removal to .agents/skill-audit.json.
+
+Options:
+  --name <name>   Name of the installed skill to remove
+
+Examples:
+  bgsd-tools skills:remove --name my-skill`,
+      "workflow:baseline": `Usage: bgsd-tools workflow:baseline
+
+Measure token counts and structural fingerprints for all workflow files.
+Saves a versioned snapshot to .planning/baselines/workflow-baseline-{timestamp}.json.
+
+The structural fingerprint per workflow includes:
+  - task_calls:       Task() function call counts
+  - cli_commands:     bgsd-tools invocations in code blocks
+  - section_markers:  <!-- section: ... --> markers
+  - question_blocks:  <question> blocks
+  - xml_tags:         <step>, <process>, <purpose> tags
+
+Output (stderr): Human-readable table with token counts and structural element counts.
+Output (stdout): JSON snapshot with { version, timestamp, workflow_count, total_tokens, workflows: [...] }
+
+Examples:
+  bgsd-tools workflow:baseline
+  bgsd-tools workflow:baseline --raw`,
+      "workflow:compare": `Usage: bgsd-tools workflow:compare [<snapshot-a>] [<snapshot-b>]
+
+Compare two workflow baseline snapshots to see per-workflow token deltas.
+
+Modes:
+  Two args:   Compare snapshot-a to snapshot-b
+  One arg:    Compare snapshot-a to current workflow state
+  No args:    Compare the two most recent baselines in .planning/baselines/
+
+Output (stderr): Comparison table with per-workflow before/after/delta/% columns.
+Output (stdout): JSON with { snapshot_a, snapshot_b, summary: { before_total, after_total, delta, percent_change, workflows_improved, workflows_unchanged, workflows_worsened }, workflows: [...] }
+
+Examples:
+  bgsd-tools workflow:compare
+  bgsd-tools workflow:compare .planning/baselines/workflow-baseline-2026-01-01T00-00-00-000Z.json
+  bgsd-tools workflow:compare baseline-a.json baseline-b.json`,
+      "workflow:savings": `Usage: bgsd-tools workflow:savings
+
+Generate a cumulative token savings table showing the reduction journey across milestones:
+  Original (pre-Phase 135) \u2192 Post-Compression (Phase 135) \u2192 Post-Elision (Phase 137)
+
+Loads Phase 134 and Phase 135 baselines from .planning/baselines/ if available.
+Falls back to hardcoded Phase 135 SUMMARY values if disk baselines unavailable.
+The post-elision column shows current workflow token counts (all conditional sections removed).
+
+Output:
+  | Workflow | Original | Compressed | Post-Elision | Total % |
+
+Options:
+  --raw   JSON output
+
+Examples:
+  bgsd-tools workflow:savings
+  bgsd-tools workflow:savings --raw`,
+      // questions namespace
+      "questions:audit": `Usage: bgsd-tools questions:audit [--json]
+
+Scan all workflows, identify inline question text vs template references.
+Reports taxonomy compliance percentage.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:audit
+  bgsd-tools questions:audit --json`,
+      "questions:list": `Usage: bgsd-tools questions:list [--json]
+
+List all question templates in src/lib/questions.js with taxonomy type and usage count per workflow.
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:list
+  bgsd-tools questions:list --json`,
+      "questions:validate": `Usage: bgsd-tools questions:validate [--json]
+
+Validate all question templates have 3-5 options, formatting parity, and escape hatches.
+Phase 143: warn-only mode (reports issues, does not block).
+
+Options:
+  --json    Machine-readable JSON output (default: human-readable Markdown)
+
+Examples:
+  bgsd-tools questions:validate
+  bgsd-tools questions:validate --json`
+    };
+    module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
+  }
+});
+
+// src/lib/config-contract.js
+var require_config_contract = __commonJS({
+  "src/lib/config-contract.js"(exports, module) {
+    var { CONFIG_SCHEMA } = require_constants();
+    function isPlainObject(value) {
+      return !!value && typeof value === "object" && !Array.isArray(value);
+    }
+    function cloneValue(value) {
+      if (Array.isArray(value)) return value.map(cloneValue);
+      if (isPlainObject(value)) {
+        return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, cloneValue(entry)]));
+      }
+      return value;
+    }
+    function deepMerge(base, override) {
+      if (override === void 0) return cloneValue(base);
+      if (Array.isArray(override)) return cloneValue(override);
+      if (!isPlainObject(base) || !isPlainObject(override)) return cloneValue(override);
+      const result = cloneValue(base);
+      for (const [key, value] of Object.entries(override)) {
+        if (isPlainObject(value) && isPlainObject(result[key])) {
+          result[key] = deepMerge(result[key], value);
+        } else {
+          result[key] = cloneValue(value);
+        }
+      }
+      return result;
+    }
+    function deepFreeze(value) {
+      if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+      Object.freeze(value);
+      for (const entry of Object.values(value)) {
+        deepFreeze(entry);
+      }
+      return value;
+    }
+    function getSchemaLookupValue(rawConfig, key, def) {
+      if (!isPlainObject(rawConfig)) return void 0;
+      if (rawConfig[key] !== void 0) return rawConfig[key];
+      if (def.nested) {
+        const section = rawConfig[def.nested.section];
+        if (isPlainObject(section) && section[def.nested.field] !== void 0) {
+          return section[def.nested.field];
+        }
+        if (def.nested.section === "workflow" && def.nested.field === "plan_check" && isPlainObject(section)) {
+          if (section.plan_checker !== void 0) return section.plan_checker;
+        }
+      }
+      for (const alias of def.aliases || []) {
+        if (rawConfig[alias] !== void 0) return rawConfig[alias];
+      }
+      return void 0;
+    }
+    function normalizeSchemaValue(rawValue, def) {
+      if (rawValue === void 0) return cloneValue(def.default);
+      if (def.coerce === "parallelization") {
+        if (typeof rawValue === "boolean") return rawValue;
+        if (isPlainObject(rawValue) && rawValue.enabled !== void 0) return Boolean(rawValue.enabled);
+        return cloneValue(def.default);
+      }
+      return cloneValue(rawValue);
+    }
+    function preferredSchemaPath(key, def) {
+      return def.nested ? `${def.nested.section}.${def.nested.field}` : key;
+    }
+    function shouldSkipMigrationForCompatibility(config, key, def) {
+      if (!def.nested || def.nested.section !== "workspace") return false;
+      if (config[key] !== void 0) return false;
+      if (isPlainObject(config.workspace)) return false;
+      return true;
+    }
+    function setByPath(target, keyPath, value) {
+      const keys = keyPath.split(".").filter(Boolean);
+      if (keys.length === 0) throw new Error("keyPath is required");
+      let current = target;
+      for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+        if (key === "__proto__" || key === "constructor" || key === "prototype") {
+          throw new Error("Cannot set prototype properties");
+        }
+        if (!isPlainObject(current[key])) current[key] = {};
+        current = current[key];
+      }
+      const lastKey = keys[keys.length - 1];
+      if (lastKey === "__proto__" || lastKey === "constructor" || lastKey === "prototype") {
+        throw new Error("Cannot set prototype properties");
+      }
+      current[lastKey] = cloneValue(value);
+      return target;
+    }
+    function buildDefaultConfig2(options = {}) {
+      let result = {};
+      for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
+        if (def.nested) {
+          if (!isPlainObject(result[def.nested.section])) result[def.nested.section] = {};
+          result[def.nested.section][def.nested.field] = cloneValue(def.default);
+        } else {
+          result[key] = cloneValue(def.default);
+        }
+      }
+      if (options.overrides) {
+        result = deepMerge(result, options.overrides);
+      }
+      return result;
+    }
+    function normalizeConfig2(rawConfig, options = {}) {
+      const parsed = isPlainObject(rawConfig) ? rawConfig : {};
+      const result = {};
+      for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
+        result[key] = normalizeSchemaValue(getSchemaLookupValue(parsed, key, def), def);
+      }
+      const extraDefaults = options.extraDefaults || {};
+      for (const [key, defaultValue] of Object.entries(extraDefaults)) {
+        if (Object.prototype.hasOwnProperty.call(result, key)) continue;
+        const rawValue = parsed[key];
+        if (rawValue === void 0) {
+          result[key] = cloneValue(defaultValue);
+        } else if (isPlainObject(defaultValue) && isPlainObject(rawValue)) {
+          result[key] = deepMerge(defaultValue, rawValue);
+        } else {
+          result[key] = cloneValue(rawValue);
+        }
+      }
+      return options.freeze === false ? result : deepFreeze(result);
+    }
+    function migrateConfig(rawConfig) {
+      const config = isPlainObject(rawConfig) ? cloneValue(rawConfig) : {};
+      const migratedKeys = [];
+      const unchangedKeys = [];
+      for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
+        if (shouldSkipMigrationForCompatibility(config, key, def)) {
+          continue;
+        }
+        const existingValue = getSchemaLookupValue(config, key, def);
+        const targetPath = preferredSchemaPath(key, def);
+        if (existingValue !== void 0) {
+          unchangedKeys.push(targetPath);
+          continue;
+        }
+        setByPath(config, targetPath, def.default);
+        migratedKeys.push(targetPath);
+      }
+      return { config, migratedKeys, unchangedKeys };
+    }
+    function applyConfigValue(rawConfig, keyPath, value, options = {}) {
+      const base = options.withDefaults ? deepMerge(buildDefaultConfig2(options.withDefaults), rawConfig || {}) : cloneValue(rawConfig || {});
+      return setByPath(base, keyPath, value);
+    }
+    function serializeConfig2(config) {
+      return JSON.stringify(config, null, 2) + "\n";
+    }
+    module.exports = {
+      applyConfigValue,
+      buildDefaultConfig: buildDefaultConfig2,
+      deepMerge,
+      isPlainObject,
+      migrateConfig,
+      normalizeConfig: normalizeConfig2,
+      serializeConfig: serializeConfig2
+    };
+  }
+});
+
 // src/plugin/parsers/config.js
 import { readFileSync as readFileSync4 } from "fs";
 import { join as join7 } from "path";
@@ -1774,46 +3843,16 @@ function parseConfig(cwd) {
     const raw = readFileSync4(configPath, "utf-8");
     parsed = JSON.parse(raw);
   } catch {
-    const defaults = Object.freeze({ ...CONFIG_DEFAULTS });
+    const defaults = normalizeConfig({}, { extraDefaults: CONFIG_DEFAULTS });
     _cache3.set(resolvedCwd, defaults);
     return defaults;
   }
-  const result = {};
-  for (const [key, defaultValue] of Object.entries(CONFIG_DEFAULTS)) {
-    if (parsed[key] !== void 0) {
-      if (key === "parallelization") {
-        if (typeof parsed[key] === "boolean") {
-          result[key] = parsed[key];
-        } else if (typeof parsed[key] === "object" && parsed[key] !== null && "enabled" in parsed[key]) {
-          result[key] = parsed[key].enabled;
-        } else {
-          result[key] = defaultValue;
-        }
-      } else if (NESTED_OBJECT_KEYS.has(key)) {
-        if (typeof parsed[key] === "object" && parsed[key] !== null) {
-          result[key] = Object.freeze({ ...defaultValue, ...parsed[key] });
-        } else {
-          result[key] = defaultValue;
-        }
-      } else {
-        result[key] = parsed[key];
-      }
-    } else if (parsed.workflow && ["research", "plan_checker", "verifier"].includes(key)) {
-      const nestedKey = key === "plan_checker" ? "plan_check" : key;
-      if (parsed.workflow[nestedKey] !== void 0) {
-        result[key] = parsed.workflow[nestedKey];
-      } else if (parsed.workflow[key] !== void 0) {
-        result[key] = parsed.workflow[key];
-      } else {
-        result[key] = defaultValue;
-      }
-    } else {
-      result[key] = defaultValue;
-    }
-  }
-  const frozen = Object.freeze(result);
+  const frozen = normalizeConfig(parsed, { extraDefaults: CONFIG_DEFAULTS });
   _cache3.set(resolvedCwd, frozen);
   return frozen;
+}
+function buildDefaultConfigText() {
+  return serializeConfig(buildDefaultConfig());
 }
 function invalidateConfig(cwd) {
   if (cwd) {
@@ -1822,22 +3861,13 @@ function invalidateConfig(cwd) {
     _cache3.clear();
   }
 }
-var _cache3, CONFIG_DEFAULTS, NESTED_OBJECT_KEYS;
+var import_config_contract, buildDefaultConfig, normalizeConfig, serializeConfig, _cache3, CONFIG_DEFAULTS;
 var init_config = __esm({
   "src/plugin/parsers/config.js"() {
+    import_config_contract = __toESM(require_config_contract());
+    ({ buildDefaultConfig, normalizeConfig, serializeConfig } = import_config_contract.default);
     _cache3 = /* @__PURE__ */ new Map();
     CONFIG_DEFAULTS = Object.freeze({
-      mode: "interactive",
-      depth: "standard",
-      model_profile: "balanced",
-      commit_docs: true,
-      branching_strategy: "none",
-      phase_branch_template: "phase-{number}-{name}",
-      milestone_branch_template: "{version}",
-      parallelization: false,
-      research: true,
-      plan_checker: true,
-      verifier: true,
       staleness_threshold: 2,
       // Phase 75: Event-driven state sync settings
       idle_validation: Object.freeze({
@@ -1885,13 +3915,6 @@ var init_config = __esm({
         })
       })
     });
-    NESTED_OBJECT_KEYS = /* @__PURE__ */ new Set([
-      "idle_validation",
-      "notifications",
-      "stuck_detection",
-      "file_watcher",
-      "advisory_guardrails"
-    ]);
   }
 });
 
@@ -3219,6 +5242,164 @@ var require_planning_cache = __commonJS({
         }
       }
       /**
+       * Replace the touched session bundle in one SQLite transaction.
+       *
+       * Used by canonical mutators that compute one next model before writing
+       * STATE.md and SQLite.
+       *
+       * @param {string} cwd
+       * @param {{ state?: object, decisions?: object[], blockers?: object[], continuity?: object|null }} bundle
+       * @returns {{ stored: boolean }|null}
+       */
+      storeSessionBundle(cwd, bundle) {
+        if (this._isMap()) return null;
+        try {
+          this._db.exec("BEGIN");
+          if (bundle && Object.prototype.hasOwnProperty.call(bundle, "state")) {
+            const state = bundle.state || {};
+            this._stmt(
+              "ss_upsert_bundle",
+              `INSERT OR REPLACE INTO session_state
+           (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+              cwd,
+              state.phase_number || null,
+              state.phase_name || null,
+              state.total_phases != null ? state.total_phases : null,
+              state.current_plan || null,
+              state.status || null,
+              state.last_activity || null,
+              state.progress != null ? state.progress : null,
+              state.milestone || null,
+              JSON.stringify(state)
+            );
+          }
+          if (bundle && Object.prototype.hasOwnProperty.call(bundle, "decisions")) {
+            this._stmt("sd_delete_bundle", "DELETE FROM session_decisions WHERE cwd = ?").run(cwd);
+            const decisions = Array.isArray(bundle.decisions) ? bundle.decisions : [];
+            if (decisions.length > 0) {
+              const insertDecision = this._stmt(
+                "sd_insert_bundle",
+                "INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+              );
+              for (const decision of decisions) {
+                insertDecision.run(
+                  cwd,
+                  decision.milestone || null,
+                  decision.phase || null,
+                  decision.summary || null,
+                  decision.rationale || null,
+                  decision.timestamp || null,
+                  JSON.stringify(decision)
+                );
+              }
+            }
+          }
+          if (bundle && Object.prototype.hasOwnProperty.call(bundle, "blockers")) {
+            this._stmt("sb_delete_bundle", "DELETE FROM session_blockers WHERE cwd = ?").run(cwd);
+            const blockers = Array.isArray(bundle.blockers) ? bundle.blockers : [];
+            if (blockers.length > 0) {
+              const insertBlocker = this._stmt(
+                "sb_insert_bundle",
+                "INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)"
+              );
+              for (const blocker of blockers) {
+                insertBlocker.run(
+                  cwd,
+                  blocker.text || "",
+                  blocker.status || "open",
+                  blocker.created_at || null,
+                  JSON.stringify(blocker)
+                );
+              }
+            }
+          }
+          if (bundle && Object.prototype.hasOwnProperty.call(bundle, "continuity")) {
+            if (bundle.continuity) {
+              this._stmt(
+                "sc_upsert_bundle",
+                "INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)"
+              ).run(
+                cwd,
+                bundle.continuity.last_session || null,
+                bundle.continuity.stopped_at || null,
+                bundle.continuity.next_step || null,
+                JSON.stringify(bundle.continuity)
+              );
+            } else {
+              this._stmt("sc_delete_bundle", "DELETE FROM session_continuity WHERE cwd = ?").run(cwd);
+            }
+          }
+          this._db.exec("COMMIT");
+          return { stored: true };
+        } catch {
+          try {
+            this._db.exec("ROLLBACK");
+          } catch {
+          }
+          return null;
+        }
+      }
+      /**
+       * Write the durable plan-completion core in one SQLite transaction.
+       * Upserts session_state and appends any provided decision rows together.
+       *
+       * @param {string} cwd
+       * @param {{ state: object, decisions?: object[] }} payload
+       * @returns {{ stored: boolean, decisions_written: number }|null}
+       */
+      storeSessionCompletionCore(cwd, payload) {
+        if (this._isMap()) return null;
+        try {
+          const state = payload?.state || {};
+          const decisions = Array.isArray(payload?.decisions) ? payload.decisions : [];
+          this._db.exec("BEGIN");
+          this._stmt(
+            "ss_upsert_completion_core",
+            `INSERT OR REPLACE INTO session_state
+         (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            cwd,
+            state.phase_number || null,
+            state.phase_name || null,
+            state.total_phases != null ? state.total_phases : null,
+            state.current_plan || null,
+            state.status || null,
+            state.last_activity || null,
+            state.progress != null ? state.progress : null,
+            state.milestone || null,
+            JSON.stringify(state)
+          );
+          if (decisions.length > 0) {
+            const insertDecision = this._stmt(
+              "sd_ins_completion_core",
+              "INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            );
+            for (const decision of decisions) {
+              insertDecision.run(
+                cwd,
+                decision.milestone || null,
+                decision.phase || null,
+                decision.summary || null,
+                decision.rationale || null,
+                decision.timestamp || null,
+                JSON.stringify(decision)
+              );
+            }
+          }
+          this._db.exec("COMMIT");
+          return { stored: true, decisions_written: decisions.length };
+        } catch {
+          try {
+            this._db.exec("ROLLBACK");
+          } catch {
+          }
+          return null;
+        }
+      }
+      /**
        * Query session_decisions for cwd.
        *
        * @param {string} cwd - Project root directory
@@ -3485,1744 +5666,6 @@ var require_planning_cache = __commonJS({
   }
 });
 
-// src/lib/constants.js
-var require_constants = __commonJS({
-  "src/lib/constants.js"(exports, module) {
-    var VALID_TRAJECTORY_SCOPES = ["task", "plan", "phase"];
-    var MODEL_PROFILES = {
-      "bgsd-planner": { quality: "opus", balanced: "opus", budget: "sonnet" },
-      "bgsd-roadmapper": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
-      "bgsd-executor": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
-      "bgsd-phase-researcher": { quality: "opus", balanced: "sonnet", budget: "haiku" },
-      "bgsd-project-researcher": { quality: "opus", balanced: "sonnet", budget: "haiku" },
-      "bgsd-debugger": { quality: "opus", balanced: "sonnet", budget: "sonnet" },
-      "bgsd-codebase-mapper": { quality: "sonnet", balanced: "haiku", budget: "haiku" },
-      "bgsd-verifier": { quality: "sonnet", balanced: "sonnet", budget: "haiku" },
-      "bgsd-plan-checker": { quality: "sonnet", balanced: "sonnet", budget: "haiku" }
-    };
-    var CONFIG_SCHEMA = {
-      model_profile: { type: "string", default: "balanced", description: "Active model profile (quality/balanced/budget)", aliases: [], nested: null },
-      commit_docs: { type: "boolean", default: true, description: "Auto-commit planning docs", aliases: [], nested: { section: "planning", field: "commit_docs" } },
-      search_gitignored: { type: "boolean", default: false, description: "Include gitignored files in searches", aliases: [], nested: { section: "planning", field: "search_gitignored" } },
-      branching_strategy: { type: "string", default: "none", description: "Git branching strategy", aliases: [], nested: { section: "git", field: "branching_strategy" } },
-      phase_branch_template: { type: "string", default: "bgsd/phase-{phase}-{slug}", description: "Phase branch name template", aliases: [], nested: { section: "git", field: "phase_branch_template" } },
-      milestone_branch_template: { type: "string", default: "bgsd/{milestone}-{slug}", description: "Milestone branch name template", aliases: [], nested: { section: "git", field: "milestone_branch_template" } },
-      research: { type: "boolean", default: true, description: "Enable research phase", aliases: ["research_enabled"], nested: { section: "workflow", field: "research" } },
-      plan_checker: { type: "boolean", default: true, description: "Enable plan checking", aliases: [], nested: { section: "workflow", field: "plan_check" } },
-      verifier: { type: "boolean", default: true, description: "Enable verification phase", aliases: [], nested: { section: "workflow", field: "verifier" } },
-      parallelization: { type: "boolean", default: true, description: "Enable parallel plan execution", aliases: [], nested: null, coerce: "parallelization" },
-      brave_search: { type: "boolean", default: false, description: "Enable Brave Search API", aliases: [], nested: null },
-      mode: { type: "string", default: "interactive", description: "Execution mode (interactive or yolo)", aliases: [], nested: null },
-      depth: { type: "string", default: "standard", description: "Planning depth", aliases: [], nested: null },
-      test_commands: { type: "object", default: {}, description: "Test commands by framework", aliases: [], nested: null },
-      test_gate: { type: "boolean", default: true, description: "Block plan completion on test failure", aliases: [], nested: null },
-      context_window: { type: "number", default: 2e5, description: "Context window size in tokens", aliases: [], nested: null },
-      context_target_percent: { type: "number", default: 50, description: "Target context utilization percent (1-100)", aliases: [], nested: null },
-      runtime: { type: "string", default: "auto", description: "Runtime to use (auto/bun/node)", aliases: [], nested: null },
-      // ─── RAG Research Pipeline ───
-      rag_enabled: { type: "boolean", default: true, description: "Enable RAG-powered research pipeline", aliases: [], nested: { section: "workflow", field: "rag" } },
-      rag_timeout: { type: "number", default: 30, description: "Per-tool research timeout in seconds", aliases: [], nested: { section: "workflow", field: "rag_timeout" } },
-      ytdlp_path: { type: "string", default: "", description: "Path to yt-dlp binary (auto-detects if empty)", aliases: [], nested: null },
-      nlm_path: { type: "string", default: "", description: "Path to notebooklm-py binary (auto-detects if empty)", aliases: [], nested: null },
-      mcp_config_path: { type: "string", default: "", description: "Path to MCP server config file (auto-detects if empty)", aliases: [], nested: null },
-      // ─── Dependency-Backed Optimizations ───
-      optimization: { type: "object", default: {}, description: "Optimization flags for dependency-backed features", aliases: [], nested: null },
-      optimization_valibot: { type: "boolean", default: true, description: "Use valibot for schema validation", aliases: [], nested: { section: "optimization", field: "valibot" }, env: "BGSD_DEP_VALIBOT" },
-      optimization_discovery: { type: "string", default: "optimized", description: "File discovery mode", aliases: [], nested: { section: "optimization", field: "discovery" }, env: "BGSD_DISCOVERY_MODE", values: ["optimized", "legacy"] },
-      optimization_compile_cache: { type: "boolean", default: false, description: "Enable Node.js compile-cache", aliases: [], nested: { section: "optimization", field: "compile_cache" }, env: "BGSD_COMPILE_CACHE" },
-      optimization_sqlite_cache: { type: "boolean", default: true, description: "SQLite statement caching", aliases: [], nested: { section: "optimization", field: "sqlite_cache" }, env: "BGSD_SQLITE_STATEMENT_CACHE" },
-      // ─── CLI Tool Toggles ───
-      tools_ripgrep: { type: "boolean", default: true, description: "Enable ripgrep for content search", aliases: [], nested: { section: "tools", field: "ripgrep" } },
-      tools_fd: { type: "boolean", default: true, description: "Enable fd for file discovery", aliases: [], nested: { section: "tools", field: "fd" } },
-      tools_jq: { type: "boolean", default: true, description: "Enable jq for JSON transformation", aliases: [], nested: { section: "tools", field: "jq" } },
-      tools_yq: { type: "boolean", default: true, description: "Enable yq for YAML transformation", aliases: [], nested: { section: "tools", field: "yq" } },
-      tools_bat: { type: "boolean", default: true, description: "Enable bat for syntax highlighting", aliases: [], nested: { section: "tools", field: "bat" } },
-      tools_gh: { type: "boolean", default: true, description: "Enable gh for GitHub operations", aliases: [], nested: { section: "tools", field: "gh" } }
-    };
-    var COMMAND_HELP = {
-      "util:codebase context": `Usage: bgsd-tools codebase context --files <file1> [file2] ... [--plan <path>]
-       bgsd-tools codebase context --task <file1,file2,...> [--plan <path>] [--budget <tokens>]
-
-Assemble per-file architectural context from cached intel.
-
-Mode 1 (--files): Full context with imports, dependents, conventions, risk levels.
-Mode 2 (--task):  Task-scoped context using dep graph + relevance scoring.
-  Returns only files relevant to the task with scores and optional AST signatures.
-
-Options:
-  --files <paths>    Target file paths for full context mode
-  --task <paths>     Comma-separated task files for scoped context mode
-  --plan <path>      Plan file for scope signal (reads files_modified)
-  --budget <tokens>  Token budget for task-scoped output (default: 3000)
-
-Output (--task): { task_files, context_files: [{path, score, reason, signatures?}], stats }
-
-Examples:
-  bgsd-tools codebase context --files src/lib/ast.js
-  bgsd-tools codebase context --task src/lib/ast.js,src/router.js --budget 2000`,
-      "util:codebase ast": `Usage: bgsd-tools codebase ast <file>
-
-Extract function, class, and method signatures from a source file.
-
-For JS/TS: Uses acorn AST parsing with TypeScript stripping.
-For Python, Go, Rust, Ruby, Elixir, Java, PHP: Uses regex-based extraction.
-
-Arguments:
-  file   Source file path to analyze
-
-Output: { file, language, signatures: [{name, type, params, line, async, generator}], count }
-
-Examples:
-  bgsd-tools codebase ast src/lib/ast.js
-  bgsd-tools codebase ast app.py`,
-      "util:codebase exports": `Usage: bgsd-tools codebase exports <file>
-
-Extract the export surface from a JS/TS module.
-
-Detects ESM exports (named, default, re-exports) and CJS exports
-(module.exports, exports patterns). Reports module type (esm/cjs/mixed).
-
-Arguments:
-  file   Source file path to analyze
-
-Output: { file, type, named, default, re_exports, cjs_exports }
-
-Examples:
-  bgsd-tools codebase exports src/lib/ast.js
-  bgsd-tools codebase exports src/router.js`,
-      "util:codebase complexity": `Usage: bgsd-tools codebase complexity <file>
-
-Compute per-function cyclomatic complexity for a source file.
-
-For JS/TS: Uses acorn AST to walk each function body, counting branching
-nodes (if, for, while, switch, catch, ternary, logical operators) and
-tracking max nesting depth.
-
-For other languages: Uses regex approximation counting branching keywords.
-
-Arguments:
-  file   Source file path to analyze
-
-Output: { file, module_complexity, functions: [{name, line, complexity, nesting_max}] }
-
-Color coding (formatted mode): green(1-5), yellow(6-10), red(11+)
-
-Examples:
-  bgsd-tools codebase complexity src/router.js
-  bgsd-tools codebase complexity src/lib/ast.js`,
-      "util:codebase repo-map": `Usage: bgsd-tools codebase repo-map [--budget <tokens>]
-
-Generate a compact repository map from AST signatures.
-
-Walks all source files, extracts function/class/method signatures and
-exports, then builds a compact text summary sorted by signature density.
-Designed for agent context injection (~1k tokens by default).
-
-Options:
-  --budget <tokens>   Token budget for output (default: 1000)
-
-Output (raw): { summary, files_included, total_signatures, token_estimate }
-Output (formatted): The summary text directly
-
-Examples:
-  bgsd-tools codebase repo-map
-  bgsd-tools codebase repo-map --budget 500`,
-      "execute:trajectory": `Usage: bgsd-tools trajectory <subcommand> [options]
-
-Trajectory engineering commands.
-
-Subcommands:
-  checkpoint <name>  Create named checkpoint with auto-metrics
-    --scope <scope>       Scope level (default: phase)
-    --description <text>  Optional context description
-  list               List all checkpoints with metrics
-    --scope <scope>       Filter by scope
-    --name <name>         Filter by checkpoint name
-    --limit <N>           Limit results
-  compare <name>     Compare metrics across all attempts for a checkpoint
-    --scope <scope>       Scope level (default: phase)
-  pivot <checkpoint>   Abandon current approach, rewind to checkpoint
-    --scope <scope>       Scope level (default: phase)
-    --reason <text>       Why this approach is being abandoned (required)
-    --attempt <N>         Target specific attempt (default: most recent)
-    --stash               Auto-stash dirty working tree before pivot
-  choose <name> --attempt <N>   Select winner, archive rest, clean up
-    --scope <scope>       Scope level (default: phase)
-    --reason <text>       Why this attempt was chosen (recorded in journal)
-  dead-ends              Query journal for failed approaches
-    --scope <scope>       Filter by scope (task, plan, phase)
-    --name <name>         Filter by checkpoint name
-    --limit <N>           Max results (default: 10)
-    --token-cap <N>       Token cap for context output (default: 500)
-
-Creates a git branch at trajectory/<scope>/<name>/attempt-N and writes a
-journal entry to the trajectories memory store with test count, LOC delta,
-and cyclomatic complexity metrics.
-
-Examples:
-  bgsd-tools trajectory checkpoint explore-auth
-  bgsd-tools trajectory checkpoint try-redis --scope task --description "Redis caching approach"
-  bgsd-tools trajectory list
-  bgsd-tools trajectory list --scope phase --limit 5
-  bgsd-tools trajectory compare my-feat
-  bgsd-tools trajectory pivot explore-auth --reason "JWT approach too complex"
-  bgsd-tools trajectory choose my-feat --attempt 2 --reason "Better test coverage"
-  bgsd-tools trajectory dead-ends
-  bgsd-tools trajectory dead-ends --scope task --limit 5`,
-      "execute:trajectory compare": `Usage: bgsd-tools trajectory compare <name> [--scope <scope>]
-
-Compare metrics across all attempts for a named checkpoint.
-Shows test results, LOC delta, and cyclomatic complexity side-by-side.
-Best values highlighted green, worst highlighted red.
-
-Arguments:
-  name              Checkpoint name to compare attempts for
-
-Options:
-  --scope <scope>   Scope level (default: phase)
-
-Output: { checkpoint, scope, attempt_count, attempts, best_per_metric, worst_per_metric }
-
-Examples:
-  bgsd-tools trajectory compare my-feat
-  bgsd-tools trajectory compare try-redis --scope task`,
-      "execute:trajectory choose": `Usage: bgsd-tools trajectory choose <name> --attempt <N> [--scope <scope>] [--reason "rationale"]
-
-Select the winning attempt, merge its code, archive non-chosen attempts as tags,
-and delete all trajectory working branches.
-
-Arguments:
-  name              Checkpoint name to finalize
-
-Options:
-  --attempt <N>     Required. The winning attempt number
-  --scope <scope>   Scope level (default: phase)
-  --reason "text"   Why this attempt was chosen (recorded in journal)
-
-What happens:
-  1. Winning attempt branch is merged into current branch (--no-ff)
-  2. Non-chosen attempt branches are archived as lightweight git tags
-  3. All trajectory working branches are deleted (tags preserved)
-  4. Journal records the choice with rationale
-
-Examples:
-  bgsd-tools trajectory choose my-feat --attempt 2
-  bgsd-tools trajectory choose try-redis --scope task --attempt 1 --reason "Lower complexity"`,
-      "execute:trajectory pivot": `Usage: bgsd-tools trajectory pivot <checkpoint> --reason "what failed and why"
-
-Abandon current approach with recorded reasoning and rewind to checkpoint.
-Auto-checkpoints current work as abandoned attempt before rewinding.
-
-Arguments:
-  checkpoint          Name of checkpoint to rewind to
-
-Options:
-  --scope <scope>     Scope level (default: phase)
-  --reason <text>     Structured reason for abandoning (required)
-  --attempt <N>       Target specific attempt number (default: most recent)
-  --stash             Auto-stash dirty working tree before pivot
-
-Output: { pivoted, checkpoint, target_ref, abandoned_branch, files_rewound, stash_used }
-
-Examples:
-  bgsd-tools trajectory pivot explore-auth --reason "JWT approach too complex, session-based simpler"
-  bgsd-tools trajectory pivot try-redis --scope task --reason "Redis overkill for this cache size"
-  bgsd-tools trajectory pivot my-feature --attempt 2 --reason "Attempt 2 had better foundation"`,
-      "execute:trajectory dead-ends": `Usage: bgsd-tools trajectory dead-ends [--scope <scope>] [--name <name>] [--limit <N>] [--token-cap <N>]
-
-Query journal for failed approaches (pivot/abandon entries).
-Shows "what NOT to do" context with reasons from pivot entries.
-
-Options:
-  --scope <scope>   Filter by scope (task, plan, phase)
-  --name <name>     Filter by checkpoint name
-  --limit <N>       Max results (default: 10)
-  --token-cap <N>   Token cap for context output (default: 500)
-
-Output: { dead_ends, count, scope_filter, name_filter, context }
-
-Examples:
-  bgsd-tools trajectory dead-ends
-  bgsd-tools trajectory dead-ends --scope task --limit 5`,
-      "util:classify plan": `Usage: bgsd-tools classify plan <plan-path>
-
-Classify all tasks in a plan file with 1-5 complexity scores.
-
-Scoring factors: file count, cross-module blast radius, test requirements,
-checkpoint complexity, action length.
-
-Model mapping: score 1-2 \u2192 sonnet, score 3 \u2192 sonnet, score 4-5 \u2192 opus
-
-Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
-
-Examples:
-  bgsd-tools classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,
-      "util:classify phase": `Usage: bgsd-tools classify phase <phase-number>
-
-Classify all incomplete plans in a phase and determine execution mode.
-
-Execution modes:
-  single      1 plan with 1-2 tasks
-  parallel    Multiple plans in same wave, no file overlaps
-  sequential  Plans with checkpoint tasks
-  pipeline    Plans spanning 3+ waves
-
-Output: { phase, plans_classified, plans: [...], execution_mode: { mode, reason, waves } }
-
-Examples:
-  bgsd-tools classify phase 39
-  bgsd-tools classify phase 38`,
-      "util:git": `Usage: bgsd-tools git <log|diff-summary|blame|branch-info|rewind|trajectory-branch> [options]
-
-Structured git intelligence \u2014 JSON output for agents and workflows.
-
-Subcommands:
-  log [--count N] [--since D] [--until D] [--author A] [--path P]
-    Structured commit log with file stats and conventional commit parsing.
-  diff-summary [--from ref] [--to ref] [--path P]
-    Diff stats between two refs (default: HEAD~1..HEAD).
-  blame <file>
-    Line-to-commit/author mapping for a file.
-  branch-info
-    Current branch state: detached, shallow, dirty, rebasing, upstream.
-  rewind --ref <ref> [--confirm] [--dry-run]
-    Selective code rewind protecting .planning/ and root configs.
-    Shows diff summary of changes. --dry-run previews without modifying.
-    --confirm executes the rewind. Auto-stashes dirty working tree.
-  trajectory-branch --phase <N> --slug <name> [--push]
-    Create branch in gsd/trajectory/{phase}-{slug} namespace.
-    Local-only by default. --push to push to origin.
-
-Examples:
-  bgsd-tools git log --count 5
-  bgsd-tools git diff-summary --from main --to HEAD
-  bgsd-tools git blame src/router.js
-  bgsd-tools git branch-info
-  bgsd-tools git rewind --ref HEAD~3 --dry-run
-  bgsd-tools git rewind --ref abc123 --confirm
-  bgsd-tools git trajectory-branch --phase 45 --slug decision-journal`,
-      // ─── Namespaced Command Help (user-facing only) ──────────────────────────────
-      // plan namespace
-      "plan:intent": `Usage: bgsd-tools plan:intent <subcommand> [options]
-
-Manage project intent in INTENT.md.
-
-Subcommands:
-  create      Create a new INTENT.md
-  show        Display intent summary
-  read        Read intent as JSON
-  update      Update INTENT.md sections
-  validate    Validate INTENT.md structure
-  trace       Traceability matrix
-  drift       Drift analysis`,
-      "plan:intent show": `Usage: bgsd-tools plan:intent show [section] [--full]
-
-Display intent summary from INTENT.md.`,
-      "plan:requirements": `Usage: bgsd-tools plan:requirements mark-complete <ids>
-
-Mark requirement IDs as complete.`,
-      "plan:roadmap": `Usage: bgsd-tools plan:roadmap <subcommand> [args]
-
-Roadmap operations.
-
-Subcommands:
-  get-phase <phase>   Extract phase section from ROADMAP.md
-  analyze             Full roadmap parse with disk status
-  update-plan-progress <N>  Update progress table row from disk`,
-      "plan:phases": `Usage: bgsd-tools plan:phases list [options]
-
-List phase directories with metadata.`,
-      "plan:find-phase": `Usage: bgsd-tools plan:find-phase <phase>
-
-Find a phase directory by number.`,
-      "plan:milestone": `Usage: bgsd-tools plan:milestone complete <version> [options]
-
-Complete a milestone.`,
-      "plan:phase": `Usage: bgsd-tools plan:phase <subcommand> [args]
-
-Phase lifecycle operations.
-
-Subcommands:
-  next-decimal <phase>   Calculate next decimal phase
-  add <description>       Append new phase
-  insert <after> <desc>  Insert decimal phase
-  remove <phase> [--force]  Remove phase
-  complete <phase>       Mark phase done`,
-      // execute namespace
-      "execute:commit": `Usage: bgsd-tools execute:commit <message> [--files f1 f2 ...] [--amend] [--agent <type>]
-
-Commit planning documents to git.`,
-      "execute:rollback-info": `Usage: bgsd-tools execute:rollback-info <plan-id>
-
-Show commits and revert command for a plan.`,
-      "execute:session-diff": `Usage: bgsd-tools execute:session-diff
-
-Show git commits since last session activity.`,
-      "execute:session-summary": `Usage: bgsd-tools execute:session-summary
-
-Session handoff summary.`,
-      "execute:velocity": `Usage: bgsd-tools execute:velocity
-
-Calculate planning velocity and completion forecast.`,
-      "execute:worktree": `Usage: bgsd-tools execute:worktree <subcommand> [options]
-
-Manage git worktrees for parallel execution.
-
-Subcommands:
-  create <plan-id>    Create isolated worktree
-  list                List active worktrees
-  remove <plan-id>    Remove a worktree
-  cleanup             Remove all worktrees
-  merge <plan-id>     Merge worktree back
-  check-overlap       Check for file overlaps`,
-      "execute:tdd": `Usage: bgsd-tools execute:tdd <subcommand> [options]
-
-TDD validation gates.
-
-Subcommands:
-  validate-red --test-cmd "cmd"       Verify test fails
-  validate-green --test-cmd "cmd"     Verify test passes
-  validate-refactor --test-cmd "cmd" Same as validate-green
-  auto-test --test-cmd "cmd"         Run test, report result`,
-      "execute:test-run": `Usage: bgsd-tools execute:test-run
-
-Run project tests and parse output.`,
-      // verify namespace
-      "verify:state": `Usage: bgsd-tools verify:state <subcommand> [options]
-
-Manage project state in STATE.md.
-
-Subcommands:
-  load | get <field> | update <field> <value> | patch --key value ...
-  advance-plan | update-progress
-  record-metric --phase P --plan N --duration D [--tasks T] [--files F]
-  add-decision --phase P --summary S [--rationale R]
-  add-blocker --text "..." | resolve-blocker --text "..."
-  record-session --stopped-at "..." [--resume-file path]
-  validate [--fix]`,
-      "verify:verify": `Usage: bgsd-tools verify:verify <subcommand> [args]
-
-Verification suite for planning documents.
-
-Subcommands:
-  plan-structure <file>        Check PLAN.md structure
-  phase-completeness <phase>   Check all plans have summaries
-  references <file>            Check @-refs and paths resolve
-  commits <h1> [h2] ...       Batch verify commit hashes
-  artifacts <plan-file>        Check must_haves.artifacts
-  key-links <plan-file>        Check must_haves.key_links
-  analyze-plan <plan-file>     Analyze plan complexity
-  deliverables [--plan file]   Run tests + verify deliverables
-  requirements                 Check REQUIREMENTS.md coverage
-  regression [--before f] [--after f]  Detect regressions
-  plan-wave <phase-dir>        Check file conflicts
-  plan-deps <phase-dir>        Check dependency cycles
-  quality [--plan f] [--phase N]  Composite quality score`,
-      "verify:assertions": `Usage: bgsd-tools verify:assertions <subcommand> [options]
-
-Manage structured acceptance criteria.
-
-Subcommands:
-  list [--req SREQ-01]    List assertions by requirement
-  validate                Check assertion format and coverage`,
-      "verify:search-decisions": `Usage: bgsd-tools verify:search-decisions <query>
-
-Search decisions in STATE.md and archives.`,
-      "verify:search-lessons": `Usage: bgsd-tools verify:search-lessons <query>
-
-Search tasks/lessons.md for patterns.`,
-      "verify:review": `Usage: bgsd-tools verify:review <phase> <plan>
-
-Review context for reviewer agent.`,
-      "verify:context-budget": `Usage: bgsd-tools verify:context-budget <subcommand|path> [options]
-
-Measure token consumption across workflows.
-
-Subcommands:
-  <path>                    Estimate tokens for a file
-  baseline                  Measure all workflows, save baseline
-  compare [baseline-path]   Compare current vs baseline`,
-      "verify:token-budget": `Usage: bgsd-tools verify:token-budget
-
-Show token counts for workflow files vs budgets.`,
-      "verify:handoff": `Usage: bgsd-tools verify:handoff [options]
-
-Validate agent handoff context transfer.
-
-Options:
-  --preview              Show what context would transfer between agents
-  --from <agent>        Source agent name
-  --to <agent>          Target agent name
-  --validate <context>  Validate handoff completeness (state|plan|tasks|summary|all)
-
-Examples:
-  bgsd-tools verify:handoff --preview --from planner --to executor
-  bgsd-tools verify:handoff --validate state`,
-      "verify:agents": `Usage: bgsd-tools verify:agents [options]
-
-Verify agent boundary contracts and capabilities.
-
-Options:
-  --verify              Verify specific agent contract
-  --contracts           Show all handoff contracts
-  --check-overlap       Check for capability overlap
-  --from <agent>        Source agent name
-  --to <agent>          Target agent name
-
-Examples:
-  bgsd-tools verify:agents --contracts
-  bgsd-tools verify:agents --verify --from planner --to executor
-  bgsd-tools verify:agents --check-overlap`,
-      // util namespace
-      "util:config-get": `Usage: bgsd-tools util:config-get <key.path>
-
-Get configuration value from .planning/config.json.`,
-      "util:config-set": `Usage: bgsd-tools util:config-set <key.path> <value>
-
-Set configuration value in .planning/config.json.`,
-      "util:config-migrate": `Usage: bgsd-tools util:config-migrate
-
-Migrate .planning/config.json to match CONFIG_SCHEMA.
-Adds missing keys with default values. Never overwrites existing values.
-Creates backup before writing changes.`,
-      "util:env": `Usage: bgsd-tools util:env <subcommand> [options]
-
-Detect project languages, tools, and runtimes.
-
-Subcommands:
-  scan [--force] [--verbose]  Detect and write manifest
-  status                      Check manifest freshness`,
-      "util:current-timestamp": `Usage: bgsd-tools util:current-timestamp [format]
-
-Return current UTC timestamp.`,
-      "util:list-todos": `Usage: bgsd-tools util:list-todos [area]
-
-Count and enumerate pending todos.`,
-      "util:todo": `Usage: bgsd-tools util:todo complete <filename>
-
-Mark todo as complete.`,
-      "util:memory": `Usage: bgsd-tools util:memory <subcommand> [options]
-
-Persistent memory store.
-
-Subcommands:
-  write --store <name> --entry '{json}'   Write entry
-  read --store <name> [options]           Read entries
-  list                                    List stores
-  ensure-dir                              Create directory
-  compact [--store <name>] [--threshold N]  Compact old entries`,
-      "util:mcp": `Usage: bgsd-tools util:mcp <subcommand> [options]
-
-MCP server management.
-
-Subcommands:
-  profile [--window N] [--apply] [--restore]  Manage profiles`,
-      "util:classify": `Usage: bgsd-tools util:classify <plan|phase> <path-or-number>
-
-Classify complexity and recommend execution strategy.`,
-      "util:frontmatter": `Usage: bgsd-tools util:frontmatter <subcommand> <file> [options]
-
-CRUD operations on YAML frontmatter.
-
-Subcommands:
-  get <file> [--field key]        Extract frontmatter as JSON
-  set <file> --field k --value v  Update single field
-  merge <file> --data '{json}'    Merge JSON into frontmatter
-  validate <file> --schema type   Validate format`,
-      "util:validate-commands": `Usage: bgsd-tools util:validate-commands
-
-Validate command registry - checks help text alignment with routing.
-
-Compares COMMAND_HELP keys against router implementations to detect:
-- Commands in help that have no routing
-- Missing help text for implemented commands
-- Format inconsistencies (space vs colon)
-
-Exit code 0 if all valid, non-zero if issues found.`,
-      "util:validate-artifacts": `Usage: bgsd-tools util:validate-artifacts
-
-Validate planning artifacts for structural issues.
-
-Checks:
-- MILESTONES.md: Balanced headers, valid date formats
-- PROJECT.md: Balanced <details> tags, no strikethrough in out-of-scope
-- Required files exist: STATE.md, ROADMAP.md
-
-Exit code 0 if all valid, non-zero if errors found.`,
-      "util:progress": `Usage: bgsd-tools util:progress [format]
-
-Render progress in various formats.`,
-      "util:websearch": `Usage: bgsd-tools util:websearch <query> [--limit N] [--freshness day|week|month]
-
-Search web via Brave Search API.`,
-      "util:history-digest": `Usage: bgsd-tools util:history-digest [--limit N] [--phases N1,N2] [--slim]
-
-Aggregate all SUMMARY.md data into digest.`,
-      "util:trace-requirement": `Usage: bgsd-tools util:trace-requirement <req-id>
-
-Trace requirement from spec to files on disk.`,
-      "util:codebase": `Usage: bgsd-tools util:codebase <subcommand> [options]
-
-Codebase intelligence.
-
-Subcommands:
-  analyze                  Full codebase analysis
-  status                   Current codebase status
-  conventions              Extract code conventions
-  rules                    Extract linting rules
-  deps                     Dependency analysis
-  impact                   Module blast radius
-  context                  Architectural context
-  lifecycle                Lifecycle analysis
-  ast                      Function signatures
-  exports                  Export surface
-  complexity               Cyclomatic complexity
-  repo-map                 Repository map`,
-      "util:cache": `Usage: bgsd-tools util:cache <subcommand> [options]
-
-Cache management.
-
-Subcommands:
-  status                   Show cache backend and entry count
-  clear                    Clear cache
-  warm [files...]          Pre-populate cache`,
-      "util:agent": `Usage: bgsd-tools util:agent <subcommand> [options]
-
-Agent management.
-
-Subcommands:
-  audit                                Audit agent lifecycle coverage against RACI matrix
-  list                                 List all agents
-  validate-contracts [--phase N]       Check agent outputs match declared contracts`,
-      // research namespace
-      "research": `Usage: bgsd-tools research <subcommand> [options]
-
-Research infrastructure commands.
-
-Subcommands:
-  capabilities    Report available research tools, tier, and recommendations
-  yt-search       Search YouTube via yt-dlp with filtering and quality scoring
-  yt-transcript   Extract clean plain-text transcript from YouTube video
-  collect         Orchestrate multi-source collection pipeline with tier degradation
-  nlm-create      Create a NotebookLM notebook
-  nlm-add-source  Add a source (URL, file, YouTube) to a NotebookLM notebook`,
-      "research capabilities": `Usage: bgsd-tools research capabilities
-
-Report available research tools, current degradation tier, and recommendations.
-
-Detects: yt-dlp (YouTube), notebooklm-py (RAG synthesis), Brave Search MCP, Context7 MCP, Exa MCP.
-Shows: 4-tier degradation level, per-tool status, install hints for missing tools.
-
-Output: { rag_enabled, current_tier, tiers, cli_tools, mcp_servers, recommendations }`,
-      "research:capabilities": `Usage: bgsd-tools research:capabilities
-
-Report available research tools, current degradation tier, and recommendations.
-
-Detects: yt-dlp (YouTube), notebooklm-py (RAG synthesis), Brave Search MCP, Context7 MCP, Exa MCP.
-Shows: 4-tier degradation level, per-tool status, install hints for missing tools.
-
-Output: { rag_enabled, current_tier, tiers, cli_tools, mcp_servers, recommendations }`,
-      "research yt-search": `Usage: bgsd-tools research yt-search "topic" [options]
-
-Search YouTube via yt-dlp and return structured, filtered, quality-scored results.
-
-Arguments:
-  topic              Search query (required)
-
-Options:
-  --count N          Pre-filter result count (default: 10)
-  --max-age DAYS     Maximum video age in days (default: 730 = ~2 years)
-  --min-duration SEC Minimum duration in seconds (default: 300 = 5 min)
-  --max-duration SEC Maximum duration in seconds (default: 3600 = 60 min)
-  --min-views N      Minimum view count (default: 0)
-
-Output: { query, pre_filter_count, post_filter_count, results: [{ id, title, channel, duration, view_count, upload_date, url, description, quality_score }] }
-
-Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30pts bell curve at 15-20min).
-
-Examples:
-  bgsd-tools research yt-search "nodejs streams tutorial"
-  bgsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
-      "research:yt-search": `Usage: bgsd-tools research:yt-search "topic" [options]
-
-Search YouTube via yt-dlp and return structured, filtered, quality-scored results.
-
-Arguments:
-  topic              Search query (required)
-
-Options:
-  --count N          Pre-filter result count (default: 10)
-  --max-age DAYS     Maximum video age in days (default: 730 = ~2 years)
-  --min-duration SEC Minimum duration in seconds (default: 300 = 5 min)
-  --max-duration SEC Maximum duration in seconds (default: 3600 = 60 min)
-  --min-views N      Minimum view count (default: 0)
-
-Output: { query, pre_filter_count, post_filter_count, results: [{ id, title, channel, duration, view_count, upload_date, url, description, quality_score }] }
-
-Quality score (0-100): Recency (40pts) + Views (30pts log-scale) + Duration (30pts bell curve at 15-20min).
-
-Examples:
-  bgsd-tools research:yt-search "nodejs streams tutorial"
-  bgsd-tools research:yt-search "react hooks" --count 5 --min-views 1000`,
-      "research yt-transcript": `Usage: bgsd-tools research yt-transcript <video-id|url> [options]
-
-Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
-
-Arguments:
-  video-id|url       YouTube video ID or full URL (required)
-
-Options:
-  --timestamps       Preserve [HH:MM:SS] timestamp markers (default: stripped)
-  --lang LANG        Subtitle language code (default: en)
-
-Output: { video_id, has_subtitles, language, auto_generated, transcript, word_count, char_count }
-
-When no subtitles are available: { video_id, has_subtitles: false, message: "No subtitles available" }
-When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip install yt-dlp" }
-
-Full transcript is always returned \u2014 no truncation in JSON output.
-
-Examples:
-  bgsd-tools research yt-transcript dQw4w9WgXcQ
-  bgsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-  bgsd-tools research yt-transcript dQw4w9WgXcQ --timestamps
-  bgsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
-      "research:yt-transcript": `Usage: bgsd-tools research:yt-transcript <video-id|url> [options]
-
-Extract clean plain-text transcript from a YouTube video via yt-dlp subtitle download.
-
-Arguments:
-  video-id|url       YouTube video ID or full URL (required)
-
-Options:
-  --timestamps       Preserve [HH:MM:SS] timestamp markers (default: stripped)
-  --lang LANG        Subtitle language code (default: en)
-
-Output: { video_id, has_subtitles, language, auto_generated, transcript, word_count, char_count }
-
-When no subtitles are available: { video_id, has_subtitles: false, message: "No subtitles available" }
-When yt-dlp is missing: { error: "yt-dlp not installed", install_hint: "pip install yt-dlp" }
-
-Full transcript is always returned \u2014 no truncation in JSON output.
-
-Examples:
-  bgsd-tools research:yt-transcript dQw4w9WgXcQ
-  bgsd-tools research:yt-transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-  bgsd-tools research:yt-transcript dQw4w9WgXcQ --timestamps
-  bgsd-tools research:yt-transcript dQw4w9WgXcQ --lang es`,
-      "research collect": `Usage: bgsd-tools research collect "topic" [options]
-
-Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
-
-Arguments:
-  topic              Search query (required)
-
-Options:
-  --quick            Bypass pipeline entirely, return tier 4 with empty sources
-
-Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
-
-Tiers:
-  1 \u2014 Full RAG (all tools + NotebookLM synthesis)
-  2 \u2014 Sources without synthesis (YouTube + MCP, LLM synthesizes)
-  3 \u2014 Brave/Context7 only (web search, no video)
-  4 \u2014 Pure LLM (no external sources)
-
-Pipeline stages:
-  [1/3] Web sources via Brave Search API (util:websearch subprocess)
-  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
-  [3/3] Context7 availability note (MCP \u2014 agent accesses directly)
-
-agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
-At Tier 4 (--quick or no tools), agent_context is empty string.
-
-Examples:
-  bgsd-tools research collect "nodejs subprocess patterns"
-  bgsd-tools research:collect --quick "test query"
-  bgsd-tools research:collect "react hooks" --pretty`,
-      "research:collect": `Usage: bgsd-tools research:collect "topic" [options]
-
-Orchestrate multi-source collection from Brave Search and YouTube with 4-tier degradation.
-
-Arguments:
-  topic              Search query (required)
-
-Options:
-  --quick            Bypass pipeline entirely, return tier 4 with empty sources
-
-Output: { tier, tier_name, query, source_count, sources, timing, agent_context }
-
-Tiers:
-  1 \u2014 Full RAG (all tools + NotebookLM synthesis)
-  2 \u2014 Sources without synthesis (YouTube + MCP, LLM synthesizes)
-  3 \u2014 Brave/Context7 only (web search, no video)
-  4 \u2014 Pure LLM (no external sources)
-
-Pipeline stages:
-  [1/3] Web sources via Brave Search API (util:websearch subprocess)
-  [2/3] YouTube search + top-video transcript (research:yt-search/yt-transcript)
-  [3/3] Context7 availability note (MCP \u2014 agent accesses directly)
-
-agent_context contains XML-tagged source data for LLM consumption at Tier 2/3.
-At Tier 4 (--quick or no tools), agent_context is empty string.
-
-Examples:
-  bgsd-tools research:collect "nodejs subprocess patterns"
-  bgsd-tools research:collect --quick "test query"
-  bgsd-tools research:collect "react hooks" --pretty`,
-      "research nlm-create": `Usage: bgsd-tools research nlm-create "title"
-
-Create a NotebookLM notebook and return its ID.
-
-Arguments:
-  title              Notebook title (required)
-
-Checks binary availability and auth health before execution.
-Missing binary returns install hint. Expired auth returns re-auth instructions.
-
-Output: { notebook_id, title, raw_output }
-Error: { error, install_hint | reauth_command }
-
-Examples:
-  bgsd-tools research nlm-create "GSD Research Notes"
-  bgsd-tools research:nlm-create "Phase 59 Sources"`,
-      "research:nlm-create": `Usage: bgsd-tools research:nlm-create "title"
-
-Create a NotebookLM notebook and return its ID.
-
-Arguments:
-  title              Notebook title (required)
-
-Checks binary availability and auth health before execution.
-Missing binary returns install hint. Expired auth returns re-auth instructions.
-
-Output: { notebook_id, title, raw_output }
-Error: { error, install_hint | reauth_command }
-
-Examples:
-  bgsd-tools research:nlm-create "GSD Research Notes"
-  bgsd-tools research:nlm-create "Phase 59 Sources"`,
-      "research nlm-add-source": `Usage: bgsd-tools research nlm-add-source <notebook-id> "source-url-or-path"
-
-Add a source (URL, YouTube URL, local file) to a NotebookLM notebook.
-
-Arguments:
-  notebook-id        Notebook ID from nlm-create (required)
-  source-url-or-path Source URL or local file path (required)
-
-Sets the active notebook first, then adds the source. Uses 60s timeout for source processing.
-Checks binary availability and auth health before execution.
-
-Output: { notebook_id, source_url, raw_output }
-Error: { error, install_hint | reauth_command | details }
-
-Examples:
-  bgsd-tools research nlm-add-source abc123 "https://example.com/docs"
-  bgsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
-  bgsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
-      "research:nlm-add-source": `Usage: bgsd-tools research:nlm-add-source <notebook-id> "source-url-or-path"
-
-Add a source (URL, YouTube URL, local file) to a NotebookLM notebook.
-
-Arguments:
-  notebook-id        Notebook ID from nlm-create (required)
-  source-url-or-path Source URL or local file path (required)
-
-Sets the active notebook first, then adds the source. Uses 60s timeout for source processing.
-Checks binary availability and auth health before execution.
-
-Output: { notebook_id, source_url, raw_output }
-Error: { error, install_hint | reauth_command | details }
-
-Examples:
-  bgsd-tools research:nlm-add-source abc123 "https://example.com/docs"
-  bgsd-tools research:nlm-add-source abc123 "https://youtube.com/watch?v=xxx"
-  bgsd-tools research:nlm-add-source abc123 "./docs/research.pdf"`,
-      "research nlm-ask": `Usage: bgsd-tools research nlm-ask <notebook-id> "question" [--new]
-
-Ask a question against a NotebookLM notebook and receive a grounded answer with citations.
-
-Arguments:
-  notebook-id  Notebook ID to ask against (required)
-  question     Question text (required, remaining positional args joined)
-
-Options:
-  --new        Start a fresh conversation (clears conversation history)
-
-Sets the active notebook first, then sends the question. Uses 30s timeout.
-Checks binary availability and auth health before execution.
-
-Output: { notebook_id, question, answer, references, raw_output }
-Error: { error, install_hint | reauth_command | details }
-
-Examples:
-  bgsd-tools research nlm-ask abc123 "What are the key themes?"
-  bgsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
-      "research:nlm-ask": `Usage: bgsd-tools research:nlm-ask <notebook-id> "question" [--new]
-
-Ask a question against a NotebookLM notebook and receive a grounded answer with citations.
-
-Arguments:
-  notebook-id  Notebook ID to ask against (required)
-  question     Question text (required, remaining positional args joined)
-
-Options:
-  --new        Start a fresh conversation (clears conversation history)
-
-Sets the active notebook first, then sends the question. Uses 30s timeout.
-Checks binary availability and auth health before execution.
-
-Output: { notebook_id, question, answer, references, raw_output }
-Error: { error, install_hint | reauth_command | details }
-
-Examples:
-  bgsd-tools research:nlm-ask abc123 "What are the key themes?"
-  bgsd-tools research:nlm-ask abc123 "Summarize implementation approach" --new`,
-      "research nlm-report": `Usage: bgsd-tools research nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
-
-Generate a structured report from a NotebookLM notebook.
-
-Arguments:
-  notebook-id  Notebook ID to generate report from (required)
-
-Options:
-  --type TYPE   Report type: briefing-doc (default), study-guide, blog-post
-  --prompt "text"  Custom report prompt (optional)
-
-Uses 60s timeout \u2014 report generation is slow. Sets active notebook first.
-Checks binary availability and auth health before execution.
-
-Output: { notebook_id, report_type, content, raw_output }
-Error: { error, install_hint | reauth_command | details }
-
-Examples:
-  bgsd-tools research nlm-report abc123 --type briefing-doc
-  bgsd-tools research:nlm-report abc123 --type study-guide
-  bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
-      "research:nlm-report": `Usage: bgsd-tools research:nlm-report <notebook-id> [--type TYPE] [--prompt "text"]
-
-Generate a structured report from a NotebookLM notebook.
-
-Arguments:
-  notebook-id  Notebook ID to generate report from (required)
-
-Options:
-  --type TYPE   Report type: briefing-doc (default), study-guide, blog-post
-  --prompt "text"  Custom report prompt (optional)
-
-Uses 60s timeout \u2014 report generation is slow. Sets active notebook first.
-Checks binary availability and auth health before execution.
-
-Output: { notebook_id, report_type, content, raw_output }
-Error: { error, install_hint | reauth_command | details }
-
-Examples:
-  bgsd-tools research:nlm-report abc123 --type briefing-doc
-  bgsd-tools research:nlm-report abc123 --type study-guide
-  bgsd-tools research:nlm-report abc123 --prompt "Focus on security implications"`,
-      "research:collect --resume": "Resume interrupted research session from last completed stage",
-      "research collect --resume": "Resume interrupted research session from last completed stage",
-      "research:score": `Usage: bgsd-tools research:score <path>
-
-Score a RESEARCH.md file and return a structured quality profile.
-
-Arguments:
-  path    Path to a RESEARCH.md file (required)
-
-Analyzes source count, confidence breakdown, official docs presence, source age,
-flagged gaps, and multi-source conflicts. Writes cache to research-score.json
-in the same directory.
-
-Output: {
-  source_count: number,
-  high_confidence_pct: number,
-  oldest_source_days: number,
-  has_official_docs: boolean,
-  confidence_level: "HIGH" | "MEDIUM" | "LOW",
-  flagged_gaps: [{ gap, severity, suggestion }],
-  conflicts: [{ claim, source_a, source_b }]
-}
-
-Examples:
-  bgsd-tools research:score .planning/phases/0133-enhanced-research-workflow/0133-RESEARCH.md
-  bgsd-tools research:score .planning/research/STACK.md --raw`,
-      "research:gaps": `Usage: bgsd-tools research:gaps <path>
-
-Extract flagged gaps from a cached research quality profile.
-
-Arguments:
-  path    Path to a RESEARCH.md file (required \u2014 used to locate research-score.json cache)
-
-Note: Reads from research-score.json cache in the same directory as <path>.
-Run research:score first to generate the cache.
-
-Output: { flagged_gaps: [{ gap, severity, suggestion }] }
-Error: { error: "No cached score found. Run research:score first." }
-
-Examples:
-  bgsd-tools research:gaps .planning/phases/0133-enhanced-research-workflow/0133-RESEARCH.md
-  bgsd-tools research:gaps .planning/research/STACK.md --raw`,
-      // audit namespace
-      // decisions namespace
-      "decisions:list": `Usage: bgsd-tools decisions:list
-
-List all registered decision rules with category, confidence range, and description.
-
-Groups rules by category with section headers. Shows total rules and categories.
-
-Output: { rules, summary: { total_rules, categories, category_list } }
-
-Examples:
-  bgsd-tools decisions:list
-  bgsd-tools decisions:list --raw`,
-      "decisions:inspect": `Usage: bgsd-tools decisions:inspect <rule_id>
-
-Show full details of a specific decision rule.
-
-Arguments:
-  rule_id    The rule identifier (e.g., progress-route, context-gate)
-
-Output: { id, name, category, description, inputs, outputs, confidence_range }
-
-If rule not found, shows available rule IDs.
-
-Examples:
-  bgsd-tools decisions:inspect progress-route
-  bgsd-tools decisions:inspect context-gate --raw`,
-      "decisions:evaluate": `Usage: bgsd-tools decisions:evaluate <rule_id> [--state '{json}']
-
-Evaluate a decision rule against a given state object.
-
-Arguments:
-  rule_id          The rule identifier to evaluate
-
-Options:
-  --state '{json}' JSON state object with input values for the rule
-
-Output: { value, confidence, rule_id, metadata? }
-
-If --state is omitted, evaluates with empty state (default values).
-
-Examples:
-  bgsd-tools decisions:evaluate context-gate --state '{"context_present":true}'
-  bgsd-tools decisions:evaluate progress-route --state '{"plan_count":3,"summary_count":1,"roadmap_exists":true,"project_exists":true,"state_exists":true}'
-  bgsd-tools decisions:evaluate auto-advance --state '{"auto_advance_config":true}' --raw`,
-      "decisions:savings": `Usage: bgsd-tools decisions:savings
-
-Show before/after LLM reasoning step counts per workflow.
-
-Reports savings from decision offloading \u2014 how many LLM reasoning steps
-each workflow used to perform vs how many remain after pre-computed decisions.
-
-Output: { workflows: [{workflow, before, after, saved, decisions}], totals: {before, after, saved, percent_reduction}, note }
-
-Examples:
-  bgsd-tools decisions:savings
-  bgsd-tools decisions:savings --raw`,
-      "audit:scan": `Usage: bgsd-tools audit:scan
-
-Scan workflows and agents for LLM-offloadable decisions with rubric scoring and token estimates.
-
-Scans all workflow .md files and agent definitions for decision points where
-the LLM currently reasons about things that deterministic code could handle.
-Each candidate is scored against a 7-criteria rubric (3 critical + 4 preferred)
-and assigned a token savings estimate.
-
-Output: { candidates, offloadable, keep_in_llm, summary }
-
-Summary includes: total_candidates, offloadable_count, keep_count,
-estimated_total_savings, savings_by_category
-
-Examples:
-  bgsd-tools audit:scan
-  bgsd-tools audit:scan --raw`,
-      // Missing COMMAND_HELP entries - adding per plan 115-04
-      // util namespace (20 commands)
-      "util:settings": `Usage: bgsd-tools util:settings [key]
-
-List all bGSD settings or get a specific value.
-
-Arguments:
-  key          Optional key path (e.g., "model_profile", "workflow.auto_advance")
-
-Output: All settings with current values, types, and defaults, or single value.
-
-Examples:
-  bgsd-tools util:settings
-  bgsd-tools util:settings model_profile`,
-      "util:parity-check": `Usage: bgsd-tools util:parity-check
-
-Check feature parity between production config and development config.
-
-Compares settings in .planning/config.json against expected production defaults
-and reports any gaps or mismatches.
-
-Output: { parity_ok, differences: [...] }
-
-Examples:
-  bgsd-tools util:parity-check`,
-      "util:resolve-model": `Usage: bgsd-tools util:resolve-model <agent-type>
-
-Resolve which model to use for a given agent type based on profile settings.
-
-Arguments:
-  agent-type    Agent type (e.g., "bgsd-planner", "bgsd-executor")
-
-Uses model_profile config (quality/balanced/budget) to select appropriate model.
-
-Output: { agent_type, profile, resolved_model, quality_model, balanced_model, budget_model }
-
-Examples:
-  bgsd-tools util:resolve-model bgsd-planner
-  bgsd-tools util:resolve-model bgsd-executor`,
-      "util:verify-path-exists": `Usage: bgsd-tools util:verify-path-exists <path>
-
-Verify that a path exists in the project.
-
-Arguments:
-  path         Path to verify (file or directory)
-
-Returns whether the path exists and its type (file/directory).
-
-Output: { path, exists: true|false, type: "file"|"directory"|"none" }
-
-Examples:
-  bgsd-tools util:verify-path-exists .planning/STATE.md
-  bgsd-tools util:verify-path-exists src/lib`,
-      "util:config-ensure-section": `Usage: bgsd-tools util:config-ensure-section
-
-Ensure all required sections exist in .planning/config.json.
-
-Creates missing sections with empty defaults. Does not overwrite existing values.
-
-Output: { added: [...], existing: [...], config_ensured: true }
-
-Examples:
-  bgsd-tools util:config-ensure-section`,
-      "util:scaffold": `Usage: bgsd-tools util:scaffold <type> [--path path]
-
-Scaffold common planning files and structures.
-
-Arguments:
-  type         Type to scaffold (plan|phase|milestone|summary)
-
-Options:
-  --path       Target path for scaffold operation
-
-Output: { scaffolded: [...], errors: [...] }
-
-Examples:
-  bgsd-tools util:scaffold plan --path .planning/phases/99-test
-  bgsd-tools util:scaffold phase`,
-      "util:phase-plan-index": `Usage: bgsd-tools util:phase-plan-index <phase>
-
-Build or update phase plan index file.
-
-Arguments:
-  phase        Phase number or directory
-
-Creates/updates .planning/phases/{phase}/INDEX.json with plan metadata.
-
-Output: { phase, plans_indexed, index_path }
-
-Examples:
-  bgsd-tools util:phase-plan-index 99
-  bgsd-tools util:phase-plan-index .planning/phases/99-test`,
-      "util:state-snapshot": `Usage: bgsd-tools util:state-snapshot
-
-Create a point-in-time snapshot of STATE.md.
-
-Captures current phase, plan position, blockers, decisions, and metrics.
-
-Output: { timestamp, phase, plan, position, blockers: [...], decisions: [...] }
-
-Examples:
-  bgsd-tools util:state-snapshot`,
-      "util:summary-extract": `Usage: bgsd-tools util:summary-extract <summary-path> [fields...]
-
-Extract specific fields from a SUMMARY.md file.
-
-Arguments:
-  summary-path  Path to SUMMARY.md file
-  fields       Field names to extract (default: all)
-
-Output: JSON with extracted field values.
-
-Examples:
-  bgsd-tools util:summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md one-liner
-  bgsd-tools util:summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md`,
-      "util:summary-generate": `Usage: bgsd-tools util:summary-generate <phase> <plan>
-
-Generate SUMMARY.md scaffold from PLAN.md.
-
-Arguments:
-  phase        Phase number (e.g., "01", "99")
-  plan         Plan number (e.g., "01", "04")
-
-Creates a structured SUMMARY.md template based on PLAN.md frontmatter and tasks.
-
-Output: JSON with generated sections and todo_remaining count.
-
-Examples:
-  bgsd-tools util:summary-generate 01 01
-  bgsd-tools util:summary-generate 99 04`,
-      "util:quick-summary": `Usage: bgsd-tools util:quick-summary [options]
-
-Generate a quick task summary from current state.
-
-Options:
-  --plan <path>    Plan file to summarize
-  --format         Output format (text|json)
-
-Output: Summary of tasks, completion status, and time estimates.
-
-Examples:
-  bgsd-tools util:quick-summary
-  bgsd-tools util:quick-summary --plan .planning/phases/01-foundation/01-01-PLAN.md`,
-      "util:extract-sections": `Usage: bgsd-tools util:extract-sections <file> <section>...
-
-Extract specific sections from a markdown file.
-
-Arguments:
-  file         Source markdown file
-  sections     Section names to extract (e.g., "context", "tasks")
-
-Output: JSON with section content.
-
-Examples:
-  bgsd-tools util:extract-sections .planning/PROJECT.md description goals`,
-      "util:tools": `Usage: bgsd-tools util:tools [options]
-
-Check status of external tools and dependencies.
-
-Options:
-  --detailed    Show detailed version info
-  --json        Output as JSON
-
-Detects: Node.js, Bun, git, yt-dlp, notebooklm-py, MCP servers.
-
-Output: { tools: [...], all_available: true|false }
-
-Examples:
-  bgsd-tools util:tools
-  bgsd-tools util:tools --detailed`,
-      "util:runtime": `Usage: bgsd-tools util:runtime [options]
-
-Show runtime information and benchmarks.
-
-Options:
-  --benchmark   Run quick benchmark
-  --details     Show detailed timing
-
-Reports runtime version, memory usage, and command execution times.
-
-Output: { runtime, version, memory, benchmark_results: {...} }
-
-Examples:
-  bgsd-tools util:runtime
-  bgsd-tools util:runtime --benchmark`,
-      "util:recovery": `Usage: bgsd-tools util:recovery <subcommand> [options]
-
-Auto-recovery and stuck task resolution.
-
-Subcommands:
-  analyze <error>     Analyze error and suggest fix
-  checkpoint <json>  Restore from checkpoint
-  stuck <task-id>     Diagnose why task is stuck
-
-Examples:
-  bgsd-tools util:recovery analyze "Cannot read property 'foo' of undefined"
-  bgsd-tools util:recovery checkpoint '{"files":["a.js"],"type":"auto"}'
-  bgsd-tools util:recovery stuck task-123`,
-      "util:history": `Usage: bgsd-tools util:history [options]
-
-Lookup command history and recent activity.
-
-Options:
-  --limit N         Number of entries (default: 10)
-  --command <cmd>   Filter by command
-  --since <date>    Filter since date
-
-Output: { entries: [...], count }
-
-Examples:
-  bgsd-tools util:history
-  bgsd-tools util:history --limit 20
-  bgsd-tools util:history --command util:settings`,
-      "util:examples": `Usage: bgsd-tools util:examples [command]
-
-Show usage examples for a command or list all examples.
-
-Arguments:
-  command      Optional command to get examples for
-
-Output: { examples: [...] }
-
-Examples:
-  bgsd-tools util:examples
-  bgsd-tools util:examples util:codebase`,
-      "util:analyze-deps": `Usage: bgsd-tools util:analyze-deps [path]
-
-Analyze dependencies for a file or entire project.
-
-Arguments:
-  path         Optional file or directory path
-
-Output: { dependencies: [...], dev_dependencies: [...], circular: [...] }
-
-Examples:
-  bgsd-tools util:analyze-deps
-  bgsd-tools util:analyze-deps src/lib/utils.js`,
-      "util:estimate-scope": `Usage: bgsd-tools util:estimate-scope <plan-path>
-
-Estimate token scope for executing a plan.
-
-Arguments:
-  plan-path    Path to PLAN.md file
-
-Analyzes task count, file modifications, and complexity to estimate context budget.
-
-Output: { estimated_tokens, tasks, files, complexity, recommendation }
-
-Examples:
-  bgsd-tools util:estimate-scope .planning/phases/01-foundation/01-01-PLAN.md`,
-      "util:test-coverage": `Usage: bgsd-tools util:test-coverage [options]
-
-Show test coverage information.
-
-Options:
-  --summary     Show summary only
-  --file <path> Coverage for specific file
-
-Output: { lines_covered, lines_total, percentage, uncovered_lines: [...] }
-
-Examples:
-  bgsd-tools util:test-coverage
-  bgsd-tools util:test-coverage --summary`,
-      // verify namespace (7 commands)
-      "verify:regression": `Usage: bgsd-tools verify:regression [options]
-
-Detect regressions by comparing before/after states.
-
-Options:
-  --before <ref>    Before commit/tag (default: HEAD~1)
-  --after <ref>     After commit/tag (default: HEAD)
-  --plan <path>    Check plan-specific regressions
-
-Runs test suite and compares outputs to detect behavioral changes.
-
-Output: { regressions_found: N, details: [...] }
-
-Examples:
-  bgsd-tools verify:regression
-  bgsd-tools verify:regression --before main --after HEAD
-  bgsd-tools verify:regression --plan .planning/phases/01-foundation/01-01-PLAN.md`,
-      "verify:quality": `Usage: bgsd-tools verify:quality [options]
-
-Run composite quality checks on planning documents.
-
-Options:
-  --plan <path>    Check specific plan
-  --phase <N>      Check entire phase
-  --score          Show numeric score
-
-Checks: structure, references, must_haves, key_links, dependencies.
-
-Output: { quality_score, issues: [...], warnings: [...] }
-
-Examples:
-  bgsd-tools verify:quality
-  bgsd-tools verify:quality --phase 01
-  bgsd-tools verify:quality --plan .planning/phases/01-foundation/01-01-PLAN.md --score`,
-      "verify:summary": `Usage: bgsd-tools verify:summary <summary-path>
-
-Verify SUMMARY.md completeness and correctness.
-
-Arguments:
-  summary-path  Path to SUMMARY.md file
-
-Checks: required sections, frontmatter completeness, task commit references.
-
-Output: { valid: true|false, issues: [...], completeness_score }
-
-Examples:
-  bgsd-tools verify:summary .planning/phases/01-foundation/01-01-SUMMARY.md`,
-      "verify:validate consistency": `Usage: bgsd-tools verify:validate consistency
-
-Validate consistency across planning documents.
-
-Checks: phase numbers match directories, plan numbers are sequential,
-references resolve correctly, no orphaned files.
-
-Output: { consistent: true|false, issues: [...] }
-
-Examples:
-  bgsd-tools verify:validate consistency`,
-      "verify:validate health": `Usage: bgsd-tools verify:validate health [options]
-
-Validate project health indicators.
-
-Options:
-  --detailed     Show detailed health metrics
-
-Checks: test pass rate, recent commit activity, blocker count, phase progress.
-
-Output: { healthy: true|false, metrics: {...}, recommendations: [...] }
-
-Examples:
-  bgsd-tools verify:validate health
-  bgsd-tools verify:validate health --detailed`,
-      "verify:validate-dependencies": `Usage: bgsd-tools verify:validate-dependencies
-
-Validate phase and plan dependencies.
-
-Checks: no circular dependencies, all required phases exist,
-plan depends_on references valid.
-
-Output: { valid: true|false, cycles: [...], missing: [...], warnings: [...] }
-
-Examples:
-  bgsd-tools verify:validate-dependencies`,
-      "verify:validate-config": `Usage: bgsd-tools verify:validate-config [options]
-
-Validate .planning/config.json against schema.
-
-Options:
-  --fix          Auto-fix trivial issues
-  --detailed     Show detailed validation results
-
-Checks: required keys present, types correct, defaults applied.
-
-Output: { valid: true|false, issues: [...], fixed: [...] }
-
-Examples:
-  bgsd-tools verify:validate-config
-  bgsd-tools verify:validate-config --fix`,
-      // cache namespace (5 commands)
-      "cache:research-stats": `Usage: bgsd-tools cache:research-stats
-
-Show research cache statistics.
-
-Reports entry count, hits, and misses for research results cached via
-the research:collect command.
-
-Output: { count, hits, misses, hit_rate_percent }
-
-Examples:
-  bgsd-tools cache:research-stats`,
-      "cache:research-clear": `Usage: bgsd-tools cache:research-clear
-
-Clear all research cache entries.
-
-Removes cached research results from the research_cache table.
-Does not affect general file cache.
-
-Output: { cleared: true, entries_removed: N }
-
-Examples:
-  bgsd-tools cache:research-clear`,
-      "cache:status": `Usage: bgsd-tools cache:status
-
-Show cache backend type and entry count.
-
-Reports which cache backend is active (memory/SQLite) and total entries.
-
-Output: { backend, count, hits, misses }
-
-Examples:
-  bgsd-tools cache:status`,
-      "cache:clear": `Usage: bgsd-tools cache:clear
-
-Clear all cache entries.
-
-Removes all entries from the active cache backend.
-Does not affect research cache.
-
-Output: { cleared: true, entries_removed: N }
-
-Examples:
-  bgsd-tools cache:clear`,
-      "cache:warm": `Usage: bgsd-tools cache:warm [files...]
-
-Pre-populate cache with file contents.
-
-Arguments:
-  files        Optional file paths to cache (default: all .planning/ files)
-
-Discovers and caches planning documents for faster subsequent access.
-
-Output: { warmed: N, elapsed_ms: M }
-
-Examples:
-  bgsd-tools cache:warm
-  bgsd-tools cache:warm .planning/STATE.md .planning/ROADMAP.md`,
-      // lessons namespace (Phase 130)
-      "lessons:capture": `Usage: bgsd-tools lessons:capture --title <text> --severity <level> --type <type> --root-cause <text> --prevention <text> --agents <list>
-
-Capture a structured lesson entry to .planning/memory/lessons.json.
-
-Required options:
-  --title <text>        Short description of the lesson
-  --severity <level>    LOW | MEDIUM | HIGH | CRITICAL
-  --type <type>         workflow | agent-behavior | tooling | environment
-  --root-cause <text>   What caused the issue
-  --prevention <text>   Rule to prevent recurrence
-  --agents <list>       Comma-separated affected agent types
-
-Output: { captured, id, title, severity, type, entry_count }
-
-Examples:
-  bgsd-tools lessons:capture --title "Missing validation" --severity HIGH --type tooling --root-cause "No input checks" --prevention "Add input validation" --agents bgsd-executor
-  bgsd-tools lessons:capture --title "Auth failure" --severity CRITICAL --type agent-behavior --root-cause "Token expired" --prevention "Check expiry before use" --agents "bgsd-executor,bgsd-planner"`,
-      "lessons:list": `Usage: bgsd-tools lessons:list [options]
-
-List structured lesson entries with optional filters.
-
-Options:
-  --type <type>         Filter by type (workflow | agent-behavior | tooling | environment)
-  --severity <level>    Filter by severity (LOW | MEDIUM | HIGH | CRITICAL)
-  --since <date>        Filter by date >= ISO date (e.g. 2026-03-01)
-  --limit <N>           Maximum results (default: 20)
-  --query <text>        Substring search on title, root_cause, prevention_rule
-
-Output: { entries, count, filtered_total, total, filters }
-
-Examples:
-  bgsd-tools lessons:list
-  bgsd-tools lessons:list --type agent-behavior --severity HIGH
-  bgsd-tools lessons:list --since 2026-03-01 --limit 5
-  bgsd-tools lessons:list --query "auth"`,
-      "lessons:migrate": `Usage: bgsd-tools lessons:migrate
-
-Migrate free-form lessons.md to structured format.
-
-Searches for lessons.md at:
-  - <cwd>/lessons.md
-  - <cwd>/tasks/lessons.md
-  - <cwd>/.planning/lessons.md
-
-Each heading section becomes a structured entry with:
-  - type: environment
-  - severity: MEDIUM (default)
-  - prevention_rule: "Migrated from free-form lessons \u2014 review and update"
-  - affected_agents: [] (review and populate)
-
-Output: { migrated, sources, entry_count }
-
-Examples:
-  bgsd-tools lessons:migrate`,
-      "lessons:analyze": `Usage: bgsd-tools lessons:analyze [--agent <name>]
-
-Analyze recurrent patterns in the lesson store, grouped by affected agent and type.
-Only shows groups with \u22652 supporting lessons (noise filter).
-
-Options:
-  --agent <name>    Filter results to a specific agent (e.g., bgsd-executor)
-
-Output: { groups, group_count, total_lessons_analyzed, filter }
-
-Each group contains:
-  - agent, pattern_type, count, severity_distribution
-  - common_root_causes, lessons (id, title, date, severity)
-
-Examples:
-  bgsd-tools lessons:analyze
-  bgsd-tools lessons:analyze --agent bgsd-executor`,
-      "lessons:suggest": `Usage: bgsd-tools lessons:suggest [--agent <name>]
-
-Generate structured improvement suggestions from lesson patterns.
-Excludes type:environment entries (migrated free-form lessons).
-Only generates suggestions for groups with \u22652 supporting lessons.
-Advisory only \u2014 never auto-applied.
-
-Options:
-  --agent <name>    Filter suggestions to a specific agent
-
-Output: { suggestions, suggestion_count, advisory_note, filter }
-
-Each suggestion contains:
-  - agent, suggestion_type (behavioral|workflow|tooling|general)
-  - summary, supporting_lessons (count + ids), severity, prevention_rules
-
-Examples:
-  bgsd-tools lessons:suggest
-  bgsd-tools lessons:suggest --agent bgsd-executor`,
-      "lessons:deviation-capture": `Usage: bgsd-tools lessons:deviation-capture --rule <number> --failure-count <number> --behavioral-change <text> --agent <name>
-
-Captures a deviation recovery pattern as a structured lesson entry.
-Only Rule 1 (code bug) recoveries are captured \u2014 all other rules are silently filtered.
-Capped at 3 entries per milestone to prevent noise.
-
-Options:
-  --rule               Deviation rule number (1=bug, 2=missing, 3=blocking, 4=architectural)
-  --failure-count      Number of failed attempts before successful recovery
-  --behavioral-change  Description of what behavioral change fixed the issue
-  --agent              Name of the agent that performed the recovery
-
-Examples:
-  bgsd-tools lessons:deviation-capture --rule 1 --failure-count 2 --behavioral-change "Added null check before property access" --agent bgsd-executor
-  bgsd-tools lessons:deviation-capture --rule 3 --failure-count 1 --behavioral-change "Reinstalled deps" --agent bgsd-executor  # \u2192 silently filtered (Rule 3)`,
-      "lessons:compact": `Usage: bgsd-tools lessons:compact [--threshold <N>]
-
-Deduplicate the lesson store by normalized root_cause when entry count exceeds threshold.
-Groups entries with identical root causes, keeps the latest entry per group.
-Merges unique prevention rules and preserves highest severity across the group.
-
-Options:
-  --threshold <N>   Compaction threshold (default: 100). If count < threshold, no-op.
-
-Output when below threshold: { compacted: false, reason, count, threshold }
-Output when compacted:       { compacted: true, before, after, removed, groups_merged }
-
-Examples:
-  bgsd-tools lessons:compact
-  bgsd-tools lessons:compact --threshold 50`,
-      "skills:list": `Usage: bgsd-tools skills:list
-
-List all installed project-local skills with their descriptions and scan status.
-
-Skills are stored in .agents/skills/<name>/SKILL.md within the project.
-
-Output: Array of { name, description, scan_status } or "No skills installed."
-
-Examples:
-  bgsd-tools skills:list`,
-      "skills:install": `Usage: bgsd-tools skills:install --source <github-url> [--confirm]
-         bgsd-tools skills:install <owner/repo> [--confirm]
-
-Install a skill from a GitHub repository with mandatory 41-pattern security scan.
-
-The install pipeline:
-  1. Fetch repository contents via GitHub API (no git clone required)
-  2. Verify SKILL.md exists in repo root (required)
-  3. Run 41-pattern security scan across all files
-  4. DANGEROUS findings: hard block \u2014 install is refused, no override
-  5. WARN findings: show count, prompt confirmation (or use --confirm to auto-accept)
-  6. Write skill to .agents/skills/<name>/ on confirmation
-  7. Log to .agents/skill-audit.json
-
-Options:
-  --source <url>   GitHub URL (https://github.com/owner/repo or owner/repo)
-  --confirm        Auto-accept warn-level findings without interactive prompt
-
-Examples:
-  bgsd-tools skills:install --source owner/my-skill
-  bgsd-tools skills:install https://github.com/owner/my-skill --confirm`,
-      "skills:validate": `Usage: bgsd-tools skills:validate --name <skill-name> [--verbose]
-
-Re-scan an installed skill against the 41-pattern security scanner.
-Useful after manual edits or to verify an existing skill's safety.
-
-Options:
-  --name <name>   Name of the installed skill to validate
-  --verbose       Show full matched code snippets for each finding
-
-Output: Scan report with severity-first grouping (dangerous > warn > info), category
-checklist (\u2713/\u2717 per category), count summary, and overall verdict.
-
-Examples:
-  bgsd-tools skills:validate --name my-skill
-  bgsd-tools skills:validate --name my-skill --verbose`,
-      "skills:remove": `Usage: bgsd-tools skills:remove --name <skill-name>
-
-Remove an installed project-local skill. Deletes the skill directory from
-.agents/skills/<name>/ and logs the removal to .agents/skill-audit.json.
-
-Options:
-  --name <name>   Name of the installed skill to remove
-
-Examples:
-  bgsd-tools skills:remove --name my-skill`,
-      "workflow:baseline": `Usage: bgsd-tools workflow:baseline
-
-Measure token counts and structural fingerprints for all workflow files.
-Saves a versioned snapshot to .planning/baselines/workflow-baseline-{timestamp}.json.
-
-The structural fingerprint per workflow includes:
-  - task_calls:       Task() function call counts
-  - cli_commands:     bgsd-tools invocations in code blocks
-  - section_markers:  <!-- section: ... --> markers
-  - question_blocks:  <question> blocks
-  - xml_tags:         <step>, <process>, <purpose> tags
-
-Output (stderr): Human-readable table with token counts and structural element counts.
-Output (stdout): JSON snapshot with { version, timestamp, workflow_count, total_tokens, workflows: [...] }
-
-Examples:
-  bgsd-tools workflow:baseline
-  bgsd-tools workflow:baseline --raw`,
-      "workflow:compare": `Usage: bgsd-tools workflow:compare [<snapshot-a>] [<snapshot-b>]
-
-Compare two workflow baseline snapshots to see per-workflow token deltas.
-
-Modes:
-  Two args:   Compare snapshot-a to snapshot-b
-  One arg:    Compare snapshot-a to current workflow state
-  No args:    Compare the two most recent baselines in .planning/baselines/
-
-Output (stderr): Comparison table with per-workflow before/after/delta/% columns.
-Output (stdout): JSON with { snapshot_a, snapshot_b, summary: { before_total, after_total, delta, percent_change, workflows_improved, workflows_unchanged, workflows_worsened }, workflows: [...] }
-
-Examples:
-  bgsd-tools workflow:compare
-  bgsd-tools workflow:compare .planning/baselines/workflow-baseline-2026-01-01T00-00-00-000Z.json
-  bgsd-tools workflow:compare baseline-a.json baseline-b.json`,
-      "workflow:savings": `Usage: bgsd-tools workflow:savings
-
-Generate a cumulative token savings table showing the reduction journey across milestones:
-  Original (pre-Phase 135) \u2192 Post-Compression (Phase 135) \u2192 Post-Elision (Phase 137)
-
-Loads Phase 134 and Phase 135 baselines from .planning/baselines/ if available.
-Falls back to hardcoded Phase 135 SUMMARY values if disk baselines unavailable.
-The post-elision column shows current workflow token counts (all conditional sections removed).
-
-Output:
-  | Workflow | Original | Compressed | Post-Elision | Total % |
-
-Options:
-  --raw   JSON output
-
-Examples:
-  bgsd-tools workflow:savings
-  bgsd-tools workflow:savings --raw`,
-      // questions namespace
-      "questions:audit": `Usage: bgsd-tools questions:audit [--json]
-
-Scan all workflows, identify inline question text vs template references.
-Reports taxonomy compliance percentage.
-
-Options:
-  --json    Machine-readable JSON output (default: human-readable Markdown)
-
-Examples:
-  bgsd-tools questions:audit
-  bgsd-tools questions:audit --json`,
-      "questions:list": `Usage: bgsd-tools questions:list [--json]
-
-List all question templates in src/lib/questions.js with taxonomy type and usage count per workflow.
-
-Options:
-  --json    Machine-readable JSON output (default: human-readable Markdown)
-
-Examples:
-  bgsd-tools questions:list
-  bgsd-tools questions:list --json`,
-      "questions:validate": `Usage: bgsd-tools questions:validate [--json]
-
-Validate all question templates have 3-5 options, formatting parity, and escape hatches.
-Phase 143: warn-only mode (reports issues, does not block).
-
-Options:
-  --json    Machine-readable JSON output (default: human-readable Markdown)
-
-Examples:
-  bgsd-tools questions:validate
-  bgsd-tools questions:validate --json`
-    };
-    module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
-  }
-});
-
 // src/lib/questions.js
 var require_questions = __commonJS({
   "src/lib/questions.js"(exports, module) {
@@ -5285,15 +5728,37 @@ var require_questions = __commonJS({
         typeHint: "SINGLE_CHOICE"
       },
       "discuss-gray-areas": {
-        question: "Which areas do you want to discuss?",
-        options: [],
-        typeHint: "MULTI_CHOICE"
+        question: "How should we handle these ranked gray areas?",
+        options: [
+          { id: "work-ranked", label: "Work high to low", description: "Resolve High-impact gray areas first, then continue only as far as needed", diversity: { certainty: 0.8 } },
+          { id: "review-ranked", label: "Review the ranking", description: "Inspect why each gray area was ranked before we start resolving them", diversity: { certainty: 0.5 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      "discuss-low-risk-path": {
+        question: "How should we handle these low-risk defaults?",
+        options: [
+          { id: "lock-defaults", label: "Lock defaults and continue", description: "Accept the proposed defaults, keep them distinct from hard locks, and move on to any remaining gray areas", diversity: { certainty: 0.8 } },
+          { id: "discuss-one", label: "Discuss one of them", description: "Pull a proposed default back into the normal clarification loop before locking it", diversity: { certainty: 0.4 } },
+          { id: "skip-defaults", label: "Skip defaults", description: "Do not record these yet \u2014 continue with the normal gray-area menu", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
       },
       "discuss-socratic-continue": {
         question: "More questions about this area, or move to next?",
         options: [
-          { id: "more", label: "More questions", diversity: { certainty: 0.4 } },
+          { id: "more", label: "Keep refining", diversity: { certainty: 0.4 } },
           { id: "next", label: "Next area", diversity: { certainty: 0.8 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      "discuss-conflict-resolution": {
+        question: "How should we handle this tension?",
+        options: [
+          { id: "lock", label: "Lock a direction", description: "Make this a concrete phase decision now", diversity: { certainty: 0.8 } },
+          { id: "default", label: "Use a default", description: "Prefer a default pattern unless a later detail forces an exception", diversity: { approach: 0.6 } },
+          { id: "delegate", label: "Agent decides", description: "Leave this to downstream planning or execution within stated constraints", diversity: { approach: 0.4 } },
+          { id: "defer", label: "Defer and note it", description: "Record the tradeoff but leave the final choice for a later phase or context", diversity: { scope: 0.2 } }
         ],
         typeHint: "SINGLE_CHOICE"
       },
@@ -5301,11 +5766,20 @@ var require_questions = __commonJS({
         question: "Any of those points change your thinking?",
         options: [
           { id: "proceed", label: "No changes \u2014 proceed", diversity: { certainty: 0.8 } },
-          { id: "revisit", label: "Revisit a decision", diversity: { certainty: 0.3 } }
+          { id: "revisit", label: "Changed something \u2014 check knock-on effects", description: "Record the revision and immediately validate downstream gray areas", diversity: { certainty: 0.3 } }
         ],
         typeHint: "SINGLE_CHOICE"
       },
       // execute-phase workflow templates
+      "phase-handoff-resume-summary": {
+        question: "How should we continue from this handoff?",
+        options: [
+          { id: "resume", label: "Resume", description: "Continue from the latest valid handoff artifact", diversity: { certainty: 0.8 } },
+          { id: "inspect", label: "Inspect", description: "Review the active handoff details before continuing", diversity: { certainty: 0.5 } },
+          { id: "restart", label: "Restart", description: "Clear the handoff set and restart from discuss", diversity: { certainty: 0.2 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
       "execute-checkpoint-verify": {
         question: "Verification result:",
         options: [
@@ -5348,6 +5822,16 @@ var require_questions = __commonJS({
           { id: "add-more", label: "Add more plans", diversity: { scope: 0.3 } },
           { id: "view", label: "View existing plans", diversity: { scope: 0.5 } },
           { id: "replan", label: "Replan", diversity: { scope: 0.8 } }
+        ],
+        typeHint: "SINGLE_CHOICE"
+      },
+      "plan-phase-high-impact-gray-area": {
+        question: "This high-impact gray area will change the plan. How should we handle it?",
+        options: [
+          { id: "lock", label: "Lock a direction", description: "Decide now so the planner can commit to a concrete structure", diversity: { certainty: 0.8 } },
+          { id: "default", label: "Use a default", description: "Adopt the safest default and continue planning with it explicitly recorded", diversity: { certainty: 0.5 } },
+          { id: "delegate", label: "Agent decides", description: "Let the planner choose within stated constraints and record that discretion", diversity: { certainty: 0.3 } },
+          { id: "defer", label: "Defer and constrain", description: "Keep the choice open, but record the limit so planning does not guess beyond it", diversity: { certainty: 0.2 } }
         ],
         typeHint: "SINGLE_CHOICE"
       },
@@ -5515,7 +5999,7 @@ var require_questions = __commonJS({
         typeHint: "SINGLE_CHOICE"
       },
       "new-milestone-skills": {
-        question: "Install any skills before defining requirements?",
+        question: "Install recommended project-local skills before defining requirements?",
         options: [
           { id: "yes", label: "Yes", diversity: { certainty: 1 } },
           { id: "no", label: "No", diversity: { certainty: 0 } }
@@ -6289,15 +6773,66 @@ var require_decision_rules = __commonJS({
         outputs: ["ripgrep|fd|node"],
         confidence_range: ["HIGH"],
         resolve: resolveSearchMode
+      },
+      {
+        id: "structural-search-mode",
+        name: "Structural Search Mode",
+        category: "tool-routing",
+        description: "Recommends syntax-aware search tool (ast-grep vs ripgrep vs node) based on tool availability",
+        inputs: ["tool_availability"],
+        outputs: ["ast-grep|ripgrep|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveStructuralSearchMode
+      },
+      {
+        id: "json-transform-mode",
+        name: "JSON Transform Mode",
+        category: "tool-routing",
+        description: "Recommends JSON transform tool (jq vs node) based on tool availability",
+        inputs: ["tool_availability"],
+        outputs: ["jq|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveJsonTransformMode
+      },
+      {
+        id: "yaml-transform-mode",
+        name: "YAML Transform Mode",
+        category: "tool-routing",
+        description: "Recommends YAML transform tool (yq vs node) based on tool availability",
+        inputs: ["tool_availability"],
+        outputs: ["yq|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveYamlTransformMode
+      },
+      {
+        id: "text-replace-mode",
+        name: "Text Replace Mode",
+        category: "tool-routing",
+        description: "Recommends text replacement tool (sd vs node) based on tool availability",
+        inputs: ["tool_availability"],
+        outputs: ["sd|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveTextReplaceMode
+      },
+      {
+        id: "benchmark-mode",
+        name: "Benchmark Mode",
+        category: "tool-routing",
+        description: "Recommends benchmark tool (hyperfine vs node) based on tool availability",
+        inputs: ["tool_availability"],
+        outputs: ["hyperfine|node"],
+        confidence_range: ["HIGH"],
+        resolve: resolveBenchmarkMode
       }
     ];
     var { TAXONOMY, OPTION_TEMPLATES } = require_questions();
     function resolveQuestionType(state) {
       const { workflow_id, step_id } = state || {};
       const questionTypeMap = {
-        "discuss-phase:area-select": TAXONOMY.SINGLE_CHOICE,
-        "discuss-phase:topic-select": TAXONOMY.MULTI_CHOICE,
-        "discuss-phase:depth-select": TAXONOMY.RANKING,
+        "discuss-phase:gray-areas": TAXONOMY.MULTI_CHOICE,
+        "discuss-phase:conflict-resolution": TAXONOMY.CLARIFICATION,
+        "discuss-phase:continue": TAXONOMY.SINGLE_CHOICE,
+        "discuss-phase:stress-test-response": TAXONOMY.SINGLE_CHOICE,
         "new-milestone:goal-type": TAXONOMY.SINGLE_CHOICE,
         "new-milestone:priority-set": TAXONOMY.RANKING,
         "new-milestone:constraint-add": TAXONOMY.FILTERING,
@@ -6332,10 +6867,10 @@ var require_decision_rules = __commonJS({
     }
     function resolveFileDiscoveryMode(state) {
       const { tool_availability = {}, scope } = state || {};
-      if (!scope || scope === "single-file") {
+      if (scope === "single-file") {
         return { value: "node", confidence: "HIGH", rule_id: "file-discovery-mode" };
       }
-      if ((scope === "directory" || scope === "project-wide") && tool_availability.fd === true) {
+      if (tool_availability.fd === true) {
         return { value: "fd", confidence: "HIGH", rule_id: "file-discovery-mode" };
       }
       return { value: "node", confidence: "HIGH", rule_id: "file-discovery-mode" };
@@ -6349,6 +6884,44 @@ var require_decision_rules = __commonJS({
         return { value: "fd", confidence: "HIGH", rule_id: "search-mode" };
       }
       return { value: "node", confidence: "HIGH", rule_id: "search-mode" };
+    }
+    function resolveStructuralSearchMode(state) {
+      const { tool_availability = {} } = state || {};
+      if (tool_availability.ast_grep === true) {
+        return { value: "ast-grep", confidence: "HIGH", rule_id: "structural-search-mode" };
+      }
+      if (tool_availability.ripgrep === true) {
+        return { value: "ripgrep", confidence: "HIGH", rule_id: "structural-search-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "structural-search-mode" };
+    }
+    function resolveJsonTransformMode(state) {
+      const { tool_availability = {} } = state || {};
+      if (tool_availability.jq === true) {
+        return { value: "jq", confidence: "HIGH", rule_id: "json-transform-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "json-transform-mode" };
+    }
+    function resolveYamlTransformMode(state) {
+      const { tool_availability = {} } = state || {};
+      if (tool_availability.yq === true) {
+        return { value: "yq", confidence: "HIGH", rule_id: "yaml-transform-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "yaml-transform-mode" };
+    }
+    function resolveTextReplaceMode(state) {
+      const { tool_availability = {} } = state || {};
+      if (tool_availability.sd === true) {
+        return { value: "sd", confidence: "HIGH", rule_id: "text-replace-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "text-replace-mode" };
+    }
+    function resolveBenchmarkMode(state) {
+      const { tool_availability = {} } = state || {};
+      if (tool_availability.hyperfine === true) {
+        return { value: "hyperfine", confidence: "HIGH", rule_id: "benchmark-mode" };
+      }
+      return { value: "node", confidence: "HIGH", rule_id: "benchmark-mode" };
     }
     function evaluateDecisions2(command, state) {
       if (!state || typeof state !== "object") return {};
@@ -6392,6 +6965,11 @@ var require_decision_rules = __commonJS({
       // Phase 127: Tool routing decision functions
       resolveFileDiscoveryMode,
       resolveSearchMode,
+      resolveStructuralSearchMode,
+      resolveJsonTransformMode,
+      resolveYamlTransformMode,
+      resolveTextReplaceMode,
+      resolveBenchmarkMode,
       // Registry and aggregator
       DECISION_REGISTRY,
       evaluateDecisions: evaluateDecisions2
@@ -6400,8 +6978,8 @@ var require_decision_rules = __commonJS({
 });
 
 // src/plugin/index.js
-import { join as join18 } from "path";
-import { homedir as homedir7 } from "os";
+import { existsSync as existsSync9 } from "fs";
+import { join as join20 } from "path";
 
 // src/plugin/safe-hook.js
 import { homedir } from "os";
@@ -6465,7 +7043,8 @@ function createLogger(logDir) {
         }
       }
       appendFileSync(logPath, line);
-      if (level === "ERROR") {
+      const emitToStderr = extra?.emitToStderr !== false;
+      if (level === "ERROR" && emitToStderr) {
         process.stderr.write(`[bGSD]${corrPart} ${message}
 `);
       }
@@ -6510,6 +7089,13 @@ function safeHook(name, fn, options = {}) {
       });
     });
   }
+  function writeOperatorMessage(message) {
+    try {
+      process.stderr.write(`[bGSD] ${message}
+`);
+    } catch {
+    }
+  }
   return async function wrappedHook(input, output) {
     if (disabled) {
       return;
@@ -6540,17 +7126,45 @@ function safeHook(name, fn, options = {}) {
     const errorMessage = `Hook "${name}" failed: ${lastError.message}`;
     getLogger().write("ERROR", errorMessage, correlationId, {
       hookName: name,
-      stack: lastError.stack
+      stack: lastError.stack,
+      emitToStderr: false
     });
-    console.log(`[bGSD] Hook failed: ${name} [${correlationId}]`);
+    writeOperatorMessage(`Hook failed: ${name} [${correlationId}] - ${lastError.message}`);
     if (consecutiveFailures >= 3) {
       disabled = true;
-      console.log(`[bGSD] Hook ${name} disabled after repeated failures`);
       getLogger().write("ERROR", `Circuit breaker tripped: hook "${name}" disabled after ${consecutiveFailures} consecutive failures`, correlationId, {
-        hookName: name
+        hookName: name,
+        emitToStderr: false
       });
+      writeOperatorMessage(`Hook ${name} disabled after ${consecutiveFailures} consecutive failures [${correlationId}]`);
     }
   };
+}
+
+// src/plugin/debug-contract.js
+function isTruthyDebugValue(value) {
+  if (value === void 0 || value === null) return false;
+  if (typeof value === "boolean") return value;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized !== "" && normalized !== "0" && normalized !== "false" && normalized !== "off";
+}
+function isDebugEnabled(options = {}) {
+  const env = options.env || process.env;
+  if (isTruthyDebugValue(env && env.BGSD_DEBUG)) {
+    return true;
+  }
+  if (options.allowVerbose === false) {
+    return false;
+  }
+  return global._gsdCompactMode === false;
+}
+function writeDebugDiagnostic(prefix, message, options = {}) {
+  if (!isDebugEnabled(options)) {
+    return false;
+  }
+  process.stderr.write(`${prefix} ${message}
+`);
+  return true;
 }
 
 // src/plugin/tool-registry.js
@@ -6567,7 +7181,7 @@ function createToolRegistry(safeHookFn) {
       throw new Error(`Tool name must be snake_case: ${normalized}`);
     }
     if (registry.has(normalized)) {
-      console.warn(`[bGSD] Tool '${normalized}' already registered \u2014 overwriting`);
+      writeDebugDiagnostic("[bGSD:tool-registry]", `Tool '${normalized}' already registered \u2014 overwriting`);
     }
     const wrappedDefinition = { ...definition };
     if (typeof wrappedDefinition.execute === "function") {
@@ -6588,6 +7202,10 @@ function createToolRegistry(safeHookFn) {
   }
   return { registerTool, getTools: getTools2 };
 }
+
+// src/plugin/context-builder.js
+import { existsSync as existsSync3, readFileSync as readFileSync7 } from "fs";
+import { join as join11 } from "path";
 
 // src/plugin/project-state.js
 await init_state();
@@ -6721,6 +7339,51 @@ function countTokens(text) {
 }
 
 // src/plugin/context-builder.js
+var MEMORY_FILE = join11(".planning", "MEMORY.md");
+var MEMORY_SECTIONS = [
+  "Active / Recent",
+  "Project Facts",
+  "User Preferences",
+  "Environment Patterns",
+  "Correction History"
+];
+var MEMORY_SECTION_DEFAULT_TYPE = {
+  "Active / Recent": "project-fact",
+  "Project Facts": "project-fact",
+  "User Preferences": "user-preference",
+  "Environment Patterns": "environment-pattern",
+  "Correction History": "correction"
+};
+var MEMORY_ENTRY_METADATA_ORDER = ["Added", "Updated", "Source", "Keep", "Status", "Expires", "Replaces"];
+var MEMORY_BLOCK_PATTERNS = [
+  {
+    category: "instruction-override",
+    patterns: [
+      /ignore\s+(all\s+)?previous\s+instructions?/i,
+      /\byou\s+are\s+now\b/i,
+      /\bnew\s+instructions?\b/i,
+      /<system>|\[inst\]/i
+    ]
+  },
+  {
+    category: "exfiltration",
+    patterns: [
+      /reveal\s+(your\s+)?system\s+prompt/i,
+      /show\s+(hidden|system)\s+instructions/i,
+      /(print|output|dump)\s+(the\s+)?(env|environment|secret|secrets)/i,
+      /prompt\s+leak/i
+    ]
+  },
+  {
+    category: "tool-bypass",
+    patterns: [
+      /always\s+use\s+bash/i,
+      /force\s+tool\s+call/i,
+      /(skip|bypass|disable).{0,24}(guardrails|confirmation|approval|approvals)/i,
+      /(tool|command).{0,24}(bypass|override)/i
+    ]
+  }
+];
 function buildTrajectoryBlock(state, plans) {
   try {
     const parts = [];
@@ -6791,19 +7454,179 @@ ${parts.join("\n")}
     return null;
   }
 }
-function buildSystemPrompt(cwd) {
+function normalizeMemorySection(section) {
+  if (!section) return null;
+  const trimmed = String(section).trim().toLowerCase();
+  return MEMORY_SECTIONS.find((name) => name.toLowerCase() === trimmed) || null;
+}
+function normalizeMemoryType(type, section) {
+  const trimmed = String(type || "").trim().toLowerCase();
+  return trimmed || MEMORY_SECTION_DEFAULT_TYPE[section] || "project-fact";
+}
+function canonicalMetadataKey(key) {
+  if (!key) return null;
+  const trimmed = String(key).trim().toLowerCase();
+  return MEMORY_ENTRY_METADATA_ORDER.find((name) => name.toLowerCase() === trimmed) || null;
+}
+function createEmptyStructuredMemory() {
+  return {
+    title: "# Agent Memory",
+    sections: MEMORY_SECTIONS.map((name) => ({ name, entries: [] }))
+  };
+}
+function structuredMemoryToMap(doc) {
+  const map = /* @__PURE__ */ new Map();
+  for (const section of doc.sections) {
+    map.set(section.name, section);
+  }
+  return map;
+}
+function parseStructuredMemory(content) {
+  const lines = String(content || "").replace(/\r\n/g, "\n").split("\n");
+  const doc = createEmptyStructuredMemory();
+  const sectionMap = structuredMemoryToMap(doc);
+  let currentSection = null;
+  let currentEntry = null;
+  function finalizeEntry() {
+    if (!currentSection || !currentEntry) return;
+    currentSection.entries.push(currentEntry);
+    currentEntry = null;
+  }
+  for (const line of lines) {
+    const sectionMatch = line.match(/^##\s+(.+?)\s*$/);
+    if (sectionMatch) {
+      finalizeEntry();
+      currentSection = sectionMap.get(normalizeMemorySection(sectionMatch[1]));
+      continue;
+    }
+    if (!currentSection) continue;
+    const entryMatch = line.match(/^\-\s+\*\*(MEM-\d+)\*\*(?:\s+\[([^\]]+)\])?\s+(.+?)\s*$/);
+    if (entryMatch) {
+      finalizeEntry();
+      currentEntry = {
+        id: entryMatch[1],
+        type: normalizeMemoryType(entryMatch[2], currentSection.name),
+        text: entryMatch[3].trim(),
+        metadata: {}
+      };
+      continue;
+    }
+    const metadataMatch = line.match(/^\s{2,}-\s+([^:]+):\s*(.*?)\s*$/);
+    if (metadataMatch && currentEntry) {
+      const key = canonicalMetadataKey(metadataMatch[1]);
+      if (key) currentEntry.metadata[key] = metadataMatch[2];
+    }
+  }
+  finalizeEntry();
+  return doc;
+}
+function normalizeMemoryForScan(raw) {
+  let normalized = String(raw || "").normalize("NFKD");
+  normalized = normalized.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
+  normalized = normalized.replace(/[\u0300-\u036F]/g, "");
+  return normalized.toLowerCase().replace(/\s+/g, " ").trim();
+}
+function redactBlockedSnippet(value, max = 56) {
+  const collapsed = String(value || "").replace(/\s+/g, " ").trim();
+  if (!collapsed) return "[redacted]";
+  const preview = collapsed.slice(0, max);
+  const visible = preview.slice(0, 18);
+  const masked = preview.slice(18).replace(/[A-Za-z0-9]/g, "\u2022");
+  return `${visible}${masked}${collapsed.length > max ? "\u2026" : ""}`;
+}
+function classifyBlockedMemoryEntry(rawText) {
+  const normalizedText = normalizeMemoryForScan(rawText);
+  for (const matcher of MEMORY_BLOCK_PATTERNS) {
+    if (matcher.patterns.some((pattern) => pattern.test(rawText) || pattern.test(normalizedText))) {
+      return matcher.category;
+    }
+  }
+  return null;
+}
+function summarizeBlockedEntries(blockedEntries) {
+  const grouped = /* @__PURE__ */ new Map();
+  for (const entry of blockedEntries) {
+    const existing = grouped.get(entry.category) || { category: entry.category, count: 0, snippet: entry.snippet };
+    existing.count += 1;
+    grouped.set(entry.category, existing);
+  }
+  return [...grouped.values()];
+}
+function renderMemorySnapshot(doc) {
+  const lines = ["<bgsd-memory>"];
+  for (const sectionName of MEMORY_SECTIONS) {
+    const section = doc.sections.find((item) => item.name === sectionName);
+    if (!section || section.entries.length === 0) continue;
+    lines.push(sectionName);
+    for (const entry of section.entries) {
+      lines.push(`- ${entry.id} [${entry.type}] ${entry.text}`);
+    }
+  }
+  lines.push("</bgsd-memory>");
+  return lines.length > 2 ? lines.join("\n") : "";
+}
+function buildMemorySnapshot(cwd) {
+  const memoryPath = join11(cwd || process.cwd(), MEMORY_FILE);
+  if (!existsSync3(memoryPath)) {
+    return {
+      exists: false,
+      text: "",
+      blockedWarnings: [],
+      budgetWarning: null
+    };
+  }
+  let doc;
+  try {
+    doc = parseStructuredMemory(readFileSync7(memoryPath, "utf-8"));
+  } catch {
+    return {
+      exists: true,
+      text: "",
+      blockedWarnings: [{ category: "parse-failure", count: 1, snippet: "MEMORY.md could not be parsed" }],
+      budgetWarning: null
+    };
+  }
+  const safeDoc = createEmptyStructuredMemory();
+  const safeSectionMap = structuredMemoryToMap(safeDoc);
+  const blockedEntries = [];
+  for (const section of doc.sections) {
+    const targetSection = safeSectionMap.get(section.name);
+    for (const entry of section.entries) {
+      const rawText = `${entry.id} ${entry.type} ${entry.text}`;
+      const category = classifyBlockedMemoryEntry(rawText);
+      if (category) {
+        blockedEntries.push({
+          category,
+          snippet: redactBlockedSnippet(entry.text)
+        });
+        continue;
+      }
+      targetSection.entries.push(entry);
+    }
+  }
+  const text = renderMemorySnapshot(safeDoc);
+  const tokenCount = countTokens(text);
+  const budgetWarning = text && tokenCount > Math.floor(TOKEN_BUDGET * 0.5) ? `MEMORY.md snapshot is using ~${tokenCount} tokens; consider pruning if prompt space feels tight.` : null;
+  return {
+    exists: true,
+    text,
+    blockedWarnings: summarizeBlockedEntries(blockedEntries),
+    budgetWarning
+  };
+}
+function buildSystemPrompt(cwd, options = {}) {
   let projectState;
   try {
     projectState = getProjectState(cwd);
   } catch {
-    return "<bgsd>Failed to load project state. Run /bgsd-health to diagnose.</bgsd>";
+    return "<bgsd>Failed to load project state. Run /bgsd-inspect health to diagnose.</bgsd>";
   }
   if (!projectState) {
     return "<bgsd>No active project. Run /bgsd-new-project to start.</bgsd>";
   }
   const { state, roadmap, currentPhase, currentMilestone, plans } = projectState;
   if (!state || !state.phase) {
-    return "<bgsd>Failed to load project state. Run /bgsd-health to diagnose.</bgsd>";
+    return "<bgsd>Failed to load project state. Run /bgsd-inspect health to diagnose.</bgsd>";
   }
   const phaseMatch = state.phase.match(/^(\d+)\s*(?:—|-|–)\s*(.+)/);
   const phaseNum = phaseMatch ? phaseMatch[1] : state.phase;
@@ -6856,12 +7679,14 @@ Blocker: ${blockerLines[0]}`;
       }
     }
   }
+  const memorySnapshot = options && typeof options === "object" ? options.memorySnapshot || "" : "";
   const prompt = `<bgsd>
 Phase ${phaseNum}: ${phaseName}${planInfo}${milestoneInfo}${goalLine}${blockerLine}
-</bgsd>`;
+</bgsd>${memorySnapshot ? `
+${memorySnapshot}` : ""}`;
   const tokenCount = countTokens(prompt);
   if (tokenCount > TOKEN_BUDGET) {
-    console.warn(`[bGSD] System prompt injection exceeds budget: ${tokenCount} tokens (budget: ${TOKEN_BUDGET})`);
+    writeDebugDiagnostic("[bGSD:context-budget]", `System prompt injection exceeds budget: ${tokenCount} tokens (budget: ${TOKEN_BUDGET})`);
   }
   return prompt;
 }
@@ -6870,7 +7695,7 @@ function buildCompactionContext(cwd) {
   try {
     projectState = getProjectState(cwd);
   } catch {
-    return "<project-error>Failed to load project state for compaction. Run /bgsd-health to diagnose.</project-error>";
+    return "<project-error>Failed to load project state for compaction. Run /bgsd-inspect health to diagnose.</project-error>";
   }
   if (!projectState) {
     return null;
@@ -6989,8 +7814,158 @@ ${parts.join("\n")}
 await init_parsers();
 var import_decision_rules = __toESM(require_decision_rules());
 await init_db_cache();
-import { readdirSync as readdirSync3, existsSync as existsSync3, readFileSync as readFileSync7 } from "fs";
-import { join as join11 } from "path";
+
+// src/plugin/tool-availability.js
+import { execFileSync } from "child_process";
+import { existsSync as existsSync4, readFileSync as readFileSync8 } from "fs";
+import { dirname as dirname2, join as join12 } from "path";
+import { fileURLToPath } from "url";
+var TOOL_NAMES = ["ripgrep", "fd", "jq", "yq", "ast_grep", "sd", "hyperfine", "bat", "gh"];
+var TOOL_CACHE_TTL_MS = 30 * 60 * 1e3;
+function createUnknownToolAvailability() {
+  return Object.fromEntries(TOOL_NAMES.map((name) => [name, null]));
+}
+function computeCapabilityLevel(toolAvailability) {
+  const values = Object.values(toolAvailability || {});
+  const knownCount = values.filter((value) => value === true || value === false).length;
+  if (knownCount === 0) return "UNKNOWN";
+  const toolCount = values.filter((value) => value === true).length;
+  if (toolCount >= 5) return "HIGH";
+  if (toolCount <= 1) return "LOW";
+  return "MEDIUM";
+}
+function getCachePath(projectDir) {
+  return join12(projectDir, ".planning", ".cache", "tools.json");
+}
+function resolveCliPath() {
+  const currentDir = dirname2(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.env.BGSD_PLUGIN_DIR ? join12(process.env.BGSD_PLUGIN_DIR, "bin", "bgsd-tools.cjs") : null,
+    join12(currentDir, "..", "..", "bin", "bgsd-tools.cjs"),
+    join12(currentDir, "bin", "bgsd-tools.cjs"),
+    join12(currentDir, "..", "bin", "bgsd-tools.cjs")
+  ];
+  for (const candidate of candidates) {
+    if (candidate && existsSync4(candidate)) return candidate;
+  }
+  throw new Error("Could not locate bgsd-tools.cjs");
+}
+function mapResultsToAvailability(results) {
+  const availability = createUnknownToolAvailability();
+  for (const toolName of TOOL_NAMES) {
+    if (results && Object.prototype.hasOwnProperty.call(results, toolName)) {
+      availability[toolName] = Boolean(results[toolName] && results[toolName].available);
+    }
+  }
+  return availability;
+}
+function mapDetectToolsOutput(entries) {
+  const availability = createUnknownToolAvailability();
+  if (!Array.isArray(entries)) return availability;
+  for (const entry of entries) {
+    const toolName = entry && typeof entry.name === "string" ? entry.name : null;
+    if (toolName && TOOL_NAMES.includes(toolName)) {
+      availability[toolName] = entry.available === true ? true : entry.available === false ? false : null;
+    }
+  }
+  return availability;
+}
+function inspectToolCache(projectDir) {
+  const cachePath = getCachePath(projectDir);
+  if (!existsSync4(cachePath)) {
+    return { state: "missing", cachePath, timestamp: null, ageMs: null, results: null };
+  }
+  try {
+    const cacheData = JSON.parse(readFileSync8(cachePath, "utf-8"));
+    if (!cacheData || typeof cacheData !== "object" || !cacheData.timestamp || !cacheData.results) {
+      return { state: "malformed", cachePath, timestamp: null, ageMs: null, results: null };
+    }
+    const ageMs = Date.now() - cacheData.timestamp;
+    return {
+      state: ageMs < TOOL_CACHE_TTL_MS ? "fresh" : "stale",
+      cachePath,
+      timestamp: cacheData.timestamp,
+      ageMs,
+      results: cacheData.results
+    };
+  } catch {
+    return { state: "malformed", cachePath, timestamp: null, ageMs: null, results: null };
+  }
+}
+function refreshToolAvailability(projectDir) {
+  const cliPath = resolveCliPath();
+  const output = execFileSync(process.execPath, [cliPath, "detect:tools", "--raw"], {
+    cwd: projectDir,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  const parsed = JSON.parse(String(output || "[]").trim() || "[]");
+  return mapDetectToolsOutput(parsed);
+}
+function getToolAvailability(projectDir, options = {}) {
+  const { refreshIfNeeded = true } = options;
+  const cache = inspectToolCache(projectDir);
+  if (cache.state === "fresh") {
+    return {
+      tool_availability: mapResultsToAvailability(cache.results),
+      tool_availability_meta: {
+        state: "fresh",
+        source: "cache",
+        cache_path: cache.cachePath,
+        cache_timestamp: cache.timestamp,
+        cache_age_ms: cache.ageMs,
+        cache_ttl_ms: TOOL_CACHE_TTL_MS
+      }
+    };
+  }
+  if (refreshIfNeeded) {
+    try {
+      const refreshed = refreshToolAvailability(projectDir);
+      const refreshedCache = inspectToolCache(projectDir);
+      return {
+        tool_availability: refreshed,
+        tool_availability_meta: {
+          state: "fresh",
+          source: "cli-refresh",
+          refresh_reason: cache.state,
+          cache_path: refreshedCache.cachePath,
+          cache_timestamp: refreshedCache.timestamp,
+          cache_age_ms: refreshedCache.ageMs,
+          cache_ttl_ms: TOOL_CACHE_TTL_MS
+        }
+      };
+    } catch (error) {
+      return {
+        tool_availability: createUnknownToolAvailability(),
+        tool_availability_meta: {
+          state: "unknown",
+          source: "fallback",
+          refresh_reason: cache.state,
+          refresh_error: error.message || String(error),
+          cache_path: cache.cachePath,
+          cache_timestamp: cache.timestamp,
+          cache_age_ms: cache.ageMs,
+          cache_ttl_ms: TOOL_CACHE_TTL_MS
+        }
+      };
+    }
+  }
+  return {
+    tool_availability: createUnknownToolAvailability(),
+    tool_availability_meta: {
+      state: cache.state === "fresh" ? "fresh" : "unknown",
+      source: cache.state === "fresh" ? "cache" : "fallback",
+      cache_path: cache.cachePath,
+      cache_timestamp: cache.timestamp,
+      cache_age_ms: cache.ageMs,
+      cache_ttl_ms: TOOL_CACHE_TTL_MS
+    }
+  };
+}
+
+// src/plugin/command-enricher.js
+import { readdirSync as readdirSync3, existsSync as existsSync5, readFileSync as readFileSync9 } from "fs";
+import { join as join13 } from "path";
 function enrichCommand(input, output, cwd) {
   if (!input || !output) return;
   const command = input.command || input.parts && input.parts[0] || "";
@@ -7004,7 +7979,7 @@ function enrichCommand(input, output, cwd) {
     if (output.parts) {
       output.parts.unshift({
         type: "text",
-        text: '<bgsd-context>\n{"error": "Failed to load project state. Run /bgsd-health to diagnose."}\n</bgsd-context>'
+        text: '<bgsd-context>\n{"error": "Failed to load project state. Run /bgsd-inspect health to diagnose."}\n</bgsd-context>'
       });
     }
     return;
@@ -7087,7 +8062,7 @@ function enrichCommand(input, output, cwd) {
           const p = ensurePlans(phaseNum);
           if (p && p.length > 0) {
             enrichment.plans = p.map((pl) => pl.path ? pl.path.split("/").pop() : null).filter(Boolean);
-            const phaseDirFull = join11(resolvedCwd, phaseDir);
+            const phaseDirFull = join13(resolvedCwd, phaseDir);
             const sf = ensureSummaryFiles(phaseDirFull);
             enrichment.incomplete_plans = enrichment.plans.filter((planFile) => {
               const summaryFile = planFile.replace("-PLAN.md", "-SUMMARY.md");
@@ -7118,7 +8093,7 @@ function enrichCommand(input, output, cwd) {
   }
   try {
     if (enrichment.phase_dir) {
-      const phaseDirFull = join11(resolvedCwd, enrichment.phase_dir);
+      const phaseDirFull = join13(resolvedCwd, enrichment.phase_dir);
       if (!enrichment.plans) {
         let sqlUsed = false;
         try {
@@ -7159,8 +8134,8 @@ function enrichCommand(input, output, cwd) {
   try {
     if (enrichment.phase_dir && effectivePhaseNum) {
       const paddedPhase = String(effectivePhaseNum).padStart(4, "0");
-      enrichment.has_research = existsSync3(join11(resolvedCwd, enrichment.phase_dir, paddedPhase + "-RESEARCH.md"));
-      enrichment.has_context = existsSync3(join11(resolvedCwd, enrichment.phase_dir, paddedPhase + "-CONTEXT.md"));
+      enrichment.has_research = existsSync5(join13(resolvedCwd, enrichment.phase_dir, paddedPhase + "-RESEARCH.md"));
+      enrichment.has_context = existsSync5(join13(resolvedCwd, enrichment.phase_dir, paddedPhase + "-CONTEXT.md"));
     }
   } catch {
   }
@@ -7178,9 +8153,9 @@ function enrichCommand(input, output, cwd) {
   } catch {
   }
   try {
-    enrichment.state_exists = existsSync3(join11(resolvedCwd, ".planning/STATE.md"));
-    enrichment.project_exists = existsSync3(join11(resolvedCwd, ".planning/PROJECT.md"));
-    enrichment.roadmap_exists = existsSync3(join11(resolvedCwd, ".planning/ROADMAP.md"));
+    enrichment.state_exists = existsSync5(join13(resolvedCwd, ".planning/STATE.md"));
+    enrichment.project_exists = existsSync5(join13(resolvedCwd, ".planning/PROJECT.md"));
+    enrichment.roadmap_exists = existsSync5(join13(resolvedCwd, ".planning/ROADMAP.md"));
   } catch {
   }
   try {
@@ -7197,12 +8172,12 @@ function enrichCommand(input, output, cwd) {
   }
   try {
     if (enrichment.phase_dir) {
-      const phaseDirFull = join11(resolvedCwd, enrichment.phase_dir);
+      const phaseDirFull = join13(resolvedCwd, enrichment.phase_dir);
       const sf = ensureSummaryFiles(phaseDirFull);
       enrichment.has_previous_summary = sf.length > 0;
       if (sf.length > 0) {
         const lastSummary = [...sf].sort().pop();
-        const content = readFileSync7(join11(phaseDirFull, lastSummary), "utf-8");
+        const content = readFileSync9(join13(phaseDirFull, lastSummary), "utf-8");
         enrichment.has_unresolved_issues = content.includes("unresolved") || content.includes("Unresolved");
         enrichment.has_blockers = content.includes("blocker") || content.includes("Blocker");
       } else {
@@ -7223,6 +8198,11 @@ function enrichCommand(input, output, cwd) {
       "bgsd-execute-plan": "bgsd-executor",
       "bgsd-quick": "bgsd-executor",
       "bgsd-quick-task": "bgsd-executor",
+      "bgsd-settings": "bgsd-executor",
+      "bgsd-set-profile": "bgsd-executor",
+      "bgsd-validate-config": "bgsd-executor",
+      "bgsd-inspect": "bgsd-executor",
+      "bgsd-plan": "bgsd-planner",
       "bgsd-plan-phase": "bgsd-planner",
       "bgsd-discuss-phase": "bgsd-planner",
       "bgsd-research-phase": "bgsd-phase-researcher",
@@ -7325,27 +8305,16 @@ function enrichCommand(input, output, cwd) {
   } catch {
   }
   try {
-    const CACHE_TTL_MS = 5 * 60 * 1e3;
-    const cacheFilePath = join11(resolvedCwd, ".planning", ".cache", "tools.json");
-    let toolAvailability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
-    if (existsSync3(cacheFilePath)) {
-      try {
-        const cacheData = JSON.parse(readFileSync7(cacheFilePath, "utf-8"));
-        if (cacheData && cacheData.timestamp && Date.now() - cacheData.timestamp < CACHE_TTL_MS && cacheData.results) {
-          for (const toolName of ["ripgrep", "fd", "jq", "yq", "bat", "gh"]) {
-            toolAvailability[toolName] = Boolean(cacheData.results[toolName] && cacheData.results[toolName].available);
-          }
-        }
-      } catch {
-      }
-    }
-    enrichment.tool_availability = toolAvailability;
+    const toolContext = getToolAvailability(resolvedCwd, { refreshIfNeeded: true });
+    enrichment.tool_availability = toolContext.tool_availability;
+    enrichment.tool_availability_meta = toolContext.tool_availability_meta;
   } catch {
-    enrichment.tool_availability = { ripgrep: false, fd: false, jq: false, yq: false, bat: false, gh: false };
+    enrichment.tool_availability = { ripgrep: null, fd: null, jq: null, yq: null, ast_grep: null, sd: null, hyperfine: null, bat: null, gh: null };
+    enrichment.tool_availability_meta = { state: "unknown", source: "fallback" };
   }
   try {
-    const localAgentsDir = join11(resolvedCwd, ".opencode", "agents");
-    if (existsSync3(localAgentsDir)) {
+    const localAgentsDir = join13(resolvedCwd, ".opencode", "agents");
+    if (existsSync5(localAgentsDir)) {
       const localAgentFiles = readdirSync3(localAgentsDir).filter((f) => f.endsWith(".md"));
       enrichment.local_agent_overrides = localAgentFiles.map((f) => f.replace(".md", ""));
     } else {
@@ -7355,16 +8324,16 @@ function enrichCommand(input, output, cwd) {
     enrichment.local_agent_overrides = [];
   }
   try {
-    const skillsDir = join11(resolvedCwd, ".agents", "skills");
-    if (existsSync3(skillsDir)) {
+    const skillsDir = join13(resolvedCwd, ".agents", "skills");
+    if (existsSync5(skillsDir)) {
       const skillEntries = readdirSync3(skillsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
       const skills = [];
       for (const entry of skillEntries) {
-        const skillMdPath = join11(skillsDir, entry.name, "SKILL.md");
-        if (existsSync3(skillMdPath)) {
+        const skillMdPath = join13(skillsDir, entry.name, "SKILL.md");
+        if (existsSync5(skillMdPath)) {
           let description = "";
           try {
-            const content = readFileSync7(skillMdPath, "utf8");
+            const content = readFileSync9(skillMdPath, "utf8");
             const descMatch = content.match(/^description:\s*(.+)$/m);
             if (descMatch) {
               description = descMatch[1].trim().replace(/^["']|["']$/g, "");
@@ -7386,13 +8355,10 @@ function enrichCommand(input, output, cwd) {
   }
   try {
     const ta = enrichment.tool_availability || {};
-    const toolCount = Object.values(ta).filter((v) => v === true).length;
-    let capabilityLevel = "MEDIUM";
-    if (toolCount >= 5) capabilityLevel = "HIGH";
-    else if (toolCount <= 1) capabilityLevel = "LOW";
+    const capabilityLevel = computeCapabilityLevel(ta);
     enrichment.handoff_tool_context = { capability_level: capabilityLevel };
   } catch {
-    enrichment.handoff_tool_context = { capability_level: "LOW" };
+    enrichment.handoff_tool_context = { capability_level: "UNKNOWN" };
   }
   try {
     const decisions = (0, import_decision_rules.evaluateDecisions)(command, enrichment);
@@ -7403,9 +8369,7 @@ function enrichCommand(input, output, cwd) {
   }
   const _elapsed = typeof performance !== "undefined" && performance.now ? performance.now() - _t0 : Date.now() - _t0;
   enrichment._enrichment_ms = parseFloat(_elapsed.toFixed(3));
-  if (process.env.BGSD_DEBUG || process.env.NODE_ENV === "development") {
-    console.error(`[bgsd-enricher] ${command} enriched in ${_elapsed.toFixed(1)}ms`);
-  }
+  writeDebugDiagnostic("[bgsd-enricher]", `${command} enriched in ${_elapsed.toFixed(1)}ms`);
   if (output.parts) {
     output.parts.unshift({
       type: "text",
@@ -7456,14 +8420,14 @@ ${JSON.stringify(enrichment, null, 2)}
 ${JSON.stringify(enrichment, null, 2)}
 </bgsd-context>`;
       }
-      if (process.env.BGSD_DEBUG) {
-        console.error(`[bgsd-enricher] elision: removed ${sectionsElided} sections (${allElidedNames.join(", ")}) ~${totalTokensSaved} tokens saved`);
+      if (isDebugEnabled()) {
+        writeDebugDiagnostic("[bgsd-enricher]", `elision: removed ${sectionsElided} sections (${allElidedNames.join(", ")}) ~${totalTokensSaved} tokens saved`);
         if (allDanglingWarnings.length > 0) {
-          console.error(`[bgsd-enricher] dangling references found: ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
+          writeDebugDiagnostic("[bgsd-enricher]", `dangling references found: ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
         }
       }
-    } else if (allDanglingWarnings.length > 0 && process.env.BGSD_DEBUG) {
-      console.error(`[bgsd-enricher] dangling references found (no elision): ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
+    } else if (allDanglingWarnings.length > 0 && isDebugEnabled()) {
+      writeDebugDiagnostic("[bgsd-enricher]", `dangling references found (no elision): ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
     }
   }
 }
@@ -7500,7 +8464,7 @@ function detectPhaseArg(parts, commandStr, argumentsStr) {
 }
 function resolvePhaseDir(phaseNum, cwd) {
   const normalized = String(phaseNum).replace(/^0+/, "") || "0";
-  const phasesDir = join11(cwd, ".planning", "phases");
+  const phasesDir = join13(cwd, ".planning", "phases");
   try {
     const entries = readdirSync3(phasesDir, { withFileTypes: true });
     for (const entry of entries) {
@@ -7518,7 +8482,7 @@ function resolvePhaseDir(phaseNum, cwd) {
 }
 function listSummaryFiles(phaseDir) {
   try {
-    if (!existsSync3(phaseDir)) return [];
+    if (!existsSync5(phaseDir)) return [];
     const files = readdirSync3(phaseDir);
     return files.filter((f) => f.endsWith("-SUMMARY.md"));
   } catch {
@@ -7527,13 +8491,13 @@ function listSummaryFiles(phaseDir) {
 }
 function countDiagnosedUatGaps(phaseDir) {
   try {
-    if (!existsSync3(phaseDir)) return 0;
+    if (!existsSync5(phaseDir)) return 0;
     const allFiles = readdirSync3(phaseDir);
     const uatFiles = allFiles.filter((f) => f.endsWith("-UAT.md"));
     let count = 0;
     for (const uf of uatFiles) {
       try {
-        const content = readFileSync7(join11(phaseDir, uf), "utf-8");
+        const content = readFileSync9(join13(phaseDir, uf), "utf-8");
         if (content.includes("status: diagnosed")) count++;
       } catch {
       }
@@ -7717,7 +8681,7 @@ var bgsd_plan = {
       if (!roadmap) {
         return JSON.stringify({
           error: "runtime_error",
-          message: "ROADMAP.md could not be parsed. Run /bgsd-health to diagnose."
+          message: "ROADMAP.md could not be parsed. Run /bgsd-inspect health to diagnose."
         });
       }
       if (args.phase !== void 0 && args.phase !== null && isNaN(Number(args.phase))) {
@@ -7794,10 +8758,12 @@ var bgsd_context = {
         });
       }
       const { plans } = projectState;
+      const phaseNumber = projectState.state?.phase?.match(/^(\d+(?:\.\d+)?)/)?.[1] || null;
       if (!plans || plans.length === 0) {
+        const nextCommand = phaseNumber ? `/bgsd-plan phase ${phaseNumber}` : "/bgsd-inspect progress";
         return JSON.stringify({
           error: "validation_error",
-          message: "No plans found for current phase. Run /bgsd-plan-phase to create plans."
+          message: phaseNumber ? `No plans found for current phase. Run ${nextCommand} to create plans.` : `No plans found for the active phase. Run ${nextCommand} to confirm the current phase before planning.`
         });
       }
       let currentPlan = plans[0];
@@ -8009,13 +8975,35 @@ var bgsd_validate = {
 
 // src/plugin/tools/bgsd-progress.js
 import { z as z3 } from "zod";
+import { execFileSync as execFileSync2 } from "child_process";
+import { existsSync as existsSync6 } from "fs";
+import { dirname as dirname3, join as join14 } from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
 await init_state();
 await init_plan();
-await init_db_cache();
-import { readFileSync as readFileSync8, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2, rmdirSync, existsSync as existsSync4, statSync as statSync3 } from "fs";
-import { join as join12 } from "path";
-var LOCK_STALE_MS = 1e4;
 var VALID_ACTIONS = ["complete-task", "uncomplete-task", "add-blocker", "remove-blocker", "record-decision", "advance"];
+function resolveCliPath2() {
+  const currentDir = dirname3(fileURLToPath2(import.meta.url));
+  const candidates = [
+    process.env.BGSD_PLUGIN_DIR ? join14(process.env.BGSD_PLUGIN_DIR, "bin", "bgsd-tools.cjs") : null,
+    join14(currentDir, "..", "..", "..", "bin", "bgsd-tools.cjs"),
+    join14(currentDir, "bin", "bgsd-tools.cjs"),
+    join14(currentDir, "..", "bin", "bgsd-tools.cjs")
+  ];
+  for (const candidate of candidates) {
+    if (candidate && existsSync6(candidate)) return candidate;
+  }
+  throw new Error("Could not locate bgsd-tools.cjs");
+}
+function runCanonicalStateCommand(projectDir, args) {
+  const cliPath = resolveCliPath2();
+  const output = execFileSync2(process.execPath, [cliPath, "verify:state", ...args], {
+    cwd: projectDir,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  return JSON.parse(String(output || "{}").trim() || "{}");
+}
 var bgsd_progress = {
   description: "Update bGSD project progress \u2014 mark tasks complete, add/remove blockers, record decisions, advance plan.\n\nSingle tool with an action parameter:\n- complete-task: Mark the next pending task as complete\n- uncomplete-task: Un-complete the last completed task\n- add-blocker: Add a blocker to STATE.md\n- remove-blocker: Remove a blocker by index\n- record-decision: Record a decision to STATE.md\n- advance: Advance to next plan (when current plan is complete)\n\nUpdates files on disk (STATE.md, PLAN.md). Does NOT create git commits \u2014 the agent handles commits separately.\n\nReturns updated state snapshot after the change.",
   args: {
@@ -8024,7 +9012,6 @@ var bgsd_progress = {
   },
   async execute(args, context) {
     const projectDir = context?.directory || process.cwd();
-    const lockDir = join12(projectDir, ".planning", ".lock");
     try {
       if (!args.action || !VALID_ACTIONS.includes(args.action)) {
         return JSON.stringify({
@@ -8051,201 +9038,81 @@ var bgsd_progress = {
           message: "Action 'remove-blocker' requires a 'value' parameter (blocker index, 1-based)."
         });
       }
-      try {
-        mkdirSync2(lockDir);
-      } catch (lockErr) {
-        if (lockErr.code === "EEXIST") {
-          try {
-            const lockStat = statSync3(lockDir);
-            const age = Date.now() - lockStat.mtimeMs;
-            if (age > LOCK_STALE_MS) {
-              rmdirSync(lockDir);
-              mkdirSync2(lockDir);
-            } else {
-              return JSON.stringify({
-                error: "runtime_error",
-                message: "Another operation in progress. Try again."
-              });
-            }
-          } catch {
+      const { state } = projectState;
+      let actionResult = null;
+      switch (args.action) {
+        case "complete-task": {
+          const currentProgress = state.progress !== null ? state.progress : 0;
+          const newProgress = Math.min(100, currentProgress + 10);
+          runCanonicalStateCommand(projectDir, ["patch", `--Progress`, String(newProgress)]);
+          actionResult = `Progress updated to ${newProgress}%`;
+          break;
+        }
+        case "uncomplete-task": {
+          const currentProgress = state.progress !== null ? state.progress : 0;
+          const newProgress = Math.max(0, currentProgress - 10);
+          runCanonicalStateCommand(projectDir, ["patch", `--Progress`, String(newProgress)]);
+          actionResult = `Progress reverted to ${newProgress}%`;
+          break;
+        }
+        case "add-blocker": {
+          runCanonicalStateCommand(projectDir, ["add-blocker", "--text", args.value]);
+          actionResult = `Blocker added: ${args.value}`;
+          break;
+        }
+        case "remove-blocker": {
+          const idx = parseInt(args.value, 10);
+          if (isNaN(idx) || idx < 1) {
             return JSON.stringify({
-              error: "runtime_error",
-              message: "Failed to check lock status. Try again."
+              error: "validation_error",
+              message: "remove-blocker value must be a positive integer (1-based index)."
             });
           }
-        } else {
-          throw lockErr;
+          const blockers = listOpenBlockers(state.raw || "");
+          if (blockers.error) {
+            return JSON.stringify({
+              error: "validation_error",
+              message: blockers.error
+            });
+          }
+          if (idx > blockers.entries.length) {
+            return JSON.stringify({
+              error: "validation_error",
+              message: `Blocker index ${idx} out of range. Found ${blockers.entries.length} blocker(s).`
+            });
+          }
+          runCanonicalStateCommand(projectDir, ["resolve-blocker", "--text", blockers.entries[idx - 1]]);
+          actionResult = `Blocker ${idx} removed`;
+          break;
+        }
+        case "record-decision": {
+          const phaseTag = state.phase ? state.phase.match(/^(\d+)/)?.[1] || "?" : "?";
+          runCanonicalStateCommand(projectDir, ["add-decision", "--phase", phaseTag, "--summary", args.value]);
+          actionResult = `Decision recorded: ${args.value}`;
+          break;
+        }
+        case "advance": {
+          const result = runCanonicalStateCommand(projectDir, ["advance-plan"]);
+          actionResult = result.advanced === false ? "No current plan advanced" : `Advanced to Plan ${String(result.current_plan).padStart(2, "0")}`;
+          break;
         }
       }
-      try {
-        const statePath = join12(projectDir, ".planning", "STATE.md");
-        let content = readFileSync8(statePath, "utf-8");
-        const { state } = projectState;
-        let actionResult = null;
-        let sqliteCache = null;
-        try {
-          const db = getDb(projectDir);
-          if (db.backend === "sqlite") {
-            sqliteCache = new PlanningCache(db);
-          }
-        } catch {
+      invalidateState(projectDir);
+      invalidatePlans(projectDir);
+      const freshState = getProjectState(projectDir);
+      const fresh = freshState ? freshState.state : null;
+      return JSON.stringify({
+        success: true,
+        action: args.action,
+        result: actionResult,
+        state: {
+          phase: fresh ? fresh.phase : null,
+          plan: fresh ? fresh.currentPlan : null,
+          progress: fresh ? fresh.progress : null,
+          status: fresh ? fresh.status : null
         }
-        switch (args.action) {
-          case "complete-task": {
-            const currentProgress = state.progress !== null ? state.progress : 0;
-            const step = 10;
-            const newProgress = Math.min(100, currentProgress + step);
-            if (sqliteCache) {
-              try {
-                const sessionState = sqliteCache.getSessionState(projectDir);
-                if (sessionState) {
-                  sqliteCache.storeSessionState(projectDir, { ...sessionState, progress: newProgress, last_activity: (/* @__PURE__ */ new Date()).toISOString().split("T")[0] });
-                }
-              } catch {
-              }
-            }
-            content = updateProgress(content, newProgress);
-            actionResult = `Progress updated to ${newProgress}%`;
-            break;
-          }
-          case "uncomplete-task": {
-            const currentProgress = state.progress !== null ? state.progress : 0;
-            const step = 10;
-            const newProgress = Math.max(0, currentProgress - step);
-            if (sqliteCache) {
-              try {
-                const sessionState = sqliteCache.getSessionState(projectDir);
-                if (sessionState) {
-                  sqliteCache.storeSessionState(projectDir, { ...sessionState, progress: newProgress });
-                }
-              } catch {
-              }
-            }
-            content = updateProgress(content, newProgress);
-            actionResult = `Progress reverted to ${newProgress}%`;
-            break;
-          }
-          case "add-blocker": {
-            if (sqliteCache) {
-              try {
-                sqliteCache.writeSessionBlocker(projectDir, {
-                  text: args.value,
-                  status: "open",
-                  created_at: (/* @__PURE__ */ new Date()).toISOString()
-                });
-              } catch {
-              }
-            }
-            content = addBlocker(content, args.value);
-            actionResult = `Blocker added: ${args.value}`;
-            break;
-          }
-          case "remove-blocker": {
-            const idx = parseInt(args.value, 10);
-            if (isNaN(idx) || idx < 1) {
-              return JSON.stringify({
-                error: "validation_error",
-                message: "remove-blocker value must be a positive integer (1-based index)."
-              });
-            }
-            const result = removeBlocker(content, idx);
-            if (result.error) {
-              return JSON.stringify({
-                error: "validation_error",
-                message: result.error
-              });
-            }
-            if (sqliteCache) {
-              try {
-                const blockersResult = sqliteCache.getSessionBlockers(projectDir, { status: "open", limit: 100 });
-                const blockers = blockersResult ? blockersResult.entries : [];
-                const sorted = blockers.slice().reverse();
-                const target = sorted[idx - 1];
-                if (target && target._id != null) {
-                  sqliteCache.resolveSessionBlocker(projectDir, target._id, "Removed");
-                }
-              } catch {
-              }
-            }
-            content = result.content;
-            actionResult = `Blocker ${idx} removed`;
-            break;
-          }
-          case "record-decision": {
-            if (sqliteCache) {
-              try {
-                const phaseTag = state.phase ? state.phase.match(/^(\d+)/)?.[1] || "?" : "?";
-                sqliteCache.writeSessionDecision(projectDir, {
-                  phase: `Phase ${phaseTag}`,
-                  summary: args.value,
-                  rationale: null,
-                  timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-                  milestone: null
-                });
-              } catch {
-              }
-            }
-            content = recordDecision(content, args.value, state.phase);
-            actionResult = `Decision recorded: ${args.value}`;
-            break;
-          }
-          case "advance": {
-            const result = advancePlan(content, state.currentPlan);
-            if (sqliteCache && result.newPlanNum) {
-              try {
-                const sessionState = sqliteCache.getSessionState(projectDir);
-                if (sessionState) {
-                  sqliteCache.storeSessionState(projectDir, {
-                    ...sessionState,
-                    current_plan: String(result.newPlanNum),
-                    last_activity: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
-                  });
-                }
-              } catch {
-              }
-            }
-            content = result.content;
-            actionResult = result.message;
-            break;
-          }
-        }
-        writeFileSync2(statePath, content, "utf-8");
-        if (sqliteCache) {
-          try {
-            sqliteCache.updateMtime(statePath);
-          } catch {
-          }
-        }
-        try {
-          rmdirSync(lockDir);
-        } catch {
-        }
-        invalidateState(projectDir);
-        invalidatePlans(projectDir);
-        const freshState = getProjectState(projectDir);
-        const fresh = freshState ? freshState.state : null;
-        return JSON.stringify({
-          success: true,
-          action: args.action,
-          result: actionResult,
-          state: {
-            phase: fresh ? fresh.phase : null,
-            plan: fresh ? fresh.currentPlan : null,
-            progress: fresh ? fresh.progress : null,
-            status: fresh ? fresh.status : null
-          }
-        });
-      } finally {
-        try {
-          rmdirSync(lockDir);
-        } catch {
-        }
-      }
+      });
     } catch (err) {
-      try {
-        rmdirSync(lockDir);
-      } catch {
-      }
       return JSON.stringify({
         error: "runtime_error",
         message: "Failed to update progress: " + err.message
@@ -8253,86 +9120,13 @@ var bgsd_progress = {
     }
   }
 };
-function updateProgress(content, newPercent) {
-  const barLength = 10;
-  const filled = Math.round(newPercent / 100 * barLength);
-  const empty = barLength - filled;
-  const newBar = "\u2588".repeat(filled) + "\u2591".repeat(empty);
-  const progressLine = `**Progress:** [${newBar}] ${newPercent}%`;
-  const replaced = content.replace(
-    /\*\*Progress:\*\*\s*\[[\u2588\u2591]+\]\s*\d+%/,
-    progressLine
-  );
-  return replaced;
-}
-function addBlocker(content, blockerText) {
-  const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
-  const match = content.match(sectionPattern);
-  if (!match) {
-    return content + "\n### Blockers/Concerns\n\n- " + blockerText + "\n";
-  }
-  const header = match[1];
-  let body = match[2];
-  const after = match[3];
-  if (body.trim().toLowerCase() === "none" || body.trim() === "") {
-    body = "\n- " + blockerText + "\n";
-  } else {
-    body = body.trimEnd() + "\n- " + blockerText + "\n";
-  }
-  return content.replace(sectionPattern, header + body + after);
-}
-function removeBlocker(content, index) {
-  const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
-  const match = content.match(sectionPattern);
+function listOpenBlockers(content) {
+  const match = content.match(/(###\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###|\n## |$)/i);
   if (!match) {
     return { error: "No Blockers/Concerns section found in STATE.md" };
   }
-  const header = match[1];
-  const body = match[2];
-  const after = match[3];
-  const lines = body.split("\n").filter((l) => l.match(/^[-*]\s+/));
-  if (index > lines.length || index < 1) {
-    return { error: `Blocker index ${index} out of range. Found ${lines.length} blocker(s).` };
-  }
-  lines.splice(index - 1, 1);
-  let newBody;
-  if (lines.length === 0) {
-    newBody = "\nNone\n";
-  } else {
-    newBody = "\n" + lines.join("\n") + "\n";
-  }
-  return { content: content.replace(sectionPattern, header + newBody + after) };
-}
-function recordDecision(content, decisionText, phase) {
-  const phaseTag = phase ? phase.match(/^(\d+)/)?.[1] || "?" : "?";
-  const entry = `- [Phase ${phaseTag}]: ${decisionText}`;
-  const sectionPattern = /(### Decisions\s*\n)([\s\S]*?)(\n###|\n## |$)/;
-  const match = content.match(sectionPattern);
-  if (!match) {
-    return content + "\n### Decisions\n\n" + entry + "\n";
-  }
-  const header = match[1];
-  let body = match[2];
-  const after = match[3];
-  body = body.trimEnd() + "\n" + entry + "\n";
-  return content.replace(sectionPattern, header + body + after);
-}
-function advancePlan(content, currentPlan) {
-  if (!currentPlan) {
-    return { content, message: "No current plan to advance from", newPlanNum: null };
-  }
-  const planNumMatch = currentPlan.match(/(\d+)\s*(?:pending|$)/i) || currentPlan.match(/(\d+)/);
-  if (!planNumMatch) {
-    return { content, message: `Could not parse plan number from: ${currentPlan}`, newPlanNum: null };
-  }
-  const currentNum = parseInt(planNumMatch[1], 10);
-  const nextNum = currentNum + 1;
-  const nextPlanStr = `Plan ${String(currentNum).padStart(2, "0")} complete, Plan ${String(nextNum).padStart(2, "0")} pending`;
-  const updated = content.replace(
-    /\*\*Current Plan:\*\*\s*[^\n]+/,
-    `**Current Plan:** ${nextPlanStr}`
-  );
-  return { content: updated, message: `Advanced to Plan ${String(nextNum).padStart(2, "0")}`, newPlanNum: nextNum };
+  const entries = match[2].split("\n").map((line) => line.match(/^\s*[-*]\s+(.+)$/)?.[1]?.trim() || null).filter((line) => line && !/^none(?: yet)?\.?$/i.test(line));
+  return { entries };
 }
 
 // src/plugin/tools/index.js
@@ -8347,7 +9141,7 @@ function getTools(registry) {
 
 // src/plugin/notification.js
 import { homedir as homedir2 } from "os";
-import { join as join13 } from "path";
+import { join as join15 } from "path";
 function createNotifier($, directory) {
   const MAX_HISTORY = 20;
   const DEFAULT_RATE_LIMIT = 5;
@@ -8362,7 +9156,7 @@ function createNotifier($, directory) {
   let logger = null;
   function getLogger() {
     if (!logger) {
-      const logDir = join13(homedir2(), ".config", "opencode");
+      const logDir = join15(homedir2(), ".config", "opencode");
       logger = createLogger(logDir);
     }
     return logger;
@@ -8446,7 +9240,7 @@ function createNotifier($, directory) {
         pendingContext.push({
           type: "dnd-summary",
           severity: "info",
-          message: `${count} notification${count === 1 ? "" : "s"} suppressed during DND. Use /bgsd-notifications to review.`,
+          message: `${count} notification${count === 1 ? "" : "s"} suppressed during DND. DND summaries are informational only and are not replayable by command.`,
           timestamp: Date.now()
         });
       }
@@ -8474,12 +9268,12 @@ function createNotifier($, directory) {
 // src/plugin/file-watcher.js
 await init_parsers();
 import { watch } from "fs";
-import { existsSync as existsSync5 } from "fs";
-import { join as join14 } from "path";
+import { existsSync as existsSync7 } from "fs";
+import { join as join16 } from "path";
 import { homedir as homedir3 } from "os";
 function createFileWatcher(cwd, options = {}) {
-  const { debounceMs = 200, maxWatchedPaths = 500 } = options;
-  const planningDir = join14(cwd, ".planning");
+  const { debounceMs = 200, maxWatchedPaths = 500, onExternalChange = null } = options;
+  const planningDir = join16(cwd, ".planning");
   let controller = null;
   let watching = false;
   let debounceTimer = null;
@@ -8491,7 +9285,7 @@ function createFileWatcher(cwd, options = {}) {
   let logger = null;
   function getLogger() {
     if (!logger) {
-      const logDir = join14(homedir3(), ".config", "opencode");
+      const logDir = join16(homedir3(), ".config", "opencode");
       logger = createLogger(logDir);
     }
     return logger;
@@ -8503,11 +9297,19 @@ function createFileWatcher(cwd, options = {}) {
     const externalPaths = paths.filter((p) => !selfWrites.has(p));
     if (externalPaths.length > 0) {
       invalidateAll(cwd);
+      if (typeof onExternalChange === "function") {
+        for (const filePath of externalPaths) {
+          try {
+            onExternalChange(filePath);
+          } catch {
+          }
+        }
+      }
     }
   }
   function onWatchEvent(eventType, filename) {
     if (!filename) return;
-    const fullPath = join14(planningDir, filename);
+    const fullPath = join16(planningDir, filename);
     eventCount++;
     if (!capWarned && eventCount > maxWatchedPaths) {
       capWarned = true;
@@ -8524,7 +9326,7 @@ function createFileWatcher(cwd, options = {}) {
   }
   function start() {
     if (watching) return;
-    if (!existsSync5(planningDir)) {
+    if (!existsSync7(planningDir)) {
       getLogger().write("INFO", `File watcher: .planning/ not found at ${cwd}, skipping watch`);
       return;
     }
@@ -8584,15 +9386,15 @@ function createFileWatcher(cwd, options = {}) {
 }
 
 // src/plugin/idle-validator.js
-import { existsSync as existsSync6, readFileSync as readFileSync9, writeFileSync as writeFileSync3 } from "fs";
-import { join as join15 } from "path";
+import { existsSync as existsSync8, readFileSync as readFileSync10, writeFileSync as writeFileSync3 } from "fs";
+import { join as join17 } from "path";
 import { execSync } from "child_process";
 import { homedir as homedir4 } from "os";
 await init_state();
 await init_roadmap();
 init_config();
 function createIdleValidator(cwd, notifier, fileWatcher, config) {
-  const planningDir = join15(cwd, ".planning");
+  const planningDir = join17(cwd, ".planning");
   let lastValidation = 0;
   let lastAutoFix = 0;
   let validating = false;
@@ -8602,21 +9404,21 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
   let logger = null;
   function getLogger() {
     if (!logger) {
-      const logDir = join15(homedir4(), ".config", "opencode");
+      const logDir = join17(homedir4(), ".config", "opencode");
       logger = createLogger(logDir);
     }
     return logger;
   }
   function readStateMd() {
     try {
-      return readFileSync9(join15(planningDir, "STATE.md"), "utf-8");
+      return readFileSync10(join17(planningDir, "STATE.md"), "utf-8");
     } catch {
       return null;
     }
   }
   function readRoadmapMd() {
     try {
-      return readFileSync9(join15(planningDir, "ROADMAP.md"), "utf-8");
+      return readFileSync10(join17(planningDir, "ROADMAP.md"), "utf-8");
     } catch {
       return null;
     }
@@ -8652,7 +9454,7 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
   async function onIdle() {
     try {
       if (!enabled) return;
-      if (!existsSync6(planningDir)) return;
+      if (!existsSync8(planningDir)) return;
       if (Date.now() - lastValidation < cooldownMs) return;
       if (lastAutoFix > lastValidation) return;
       if (validating) return;
@@ -8694,8 +9496,8 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
               await notifier.notify({
                 type: "phase-complete",
                 severity: "warning",
-                message: `Phase ${phaseNum} complete! Next: Phase ${nextPhase.number} (${nextPhase.name})`,
-                action: `Next: /bgsd-plan-phase ${nextPhase.number}`
+                message: `Phase ${phaseNum} complete! Next: Phase ${nextPhase.number} (${nextPhase.name}). Verify against this repo's current checkout, and rebuild the local runtime before trusting generated guidance if runtime surfaces changed.`,
+                action: `Next: /bgsd-plan phase ${nextPhase.number}`
               });
             }
           }
@@ -8703,7 +9505,7 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
         if (state.progress !== null) {
           const fixed = fixProgressBar(stateRaw, state.progress);
           if (fixed) {
-            const statePath = join15(planningDir, "STATE.md");
+            const statePath = join17(planningDir, "STATE.md");
             writeTracked(statePath, fixed);
             invalidateState(cwd);
             anyFix = true;
@@ -8714,19 +9516,13 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
       invalidateConfig(cwd);
       const freshConfig = parseConfig(cwd);
       if (freshConfig) {
-        const configPath = join15(planningDir, "config.json");
-        if (existsSync6(configPath)) {
+        const configPath = join17(planningDir, "config.json");
+        if (existsSync8(configPath)) {
           try {
-            const raw = readFileSync9(configPath, "utf-8");
+            const raw = readFileSync10(configPath, "utf-8");
             JSON.parse(raw);
           } catch {
-            const defaults = {
-              mode: "interactive",
-              depth: "standard",
-              model_profile: "balanced",
-              commit_docs: true
-            };
-            writeTracked(configPath, JSON.stringify(defaults, null, 2) + "\n");
+            writeTracked(configPath, buildDefaultConfigText());
             invalidateConfig(cwd);
             anyFix = true;
             getLogger().write("WARN", `Idle validation: auto-fixed corrupt config.json with defaults`);
@@ -8740,7 +9536,7 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
           if (lastGit) {
             const hoursAgo = (Date.now() / 1e3 - lastGit) / 3600;
             if (hoursAgo >= stalenessHours) {
-              const statePath = join15(planningDir, "STATE.md");
+              const statePath = join17(planningDir, "STATE.md");
               const updatedRaw = stateRaw.replace(
                 /\*\*Status:\*\*\s*.+/i,
                 "**Status:** Paused (auto-detected stale)"
@@ -8782,7 +9578,7 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
 
 // src/plugin/stuck-detector.js
 import { homedir as homedir5 } from "os";
-import { join as join16 } from "path";
+import { join as join18 } from "path";
 function createStuckDetector(notifier, config) {
   const errorThreshold = config.stuck_detection?.error_threshold || 3;
   const spinningThreshold = config.stuck_detection?.spinning_threshold || 5;
@@ -8793,7 +9589,7 @@ function createStuckDetector(notifier, config) {
   let logger = null;
   function getLogger() {
     if (!logger) {
-      const logDir = join16(homedir5(), ".config", "opencode");
+      const logDir = join18(homedir5(), ".config", "opencode");
       logger = createLogger(logDir);
     }
     return logger;
@@ -8887,8 +9683,8 @@ function createStuckDetector(notifier, config) {
 }
 
 // src/plugin/advisory-guardrails.js
-import { readFileSync as readFileSync10, statSync as statSync4 } from "fs";
-import { join as join17, basename, extname, isAbsolute, resolve as resolve2 } from "path";
+import { readFileSync as readFileSync11, statSync as statSync3 } from "fs";
+import { join as join19, basename, extname, isAbsolute, resolve as resolve2 } from "path";
 import { homedir as homedir6 } from "os";
 var NAMING_PATTERNS = {
   camelCase: /^[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*$/,
@@ -8927,11 +9723,11 @@ function toConvention(name, convention) {
   }
 }
 var PLANNING_COMMANDS = {
-  "ROADMAP.md": ["/bgsd-add-phase", "/bgsd-remove-phase", "/bgsd-insert-phase"],
-  "STATE.md": ["/bgsd-progress", "/bgsd-execute-phase"],
-  "PLAN.md": ["/bgsd-plan-phase"],
-  "CONTEXT.md": ["/bgsd-discuss-phase"],
-  "RESEARCH.md": ["/bgsd-research-phase"],
+  "ROADMAP.md": ["/bgsd-plan roadmap add", "/bgsd-plan roadmap remove", "/bgsd-plan roadmap insert"],
+  "STATE.md": ["/bgsd-inspect progress", "/bgsd-execute-phase"],
+  "PLAN.md": ["/bgsd-plan phase [phase]"],
+  "CONTEXT.md": ["/bgsd-plan discuss [phase]"],
+  "RESEARCH.md": ["/bgsd-plan research [phase]"],
   "REQUIREMENTS.md": ["/bgsd-new-milestone"],
   "config.json": ["/bgsd-settings"],
   "SUMMARY.md": ["/bgsd-execute-phase"],
@@ -8943,8 +9739,8 @@ function isTestFile(filePath) {
 }
 function loadConventionRules(cwd, confidenceThreshold) {
   try {
-    const agentsPath = join17(cwd, "AGENTS.md");
-    const content = readFileSync10(agentsPath, "utf-8");
+    const agentsPath = join19(cwd, "AGENTS.md");
+    const content = readFileSync11(agentsPath, "utf-8");
     const conventionNames = ["kebab-case", "camelCase", "PascalCase", "snake_case", "UPPER_SNAKE_CASE"];
     for (const conv of conventionNames) {
       if (content.includes(conv)) {
@@ -8954,8 +9750,8 @@ function loadConventionRules(cwd, confidenceThreshold) {
   } catch {
   }
   try {
-    const intelPath = join17(cwd, ".planning", "codebase", "codebase-intel.json");
-    const intel = JSON.parse(readFileSync10(intelPath, "utf-8"));
+    const intelPath = join19(cwd, ".planning", "codebase", "codebase-intel.json");
+    const intel = JSON.parse(readFileSync11(intelPath, "utf-8"));
     if (intel.conventions?.naming?.dominant && (intel.conventions.naming.confidence || 0) >= confidenceThreshold) {
       return {
         dominant: intel.conventions.naming.dominant,
@@ -8969,8 +9765,8 @@ function loadConventionRules(cwd, confidenceThreshold) {
 function detectTestConfig(cwd) {
   const result = { command: null, sourceExts: /* @__PURE__ */ new Set() };
   try {
-    const pkgPath = join17(cwd, "package.json");
-    const pkg = JSON.parse(readFileSync10(pkgPath, "utf-8"));
+    const pkgPath = join19(cwd, "package.json");
+    const pkg = JSON.parse(readFileSync11(pkgPath, "utf-8"));
     if (pkg.scripts?.test) {
       result.command = `npm test`;
     } else if (pkg.scripts?.check) {
@@ -8981,8 +9777,8 @@ function detectTestConfig(cwd) {
   }
   if (!result.command) {
     try {
-      const pyProject = join17(cwd, "pyproject.toml");
-      readFileSync10(pyProject, "utf-8");
+      const pyProject = join19(cwd, "pyproject.toml");
+      readFileSync11(pyProject, "utf-8");
       result.command = "pytest";
       result.sourceExts = /* @__PURE__ */ new Set([".py"]);
     } catch {
@@ -9043,17 +9839,17 @@ function detectSandboxEnvironment(configOverride) {
   ];
   if (envSignals.some((key) => process.env[key])) return true;
   try {
-    statSync4("/.dockerenv");
+    statSync3("/.dockerenv");
     return true;
   } catch {
   }
   try {
-    statSync4("/run/.containerenv");
+    statSync3("/run/.containerenv");
     return true;
   } catch {
   }
   try {
-    const cgroup = readFileSync10("/proc/self/cgroup", "utf-8");
+    const cgroup = readFileSync11("/proc/self/cgroup", "utf-8");
     if (/docker|containerd|kubepods/i.test(cgroup)) return true;
   } catch {
   }
@@ -9103,7 +9899,7 @@ function createAdvisoryGuardrails(cwd, notifier, config) {
   let logger = null;
   function getLogger() {
     if (!logger) {
-      const logDir = join17(homedir6(), ".config", "opencode");
+      const logDir = join19(homedir6(), ".config", "opencode");
       logger = createLogger(logDir);
     }
     return logger;
@@ -9261,14 +10057,73 @@ init_project();
 init_intent();
 await init_parsers();
 var BgsdPlugin = async ({ directory, $ }) => {
-  const bgsdHome = join18(homedir7(), ".config", "opencode", "bgsd-oc");
   const registry = createToolRegistry(safeHook);
   const projectDir = directory || process.cwd();
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
+  try {
+    if (existsSync9(join20(projectDir, ".planning"))) {
+      getToolAvailability(projectDir, { refreshIfNeeded: true });
+    }
+  } catch {
+  }
+  const memorySnapshotState = {
+    text: null,
+    stale: false,
+    staleNoticeSent: false,
+    buildWarningsSent: false
+  };
+  async function notifyMemorySnapshotBuildWarnings(snapshot) {
+    if (memorySnapshotState.buildWarningsSent || !snapshot) return;
+    for (const warning of snapshot.blockedWarnings || []) {
+      const message = warning.category === "parse-failure" ? "MEMORY.md could not be parsed, so no memory snapshot was injected." : `Blocked ${warning.count} MEMORY.md entr${warning.count === 1 ? "y" : "ies"} (${warning.category}): ${warning.snippet}`;
+      await notifier.notify({
+        type: "memory-blocked",
+        severity: "info",
+        message
+      });
+    }
+    if (snapshot.budgetWarning) {
+      await notifier.notify({
+        type: "memory-budget",
+        severity: "info",
+        message: snapshot.budgetWarning
+      });
+    }
+    memorySnapshotState.buildWarningsSent = true;
+  }
+  async function getOrBuildMemorySnapshot(cwd) {
+    if (memorySnapshotState.text !== null) {
+      return memorySnapshotState.text;
+    }
+    const snapshot = buildMemorySnapshot(cwd);
+    memorySnapshotState.text = snapshot.text || "";
+    await notifyMemorySnapshotBuildWarnings(snapshot);
+    return memorySnapshotState.text;
+  }
+  async function handleExternalPlanningChange(filePath) {
+    if (!filePath || !filePath.endsWith(join20(".planning", "MEMORY.md"))) {
+      return;
+    }
+    if (memorySnapshotState.text === null || memorySnapshotState.stale) {
+      return;
+    }
+    memorySnapshotState.stale = true;
+    if (!memorySnapshotState.staleNoticeSent) {
+      memorySnapshotState.staleNoticeSent = true;
+      await notifier.notify({
+        type: "memory-stale",
+        severity: "info",
+        message: "MEMORY.md changed on disk; restart or refresh the session to load the new snapshot."
+      });
+    }
+  }
   const fileWatcher = createFileWatcher(projectDir, {
     debounceMs: config.file_watcher?.debounce_ms || 200,
-    maxPaths: config.file_watcher?.max_watched_paths || 500
+    maxPaths: config.file_watcher?.max_watched_paths || 500,
+    onExternalChange: (filePath) => {
+      void handleExternalPlanningChange(filePath);
+    }
   });
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config);
   const stuckDetector = createStuckDetector(notifier, config);
@@ -9278,15 +10133,9 @@ var BgsdPlugin = async ({ directory, $ }) => {
     try {
       getProjectState(projectDir);
     } catch {
-      if (process.env.BGSD_DEBUG) {
-        console.error("[bgsd-plugin] background warm-up failed (non-fatal)");
-      }
+      writeDebugDiagnostic("[bgsd-plugin]", "background warm-up failed (non-fatal)");
     }
   }, 0);
-  const shellEnv = safeHook("shell.env", async (input, output) => {
-    if (!output || !output.env) return;
-    output.env.BGSD_HOME = bgsdHome;
-  });
   const compacting = safeHook("compacting", async (input, output) => {
     const projectDir2 = directory || process.cwd();
     const ctx = buildCompactionContext(projectDir2);
@@ -9296,7 +10145,8 @@ var BgsdPlugin = async ({ directory, $ }) => {
   });
   const systemTransform = safeHook("system.transform", async (input, output) => {
     const sysDir = directory || process.cwd();
-    const prompt = buildSystemPrompt(sysDir);
+    const memorySnapshot = await getOrBuildMemorySnapshot(sysDir);
+    const prompt = buildSystemPrompt(sysDir, { memorySnapshot });
     if (prompt && output && output.system) {
       output.system.push(prompt);
     }
@@ -9323,6 +10173,7 @@ var BgsdPlugin = async ({ directory, $ }) => {
     if (event.type === "file.watcher.updated") {
       const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
       invalidateAll2(projectDir);
+      await handleExternalPlanningChange(event.path || event.filePath || null);
     }
   });
   const toolAfter = safeHook("tool.execute.after", async (input) => {
@@ -9330,7 +10181,6 @@ var BgsdPlugin = async ({ directory, $ }) => {
     await guardrails.onToolAfter(input);
   });
   return {
-    "shell.env": shellEnv,
     "experimental.session.compacting": compacting,
     "experimental.chat.system.transform": systemTransform,
     "command.execute.before": commandEnrich,
@@ -9342,6 +10192,7 @@ var BgsdPlugin = async ({ directory, $ }) => {
 export {
   BgsdPlugin,
   buildCompactionContext,
+  buildMemorySnapshot,
   buildSystemPrompt,
   createAdvisoryGuardrails,
   createFileWatcher,

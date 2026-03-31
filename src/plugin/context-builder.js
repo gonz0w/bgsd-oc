@@ -1,5 +1,54 @@
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { getProjectState } from './project-state.js';
 import { countTokens, TOKEN_BUDGET } from './token-budget.js';
+import { writeDebugDiagnostic } from './debug-contract.js';
+
+const MEMORY_FILE = join('.planning', 'MEMORY.md');
+const MEMORY_SECTIONS = [
+  'Active / Recent',
+  'Project Facts',
+  'User Preferences',
+  'Environment Patterns',
+  'Correction History',
+];
+const MEMORY_SECTION_DEFAULT_TYPE = {
+  'Active / Recent': 'project-fact',
+  'Project Facts': 'project-fact',
+  'User Preferences': 'user-preference',
+  'Environment Patterns': 'environment-pattern',
+  'Correction History': 'correction',
+};
+const MEMORY_ENTRY_METADATA_ORDER = ['Added', 'Updated', 'Source', 'Keep', 'Status', 'Expires', 'Replaces'];
+const MEMORY_BLOCK_PATTERNS = [
+  {
+    category: 'instruction-override',
+    patterns: [
+      /ignore\s+(all\s+)?previous\s+instructions?/i,
+      /\byou\s+are\s+now\b/i,
+      /\bnew\s+instructions?\b/i,
+      /<system>|\[inst\]/i,
+    ],
+  },
+  {
+    category: 'exfiltration',
+    patterns: [
+      /reveal\s+(your\s+)?system\s+prompt/i,
+      /show\s+(hidden|system)\s+instructions/i,
+      /(print|output|dump)\s+(the\s+)?(env|environment|secret|secrets)/i,
+      /prompt\s+leak/i,
+    ],
+  },
+  {
+    category: 'tool-bypass',
+    patterns: [
+      /always\s+use\s+bash/i,
+      /force\s+tool\s+call/i,
+      /(skip|bypass|disable).{0,24}(guardrails|confirmation|approval|approvals)/i,
+      /(tool|command).{0,24}(bypass|override)/i,
+    ],
+  },
+];
 
 /**
  * Context builder for system prompt injection and compaction.
@@ -122,6 +171,191 @@ function buildSacredBlock(intent, roadmap) {
   }
 }
 
+function normalizeMemorySection(section) {
+  if (!section) return null;
+  const trimmed = String(section).trim().toLowerCase();
+  return MEMORY_SECTIONS.find(name => name.toLowerCase() === trimmed) || null;
+}
+
+function normalizeMemoryType(type, section) {
+  const trimmed = String(type || '').trim().toLowerCase();
+  return trimmed || MEMORY_SECTION_DEFAULT_TYPE[section] || 'project-fact';
+}
+
+function canonicalMetadataKey(key) {
+  if (!key) return null;
+  const trimmed = String(key).trim().toLowerCase();
+  return MEMORY_ENTRY_METADATA_ORDER.find(name => name.toLowerCase() === trimmed) || null;
+}
+
+function createEmptyStructuredMemory() {
+  return {
+    title: '# Agent Memory',
+    sections: MEMORY_SECTIONS.map(name => ({ name, entries: [] })),
+  };
+}
+
+function structuredMemoryToMap(doc) {
+  const map = new Map();
+  for (const section of doc.sections) {
+    map.set(section.name, section);
+  }
+  return map;
+}
+
+function parseStructuredMemory(content) {
+  const lines = String(content || '').replace(/\r\n/g, '\n').split('\n');
+  const doc = createEmptyStructuredMemory();
+  const sectionMap = structuredMemoryToMap(doc);
+  let currentSection = null;
+  let currentEntry = null;
+
+  function finalizeEntry() {
+    if (!currentSection || !currentEntry) return;
+    currentSection.entries.push(currentEntry);
+    currentEntry = null;
+  }
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^##\s+(.+?)\s*$/);
+    if (sectionMatch) {
+      finalizeEntry();
+      currentSection = sectionMap.get(normalizeMemorySection(sectionMatch[1]));
+      continue;
+    }
+
+    if (!currentSection) continue;
+
+    const entryMatch = line.match(/^\-\s+\*\*(MEM-\d+)\*\*(?:\s+\[([^\]]+)\])?\s+(.+?)\s*$/);
+    if (entryMatch) {
+      finalizeEntry();
+      currentEntry = {
+        id: entryMatch[1],
+        type: normalizeMemoryType(entryMatch[2], currentSection.name),
+        text: entryMatch[3].trim(),
+        metadata: {},
+      };
+      continue;
+    }
+
+    const metadataMatch = line.match(/^\s{2,}-\s+([^:]+):\s*(.*?)\s*$/);
+    if (metadataMatch && currentEntry) {
+      const key = canonicalMetadataKey(metadataMatch[1]);
+      if (key) currentEntry.metadata[key] = metadataMatch[2];
+    }
+  }
+
+  finalizeEntry();
+  return doc;
+}
+
+function normalizeMemoryForScan(raw) {
+  let normalized = String(raw || '').normalize('NFKD');
+  normalized = normalized.replace(/[\u200B-\u200D\u2060\uFEFF]/g, '');
+  normalized = normalized.replace(/[\u0300-\u036F]/g, '');
+  return normalized.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function redactBlockedSnippet(value, max = 56) {
+  const collapsed = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!collapsed) return '[redacted]';
+  const preview = collapsed.slice(0, max);
+  const visible = preview.slice(0, 18);
+  const masked = preview.slice(18).replace(/[A-Za-z0-9]/g, '•');
+  return `${visible}${masked}${collapsed.length > max ? '…' : ''}`;
+}
+
+function classifyBlockedMemoryEntry(rawText) {
+  const normalizedText = normalizeMemoryForScan(rawText);
+  for (const matcher of MEMORY_BLOCK_PATTERNS) {
+    if (matcher.patterns.some(pattern => pattern.test(rawText) || pattern.test(normalizedText))) {
+      return matcher.category;
+    }
+  }
+  return null;
+}
+
+function summarizeBlockedEntries(blockedEntries) {
+  const grouped = new Map();
+  for (const entry of blockedEntries) {
+    const existing = grouped.get(entry.category) || { category: entry.category, count: 0, snippet: entry.snippet };
+    existing.count += 1;
+    grouped.set(entry.category, existing);
+  }
+  return [...grouped.values()];
+}
+
+function renderMemorySnapshot(doc) {
+  const lines = ['<bgsd-memory>'];
+  for (const sectionName of MEMORY_SECTIONS) {
+    const section = doc.sections.find(item => item.name === sectionName);
+    if (!section || section.entries.length === 0) continue;
+    lines.push(sectionName);
+    for (const entry of section.entries) {
+      lines.push(`- ${entry.id} [${entry.type}] ${entry.text}`);
+    }
+  }
+  lines.push('</bgsd-memory>');
+  return lines.length > 2 ? lines.join('\n') : '';
+}
+
+export function buildMemorySnapshot(cwd) {
+  const memoryPath = join(cwd || process.cwd(), MEMORY_FILE);
+  if (!existsSync(memoryPath)) {
+    return {
+      exists: false,
+      text: '',
+      blockedWarnings: [],
+      budgetWarning: null,
+    };
+  }
+
+  let doc;
+  try {
+    doc = parseStructuredMemory(readFileSync(memoryPath, 'utf-8'));
+  } catch {
+    return {
+      exists: true,
+      text: '',
+      blockedWarnings: [{ category: 'parse-failure', count: 1, snippet: 'MEMORY.md could not be parsed' }],
+      budgetWarning: null,
+    };
+  }
+
+  const safeDoc = createEmptyStructuredMemory();
+  const safeSectionMap = structuredMemoryToMap(safeDoc);
+  const blockedEntries = [];
+
+  for (const section of doc.sections) {
+    const targetSection = safeSectionMap.get(section.name);
+    for (const entry of section.entries) {
+      const rawText = `${entry.id} ${entry.type} ${entry.text}`;
+      const category = classifyBlockedMemoryEntry(rawText);
+      if (category) {
+        blockedEntries.push({
+          category,
+          snippet: redactBlockedSnippet(entry.text),
+        });
+        continue;
+      }
+      targetSection.entries.push(entry);
+    }
+  }
+
+  const text = renderMemorySnapshot(safeDoc);
+  const tokenCount = countTokens(text);
+  const budgetWarning = text && tokenCount > Math.floor(TOKEN_BUDGET * 0.5)
+    ? `MEMORY.md snapshot is using ~${tokenCount} tokens; consider pruning if prompt space feels tight.`
+    : null;
+
+  return {
+    exists: true,
+    text,
+    blockedWarnings: summarizeBlockedEntries(blockedEntries),
+    budgetWarning,
+  };
+}
+
 /**
  * Build the system prompt injection string.
  * Returns a compact <bgsd> tag with current project state.
@@ -129,12 +363,12 @@ function buildSacredBlock(intent, roadmap) {
  * @param {string} [cwd] - Working directory (defaults to process.cwd())
  * @returns {string} System prompt injection string
  */
-export function buildSystemPrompt(cwd) {
+export function buildSystemPrompt(cwd, options = {}) {
   let projectState;
   try {
     projectState = getProjectState(cwd);
   } catch {
-    return '<bgsd>Failed to load project state. Run /bgsd-health to diagnose.</bgsd>';
+    return '<bgsd>Failed to load project state. Run /bgsd-inspect health to diagnose.</bgsd>';
   }
 
   // No .planning/ directory — inject minimal hint
@@ -146,7 +380,7 @@ export function buildSystemPrompt(cwd) {
 
   // If state parsing partially succeeded but is missing critical data
   if (!state || !state.phase) {
-    return '<bgsd>Failed to load project state. Run /bgsd-health to diagnose.</bgsd>';
+    return '<bgsd>Failed to load project state. Run /bgsd-inspect health to diagnose.</bgsd>';
   }
 
   // Extract phase number and name from state.phase
@@ -218,12 +452,13 @@ export function buildSystemPrompt(cwd) {
     }
   }
 
-  const prompt = `<bgsd>\nPhase ${phaseNum}: ${phaseName}${planInfo}${milestoneInfo}${goalLine}${blockerLine}\n</bgsd>`;
+  const memorySnapshot = options && typeof options === 'object' ? options.memorySnapshot || '' : '';
+  const prompt = `<bgsd>\nPhase ${phaseNum}: ${phaseName}${planInfo}${milestoneInfo}${goalLine}${blockerLine}\n</bgsd>${memorySnapshot ? `\n${memorySnapshot}` : ''}`;
 
   // Token budget check — warn but don't block
   const tokenCount = countTokens(prompt);
   if (tokenCount > TOKEN_BUDGET) {
-    console.warn(`[bGSD] System prompt injection exceeds budget: ${tokenCount} tokens (budget: ${TOKEN_BUDGET})`);
+    writeDebugDiagnostic('[bGSD:context-budget]', `System prompt injection exceeds budget: ${tokenCount} tokens (budget: ${TOKEN_BUDGET})`);
   }
 
   return prompt;
@@ -256,7 +491,7 @@ export function buildCompactionContext(cwd) {
   try {
     projectState = getProjectState(cwd);
   } catch {
-    return '<project-error>Failed to load project state for compaction. Run /bgsd-health to diagnose.</project-error>';
+    return '<project-error>Failed to load project state for compaction. Run /bgsd-inspect health to diagnose.</project-error>';
   }
 
   // No .planning/ → inject nothing (per CONTEXT.md decision)

@@ -88,7 +88,7 @@ Checkable requirements with traceable IDs.
 
 **Updated:** During milestone planning and as requirements are completed.
 
-**Why it exists:** Provides clear, measurable targets. The traceability table ensures every requirement maps to a phase. The `/bgsd-trace` command traces from requirement to plan to code on disk.
+**Why it exists:** Provides clear, measurable targets. The traceability table ensures every requirement maps to a phase. The `/bgsd-inspect trace REQ-01` command traces from requirement to plan to code on disk.
 
 ---
 
@@ -129,7 +129,7 @@ The living state of the project. Changes frequently.
 
 **Updated:** After every plan completion, decision, blocker, or session boundary.
 
-**Why it exists:** Enables session resumption. When an agent starts with `/bgsd-resume`, STATE.md tells it exactly where things stand. The `state validate` command detects drift between STATE.md and filesystem reality.
+**Why it exists:** Enables session resumption. When an agent starts with `/bgsd-resume`, STATE.md tells it exactly where things stand. The `verify:state validate` command detects drift between STATE.md and filesystem reality.
 
 ---
 
@@ -155,8 +155,8 @@ phases/
     37-02-PLAN.md           # Second plan
     37-02-SUMMARY.md
     37-VERIFICATION.md      # Phase goal verification report
-    37-CONTEXT.md           # Implementation decisions (from /bgsd-discuss-phase)
-    37-RESEARCH.md          # Domain research (from /bgsd-research-phase)
+    37-CONTEXT.md           # Implementation decisions (from /bgsd-plan discuss 37)
+    37-RESEARCH.md          # Domain research (from /bgsd-plan research 37)
 ```
 
 ### PLAN.md
@@ -222,7 +222,7 @@ Created by the gsd-verifier agent after all plans in a phase complete.
   ├── Creates STATE.md
   └── Creates config.json
 
-/bgsd-plan-phase N
+/bgsd-plan phase N
   ├── Creates {phase}-{plan}-PLAN.md files
   └── Optionally creates {phase}-RESEARCH.md, {phase}-CONTEXT.md
 
@@ -281,8 +281,8 @@ Persistent stores in `.planning/memory/`:
 ### Memory Access
 
 ```
-/bgsd-search-decisions "database"     # Search decisions
-/bgsd-search-lessons "auth"           # Search lessons
+/bgsd-inspect search decisions "database"     # Search decisions
+/bgsd-inspect search lessons "auth"           # Search lessons
 ```
 
 Memory is loaded into workflows via `init memory`. It's trimmed by priority when approaching token budget limits.
@@ -303,7 +303,7 @@ Research lives in `.planning/research/`:
 | `TDD-EXECUTION.md` | TDD system analysis |
 | `AGENTIC-AUDIT.md` | Competitive audit of agent systems |
 
-Research is created during `/bgsd-new-project` (4 parallel researchers) or `/bgsd-new-milestone`.
+Research is created during `/bgsd-new-project` (5 parallel researchers) or `/bgsd-new-milestone`.
 
 ---
 
@@ -362,7 +362,7 @@ Performance measurement data in `.planning/baselines/`:
 | `bundle-size.json` | Current bundle size vs budget |
 | `baseline-*.json` | Token measurements for workflows |
 
-Used by `/bgsd-context-budget compare` to measure token savings across versions.
+Used by `/bgsd-inspect context-budget 159-09` to inspect plan token usage against the saved baselines in this directory.
 
 ---
 

@@ -623,34 +623,33 @@ describe('Phase 127: tool_availability enrichment', () => {
       assert.deepStrictEqual(keys, ['bat', 'fd', 'gh', 'jq', 'ripgrep', 'yq']);
     });
 
-    it('each value in tool_availability is a boolean — ripgrep', () => {
-      const ta = { ripgrep: true, fd: false, jq: true, yq: false, bat: true, gh: false };
-      assert.strictEqual(typeof ta.ripgrep, 'boolean');
+    it('each value in tool_availability is boolean-or-null — ripgrep', () => {
+      const ta = { ripgrep: true, fd: false, jq: true, yq: null, bat: true, gh: false };
+      assert.ok(ta.ripgrep === null || typeof ta.ripgrep === 'boolean');
     });
 
-    it('each value in tool_availability is a boolean — fd', () => {
-      const ta = { ripgrep: false, fd: true, jq: false, yq: false, bat: false, gh: false };
-      assert.strictEqual(typeof ta.fd, 'boolean');
+    it('each value in tool_availability is boolean-or-null — fd', () => {
+      const ta = { ripgrep: false, fd: true, jq: false, yq: false, bat: null, gh: false };
+      assert.ok(ta.fd === null || typeof ta.fd === 'boolean');
     });
 
-    it('each value in tool_availability is a boolean — jq', () => {
-      const ta = { ripgrep: false, fd: false, jq: true, yq: false, bat: false, gh: false };
-      assert.strictEqual(typeof ta.jq, 'boolean');
+    it('each value in tool_availability is boolean-or-null — jq', () => {
+      const ta = { ripgrep: false, fd: false, jq: true, yq: false, bat: false, gh: null };
+      assert.ok(ta.jq === null || typeof ta.jq === 'boolean');
     });
 
-    it('each value in tool_availability is a boolean — yq, bat, gh', () => {
-      const ta = { ripgrep: false, fd: false, jq: false, yq: true, bat: true, gh: true };
-      assert.strictEqual(typeof ta.yq, 'boolean');
-      assert.strictEqual(typeof ta.bat, 'boolean');
-      assert.strictEqual(typeof ta.gh, 'boolean');
+    it('each value in tool_availability is boolean-or-null — yq, bat, gh', () => {
+      const ta = { ripgrep: false, fd: false, jq: false, yq: true, bat: null, gh: true };
+      assert.ok(ta.yq === null || typeof ta.yq === 'boolean');
+      assert.ok(ta.bat === null || typeof ta.bat === 'boolean');
+      assert.ok(ta.gh === null || typeof ta.gh === 'boolean');
     });
 
-    it('tool_availability does NOT contain version info (just true/false per tool)', () => {
-      // The contract: booleans only — no 'version' or 'path' sub-objects
-      const ta = { ripgrep: true, fd: true, jq: true, yq: false, bat: false, gh: true };
+    it('tool_availability does NOT contain version info (just booleans/null per tool)', () => {
+      const ta = { ripgrep: true, fd: true, jq: true, yq: null, bat: false, gh: true };
       for (const [key, value] of Object.entries(ta)) {
-        assert.strictEqual(typeof value, 'boolean',
-          `${key} should be boolean, not ${typeof value}`);
+        assert.ok(value === null || typeof value === 'boolean',
+          `${key} should be boolean or null, not ${typeof value}`);
       }
     });
 
@@ -670,7 +669,7 @@ describe('Phase 127: tool_availability enrichment', () => {
     it('tool_availability keys match the TOOLS constant from detector.js', () => {
       const { TOOLS } = require('../src/lib/cli-tools/detector.js');
       const expectedKeys = Object.keys(TOOLS).sort();
-      const taKeys = ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh'].sort();
+      const taKeys = ['ripgrep', 'fd', 'jq', 'yq', 'ast_grep', 'sd', 'hyperfine', 'bat', 'gh'].sort();
       assert.deepStrictEqual(taKeys, expectedKeys);
     });
   });
@@ -750,8 +749,9 @@ describe('Phase 128: handoff tool context and capability-aware filtering', () =>
     // Build a synthetic enrichment context as the enricher would produce
     function buildEnrichment(toolAvailability) {
       const tools = ['ripgrep', 'fd', 'jq', 'yq', 'bat', 'gh'];
+      const knownCount = tools.filter(t => toolAvailability && (toolAvailability[t] === true || toolAvailability[t] === false)).length;
       const count = tools.filter(t => toolAvailability && toolAvailability[t] === true).length;
-      const level = count >= 5 ? 'HIGH' : count >= 2 ? 'MEDIUM' : 'LOW';
+      const level = knownCount === 0 ? 'UNKNOWN' : (count >= 5 ? 'HIGH' : count >= 2 ? 'MEDIUM' : 'LOW');
       return {
         handoff_tool_context: { capability_level: level },
       };
@@ -763,11 +763,11 @@ describe('Phase 128: handoff tool context and capability-aware filtering', () =>
         'handoff_tool_context should be a non-null object');
     });
 
-    it('capability_level is HIGH/MEDIUM/LOW string', () => {
+    it('capability_level is HIGH/MEDIUM/LOW/UNKNOWN string', () => {
       const enrichment = buildEnrichment({ ripgrep: true, fd: true, jq: true, yq: true, bat: true, gh: true });
       const { capability_level } = enrichment.handoff_tool_context;
-      assert.ok(['HIGH', 'MEDIUM', 'LOW'].includes(capability_level),
-        `capability_level should be HIGH, MEDIUM, or LOW; got ${capability_level}`);
+      assert.ok(['HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'].includes(capability_level),
+        `capability_level should be HIGH, MEDIUM, LOW, or UNKNOWN; got ${capability_level}`);
     });
 
     it('capability_level matches tool count thresholds', () => {
@@ -786,7 +786,12 @@ describe('Phase 128: handoff tool context and capability-aware filtering', () =>
 
     it('handoff_tool_context defaults gracefully when tool_availability absent', () => {
       const enrichment = buildEnrichment(null);
-      assert.strictEqual(enrichment.handoff_tool_context.capability_level, 'LOW');
+      assert.strictEqual(enrichment.handoff_tool_context.capability_level, 'UNKNOWN');
+    });
+
+    it('handoff_tool_context reports UNKNOWN when tool availability is explicit unknowns', () => {
+      const enrichment = buildEnrichment({ ripgrep: null, fd: null, jq: null, yq: null, bat: null, gh: null });
+      assert.strictEqual(enrichment.handoff_tool_context.capability_level, 'UNKNOWN');
     });
   });
 

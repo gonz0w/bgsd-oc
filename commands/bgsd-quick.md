@@ -1,18 +1,20 @@
 ---
-description: Backward-compatible wrapper for quick command
+description: Canonical quick-entry command
 ---
 <objective>
-Quick task execution - run a single task from an existing plan.
+Use the canonical quick-entry path for fast one-off execution.
 </objective>
 
 <execution_context>
-Routes to: quick workflow
+@__OPENCODE_CONFIG__/bgsd-oc/workflows/quick.md
 </execution_context>
 
 <context>
-$ARGUMENTS: Passed to quick workflow
+$ARGUMENTS: Task description or quick-execution request
 </context>
 
 <process>
-Route to quick workflow with all arguments.
+Treat `/bgsd-quick` as the preferred quick-entry command.
+
+Execute the quick workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/quick.md end-to-end with all provided arguments.
 </process>

@@ -40,7 +40,7 @@ grep -n "type=\"checkpoint" [plan-path]
 
 Check if auto-mode is active:
 ```bash
-AUTO_CFG=$(node $BGSD_HOME/bin/bgsd-tools.cjs util:config-get workflow.auto_advance 2>/dev/null || echo "false")
+AUTO_CFG=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.auto_advance 2>/dev/null || echo "false")
 ```
 
 When `AUTO_CFG` is `"true"`:

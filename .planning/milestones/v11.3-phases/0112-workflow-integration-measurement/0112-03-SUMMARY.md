@@ -26,7 +26,7 @@ key-files:
 key-decisions:
   - "Each Pre-computed block saves exactly 1 LLM reasoning step — no inflated estimates"
   - "BEFORE_ESTIMATES kept as static baseline since pre-decision-engine step counts cannot be measured dynamically"
-  - "Path resolution uses process.argv[1]-relative first, then BGSD_HOME, for dev/prod compatibility"
+  - "Path resolution uses process.argv[1]-relative first, then __OPENCODE_CONFIG__/bgsd-oc, for dev/prod compatibility"
 
 patterns-established:
   - "Dynamic workflow scanning: readdirSync + readFileSync + regex matching for Pre-computed blocks"
@@ -53,7 +53,7 @@ completed: 2026-03-13
 
 ## Accomplishments
 - Replaced hardcoded SAVINGS_DATA with dynamic `scanWorkflowDecisions()` that reads workflow .md files and counts Pre-computed decision/value blocks
-- Added `resolveWorkflowsDir()` with dev/prod path resolution (process.argv[1]-relative → BGSD_HOME → __dirname fallback)
+- Added `resolveWorkflowsDir()` with dev/prod path resolution (process.argv[1]-relative → __OPENCODE_CONFIG__/bgsd-oc → __dirname fallback)
 - `decisions:savings` now reports `source: "scanned"` with per-workflow integration_points matching actual file content
 - Resolved GAP-112-01: Confirmed 13 integration points (11 decision + 2 model-value) across 9 workflow files
 - Resolved GAP-112-02: Static SAVINGS_DATA replaced with measured workflow scanning
@@ -74,7 +74,7 @@ Each task was committed atomically:
 ## Decisions Made
 - Each Pre-computed block saves exactly 1 LLM reasoning step — avoids inflated estimates from prior static data
 - BEFORE_ESTIMATES kept as static reference since pre-decision-engine step counts are historical and cannot be measured
-- Path resolution prioritizes process.argv[1]-relative over BGSD_HOME for correct dev workspace behavior
+- Path resolution prioritizes process.argv[1]-relative over __OPENCODE_CONFIG__/bgsd-oc for correct dev workspace behavior
 
 ## Deviations from Plan
 

@@ -170,7 +170,7 @@ Waves group independent tasks for parallel execution:
 
 **CLI for wave validation:**
 ```bash
-bgsd-tools verify:plan-wave <phase-dir>
+bgsd-tools verify:verify plan-wave <phase-dir>
 ```
 
 Shows wave assignments and any file conflicts within waves.

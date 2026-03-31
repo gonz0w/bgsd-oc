@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "159",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "159-2026-03-30T00-49-46-509Z",
+  "source_fingerprint": "cba6fd5b81169a1e",
+  "created_at": "2026-03-30T00:49:46.509Z",
+  "updated_at": "2026-03-30T00:49:46.509Z",
+  "summary": "Discuss context ready for Phase 159",
+  "resume_target": {
+    "phase": "159",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/159-help-surface-command-integrity/159-CONTEXT.md",
+    "next_command": "/bgsd-plan research 159"
+  },
+  "context": {}
+}

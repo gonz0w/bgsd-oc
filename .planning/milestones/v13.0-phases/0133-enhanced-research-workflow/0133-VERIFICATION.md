@@ -68,7 +68,7 @@ gaps: []
 | `module.exports` includes `cmdResearchScore` and `cmdResearchGaps` | ✓ WIRED | Line 2415: explicit export of all 4 new functions |
 | `router.js` research case `'score'` → `lazyResearch().cmdResearchScore(cwd, restArgs, raw)` | ✓ WIRED | Line 1302–1303 confirmed; full CLI path tested end-to-end |
 | `router.js` research case `'gaps'` → `lazyResearch().cmdResearchGaps(cwd, restArgs, raw)` | ✓ WIRED | Line 1304–1305 confirmed; full CLI path tested end-to-end |
-| `new-milestone.md` calls `research:score` on each `.planning/research/*.md` after RESEARCH COMPLETE banner | ✓ WIRED | `SCORE=$(node $BGSD_HOME/bin/bgsd-tools.cjs research:score "$RESEARCH_FILE")` at line 239; placed after banner at line 226 |
+| `new-milestone.md` calls `research:score` on each `.planning/research/*.md` after RESEARCH COMPLETE banner | ✓ WIRED | `SCORE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs research:score "$RESEARCH_FILE")` at line 239; placed after banner at line 226 |
 
 ---
 

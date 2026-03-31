@@ -10,7 +10,7 @@ bGSD uses structured research at two levels:
 
 ### Project-Level Research
 
-Before each milestone, 4 parallel researcher agents investigate the domain:
+Before each milestone, 5 parallel researcher agents investigate the domain:
 
 | Researcher | Focus | Output |
 |-----------|-------|--------|
@@ -18,6 +18,7 @@ Before each milestone, 4 parallel researcher agents investigate the domain:
 | Features researcher | Feature analysis, competitive landscape | `research/FEATURES.md` |
 | Architecture researcher | Design patterns, module structure, data flows | `research/ARCHITECTURE.md` |
 | Pitfalls researcher | Known problems, anti-patterns, failure modes | `research/PITFALLS.md` |
+| Skills researcher | Project-local skill recommendations tied to milestone needs | `research/SKILLS.md` |
 
 A synthesis agent merges all findings into `research/SUMMARY.md` with confidence ratings.
 

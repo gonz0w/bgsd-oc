@@ -120,10 +120,10 @@ Router registration in `src/router.js` under the existing `util:agent` block:
 
 ```javascript
 function resolveBgsdPaths() {
-  const BGSD_HOME = process.env.BGSD_HOME || 
+  const __OPENCODE_CONFIG__/bgsd-oc = resolved plugin path state || 
     path.join(process.env.HOME || '/tmp', '.config', 'oc', 'bgsd-oc');
-  const agentsDir = path.join(path.dirname(BGSD_HOME), 'agents');
-  return { BGSD_HOME, agentsDir };
+  const agentsDir = path.join(path.dirname(__OPENCODE_CONFIG__/bgsd-oc), 'agents');
+  return { __OPENCODE_CONFIG__/bgsd-oc, agentsDir };
 }
 ```
 
@@ -171,7 +171,7 @@ try {
 | YAML frontmatter parsing | New YAML parser | `extractFrontmatter()` from `src/lib/frontmatter.js` | Already handles the exact YAML subset in agent files |
 | Fuzzy name matching | Custom fuzzy matcher | `levenshteinDistance()` from `src/lib/commandDiscovery.js` | Already battle-tested, used for CLI command suggestions |
 | CLI output formatting | Custom JSON/table serializer | `output()` from `src/lib/output.js` | Handles both raw JSON and TTY-formatted output modes automatically |
-| Path resolution to global agents | Manual path construction | `resolveBgsdPaths()` from `src/commands/agent.js` | Already handles BGSD_HOME env var + fallback correctly |
+| Path resolution to global agents | Manual path construction | `resolveBgsdPaths()` from `src/commands/agent.js` | Already handles __OPENCODE_CONFIG__/bgsd-oc env var + fallback correctly |
 
 ## Common Pitfalls
 

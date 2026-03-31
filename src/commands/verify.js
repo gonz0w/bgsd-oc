@@ -3,11 +3,369 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { safeReadFile, cachedReadFile, findPhaseInternal, normalizePhaseName, parseMustHavesBlock, getArchivedPhaseDirs, getMilestoneInfo, getPhaseTree } = require('../lib/helpers');
+const { safeReadFile, cachedReadFile, findPhaseInternal, normalizePhaseName, parseMustHavesBlock, getArchivedPhaseDirs, getMilestoneInfo, getPhaseTree, getRuntimeFreshness } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, colorByPercent, progressBar, box } = require('../lib/format');
-const { getToolStatus } = require('../lib/cli-tools');
+const { refreshToolStatus } = require('../lib/cli-tools');
+const { createPlanMetadataContext } = require('../lib/plan-metadata');
+const { validateCommandIntegrity } = require('../lib/commandDiscovery');
+
+function getMissingMetadataMessage(sectionName) {
+  return `must_haves.${sectionName} metadata missing from frontmatter`;
+}
+
+function getInconclusiveMetadataMessage(sectionName) {
+  return `must_haves.${sectionName} metadata was present but yielded no actionable entries`;
+}
+
+function getPlanMetadataContext(cwd) {
+  return createPlanMetadataContext({ cwd });
+}
+
+function verifyArtifactEntries(context, artifacts) {
+  const results = [];
+  for (const artifact of artifacts) {
+    const evidence = context.workspace.get(artifact.path);
+    const check = { path: artifact.path, exists: evidence.exists, issues: [], passed: false };
+
+    if (evidence.exists) {
+      const fileContent = evidence.content || '';
+      const lineCount = fileContent.split('\n').length;
+
+      if (artifact.min_lines && lineCount < artifact.min_lines) {
+        check.issues.push(`Only ${lineCount} lines, need ${artifact.min_lines}`);
+      }
+      if (artifact.contains && !fileContent.includes(artifact.contains)) {
+        check.issues.push(`Missing pattern: ${artifact.contains}`);
+      }
+      if (artifact.exports) {
+        const exports = Array.isArray(artifact.exports) ? artifact.exports : [artifact.exports];
+        for (const exp of exports) {
+          if (!fileContent.includes(exp)) check.issues.push(`Missing export: ${exp}`);
+        }
+      }
+      check.passed = check.issues.length === 0;
+    } else {
+      check.issues.push('File not found');
+    }
+
+    results.push(check);
+  }
+  return results;
+}
+
+function verifyKeyLinkEntries(context, keyLinks) {
+  const results = [];
+  for (const link of keyLinks) {
+    const check = { from: link.from, to: link.to, via: link.via || '', verified: false, detail: '' };
+    const sourceEvidence = context.workspace.get(link.from || '', { includeContent: true });
+    const sourceContent = sourceEvidence.content;
+
+    if (!sourceContent) {
+      check.detail = 'Source file not found';
+    } else if (link.pattern) {
+      try {
+        const regex = new RegExp(link.pattern);
+        if (regex.test(sourceContent)) {
+          check.verified = true;
+          check.detail = 'Pattern found in source';
+        } else {
+          const targetEvidence = context.workspace.get(link.to || '', { includeContent: true });
+          const targetContent = targetEvidence.content;
+          if (targetContent && regex.test(targetContent)) {
+            check.verified = true;
+            check.detail = 'Pattern found in target';
+          } else {
+            check.detail = `Pattern "${link.pattern}" not found in source or target`;
+          }
+        }
+      } catch (e) {
+        debugLog('verify.keyLinks', 'read failed', e);
+        check.detail = `Invalid regex pattern: ${link.pattern}`;
+      }
+    } else if (sourceContent.includes(link.to || '')) {
+      check.verified = true;
+      check.detail = 'Target referenced in source';
+    } else {
+      check.detail = 'Target not referenced in source';
+    }
+
+    results.push(check);
+  }
+  return results;
+}
+
+function evaluateMustHavesDimension(cwd, planPath) {
+  const context = getPlanMetadataContext(cwd);
+  const metadata = context.getPlan(planPath);
+  const mustHaves = metadata.mustHaves || {};
+  const artifacts = mustHaves.artifacts || { status: 'missing', items: [] };
+  const keyLinks = mustHaves.keyLinks || { status: 'missing', items: [] };
+
+  if (mustHaves.status === 'missing' || (artifacts.status === 'missing' && keyLinks.status === 'missing')) {
+    return { score: null, detail: 'must_haves metadata missing', status: 'missing' };
+  }
+
+  const inconclusiveSections = [];
+  if (artifacts.status === 'inconclusive') inconclusiveSections.push('artifacts');
+  if (keyLinks.status === 'inconclusive') inconclusiveSections.push('key_links');
+  if (inconclusiveSections.length > 0) {
+    return {
+      score: 0,
+      detail: `must_haves metadata inconclusive: ${inconclusiveSections.join(', ')} yielded no actionable entries`,
+      status: 'inconclusive',
+    };
+  }
+
+  const artifactResults = verifyArtifactEntries(context, artifacts.items);
+  const linkResults = verifyKeyLinkEntries(context, keyLinks.items);
+  const total = artifactResults.length + linkResults.length;
+  const verified = artifactResults.filter((item) => item.passed).length + linkResults.filter((item) => item.verified).length;
+
+  if (total === 0) {
+    return {
+      score: 0,
+      detail: 'must_haves metadata inconclusive: no actionable artifacts or key_links found',
+      status: 'inconclusive',
+    };
+  }
+
+  return {
+    score: Math.round((verified / total) * 100),
+    detail: `${verified}/${total} verified`,
+    status: 'present',
+  };
+}
+
+function parseTaskFiles(filesBlock) {
+  if (!filesBlock) return [];
+  return filesBlock
+    .split('\n')
+    .map((file) => file.trim())
+    .filter(Boolean);
+}
+
+function parsePlanTasks(content) {
+  const taskPattern = /<task([^>]*)>([\s\S]*?)<\/task>/g;
+  const tasks = [];
+  let taskMatch;
+
+  while ((taskMatch = taskPattern.exec(content)) !== null) {
+    const attrs = taskMatch[1] || '';
+    const taskContent = taskMatch[2];
+    const nameMatch = taskContent.match(/<name>([\s\S]*?)<\/name>/);
+    const filesMatch = taskContent.match(/<files>([\s\S]*?)<\/files>/);
+    const actionMatch = taskContent.match(/<action>([\s\S]*?)<\/action>/);
+    const verifyMatch = taskContent.match(/<verify>([\s\S]*?)<\/verify>/);
+    const doneMatch = taskContent.match(/<done>([\s\S]*?)<\/done>/);
+
+    tasks.push({
+      type: (attrs.match(/type=["']([^"']+)["']/) || [])[1] || 'auto',
+      name: nameMatch ? nameMatch[1].trim() : 'unnamed',
+      files: parseTaskFiles(filesMatch ? filesMatch[1] : ''),
+      action: actionMatch ? actionMatch[1].trim() : '',
+      verify: verifyMatch ? verifyMatch[1].trim() : '',
+      done: doneMatch ? doneMatch[1].trim() : '',
+      hasFiles: Boolean(filesMatch),
+      hasAction: Boolean(actionMatch),
+      hasVerify: Boolean(verifyMatch),
+      hasDone: Boolean(doneMatch),
+    });
+  }
+
+  return tasks;
+}
+
+function walkWorkspaceFiles(rootPath, currentPath = rootPath, collected = []) {
+  if (!fs.existsSync(currentPath)) return collected;
+  const stat = fs.statSync(currentPath);
+  if (!stat.isDirectory()) {
+    collected.push(path.relative(rootPath, currentPath).replace(/\\/g, '/'));
+    return collected;
+  }
+
+  for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
+    if (entry.isDirectory() && ['.git', '.jj', 'node_modules'].includes(entry.name)) continue;
+    walkWorkspaceFiles(rootPath, path.join(currentPath, entry.name), collected);
+  }
+
+  return collected;
+}
+
+function hasGlobSyntax(candidate) {
+  return /[*?\[\]{}]/.test(candidate || '');
+}
+
+function globToRegex(pattern) {
+  const normalized = pattern.replace(/\\/g, '/');
+  let regex = '^';
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    if (char === '*') {
+      if (normalized[i + 1] === '*') {
+        regex += '.*';
+        i += 1;
+      } else {
+        regex += '[^/]*';
+      }
+    } else if (char === '?') {
+      regex += '.';
+    } else if ('\\.^$+()|{}'.includes(char)) {
+      regex += `\\${char}`;
+    } else {
+      regex += char;
+    }
+  }
+  regex += '$';
+  return new RegExp(regex);
+}
+
+function matchWorkspaceGlob(cwd, pattern) {
+  const matcher = globToRegex(pattern);
+  return walkWorkspaceFiles(cwd).filter((candidate) => matcher.test(candidate));
+}
+
+function cleanCommandToken(token) {
+  return token.replace(/^['"`]/, '').replace(/['"`,.;:)]$/, '').trim();
+}
+
+function extractCommandPathCandidates(command) {
+  if (!command) return [];
+  const tokens = command.match(/(?:"[^"]+"|'[^']+'|`[^`]+`|\S+)/g) || [];
+  const seen = new Set();
+  const paths = [];
+
+  for (const rawToken of tokens) {
+    const token = cleanCommandToken(rawToken);
+    if (!token || token.startsWith('-') || token.startsWith('$') || token.startsWith('http')) continue;
+    if (/^(node|nodejs|npm|pnpm|yarn|bun|npx|jj|git|bash|sh|python|python3|pytest|cargo|go|mix)$/.test(token)) continue;
+    if (!(/[\\/]/.test(token) || /\.[a-z0-9]+$/i.test(token))) continue;
+    if (!seen.has(token)) {
+      seen.add(token);
+      paths.push(token.replace(/^\.\//, ''));
+    }
+  }
+
+  return paths;
+}
+
+function analyzePlanRealism(cwd, fullPath, content, tasks, filesModified) {
+  const issues = [];
+  const warnings = [];
+  const touchedPaths = [];
+  const taskFileOrder = new Map();
+  const relativePlanPath = path.relative(cwd, fullPath).replace(/\\/g, '/');
+
+  const pushPathIssue = (severity, issue) => {
+    (severity === 'warning' ? warnings : issues).push(issue);
+  };
+
+  const validatePathReference = (filePath, source, taskName) => {
+    if (!filePath) return;
+    const normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '');
+    touchedPaths.push({ path: normalized, source, task: taskName || null });
+
+    if (hasGlobSyntax(normalized)) {
+      const matches = matchWorkspaceGlob(cwd, normalized);
+      if (matches.length === 0) {
+        pushPathIssue('blocker', {
+          kind: 'stale-path',
+          source,
+          task: taskName || null,
+          path: normalized,
+          message: `${source} references glob ${normalized} but it matches no files in the current repo`,
+        });
+      }
+      return;
+    }
+
+    const absolutePath = path.join(cwd, normalized);
+    if (fs.existsSync(absolutePath)) return;
+
+    const parentDir = path.dirname(absolutePath);
+    if (!fs.existsSync(parentDir)) {
+      pushPathIssue('blocker', {
+        kind: 'stale-path',
+        source,
+        task: taskName || null,
+        path: normalized,
+        message: `${source} references ${normalized} but parent directory ${path.relative(cwd, parentDir).replace(/\\/g, '/')} does not exist`,
+      });
+    }
+  };
+
+  for (const filePath of filesModified) validatePathReference(filePath, 'files_modified', null);
+
+  tasks.forEach((task, index) => {
+    for (const filePath of task.files) {
+      validatePathReference(filePath, 'task.files', task.name);
+      const normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '');
+      if (!taskFileOrder.has(normalized)) taskFileOrder.set(normalized, index);
+    }
+  });
+
+  const commandValidation = validateCommandIntegrity({
+    cwd,
+    surfaces: [{ surface: 'plan', path: relativePlanPath, content }],
+  });
+  for (const commandIssue of commandValidation.issues) {
+    issues.push({
+      kind: commandIssue.kind,
+      source: 'commands',
+      task: null,
+      command: commandIssue.command,
+      message: commandIssue.message,
+      suggestion: commandIssue.suggestion || null,
+      line: commandIssue.line,
+    });
+  }
+
+  tasks.forEach((task, index) => {
+    const verifyPaths = extractCommandPathCandidates(task.verify);
+    for (const verifyPath of verifyPaths) {
+      if (hasGlobSyntax(verifyPath)) {
+        const matches = matchWorkspaceGlob(cwd, verifyPath);
+        if (matches.length === 0) {
+          issues.push({
+            kind: 'unavailable-validation-step',
+            source: 'task.verify',
+            task: task.name,
+            path: verifyPath,
+            message: `Task verify command references ${verifyPath}, but it matches no files in the current repo`,
+          });
+        }
+        continue;
+      }
+
+      const normalized = verifyPath.replace(/\\/g, '/').replace(/^\.\//, '');
+      const absolutePath = path.join(cwd, normalized);
+      if (fs.existsSync(absolutePath)) continue;
+
+      const producerIndex = taskFileOrder.get(normalized);
+      if (producerIndex !== undefined && producerIndex > index) {
+        issues.push({
+          kind: 'task-order-verification-hazard',
+          source: 'task.verify',
+          task: task.name,
+          path: normalized,
+          message: `Task verify command depends on ${normalized}, but that file is only created in a later task`,
+          producer_task: tasks[producerIndex].name,
+        });
+      } else if (producerIndex === undefined) {
+        issues.push({
+          kind: 'unavailable-validation-step',
+          source: 'task.verify',
+          task: task.name,
+          path: normalized,
+          message: `Task verify command references ${normalized}, but the file is unavailable in the current repo or plan`,
+        });
+      }
+    }
+  });
+
+  return { issues, warnings, touchedPaths };
+}
 
 function cmdVerifyPlanStructure(cwd, filePath, raw) {
   if (!filePath) { error('file path required'); }
@@ -18,6 +376,8 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
   const fm = extractFrontmatter(content);
   const errors = [];
   const warnings = [];
+  const planMetadata = getPlanMetadataContext(cwd).getPlan(fullPath);
+  const mustHaves = planMetadata.mustHaves || { status: 'missing' };
 
   // Check required frontmatter fields
   const required = ['phase', 'plan', 'type', 'wave', 'depends_on', 'files_modified', 'autonomous', 'must_haves'];
@@ -26,25 +386,13 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
   }
 
   // Parse and check task elements
-  const taskPattern = /<task[^>]*>([\s\S]*?)<\/task>/g;
-  const tasks = [];
-  let taskMatch;
-  while ((taskMatch = taskPattern.exec(content)) !== null) {
-    const taskContent = taskMatch[1];
-    const nameMatch = taskContent.match(/<name>([\s\S]*?)<\/name>/);
-    const taskName = nameMatch ? nameMatch[1].trim() : 'unnamed';
-    const hasFiles = /<files>/.test(taskContent);
-    const hasAction = /<action>/.test(taskContent);
-    const hasVerify = /<verify>/.test(taskContent);
-    const hasDone = /<done>/.test(taskContent);
-
-    if (!nameMatch) errors.push('Task missing <name> element');
-    if (!hasAction) errors.push(`Task '${taskName}' missing <action>`);
-    if (!hasVerify) warnings.push(`Task '${taskName}' missing <verify>`);
-    if (!hasDone) warnings.push(`Task '${taskName}' missing <done>`);
-    if (!hasFiles) warnings.push(`Task '${taskName}' missing <files>`);
-
-    tasks.push({ name: taskName, hasFiles, hasAction, hasVerify, hasDone });
+  const tasks = parsePlanTasks(content);
+  for (const task of tasks) {
+    if (task.name === 'unnamed') errors.push('Task missing <name> element');
+    if (!task.hasAction) errors.push(`Task '${task.name}' missing <action>`);
+    if (!task.hasVerify) warnings.push(`Task '${task.name}' missing <verify>`);
+    if (!task.hasDone) warnings.push(`Task '${task.name}' missing <done>`);
+    if (!task.hasFiles) warnings.push(`Task '${task.name}' missing <files>`);
   }
 
   if (tasks.length === 0) warnings.push('No <task> elements found');
@@ -85,6 +433,29 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     if (reqEmpty) {
       templateCompliance.type_issues.push('requirements is empty — every plan should map to requirements');
     }
+  }
+
+  // Semantic must_haves validation for verifier-facing approval gates
+  const metadataIssues = [];
+  const artifacts = mustHaves.artifacts || { status: 'missing' };
+  const keyLinks = mustHaves.keyLinks || { status: 'missing' };
+  if (fm.must_haves !== undefined) {
+    if (mustHaves.status === 'inconclusive') {
+      metadataIssues.push('must_haves metadata is present but not verifier-consumable');
+    }
+    if (artifacts.status === 'inconclusive') {
+      metadataIssues.push(getInconclusiveMetadataMessage('artifacts'));
+    }
+    if (keyLinks.status === 'inconclusive') {
+      metadataIssues.push(getInconclusiveMetadataMessage('key_links'));
+    }
+    if (artifacts.status === 'missing' && keyLinks.status === 'missing') {
+      metadataIssues.push('must_haves verifier-facing metadata needs actionable artifacts or key_links for approval');
+    }
+  }
+  for (const issue of metadataIssues) {
+    errors.push(issue);
+    templateCompliance.type_issues.push(issue);
   }
 
   // TDD type: check for <feature> block
@@ -233,51 +604,25 @@ function cmdVerifyCommits(cwd, hashes, raw) {
 function cmdVerifyArtifacts(cwd, planFilePath, raw) {
   if (!planFilePath) { error('plan file path required'); }
   const fullPath = path.isAbsolute(planFilePath) ? planFilePath : path.join(cwd, planFilePath);
-  const content = safeReadFile(fullPath);
-  if (!content) { output({ error: 'File not found', path: planFilePath }, raw); return; }
+  const context = getPlanMetadataContext(cwd);
+  const metadata = context.getPlan(fullPath);
+  if (!metadata.content) { output({ error: 'File not found', path: planFilePath }, raw); return; }
 
-  const artifacts = parseMustHavesBlock(content, 'artifacts');
-  if (artifacts.length === 0) {
-    output({ error: 'No must_haves.artifacts found in frontmatter', path: planFilePath }, raw);
+  const artifacts = metadata.mustHaves?.artifacts || { status: 'missing', items: [] };
+  if (artifacts.status === 'missing') {
+    output({ status: 'missing', error: getMissingMetadataMessage('artifacts'), path: planFilePath, total: 0, artifacts: [] }, raw, 'invalid');
+    return;
+  }
+  if (artifacts.status === 'inconclusive') {
+    output({ status: 'inconclusive', error: getInconclusiveMetadataMessage('artifacts'), path: planFilePath, total: 0, artifacts: [] }, raw, 'invalid');
     return;
   }
 
-  const results = [];
-  for (const artifact of artifacts) {
-    if (typeof artifact === 'string') continue; // skip simple string items
-    const artPath = artifact.path;
-    if (!artPath) continue;
-
-    const artFullPath = path.join(cwd, artPath);
-    const exists = fs.existsSync(artFullPath);
-    const check = { path: artPath, exists, issues: [], passed: false };
-
-    if (exists) {
-      const fileContent = safeReadFile(artFullPath) || '';
-      const lineCount = fileContent.split('\n').length;
-
-      if (artifact.min_lines && lineCount < artifact.min_lines) {
-        check.issues.push(`Only ${lineCount} lines, need ${artifact.min_lines}`);
-      }
-      if (artifact.contains && !fileContent.includes(artifact.contains)) {
-        check.issues.push(`Missing pattern: ${artifact.contains}`);
-      }
-      if (artifact.exports) {
-        const exports = Array.isArray(artifact.exports) ? artifact.exports : [artifact.exports];
-        for (const exp of exports) {
-          if (!fileContent.includes(exp)) check.issues.push(`Missing export: ${exp}`);
-        }
-      }
-      check.passed = check.issues.length === 0;
-    } else {
-      check.issues.push('File not found');
-    }
-
-    results.push(check);
-  }
+  const results = verifyArtifactEntries(context, artifacts.items);
 
   const passed = results.filter(r => r.passed).length;
   output({
+    status: 'present',
     all_passed: passed === results.length,
     passed,
     total: results.length,
@@ -288,57 +633,25 @@ function cmdVerifyArtifacts(cwd, planFilePath, raw) {
 function cmdVerifyKeyLinks(cwd, planFilePath, raw) {
   if (!planFilePath) { error('plan file path required'); }
   const fullPath = path.isAbsolute(planFilePath) ? planFilePath : path.join(cwd, planFilePath);
-  const content = safeReadFile(fullPath);
-  if (!content) { output({ error: 'File not found', path: planFilePath }, raw); return; }
+  const context = getPlanMetadataContext(cwd);
+  const metadata = context.getPlan(fullPath);
+  if (!metadata.content) { output({ error: 'File not found', path: planFilePath }, raw); return; }
 
-  const keyLinks = parseMustHavesBlock(content, 'key_links');
-  if (keyLinks.length === 0) {
-    output({ error: 'No must_haves.key_links found in frontmatter', path: planFilePath }, raw);
+  const keyLinks = metadata.mustHaves?.keyLinks || { status: 'missing', items: [] };
+  if (keyLinks.status === 'missing') {
+    output({ status: 'missing', error: getMissingMetadataMessage('key_links'), path: planFilePath, total: 0, links: [] }, raw, 'invalid');
+    return;
+  }
+  if (keyLinks.status === 'inconclusive') {
+    output({ status: 'inconclusive', error: getInconclusiveMetadataMessage('key_links'), path: planFilePath, total: 0, links: [] }, raw, 'invalid');
     return;
   }
 
-  const results = [];
-  for (const link of keyLinks) {
-    if (typeof link === 'string') continue;
-    const check = { from: link.from, to: link.to, via: link.via || '', verified: false, detail: '' };
-
-    const sourceContent = safeReadFile(path.join(cwd, link.from || ''));
-    if (!sourceContent) {
-      check.detail = 'Source file not found';
-    } else if (link.pattern) {
-      try {
-        const regex = new RegExp(link.pattern);
-        if (regex.test(sourceContent)) {
-          check.verified = true;
-          check.detail = 'Pattern found in source';
-        } else {
-          const targetContent = safeReadFile(path.join(cwd, link.to || ''));
-          if (targetContent && regex.test(targetContent)) {
-            check.verified = true;
-            check.detail = 'Pattern found in target';
-          } else {
-            check.detail = `Pattern "${link.pattern}" not found in source or target`;
-          }
-        }
-      } catch (e) {
-        debugLog('verify.keyLinks', 'read failed', e);
-        check.detail = `Invalid regex pattern: ${link.pattern}`;
-      }
-    } else {
-      // No pattern: just check source references target
-      if (sourceContent.includes(link.to || '')) {
-        check.verified = true;
-        check.detail = 'Target referenced in source';
-      } else {
-        check.detail = 'Target not referenced in source';
-      }
-    }
-
-    results.push(check);
-  }
+  const results = verifyKeyLinkEntries(context, keyLinks.items);
 
   const verified = results.filter(r => r.verified).length;
   output({
+    status: 'present',
     all_verified: verified === results.length,
     verified,
     total: results.length,
@@ -665,12 +978,15 @@ function cmdValidateHealth(cwd, options, raw) {
   // Tool availability section
   const toolAvailability = [];
   try {
-    const toolStatus = getToolStatus();
+    const toolStatus = refreshToolStatus();
     const TOOL_PROJECT_URLS = {
       ripgrep: 'https://github.com/BurntSushi/ripgrep',
       fd: 'https://github.com/sharkdp/fd',
       jq: 'https://jqlang.github.io/jq/',
       yq: 'https://github.com/mikefarah/yq',
+      ast_grep: 'https://ast-grep.github.io/',
+      sd: 'https://github.com/chmln/sd',
+      hyperfine: 'https://github.com/sharkdp/hyperfine',
       bat: 'https://github.com/sharkdp/bat',
       gh: 'https://cli.github.com/'
     };
@@ -713,19 +1029,12 @@ function cmdAnalyzePlan(cwd, planPath, raw) {
     : path.basename(planPath, '.md').replace(/-PLAN$/i, '');
 
   // Parse task blocks
-  const taskPattern = /<task[^>]*>([\s\S]*?)<\/task>/g;
-  const tasks = [];
-  let taskMatch;
-  while ((taskMatch = taskPattern.exec(content)) !== null) {
-    const taskContent = taskMatch[1];
-    const nameMatch = taskContent.match(/<name>([\s\S]*?)<\/name>/);
-    const filesMatch = taskContent.match(/<files>([\s\S]*?)<\/files>/);
-    const taskName = nameMatch ? nameMatch[1].trim() : 'unnamed';
-    const taskFiles = filesMatch
-      ? filesMatch[1].split('\n').map(f => f.trim()).filter(f => f.length > 0)
+  const tasks = parsePlanTasks(content).map((task) => ({ name: task.name, files: task.files, verify: task.verify }));
+  const filesModified = Array.isArray(fm.files_modified)
+    ? fm.files_modified.map((file) => String(file).trim()).filter(Boolean)
+    : fm.files_modified
+      ? [String(fm.files_modified).trim()].filter(Boolean)
       : [];
-    tasks.push({ name: taskName, files: taskFiles });
-  }
 
   // Collect all files and directories
   const allFiles = [];
@@ -832,6 +1141,24 @@ function cmdAnalyzePlan(cwd, planPath, raw) {
   if (dirCount > 5) flags.push('high_directory_spread');
   if (concernCount > 3) flags.push('many_concerns');
 
+  const realism = analyzePlanRealism(cwd, fullPath, content, tasks, filesModified);
+  const realismIssues = [...realism.issues];
+  const realismWarnings = [...realism.warnings];
+
+  if (taskCount >= 5 || srScore <= 2 || concernCount >= 4) {
+    realismIssues.push({
+      kind: 'overscoped-plan',
+      source: 'analyze-plan',
+      message: `Plan scope is likely too large for approval-time execution safety (score ${srScore}, ${taskCount} tasks, ${concernCount} concerns)`,
+    });
+  } else if (taskCount === 4 || srScore === 3) {
+    realismWarnings.push({
+      kind: 'overscope-risk',
+      source: 'analyze-plan',
+      message: `Plan scope is borderline and may need a split before execution (score ${srScore}, ${taskCount} tasks)`,
+    });
+  }
+
   output({
     plan: planId,
     sr_score: srScore,
@@ -843,6 +1170,11 @@ function cmdAnalyzePlan(cwd, planPath, raw) {
     directories_touched: dirCount,
     split_suggestion: splitSuggestion,
     flags,
+    files_modified: filesModified,
+    approval_ready: realismIssues.length === 0,
+    issues: realismIssues,
+    warnings: realismWarnings,
+    touched_paths: realism.touchedPaths,
   }, raw);
 }
 
@@ -931,38 +1263,39 @@ function cmdVerifyDeliverables(cwd, options, raw) {
   // If plan provided, verify artifacts and key_links too
   let artifactsOk = true;
   let keyLinksOk = true;
+  let artifactChecks = [];
+  let keyLinkChecks = [];
+  let runtimeFreshness = null;
   if (options && options.plan) {
     const planPath = path.isAbsolute(options.plan) ? options.plan : path.join(cwd, options.plan);
     const planContent = safeReadFile(planPath);
     if (planContent) {
-      const artifacts = parseMustHavesBlock(planContent, 'artifacts');
-      if (artifacts.length > 0) {
-        for (const artifact of artifacts) {
-          if (typeof artifact === 'string') continue;
-          const artPath = artifact.path;
-          if (!artPath) continue;
-          if (!fs.existsSync(path.join(cwd, artPath))) {
-            artifactsOk = false;
-            break;
-          }
-        }
+      const frontmatter = extractFrontmatter(planContent);
+      const filesModified = Array.isArray(frontmatter.files_modified)
+        ? frontmatter.files_modified
+        : frontmatter.files_modified
+          ? [frontmatter.files_modified]
+          : [];
+      const context = getPlanMetadataContext(cwd);
+      const metadata = context.getPlan(planPath);
+      const artifacts = metadata.mustHaves?.artifacts;
+      if (artifacts?.status === 'present') {
+        artifactChecks = verifyArtifactEntries(context, artifacts.items);
+        artifactsOk = artifactChecks.every((artifact) => artifact.passed);
       }
 
-      const keyLinks = parseMustHavesBlock(planContent, 'key_links');
-      if (keyLinks.length > 0) {
-        for (const link of keyLinks) {
-          if (typeof link === 'string') continue;
-          const sourceContent = safeReadFile(path.join(cwd, link.from || ''));
-          if (!sourceContent) {
-            keyLinksOk = false;
-            break;
-          }
-        }
+      const keyLinks = metadata.mustHaves?.keyLinks;
+      if (keyLinks?.status === 'present') {
+        keyLinkChecks = verifyKeyLinkEntries(context, keyLinks.items);
+        keyLinksOk = keyLinkChecks.every((link) => link.verified);
       }
+
+      runtimeFreshness = getRuntimeFreshness(cwd, filesModified);
     }
   }
 
-  const verdict = testResult === 'pass' && artifactsOk && keyLinksOk ? 'pass' : 'fail';
+  const runtimeOk = !runtimeFreshness || !runtimeFreshness.checked || !runtimeFreshness.stale;
+  const verdict = testResult === 'pass' && artifactsOk && keyLinksOk && runtimeOk ? 'pass' : 'fail';
 
   output({
     test_result: testResult,
@@ -972,6 +1305,9 @@ function cmdVerifyDeliverables(cwd, options, raw) {
     framework,
     artifacts_ok: artifactsOk,
     key_links_ok: keyLinksOk,
+    artifact_checks: artifactChecks,
+    key_link_checks: keyLinkChecks,
+    runtime_freshness: runtimeFreshness,
     verdict,
   }, raw, verdict);
 }
@@ -1847,54 +2183,9 @@ function cmdVerifyQuality(cwd, options, raw) {
     const planContent = safeReadFile(fullPlanPath);
 
     if (planContent) {
-      const artifacts = parseMustHavesBlock(planContent, 'artifacts');
-      const keyLinks = parseMustHavesBlock(planContent, 'key_links');
-      let total = 0;
-      let verified = 0;
-
-      // Check artifacts
-      for (const artifact of artifacts) {
-        if (typeof artifact === 'string') continue;
-        if (!artifact.path) continue;
-        total++;
-        const artFullPath = path.join(cwd, artifact.path);
-        if (fs.existsSync(artFullPath)) {
-          let ok = true;
-          if (artifact.contains) {
-            const fileContent = safeReadFile(artFullPath) || '';
-            if (!fileContent.includes(artifact.contains)) ok = false;
-          }
-          if (ok) verified++;
-        }
-      }
-
-      // Check key_links
-      for (const link of keyLinks) {
-        if (typeof link === 'string') continue;
-        total++;
-        const sourceContent = safeReadFile(path.join(cwd, link.from || ''));
-        if (sourceContent) {
-          if (link.pattern) {
-            try {
-              const regex = new RegExp(link.pattern);
-              if (regex.test(sourceContent)) {
-                verified++;
-              }
-            } catch (e) {
-              debugLog('verify.quality', 'regex failed', e);
-            }
-          } else {
-            verified++;
-          }
-        }
-      }
-
-      if (total > 0) {
-        mustHavesScore = Math.round((verified / total) * 100);
-        mustHavesDetail = `${verified}/${total} verified`;
-      } else {
-        mustHavesDetail = 'no must_haves defined';
-      }
+      const mustHaves = evaluateMustHavesDimension(cwd, fullPlanPath);
+      mustHavesScore = mustHaves.score;
+      mustHavesDetail = mustHaves.detail;
     } else {
       mustHavesDetail = 'plan file not found';
     }
@@ -2456,7 +2747,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Dependencies and constraints',
           'Execution strategy notes',
           'available_tools (array of tool name strings)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'All tasks have clear verification criteria',
@@ -2474,7 +2765,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Source quality and confidence levels',
           'Applicability notes for current environment',
           'available_tools (array of tool name strings)',
-          'capability_level (HIGH/MEDIUM/LOW)',
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)',
           'Tool-specific research notes'
         ],
         preconditions: [
@@ -2493,7 +2784,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Test results and pass/fail status',
           'Files created and modified',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'All tasks committed',
@@ -2510,7 +2801,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Partial completion status',
           'Deviation log from planned tasks',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'Execution attempt was made',
@@ -2528,7 +2819,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Affected files and components',
           'Attempted fixes and results',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'Error has been observed',
@@ -2545,7 +2836,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Failed criteria with details',
           'Gap list for remediation',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'Verification was run against completed work',
@@ -2562,7 +2853,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Research questions to answer',
           'Scope boundaries and constraints',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'Phase goals are defined',
@@ -2579,7 +2870,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Failing tests with output',
           'Reproduction steps from execution',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'Error is reproducible',
@@ -2596,7 +2887,7 @@ function cmdVerifyHandoff(cwd, options, raw) {
           'Root cause analysis',
           'Affected files and line ranges',
           'tool_count (integer)',
-          'capability_level (HIGH/MEDIUM/LOW)'
+          'capability_level (HIGH/MEDIUM/LOW/UNKNOWN)'
         ],
         preconditions: [
           'Root cause identified',

@@ -277,6 +277,24 @@ This phase covers:
     assert.strictEqual(output.error, 'malformed_roadmap', 'should identify malformed roadmap');
     assert.ok(output.message.includes('missing'), 'should explain the issue');
   });
+
+  test('normalizes legacy TDD hint values and persists rewrite on read', () => {
+    const roadmapPath = path.join(tmpDir, '.planning', 'ROADMAP.md');
+    fs.writeFileSync(
+      roadmapPath,
+      `# Roadmap\n\n### Phase 1: Foundation\n**Goal:** Set up project\n**TDD:** true\n`
+    );
+
+    const result = runGsdTools('plan:roadmap get-phase 1', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.tdd, 'recommended', 'legacy boolean hint should normalize to recommended');
+
+    const rewritten = fs.readFileSync(roadmapPath, 'utf-8');
+    assert.ok(rewritten.includes('**TDD:** recommended'), 'ROADMAP should be rewritten with canonical TDD hint');
+    assert.ok(!rewritten.includes('**TDD:** true'), 'legacy hint should be removed from disk');
+  });
 });
 
 describe('phase next-decimal command', () => {
@@ -501,12 +519,234 @@ objective: Manual review needed
     assert.strictEqual(output.plans[0].autonomous, false, 'plan marked non-autonomous');
   });
 
+  test('uses cached plan rows on the hot path', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    const planPath = path.join(phaseDir, '03-01-PLAN.md');
+    fs.writeFileSync(
+      planPath,
+      `---
+phase: 03-api
+plan: 01
+wave: 1
+autonomous: true
+objective: Cached plan read
+files-modified: [src/commands/misc.js]
+---
+
+## Task 1: Seed cache
+`
+    );
+
+    const first = runGsdTools('util:phase-plan-index 03', tmpDir);
+    assert.ok(first.success, `Initial command failed: ${first.error}`);
+
+    let second;
+    try {
+      fs.chmodSync(planPath, 0o000);
+      second = runGsdTools('util:phase-plan-index 03', tmpDir);
+    } finally {
+      fs.chmodSync(planPath, 0o644);
+    }
+
+    assert.ok(second.success, `Cached command failed: ${second.error}`);
+    const output = JSON.parse(second.output);
+    assert.strictEqual(output.plans.length, 1, 'should still return cached plan');
+    assert.strictEqual(output.plans[0].objective, 'Cached plan read', 'cached objective preserved');
+    assert.strictEqual(output.plans[0].task_count, 1, 'cached task count preserved');
+  });
+
+  test('rebuilds stale cache entries from source edits', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    const planPath = path.join(phaseDir, '03-01-PLAN.md');
+    fs.writeFileSync(
+      planPath,
+      `---
+phase: 03-api
+plan: 01
+wave: 1
+autonomous: true
+objective: Original plan
+---
+
+## Task 1: Original
+`
+    );
+
+    const first = runGsdTools('util:phase-plan-index 03', tmpDir);
+    assert.ok(first.success, `Initial command failed: ${first.error}`);
+
+    fs.writeFileSync(
+      planPath,
+      `---
+phase: 03-api
+plan: 01
+wave: 2
+autonomous: false
+objective: Updated plan
+---
+
+## Task 1: Updated
+## Task 2: Rebuilt
+`
+    );
+    const future = new Date(Date.now() + 2000);
+    fs.utimesSync(planPath, future, future);
+
+    const second = runGsdTools('util:phase-plan-index 03', tmpDir);
+    assert.ok(second.success, `Stale rebuild failed: ${second.error}`);
+
+    const output = JSON.parse(second.output);
+    assert.strictEqual(output.plans[0].wave, 2, 'stale plan should rebuild updated wave');
+    assert.strictEqual(output.plans[0].autonomous, false, 'stale plan should rebuild updated autonomy');
+    assert.strictEqual(output.plans[0].objective, 'Updated plan', 'stale plan should rebuild updated objective');
+    assert.strictEqual(output.plans[0].task_count, 2, 'stale plan should rebuild updated task count');
+    assert.strictEqual(output.has_checkpoints, true, 'rebuilt checkpoint metadata should propagate');
+  });
+
+  test('falls back to markdown parsing when sqlite cache is unavailable', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', '.cache.db'), { recursive: true });
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '03-01-PLAN.md'),
+      `---
+wave: 1
+autonomous: true
+objective: Map fallback
+---
+
+## Task 1: Parse markdown
+`
+    );
+
+    const result = runGsdTools('util:phase-plan-index 03', tmpDir);
+    assert.ok(result.success, `Map fallback command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.plans.length, 1, 'markdown fallback should still return plan data');
+    assert.strictEqual(output.plans[0].objective, 'Map fallback', 'fallback objective parsed from markdown');
+    assert.strictEqual(output.plans[0].task_count, 1, 'fallback task count parsed from markdown');
+  });
+
   test('phase not found returns error', () => {
     const result = runGsdTools('util:phase-plan-index 99', tmpDir);
     assert.ok(result.success, `Command should succeed: ${result.error}`);
 
     const output = JSON.parse(result.output);
     assert.strictEqual(output.error, 'Phase not found', 'should report phase not found');
+  });
+});
+
+describe('phase:snapshot command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+### Phase 3: API
+**Goal:** Deliver snapshot payload
+**Requirements:** FLOW-01, FLOW-03
+
+### Phase 4: Roadmap Only
+**Goal:** Exists before directory
+**Requirements:** FLOW-99
+`
+    );
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('returns rich snapshot for a normal phase', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '03-CONTEXT.md'), '# Context');
+    fs.writeFileSync(path.join(phaseDir, '03-RESEARCH.md'), '# Research');
+    fs.writeFileSync(path.join(phaseDir, '03-01-SUMMARY.md'), '# Summary');
+    fs.writeFileSync(
+      path.join(phaseDir, '03-01-PLAN.md'),
+      `---
+wave: 1
+autonomous: true
+objective: Ship snapshot
+files-modified: [src/lib/helpers.js, src/commands/phase.js]
+---
+
+## Task 1: Build snapshot
+`
+    );
+    fs.writeFileSync(
+      path.join(phaseDir, '03-02-PLAN.md'),
+      `---
+wave: 2
+autonomous: false
+objective: Manual verify snapshot
+---
+
+## Task 1: Verify
+`
+    );
+
+    const result = runGsdTools('phase:snapshot 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, true);
+    assert.strictEqual(output.metadata.number, '03');
+    assert.strictEqual(output.metadata.name, 'API');
+    assert.deepStrictEqual(output.requirements, ['FLOW-01', 'FLOW-03']);
+    assert.strictEqual(output.artifacts.context, '.planning/phases/03-api/03-CONTEXT.md');
+    assert.strictEqual(output.artifacts.research, '.planning/phases/03-api/03-RESEARCH.md');
+    assert.deepStrictEqual(output.artifacts.plans, [
+      '.planning/phases/03-api/03-01-PLAN.md',
+      '.planning/phases/03-api/03-02-PLAN.md',
+    ]);
+    assert.strictEqual(output.plan_index.plans.length, 2);
+    assert.deepStrictEqual(output.plan_index.waves, { '1': ['03-01'], '2': ['03-02'] });
+    assert.deepStrictEqual(output.plan_index.incomplete, ['03-02']);
+    assert.strictEqual(output.plan_index.has_checkpoints, true);
+    assert.strictEqual(output.execution_context.plan_count, 2);
+    assert.strictEqual(output.execution_context.summary_count, 1);
+  });
+
+  test('returns empty-but-structured snapshot for empty phase directory', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-api'), { recursive: true });
+
+    const result = runGsdTools('phase:snapshot 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, true);
+    assert.deepStrictEqual(output.requirements, ['FLOW-01', 'FLOW-03']);
+    assert.deepStrictEqual(output.artifacts.plans, []);
+    assert.deepStrictEqual(output.plan_index.plans, []);
+    assert.deepStrictEqual(output.plan_index.waves, {});
+    assert.deepStrictEqual(output.plan_index.incomplete, []);
+    assert.strictEqual(output.metadata.roadmap_only, false);
+  });
+
+  test('falls back to roadmap metadata when phase directory is missing', () => {
+    const result = runGsdTools('phase:snapshot 04', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, true);
+    assert.strictEqual(output.metadata.number, '04');
+    assert.strictEqual(output.metadata.name, 'Roadmap Only');
+    assert.strictEqual(output.metadata.roadmap_only, true);
+    assert.deepStrictEqual(output.requirements, ['FLOW-99']);
+    assert.strictEqual(output.artifacts.phase_dir, null);
+    assert.deepStrictEqual(output.plan_index.plans, []);
+    assert.strictEqual(output.roadmap.found, true);
   });
 });
 
@@ -594,6 +834,146 @@ describe('roadmap analyze command', () => {
     assert.strictEqual(output.phases[0].depends_on, 'Nothing');
     assert.strictEqual(output.phases[1].goal, 'Build features');
     assert.strictEqual(output.phases[1].depends_on, 'Phase 1');
+  });
+});
+
+describe('plan realism analysis', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.mkdirSync(path.join(tmpDir, 'src', 'commands'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'commands', 'verify.js'), 'module.exports = {};\n');
+    fs.writeFileSync(path.join(tmpDir, 'tests', 'verify.test.cjs'), 'test');
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('flags stale runnable commands, stale paths, and unavailable validation files before approval', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const planPath = path.join(phaseDir, '01-01-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: 01-test
+plan: 01
+type: execute
+wave: 1
+depends_on: []
+files_modified:
+  - src/commands/verify.js
+  - moved/old-path.js
+autonomous: true
+requirements: [PLAN-02]
+must_haves:
+  artifacts:
+    - path: src/commands/verify.js
+---
+
+<task type="auto">
+  <name>Task 1: stale guidance</name>
+  <files>src/commands/verify.js
+tests/verify.test.cjs
+ghost/missing.js</files>
+  <action>Keep stale runnable guidance out of approval-ready plans</action>
+  <verify>node bin/bgsd-tools.cjs fake:missing && node --test tests/missing.test.cjs</verify>
+  <done>Blocked before approval</done>
+</task>
+`);
+
+    const result = runGsdTools(`verify:verify analyze-plan ${planPath} --raw`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.approval_ready, false, 'plan should not be approval-ready');
+    assert.ok(output.issues.some(issue => issue.kind === 'nonexistent-command'), 'stale CLI guidance should be rejected');
+    assert.ok(output.issues.some(issue => issue.kind === 'stale-path' && issue.path === 'moved/old-path.js'), 'missing files_modified path should be rejected');
+    assert.ok(output.issues.some(issue => issue.kind === 'stale-path' && issue.path === 'ghost/missing.js'), 'missing task file path should be rejected');
+    assert.ok(output.issues.some(issue => issue.kind === 'unavailable-validation-step' && issue.path === 'tests/missing.test.cjs'), 'missing verify file should be rejected');
+  });
+
+  test('flags verification commands that depend on later-created artifacts and overscoped plans', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const planPath = path.join(phaseDir, '01-02-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: 01-test
+plan: 02
+type: execute
+wave: 1
+depends_on: []
+files_modified:
+  - src/commands/verify.js
+  - tests/generated.test.cjs
+  - docs/guide.md
+  - infra/pipeline.yml
+  - web/page.tsx
+  - api/routes.js
+autonomous: true
+requirements: [PLAN-03]
+must_haves:
+  artifacts:
+    - path: src/commands/verify.js
+---
+
+<task type="auto">
+  <name>Task 1: implementation</name>
+  <files>src/commands/verify.js</files>
+  <action>Implement command</action>
+  <verify>node --test tests/generated.test.cjs</verify>
+  <done>Implementation wired</done>
+</task>
+
+<task type="auto">
+  <name>Task 2: tests</name>
+  <files>tests/generated.test.cjs</files>
+  <action>Add generated tests</action>
+  <verify>node --test tests/generated.test.cjs</verify>
+  <done>Tests written</done>
+</task>
+
+<task type="auto">
+  <name>Task 3: docs</name>
+  <files>docs/guide.md</files>
+  <action>Write docs</action>
+  <verify>node --test tests/verify.test.cjs</verify>
+  <done>Docs written</done>
+</task>
+
+<task type="auto">
+  <name>Task 4: infra</name>
+  <files>infra/pipeline.yml</files>
+  <action>Update infra</action>
+  <verify>node --test tests/verify.test.cjs</verify>
+  <done>Infra updated</done>
+</task>
+
+<task type="auto">
+  <name>Task 5: ui</name>
+  <files>web/page.tsx</files>
+  <action>Update page</action>
+  <verify>node --test tests/verify.test.cjs</verify>
+  <done>UI updated</done>
+</task>
+
+<task type="auto">
+  <name>Task 6: api</name>
+  <files>api/routes.js</files>
+  <action>Update api</action>
+  <verify>node --test tests/verify.test.cjs</verify>
+  <done>API updated</done>
+</task>
+`);
+
+    const result = runGsdTools(`verify:verify analyze-plan ${planPath} --raw`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok(output.issues.some(issue => issue.kind === 'task-order-verification-hazard' && issue.path === 'tests/generated.test.cjs'), 'verify command should not depend on a later task artifact');
+    assert.ok(output.issues.some(issue => issue.kind === 'overscoped-plan'), 'overscoped plans should be surfaced before approval');
+    assert.strictEqual(output.approval_ready, false, 'overscoped risky plan should not be approval-ready');
   });
 });
 
@@ -1375,4 +1755,3 @@ describe('validate consistency command', () => {
     );
   });
 });
-

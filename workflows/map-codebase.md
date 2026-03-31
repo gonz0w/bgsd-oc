@@ -11,7 +11,7 @@ Read all execution_context files before starting.
 <!-- section: init_context -->
 <skill:bgsd-context-init />
 
-Extract from `<bgsd-context>` JSON: `mapper_model`, `commit_docs`, `codebase_dir`, `existing_maps`, `has_maps`, `codebase_dir_exists`, `tool_availability`, `capability_level` (from `handoff_tool_context.capability_level`).
+Extract from `<bgsd-context>` JSON: `mapper_model`, `commit_docs`, `codebase_dir`, `existing_maps`, `has_maps`, `codebase_dir_exists`, `tool_availability`, `tool_availability_meta`, `capability_level` (from `handoff_tool_context.capability_level`, may be `UNKNOWN`).
 <!-- /section -->
 
 <!-- section: check_existing -->
@@ -47,6 +47,11 @@ Build `TOOL_GUIDANCE` from `tool_availability` before spawning:
 Tool capability: {capability_level}.
 {If fd available: "File discovery: fd -e ts -e tsx -e js -e jsx"}
 {If ripgrep available: "Content search: rg 'pattern' --type ts"}
+{If ast_grep available: "Structural code search: sg --pattern 'pattern' src/"}
+{If jq available: "JSON transform: jq '<filter>' file.json"}
+{If yq available: "YAML transform: yq '<expr>' file.yaml"}
+{If sd available: "Text replacement: sd 'before' 'after' <files>"}
+{If hyperfine available: "Benchmarking: hyperfine '<cmd1>' '<cmd2>'"}
 {If neither fd nor ripgrep: "Use Glob and Grep MCP tools for file discovery and content search"}
 ```
 

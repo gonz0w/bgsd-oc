@@ -8,8 +8,20 @@ const { banner, formatTable, summaryLine, actionHint, color, SYMBOLS, relativeTi
 const { VALID_TRAJECTORY_SCOPES } = require('../lib/constants');
 const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
+const { mutateJsonStore } = require('../lib/json-store-mutator');
 
-function _dualWriteTrajectory(cwd, entry) {
+function appendTrajectoryEntry(cwd, entry) {
+  const filePath = path.join(cwd, '.planning', 'memory', 'trajectory.json');
+  const result = mutateJsonStore(cwd, {
+    filePath,
+    defaultValue: [],
+    transform(entries) {
+      const nextEntries = Array.isArray(entries) ? entries : [];
+      nextEntries.push(entry);
+      return { nextData: nextEntries };
+    },
+  });
+
   try {
     const db = getDb(cwd);
     const cache = new PlanningCache(db);
@@ -17,6 +29,8 @@ function _dualWriteTrajectory(cwd, entry) {
   } catch (e) {
     debugLog('trajectory', 'SQLite dual-write failed', e);
   }
+
+  return result;
 }
 
 // ─── Scope Validation ────────────────────────────────────────────────────────
@@ -178,10 +192,7 @@ function cmdTrajectoryCheckpoint(cwd, args, raw) {
     tags: ['checkpoint'],
   };
 
-  entries.push(entry);
-  fs.mkdirSync(memDir, { recursive: true });
-  fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), 'utf-8');
-  _dualWriteTrajectory(cwd, entry);
+  appendTrajectoryEntry(cwd, entry);
 
   // ─── Output ─────────────────────────────────────────────────────────────
   output({
@@ -495,9 +506,7 @@ function cmdTrajectoryPivot(cwd, args, raw) {
   }
 
   // Step 6 — Write journal and output
-  fs.mkdirSync(memDir, { recursive: true });
-  fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), 'utf-8');
-  _dualWriteTrajectory(cwd, abandonedEntry);
+  appendTrajectoryEntry(cwd, abandonedEntry);
 
   output({
     pivoted: true,
@@ -809,10 +818,7 @@ function cmdTrajectoryChoose(cwd, args, raw) {
     tags: ['choose', 'lifecycle-complete'],
   };
 
-  entries.push(journalEntry);
-  fs.mkdirSync(memDir, { recursive: true });
-  fs.writeFileSync(trajPath, JSON.stringify(entries, null, 2), 'utf-8');
-  _dualWriteTrajectory(cwd, journalEntry);
+  appendTrajectoryEntry(cwd, journalEntry);
 
   // Output
   output({

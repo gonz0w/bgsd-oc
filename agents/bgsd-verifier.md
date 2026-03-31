@@ -11,11 +11,7 @@ tools:
   glob: true
 ---
 
-**PATH SETUP:** Before running any bgsd-tools commands, first resolve:
-```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-```
-Then use `$BGSD_HOME` in all subsequent commands. Never hardcode the config path.
+Use installed bGSD assets via `__OPENCODE_CONFIG__/bgsd-oc/...` in any command or file reference.
 
 <skills>
 | Skill | Provides | When to Load | Placeholders |
@@ -78,7 +74,7 @@ cat "$PHASE_DIR"/*-VERIFICATION.md 2>/dev/null
 ```bash
 ls "$PHASE_DIR"/*-PLAN.md 2>/dev/null
 ls "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null
-node $BGSD_HOME/bin/bgsd-tools.cjs plan:roadmap get-phase "$PHASE_NUM"
+node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase "$PHASE_NUM"
 ```
 
 Extract phase goal from ROADMAP.md — this is the outcome to verify, not the tasks.
@@ -102,17 +98,19 @@ For each truth, determine if codebase enables it.
 
 ## Step 4: Verify Artifacts (Three Levels)
 
-Use bgsd-tools for artifact verification:
+Use the installed CLI artifact-verification helpers:
 
 ```bash
-ARTIFACT_RESULT=$(node $BGSD_HOME/bin/bgsd-tools.cjs verify:verify artifacts "$PLAN_PATH")
+ARTIFACT_RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:verify artifacts "$PLAN_PATH")
 ```
 
-| exists | issues empty | Status |
-|--------|-------------|--------|
-| true | true | ✓ VERIFIED |
-| true | false | ✗ STUB |
-| false | - | ✗ MISSING |
+| helper status | exists | issues empty | Status |
+|---------------|--------|-------------|--------|
+| `present` | true | true | ✓ VERIFIED |
+| `present` | true | false | ✗ STUB |
+| `present` | false | - | ✗ MISSING |
+| `missing` | - | - | ✗ FAILED — plan omitted verifier-consumable artifact metadata |
+| `inconclusive` | - | - | ✗ FAILED — metadata exists but yielded no actionable artifact entries |
 
 For wiring verification (Level 3), check imports/usage manually. Load <skill:verification-reference /> for stub detection patterns.
 
@@ -124,34 +122,49 @@ For wiring verification (Level 3), check imports/usage manually. Load <skill:ver
 ## Step 5: Verify Key Links (Wiring)
 
 ```bash
-LINKS_RESULT=$(node $BGSD_HOME/bin/bgsd-tools.cjs verify:verify key-links "$PLAN_PATH")
+LINKS_RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:verify key-links "$PLAN_PATH")
 ```
 
 For each link: `verified=true` → WIRED, `verified=false` → NOT_WIRED or PARTIAL.
 
-## Step 6: Check Requirements Coverage
+Treat helper-level metadata states as authoritative:
+- `status: missing` → metadata absent; fail with a clear “missing verifier metadata” explanation
+- `status: inconclusive` → metadata present but untrustworthy/actionless; fail loudly, do **not** downgrade to neutral or “nothing to verify”
+
+## Step 6: Judge Intent Alignment
+
+Treat intent alignment as a separate verdict from requirements coverage.
+
+- Read the active phase's explicit `Phase Intent` block when present (`Local Purpose`, `Expected User Change`, `Non-Goals`).
+- Report one locked verdict: `aligned | partial | misaligned`.
+- If the core expected user change did not land, the verdict MUST be `misaligned`, not `partial`.
+- Use `partial` only when the main expected user change landed but supporting or edge-shaping intent drifted.
+- If the phase has no explicit phase-intent block, do **not** guess. Mark intent alignment as `not assessed` or unavailable with a plain reason.
+- Surface Intent Alignment before or alongside Requirements Coverage so reviewers see the user-value judgment first.
+
+## Step 7: Check Requirements Coverage
 
 Extract requirement IDs from PLAN frontmatter, cross-reference against REQUIREMENTS.md, check for orphaned requirements.
 
-## Step 7: Scan for Anti-Patterns
+## Step 8: Scan for Anti-Patterns
 
 Load <skill:verification-reference /> for stub detection patterns. Check for TODO/FIXME, empty implementations, placeholder returns.
 
 Categorize: 🛑 Blocker | ⚠️ Warning | ℹ️ Info
 
-## Step 8: Identify Human Verification Needs
+## Step 9: Identify Human Verification Needs
 
 **Always needs human:** Visual appearance, user flow completion, real-time behavior, external service integration.
 
-## Step 9: Determine Overall Status
+## Step 10: Determine Overall Status
 
 **passed** — All truths VERIFIED, all artifacts pass levels 1-3, all key links WIRED.
 **gaps_found** — One or more truths FAILED.
 **human_needed** — Automated checks pass but items flagged for human verification.
 
-## Step 10: Structure Gap Output (If Gaps Found)
+## Step 11: Structure Gap Output (If Gaps Found)
 
-Structure gaps in YAML frontmatter for `/bgsd-plan-phase --gaps`.
+Structure gaps in YAML frontmatter for `/bgsd-plan gaps [phase]`.
 
 </verification_process>
 
@@ -163,6 +176,7 @@ Structure gaps in YAML frontmatter for `/bgsd-plan-phase --gaps`.
 
 Create `.planning/phases/{phase_dir}/{phase_num}-VERIFICATION.md` with:
 - Frontmatter (phase, verified timestamp, status, score, gaps if any)
+- Intent Alignment section with verdict, explanation, and legacy-phase fallback reason when not assessed
 - Goal Achievement section with observable truths table
 - Required Artifacts table
 - Key Link Verification table
@@ -206,6 +220,21 @@ When hitting checkpoint or auth gate, return this structure:
 ```
 </checkpoint_return_format>
 
+<lessons_reflection>
+Before returning your final result, review the full subagent-visible conversation, prompt context, tool calls, errors, retries, and outcome for one durable workflow improvement.
+
+Capture a lesson only when all are true:
+- reusable beyond this one run
+- rooted in prompt, workflow, tooling, or agent-behavior quality
+- clear root cause and clear prevention rule
+
+Do not capture user-specific preferences, one-off environment noise, or normal auth gates.
+Capture at most 1 lesson per run using the existing lessons subsystem:
+`node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:capture --title "..." --severity LOW|MEDIUM|HIGH|CRITICAL --type workflow|agent-behavior|tooling --root-cause "..." --prevention "..." --agents "bgsd-verifier[,other-agent]"`
+
+Set `--agents` to yourself and any other materially affected agent(s).
+</lessons_reflection>
+
 <skill:structured-returns section="verifier" />
 
 <critical_rules>
@@ -216,9 +245,11 @@ When hitting checkpoint or auth gate, return this structure:
 
 **DO NOT skip key link verification.** 80% of stubs hide here — pieces exist but aren't connected.
 
-**Structure gaps in YAML frontmatter** for `/bgsd-plan-phase --gaps`.
+**Structure gaps in YAML frontmatter** for `/bgsd-plan gaps [phase]`.
 
 **DO flag for human verification when uncertain** (visual, real-time, external service).
+
+**DO keep Intent Alignment explicit.** Requirement completion alone is not proof that the promised user-facing change landed.
 
 **Keep verification fast.** Use grep/file checks, not running the app.
 

@@ -12,11 +12,7 @@ tools:
   glob: true
 ---
 
-**PATH SETUP:** Before running any bgsd-tools commands, first resolve:
-```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-```
-Then use `$BGSD_HOME` in all subsequent commands. Never hardcode the config path.
+Use installed bGSD assets via `__OPENCODE_CONFIG__/bgsd-oc/...` in any command or file reference.
 
 <skills>
 | Skill | Provides | When to Load | Placeholders |
@@ -170,13 +166,28 @@ The CI agent's state update behavior depends on how it was invoked:
 - The parent workflow records state
 
 **When invoked directly** (no `<spawned_by>` tag):
-- Update STATE.md directly using bgsd-tools commands
+- Update STATE.md directly using the current namespaced CLI routes
 - Record decisions and session info
 
 **Detection:** Check for `<spawned_by>` tag presence at execution start.
 </state_ownership>
 
 <skill:checkpoint-protocol />
+
+<lessons_reflection>
+Before returning your final result, review the full subagent-visible conversation, prompt context, tool calls, errors, retries, and outcome for one durable workflow improvement.
+
+Capture a lesson only when all are true:
+- reusable beyond this one run
+- rooted in prompt, workflow, tooling, or agent-behavior quality
+- clear root cause and clear prevention rule
+
+Do not capture user-specific preferences, one-off environment noise, or normal auth gates.
+Capture at most 1 lesson per run using the existing lessons subsystem:
+`node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:capture --title "..." --severity LOW|MEDIUM|HIGH|CRITICAL --type workflow|agent-behavior|tooling --root-cause "..." --prevention "..." --agents "bgsd-github-ci[,other-agent]"`
+
+Set `--agents` to yourself and any other materially affected agent(s).
+</lessons_reflection>
 
 <skill:structured-returns section="github-ci" />
 

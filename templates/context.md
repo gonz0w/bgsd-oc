@@ -20,6 +20,18 @@ Template for `.planning/phases/XX-name/{phase_num}-CONTEXT.md` - captures implem
 **Gathered:** [date]
 **Status:** Ready for planning
 
+<phase_intent>
+## Phase Intent
+
+- **Local Purpose:** [One concise statement of the phase-local purpose. Keep it local to this phase.]
+- **Expected User Change:** [Observable before/after claim in plain language. Include 1-3 concrete examples that make the change testable or reviewable.]
+- **Non-Goals:**
+  - [Concrete out-of-scope example 1]
+  - [Concrete out-of-scope example 2]
+  - [Optional concrete out-of-scope example 3]
+
+</phase_intent>
+
 <domain>
 ## Phase Boundary
 
@@ -78,6 +90,19 @@ Template for `.planning/phases/XX-name/{phase_num}-CONTEXT.md` - captures implem
 
 **Gathered:** 2025-01-20
 **Status:** Ready for planning
+
+<phase_intent>
+## Phase Intent
+
+- **Local Purpose:** Make the feed immediately useful as a reading surface for followed content.
+- **Expected User Change:** Before: users had no single place to read recent posts from followed people. After: users can open one feed and quickly scan recent posts with clear metadata.
+  - Users can see author, timestamp, post body, and engagement counts in one scrollable view
+  - Users can understand when new posts arrived without losing their current reading position
+- **Non-Goals:**
+  - Creating a new post from this surface
+  - Commenting, bookmarking, or reacting from the feed
+
+</phase_intent>
 
 <domain>
 ## Phase Boundary
@@ -139,6 +164,20 @@ Display posts from followed users in a scrollable feed. Users can view posts and
 
 **Gathered:** 2025-01-20
 **Status:** Ready for planning
+
+<phase_intent>
+## Phase Intent
+
+- **Local Purpose:** Give operators one reliable command to create backups without needing manual multi-step scripts.
+- **Expected User Change:** Before: operators had to assemble backup steps manually and guess the right invocation. After: operators can run one documented backup command and understand where the backup went.
+  - Operators can choose local file or S3 output from the command surface
+  - Operators can tell whether the run succeeded, failed, or retried from the command output
+- **Non-Goals:**
+  - Restore workflows
+  - Scheduled backup orchestration
+  - Long-term retention policy management
+
+</phase_intent>
 
 <domain>
 ## Phase Boundary
@@ -202,6 +241,20 @@ CLI command to backup database to local file or S3. Supports full and incrementa
 **Gathered:** 2025-01-20
 **Status:** Ready for planning
 
+<phase_intent>
+## Phase Intent
+
+- **Local Purpose:** Turn an unstructured photo dump into a browseable library with predictable grouping and naming.
+- **Expected User Change:** Before: users had to hunt through inconsistent folders and duplicate files. After: users can browse photos by time-based folders and understand how duplicates were handled.
+  - Users can locate photos by year and month without scanning every folder
+  - Users can review duplicate decisions without losing source files
+- **Non-Goals:**
+  - Face recognition or people clustering
+  - Full-text or semantic search
+  - Cloud sync behavior
+
+</phase_intent>
+
 <domain>
 ## Phase Boundary
 
@@ -260,6 +313,17 @@ Organize existing photo library into structured folders. Handle duplicates and a
 
 <guidelines>
 **This template captures DECISIONS for downstream agents.**
+
+Every fresh phase context should also carry one lightweight `Phase Intent` block inside `CONTEXT.md` with exactly these fields:
+- `Local Purpose`
+- `Expected User Change`
+- `Non-Goals`
+
+Rules for that block:
+- Keep it embedded in `CONTEXT.md` — do not create a separate top-level phase intent file.
+- `Expected User Change` must be an observable before/after-style claim, not generic discussion prose.
+- `Expected User Change` should include 1-3 concrete examples so downstream verification can prove or disprove it.
+- `Non-Goals` should include 1-3 concrete examples of adjacent work the phase is explicitly not solving.
 
 The output should answer: "What does the researcher need to investigate? What choices are locked for the planner?"
 

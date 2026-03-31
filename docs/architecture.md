@@ -10,12 +10,12 @@ How bGSD works internally. This document covers the two-layer design, agent syst
 
 bGSD separates **deterministic operations** from **AI reasoning**:
 
-- **Deterministic layer** (`gsd-tools.cjs`) — Parsing, validation, git, file I/O, state management, AST analysis, task classification. Always produces the same output for the same input.
-- **AI layer** (workflow `.md` files) — Agent behavior definitions. LLMs follow these as step-by-step prompts, calling gsd-tools for structured data.
+- **Deterministic layer** (`bgsd-tools.cjs`) — Parsing, validation, git, file I/O, state management, AST analysis, task classification. Always produces the same output for the same input.
+- **AI layer** (workflow `.md` files) — Agent behavior definitions. LLMs follow these as step-by-step prompts, calling the bGSD CLI for structured data.
 
 This means:
-- AI agents never parse markdown directly — they get clean JSON from gsd-tools
-- State changes are atomic — gsd-tools handles file writes and git commits
+- AI agents never parse markdown directly — they get clean JSON from CLI init and verify commands
+- State changes are atomic — CLI helpers handle file writes and git commits
 - Workflows are portable — any LLM that follows markdown instructions can execute them
 - Testing is straightforward — 1,500+ tests cover the deterministic layer
 
@@ -35,7 +35,7 @@ Slash Command (/bgsd-*)
   v
 Workflow (.md file)                    <-- AI follows step-by-step
   |
-  +-- calls gsd-tools.cjs             <-- Deterministic data operations
+  +-- calls bgsd-tools.cjs            <-- Deterministic data operations
   |     |
   |     +-- reads/writes .planning/   <-- Structured markdown + JSON
   |     +-- git operations             <-- Commits, branches, tags
@@ -52,15 +52,15 @@ Workflow (.md file)                    <-- AI follows step-by-step
 ### Data Flow Example: Plan and Execute
 
 ```
-/bgsd-plan-phase 1
+/bgsd-plan phase 1
   |
   v
 plan-phase.md workflow
   |
-  +-- gsd-tools init plan-phase 1     -> JSON: roadmap, state, config, codebase context
-  +-- gsd-tools roadmap get-phase 1   -> JSON: phase goal, success criteria
-  +-- gsd-tools search-lessons 1       -> JSON: relevant past lessons
-  +-- gsd-tools assertions list        -> JSON: acceptance criteria
+  +-- node bin/bgsd-tools.cjs init:plan-phase 1 --raw             -> JSON: roadmap, state, config, codebase context
+  +-- node bin/bgsd-tools.cjs plan:roadmap get-phase 1            -> JSON: phase goal, success criteria
+  +-- node bin/bgsd-tools.cjs lessons:list --query 1              -> JSON: relevant past lessons from .planning/memory/lessons.json
+  +-- node bin/bgsd-tools.cjs verify:assertions list --req REQ-01 -> JSON: acceptance criteria
   |
   +-- spawn gsd-planner agent          -> Writes PLAN.md files
   +-- spawn gsd-plan-checker agent     -> Reviews, requests revisions (max 3)
@@ -71,17 +71,17 @@ plan-phase.md workflow
   v
 execute-phase.md workflow
   |
-  +-- gsd-tools init execute-phase 1  -> JSON: all context
-  +-- gsd-tools validate-dependencies  -> JSON: dependency validation
-  +-- gsd-tools phase-plan-index 1     -> JSON: plan waves and ordering
+  +-- node bin/bgsd-tools.cjs init:execute-phase 1 --raw          -> JSON: all context
+  +-- node bin/bgsd-tools.cjs verify:validate-dependencies 1      -> JSON: dependency validation
+  +-- node bin/bgsd-tools.cjs util:phase-plan-index 1             -> JSON: plan waves and ordering
   |
   +-- For each wave:
        +-- spawn gsd-executor agents   -> Implement code, commit per-task
-       +-- gsd-tools state advance-plan
-       +-- gsd-tools state record-metric
+       +-- node bin/bgsd-tools.cjs verify:state advance-plan
+       +-- node bin/bgsd-tools.cjs verify:state record-metric --phase 1 --plan 1 --duration "5 min"
   |
   +-- spawn gsd-verifier agent         -> Creates VERIFICATION.md
-  +-- gsd-tools phase complete 1
+  +-- node bin/bgsd-tools.cjs plan:phase complete 1
 ```
 
 ---
@@ -184,7 +184,7 @@ src/
     (+ 8 more modules)
 ```
 
-**Build:** esbuild bundles all source into a single `bin/gsd-tools.cjs` file. Zero runtime dependencies in the built artifact.
+**Build:** esbuild bundles all source into a single `bin/bgsd-tools.cjs` file. Zero runtime dependencies in the built artifact.
 
 **Lazy loading:** Command modules are loaded on demand via `lazyState`, `lazyRoadmap`, etc. — only the needed module is loaded per invocation.
 
@@ -252,7 +252,7 @@ Several workflows spawn multiple agents in parallel:
 
 | Workflow | Parallel Agents |
 |----------|----------------|
-| `/bgsd-new-project` | 4x gsd-project-researcher (Stack, Features, Architecture, Pitfalls) |
+| `/bgsd-new-project` | 5x gsd-project-researcher (Stack, Features, Architecture, Pitfalls, Skills) |
 | `/bgsd-map-codebase` | 4x gsd-codebase-mapper (tech, arch, quality, concerns) |
 | `/bgsd-execute-phase` | N x gsd-executor (within each wave) |
 | `/bgsd-verify-work` | N x debug agents (one per UAT gap) |
@@ -375,7 +375,7 @@ Loaded by agents for behavioral guidance. Located in `references/`:
 The `init` command family is bGSD's context injection system. Each workflow calls its corresponding `init` subcommand to get all necessary context in one JSON payload:
 
 ```bash
-node bin/gsd-tools.cjs init execute-phase 1 --raw
+node bin/bgsd-tools.cjs init:execute-phase 1 --raw
 ```
 
 Returns a compound JSON object with:
@@ -459,13 +459,13 @@ Two-layer cache for hot-path file reads:
 - **L1 (in-memory Map)** — Per-invocation cache. Instant hits for repeated reads within a single CLI call.
 - **L2 (SQLite)** — Persistent cache across CLI invocations. Keyed by file path + mtime for automatic invalidation.
 
-Explicit cache invalidation on all gsd-tools file writes ensures immediate consistency.
+Explicit cache invalidation on all CLI-managed file writes ensures immediate consistency.
 
 **Commands:**
 ```bash
-gsd-tools cache warm          # Pre-populate cache with .planning/ files
-gsd-tools cache stats         # Cache hit/miss statistics
-gsd-tools cache clear         # Clear the SQLite cache
+node bin/bgsd-tools.cjs util:cache warm          # Pre-populate cache with .planning/ files
+node bin/bgsd-tools.cjs util:cache status        # Cache hit/miss statistics
+node bin/bgsd-tools.cjs util:cache clear         # Clear the SQLite cache
 ```
 
 ### Decision Engine (v11.3)
@@ -493,7 +493,7 @@ This reduces LLM token usage by eliminating round-trips for decisions that can b
 # Edit source in src/
 vim src/commands/phase.js
 
-# Build (esbuild -> bin/gsd-tools.cjs)
+# Build (esbuild -> bin/bgsd-tools.cjs)
 npm run build
 
 # Test

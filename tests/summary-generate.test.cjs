@@ -134,6 +134,17 @@ describe('summary-generate: happy path', () => {
     assert.ok(json.files_found >= 2, `Should find at least 2 files, got: ${json.files_found}`);
   });
 
+  it('ignores unrelated dirty workspace files when scoped commits exist', () => {
+    fs.writeFileSync(path.join(tmpDir, 'scratch.txt'), 'ambient workspace noise');
+
+    runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '0050-test-phase', '0050-01-SUMMARY.md');
+    const content = fs.readFileSync(summaryPath, 'utf-8');
+
+    assert.ok(content.includes('src/main.js'), 'Should still include scoped commit files');
+    assert.ok(!content.includes('scratch.txt'), 'Should not include unrelated dirty workspace files');
+  });
+
   it('frontmatter has required fields', () => {
     runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '0050-test-phase', '0050-01-SUMMARY.md');
@@ -317,6 +328,21 @@ describe('summary-generate: no scoped commits', () => {
     assert.ok(content.includes('No scoped commits found'), 'Should indicate no commits in body');
   });
 
+  it('falls back to declared plan files instead of ambient dirty workspace files', () => {
+    fs.writeFileSync(path.join(tmpDir, 'ambient-noise.js'), 'module.exports = "noise";');
+
+    const result = runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error || result.output}`);
+    const json = extractJson(result.output);
+    assert.strictEqual(json.files_found, 2, 'Should count declared plan files when no scoped commits exist');
+
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '0050-test-phase', '0050-01-SUMMARY.md');
+    const content = fs.readFileSync(summaryPath, 'utf-8');
+    assert.ok(content.includes('src/main.js'), 'Should include declared plan file fallback');
+    assert.ok(content.includes('tests/main.test.js'), 'Should include declared task file fallback');
+    assert.ok(!content.includes('ambient-noise.js'), 'Should ignore unrelated dirty workspace files');
+  });
+
   it('TODO markers present for all judgment sections', () => {
     runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '0050-test-phase', '0050-01-SUMMARY.md');
@@ -458,5 +484,152 @@ describe('summary-generate: CLI integration', () => {
     runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '0050-test-phase', '0050-01-SUMMARY.md');
     assert.ok(fs.existsSync(summaryPath), 'File should exist after CLI run');
+  });
+
+  it('surfaces trailer-derived TDD audit fields when audit artifact exists', () => {
+    cleanup(tmpDir);
+    tmpDir = createTestProject({
+      skipCommits: true,
+      planContent: `---
+phase: 0050-test-phase
+plan: 01
+type: tdd
+wave: 1
+depends_on: []
+files_modified:
+  - src/main.js
+  - tests/main.test.js
+autonomous: true
+requirements: [REQ-TDD]
+must_haves:
+  truths: []
+  artifacts: []
+  key_links: []
+---
+
+<objective>
+Prove TDD summary audit output.
+</objective>
+
+<tasks>
+<task type="auto">
+  <name>Task 1: Deliver feature through TDD</name>
+  <files>src/main.js, tests/main.test.js</files>
+  <action>Run RED/GREEN/REFACTOR.</action>
+  <verify>Proof exists.</verify>
+  <done>Done.</done>
+</task>
+</tasks>
+`
+    });
+
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '0050-test-phase');
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'tests', 'main.test.js'), 'console.log("red")');
+    execSync('git add -A && git commit -m "test(0050-01): add failing test" -m "GSD-Phase: red"', { cwd: tmpDir, stdio: 'pipe' });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'main.js'), 'module.exports = { hello: () => "world" };');
+    execSync('git add -A && git commit -m "feat(0050-01): implement feature" -m "GSD-Phase: green"', { cwd: tmpDir, stdio: 'pipe' });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'main.js'), 'function hello(){ return "world"; } module.exports = { hello };');
+    execSync('git add -A && git commit -m "refactor(0050-01): clean up feature" -m "GSD-Phase: refactor"', { cwd: tmpDir, stdio: 'pipe' });
+
+    fs.writeFileSync(path.join(phaseDir, '0050-01-TDD-AUDIT.json'), JSON.stringify({
+      phases: {
+        red: { target_command: 'node --test tests/main.test.js --test-name-pattern "hello"', exit_code: 1, matched_evidence_snippet: 'not ok 1 - hello', expected_outcome: 'fail', observed_outcome: 'fail' },
+        green: { target_command: 'node --test tests/main.test.js --test-name-pattern "hello"', exit_code: 0, matched_evidence_snippet: 'ok 1 - hello', expected_outcome: 'pass', observed_outcome: 'pass' },
+        refactor: { target_command: 'node --test tests/main.test.js --test-name-pattern "hello"', exit_code: 0, matched_evidence_snippet: 'ok 1 - hello', expected_outcome: 'pass', observed_outcome: 'pass' }
+      }
+    }, null, 2));
+
+    const result = runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error || result.output}`);
+    const json = extractJson(result.output);
+    assert.strictEqual(json.tdd_audit_stages, 3, 'Should report three TDD audit stages');
+
+    const summaryPath = path.join(phaseDir, '0050-01-SUMMARY.md');
+    const content = fs.readFileSync(summaryPath, 'utf-8');
+    assert.ok(content.includes('## TDD Audit Trail'), 'Should include TDD audit section');
+    assert.ok(content.includes('**GSD-Phase:** red'), 'Should include red trailer');
+    assert.ok(content.includes('**GSD-Phase:** refactor'), 'Should include refactor trailer');
+    assert.ok(content.includes('**Target command:** `node --test tests/main.test.js --test-name-pattern "hello"`'), 'Should include target command');
+    assert.ok(content.includes('**Exit status:** `1`'), 'Should include red exit status');
+    assert.ok(content.includes('### Machine-Readable Stage Proof'), 'Should include machine-readable audit section');
+    assert.ok(content.includes('"gsd_phase": "refactor"'), 'Should include refactor machine-readable proof');
+  });
+
+  it('still renders the TDD audit trail when resumable handoff artifacts preserve proof metadata', () => {
+    cleanup(tmpDir);
+    tmpDir = createTestProject({
+      skipCommits: true,
+      planContent: `---
+phase: 0050-test-phase
+plan: 01
+type: tdd
+wave: 1
+depends_on: []
+files_modified:
+  - src/main.js
+autonomous: true
+requirements: [TDD-06, FLOW-08]
+must_haves:
+  truths: []
+  artifacts: []
+  key_links: []
+---
+
+<objective>
+Prove resumed summary rendering keeps TDD proof.
+</objective>
+`
+    });
+
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '0050-test-phase');
+    const handoffDir = path.join(tmpDir, '.planning', 'phase-handoffs', '50');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.mkdirSync(handoffDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '0050-01-TDD-AUDIT.json'), JSON.stringify({
+      phases: {
+        red: { target_command: 'node --test tests/main.test.js --test-name-pattern "hello"', exit_code: 1, matched_evidence_snippet: 'not ok 1 - hello' },
+        green: { target_command: 'node --test tests/main.test.js --test-name-pattern "hello"', exit_code: 0, matched_evidence_snippet: 'ok 1 - hello' },
+        refactor: { target_command: 'node --test tests/main.test.js --test-name-pattern "hello"', exit_code: 0, matched_evidence_snippet: 'ok 1 - hello' },
+      },
+    }, null, 2));
+    fs.writeFileSync(path.join(handoffDir, 'verify.json'), JSON.stringify({
+      version: 1,
+      kind: 'phase-handoff',
+      phase: '50',
+      step: 'verify',
+      status: 'complete',
+      run_id: '154-run',
+      source_fingerprint: 'fp-154',
+      created_at: '2026-03-29T00:00:00.000Z',
+      updated_at: '2026-03-29T00:00:00.000Z',
+      summary: 'Verification complete',
+      resume_target: { next_command: '/bgsd-transition' },
+      context: {
+        tdd_audits: [
+          {
+            path: '.planning/phases/0050-test-phase/0050-01-TDD-AUDIT.json',
+            plan: '01',
+            stages: ['red', 'green', 'refactor'],
+          },
+        ],
+      },
+    }, null, 2));
+
+    execSync('git add -A && git commit -m "test(0050-01): add proof history" -m "GSD-Phase: red"', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit --allow-empty -m "feat(0050-01): implement proof history" -m "GSD-Phase: green"', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit --allow-empty -m "refactor(0050-01): clean up proof history" -m "GSD-Phase: refactor"', { cwd: tmpDir, stdio: 'pipe' });
+
+    const result = runGsdTools('util:summary-generate 50 01 --raw', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error || result.output}`);
+    const json = extractJson(result.output);
+    assert.strictEqual(json.tdd_audit_stages, 3, 'Should still report three TDD audit stages after resume-oriented handoffs');
+
+    const summaryPath = path.join(phaseDir, '0050-01-SUMMARY.md');
+    const content = fs.readFileSync(summaryPath, 'utf-8');
+    assert.ok(content.includes('## TDD Audit Trail'), 'Should keep rendering the TDD audit section');
+    assert.ok(content.includes('**Target command:** `node --test tests/main.test.js --test-name-pattern "hello"`'), 'Should keep rendering the preserved proof target command');
+    assert.ok(content.includes('"gsd_phase": "refactor"'), 'Should keep rendering machine-readable refactor proof');
   });
 });

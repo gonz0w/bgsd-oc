@@ -90,7 +90,7 @@ Project state updated: .planning/STATE.md
 
 **Phase {decimal_phase}: {description}** -- urgent insertion
 
-`/bgsd-plan-phase {decimal_phase}`
+`/bgsd-plan phase {decimal_phase}`
 
 <sub>`/clear` first -> fresh context window</sub>
 
@@ -108,7 +108,7 @@ Project state updated: .planning/STATE.md
 - Don't insert before Phase 1 (decimal 0.1 makes no sense)
 - Don't renumber existing phases
 - Don't modify the target phase content
-- Don't create plans yet (that's /bgsd-plan-phase)
+- Don't create plans yet (that's /bgsd-plan phase)
 - Don't commit changes (user decides when to commit)
 </anti_patterns>
 

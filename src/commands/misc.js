@@ -4,11 +4,136 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
-const { loadConfig, isGitIgnored } = require('../lib/config');
+const { loadConfig, isGitIgnored, invalidateConfigCache } = require('../lib/config');
+const { applyConfigValue, buildDefaultConfig, deepMerge, migrateConfig, serializeConfig } = require('../lib/config-contract');
 const { MODEL_PROFILES, CONFIG_SCHEMA } = require('../lib/constants');
+const { writeFileAtomic } = require('../lib/atomic-write');
+const { execJj, classifyPathScopedCommitFallback } = require('../lib/jj');
 const { safeReadFile, cachedReadFile, normalizePhaseName, findPhaseInternal, generateSlugInternal, getArchivedPhaseDirs, getMilestoneInfo, getPhaseTree, cachedReaddirSync } = require('../lib/helpers');
 const { extractFrontmatter, reconstructFrontmatter, spliceFrontmatter } = require('../lib/frontmatter');
 const { execGit, structuredLog, diffSummary } = require('../lib/git');
+const { getDb } = require('../lib/db');
+const { PlanningCache } = require('../lib/planning-cache');
+
+function extractXmlSection(content, tagName) {
+  if (!content || !tagName) return null;
+  const pattern = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+
+function extractPlanTasks(content) {
+  const tasksSection = extractXmlSection(content, 'tasks');
+  if (!tasksSection) return [];
+
+  const tasks = [];
+  const taskPattern = /<task\s+([^>]*)>([\s\S]*?)<\/task>/g;
+  let match;
+
+  while ((match = taskPattern.exec(tasksSection)) !== null) {
+    const attrs = match[1] || '';
+    const body = match[2] || '';
+    const typeMatch = attrs.match(/type="([^"]+)"/);
+    const nameMatch = body.match(/<name>([\s\S]*?)<\/name>/);
+    const filesMatch = body.match(/<files>([\s\S]*?)<\/files>/);
+    const actionMatch = body.match(/<action>([\s\S]*?)<\/action>/);
+    const verifyMatch = body.match(/<verify>([\s\S]*?)<\/verify>/);
+    const doneMatch = body.match(/<done>([\s\S]*?)<\/done>/);
+
+    tasks.push({
+      type: typeMatch ? typeMatch[1] : 'auto',
+      name: nameMatch ? nameMatch[1].trim() : null,
+      files: filesMatch ? filesMatch[1].trim().split(',').map(f => f.trim()).filter(Boolean) : [],
+      action: actionMatch ? actionMatch[1].trim() : null,
+      verify: verifyMatch ? verifyMatch[1].trim() : null,
+      done: doneMatch ? doneMatch[1].trim() : null,
+    });
+  }
+
+  return tasks;
+}
+
+function countPlanTasks(content, cachedPlan) {
+  if (cachedPlan && Array.isArray(cachedPlan.tasks) && cachedPlan.tasks.length > 0) {
+    return cachedPlan.tasks.length;
+  }
+
+  const xmlTasks = extractPlanTasks(content);
+  if (xmlTasks.length > 0) {
+    return xmlTasks.length;
+  }
+
+  const headingTasks = content.match(/##\s*Task\s*\d+/gi) || [];
+  return headingTasks.length;
+}
+
+function normalizeFilesModified(frontmatter) {
+  if (!frontmatter || typeof frontmatter !== 'object') return [];
+  const raw = frontmatter.files_modified !== undefined
+    ? frontmatter.files_modified
+    : frontmatter['files-modified'];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim()) return [raw.trim()];
+  return [];
+}
+
+function toBoolean(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') return value === 'true' || value === '1';
+  return fallback;
+}
+
+function buildPlanIndexEntryFromCached(planId, hasSummary, planRow) {
+  if (!planRow) return null;
+
+  let frontmatter = {};
+  try {
+    frontmatter = planRow.frontmatter_json ? JSON.parse(planRow.frontmatter_json) : {};
+  } catch {
+    return null;
+  }
+
+  const wave = parseInt(frontmatter.wave ?? planRow.wave, 10) || 1;
+  const autonomous = toBoolean(frontmatter.autonomous ?? planRow.autonomous, true);
+  return {
+    id: planId,
+    wave,
+    autonomous,
+    objective: planRow.objective || frontmatter.objective || extractXmlSection(planRow.raw || '', 'objective') || null,
+    files_modified: normalizeFilesModified(frontmatter),
+    task_count: countPlanTasks(planRow.raw || '', planRow),
+    has_summary: hasSummary,
+  };
+}
+
+function buildPlanIndexEntryFromMarkdown(planId, planPath, hasSummary, planningCache, cwd) {
+  const content = cachedReadFile(planPath);
+  if (!content) return null;
+
+  const frontmatter = extractFrontmatter(content);
+  const parsed = {
+    raw: content,
+    frontmatter,
+    objective: extractXmlSection(content, 'objective'),
+    tasks: extractPlanTasks(content),
+  };
+
+  if (planningCache && typeof planningCache.storePlan === 'function') {
+    planningCache.storePlan(planPath, cwd, parsed);
+  }
+
+  return {
+    id: planId,
+    wave: parseInt(frontmatter.wave, 10) || 1,
+    autonomous: toBoolean(frontmatter.autonomous, true),
+    objective: frontmatter.objective || parsed.objective || null,
+    files_modified: normalizeFilesModified(frontmatter),
+    task_count: countPlanTasks(content, parsed),
+    has_summary: hasSummary,
+  };
+}
 
 function cmdGenerateSlug(text, raw) {
   if (!text) {
@@ -129,23 +254,10 @@ function cmdConfigEnsureSection(cwd, raw) {
     // Ignore malformed global defaults, fall back to hardcoded
   }
 
-  // Build default config from CONFIG_SCHEMA (reconstructing nested structure)
-  const hardcoded = {};
-  for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
-    if (def.nested) {
-      if (!hardcoded[def.nested.section]) hardcoded[def.nested.section] = {};
-      hardcoded[def.nested.section][def.nested.field] = def.default;
-    } else {
-      hardcoded[key] = def.default;
-    }
-  }
-  // Runtime override: brave_search auto-detected from env/file
-  hardcoded.brave_search = hasBraveSearch;
-  const defaults = {
-    ...hardcoded,
-    ...userDefaults,
-    workflow: { ...hardcoded.workflow, ...(userDefaults.workflow || {}) },
-  };
+  const defaults = deepMerge(
+    buildDefaultConfig({ overrides: { brave_search: hasBraveSearch } }),
+    userDefaults
+  );
 
   // Use exclusive-create flag to atomically check existence + write (no TOCTOU race)
   let fd;
@@ -161,7 +273,8 @@ function cmdConfigEnsureSection(cwd, raw) {
     error('Failed to create config.json: ' + err.message);
   }
   try {
-    fs.writeFileSync(fd, JSON.stringify(defaults, null, 2), 'utf-8');
+    fs.writeFileSync(fd, serializeConfig(defaults), 'utf-8');
+    invalidateConfigCache(cwd);
     const result = { created: true, path: '.planning/config.json' };
     output(result, raw, 'created');
   } catch (err) {
@@ -196,27 +309,16 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
     error('Failed to read config.json: ' + err.message);
   }
 
-  // Set nested value using dot notation (e.g., "workflow.research")
-  const keys = keyPath.split('.');
-  let current = config;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    if (current[key] === undefined || typeof current[key] !== 'object') {
-      current[key] = {};
-    }
-    current = current[key];
+  try {
+    config = applyConfigValue(config, keyPath, parsedValue);
+  } catch (err) {
+    error(err.message);
   }
-  // Prevent prototype pollution
-  const lastKey = keys[keys.length - 1];
-  if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') {
-    error('Cannot set prototype properties');
-  }
-  
-  current[lastKey] = parsedValue;
 
   // Write back
   try {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    writeFileAtomic(configPath, serializeConfig(config));
+    invalidateConfigCache(cwd);
     const result = { updated: true, key: keyPath, value: parsedValue };
     output(result, raw, `${keyPath}=${parsedValue}`);
   } catch (err) {
@@ -280,32 +382,10 @@ function cmdConfigMigrate(cwd, raw) {
     error('Failed to read config.json: ' + err.message);
   }
 
-  const migratedKeys = [];
-  const unchangedKeys = [];
-
-  // Walk CONFIG_SCHEMA and add missing keys with defaults
-  for (const [key, def] of Object.entries(CONFIG_SCHEMA)) {
-    if (def.nested) {
-      const section = def.nested.section;
-      const field = def.nested.field;
-      if (config[section] && config[section][field] !== undefined) {
-        unchangedKeys.push(`${section}.${field}`);
-      } else {
-        if (!config[section] || typeof config[section] !== 'object') {
-          config[section] = {};
-        }
-        config[section][field] = def.default;
-        migratedKeys.push(`${section}.${field}`);
-      }
-    } else {
-      if (config[key] !== undefined) {
-        unchangedKeys.push(key);
-      } else {
-        config[key] = def.default;
-        migratedKeys.push(key);
-      }
-    }
-  }
+  const migration = migrateConfig(config);
+  config = migration.config;
+  const migratedKeys = migration.migratedKeys;
+  const unchangedKeys = migration.unchangedKeys;
 
   // Only write if there are changes
   if (migratedKeys.length > 0) {
@@ -317,7 +397,8 @@ function cmdConfigMigrate(cwd, raw) {
     }
 
     try {
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+      writeFileAtomic(configPath, serializeConfig(config));
+      invalidateConfigCache(cwd);
     } catch (err) {
       debugLog('config.migrate', 'write failed', err);
       error('Failed to write config.json: ' + err.message);
@@ -606,6 +687,50 @@ function preCommitChecks(cwd, force) {
   return { passed: failures.length === 0, failures };
 }
 
+function buildCommitMessage(message, agentType, tddPhase) {
+  const trailers = [];
+  if (agentType) {
+    trailers.push(`Agent-Type: ${agentType}`);
+  }
+  if (tddPhase && ['red', 'green', 'refactor'].includes(tddPhase)) {
+    trailers.push(`GSD-Phase: ${tddPhase}`);
+  }
+
+  return trailers.length > 0 ? `${message}\n\n${trailers.join('\n')}` : message;
+}
+
+function hasPathScopedChanges(cwd, files) {
+  const statusResult = execGit(cwd, ['status', '--porcelain', '--untracked-files=all', '--', ...files]);
+  return statusResult.exitCode === 0 && !!statusResult.stdout;
+}
+
+function runJjPathScopedCommit(cwd, message, filesToStage, agentType, tddPhase) {
+  if (!hasPathScopedChanges(cwd, filesToStage)) {
+    return { committed: false, hash: null, reason: 'nothing_to_commit' };
+  }
+
+  const commitResult = execJj(cwd, ['commit', '-m', buildCommitMessage(message, agentType, tddPhase), ...filesToStage]);
+  if (commitResult.exitCode !== 0) {
+    const stderr = commitResult.stderr || '';
+    const stdout = commitResult.stdout || '';
+    if (/nothing to commit|No changes selected|No changes/i.test(`${stdout}\n${stderr}`)) {
+      return { committed: false, hash: null, reason: 'nothing_to_commit' };
+    }
+    return { committed: false, hash: null, reason: 'nothing_to_commit', error: stderr || stdout || 'JJ path-scoped commit failed' };
+  }
+
+  const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+  const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
+  return {
+    committed: true,
+    hash,
+    reason: 'committed',
+    agent_type: agentType || null,
+    tdd_phase: tddPhase || null,
+    commit_path: 'jj_fallback',
+  };
+}
+
 function cmdCommit(cwd, message, files, raw, amend, force, agentType, tddPhase) {
   if (!message && !amend) {
     error('commit message required');
@@ -628,8 +753,19 @@ function cmdCommit(cwd, message, files, raw, amend, force, agentType, tddPhase) 
   }
 
   // Pre-commit repo-state validation
+  const filesToStage = files && files.length > 0 ? files : ['.planning/'];
   const checks = preCommitChecks(cwd, force);
   if (!checks.passed) {
+    const fallback = classifyPathScopedCommitFallback(cwd, checks.failures, filesToStage);
+    if (fallback.supported) {
+      const result = runJjPathScopedCommit(cwd, message, filesToStage, agentType, tddPhase);
+      if (result.committed) {
+        output(result, raw, result.hash || 'committed');
+        return;
+      }
+      output(result, raw, result.reason === 'nothing_to_commit' ? 'nothing' : 'blocked');
+      return;
+    }
     process.exitCode = 2;
     const result = { committed: false, hash: null, reason: 'pre_commit_blocked', failures: checks.failures };
     output(result, raw, 'blocked');
@@ -637,7 +773,6 @@ function cmdCommit(cwd, message, files, raw, amend, force, agentType, tddPhase) 
   }
 
   // Stage files
-  const filesToStage = files && files.length > 0 ? files : ['.planning/'];
   for (const file of filesToStage) {
     execGit(cwd, ['add', file]);
   }
@@ -1015,6 +1150,8 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
   const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').sort();
   const summaryFiles = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
 
+  const planningCache = new PlanningCache(getDb(cwd));
+
   // Build set of plan IDs with summaries
   const completedPlanIds = new Set(
     summaryFiles.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', ''))
@@ -1025,54 +1162,56 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
   const incomplete = [];
   let hasCheckpoints = false;
 
+  const planPaths = planFiles.map(file => path.join(phaseDir, file));
+  let cachedPlanRows = null;
+  if (planPaths.length > 0) {
+    const freshness = planningCache.checkAllFreshness(planPaths);
+    if (freshness.stale.length === 0 && freshness.missing.length === 0) {
+      const cachedRows = planningCache.getPlansForPhase(normalized, cwd);
+      if (cachedRows && cachedRows.length === planFiles.length) {
+        const rowsByPath = new Map(cachedRows.map(row => [row.path, row]));
+        cachedPlanRows = new Map();
+        for (const planPath of planPaths) {
+          const row = rowsByPath.get(planPath);
+          if (!row) {
+            cachedPlanRows = null;
+            break;
+          }
+          const planRow = planningCache.getPlan(planPath);
+          if (!planRow) {
+            cachedPlanRows = null;
+            break;
+          }
+          cachedPlanRows.set(planPath, planRow);
+        }
+      }
+    }
+  }
+
   for (const planFile of planFiles) {
     const planId = planFile.replace('-PLAN.md', '').replace('PLAN.md', '');
     const planPath = path.join(phaseDir, planFile);
-    const content = cachedReadFile(planPath);
-    const fm = extractFrontmatter(content);
-
-    // Count tasks (## Task N patterns)
-    const taskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
-    const taskCount = taskMatches.length;
-
-    // Parse wave as integer
-    const wave = parseInt(fm.wave, 10) || 1;
-
-    // Parse autonomous (default true if not specified)
-    let autonomous = true;
-    if (fm.autonomous !== undefined) {
-      autonomous = fm.autonomous === 'true' || fm.autonomous === true;
-    }
-
-    if (!autonomous) {
-      hasCheckpoints = true;
-    }
-
-    // Parse files-modified
-    let filesModified = [];
-    if (fm['files-modified']) {
-      filesModified = Array.isArray(fm['files-modified']) ? fm['files-modified'] : [fm['files-modified']];
-    }
-
     const hasSummary = completedPlanIds.has(planId);
     if (!hasSummary) {
       incomplete.push(planId);
     }
 
-    const plan = {
-      id: planId,
-      wave,
-      autonomous,
-      objective: fm.objective || null,
-      files_modified: filesModified,
-      task_count: taskCount,
-      has_summary: hasSummary,
-    };
+    const plan = cachedPlanRows
+      ? buildPlanIndexEntryFromCached(planId, hasSummary, cachedPlanRows.get(planPath))
+      : buildPlanIndexEntryFromMarkdown(planId, planPath, hasSummary, planningCache, cwd);
+
+    if (!plan) {
+      continue;
+    }
+
+    if (!plan.autonomous) {
+      hasCheckpoints = true;
+    }
 
     plans.push(plan);
 
     // Group by wave
-    const waveKey = String(wave);
+    const waveKey = String(plan.wave);
     if (!waves[waveKey]) {
       waves[waveKey] = [];
     }
@@ -1535,7 +1674,99 @@ function cmdScaffold(cwd, type, options, raw) {
 
 function cmdTdd(cwd, subcommand, parsedArgs, raw) {
   const testCmd = parsedArgs['test-cmd'];
+  const phaseArg = parsedArgs.phase;
+  const planArg = parsedArgs.plan;
+  const stageArg = parsedArgs.stage;
+  const proofArg = parsedArgs.proof;
   const snip = (s) => (s || '').slice(0, 500);
+  const normalizeSnippet = (s) => snip(String(s || '').replace(/\s+/g, ' ').trim());
+  const PASS_PATTERNS = [
+    /\bpass(?:ed|es|ing)?\b/i,
+    /\bpassing\b/i,
+    /\b[0-9]+\s+passing\b/i,
+    /\b[0-9]+\s+passed\b/i,
+    /\bok\b/i,
+    /\bgreen\b/i,
+    /✓/,
+  ];
+  const FAIL_PATTERNS = [
+    /\bfail(?:ed|s|ing|ure|ures)?\b/i,
+    /\b[0-9]+\s+failing\b/i,
+    /\bnot ok\b/i,
+    /\berror\b/i,
+    /\bexception\b/i,
+    /✖/,
+  ];
+  const MISSING_TARGET_PATTERNS = [
+    /command not found/i,
+    /not recognized as an internal or external command/i,
+    /No such file or directory/i,
+    /Cannot find module/i,
+    /MODULE_NOT_FOUND/i,
+  ];
+
+  function matchEvidence(output, patterns) {
+    const text = String(output || '');
+    if (!text) return null;
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      for (const pattern of patterns) {
+        if (pattern.test(line)) {
+          return normalizeSnippet(line);
+        }
+      }
+    }
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match && typeof match.index === 'number') {
+        const start = Math.max(0, match.index - 120);
+        const end = Math.min(text.length, match.index + match[0].length + 120);
+        return normalizeSnippet(text.slice(start, end));
+      }
+    }
+    return null;
+  }
+
+  function buildProof(phase, command, exitCode, out) {
+    const expectedOutcome = phase === 'red' ? 'fail' : 'pass';
+    const observedOutcome = exitCode === 0 ? 'pass' : 'fail';
+    const missingTargetEvidence = matchEvidence(out, MISSING_TARGET_PATTERNS);
+    const matchedPassEvidence = matchEvidence(out, PASS_PATTERNS);
+    const matchedFailEvidence = matchEvidence(out, FAIL_PATTERNS);
+    const targetMissing = exitCode === 127 || !!missingTargetEvidence;
+
+    let evidenceType = 'synthetic';
+    let evidenceSnippet = normalizeSnippet(`Command exited with code ${exitCode}.`);
+
+    if (targetMissing) {
+      evidenceType = 'missing-target';
+      evidenceSnippet = missingTargetEvidence || normalizeSnippet(`Target command could not be executed (exit ${exitCode}).`);
+    } else if (expectedOutcome === 'fail' && matchedFailEvidence) {
+      evidenceType = 'matched-fail';
+      evidenceSnippet = matchedFailEvidence;
+    } else if (expectedOutcome === 'pass' && matchedPassEvidence) {
+      evidenceType = 'matched-pass';
+      evidenceSnippet = matchedPassEvidence;
+    } else if (observedOutcome === 'fail' && matchedFailEvidence) {
+      evidenceType = 'matched-fail';
+      evidenceSnippet = matchedFailEvidence;
+    } else if (observedOutcome === 'pass' && matchedPassEvidence) {
+      evidenceType = 'matched-pass';
+      evidenceSnippet = matchedPassEvidence;
+    }
+
+    return {
+      target_command: command,
+      exit_code: exitCode,
+      expected_outcome: expectedOutcome,
+      observed_outcome: observedOutcome,
+      target_missing: targetMissing,
+      evidence: {
+        type: evidenceType,
+        snippet: evidenceSnippet,
+      },
+    };
+  }
 
   // Helper: run test command safely via execFile with shell
   // testCmd is intentionally user-provided (e.g., "npm test") and must be shell-evaluated
@@ -1551,18 +1782,107 @@ function cmdTdd(cwd, subcommand, parsedArgs, raw) {
     return { exitCode, out };
   }
 
+  function normalizeAuditStagePayload(input) {
+    const root = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+    const proof = root.proof && typeof root.proof === 'object' && !Array.isArray(root.proof)
+      ? root.proof
+      : root;
+    return {
+      target_command: proof.target_command || root.target_command || null,
+      exit_code: proof.exit_code ?? root.exit_code ?? root.test_exit_code ?? null,
+      matched_evidence_snippet: proof.matched_evidence_snippet || root.matched_evidence_snippet || (proof.evidence && proof.evidence.snippet) || null,
+      expected_outcome: proof.expected_outcome || root.expected_outcome || null,
+      observed_outcome: proof.observed_outcome || root.observed_outcome || null,
+    };
+  }
+
+  function writeAuditStage(phaseValue, planValue, stageValue, proofValue) {
+    if (!phaseValue) { error('--phase required'); }
+    if (!stageValue) { error('--stage required'); }
+    if (!['red', 'green', 'refactor'].includes(stageValue)) {
+      error('--stage must be one of: red, green, refactor');
+    }
+    if (!proofValue) { error('--proof required'); }
+
+    let parsedProof;
+    try {
+      parsedProof = JSON.parse(proofValue);
+    } catch (e) {
+      error(`Invalid --proof JSON: ${e.message}`);
+    }
+
+    const phaseInfo = findPhaseInternal(cwd, phaseValue);
+    if (!phaseInfo || !phaseInfo.found) {
+      error(`Phase ${phaseValue} not found`);
+    }
+
+    const paddedPhase = phaseInfo.phase_number;
+    const paddedPlan = String(planValue || '01').padStart(2, '0');
+    const phaseDir = path.join(cwd, phaseInfo.directory);
+    const auditPath = path.join(phaseDir, `${paddedPhase}-${paddedPlan}-TDD-AUDIT.json`);
+
+    let audit = { phases: {} };
+    if (fs.existsSync(auditPath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(auditPath, 'utf-8'));
+        if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+          audit = existing;
+        }
+      } catch (e) {
+        debugLog('tdd.audit', 'failed to parse existing audit, rewriting', e);
+      }
+    }
+
+    const normalizedStage = normalizeAuditStagePayload(parsedProof);
+    audit.phases = audit.phases && typeof audit.phases === 'object' && !Array.isArray(audit.phases)
+      ? audit.phases
+      : {};
+    audit.phases[stageValue] = normalizedStage;
+
+    fs.writeFileSync(auditPath, JSON.stringify(audit, null, 2) + '\n', 'utf-8');
+    output({
+      written: true,
+      phase: paddedPhase,
+      plan: paddedPlan,
+      stage: stageValue,
+      path: path.relative(cwd, auditPath),
+      stages_written: Object.keys(audit.phases).length,
+      proof: normalizedStage,
+    }, raw);
+  }
+
   if (subcommand === 'validate-red' || subcommand === 'validate-green' || subcommand === 'validate-refactor') {
     if (!testCmd) { error('--test-cmd required'); }
     const phase = subcommand.replace('validate-', '');
-    const expectFail = phase === 'red';
     const { exitCode, out } = runTestCmd(testCmd);
-    const valid = expectFail ? exitCode !== 0 : exitCode === 0;
+    const proof = buildProof(phase, testCmd, exitCode, out);
+    const valid = phase === 'red'
+      ? proof.observed_outcome === 'fail' && !proof.target_missing
+      : proof.observed_outcome === 'pass';
     if (!valid) process.exitCode = 1;
-    output({ phase, valid, test_exit_code: exitCode, output_snippet: snip(out) }, raw);
+    output({
+      phase,
+      valid,
+      target_command: testCmd,
+      test_exit_code: exitCode,
+      matched_evidence_snippet: proof.evidence.snippet,
+      output_snippet: snip(out),
+      proof,
+    }, raw);
   } else if (subcommand === 'auto-test') {
     if (!testCmd) { error('--test-cmd required'); }
     const { exitCode, out } = runTestCmd(testCmd);
-    output({ passed: exitCode === 0, exit_code: exitCode, output_snippet: snip(out) }, raw);
+    const proof = buildProof('green', testCmd, exitCode, out);
+    output({
+      passed: exitCode === 0,
+      exit_code: exitCode,
+      target_command: testCmd,
+      matched_evidence_snippet: proof.evidence.snippet,
+      output_snippet: snip(out),
+      proof,
+    }, raw);
+  } else if (subcommand === 'write-audit') {
+    writeAuditStage(phaseArg, planArg, stageArg, proofArg);
   } else if (subcommand === 'detect-antipattern') {
     const phase = parsedArgs.phase;
     const files = (parsedArgs.files || '').split(',').map(f => f.trim()).filter(Boolean);
@@ -1585,7 +1905,7 @@ function cmdTdd(cwd, subcommand, parsedArgs, raw) {
     }
     output({ phase, warnings }, raw);
   } else {
-    error('Unknown tdd subcommand: ' + subcommand + '. Available: validate-red, validate-green, validate-refactor, auto-test, detect-antipattern');
+    error('Unknown tdd subcommand: ' + subcommand + '. Available: validate-red, validate-green, validate-refactor, auto-test, write-audit, detect-antipattern');
   }
 }
 
@@ -1960,31 +2280,41 @@ function cmdExamples(cwd, args, raw) {
 }
 
 /**
- * Validate command registry - checks help text alignment with routing
+ * Validate surfaced command integrity against shipped inventories
  */
 function cmdValidateCommands(cwd, options = {}, raw) {
-  const { validateCommandRegistry } = require('../lib/commandDiscovery');
+  const { validateCommandIntegrity } = require('../lib/commandDiscovery');
   const { output } = require('../lib/output');
-  
-  const result = validateCommandRegistry();
-  
+
+  const result = validateCommandIntegrity({ cwd, ...options });
+
+  const formattedGroups = result.groupedIssues.length === 0
+    ? 'No surfaced command issues found.'
+    : result.groupedIssues.map(group => {
+      const details = group.issues.map(issue => {
+        const parts = [`  - line ${issue.line}: [${issue.kind}] ${issue.message}`];
+        if (issue.suggestion) parts.push(`    suggestion: ${issue.suggestion}`);
+        return parts.join('\n');
+      }).join('\n');
+      return `${group.file} (${group.surface}, ${group.issueCount} issue${group.issueCount === 1 ? '' : 's'})\n${details}`;
+    }).join('\n\n');
+
   const outputData = {
     valid: result.valid,
-    totalCommands: result.totalCommands,
-    validCount: result.validCount,
+    surfaceCount: result.surfaceCount,
+    groupedIssueCount: result.groupedIssueCount,
     issueCount: result.issueCount,
-    message: result.valid 
-      ? 'All commands validated successfully' 
-      : `${result.issues.length} command validation issue(s) found`,
-    issues: result.issues.length > 0 ? result.issues : undefined
+    message: result.message,
+    groupedIssues: result.groupedIssues,
+    issues: result.issues,
   };
-  
-  if (raw) {
-    console.log(JSON.stringify(outputData, null, 2));
-  } else {
-    output(outputData);
+
+  if (!result.valid) {
+    process.exitCode = 1;
   }
-  
+
+  output(outputData, raw, `${result.message}\n\n${formattedGroups}`);
+
   return outputData;
 }
 
@@ -2064,6 +2394,49 @@ const JUDGMENT_SECTIONS = {
   'Next Phase Readiness': 'next-phase-readiness (what\'s ready for next phase)',
 };
 
+function normalizeTddAuditStages(audit) {
+  const source = audit && typeof audit === 'object'
+    ? (audit.phases && typeof audit.phases === 'object' ? audit.phases : audit)
+    : {};
+  const orderedStages = ['red', 'green', 'refactor'];
+  const normalized = [];
+
+  for (const stage of orderedStages) {
+    const entry = source[stage];
+    if (!entry || typeof entry !== 'object') continue;
+    const proof = entry.proof && typeof entry.proof === 'object' ? entry.proof : {};
+    normalized.push({
+      stage,
+      target_command: entry.target_command || proof.target_command || null,
+      exit_code: entry.exit_code ?? entry.test_exit_code ?? proof.exit_code ?? null,
+      matched_evidence_snippet: entry.matched_evidence_snippet || proof.matched_evidence_snippet || (proof.evidence && proof.evidence.snippet) || null,
+      expected_outcome: entry.expected_outcome || proof.expected_outcome || null,
+      observed_outcome: entry.observed_outcome || proof.observed_outcome || null,
+    });
+  }
+
+  return normalized;
+}
+
+function readTddAuditArtifact(phaseDir, paddedPhase, paddedPlan) {
+  const auditPath = path.join(phaseDir, `${paddedPhase}-${paddedPlan}-TDD-AUDIT.json`);
+  if (!fs.existsSync(auditPath)) {
+    return { path: auditPath, stages: [], found: false };
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(auditPath, 'utf-8'));
+    return {
+      path: auditPath,
+      stages: normalizeTddAuditStages(parsed),
+      found: true,
+    };
+  } catch (e) {
+    debugLog('summary.generate', 'failed to parse TDD audit artifact', e);
+    return { path: auditPath, stages: [], found: true, error: e.message };
+  }
+}
+
 function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
   try {
     // 1. Resolve inputs
@@ -2100,6 +2473,7 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
 
     // 2. Extract PLAN.md data
     const planFm = extractFrontmatter(planContent);
+    const parsedTasks = extractPlanTasks(planContent);
     const taskNameRegex = /<name>Task\s+\d+:\s*(.+?)<\/name>/g;
     const taskNames = [];
     let taskMatch;
@@ -2114,6 +2488,11 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
       // Take first sentence/line
       objective = objectiveMatch[1].split('\n')[0].trim();
     }
+
+    const declaredPlanFiles = Array.from(new Set([
+      ...normalizeFilesModified(planFm),
+      ...parsedTasks.flatMap(task => Array.isArray(task.files) ? task.files : []),
+    ].filter(Boolean)));
 
     // 3. Extract git commits scoped to this plan
     const phaseNum = paddedPhase.replace(/^0+/, '') || '0';
@@ -2130,6 +2509,10 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
       });
     }
 
+    const tddTrailCommits = scopedCommits.filter(c => c.trailers && c.trailers['GSD-Phase']);
+    const tddAudit = readTddAuditArtifact(phaseDir, paddedPhase, paddedPlan);
+    const tddAuditByStage = new Map(tddAudit.stages.map(stage => [stage.stage, stage]));
+
     // 4. Extract file diffs
     let diffFiles = [];
     let totalInsertions = 0;
@@ -2144,6 +2527,14 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
         diffFiles = diff.files;
         totalInsertions = diff.total_insertions || 0;
         totalDeletions = diff.total_deletions || 0;
+      }
+    }
+
+    const diffFileMap = new Map(diffFiles.map(file => [file.path, file]));
+    const planScopedFiles = diffFiles.slice();
+    for (const filePath of declaredPlanFiles) {
+      if (!diffFileMap.has(filePath)) {
+        planScopedFiles.push({ path: filePath, insertions: 0, deletions: 0, source: 'plan-declared' });
       }
     }
 
@@ -2165,7 +2556,7 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
     }
 
     // 6. Infer frontmatter fields
-    const allChangedFiles = diffFiles.map(f => f.path);
+    const allChangedFiles = planScopedFiles.map(f => f.path);
 
     // Subsystem: most common top-level directory
     const dirCounts = {};
@@ -2196,8 +2587,8 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
     const createdFiles = diffFiles
       .filter(f => f.deletions === 0 && f.insertions > 0)
       .map(f => f.path);
-    const modifiedFiles = diffFiles
-      .filter(f => f.deletions > 0)
+    const modifiedFiles = planScopedFiles
+      .slice()
       .sort((a, b) => (b.insertions + b.deletions) - (a.insertions + a.deletions))
       .slice(0, 3)
       .map(f => f.path);
@@ -2244,7 +2635,7 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
     bodyLines.push(`- **Started:** ${startTime || 'TODO: start-time'}`);
     bodyLines.push(`- **Completed:** ${endTime || 'TODO: end-time'}`);
     bodyLines.push(`- **Tasks:** ${taskNames.length}`);
-    bodyLines.push(`- **Files modified:** ${diffFiles.length}`);
+    bodyLines.push(`- **Files modified:** ${planScopedFiles.length}`);
     bodyLines.push('');
 
     // Accomplishments (judgment)
@@ -2284,12 +2675,79 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
     }
     bodyLines.push('');
 
+    if (tddTrailCommits.length > 0) {
+      const orderedStages = ['red', 'green', 'refactor'];
+      const chronologicalTddCommits = [...tddTrailCommits].reverse();
+      const stageCommits = orderedStages
+        .map(stage => ({
+          stage,
+          commit: chronologicalTddCommits.find(c => c.trailers['GSD-Phase'] === stage) || null,
+          audit: tddAuditByStage.get(stage) || null,
+        }))
+        .filter(entry => entry.commit || entry.audit);
+
+      bodyLines.push('## TDD Audit Trail');
+      bodyLines.push('');
+      bodyLines.push('Review the exact RED/GREEN/REFACTOR proof package here. REFACTOR evidence is required when a refactor commit exists.');
+      bodyLines.push('');
+
+      for (const entry of stageCommits) {
+        const phaseLabel = entry.stage.toUpperCase();
+        const commit = entry.commit;
+        const audit = entry.audit;
+        const commitType = commit && commit.conventional ? commit.conventional.type : 'unknown';
+        bodyLines.push(`### ${phaseLabel}`);
+        if (commit) {
+          bodyLines.push(`- **Commit:** \`${commit.hash.slice(0, 7)}\` (${commitType}: ${commit.message})`);
+          bodyLines.push(`- **GSD-Phase:** ${commit.trailers['GSD-Phase']}`);
+        } else {
+          bodyLines.push('- **Commit:** TODO: missing commit metadata');
+        }
+        bodyLines.push(`- **Target command:** ${audit && audit.target_command ? `\`${audit.target_command}\`` : 'TODO: target-command'}`);
+        bodyLines.push(`- **Exit status:** ${audit && audit.exit_code !== null ? `\`${audit.exit_code}\`` : 'TODO: exit-status'}`);
+        bodyLines.push(`- **Matched evidence:** ${audit && audit.matched_evidence_snippet ? `\`${audit.matched_evidence_snippet}\`` : 'TODO: matched-evidence'}`);
+        if (audit && audit.expected_outcome) {
+          bodyLines.push(`- **Expected / observed:** ${audit.expected_outcome} → ${audit.observed_outcome || 'unknown'}`);
+        }
+        bodyLines.push('');
+      }
+
+      const machineReadableAudit = {};
+      for (const entry of stageCommits) {
+        machineReadableAudit[entry.stage] = {
+          commit: entry.commit ? {
+            hash: entry.commit.hash,
+            message: entry.commit.message,
+            gsd_phase: entry.commit.trailers['GSD-Phase'],
+          } : null,
+          proof: entry.audit ? {
+            target_command: entry.audit.target_command,
+            exit_code: entry.audit.exit_code,
+            matched_evidence_snippet: entry.audit.matched_evidence_snippet,
+            expected_outcome: entry.audit.expected_outcome,
+            observed_outcome: entry.audit.observed_outcome,
+          } : null,
+        };
+      }
+
+      bodyLines.push('### Machine-Readable Stage Proof');
+      bodyLines.push('');
+      bodyLines.push('```json');
+      bodyLines.push(JSON.stringify(machineReadableAudit, null, 2));
+      bodyLines.push('```');
+      bodyLines.push('');
+    }
+
     // Files Created/Modified
     bodyLines.push('## Files Created/Modified');
     bodyLines.push('');
-    if (diffFiles.length > 0) {
-      for (const f of diffFiles) {
-        bodyLines.push(`- \`${f.path}\` [+${f.insertions}/-${f.deletions}]`);
+    if (planScopedFiles.length > 0) {
+      for (const f of planScopedFiles) {
+        if (f.source === 'plan-declared') {
+          bodyLines.push(`- \`${f.path}\` [declared plan file]`);
+        } else {
+          bodyLines.push(`- \`${f.path}\` [+${f.insertions}/-${f.deletions}]`);
+        }
       }
     } else {
       bodyLines.push('_No file changes detected._');
@@ -2344,7 +2802,8 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
     const result = {
       path: path.relative(cwd, summaryPath),
       commits_found: scopedCommits.length,
-      files_found: diffFiles.length,
+      files_found: planScopedFiles.length,
+      tdd_audit_stages: tddAudit.stages.length,
       todos_remaining: todoCount,
       warnings,
     };

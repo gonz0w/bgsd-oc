@@ -75,6 +75,43 @@ Each task was committed atomically:
 
 _Note: TDD tasks may have multiple commits (test → feat → refactor)_
 
+## TDD Audit Trail
+
+[Include only for `type: tdd` plans or when commits carry `GSD-Phase` trailers.]
+
+Review the exact RED/GREEN/REFACTOR proof package here. REFACTOR evidence is required when a refactor commit exists.
+
+### RED
+- **Commit:** `abc123f` (test: add failing test)
+- **GSD-Phase:** red
+- **Target command:** `node --test tests/foo.test.cjs --test-name-pattern "foo"`
+- **Exit status:** `1`
+- **Matched evidence:** `not ok 1 - foo handles missing input`
+
+### GREEN
+- **Commit:** `def456g` (feat: implement foo)
+- **GSD-Phase:** green
+- **Target command:** `node --test tests/foo.test.cjs --test-name-pattern "foo"`
+- **Exit status:** `0`
+- **Matched evidence:** `ok 1 - foo handles missing input`
+
+### REFACTOR
+- **Commit:** `hij789k` (refactor: clean up foo)
+- **GSD-Phase:** refactor
+- **Target command:** `node --test tests/foo.test.cjs --test-name-pattern "foo"`
+- **Exit status:** `0`
+- **Matched evidence:** `ok 1 - foo handles missing input`
+
+### Machine-Readable Stage Proof
+```json
+{
+  "red": {
+    "commit": { "hash": "abc123f", "gsd_phase": "red" },
+    "proof": { "target_command": "node --test tests/foo.test.cjs", "exit_code": 1, "matched_evidence_snippet": "not ok 1 - foo" }
+  }
+}
+```
+
 ## Files Created/Modified
 - `path/to/file.ts` - What it does
 - `path/to/another.ts` - What it does

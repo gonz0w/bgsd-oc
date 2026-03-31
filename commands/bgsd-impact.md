@@ -1,8 +1,8 @@
 ---
-description: Module dependencies and blast radius
+description: Compatibility alias for `/bgsd-inspect impact`
 ---
 <objective>
-Analyze module dependencies and blast radius.
+Preserve the legacy impact entrypoint while routing to the canonical inspect impact behavior.
 </objective>
 
 <execution_context>
@@ -14,5 +14,9 @@ $ARGUMENTS: Optional module/file
 </context>
 
 <process>
-Execute the cmd-codebase-impact workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-codebase-impact.md end-to-end.
+Treat `/bgsd-impact` as a compatibility alias for `/bgsd-inspect impact`.
+
+Execute the same impact workflow contract used by the canonical inspect family from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-codebase-impact.md end-to-end with all provided arguments.
+
+Keep this alias read-only and compatibility-focused.
 </process>

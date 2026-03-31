@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { normalizePhaseName, getArchivedPhaseDirs, findPhaseInternal, generateSlugInternal, getMilestoneInfo, invalidateFileCache, cachedReadFile } = require('../lib/helpers');
+const { normalizePhaseName, getArchivedPhaseDirs, findPhaseInternal, generateSlugInternal, getMilestoneInfo, invalidateFileCache, cachedReadFile, buildPhaseSnapshotInternal } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 
@@ -17,6 +17,15 @@ function ensureChecklistEntry(content, phaseNum, name, afterPhasePattern) {
 }
 
 // ─── Phase Commands ──────────────────────────────────────────────────────────
+
+function cmdPhaseSnapshot(cwd, phase, raw) {
+  if (!phase) {
+    error('phase required for phase:snapshot');
+  }
+
+  const snapshot = buildPhaseSnapshotInternal(cwd, phase);
+  output(snapshot, raw);
+}
 
 function cmdPhasesList(cwd, options, raw) {
   const phasesDir = path.join(cwd, '.planning', 'phases');
@@ -1427,6 +1436,7 @@ function archiveIntent(cwd, version) {
 }
 
 module.exports = {
+  cmdPhaseSnapshot,
   cmdPhasesList,
   cmdPhaseNextDecimal,
   cmdPhaseAdd,

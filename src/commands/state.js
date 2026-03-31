@@ -7,6 +7,8 @@ const { execGit } = require('../lib/git');
 const { banner, sectionHeader, formatTable, summaryLine, actionHint, color, SYMBOLS, progressBar, box } = require('../lib/format');
 const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
+const { applyStateSessionMutation } = require('../lib/state-session-mutator');
+const { buildPhaseHandoffPayload, buildPhaseHandoffValidation, clearPhaseHandoffs, listPhaseHandoffArtifacts, writePhaseHandoff } = require('../lib/phase-handoff');
 
 // ─── Pre-compiled Regex Cache ────────────────────────────────────────────────
 // Avoids repeated `new RegExp()` construction in hot paths like stateExtractField/stateReplaceField
@@ -15,7 +17,8 @@ const _fieldRegexCache = new Map();
 function getFieldExtractRegex(fieldName) {
   const key = `extract:${fieldName}`;
   if (_fieldRegexCache.has(key)) return _fieldRegexCache.get(key);
-  const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, 'i');
+  const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(?:\\*\\*${escaped}:\\*\\*|${escaped}:)\\s*(.+)`, 'i');
   _fieldRegexCache.set(key, pattern);
   return pattern;
 }
@@ -24,7 +27,7 @@ function getFieldReplaceRegex(fieldName) {
   const key = `replace:${fieldName}`;
   if (_fieldRegexCache.has(key)) return _fieldRegexCache.get(key);
   const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`(\\*\\*${escaped}:\\*\\*\\s*)(.*)`, 'i');
+  const pattern = new RegExp(`((?:\\*\\*${escaped}:\\*\\*|${escaped}:)\\s*)(.*)`, 'i');
   _fieldRegexCache.set(key, pattern);
   return pattern;
 }
@@ -571,136 +574,28 @@ function cmdStateGet(cwd, section, raw) {
 }
 
 function cmdStatePatch(cwd, patches, raw) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
-
-  // SQL-first: write to SQLite, then patch STATE.md via regex (preserves format)
   try {
-    const cache = _getCache(cwd);
-    if (!cache._isMap()) {
-      _checkAndReimportState(cwd, cache);
-      const state = cache.getSessionState(cwd);
-      if (state) {
-        const fieldMap = {
-          'status': 'status',
-          'last activity': 'last_activity',
-          'last_activity': 'last_activity',
-          'current_plan': 'current_plan',
-          'current plan': 'current_plan',
-          'progress': 'progress',
-          'phase': 'phase_number',
-        };
-        const updatedState = {
-          phase_number: state.phase_number,
-          phase_name: state.phase_name,
-          total_phases: state.total_phases,
-          current_plan: state.current_plan,
-          status: state.status,
-          last_activity: state.last_activity,
-          progress: state.progress,
-          milestone: state.milestone,
-        };
-        let anyMapped = false;
-        for (const [field, value] of Object.entries(patches)) {
-          const col = fieldMap[field.toLowerCase()];
-          if (col) {
-            updatedState[col] = value;
-            anyMapped = true;
-          }
-        }
-        if (anyMapped) {
-          cache.storeSessionState(cwd, updatedState);
-        }
-        // Fall through to regex path to update STATE.md
-      }
-    }
-  } catch { /* non-fatal */ }
-
-  let content = cachedReadFile(statePath);
-  if (!content) {
-    error('STATE.md not found');
+    const results = applyStateSessionMutation(cwd, { type: 'patch', patches });
+    output({ updated: results.updated || [], failed: results.failed || [] }, raw, (results.updated || []).length > 0 ? 'true' : 'false');
+  } catch (e) {
+    if (e.message === 'STATE.md not found') error('STATE.md not found');
+    output({ updated: [], failed: Object.keys(patches || {}), reason: e.message }, raw, 'false');
   }
-
-  const results = { updated: [], failed: [] };
-
-  for (const [field, value] of Object.entries(patches)) {
-    const pattern = getFieldReplaceRegex(field);
-    if (pattern.test(content)) {
-      content = content.replace(pattern, `$1${value}`);
-      results.updated.push(field);
-    } else {
-      results.failed.push(field);
-    }
-  }
-
-  if (results.updated.length > 0) {
-    fs.writeFileSync(statePath, content, 'utf-8');
-    invalidateFileCache(statePath);
-    try { _getCache(cwd).updateMtime(statePath); } catch {}
-  }
-
-  output(results, raw, results.updated.length > 0 ? 'true' : 'false');
 }
 
 function cmdStateUpdate(cwd, field, value) {
   if (!field || value === undefined) {
     error('field and value required for state update');
   }
-
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
-
-  // SQL-first: write to SQLite, then update STATE.md via regex (preserves format)
   try {
-    const cache = _getCache(cwd);
-    if (!cache._isMap()) {
-      _checkAndReimportState(cwd, cache);
-      const state = cache.getSessionState(cwd);
-      if (state) {
-        // Map field name to session_state column
-        const fieldLower = field.toLowerCase();
-        const fieldMap = {
-          'status': 'status',
-          'last activity': 'last_activity',
-          'last_activity': 'last_activity',
-          'current plan': 'current_plan',
-          'current_plan': 'current_plan',
-          'phase': 'phase_number',
-          'progress': 'progress',
-        };
-        const col = fieldMap[fieldLower];
-        if (col) {
-          const updatedState = {
-            phase_number: state.phase_number,
-            phase_name: state.phase_name,
-            total_phases: state.total_phases,
-            current_plan: state.current_plan,
-            status: state.status,
-            last_activity: state.last_activity,
-            progress: state.progress,
-            milestone: state.milestone,
-          };
-          updatedState[col] = value;
-          cache.storeSessionState(cwd, updatedState);
-        }
-        // Always fall through to regex to update STATE.md format correctly
-      }
+    const result = applyStateSessionMutation(cwd, { type: 'patch', patches: { [field]: value } });
+    if ((result.updated || []).includes(field)) {
+      output({ updated: true });
+    } else {
+      output({ updated: false, reason: `Field "${field}" not found in STATE.md` });
     }
-  } catch { /* non-fatal — fall through */ }
-
-  let content = cachedReadFile(statePath);
-  if (!content) {
-    output({ updated: false, reason: 'STATE.md not found' });
-    return;
-  }
-
-  const pattern = getFieldReplaceRegex(field);
-  if (pattern.test(content)) {
-    content = content.replace(pattern, `$1${value}`);
-    fs.writeFileSync(statePath, content, 'utf-8');
-    invalidateFileCache(statePath);
-    try { _getCache(cwd).updateMtime(statePath); } catch {}
-    output({ updated: true });
-  } else {
-    output({ updated: false, reason: `Field "${field}" not found in STATE.md` });
+  } catch (e) {
+    output({ updated: false, reason: e.message });
   }
 }
 
@@ -718,6 +613,211 @@ function stateReplaceField(content, fieldName, newValue) {
     return content.replace(pattern, `$1${newValue}`);
   }
   return null;
+}
+
+function stateAppendDecision(content, entry) {
+  const sectionPattern = /(###?\s*(?:Decisions|Decisions Made|Accumulated.*Decisions)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+  const match = content.match(sectionPattern);
+  if (!match) return null;
+
+  let sectionBody = match[2];
+  sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '').replace(/None\.?\s*\n?/gi, '');
+  sectionBody = sectionBody.trimEnd();
+  sectionBody = sectionBody ? `${sectionBody}\n${entry}\n` : `${entry}\n`;
+  return content.replace(sectionPattern, `${match[1]}${sectionBody}`);
+}
+
+function computeProgressSnapshot(cwd) {
+  let totalPlans = 0;
+  let totalSummaries = 0;
+  const phaseTree = getPhaseTree(cwd);
+  for (const [, entry] of phaseTree) {
+    totalPlans += entry.plans.length;
+    totalSummaries += entry.summaries.length;
+  }
+
+  const percent = totalPlans > 0 ? Math.round(totalSummaries / totalPlans * 100) : 0;
+  const barWidth = 10;
+  const filled = Math.round(percent / 100 * barWidth);
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(barWidth - filled);
+  return {
+    percent,
+    completed: totalSummaries,
+    total: totalPlans,
+    bar: `[${bar}] ${percent}%`,
+  };
+}
+
+function computePhaseCompletionTruth(cwd, phaseHint, stateContent) {
+  const phaseMatch = String(phaseHint || stateExtractField(stateContent || '', 'Phase') || '').match(/^(\d+(?:\.\d+)?)/);
+  const phaseNumber = phaseMatch ? phaseMatch[1] : null;
+  if (!phaseNumber) return null;
+
+  invalidateFileCache(path.join(cwd, '.planning', 'phases'));
+  const phaseInfo = findPhaseInternal(cwd, phaseNumber);
+  if (!phaseInfo) return null;
+
+  const planCount = phaseInfo.plans.length;
+  const summaryCount = phaseInfo.summaries.length;
+  const isComplete = planCount > 0 && summaryCount >= planCount;
+  const currentPlan = planCount > 0
+    ? (isComplete ? planCount : Math.min(summaryCount + 1, planCount))
+    : 0;
+  const focus = isComplete
+    ? `Phase ${phaseInfo.phase_number || phaseNumber} complete — ready for verification`
+    : `Phase ${phaseInfo.phase_number || phaseNumber}${phaseInfo.phase_name ? ` — ${phaseInfo.phase_name}` : ''} plan ${String(currentPlan).padStart(2, '0')} of ${planCount}`;
+
+  return {
+    phase_number: phaseInfo.phase_number || phaseNumber,
+    phase_name: phaseInfo.phase_name || null,
+    total_plans: planCount,
+    completed_plans: summaryCount,
+    current_plan: currentPlan,
+    status: isComplete ? 'Phase complete — ready for verification' : 'Ready to execute',
+    current_focus: focus,
+  };
+}
+
+function repairStateCompletionReadback(cwd, truth, progressPercent) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  let content = cachedReadFile(statePath);
+  if (!content || !truth) return { repaired: [] };
+
+  const repaired = [];
+  const applyField = (field, value) => {
+    if (value === undefined || value === null) return;
+    const current = stateExtractField(content, field);
+    if (current === String(value)) return;
+    const replaced = stateReplaceField(content, field, String(value));
+    if (replaced) {
+      content = replaced;
+      repaired.push(field);
+    }
+  };
+
+  applyField('Current Plan', truth.current_plan);
+  applyField('Total Plans in Phase', truth.total_plans);
+  applyField('Status', truth.status);
+  applyField('Current focus', truth.current_focus);
+
+  const expectedProgress = progressPercent != null ? Number(progressPercent) : null;
+  if (expectedProgress != null) {
+    const barWidth = 10;
+    const filled = Math.round(expectedProgress / 100 * barWidth);
+    const progressStr = `[${'█'.repeat(filled)}${'░'.repeat(barWidth - filled)}] ${expectedProgress}%`;
+    const progressFieldPattern = /(\*\*Progress:\*\*\s*).*/i;
+    const inlinePattern = /(Progress:\s*)\[[\u2588\u2591]+\]\s*\d+%/;
+    if (progressFieldPattern.test(content)) {
+      const replaced = content.replace(progressFieldPattern, `$1${progressStr}`);
+      if (replaced !== content) {
+        content = replaced;
+        repaired.push('Progress');
+      }
+    } else if (inlinePattern.test(content)) {
+      const replaced = content.replace(inlinePattern, `$1${progressStr}`);
+      if (replaced !== content) {
+        content = replaced;
+        repaired.push('Progress');
+      }
+    }
+  }
+
+  if (repaired.length > 0) {
+    fs.writeFileSync(statePath, content, 'utf-8');
+    invalidateFileCache(statePath);
+    try { _getCache(cwd).updateMtime(statePath); } catch {}
+  }
+
+  return { repaired };
+}
+
+function recordMetricTail(cwd, options) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const { phase, plan, duration, tasks, files } = options;
+  if (!phase || !plan || !duration) return { recorded: false, reason: 'phase, plan, and duration required' };
+
+  try {
+    const cache = _getCache(cwd);
+    if (!cache._isMap()) {
+      _checkAndReimportState(cwd, cache);
+      cache.writeSessionMetric(cwd, {
+        phase: String(phase),
+        plan: String(plan),
+        duration: String(duration),
+        tasks: tasks != null ? parseInt(tasks, 10) : null,
+        files: files != null ? parseInt(files, 10) : null,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch { /* non-fatal, markdown write still attempted */ }
+
+  let content = cachedReadFile(statePath);
+  if (!content) return { recorded: false, reason: 'STATE.md not found' };
+
+  const metricsPattern = /(##\s*Performance Metrics[\s\S]*?\n\|[^\n]+\n\|[-|\s]+\n)([\s\S]*?)(?=\n##|\n$|$)/i;
+  const metricsMatch = content.match(metricsPattern);
+  if (!metricsMatch) return { recorded: false, reason: 'Performance Metrics section not found in STATE.md' };
+
+  const tableHeader = metricsMatch[1];
+  let tableBody = metricsMatch[2].trimEnd();
+  const newRow = `| Phase ${phase} P${plan} | ${duration} | ${tasks || '-'} tasks | ${files || '-'} files |`;
+
+  if (tableBody.trim() === '' || tableBody.includes('None yet')) {
+    tableBody = newRow;
+  } else {
+    tableBody = `${tableBody}\n${newRow}`;
+  }
+
+  content = content.replace(metricsPattern, `${tableHeader}${tableBody}\n`);
+  fs.writeFileSync(statePath, content, 'utf-8');
+  invalidateFileCache(statePath);
+  try { _getCache(cwd).updateMtime(statePath); } catch {}
+  return { recorded: true, phase, plan, duration };
+}
+
+function recordSessionTail(cwd, options) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const now = new Date().toISOString();
+
+  try {
+    const cache = _getCache(cwd);
+    if (!cache._isMap()) {
+      _checkAndReimportState(cwd, cache);
+      cache.recordSessionContinuity(cwd, {
+        last_session: now,
+        stopped_at: options.stopped_at || null,
+        next_step: options.resume_file || 'None',
+      });
+    }
+  } catch { /* non-fatal, markdown write still attempted */ }
+
+  let content = cachedReadFile(statePath);
+  if (!content) return { recorded: false, reason: 'STATE.md not found' };
+  const updated = [];
+
+  let result = stateReplaceField(content, 'Last session', now);
+  if (result) { content = result; updated.push('Last session'); }
+  result = stateReplaceField(content, 'Last Date', now);
+  if (result) { content = result; updated.push('Last Date'); }
+
+  if (options.stopped_at) {
+    result = stateReplaceField(content, 'Stopped At', options.stopped_at);
+    if (!result) result = stateReplaceField(content, 'Stopped at', options.stopped_at);
+    if (result) { content = result; updated.push('Stopped At'); }
+  }
+
+  const resumeFile = options.resume_file || 'None';
+  result = stateReplaceField(content, 'Resume File', resumeFile);
+  if (!result) result = stateReplaceField(content, 'Resume file', resumeFile);
+  if (!result) result = stateReplaceField(content, 'Next step', resumeFile);
+  if (result) { content = result; updated.push('Resume File'); }
+
+  if (updated.length === 0) return { recorded: false, reason: 'No session fields found in STATE.md' };
+
+  fs.writeFileSync(statePath, content, 'utf-8');
+  invalidateFileCache(statePath);
+  try { _getCache(cwd).updateMtime(statePath); } catch {}
+  return { recorded: true, updated };
 }
 
 function cmdStateAdvancePlan(cwd, raw) {
@@ -886,190 +986,220 @@ function cmdStateUpdateProgress(cwd, raw) {
 }
 
 function cmdStateAddDecision(cwd, options, raw) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
   const { phase, summary, rationale } = options;
   if (!summary) { output({ error: 'summary required' }, raw); return; }
-  const entry = `- [Phase ${phase || '?'}]: ${summary}${rationale ? ` — ${rationale}` : ''}`;
-
-  // SQL-first: write decision to SQLite
   try {
-    const cache = _getCache(cwd);
-    if (!cache._isMap()) {
-      _checkAndReimportState(cwd, cache);
-      const decision = {
-        phase: phase ? `Phase ${phase}` : null,
-        summary,
-        rationale: rationale || null,
-        timestamp: new Date().toISOString(),
-        milestone: null,
-      };
-      cache.writeSessionDecision(cwd, decision);
-      // Fall through to regex path to update STATE.md
-    }
-  } catch { /* non-fatal */ }
-
-  let content = cachedReadFile(statePath);
-  if (!content) { output({ error: 'STATE.md not found' }, raw); return; }
-
-  // Find Decisions section (various heading patterns)
-  const sectionPattern = /(###?\s*(?:Decisions|Decisions Made|Accumulated.*Decisions)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
-  const match = content.match(sectionPattern);
-
-  if (match) {
-    let sectionBody = match[2];
-    // Remove placeholders
-    sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '');
-    sectionBody = sectionBody.trimEnd() + '\n' + entry + '\n';
-    content = content.replace(sectionPattern, `${match[1]}${sectionBody}`);
-    fs.writeFileSync(statePath, content, 'utf-8');
-    invalidateFileCache(statePath);
-    try { _getCache(cwd).updateMtime(statePath); } catch {}
+    applyStateSessionMutation(cwd, { type: 'appendDecision', phase, summary, rationale });
+    const entry = `- [Phase ${phase || '?'}]: ${summary}${rationale ? ` — ${rationale}` : ''}`;
     output({ added: true, decision: entry }, raw, 'true');
-  } else {
-    output({ added: false, reason: 'Decisions section not found in STATE.md' }, raw, 'false');
+  } catch (e) {
+    output({ added: false, reason: e.message }, raw, 'false');
   }
 }
 
 function cmdStateAddBlocker(cwd, text, raw) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
   if (!text) { output({ error: 'text required' }, raw); return; }
-
-  // SQL-first: write blocker to SQLite
   try {
-    const cache = _getCache(cwd);
-    if (!cache._isMap()) {
-      _checkAndReimportState(cwd, cache);
-      const blocker = {
-        text,
-        status: 'open',
-        created_at: new Date().toISOString(),
-      };
-      cache.writeSessionBlocker(cwd, blocker);
-      // Fall through to regex path to update STATE.md
-    }
-  } catch { /* non-fatal */ }
-
-  let content = cachedReadFile(statePath);
-  if (!content) { output({ error: 'STATE.md not found' }, raw); return; }
-  const entry = `- ${text}`;
-
-  const sectionPattern = /(###?\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
-  const match = content.match(sectionPattern);
-
-  if (match) {
-    let sectionBody = match[2];
-    sectionBody = sectionBody.replace(/None\.?\s*\n?/gi, '').replace(/None yet\.?\s*\n?/gi, '');
-    sectionBody = sectionBody.trimEnd() + '\n' + entry + '\n';
-    content = content.replace(sectionPattern, `${match[1]}${sectionBody}`);
-    fs.writeFileSync(statePath, content, 'utf-8');
-    invalidateFileCache(statePath);
-    try { _getCache(cwd).updateMtime(statePath); } catch {}
+    applyStateSessionMutation(cwd, { type: 'appendBlocker', text });
     output({ added: true, blocker: text }, raw, 'true');
-  } else {
-    output({ added: false, reason: 'Blockers section not found in STATE.md' }, raw, 'false');
+  } catch (e) {
+    output({ added: false, reason: e.message }, raw, 'false');
   }
 }
 
 function cmdStateResolveBlocker(cwd, text, raw) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
   if (!text) { output({ error: 'text required' }, raw); return; }
-
-  // SQL-first: resolve blocker in SQLite
   try {
-    const cache = _getCache(cwd);
-    if (!cache._isMap()) {
-      _checkAndReimportState(cwd, cache);
-      // Find blocker by text match in SQLite
-      const blockersResult = cache.getSessionBlockers(cwd, { status: 'open', limit: 100 });
-      const blockers = blockersResult ? blockersResult.entries : [];
-      const blocker = blockers.find(b => b.text && b.text.toLowerCase().includes(text.toLowerCase()));
-      if (blocker && blocker._id != null) {
-        cache.resolveSessionBlocker(cwd, blocker._id, 'Resolved');
-      }
-      // Fall through to regex path to update STATE.md
-    }
-  } catch { /* non-fatal */ }
-
-  let content = cachedReadFile(statePath);
-  if (!content) { output({ error: 'STATE.md not found' }, raw); return; }
-
-  const sectionPattern = /(###?\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
-  const match = content.match(sectionPattern);
-
-  if (match) {
-    const sectionBody = match[2];
-    const lines = sectionBody.split('\n');
-    const filtered = lines.filter(line => {
-      if (!line.startsWith('- ')) return true;
-      return !line.toLowerCase().includes(text.toLowerCase());
-    });
-
-    let newBody = filtered.join('\n');
-    // If section is now empty, add placeholder
-    if (!newBody.trim() || !newBody.includes('- ')) {
-      newBody = 'None\n';
-    }
-
-    content = content.replace(sectionPattern, `${match[1]}${newBody}`);
-    fs.writeFileSync(statePath, content, 'utf-8');
-    invalidateFileCache(statePath);
-    try { _getCache(cwd).updateMtime(statePath); } catch {}
+    applyStateSessionMutation(cwd, { type: 'resolveBlocker', text });
     output({ resolved: true, blocker: text }, raw, 'true');
-  } else {
-    output({ resolved: false, reason: 'Blockers section not found in STATE.md' }, raw, 'false');
+  } catch (e) {
+    output({ resolved: false, reason: e.message }, raw, 'false');
   }
 }
 
 function cmdStateRecordSession(cwd, options, raw) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
-  const now = new Date().toISOString();
-
-  // SQL-first: record session continuity in SQLite
   try {
-    const cache = _getCache(cwd);
-    if (!cache._isMap()) {
-      _checkAndReimportState(cwd, cache);
-      const continuity = {
-        last_session: now,
-        stopped_at: options.stopped_at || null,
-        next_step: options.resume_file || 'None',
-      };
-      cache.recordSessionContinuity(cwd, continuity);
-      // Fall through to regex path to update STATE.md
-    }
-  } catch { /* non-fatal */ }
+    applyStateSessionMutation(cwd, { type: 'recordContinuity', stopped_at: options.stopped_at, resume_file: options.resume_file });
+    output({ recorded: true, updated: ['Last session', 'Stopped At', 'Resume File'] }, raw, 'true');
+  } catch (e) {
+    output({ recorded: false, reason: e.message }, raw, 'false');
+  }
+}
+
+function cmdStateCompletePlan(cwd, options, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const warnings = [];
 
   let content = cachedReadFile(statePath);
-  if (!content) { output({ error: 'STATE.md not found' }, raw); return; }
-  const updated = [];
-
-  // Update Last session / Last Date
-  let result = stateReplaceField(content, 'Last session', now);
-  if (result) { content = result; updated.push('Last session'); }
-  result = stateReplaceField(content, 'Last Date', now);
-  if (result) { content = result; updated.push('Last Date'); }
-
-  // Update Stopped at
-  if (options.stopped_at) {
-    result = stateReplaceField(content, 'Stopped At', options.stopped_at);
-    if (!result) result = stateReplaceField(content, 'Stopped at', options.stopped_at);
-    if (result) { content = result; updated.push('Stopped At'); }
+  if (!content) {
+    output({ completed: false, reason: 'STATE.md not found', warnings }, raw, 'false');
+    return;
   }
 
-  // Update Resume file
-  const resumeFile = options.resume_file || 'None';
-  result = stateReplaceField(content, 'Resume File', resumeFile);
-  if (!result) result = stateReplaceField(content, 'Resume file', resumeFile);
-  if (result) { content = result; updated.push('Resume File'); }
-
-  if (updated.length > 0) {
-    fs.writeFileSync(statePath, content, 'utf-8');
-    invalidateFileCache(statePath);
-    try { _getCache(cwd).updateMtime(statePath); } catch {}
-    output({ recorded: true, updated }, raw, 'true');
-  } else {
-    output({ recorded: false, reason: 'No session fields found in STATE.md' }, raw, 'false');
+  const phaseTruth = computePhaseCompletionTruth(cwd, options.phase, content);
+  const currentPlan = phaseTruth ? phaseTruth.current_plan : parseInt(stateExtractField(content, 'Current Plan'), 10);
+  const totalPlans = phaseTruth ? phaseTruth.total_plans : parseInt(stateExtractField(content, 'Total Plans in Phase'), 10);
+  if (isNaN(currentPlan) || isNaN(totalPlans)) {
+    output({ completed: false, reason: 'Cannot parse Current Plan or Total Plans in Phase from STATE.md', warnings }, raw, 'false');
+    return;
   }
+
+  const progress = computeProgressSnapshot(cwd);
+  const decisionSummary = options.decision_summary || null;
+  const decisionRationale = options.decision_rationale || null;
+  let completionResult;
+  try {
+      completionResult = applyStateSessionMutation(cwd, {
+        type: 'completePlanCore',
+        phase: options.phase,
+        progress_percent: progress.percent,
+        decision_summary: decisionSummary,
+        decision_rationale: decisionRationale,
+        current_plan: phaseTruth ? currentPlan : null,
+        total_plans_in_phase: phaseTruth ? totalPlans : null,
+        status: phaseTruth ? phaseTruth.status : null,
+        current_focus: phaseTruth ? phaseTruth.current_focus : null,
+      });
+  } catch (e) {
+    output({ completed: false, reason: 'core_write_failed', error: e.message, warnings }, raw, 'false');
+    return;
+  }
+
+  try {
+    repairStateCompletionReadback(cwd, phaseTruth || {
+      current_plan: completionResult.core.current_plan,
+      total_plans: completionResult.core.total_plans,
+      status: completionResult.core.status,
+      current_focus: null,
+    }, progress.percent);
+  } catch (e) {
+    warnings.push({
+      step: 'state-readback-repair',
+      reason: e.message,
+      recovery: `node /Users/cam/.config/opencode/bgsd-oc/bin/bgsd-tools.cjs verify:state complete-plan --phase "${options.phase}" --plan "${options.plan}" --duration "${options.duration || ''}" --tasks "${options.tasks || ''}" --files "${options.files || ''}" --stopped-at "${options.stopped_at || ''}" --resume-file "${options.resume_file || 'None'}"`,
+    });
+  }
+
+  if (options.duration) {
+    try {
+      const metricResult = recordMetricTail(cwd, options);
+      if (!metricResult.recorded) {
+        warnings.push({
+          step: 'record-metric',
+          reason: metricResult.reason,
+          recovery: `node /Users/cam/.config/opencode/bgsd-oc/bin/bgsd-tools.cjs verify:state record-metric --phase "${options.phase}" --plan "${options.plan}" --duration "${options.duration}" --tasks "${options.tasks || ''}" --files "${options.files || ''}"`,
+        });
+      }
+    } catch (e) {
+      warnings.push({
+        step: 'record-metric',
+        reason: e.message,
+        recovery: `node /Users/cam/.config/opencode/bgsd-oc/bin/bgsd-tools.cjs verify:state record-metric --phase "${options.phase}" --plan "${options.plan}" --duration "${options.duration}" --tasks "${options.tasks || ''}" --files "${options.files || ''}"`,
+      });
+    }
+  }
+
+  try {
+    const sessionResult = recordSessionTail(cwd, {
+      stopped_at: options.stopped_at || null,
+      resume_file: options.resume_file || 'None',
+    });
+    if (!sessionResult.recorded) {
+      warnings.push({
+        step: 'record-session',
+        reason: sessionResult.reason,
+        recovery: `node /Users/cam/.config/opencode/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session --stopped-at "${options.stopped_at || ''}" --resume-file "${options.resume_file || 'None'}"`,
+      });
+    }
+  } catch (e) {
+    warnings.push({
+      step: 'record-session',
+      reason: e.message,
+      recovery: `node /Users/cam/.config/opencode/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session --stopped-at "${options.stopped_at || ''}" --resume-file "${options.resume_file || 'None'}"`,
+    });
+  }
+
+  output({
+    completed: true,
+    core: completionResult.core,
+    warnings,
+  }, raw, warnings.length > 0 ? 'warnings' : 'true');
+
+}
+
+function cmdStateHandoff(cwd, args, raw) {
+  const subcommand = args[0];
+  const getOption = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 ? args[idx + 1] : null;
+  };
+
+  if (subcommand === 'write') {
+    const phase = getOption('--phase');
+    const step = getOption('--step');
+    const runId = getOption('--run-id');
+    const sourceFingerprint = getOption('--source-fingerprint');
+    const status = getOption('--status') || 'complete';
+    const summary = getOption('--summary') || '';
+    const plan = getOption('--plan');
+    const resumeFile = getOption('--resume-file');
+    const nextCommand = getOption('--next-command');
+    const dataRaw = getOption('--data');
+    let data = {};
+    if (dataRaw) {
+      try {
+        data = JSON.parse(dataRaw);
+      } catch (e) {
+        output({ written: false, errors: [`Invalid --data JSON: ${e.message}`] }, raw, 'false');
+        return;
+      }
+    }
+
+    const payload = buildPhaseHandoffPayload(cwd, {
+      phase,
+      step,
+      run_id: runId,
+      source_fingerprint: sourceFingerprint,
+      status,
+      summary,
+      resume_target: {
+        phase: phase || null,
+        step: step || null,
+        plan: plan || null,
+        resume_file: resumeFile || null,
+        next_command: nextCommand || null,
+      },
+      context: data,
+    });
+    const result = writePhaseHandoff(cwd, payload);
+    output(result, raw, result.written ? 'true' : 'false');
+    return;
+  }
+
+  if (subcommand === 'validate' || subcommand === 'show') {
+    const phase = getOption('--phase');
+    const expectedFingerprint = getOption('--expected-fingerprint');
+    const entries = listPhaseHandoffArtifacts(cwd, phase);
+    const result = buildPhaseHandoffValidation(entries, { phase, expected_fingerprint: expectedFingerprint });
+    output({
+      phase: normalizePhaseName(String(phase || '')),
+      artifact_count: entries.length,
+      ...result,
+    }, raw, result.valid ? 'true' : 'false');
+    return;
+  }
+
+  if (subcommand === 'clear') {
+    const phase = getOption('--phase');
+    const result = clearPhaseHandoffs(cwd, phase);
+    output({ phase: normalizePhaseName(String(phase || '')), ...result }, raw, 'true');
+    return;
+  }
+
+  output({
+    error: 'Unknown handoff subcommand',
+    available: ['write', 'show', 'validate', 'clear'],
+  }, raw, 'false');
 }
 
 // ─── State Validation Engine ─────────────────────────────────────────────────
@@ -1360,6 +1490,8 @@ module.exports = {
   cmdStateAddBlocker,
   cmdStateResolveBlocker,
   cmdStateRecordSession,
+  cmdStateCompletePlan,
+  cmdStateHandoff,
   cmdStateValidate,
   cmdStateRegenerate,
   generateStateMd,

@@ -1,109 +1,66 @@
 <purpose>
-Display the complete bGSD command reference. Output ONLY the reference content — no project-specific analysis, git status, or commentary.
+Display the compact canonical bGSD help surface. Output ONLY the reference content — no project-specific analysis, git status, or commentary.
 </purpose>
 
 <reference>
-# bGSD Command Reference
+# bGSD Help
 
-**bGSD** (Get Stuff Done) creates hierarchical project plans optimized for solo agentic development with the host editor.
+**bGSD** (Better Getting Stuff Done) gives you a small default path, then deeper command families when you need them.
 
-## Quick Start
+## Core Path
 
-1. `/bgsd-new-project` - Initialize project (includes research, requirements, roadmap)
-2. `/bgsd-plan-phase 1` - Create detailed plan for first phase
-3. `/bgsd-execute-phase 1` - Execute the phase
+Run these in order for the common project loop:
 
-## Commands
+1. `/bgsd-new-project` — initialize research, requirements, roadmap, and planning state
+2. `/bgsd-plan phase 12` — create the plan for the phase you want to execute
+3. `/bgsd-execute-phase 12` — run that phase's plans
+4. `/bgsd-review` — scan the current change for code-review issues before shipping
+5. `/bgsd-inspect progress` — see where the project stands and what to do next
 
-### Project Lifecycle
+## Advanced Command Families
 
-| Command | Description |
-|---------|-------------|
-| `/bgsd-new-project` | Initialize new project with research, requirements, roadmap |
-| `/bgsd-new-milestone` | Start a new milestone |
-| `/bgsd-complete-milestone` | Complete current milestone and archive |
-| `/bgsd-progress` | Show progress, recent work, current position |
-| `/bgsd-resume` | Restore full context from previous session |
-| `/bgsd-pause` | Create .continue-here handoff |
+Use these when you need a specific workflow beyond the core path.
 
 ### Planning
 
-| Command | Description |
-|---------|-------------|
-| `/bgsd-discuss-phase [n]` | Capture vision and decisions for a phase |
-| `/bgsd-research-phase [n]` | Ecosystem research for niche domains |
-| `/bgsd-list-assumptions [n]` | See agent's intended approach before planning |
-| `/bgsd-plan-phase [n]` | Create execution plan for a phase |
-
-### Execution
-
-| Command | Description |
-|---------|-------------|
-| `/bgsd-execute-phase [n]` | Execute all plans in a phase |
-| `/bgsd-quick-task` | Execute small, ad-hoc tasks |
-| `/bgsd-github-ci` | Push branch, create PR, run code scanning, auto-merge |
+| Need | Run |
+|------|-----|
+| Capture phase decisions before planning | `/bgsd-plan discuss 12` |
+| Research a phase before planning | `/bgsd-plan research 12` |
+| Inspect planning assumptions | `/bgsd-plan assumptions 12` |
+| Turn audit gaps into follow-on phases | `/bgsd-plan gaps 12` |
+| Insert urgent roadmap work | `/bgsd-plan roadmap insert 12 "Critical security fix"` |
+| Capture a plan-scoped todo | `/bgsd-plan todo add "Fix modal z-index"` |
 
 ### Verification & Debugging
 
-| Command | Description |
-|---------|-------------|
-| `/bgsd-verify-work [phase]` | Conversational UAT — validate built features |
-| `/bgsd-debug [issue]` | Systematic debugging with persistent state |
-| `/bgsd-audit-milestone` | Audit milestone against intent |
-| `/bgsd-plan-gaps` | Create phases from audit gaps |
+| Need | Run |
+|------|-----|
+| Validate completed work with conversational UAT | `/bgsd-verify-work 12` |
+| Start or resume a structured debugging session | `/bgsd-debug "form submission fails silently"` |
+| Audit the active milestone against intent | `/bgsd-audit-milestone` |
 
-### Roadmap Management
+### Settings & Inspection
 
-| Command | Description |
-|---------|-------------|
-| `/bgsd-add-phase [desc]` | Append new phase to current milestone |
-| `/bgsd-insert-phase [after] [desc]` | Insert decimal phase between existing |
-| `/bgsd-remove-phase [n]` | Remove future phase |
+| Need | Run |
+|------|-----|
+| Switch model profile | `/bgsd-settings profile quality` |
+| Validate config | `/bgsd-settings validate .planning/config.json` |
+| Check project health | `/bgsd-inspect health` |
+| Inspect execution velocity | `/bgsd-inspect velocity` |
+| Trace a requirement to files | `/bgsd-inspect trace CMD-04` |
 
-### Todo Management
+### Lifecycle & Maintenance
 
-| Command | Description |
-|---------|-------------|
-| `/bgsd-add-todo [task]` | Capture idea/task as structured todo |
-| `/bgsd-check-todos [area]` | List pending todos, select to work on |
-
-### Configuration
-
-| Command | Description |
-|---------|-------------|
-| `/bgsd-settings` | Configure workflow toggles and model profile |
-| `/bgsd-set-profile [name]` | Switch model profile (quality/balanced/budget) |
-| `/bgsd-validate-config` | Validate config.json schema |
-
-### Analysis & Diagnostics
-
-| Command | Description |
-|---------|-------------|
-| `/bgsd-health` | Project health check |
-| `/bgsd-velocity` | Execution velocity metrics and forecast |
-| `/bgsd-impact` | Module dependencies and blast radius |
-| `/bgsd-context-budget` | Token usage estimation for plans |
-| `/bgsd-map-codebase` | Map existing codebase with parallel agents |
-| `/bgsd-validate-deps` | Phase dependency graph validation |
-| `/bgsd-test-run` | Parse test output with pass/fail gating |
-
-### Search & History
-
-| Command | Description |
-|---------|-------------|
-| `/bgsd-trace [req]` | Trace requirement from spec to files |
-| `/bgsd-search-decisions [query]` | Search past decisions |
-| `/bgsd-search-lessons [query]` | Search completed phase lessons |
-| `/bgsd-session-diff` | Git commits since last session |
-| `/bgsd-rollback-info` | Commits and revert command for a plan |
-
-### Maintenance
-
-| Command | Description |
-|---------|-------------|
-| `/bgsd-cleanup` | Archive phase directories from completed milestones |
-| `/bgsd-update` | Update bGSD with changelog preview |
-| `/bgsd-help` | Show this reference |
+| Need | Run |
+|------|-----|
+| Start the next milestone | `/bgsd-new-milestone` |
+| Complete the active milestone | `/bgsd-complete-milestone 1.0.0` |
+| Restore previous session context | `/bgsd-resume` |
+| Pause with a handoff file | `/bgsd-pause` |
+| Update bGSD | `/bgsd-update` |
+| Archive completed milestone phases | `/bgsd-cleanup` |
+| Show this help again | `/bgsd-help` |
 
 ## Files & Structure
 
@@ -160,22 +117,24 @@ Set during `/bgsd-new-project`. Change via `.planning/config.json`.
 ```
 /bgsd-new-project    # Unified flow: questioning → research → requirements → roadmap
 /clear
-/bgsd-plan-phase 1   # Create plans for first phase
+/bgsd-plan phase 1   # Create plans for the first phase
 /clear
 /bgsd-execute-phase 1   # Execute all plans in phase
+/clear
+/bgsd-review            # Review the current change before shipping
 ```
 
 **Resuming work after a break:**
 
 ```
-/bgsd-progress  # See where you left off and continue
+/bgsd-inspect progress  # See where you left off and continue
 ```
 
 **Adding urgent mid-milestone work:**
 
 ```
-/bgsd-insert-phase 5 "Critical security fix"
-/bgsd-plan-phase 5.1
+/bgsd-plan roadmap insert 5 "Critical security fix"
+/bgsd-plan phase 5.1
 /bgsd-execute-phase 5.1
 ```
 
@@ -190,10 +149,10 @@ Set during `/bgsd-new-project`. Change via `.planning/config.json`.
 **Capturing ideas during work:**
 
 ```
-/bgsd-add-todo                    # Capture from conversation context
-/bgsd-add-todo Fix modal z-index  # Capture with explicit description
-/bgsd-check-todos                  # Review and work on todos
-/bgsd-check-todos api              # Filter by area
+/bgsd-plan todo add                    # Capture from conversation context
+/bgsd-plan todo add Fix modal z-index  # Capture with explicit description
+/bgsd-plan todo check                  # Review and work on todos
+/bgsd-plan todo check api              # Filter by area
 ```
 
 **Debugging an issue:**
@@ -207,5 +166,5 @@ Set during `/bgsd-new-project`. Change via `.planning/config.json`.
 
 ## Getting Help
 
-Read `.planning/PROJECT.md` (vision), `.planning/STATE.md` (context), `.planning/ROADMAP.md` (status), or run `/bgsd-progress`.
+Read `.planning/PROJECT.md` (vision), `.planning/STATE.md` (context), `.planning/ROADMAP.md` (status), or run `/bgsd-inspect progress`.
 </reference>

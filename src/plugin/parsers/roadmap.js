@@ -1,6 +1,50 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { getDb, PlanningCache } from '../lib/db-cache.js';
+
+function normalizeTddHintValue(value) {
+  if (value === null || value === undefined) return null;
+
+  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, '');
+  if (!raw) return null;
+
+  const tokenMatch = raw.match(/^(required|require|mandatory|must|enforced|recommended|recommend|suggested|prefer(?:red)?|true|yes|y|false|no|n|skip(?:ped)?|omit(?:ted)?|none|n\/a|na|not applicable)\b/);
+  const token = tokenMatch ? tokenMatch[1] : raw;
+
+  if (['required', 'require', 'mandatory', 'must', 'enforced'].includes(token)) return 'required';
+  if (['recommended', 'recommend', 'suggested', 'prefer', 'preferred', 'true', 'yes', 'y'].includes(token)) return 'recommended';
+  if (['false', 'no', 'n', 'skip', 'skipped', 'omit', 'omitted', 'none', 'n/a', 'na', 'not applicable'].includes(token)) return null;
+
+  return null;
+}
+
+function normalizeRoadmapTddMetadata(raw) {
+  if (!raw || typeof raw !== 'string') return { content: raw, changed: false };
+  let changed = false;
+  const content = raw.replace(/^(\*\*TDD:?\*\*:?\s*)([^\n]*)$/gim, (match, _prefix, value) => {
+    const normalized = normalizeTddHintValue(value);
+    const canonical = normalized ? `**TDD:** ${normalized}` : '';
+    if (canonical !== match) changed = true;
+    return canonical;
+  }).replace(/\n{3,}/g, '\n\n');
+  return { content, changed };
+}
+
+function readRoadmapWithTddNormalization(cwd) {
+  const roadmapPath = join(cwd, '.planning', 'ROADMAP.md');
+  let raw;
+  try {
+    raw = readFileSync(roadmapPath, 'utf-8');
+  } catch {
+    return null;
+  }
+  const normalized = normalizeRoadmapTddMetadata(raw);
+  if (normalized.changed) {
+    writeFileSync(roadmapPath, normalized.content, 'utf-8');
+    return normalized.content;
+  }
+  return raw;
+}
 
 /**
  * ROADMAP.md parser for in-process reading.
@@ -92,7 +136,7 @@ function parsePhases(content) {
 
     // Extract TDD hint if present
     const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-    const tdd = tddMatch ? tddMatch[1].trim().toLowerCase() : null;
+    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
 
     // Check completion status via checkbox - escape all regex special chars
     const escaped = number.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -174,7 +218,7 @@ function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedC
       status: row.status || 'incomplete',
       planCount: row.plan_count != null ? row.plan_count : 0,
       goal: row.goal || null,
-      tdd: tddMatch ? tddMatch[1].trim().toLowerCase() : null,
+      tdd: tddMatch ? normalizeTddHintValue(tddMatch[1]) : null,
       section: sec,
     });
   });
@@ -219,8 +263,8 @@ function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedC
       } : null;
 
       // Extract TDD hint from section
-      const tddMatch2 = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-      const tdd = tddMatch2 ? tddMatch2[1].trim().toLowerCase() : found.tdd;
+        const tddMatch2 = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+        const tdd = tddMatch2 ? normalizeTddHintValue(tddMatch2[1]) : found.tdd;
 
       return Object.freeze({
         number: found.number,
@@ -289,7 +333,7 @@ export function parseRoadmap(cwd) {
   // --- Markdown parse ---
   let raw;
   try {
-    raw = readFileSync(roadmapPath, 'utf-8');
+    raw = readRoadmapWithTddNormalization(resolvedCwd) || readFileSync(roadmapPath, 'utf-8');
   } catch {
     return null;
   }

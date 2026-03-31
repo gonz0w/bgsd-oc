@@ -12,7 +12,7 @@ provides:
   - "All workflow files using bgsd-oc/bgsd-tools naming"
   - "All command files using bgsd-oc naming"
   - "All template files using bgsd-oc/bgsd-tools naming"
-  - "All skill files using bgsd-tools/BGSD_HOME naming"
+  - "All skill files using bgsd-tools/__OPENCODE_CONFIG__/bgsd-oc naming"
   - "AGENTS.md using bgsd-tools and bgsd-oc naming"
 affects: [72-04-PLAN]
 
@@ -22,7 +22,7 @@ tech-stack:
   patterns:
     - "bgsd-oc config path pattern across all markdown files"
     - "bgsd-tools CLI binary name in workflow instructions"
-    - "BGSD_HOME env var in skill references"
+    - "__OPENCODE_CONFIG__/bgsd-oc env var in skill references"
 
 key-files:
   created: []
@@ -40,7 +40,7 @@ key-decisions:
 patterns-established:
   - "bgsd-oc: standard config directory name in all markdown references"
   - "bgsd-tools: standard CLI binary name in all workflow instructions"
-  - "BGSD_HOME: standard env var name in all skill files"
+  - "__OPENCODE_CONFIG__/bgsd-oc: standard env var name in all skill files"
 
 requirements-completed: [RBND-08]
 
@@ -64,7 +64,7 @@ completed: 2026-03-09
 ## Accomplishments
 - Renamed all `get-shit-done` → `bgsd-oc` config path references across 100+ files
 - Renamed all `gsd-tools` → `bgsd-tools` CLI binary references
-- Renamed all `GSD_HOME` → `BGSD_HOME` and `gsd_home` → `bgsd_home` env var references
+- Renamed all `GSD_HOME` → `__OPENCODE_CONFIG__/bgsd-oc` and `gsd_home` → `bgsd_home` env var references
 - Renamed all agent names (`gsd-executor` → `bgsd-executor`, etc.) across all markdown files
 - Zero remaining old-pattern references confirmed via comprehensive grep sweep
 

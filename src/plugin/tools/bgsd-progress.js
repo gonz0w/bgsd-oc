@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { execFileSync } from 'child_process';
+import { existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { getProjectState } from '../project-state.js';
-import { readFileSync, writeFileSync, mkdirSync, rmdirSync, existsSync, statSync } from 'fs';
-import { join } from 'path';
 import { invalidateState } from '../parsers/state.js';
 import { invalidatePlans } from '../parsers/plan.js';
-import { getDb, PlanningCache } from '../lib/db-cache.js';
 
 /**
  * bgsd_progress — State mutation tool.
@@ -13,13 +14,37 @@ import { getDb, PlanningCache } from '../lib/db-cache.js';
  * record decisions, advance plan. Writes STATE.md to disk, invalidates
  * parser caches, and returns a fresh state snapshot.
  *
- * Uses atomic directory-based file locking to prevent concurrent corruption.
+ * Uses the canonical state/session mutator shared with CLI state commands.
  * Does NOT create git commits — the agent handles commits separately.
  */
 
-const LOCK_STALE_MS = 10000; // 10 seconds
-
 const VALID_ACTIONS = ['complete-task', 'uncomplete-task', 'add-blocker', 'remove-blocker', 'record-decision', 'advance'];
+
+function resolveCliPath() {
+  const currentDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.env.BGSD_PLUGIN_DIR ? join(process.env.BGSD_PLUGIN_DIR, 'bin', 'bgsd-tools.cjs') : null,
+    join(currentDir, '..', '..', '..', 'bin', 'bgsd-tools.cjs'),
+    join(currentDir, 'bin', 'bgsd-tools.cjs'),
+    join(currentDir, '..', 'bin', 'bgsd-tools.cjs'),
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) return candidate;
+  }
+
+  throw new Error('Could not locate bgsd-tools.cjs');
+}
+
+function runCanonicalStateCommand(projectDir, args) {
+  const cliPath = resolveCliPath();
+  const output = execFileSync(process.execPath, [cliPath, 'verify:state', ...args], {
+    cwd: projectDir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return JSON.parse(String(output || '{}').trim() || '{}');
+}
 
 export const bgsd_progress = {
   description:
@@ -41,7 +66,6 @@ export const bgsd_progress = {
 
   async execute(args, context) {
     const projectDir = context?.directory || process.cwd();
-    const lockDir = join(projectDir, '.planning', '.lock');
 
     try {
       // Validate action (defense-in-depth for direct calls bypassing Zod)
@@ -75,228 +99,91 @@ export const bgsd_progress = {
         });
       }
 
-      // File locking: mkdirSync is atomic on POSIX
-      try {
-        mkdirSync(lockDir);
-      } catch (lockErr) {
-        // Lock exists — check staleness
-        if (lockErr.code === 'EEXIST') {
-          try {
-            const lockStat = statSync(lockDir);
-            const age = Date.now() - lockStat.mtimeMs;
-            if (age > LOCK_STALE_MS) {
-              // Stale lock — break it
-              rmdirSync(lockDir);
-              mkdirSync(lockDir);
-            } else {
-              return JSON.stringify({
-                error: 'runtime_error',
-                message: 'Another operation in progress. Try again.',
-              });
-            }
-          } catch {
+      const { state } = projectState;
+      let actionResult = null;
+
+      switch (args.action) {
+        case 'complete-task': {
+          const currentProgress = state.progress !== null ? state.progress : 0;
+          const newProgress = Math.min(100, currentProgress + 10);
+          runCanonicalStateCommand(projectDir, ['patch', `--Progress`, String(newProgress)]);
+          actionResult = `Progress updated to ${newProgress}%`;
+          break;
+        }
+
+        case 'uncomplete-task': {
+          const currentProgress = state.progress !== null ? state.progress : 0;
+          const newProgress = Math.max(0, currentProgress - 10);
+          runCanonicalStateCommand(projectDir, ['patch', `--Progress`, String(newProgress)]);
+          actionResult = `Progress reverted to ${newProgress}%`;
+          break;
+        }
+
+        case 'add-blocker': {
+          runCanonicalStateCommand(projectDir, ['add-blocker', '--text', args.value]);
+          actionResult = `Blocker added: ${args.value}`;
+          break;
+        }
+
+        case 'remove-blocker': {
+          const idx = parseInt(args.value, 10);
+          if (isNaN(idx) || idx < 1) {
             return JSON.stringify({
-              error: 'runtime_error',
-              message: 'Failed to check lock status. Try again.',
+              error: 'validation_error',
+              message: 'remove-blocker value must be a positive integer (1-based index).',
             });
           }
-        } else {
-          throw lockErr;
+          const blockers = listOpenBlockers(state.raw || '');
+          if (blockers.error) {
+            return JSON.stringify({
+              error: 'validation_error',
+              message: blockers.error,
+            });
+          }
+          if (idx > blockers.entries.length) {
+            return JSON.stringify({
+              error: 'validation_error',
+              message: `Blocker index ${idx} out of range. Found ${blockers.entries.length} blocker(s).`,
+            });
+          }
+
+          runCanonicalStateCommand(projectDir, ['resolve-blocker', '--text', blockers.entries[idx - 1]]);
+          actionResult = `Blocker ${idx} removed`;
+          break;
+        }
+
+        case 'record-decision': {
+          const phaseTag = state.phase ? (state.phase.match(/^(\d+)/)?.[1] || '?') : '?';
+          runCanonicalStateCommand(projectDir, ['add-decision', '--phase', phaseTag, '--summary', args.value]);
+          actionResult = `Decision recorded: ${args.value}`;
+          break;
+        }
+
+        case 'advance': {
+          const result = runCanonicalStateCommand(projectDir, ['advance-plan']);
+          actionResult = result.advanced === false ? 'No current plan advanced' : `Advanced to Plan ${String(result.current_plan).padStart(2, '0')}`;
+          break;
         }
       }
 
-      try {
-        // Read current STATE.md
-        const statePath = join(projectDir, '.planning', 'STATE.md');
-        let content = readFileSync(statePath, 'utf-8');
+      invalidateState(projectDir);
+      invalidatePlans(projectDir);
 
-        const { state } = projectState;
-        let actionResult = null;
+      const freshState = getProjectState(projectDir);
+      const fresh = freshState ? freshState.state : null;
 
-        // SQL-first: attempt SQLite write before regex mutation
-        let sqliteCache = null;
-        try {
-          const db = getDb(projectDir);
-          if (db.backend === 'sqlite') {
-            sqliteCache = new PlanningCache(db);
-          }
-        } catch { /* SQLite unavailable — use regex path only */ }
-
-        switch (args.action) {
-          case 'complete-task': {
-            // Increment progress percentage
-            const currentProgress = state.progress !== null ? state.progress : 0;
-            const step = 10;
-            const newProgress = Math.min(100, currentProgress + step);
-
-            // SQL-first: update progress in session_state
-            if (sqliteCache) {
-              try {
-                const sessionState = sqliteCache.getSessionState(projectDir);
-                if (sessionState) {
-                  sqliteCache.storeSessionState(projectDir, { ...sessionState, progress: newProgress, last_activity: new Date().toISOString().split('T')[0] });
-                }
-              } catch { /* non-fatal */ }
-            }
-
-            content = updateProgress(content, newProgress);
-            actionResult = `Progress updated to ${newProgress}%`;
-            break;
-          }
-
-          case 'uncomplete-task': {
-            const currentProgress = state.progress !== null ? state.progress : 0;
-            const step = 10;
-            const newProgress = Math.max(0, currentProgress - step);
-
-            // SQL-first: update progress in session_state
-            if (sqliteCache) {
-              try {
-                const sessionState = sqliteCache.getSessionState(projectDir);
-                if (sessionState) {
-                  sqliteCache.storeSessionState(projectDir, { ...sessionState, progress: newProgress });
-                }
-              } catch { /* non-fatal */ }
-            }
-
-            content = updateProgress(content, newProgress);
-            actionResult = `Progress reverted to ${newProgress}%`;
-            break;
-          }
-
-          case 'add-blocker': {
-            // SQL-first: write blocker to SQLite
-            if (sqliteCache) {
-              try {
-                sqliteCache.writeSessionBlocker(projectDir, {
-                  text: args.value,
-                  status: 'open',
-                  created_at: new Date().toISOString(),
-                });
-              } catch { /* non-fatal */ }
-            }
-
-            content = addBlocker(content, args.value);
-            actionResult = `Blocker added: ${args.value}`;
-            break;
-          }
-
-          case 'remove-blocker': {
-            const idx = parseInt(args.value, 10);
-            if (isNaN(idx) || idx < 1) {
-              return JSON.stringify({
-                error: 'validation_error',
-                message: 'remove-blocker value must be a positive integer (1-based index).',
-              });
-            }
-            const result = removeBlocker(content, idx);
-            if (result.error) {
-              return JSON.stringify({
-                error: 'validation_error',
-                message: result.error,
-              });
-            }
-
-            // SQL-first: resolve blocker by 1-based index in SQLite
-            if (sqliteCache) {
-              try {
-                const blockersResult = sqliteCache.getSessionBlockers(projectDir, { status: 'open', limit: 100 });
-                const blockers = blockersResult ? blockersResult.entries : [];
-                // entries are ordered by id DESC — reverse to get oldest-first (same as display order)
-                const sorted = blockers.slice().reverse();
-                const target = sorted[idx - 1];
-                if (target && target._id != null) {
-                  sqliteCache.resolveSessionBlocker(projectDir, target._id, 'Removed');
-                }
-              } catch { /* non-fatal */ }
-            }
-
-            content = result.content;
-            actionResult = `Blocker ${idx} removed`;
-            break;
-          }
-
-          case 'record-decision': {
-            // SQL-first: write decision to SQLite
-            if (sqliteCache) {
-              try {
-                const phaseTag = state.phase ? (state.phase.match(/^(\d+)/)?.[1] || '?') : '?';
-                sqliteCache.writeSessionDecision(projectDir, {
-                  phase: `Phase ${phaseTag}`,
-                  summary: args.value,
-                  rationale: null,
-                  timestamp: new Date().toISOString(),
-                  milestone: null,
-                });
-              } catch { /* non-fatal */ }
-            }
-
-            content = recordDecision(content, args.value, state.phase);
-            actionResult = `Decision recorded: ${args.value}`;
-            break;
-          }
-
-          case 'advance': {
-            const result = advancePlan(content, state.currentPlan);
-
-            // SQL-first: update current_plan in session_state
-            if (sqliteCache && result.newPlanNum) {
-              try {
-                const sessionState = sqliteCache.getSessionState(projectDir);
-                if (sessionState) {
-                  sqliteCache.storeSessionState(projectDir, {
-                    ...sessionState,
-                    current_plan: String(result.newPlanNum),
-                    last_activity: new Date().toISOString().split('T')[0],
-                  });
-                }
-              } catch { /* non-fatal */ }
-            }
-
-            content = result.content;
-            actionResult = result.message;
-            break;
-          }
-        }
-
-        // Write updated STATE.md
-        writeFileSync(statePath, content, 'utf-8');
-
-        // SQL-first: update file_cache mtime so _checkAndReimportState doesn't re-import
-        if (sqliteCache) {
-          try { sqliteCache.updateMtime(statePath); } catch { /* non-fatal */ }
-        }
-
-        // Release lock before invalidating caches
-        try { rmdirSync(lockDir); } catch { /* already released */ }
-
-        // Invalidate caches so next read gets fresh data
-        invalidateState(projectDir);
-        invalidatePlans(projectDir);
-
-        // Read fresh state
-        const freshState = getProjectState(projectDir);
-        const fresh = freshState ? freshState.state : null;
-
-        return JSON.stringify({
-          success: true,
-          action: args.action,
-          result: actionResult,
-          state: {
-            phase: fresh ? fresh.phase : null,
-            plan: fresh ? fresh.currentPlan : null,
-            progress: fresh ? fresh.progress : null,
-            status: fresh ? fresh.status : null,
-          },
-        });
-      } finally {
-        // Ensure lock is always released
-        try { rmdirSync(lockDir); } catch { /* already released or doesn't exist */ }
-      }
+      return JSON.stringify({
+        success: true,
+        action: args.action,
+        result: actionResult,
+        state: {
+          phase: fresh ? fresh.phase : null,
+          plan: fresh ? fresh.currentPlan : null,
+          progress: fresh ? fresh.progress : null,
+          status: fresh ? fresh.status : null,
+        },
+      });
     } catch (err) {
-      // Ensure lock is released on error
-      try { rmdirSync(lockDir); } catch { /* ignore */ }
-
       return JSON.stringify({
         error: 'runtime_error',
         message: 'Failed to update progress: ' + err.message,
@@ -305,112 +192,16 @@ export const bgsd_progress = {
   },
 };
 
-// --- Helper functions for STATE.md manipulation ---
-
-function updateProgress(content, newPercent) {
-  const barLength = 10;
-  const filled = Math.round(newPercent / 100 * barLength);
-  const empty = barLength - filled;
-  const newBar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
-  const progressLine = `**Progress:** [${newBar}] ${newPercent}%`;
-
-  const replaced = content.replace(
-    /\*\*Progress:\*\*\s*\[[\u2588\u2591]+\]\s*\d+%/,
-    progressLine
-  );
-
-  return replaced;
-}
-
-function addBlocker(content, blockerText) {
-  const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
-  const match = content.match(sectionPattern);
-
-  if (!match) {
-    return content + '\n### Blockers/Concerns\n\n- ' + blockerText + '\n';
-  }
-
-  const header = match[1];
-  let body = match[2];
-  const after = match[3];
-
-  if (body.trim().toLowerCase() === 'none' || body.trim() === '') {
-    body = '\n- ' + blockerText + '\n';
-  } else {
-    body = body.trimEnd() + '\n- ' + blockerText + '\n';
-  }
-
-  return content.replace(sectionPattern, header + body + after);
-}
-
-function removeBlocker(content, index) {
-  const sectionPattern = /(### Blockers\/Concerns\s*\n)([\s\S]*?)(\n###|\n## |$)/;
-  const match = content.match(sectionPattern);
-
+function listOpenBlockers(content) {
+  const match = content.match(/(###\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###|\n## |$)/i);
   if (!match) {
     return { error: 'No Blockers/Concerns section found in STATE.md' };
   }
 
-  const header = match[1];
-  const body = match[2];
-  const after = match[3];
+  const entries = match[2]
+    .split('\n')
+    .map((line) => line.match(/^\s*[-*]\s+(.+)$/)?.[1]?.trim() || null)
+    .filter((line) => line && !/^none(?: yet)?\.?$/i.test(line));
 
-  const lines = body.split('\n').filter(l => l.match(/^[-*]\s+/));
-
-  if (index > lines.length || index < 1) {
-    return { error: `Blocker index ${index} out of range. Found ${lines.length} blocker(s).` };
-  }
-
-  lines.splice(index - 1, 1);
-
-  let newBody;
-  if (lines.length === 0) {
-    newBody = '\nNone\n';
-  } else {
-    newBody = '\n' + lines.join('\n') + '\n';
-  }
-
-  return { content: content.replace(sectionPattern, header + newBody + after) };
-}
-
-function recordDecision(content, decisionText, phase) {
-  const phaseTag = phase ? phase.match(/^(\d+)/)?.[1] || '?' : '?';
-  const entry = `- [Phase ${phaseTag}]: ${decisionText}`;
-
-  const sectionPattern = /(### Decisions\s*\n)([\s\S]*?)(\n###|\n## |$)/;
-  const match = content.match(sectionPattern);
-
-  if (!match) {
-    return content + '\n### Decisions\n\n' + entry + '\n';
-  }
-
-  const header = match[1];
-  let body = match[2];
-  const after = match[3];
-
-  body = body.trimEnd() + '\n' + entry + '\n';
-
-  return content.replace(sectionPattern, header + body + after);
-}
-
-function advancePlan(content, currentPlan) {
-  if (!currentPlan) {
-    return { content, message: 'No current plan to advance from', newPlanNum: null };
-  }
-
-  const planNumMatch = currentPlan.match(/(\d+)\s*(?:pending|$)/i) || currentPlan.match(/(\d+)/);
-  if (!planNumMatch) {
-    return { content, message: `Could not parse plan number from: ${currentPlan}`, newPlanNum: null };
-  }
-
-  const currentNum = parseInt(planNumMatch[1], 10);
-  const nextNum = currentNum + 1;
-  const nextPlanStr = `Plan ${String(currentNum).padStart(2, '0')} complete, Plan ${String(nextNum).padStart(2, '0')} pending`;
-
-  const updated = content.replace(
-    /\*\*Current Plan:\*\*\s*[^\n]+/,
-    `**Current Plan:** ${nextPlanStr}`
-  );
-
-  return { content: updated, message: `Advanced to Plan ${String(nextNum).padStart(2, '0')}`, newPlanNum: nextNum };
+  return { entries };
 }

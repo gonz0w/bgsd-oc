@@ -1,5 +1,112 @@
 # Milestones
 
+## ✅ v17.1 Workflow Reliability & Foundation Hardening (Shipped: 2026-03-30)
+
+**Delivered:** bGSD now ships a quieter and more reliable workflow foundation with shared mutation and metadata contracts, JJ-aware execution truth, plan-scoped completion repair, and one predictable diagnostic contract across touched CLI and plugin flows.
+
+**Phases completed:** 5 phases (163-167), 15 plans, 37 tasks
+**Commits:** 61 | **Files changed:** 254 | **Lines:** +13,314 / -6,778
+**Timeline:** 1 day (2026-03-30)
+
+**Key accomplishments:**
+- Shared mutation contracts now unify touched state/session, JSON-backed memory, config, handoff, and plugin progress writes behind locked or atomic update paths
+- Planning and verifier flows now consume one truthful `must_haves` metadata contract with shared indexes and approval-time semantic gates
+- JJ execution now supports path-scoped fallback commits in dirty or detached colocated workspaces while verification checks repo-local runtime freshness
+- Plan realism analysis and completion repair now catch stale guidance earlier and recompute summary, focus, and progress metadata from on-disk truth
+- Touched CLI and plugin diagnostics now use one shared `BGSD_DEBUG` or `--verbose` contract with quiet defaults and explicit investigation output
+- All 17 milestone requirements shipped, and the milestone audit passed on requirements and integration with only non-blocking tech-debt follow-up
+
+**What's next:** Ready for next milestone - `/bgsd-new-milestone`
+
+**Archives:**
+- `.planning/milestones/v17.1-ROADMAP.md`
+- `.planning/milestones/v17.1-REQUIREMENTS.md`
+- `.planning/milestones/v17.1-DOCS.md`
+- `.planning/milestones/v17.1-MILESTONE-AUDIT.md`
+- `.planning/milestones/v17.1-MILESTONE-INTENT.md`
+- `.planning/milestones/v17.1-phases/`
+- `.planning/archive/INTENT-vv17.1.md`
+
+---
+
+## ✅ v17.0 JJ Workspaces, Intent Cascade & Command Simplification (Shipped: 2026-03-30)
+
+**Delivered:** bGSD now ships a JJ-first execution model, a smaller canonical command surface, and layered intent handling that stays stable across planning, verification, and bundled runtime behavior.
+
+**Phases completed:** 8 phases (155-162), 50 plans, 124 tasks
+**Commits:** 202 | **Files changed:** 376 | **Lines:** +24,548 / -5,093
+**Timeline:** 2 days (2026-03-29 -> 2026-03-30)
+
+**Key accomplishments:**
+- JJ-gated execution now routes users through workspace-first lifecycle, inventory, and op-log-backed recovery flows instead of Git worktree guidance
+- Canonical `/bgsd-quick`, `/bgsd-plan`, `/bgsd-inspect`, and `/bgsd-settings` families now anchor surfaced guidance while legacy commands remain compatibility aliases
+- Help, docs, workflows, templates, skills, and plugin runtime guidance now stay aligned through inventory-backed command-integrity validation
+- Milestone strategy now lives in `MILESTONE-INTENT.md`, with compact `effective_intent` payloads flowing into planning and verification surfaces
+- Phase context artifacts now carry explicit phase intent, and verifier/UAT outputs report intent alignment separately from requirement coverage
+- Legacy phase contexts without explicit phase intent now use one shared no-guess fallback in both source and bundled runtime, locked by real-artifact regressions
+
+**What's next:** Ready for next milestone - `/bgsd-new-milestone`
+
+**Archives:**
+- `.planning/milestones/v17.0-ROADMAP.md`
+- `.planning/milestones/v17.0-REQUIREMENTS.md`
+- `.planning/milestones/v17.0-DOCS.md`
+- `.planning/milestones/v17.0-MILESTONE-AUDIT.md`
+- `.planning/milestones/v17.0-phases/`
+
+---
+
+## ✅ v16.1 Workflow Reliability & Acceleration (Shipped: 2026-03-29)
+
+**Delivered:** bGSD now ships a fully wired TDD reliability and fresh-context acceleration milestone with deterministic TDD contracts, semantic proof validation, faster phase execution paths, durable handoffs, resume freshness enforcement, and end-to-end proof delivery through resumable summaries.
+
+**Phases completed:** 6 phases (149-154), 19 plans
+**Timeline:** 2 days (2026-03-28 -> 2026-03-29)
+
+**Key accomplishments:**
+- Deterministic TDD selection, rationale visibility, and severity guidance now stay aligned across planner, checker, roadmap docs, workflows, templates, and CLI help
+- `execute:tdd` now enforces exact-command RED/GREEN/REFACTOR validation with structured proof payloads and trailer-aware summary audit rendering
+- `phase:snapshot`, snapshot-backed init reuse, and batched `verify:state complete-plan` reduce repeated discovery and fragmented plan-finalization work
+- Cached plan indexing, durable handoff artifacts, and exact resume/inspect/restart summaries now power fresh-context chaining through production workflow entrypoints
+- Runtime resume freshness enforcement now validates canonical phase-input fingerprints and provides repair guidance for stale or corrupt handoff sets
+- Production-created TDD audit sidecars now survive resumable handoff refreshes, surface in resume inspection, and re-render in downstream summaries end to end
+- All 14 milestone requirements delivered across TDD-* and FLOW-* categories
+
+**What's next:** Ready for next milestone - `/bgsd-new-milestone`
+
+**Archives:**
+- `.planning/milestones/v16.1-ROADMAP.md`
+- `.planning/milestones/v16.1-REQUIREMENTS.md`
+- `.planning/milestones/v16.1-DOCS.md`
+- `.planning/milestones/v16.1-MILESTONE-AUDIT.md`
+- `.planning/milestones/v16.1-phases/`
+
+---
+
+## ✅ v16.0 Enterprise Developer Team (Shipped: 2026-03-28)
+
+**Delivered:** bGSD now ships as a more complete AI development team with destructive-command safety guardrails, structured agent memory, code review, security audit, readiness reporting, and a dry-run-first release workflow.
+
+**Phases completed:** 5 phases (144-148), 15 plans
+**Timeline:** 1 day (2026-03-28)
+
+**Key accomplishments:**
+- GARD-04 destructive command detection with Unicode-aware matching, sandbox bypass rules, and strong regression coverage
+- Markdown-backed `MEMORY.md` storage with stable IDs, management CLI, frozen prompt snapshots, and unsafe-entry blocking
+- `/bgsd-review` with scan-first analysis, safe auto-fix routing, ASK batching, and CLI bootstrap through `init:review`
+- `/bgsd-security` with OWASP coverage, secrets scanning, dependency advisory checks, and verifier-backed reporting
+- `review:readiness` advisory output plus dry-run release analysis, changelog drafting, resumable tag/PR automation, and `/bgsd-release`
+- All 23 milestone requirements delivered across SAFE, MEM, REV, SEC, READY, and REL categories
+
+**What's next:** Ready for next milestone - `/bgsd-new-milestone`
+
+**Archives:**
+- `.planning/milestones/v16.0-ROADMAP.md`
+- `.planning/milestones/v16.0-REQUIREMENTS.md`
+- `.planning/milestones/v16.0-DOCS.md`
+
+---
+
 ## ✅ v12.1 Tool Integration & Agent Enhancement (Shipped: 2026-03-15)
 
 **Delivered:** Integrated 6 modern CLI tools (ripgrep, fd, jq, yq, bat, gh) into core workflows with graceful degradation, unified detection infrastructure, and 5 new decision functions enabling smarter agent routing and inter-agent collaboration.
@@ -582,6 +689,8 @@
 - `.planning/milestones/v1.0-ROADMAP.md`
 - `.planning/milestones/v1.0-REQUIREMENTS.md`
 
+---
+
 ## v12.0 SQLite-First Data Layer (Shipped: 2026-03-15)
 
 **Phases completed:** 35 phases, 77 plans, 6 tasks
@@ -662,6 +771,8 @@
 - Fuzzy matching resolver with disambiguation and contextual help fallback
 
 
+---
+
 ## v13.0 Closed-Loop Agent Evolution (Shipped: 2026-03-16)
 
 **Phases completed:** 6 phases, 12 plans, 0 tasks
@@ -732,4 +843,5 @@
 - `.planning/milestones/v14.1-DOCS.md`
 
 ---
+
 

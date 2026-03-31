@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "155",
+  "step": "execute",
+  "status": "complete",
+  "run_id": "155-2026-03-29T15-29-33-464Z",
+  "source_fingerprint": "90bc91e0a20db9d4",
+  "created_at": "2026-03-29T16:24:42.720Z",
+  "updated_at": "2026-03-29T16:24:42.720Z",
+  "summary": "Execution complete for Phase 155",
+  "resume_target": {
+    "phase": "155",
+    "step": "execute",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-verify-work 155"
+  },
+  "context": {}
+}

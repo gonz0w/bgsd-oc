@@ -99,11 +99,11 @@ function toConvention(name, convention) {
 
 /** Maps planning file basenames to recommended bGSD commands */
 const PLANNING_COMMANDS = {
-  'ROADMAP.md': ['/bgsd-add-phase', '/bgsd-remove-phase', '/bgsd-insert-phase'],
-  'STATE.md': ['/bgsd-progress', '/bgsd-execute-phase'],
-  'PLAN.md': ['/bgsd-plan-phase'],
-  'CONTEXT.md': ['/bgsd-discuss-phase'],
-  'RESEARCH.md': ['/bgsd-research-phase'],
+  'ROADMAP.md': ['/bgsd-plan roadmap add', '/bgsd-plan roadmap remove', '/bgsd-plan roadmap insert'],
+  'STATE.md': ['/bgsd-inspect progress', '/bgsd-execute-phase'],
+  'PLAN.md': ['/bgsd-plan phase [phase]'],
+  'CONTEXT.md': ['/bgsd-plan discuss [phase]'],
+  'RESEARCH.md': ['/bgsd-plan research [phase]'],
   'REQUIREMENTS.md': ['/bgsd-new-milestone'],
   'config.json': ['/bgsd-settings'],
   'SUMMARY.md': ['/bgsd-execute-phase'],

@@ -14,11 +14,7 @@ tools:
   mcp__context7__*: true
 ---
 
-**PATH SETUP:** Before running any bgsd-tools commands, first resolve:
-```bash
-BGSD_HOME=$(ls -d $HOME/.config/*/bgsd-oc 2>/dev/null | head -1)
-```
-Then use `$BGSD_HOME` in all subsequent commands. Never hardcode the config path.
+Use installed bGSD assets via `__OPENCODE_CONFIG__/bgsd-oc/...` in any command or file reference.
 
 <skills>
 | Skill | Provides | When to Load | Placeholders |
@@ -45,6 +41,7 @@ Your files feed the roadmap:
 | `FEATURES.md` | What to build in each phase |
 | `ARCHITECTURE.md` | System structure, component boundaries |
 | `PITFALLS.md` | What phases need deeper research flags |
+| `SKILLS.md` | Project-local skill recommendations worth proposing |
 
 **Be comprehensive but opinionated.** "Use X because Y" not "Options are X, Y, Z."
 </role>
@@ -111,6 +108,10 @@ Recommended architecture: component boundaries, data flow, patterns to follow, a
 
 Domain pitfalls by severity (critical → moderate → minor): what goes wrong, why it happens, consequences, prevention, detection. Phase-specific warnings.
 
+## SKILLS.md
+
+Project-local skill recommendations: up to 5 concrete skills with repo URLs, rationale tied to the milestone, confidence, and rejected candidates. "No strong recommendations" is valid.
+
 ## COMPARISON.md (comparison mode only)
 
 Quick comparison matrix, detailed analysis of each option, recommendation with conditions.
@@ -156,6 +157,21 @@ Use <skill:structured-returns section="project-researcher" />.
 
 </execution_flow>
 
+<lessons_reflection>
+Before returning your final result, review the full subagent-visible conversation, prompt context, tool calls, errors, retries, and outcome for one durable workflow improvement.
+
+Capture a lesson only when all are true:
+- reusable beyond this one run
+- rooted in prompt, workflow, tooling, or agent-behavior quality
+- clear root cause and clear prevention rule
+
+Do not capture user-specific preferences, one-off environment noise, or normal auth gates.
+Capture at most 1 lesson per run using the existing lessons subsystem:
+`node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:capture --title "..." --severity LOW|MEDIUM|HIGH|CRITICAL --type workflow|agent-behavior|tooling --root-cause "..." --prevention "..." --agents "bgsd-project-researcher[,other-agent]"`
+
+Set `--agents` to yourself and any other materially affected agent(s).
+</lessons_reflection>
+
 <skill:structured-returns section="project-researcher" />
 
 <success_criteria>
@@ -167,6 +183,7 @@ Research is complete when:
 - [ ] Feature landscape mapped (table stakes, differentiators, anti-features)
 - [ ] Architecture patterns documented
 - [ ] Domain pitfalls catalogued
+- [ ] Skill recommendations captured when the prompt asks for them
 - [ ] Source hierarchy followed (Context7 → Official → WebSearch)
 - [ ] All findings have confidence levels
 - [ ] Output files created in `.planning/research/`
