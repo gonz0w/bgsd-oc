@@ -139,8 +139,10 @@ Read PLAN.md — this IS the execution instructions. If plan references CONTEXT.
    - For non-TDD `type="auto"` tasks, treat the task's `<verify>` command as the primary validation after implementation.
    - If the discovered project test command is a broad suite (`npm test`, `pnpm test`, `yarn test`, `bun test`, `pytest`, `go test ./...`, `cargo test`), do NOT run it after each logical file change.
    - `verification-route = skip` -> rely on explicit task `<verify>` and plan `<verification>` only; no extra broad-suite reruns.
-   - `verification-route = light` -> prefer focused commands scoped to the touched behavior or files when available (for example `npm test -- tests/foo.test.cjs` or `npm run test:file -- tests/foo.test.cjs`).
+   - `verification-route = light` -> prefer focused commands scoped to the touched behavior or files when available (for example `node --test tests/foo.test.cjs`, `npm run test:file -- tests/foo.test.cjs`, or a direct smoke script).
    - `verification-route = full` -> reserve one broad project regression command for the end of plan execution or the overall `<verification>` block, never per edit.
+   - If broad suites are already red for unrelated reasons, record that baseline separately from the task-specific proof.
+   - If a broad gate hangs after targeted checks already passed, record the attempted gate once and switch to rebuilt-runtime plus focused touched-surface verification instead of retrying the same hanging file repeatedly.
 <!-- /section -->
 
 4. Run `<verification>` checks
@@ -240,6 +242,7 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap update-plan-pro
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:requirements mark-complete ${REQ_IDS}
 ```
 Read back and repair stale STATE or ROADMAP summary fields before final metadata success is reported.
+After `plan:requirements mark-complete`, verify the requirement IDs actually changed in `REQUIREMENTS.md`. If they did not, treat the helper result as incomplete and repair the metadata before reporting success.
 Extract `requirements:` from plan frontmatter. Skip if absent.
 </step>
 <!-- /section -->

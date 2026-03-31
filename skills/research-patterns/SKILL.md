@@ -85,6 +85,8 @@ Discipline:
 
 **Single source reliance:** One source for critical claims. Prevention: Require official docs + release notes + additional source.
 
+**Large lesson snapshot bias:** Manual reading of a big `lessons.json` snapshot can overweight memorable examples. Prevention: before using lessons memory for roadmap, feature, or architecture guidance, do a lightweight count/bucket pass by type, affected agent, and repeated remediation theme.
+
 ### Pre-Submission Checklist
 
 - [ ] All domains investigated (stack, patterns, pitfalls)

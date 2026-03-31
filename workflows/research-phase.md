@@ -48,7 +48,9 @@ If doesn't exist: Continue.
 
 **If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
 
-Extract from `<bgsd-context>` JSON: `phase_dir`, `padded_phase`, `phase_number`, `commit_docs`, `state_path`, `requirements_path`, `context_path`, `research_path`, `resume_summary`, `effective_intent`, `jj_planning_context`.
+Extract from `<bgsd-context>` JSON: `phase_dir`, `phase_slug`, `padded_phase`, `phase_number`, `commit_docs`, `state_path`, `requirements_path`, `context_path`, `research_path`, `resume_summary`, `effective_intent`, `jj_planning_context`.
+
+If `phase_dir` is null or missing on disk, derive the canonical directory from `padded_phase` + `phase_slug`, create it, and use that path for the research artifact.
 
 Use paths from `<bgsd-context>` (do not inline file contents in orchestrator context):
 - `requirements_path`
@@ -138,6 +140,7 @@ Mode: ecosystem
 <additional_context>
 **Phase description:** {phase_description}
 Use injected `effective_intent` as the default source for project objective, milestone focus, and relevant desired outcomes. Prioritize findings relevant to the most important active outcomes.
+If the phase traces to a linked milestone PRD through INTENT.md or REQUIREMENTS.md, read that PRD before finalizing scope so research respects the intended boundary instead of drifting into adjacent phases.
 Use injected `jj_planning_context` only as capability context. Do not rely on live workspace inventory.
 If explicit overlap evidence supports it, you may mention a manual preference for safe low-overlap sibling work. Do not auto-route or recommend siblings heuristically.
 Read raw intent source docs only when direct editing or source-text review is genuinely necessary.
@@ -170,7 +173,7 @@ Before declaring complete, verify:
 </quality_gate>
 
 <output>
-Write to: .planning/phases/${PHASE}-{slug}/${PHASE}-RESEARCH.md
+Write to: {phase_dir}/{padded_phase}-RESEARCH.md
 </output>",
   subagent_type="bgsd-phase-researcher",
   model="{researcher_model}",

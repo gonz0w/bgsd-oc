@@ -17,6 +17,8 @@ User types /bgsd-plan phase 1
 
 Workflows are **not code**. They are prompts that any LLM can follow. The deterministic logic lives in `gsd-tools.cjs`; workflows handle reasoning and coordination.
 
+When documenting the CLI generically, refer to `bgsd-tools` in backticks or as "the CLI" rather than prose that looks like a runnable command fragment.
+
 ---
 
 ## Workflow Categories

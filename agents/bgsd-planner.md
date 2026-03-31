@@ -203,6 +203,8 @@ Output: [Artifacts created]
 
 `Selected` plans use `type: tdd`. `Skipped` plans use `type: execute`.
 
+When you choose `type: tdd`, use the dedicated TDD structure (`<feature>`, explicit RED/GREEN/REFACTOR targets, and audit-trail expectations) instead of a partial execute-style imitation.
+
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md
 @__OPENCODE_CONFIG__/bgsd-oc/templates/summary.md
@@ -351,6 +353,10 @@ Group by plan, dimension, severity.
 
 **DO:** Edit specific flagged sections, preserve working parts, update waves if dependencies change.
 
+If the revision splits or moves large repeated XML sections between PLAN files, prefer rewriting the affected file(s) wholesale instead of patching around repeated markers.
+
+After any mixed add/update edit across PLAN files, reread the touched plans before returning so accidental spillover or duplicated XML is caught before validation.
+
 **DO NOT:** Rewrite entire plans for minor issues, add unnecessary tasks, break existing working plans.
 
 ### Step 5: Validate Changes
@@ -459,7 +465,7 @@ Apply discovery level protocol (see discovery_levels section).
 
 **Step 1 — Generate digest index:**
 ```bash
-node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:history-digest
+GSD_NO_TMPFILE=1 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:history-digest
 ```
 
 **Step 2 — Select relevant phases (typically 2-4):**
@@ -516,10 +522,15 @@ Apply TDD detection heuristic. Apply user setup detection.
   - **Skipped:** work is clearly docs-only, config-only, layout-only, or other non-behavioral/tooling work.
 - Map the visible decision to plan type directly: `Selected` => `type: tdd`; `Skipped` => `type: execute`.
 - Do not emit `> **TDD Decision:** Selected` on a `type: execute` plan, or `Skipped` on a `type: tdd` plan.
-- If ROADMAP says `recommended`: still evaluate every plan, but TDD-eligible `type: execute` plans become checker warnings.
+- If ROADMAP says `recommended`: still evaluate every plan, but TDD-eligible execute plans become checker warnings.
 - If ROADMAP says `required`: every plan covering testable behavior MUST use `type: tdd`; checker violations are blockers.
 - Record the result in the plan body as a visible callout immediately after `<objective>` using: `> **TDD Decision:** Selected|Skipped — ...`
 - Keep the rationale short, human-readable, and **out of frontmatter**. It explains how the deterministic floor applied for that plan; it does not replace the rule.
+- When you choose `type: tdd`, use the dedicated TDD template rather than leaving the plan in an execute-style shape.
+
+When plan work touches generated runtime outputs, cite the real source modules in `files_modified` and task context first. Mention generated outputs like `plugin.js` or `bin/bgsd-tools.cjs` only when rebuild verification is part of the deliverable.
+
+When filling `must_haves.artifacts`, choose implementation-stable `contains` strings such as exported function names, returned field names, or exact shipped guidance text. Avoid prose summaries or generic command labels that may never appear verbatim in the artifact.
 
 When designing verification:
 - give each task its own narrow proof tied to the files or behavior it changes

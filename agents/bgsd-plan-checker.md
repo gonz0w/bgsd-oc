@@ -85,11 +85,12 @@ Same methodology (goal-backward), different timing, different subject matter.
 **Process:**
 1. Extract phase goal from ROADMAP.md
 2. Extract requirement IDs from ROADMAP.md `**Requirements:**` line for this phase
-3. Verify each requirement ID appears in at least one plan's `requirements` frontmatter field
-4. For each requirement, find covering task(s)
-5. Flag requirements with no coverage
+3. If this is gap-closure re-verification, identify unresolved blocker IDs/truths from the prior verification input first and treat already-verified requirements as satisfied context
+4. Verify each still-relevant requirement ID appears in at least one plan's `requirements` frontmatter field
+5. For each still-relevant requirement, find covering task(s)
+6. Flag remaining requirement gaps
 
-**FAIL** if any requirement ID from the roadmap is absent from all plans' `requirements` fields.
+**FAIL** if any still-relevant requirement ID is absent from all plans' `requirements` fields.
 
 ## Dimension 2: Task Completeness
 
@@ -217,6 +218,8 @@ for plan in "$PHASE_DIR"/*-PLAN.md; do
 done
 ```
 
+Always reread the current plan files before judging a requested re-check. Never rely on stale earlier findings after the planner has revised files.
+
 ## Step 3: Parse must_haves
 
 ```bash
@@ -229,7 +232,7 @@ Also review `verify:verify analyze-plan` findings as approval blockers or warnin
 
 ## Step 4: Check Requirement Coverage
 
-Map requirements to tasks, flag gaps.
+Map requirements to tasks, then explicitly map roadmap success criteria to planned tasks. If a deferred implementation note leaves a promised user-facing outcome uncovered, flag it even when the context decision itself is valid.
 
 ## Step 5: Validate Task Structure
 

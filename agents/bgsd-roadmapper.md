@@ -289,11 +289,15 @@ After roadmap creation, REQUIREMENTS.md gets updated with phase mappings:
 
 Reference full template: `__OPENCODE_CONFIG__/bgsd-oc/templates/roadmap.md`
 
+Before rewriting an active milestone roadmap, inspect the most recent archived milestone roadmap so the recreated live file preserves the expected milestone-grouped shape instead of falling back to a cleared placeholder skeleton.
+
 ## STATE.md Structure
 
 Use template from `__OPENCODE_CONFIG__/bgsd-oc/templates/state.md`.
 
 Key sections: Project Reference, Current Position, Performance Metrics, Accumulated Context, Session Continuity.
+
+When resetting from a completed milestone into a shorter new active state, rewrite STATE.md as a complete file instead of patching sections in place.
 
 </output_formats>
 
@@ -330,6 +334,8 @@ Verify 100% requirement mapping — every v1 requirement → exactly one phase. 
 ## Step 7: Write Files Immediately
 
 **Write files first, then return.** Write ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability.
+
+After writing, run the full planning validator for ROADMAP.md, STATE.md, and REQUIREMENTS.md and fix any reported format issues before returning success.
 
 ## Step 8: Return Summary
 

@@ -159,6 +159,7 @@ None — all verifiable items checked programmatically.
 **Verification approach:** Goal-backward (derived from phase goal)
 **Must-haves source:** {PLAN.md frontmatter | derived from ROADMAP.md goal}
 **Automated checks:** {N} passed, {M} failed
+**Baseline failures:** {None | unrelated pre-existing failures called out separately from touched-slice proof}
 **Human checks required:** {N}
 **Total verification time:** {duration}
 
@@ -186,6 +187,7 @@ None — all verifiable items checked programmatically.
 - For SUBSTANTIVE: "N lines, has patterns X, Y, Z"
 - For WIRED: "Line N: code that connects A to B"
 - For FAILED: "Missing because X" or "Stub because Y"
+- When broad suites were already red or too unstable to trust, call that baseline out separately from the touched-slice result
 
 **Severity levels:**
 - 🛑 Blocker: Prevents goal achievement, must fix

@@ -41,7 +41,7 @@ Use /bgsd-inspect progress to see available phases.
 ```
 Exit.
 
-Phase directory not found on disk → create dir from `padded_phase` and `phase_slug` from `<bgsd-context>`.
+If `phase_dir` is null or the directory is missing on disk → derive the canonical phase directory from `padded_phase` + `phase_slug`, create it, and use that path for all downstream writes.
 
 ## 2.5. Gate Active Chain Continuation
 
@@ -107,6 +107,7 @@ Only inspect raw intent source docs when direct source-text review is actually r
 Phase description: {phase_desc}
 Requirement IDs: {phase_req_ids}
 Read ./AGENTS.md and .agents/skills/ if they exist.
+If the phase traces to an intent outcome or requirement that links to a milestone PRD, read that PRD (or trace from INTENT/REQUIREMENTS to it) before finalizing scope so research stays inside the promised boundary.
 If .planning/ASSERTIONS.md exists: note existing assertions for this phase's requirements. Research should inform whether existing assertions are sufficient.
 Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.
 Write to: {phase_dir}/{phase_num}-RESEARCH.md",
@@ -160,7 +161,10 @@ Only read raw intent source docs if direct editing or source-text quoting is tru
 If ASSERTIONS.md exists: for each requirement this phase covers, find its assertions and use must-have assertions as source for must_haves.truths in PLAN.md frontmatter. If no assertions exist for a requirement, derive truths from requirement text + context.
 Treat High-impact gray areas in CONTEXT.md as planning-critical. Do not guess past unresolved High items; require a visible disposition or planner-side clarification before locking plan structure.
 TDD hint for this phase: {tdd} (from ROADMAP.md **TDD:** field — 'recommended', 'required', or null when omitted). Regardless of hint value, planner MUST evaluate every implementation plan and record an explicit visible body callout in the plan: `> **TDD Decision:** Selected|Skipped — ...`.
-Use the deterministic floor exactly: default to `Selected` when work introduces or changes testable behavior with clear expected outcomes; use `Skipped` for clearly docs-only, config-only, layout-only, or other non-behavioral/tooling work. Map that visible decision directly to plan type: `Selected` plans use `type: tdd`, `Skipped` plans use `type: execute`. Do not emit a `Selected` callout on an `execute` plan or a `Skipped` callout on a `tdd` plan. `recommended` upgrades TDD-eligible `type: execute` plans to checker warnings; `required` upgrades them to blockers; omitted hints still produce checker info so the TDD decision path is visible instead of silent. Keep the rationale short, human-readable, and out of frontmatter. Stay within Phase 149 scope: selection/rationale/type consistency only, not Phase 150 `execute:tdd` semantic enforcement.
+Use the deterministic floor exactly: default to `Selected` when work introduces or changes testable behavior with clear expected outcomes; use `Skipped` for clearly docs-only, config-only, layout-only, or other non-behavioral/tooling work. `Selected` plans use `type: tdd`, `Skipped` plans use `type: execute`. Do not emit a `Selected` callout on an `execute` plan or a `Skipped` callout on a `tdd` plan. `recommended` upgrades TDD-eligible `type: execute` plans to checker warnings; `required` upgrades them to blockers; omitted hints still produce checker info so the TDD decision path is visible instead of silent. Keep the rationale short, human-readable, and out of frontmatter. Stay within Phase 149 scope: selection/rationale/type consistency only, not Phase 150 `execute:tdd` semantic enforcement. When you choose `type: tdd`, use the dedicated TDD template rather than a partial execute-style imitation.
+When planning runtime-guidance or bundle-adjacent work, cite the concrete source modules in `files_modified` and task context; mention generated outputs like `plugin.js` or `bin/bgsd-tools.cjs` only when they are rebuilt deliverables, not as the primary edit target.
+When authoring `must_haves.artifacts` metadata, choose implementation-stable evidence strings (exported function names, field names, exact shipped guidance text) instead of prose summaries or generic command labels.
+If revision work splits or moves large XML-heavy plan sections between PLAN files, prefer full-file rewrites over partial patching. After any mixed add/update plan edit, reread the touched PLAN files before returning.
 
 Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.
 
@@ -180,6 +184,8 @@ Task(
   prompt="Verify Phase {phase} plans.
 Read: {phase_dir}/*-PLAN.md, {roadmap_path}, {requirements_path}, {context_path}
 Run and honor `verify:verify plan-structure` and `verify:verify analyze-plan` for each plan before approval. Treat malformed or inconclusive verifier-facing `must_haves` artifacts/key_links metadata as blockers rather than a mere field-presence issue, and block approval on command drift, stale paths, unavailable validation steps, task-order verify hazards, or overscope risk.
+Explicitly map roadmap success criteria to planned tasks after checking context compliance so deferred implementation notes cannot erase promised user-facing outcomes.
+If this is gap-closure work, treat already-verified requirements as satisfied context and require direct coverage only for unresolved blocker/warning truths or requirements named in the gap input.
 Check: requirement coverage, task structure, dependencies, must_haves.",
   subagent_type="bgsd-plan-checker", model="{checker_model}", description="Verify Phase {phase} plans"
 )
@@ -191,7 +197,7 @@ PASSED → use `questionTemplate('plan-phase-checker-passed', 'SINGLE_CHOICE')`.
 Task(
   prompt="Read __OPENCODE_CONFIG__/agents/bgsd-planner.md for instructions.
 Revision mode. Read: {phase_dir}/*-PLAN.md
-Checker issues: {structured_issues}. Make targeted updates, return what changed.
+Checker issues: {structured_issues}. Reread the current plan files first, make targeted updates, mentally rerun plan-structure/analyze-plan against the changed files, and return what changed. Prefer full-file rewrites when splitting XML-heavy plans across files.
 Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.",
   subagent_type="general", model="{planner_model}", description="Revise Phase {phase} plans"
 )

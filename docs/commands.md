@@ -8,7 +8,11 @@ Preferred canonical command families:
 - `/bgsd-inspect ...` for read-only diagnostics and search/history flows
 - `/bgsd-settings ...` for configuration profile switching and config validation
 
-Compatibility shims still exist during migration, but this reference stays canonical-first and lists the runnable commands users should follow.
+This reference stays canonical-first and lists the runnable commands users should follow.
+
+When documentation mentions the CLI generically, keep `bgsd-tools` in backticks or say "the CLI". Avoid prose that makes the binary name look like a pseudo-command.
+
+When editing command docs, preserve exact canonical route callouts unless the associated regression contract is intentionally updated.
 
 ---
 

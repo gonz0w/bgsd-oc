@@ -136,6 +136,8 @@ Technology, Features, Architecture, Pitfalls.
 
 For each domain: Context7 → Official Docs → WebSearch → Verify. Document with confidence levels. Load <skill:research-patterns /> for tool strategy.
 
+If `.planning/memory/lessons.json` is present and materially informs the requested dimension, do a lightweight bucket/count pass before drawing conclusions. For FEATURES.md and ARCHITECTURE.md especially, summarize lesson patterns by type, affected agent, and repeated remediation theme so recommendations reflect the dominant snapshot instead of impressionistic sampling.
+
 ## Step 4: Quality Check
 
 - [ ] All domains investigated

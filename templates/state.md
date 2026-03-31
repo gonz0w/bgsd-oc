@@ -93,6 +93,7 @@ STATE.md is the project's short-term memory spanning all phases and sessions.
 - Reference PROJECT.md (read it for current context)
 - Initialize empty accumulated context sections
 - Set position to "Phase 1 ready to plan"
+- During milestone resets or other major rewrites, prefer rewriting the full file from the template instead of patching sections in place so stale trailing content cannot survive.
 
 **Reading:** First step of every workflow
 - progress: Present status to user

@@ -183,6 +183,8 @@ INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${PHAS
 
 Then read CONTEXT.md if exists.
 
+If init context leaves `phase_dir` null, derive the canonical directory from the phase number plus slug, create it, and use that path for RESEARCH.md.
+
 ## Step 2: Identify Research Domains
 
 Core Technology, Ecosystem/Stack, Patterns, Pitfalls, Don't Hand-Roll.
@@ -190,6 +192,8 @@ Core Technology, Ecosystem/Stack, Patterns, Pitfalls, Don't Hand-Roll.
 ## Step 3: Execute Research Protocol
 
 For each domain: Context7 first → Official docs → WebSearch → Cross-verify. Document with confidence levels. Load <skill:research-patterns /> for tool strategy.
+
+If the phase maps to an intent outcome or requirement that links to a milestone PRD, trace through INTENT.md / REQUIREMENTS.md to that PRD and use it to keep scope boundaries tight before finalizing recommendations.
 
 ## Step 4: Quality Check
 

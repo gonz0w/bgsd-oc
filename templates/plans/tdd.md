@@ -17,8 +17,10 @@ must_haves:
   artifacts:
     - path: "[path/to/source-file]"
       provides: "[Feature implementation]"
+      contains: "[Exact implementation-stable string from the source file]"
     - path: "[path/to/test-file]"
       provides: "[Test coverage for feature]"
+      contains: "[Exact test name or stable matcher text]"
 ---
 
 <!-- Canonical TDD contract lives in skills/tdd-execution/SKILL.md. -->
@@ -34,6 +36,8 @@ Output: [Working, tested feature with 2-3 commits.]
 </objective>
 
 > **TDD Decision:** Selected — [Why this feature should run as a dedicated TDD plan.]
+
+`Selected` plans use `type: tdd`. Use this full template when you make that selection so the plan includes the dedicated `<feature>` / RED-GREEN-REFACTOR structure.
 
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md

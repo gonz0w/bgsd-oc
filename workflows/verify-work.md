@@ -74,6 +74,10 @@ Use injected `jj_planning_context` only as advisory capability context when veri
 
 When a tested deliverable depends on generated runtime artifacts (for example `plugin.js` or `bin/bgsd-tools.cjs`), validate the repo-local current checkout and rebuild the local runtime before asking the user to trust shipped output. The agent runs `npm run build`, reruns the focused proof against the rebuilt local runtime, and only then presents the verification step.
 
+Prefer focused verification commands that stay attached to the touched behavior: explicit `node --test <file>...` file lists, direct smoke scripts, or helper invocations. Avoid `npm test --test-name-pattern` when it still runs unrelated suites or hides timeouts inside large files.
+
+If a broad verification gate is already failing for unrelated historical reasons, record that baseline separately from the plan-specific result so new regressions are not conflated with pre-existing failures.
+
 If explicit overlap evidence shows low risk, planners may manually prefer safe low-overlap sibling work for follow-up fixes. Keep that preference manual and non-heuristic.
 
 When a phase success criterion depends on command-family or discoverability outcomes, expand verification beyond the directly touched regression file. Check the broader surfaced guidance or command-family output that users actually rely on, not just the touched test file.
@@ -193,6 +197,7 @@ Read: {phase_dir}/{phase_num}-UAT.md, .planning/STATE.md, .planning/ROADMAP.md
 Use injected `effective_intent` as the default purpose/alignment contract for follow-up plans.
 Use injected `jj_planning_context` as advisory-only capability context — no live workspace inventory and no automatic sibling-work routing.
 If file-overlap evidence is clearly low risk, manual low-overlap sibling-work preference is allowed.
+Target the unresolved blocker IDs, truths, or warnings named in the UAT/verification artifact explicitly; do not broaden scope back to already-verified phase requirements unless the gap text says they regressed.
 Requirements: {phase_req_ids}. Read ./AGENTS.md and .agents/skills/ if they exist.
 Output: Gap closure PLAN.md files.",
   subagent_type="bgsd-planner", model="{planner_model}", description="Plan gap closure"
@@ -205,7 +210,7 @@ PLANNING COMPLETE → verify_gap_plans. INCONCLUSIVE → report, offer manual.
 ```
 Task(
   prompt="Phase {phase_number}, goal: close diagnosed gaps.
-Read: {phase_dir}/*-PLAN.md. Verify coverage + must_haves.",
+Read: {phase_dir}/*-PLAN.md. Re-check only the unresolved truths, blocker IDs, or requirement gaps named in the UAT/verification source, treat already-verified phase requirements as satisfied context, and verify coverage + must_haves.",
   subagent_type="bgsd-plan-checker", model="{checker_model}", description="Check gap plans"
 )
 ```

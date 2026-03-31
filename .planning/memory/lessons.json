@@ -12,42 +12,6 @@
     ]
   },
   {
-    "id": "dd7d30eb-2611-43ee-8d74-bd1b239eac23",
-    "date": "2026-03-29T16:05:59.154Z",
-    "title": "Verify cwd-sensitive CLI flows from the target repo",
-    "severity": "LOW",
-    "type": "agent-behavior",
-    "root_cause": "Temp-repo verification initially invoked the CLI from the main workspace, so cwd-sensitive JJ detection exercised the wrong repository and hid the real setup-hint behavior.",
-    "prevention_rule": "When validating repo-detection or init commands, run the CLI with the temp repo as cwd (or change into it explicitly) before trusting the result.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "047d0363-6ba0-4043-b78e-f965327d6932",
-    "date": "2026-03-29T17:02:57.250Z",
-    "title": "Plan checker should always re-run structural validation after requested fixes",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Re-check requests can rely on stale prior findings unless the checker re-validates current plan files after mandatory rereads.",
-    "prevention_rule": "For every re-check, reread the requested plan files first, then rerun plan-structure validation before issuing a final pass/fail judgment.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "67a8b3e0-b8bb-47b0-8d9b-03b4360af1da",
-    "date": "2026-03-29T18:24:57.745Z",
-    "title": "Plan checks should compare deferred context decisions against roadmap success criteria",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Phase context can intentionally defer automation details while ROADMAP success criteria still require an observable user-facing outcome, so a plan may look context-compliant yet still miss the phase goal.",
-    "prevention_rule": "During plan verification, explicitly map each roadmap success criterion to planned tasks after checking context compliance, and flag cases where deferred implementation details remove the user-facing behavior the roadmap still promises.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
     "id": "7ec9413d-0ae3-46ce-afc3-6449acf4ee3e",
     "date": "2026-03-29T19:09:01.304Z",
     "title": "Mirror agent-context manifest updates across runtime and cached paths",
@@ -55,67 +19,6 @@
     "type": "workflow",
     "root_cause": "Agent-facing context fields can land in init output first while runtime scoping manifests or cached agent-context generators still omit them, leaving downstream consumers inconsistent.",
     "prevention_rule": "When adding a new agent-facing context field, update both src/lib/context.js and src/lib/codebase-intel.js in the same task and add scoped integration coverage for at least one live init path plus one cached-context path.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "0bbafff2-2575-4994-a083-14bcb44e1c2d",
-    "date": "2026-03-29T19:36:26.924Z",
-    "title": "Phase re-verification should target gap-closure evidence explicitly",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Re-verification prompts that mention a targeted revised gap-closure plan can still leave the checker to infer whether prior verification gaps should be treated as the primary pass/fail axis.",
-    "prevention_rule": "When requesting plan re-verification after a revision, explicitly name the prior blocker/warning IDs or truths to re-check so plan checkers can map the new plan against those exact gaps without ambiguity.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "19e00779-d506-4abf-9726-e4ed912cafb0",
-    "date": "2026-03-29T20:41:01.958Z",
-    "title": "Phase research should follow intent-linked PRDs for scope boundaries",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Phase research prompts require roadmap/context files but do not explicitly tell researchers to read the milestone PRD linked from INTENT/requirements traceability, so command-surface phases can accidentally blend canonical-surface work with later help/audit phases.",
-    "prevention_rule": "When a phase maps to an intent outcome with a linked PRD, researcher workflows should explicitly read that PRD or instruct the agent to trace from INTENT/REQUIREMENTS to the milestone PRD before finalizing scope and plan slices.",
-    "affected_agents": [
-      "bgsd-phase-researcher",
-      "bgsd-planner"
-    ]
-  },
-  {
-    "id": "20ad1308-0a20-430d-bd2d-073a8fc9e4ff",
-    "date": "2026-03-29T21:00:20.538Z",
-    "title": "Use full-file rewrites when splitting plans with embedded XML sections",
-    "severity": "MEDIUM",
-    "type": "agent-behavior",
-    "root_cause": "When a plan revision required carving one PLAN.md into multiple new files, a partial patch against repeated XML-like sections appended new plan text into the existing file instead of cleanly separating artifacts, creating an avoidable repair cycle.",
-    "prevention_rule": "When revision work moves large contiguous sections between PLAN.md files, prefer rewriting the affected file(s) wholesale and then adding new files separately instead of patching around repeated section markers.",
-    "affected_agents": [
-      "bgsd-planner"
-    ]
-  },
-  {
-    "id": "3023cb34-ad1e-4a8d-87ee-9243ef5fc084",
-    "date": "2026-03-30T01:07:31.443Z",
-    "title": "Plan checker should treat roadmap TDD omissions as explicit info findings",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Phase-level roadmap entries may omit a TDD hint, which can make TDD review appear skipped unless the checker reports the deterministic selection path explicitly.",
-    "prevention_rule": "When roadmap TDD is null or absent, always emit an explicit info-level TDD visibility result instead of silently passing the dimension.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "112ef75e-53bc-4c62-a9ab-40706089578d",
-    "date": "2026-03-30T01:22:33.134Z",
-    "title": "Verify requirement helper results before assuming completion",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "The plan finalization helper  can report  for an existing requirement ID, leaving execution metadata inconsistent unless the result is checked explicitly.",
-    "prevention_rule": "After running requirement-completion helpers, verify the target requirement changed in REQUIREMENTS.md and fall back to a direct metadata update when the helper reports not_found unexpectedly.",
     "affected_agents": [
       "bgsd-executor"
     ]
@@ -145,127 +48,6 @@
     ]
   },
   {
-    "id": "ca48c068-c634-41fe-b4e6-033672977ec5",
-    "date": "2026-03-30T01:47:48.998Z",
-    "title": "Use concrete command snippets for focused guidance validator tests",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "The shared command validator scans whole workflow files literally, so placeholders like [N] and __OPENCODE_CONFIG__ path tokens create noisy failures unrelated to the touched guidance slice.",
-    "prevention_rule": "When a plan needs validator-backed proof for specific workflow guidance, feed the validator concrete extracted or synthesized command snippets for the targeted examples instead of asserting whole prompt files must validate cleanly.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "8d866050-7e9c-4e10-86ae-a6bbb52aaacf",
-    "date": "2026-03-30T01:48:32.503Z",
-    "title": "Focused validator snippets should avoid slash-like CLI path tokens",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "The shared command validator treats path fragments like /bgsd-tools inside node bin/bgsd-tools.cjs examples as slash-command mentions, which creates false positives when validating documentation snippets.",
-    "prevention_rule": "When using focused validateCommandIntegrity coverage on doc excerpts, feed canonical slash commands and bare bgsd-tools CLI invocations instead of raw node bin/... paths unless the validator is extended to ignore executable paths.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "4b0a4c25-d8a1-4e8b-a28e-d7e1c23aa970",
-    "date": "2026-03-30T01:54:56.558Z",
-    "title": "Focused validator fixtures can mask phase-scope command drift",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Phase 159 added narrow validator-backed tests that passed against curated substrings, but verification did not require checking repo-wide validator overlap on the actual touched files. That allowed genuine stale guidance in touched help/doc surfaces to remain despite green focused suites.",
-    "prevention_rule": "For command-surface phases, verification should always compare full validateCommandIntegrity() results against the plan's touched-file set and treat any real touched-file overlap as a phase gap unless explicitly classified as validator false positive.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "a021759f-8c60-44f0-8f85-5bb3440a2038",
-    "date": "2026-03-30T02:16:12.351Z",
-    "title": "Add false-positive smoke checks after command-validator regex edits",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Focused validator tests covered placeholder tables but missed config-path placeholder strings like __OPENCODE_CONFIG__/bgsd-oc, so a repo-wide false positive survived until final verification.",
-    "prevention_rule": "After changing command-extraction regexes, run one repo-wide smoke check for known false-positive families (for example placeholder path fragments and reference tables) before declaring the plan complete.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "96076868-0870-43b5-85a8-a8da920d6bdf",
-    "date": "2026-03-30T02:39:34.178Z",
-    "title": "Differentiate gap-closure coverage from full-phase coverage",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Plan-checker requirement-coverage rules are phase-wide by default, but gap-closure verification operates on a narrower set of unresolved verification gaps. Without explicitly separating those scopes, a checker can raise false blockers for requirements already verified in earlier plans.",
-    "prevention_rule": "When verifying gap-closure plans, first compare the verification report's unresolved truths/requirements against roadmap requirements, then require direct coverage only for still-open requirements while treating already-verified phase requirements as satisfied context rather than plan-local obligations.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "3a5e1bff-8863-4ff2-a620-7d792f199829",
-    "date": "2026-03-30T02:48:52.162Z",
-    "title": "Run docs regressions before removing canonical route callouts",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "A structural docs cleanup consolidated multiple canonical route notes into one table, but the focused docs regression still treated several exact route-callout lines as part of the shipped contract.",
-    "prevention_rule": "When shrinking or consolidating user-facing command docs, run the focused guidance regression before finalizing the rewrite and preserve any exact route-callout wording that tests enforce unless the test contract is intentionally updated.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "57a7c7e5-2cd5-4493-87f0-7a0f1fe19d74",
-    "date": "2026-03-30T03:36:02.106Z",
-    "title": "Prefer direct validator invocation when raw output is file-indirected",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "The util:validate-commands --raw CLI can emit an ephemeral @file: pointer instead of inline JSON, and the temp payload may disappear before verification agents can inspect it.",
-    "prevention_rule": "When verification needs command-integrity evidence, use a stable output mode (inline JSON or explicit destination file) or call validateCommandIntegrity() directly so evidence remains inspectable.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "c12dae44-f622-4584-abc7-eca3475aa4c8",
-    "date": "2026-03-30T03:56:59.619Z",
-    "title": "Avoid bare bgsd-tools phrasing in narrative prose",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "The command-integrity validator treats a binary name followed by free text as a potential runnable CLI example, so explanatory prose like 'run via bgsd-tools or through workflows' can create false positives.",
-    "prevention_rule": "When documentation mentions the binary generically, isolate  in backticks or describe it as 'the CLI' without a following pseudo-command token.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "ab4c43ad-ab5f-4df2-bcdb-2d63774200d8",
-    "date": "2026-03-30T04:00:56.351Z",
-    "title": "Verification should compare shipped CLI audits with in-repo validator output",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Phase verification can rely on the installed CLI audit alone, but the shipped binary may lag the in-repo source or summarize issues too coarsely, hiding concrete surfaced-file failures needed for goal-level verification.",
-    "prevention_rule": "When verifying command-surface integrity in the dev workspace, run the shipped audit and also invoke the current repo's validateCommandIntegrity helper (or rebuild first) so verdicts use file-level evidence from the actual code under review.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "81e6e1e9-1c26-4903-af49-005ce1cd4fe9",
-    "date": "2026-03-30T04:25:50.316Z",
-    "title": "List plugin source modules alongside bundle targets in runtime plans",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "The plan named src/lib/constants.js as the source artifact for runtime guidance fixes, but the stale strings actually lived in multiple src/plugin modules that build plugin.js. That mismatch forced extra discovery during execution.",
-    "prevention_rule": "When a gap-closure plan targets shipped plugin.js behavior, cite the concrete src/plugin source modules that emit the runtime strings in files_modified or context so executors can patch the real source without detouring through unrelated artifacts.",
-    "affected_agents": [
-      "bgsd-executor",
-      "bgsd-planner"
-    ]
-  },
-  {
     "id": "817badc1-9824-4355-822a-95833384ba69",
     "date": "2026-03-30T05:12:15.875Z",
     "title": "execute:commit can fail on dirty trees during path-scoped plan commits",
@@ -278,66 +60,6 @@
     ]
   },
   {
-    "id": "46bb07c1-c0c6-4854-a27b-8ad56001b771",
-    "date": "2026-03-30T05:40:10.513Z",
-    "title": "Cross-phase audits should compare src and bundled runtime for shipped parser contracts",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "This repo ships behavior from bin/bgsd-tools.cjs, but source modules can diverge after workflow changes; relying on only src or only runtime can miss intent-contract mismatches until a future rebuild.",
-    "prevention_rule": "During milestone audits of shipped workflows, compare at least one critical contract through both source modules and the bundled CLI whenever the project keeps a generated bin artifact in-repo.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "ee6431b7-a86c-4f58-bbde-dc005b5251fe",
-    "date": "2026-03-30T13:07:14.375Z",
-    "title": "Recheck older phase blockers against current validator state",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Phase-level verification reports can become stale after later closure phases fix the originally cited surfaces, so milestone reviews that trust the old blocker report alone can misclassify current integration status.",
-    "prevention_rule": "During milestone integration verification, pair historical phase reports with a current repo-wide validator run and targeted surface grep to distinguish resolved historical blockers from live gaps.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "dcc43eb2-29ef-4832-ae3b-016c0b75584a",
-    "date": "2026-03-30T13:27:21.338Z",
-    "title": "Bucket large lesson snapshots before milestone feature synthesis",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Feature research that depends on a large lessons.json snapshot can become anecdotal if the agent only samples titles manually, because repeated failure clusters and priority weighting are easy to misjudge without a quick count by theme, type, and affected agent.",
-    "prevention_rule": "Before writing milestone-scoping research from lessons memory, run a lightweight scripted summary that counts lesson types, top affected agents, and repeated remediation themes so recommendations reflect the actual snapshot rather than impressionistic reading.",
-    "affected_agents": [
-      "bgsd-project-researcher"
-    ]
-  },
-  {
-    "id": "a55254d7-2a61-4640-a485-d0df8f5fe11d",
-    "date": "2026-03-30T13:28:13.455Z",
-    "title": "Cluster large lesson snapshots before milestone architecture research",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "The lessons snapshot was large enough that manual reading alone made it hard to see the dominant remediation themes and frequency drivers feeding roadmap decisions.",
-    "prevention_rule": "Before writing milestone architecture or roadmap guidance from lessons.json, run a quick scripted clustering/count pass so recommendations reflect repeated patterns and top affected agents rather than whichever lessons were easiest to notice manually.",
-    "affected_agents": [
-      "bgsd-project-researcher"
-    ]
-  },
-  {
-    "id": "86c2e6c3-68b3-41ac-876d-35a91760731b",
-    "date": "2026-03-30T13:35:03.061Z",
-    "title": "Validate STATE.md after roadmap writes",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Roadmap/state file writes can satisfy content goals while still failing bGSD validator field-format expectations, especially around STATE.md labels and activity formatting.",
-    "prevention_rule": "After writing ROADMAP.md, STATE.md, and REQUIREMENTS.md, always run bgsd_validate and fix any state/roadmap format issues before returning success.",
-    "affected_agents": [
-      "bgsd-roadmapper"
-    ]
-  },
-  {
     "id": "ffb40f3d-b902-4c0e-8fdc-84367a371a03",
     "date": "2026-03-30T14:14:09.558Z",
     "title": "Planner should default to execute plans unless using the full TDD template",
@@ -345,30 +67,6 @@
     "type": "workflow",
     "root_cause": "The planner prompt requires a visible TDD decision for every implementation plan, but the plan-structure validator still expects legacy TDD-only sections like <feature> when frontmatter type is set to tdd. Marking plans as tdd from the decision alone creates avoidable validation failures.",
     "prevention_rule": "When a plan records '> **TDD Decision:** Selected' but does not intentionally use the dedicated TDD plan structure, keep frontmatter type as execute and reserve type:tdd for plans that include the full TDD template requirements.",
-    "affected_agents": [
-      "bgsd-planner"
-    ]
-  },
-  {
-    "id": "edff1ec6-19e1-452c-8356-b3c3e51722fa",
-    "date": "2026-03-30T15:27:00.090Z",
-    "title": "Check archived roadmap shape before recreating active milestone roadmap",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "The live ROADMAP.md may be a cleared placeholder during milestone initialization, so relying on it alone can miss the expected milestone-grouped structure and active-phase formatting conventions.",
-    "prevention_rule": "Before rewriting a cleared active roadmap, inspect the most recent archived milestone roadmap and the template, then validate parity after writing.",
-    "affected_agents": [
-      "bgsd-roadmapper"
-    ]
-  },
-  {
-    "id": "d3fbd0df-2be6-43f3-b2a1-522141941fad",
-    "date": "2026-03-30T16:30:05.908Z",
-    "title": "Re-read patched plan files after mixed add/update patches",
-    "severity": "MEDIUM",
-    "type": "agent-behavior",
-    "root_cause": "A mixed apply_patch operation that updated one plan and added new plan files left literal patch content appended inside an existing PLAN.md, and structure validation only exposed it after the fact.",
-    "prevention_rule": "After any complex apply_patch that mixes Update File and Add File sections for planning docs, immediately re-read the touched PLAN.md files before validation so accidental patch spillover is caught early.",
     "affected_agents": [
       "bgsd-planner"
     ]
@@ -398,18 +96,6 @@
     ]
   },
   {
-    "id": "d0e5fbe5-ec3d-411b-bb24-249fc87fc20b",
-    "date": "2026-03-30T19:50:18.839Z",
-    "title": "Record unrelated baseline failures separately from plan verification",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Plan verification commands can include long-standing unrelated failing tests, which makes slice-specific regressions harder to distinguish from pre-existing red suites during execution.",
-    "prevention_rule": "When an explicit verification command is already red before the touched slice is fixed, executors should separately call out which newly added slice tests fail or pass so plan summaries can report honest verification without conflating unrelated failures.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
     "id": "41e2327f-e6a4-4451-9ce0-72039cd1614f",
     "date": "2026-03-30T20:04:51.913Z",
     "title": "Requirements completion CLI misses backtick-wrapped IDs",
@@ -422,104 +108,6 @@
     ]
   },
   {
-    "id": "e8a8b705-f884-4e6a-bdca-b1ee27508090",
-    "date": "2026-03-30T20:20:09.912Z",
-    "title": "Use implementation-stable contains patterns in must_haves artifacts",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Phase verification artifact helpers depend on must_haves.artifacts contains strings, but some plans used prose-like literals (for example command names or generic words) that were not present verbatim in the shipped source, causing false artifact failures despite real implementation coverage.",
-    "prevention_rule": "When authoring or updating must_haves artifact metadata, choose stable code-level evidence strings such as exported function names, returned field names, or exact guidance text that exists in the artifact, and re-run the artifact verifier before closing the plan.",
-    "affected_agents": [
-      "bgsd-verifier",
-      "bgsd-planner",
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "b205968b-2fdd-41a5-977c-9c362513d953",
-    "date": "2026-03-30T20:44:22.309Z",
-    "title": "Force inline output when planner needs to inspect history digest immediately",
-    "severity": "LOW",
-    "type": "tooling",
-    "root_cause": "util:history-digest can emit an ephemeral @file payload, and follow-up Read calls may miss the temp file before the planner inspects it.",
-    "prevention_rule": "When a planning step needs to consume history-digest output directly, run it with inline-output safeguards (for example GSD_NO_TMPFILE=1 or an explicit stable destination) instead of assuming the @file payload will remain readable.",
-    "affected_agents": [
-      "bgsd-planner"
-    ]
-  },
-  {
-    "id": "598a08ec-05b5-4fb6-9290-8732bdd33560",
-    "date": "2026-03-30T21:16:52.619Z",
-    "title": "Prefer direct node --test file lists for focused verification",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Using npm test with --test-name-pattern appended filters after the repository's broad tests/*.test.cjs script, so verification unexpectedly ran unrelated suites and surfaced ambient failures outside the target phase.",
-    "prevention_rule": "For phase verification, run node --test with an explicit file list from the active plans instead of npm test --test-name-pattern so proof stays scoped to the touched contracts.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "ff5a4fa3-596c-439b-9a96-45597038a28e",
-    "date": "2026-03-30T21:20:56.063Z",
-    "title": "Re-verification should start with verifier metadata helpers after metadata-only repairs",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Metadata-only repairs often leave code behavior unchanged, but verification workflows can still spend most of their time rerunning broad proof before confirming whether the actual blocker was the verifier metadata contract.",
-    "prevention_rule": "When a re-verification request explicitly says the fix was metadata-only, rerun artifact and key-link helpers first to confirm the cited gap closed, then run focused regression suites only as sanity proof for the already-passing behavioral truths.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "df1d834d-2be5-48d9-8cdd-0862b4857c93",
-    "date": "2026-03-30T23:08:09.619Z",
-    "title": "Document targeted rebuilt-runtime fallback when broad node:test files hang",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Some large node:test files in this repo continue running unrelated suites and do not finish within executor timeouts even when a narrow --test-name-pattern is supplied, so plan verification can stall after the intended regressions already passed.",
-    "prevention_rule": "When a plan's required broad gate times out on known slow files, record the attempted gate, run the rebuilt runtime plus focused touched-surface checks that directly prove the plan truths, and call out the timeout as an issue instead of retrying the same hanging file repeatedly.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "1158e2f2-29de-4c43-8a58-4fce93b764fb",
-    "date": "2026-03-30T23:16:19.470Z",
-    "title": "Prefer direct smoke scripts when Node test filtering is unreliable",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Verifier runs that relied on  still executed large unrelated suites in long test files, causing avoidable timeouts during evidence collection.",
-    "prevention_rule": "For phase verification on large Node test files, prefer direct smoke scripts or narrowly scoped helper commands first; use full test-file invocation only when timing is predictable.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "360ea32d-4e78-48c9-a445-1011528ab796",
-    "date": "2026-03-30T23:40:24.474Z",
-    "title": "Milestone audits should include a scoped integration smoke suite",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Cross-phase verification can look healthy from source wiring and prompt contracts while stale compatibility fixtures or alias regressions remain hidden until a focused integration subset runs.",
-    "prevention_rule": "During milestone-level integration audits, run a small requirement-aligned integration smoke suite in addition to source inspection so shared-contract regressions surface before declaring the milestone clean.",
-    "affected_agents": [
-      "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "0d295793-fcb2-47b7-ad89-cdfad161afac",
-    "date": "2026-03-31T00:51:22.783Z",
-    "title": "Replace long STATE.md by full rewrite during milestone reset",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Updating STATE.md in place after a milestone-complete state can leave stale trailing sections when the new milestone reset is much shorter than the previous file.",
-    "prevention_rule": "When resetting from milestone-complete mode into a new active milestone, rewrite STATE.md as a complete file instead of patching individual sections.",
-    "affected_agents": [
-      "bgsd-roadmapper"
-    ]
-  },
-  {
     "id": "8a8bc3c6-45e0-474a-aa5a-6edacd79d07a",
     "date": "2026-03-31T01:59:19.228Z",
     "title": "State advance-plan should handle Not started phase state",
@@ -527,18 +115,6 @@
     "type": "tooling",
     "root_cause": "verify:state advance-plan assumes STATE.md already has numeric Current Plan and Total Plans in Phase values, but freshly planned phases can still be in 'Not started' / 'TBD' form when the first execution plan completes.",
     "prevention_rule": "Teach verify:state advance-plan to initialize numeric plan position from on-disk phase plans and summaries before incrementing so first-plan execution can follow the normal state-update protocol without manual repair.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "da802043-b138-4d8e-ac7e-0c266c250813",
-    "date": "2026-03-31T02:27:26.240Z",
-    "title": "Prefer task-scoped verification when plan-specific files contain unrelated legacy test failures",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "Focused plan work reused broad file-level Node test suites that also executed unrelated legacy fixtures, obscuring real plan verification signals.",
-    "prevention_rule": "When the user explicitly narrows verification, validate only the touched behaviors with task-scoped test names or direct assertion scripts instead of whole-file suites that include unrelated coverage.",
     "affected_agents": [
       "bgsd-executor"
     ]

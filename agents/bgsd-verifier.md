@@ -64,8 +64,9 @@ cat "$PHASE_DIR"/*-VERIFICATION.md 2>/dev/null
 3. Extract `gaps` (items that failed)
 4. Set `is_re_verification = true`
 5. **Skip to Step 3** with optimization:
-   - **Failed items:** Full 3-level verification (exists, substantive, wired)
-   - **Passed items:** Quick regression check (existence + basic sanity only)
+    - **Failed items:** Full 3-level verification (exists, substantive, wired)
+    - **Passed items:** Quick regression check (existence + basic sanity only)
+6. If the repair is described as metadata-only, start by rerunning artifact and key-link helpers for the failed items before spending time on broader proof.
 
 **If no previous verification → INITIAL MODE:** Proceed with Step 1.
 
@@ -104,6 +105,8 @@ Use the installed CLI artifact-verification helpers:
 ARTIFACT_RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:verify artifacts "$PLAN_PATH")
 ```
 
+When helper commands support both inline and file-indirected output, prefer stable inline/direct invocation for verification evidence. Do not rely on ephemeral `@file:` payloads as the sole source of proof.
+
 | helper status | exists | issues empty | Status |
 |---------------|--------|-------------|--------|
 | `present` | true | true | ✓ VERIFIED |
@@ -131,6 +134,8 @@ Treat helper-level metadata states as authoritative:
 - `status: missing` → metadata absent; fail with a clear “missing verifier metadata” explanation
 - `status: inconclusive` → metadata present but untrustworthy/actionless; fail loudly, do **not** downgrade to neutral or “nothing to verify”
 
+For command-surface or shipped-runtime verification, compare current source surfaces with the rebuilt bundled runtime when users execute generated artifacts.
+
 ## Step 6: Judge Intent Alignment
 
 Treat intent alignment as a separate verdict from requirements coverage.
@@ -151,6 +156,8 @@ Extract requirement IDs from PLAN frontmatter, cross-reference against REQUIREME
 Load <skill:verification-reference /> for stub detection patterns. Check for TODO/FIXME, empty implementations, placeholder returns.
 
 Categorize: 🛑 Blocker | ⚠️ Warning | ℹ️ Info
+
+For focused behavioral proof, prefer explicit `node --test <file>...` file lists or direct smoke scripts over `npm test --test-name-pattern`. If broad suites are already red for unrelated reasons, record that baseline separately from the slice-specific result. If a broad gate hangs after the targeted proof passes, record the attempted gate and switch to rebuilt-runtime plus focused touched-surface checks.
 
 ## Step 9: Identify Human Verification Needs
 

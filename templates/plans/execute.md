@@ -16,6 +16,7 @@ must_haves:
   artifacts:
     - path: "[path/to/artifact]"
       provides: "[What this artifact delivers]"
+      contains: "[Optional exact implementation-stable string such as an exported function name, field name, or shipped guidance text]"
   key_links:
     - from: "[source file]"
       to: "[target file]"
@@ -31,6 +32,8 @@ Output: [Concrete deliverables when complete.]
 </objective>
 
 > **TDD Decision:** Skipped — [Why this work does not justify a dedicated RED -> GREEN -> REFACTOR plan.]
+
+`Skipped` plans use `type: execute`. If you instead choose `Selected`, switch to the dedicated TDD template with `<feature>` and RED/GREEN/REFACTOR targets.
 
 <execution_context>
 @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md

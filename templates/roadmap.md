@@ -121,8 +121,8 @@ Phases execute in numeric order: 2 → 2.1 → 2.2 → 3 → 3.1 → 4
 - Run `validate roadmap` to detect and `validate roadmap --repair` to fix parity issues
 
 **TDD field (optional):**
-- `recommended` — Planner should create `type: tdd` plans for business logic, validation, algorithms; checker reports non-TDD eligible-plan mismatches as warnings
-- `required` — All plans with testable behavior MUST use `type: tdd`; checker reports violations as blockers
+- `recommended` — Planner should prefer the dedicated TDD template for business logic, validation, and algorithms; checker reports non-TDD eligible-plan mismatches as warnings
+- `required` — All plans with testable behavior should use the dedicated TDD template; checker reports violations as blockers
 - Omit the field when TDD doesn't apply (config, UI layout, documentation phases); checker still reports the deterministic TDD selection path as info instead of staying silent
 - This field controls Phase 149 selection/rationale severity only; it does **not** add Phase 150 `execute:tdd` semantic enforcement by itself
 - The planner still must make a visible `> **TDD Decision:** Selected|Skipped` callout for every implementation plan; `Selected` maps to `type: tdd`, `Skipped` maps to `type: execute`
@@ -139,6 +139,7 @@ Phases execute in numeric order: 2 → 2.1 → 2.2 → 3 → 3.1 → 4
 - Collapse completed milestones in `<details>` tags
 - Add new milestone sections for upcoming work
 - Keep continuous phase numbering (never restart at 01)
+- When recreating a cleared active roadmap, inspect the most recent archived milestone roadmap first so the live milestone-grouped shape stays consistent
 </guidelines>
 
 <status_values>
