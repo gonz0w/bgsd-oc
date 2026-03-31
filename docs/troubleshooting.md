@@ -193,9 +193,11 @@ node bin/bgsd-tools.cjs util:cache status
 
 **Fix:**
 ```bash
-node bin/bgsd-tools.cjs verify:validate-config    # Shows validation errors
-node bin/bgsd-tools.cjs util:config-migrate       # Add missing keys with defaults
+node bin/bgsd-tools.cjs verify:validate-config    # Shows validation errors in the current config
+node bin/bgsd-tools.cjs util:config-set <key.path> <value>  # Update a supported setting directly
 ```
+
+If you need a larger edit, open `.planning/config.json` and make the canonical change manually rather than using a migration helper.
 
 ### Settings not taking effect
 

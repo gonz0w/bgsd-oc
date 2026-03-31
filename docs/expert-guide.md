@@ -754,9 +754,10 @@ node bin/bgsd-tools.cjs util:mcp profile --restore  # Restore from backup
 node bin/bgsd-tools.cjs util:config-ensure-section         # Initialize with defaults
 node bin/bgsd-tools.cjs util:config-set model_profile quality  # Set a value
 node bin/bgsd-tools.cjs util:config-get model_profile         # Get a value
-node bin/bgsd-tools.cjs util:config-migrate                  # Add missing keys
 node bin/bgsd-tools.cjs verify:validate-config               # Schema validation
 ```
+
+For broader changes, edit `.planning/config.json` directly and rerun `verify:validate-config` instead of relying on a migration helper.
 
 Or interactively:
 ```

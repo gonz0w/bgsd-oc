@@ -1131,8 +1131,6 @@ Use without --exact for fuzzy matching.`);
           lazyMisc().cmdVerifyPathExists(cwd, restArgs[0], raw);
         } else if (subcommand === 'config-ensure-section') {
           lazyMisc().cmdConfigEnsureSection(cwd, raw);
-        } else if (subcommand === 'config-migrate') {
-          lazyMisc().cmdConfigMigrate(cwd, raw);
         } else if (subcommand === 'scaffold') {
           const scaffoldType = restArgs[0];
           const phaseIdx = restArgs.indexOf('--phase');
@@ -1390,7 +1388,7 @@ Examples:
           const formatted = examples.map(ex => examplesMod.formatExample(ex, verbose)).join('\n');
           output({ command, examples, formatted }, raw);
         } else {
-          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, config-migrate, scaffold, phase-plan-index, state-snapshot, summary-extract, summary-generate, quick-summary, extract-sections, git, tools, runtime, measure, recovery, history, examples`);
+          error(`Unknown util subcommand: ${subcommand}. Available: config-get, config-set, env, current-timestamp, list-todos, todo, memory, mcp, classify, frontmatter, progress, websearch, history-digest, trace-requirement, codebase, cache, agent, resolve-model, template, generate-slug, verify-path-exists, config-ensure-section, scaffold, phase-plan-index, state-snapshot, summary-extract, summary-generate, quick-summary, extract-sections, git, tools, runtime, measure, recovery, history, examples`);
         }
         break;
       }

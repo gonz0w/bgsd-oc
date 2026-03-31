@@ -2368,11 +2368,6 @@ Get configuration value from .planning/config.json.`,
       "util:config-set": `Usage: bgsd-tools util:config-set <key.path> <value>
 
 Set configuration value in .planning/config.json.`,
-      "util:config-migrate": `Usage: bgsd-tools util:config-migrate
-
-Migrate .planning/config.json to match CONFIG_SCHEMA.
-Adds missing keys with default values. Never overwrites existing values.
-Creates backup before writing changes.`,
       "util:env": `Usage: bgsd-tools util:env <subcommand> [options]
 
 Detect project languages, tools, and runtimes.
@@ -6110,19 +6105,19 @@ ${content}`);
       const revision = revisionMatch ? parseInt(revisionMatch[1], 10) : null;
       const created = createdMatch ? createdMatch[1] : null;
       const updated = updatedMatch ? updatedMatch[1] : null;
-      function extractSection3(tag) {
+      function extractSection4(tag) {
         const pattern = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
         const match = content.match(pattern);
         return match ? match[1].trim() : null;
       }
-      const objectiveRaw = extractSection3("objective");
+      const objectiveRaw = extractSection4("objective");
       const objective = { statement: "", elaboration: "" };
       if (objectiveRaw) {
         const lines = objectiveRaw.split("\n");
         objective.statement = lines[0].trim();
         objective.elaboration = lines.slice(1).join("\n").trim();
       }
-      const usersRaw = extractSection3("users");
+      const usersRaw = extractSection4("users");
       const users = [];
       if (usersRaw) {
         const userLines = usersRaw.split("\n").filter((l) => l.match(/^\s*-\s+/));
@@ -6131,7 +6126,7 @@ ${content}`);
           if (text) users.push({ text });
         }
       }
-      const outcomesRaw = extractSection3("outcomes");
+      const outcomesRaw = extractSection4("outcomes");
       const outcomes = [];
       if (outcomesRaw) {
         const outcomePattern = /^\s*-\s+(DO-\d+)\s+\[(P[123])\]:\s*(.+)/;
@@ -6142,7 +6137,7 @@ ${content}`);
           }
         }
       }
-      const criteriaRaw = extractSection3("criteria");
+      const criteriaRaw = extractSection4("criteria");
       const criteria = [];
       if (criteriaRaw) {
         const criteriaPattern = /^\s*-\s+(SC-\d+):\s*(.+)/;
@@ -6153,7 +6148,7 @@ ${content}`);
           }
         }
       }
-      const constraintsRaw = extractSection3("constraints");
+      const constraintsRaw = extractSection4("constraints");
       const constraints = { technical: [], business: [], timeline: [] };
       if (constraintsRaw) {
         const constraintPattern = /^\s*-\s+(C-\d+):\s*(.+)/;
@@ -6179,7 +6174,7 @@ ${content}`);
           }
         }
       }
-      const healthRaw = extractSection3("health");
+      const healthRaw = extractSection4("health");
       const health = { quantitative: [], qualitative: "" };
       if (healthRaw) {
         const healthPattern = /^\s*-\s+(HM-\d+):\s*(.+)/;
@@ -6209,7 +6204,7 @@ ${content}`);
         }
         health.qualitative = qualLines.join("\n");
       }
-      const historyRaw = extractSection3("history");
+      const historyRaw = extractSection4("history");
       const history = [];
       if (historyRaw) {
         let currentEntry = null;
@@ -8840,7 +8835,8 @@ function resolveConfiguredModelStateFromConfig(config, agentType) {
 }
 function enrichCommand(input, output, cwd) {
   if (!input || !output) return;
-  const command = input.command || input.parts && input.parts[0] || "";
+  const rawCommand = input.command || input.parts && input.parts[0] || "";
+  const command = normalizeCommandName(rawCommand);
   if (!command.startsWith("bgsd-")) return;
   const _t0 = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
   const resolvedCwd = cwd || process.cwd();
@@ -8883,7 +8879,7 @@ function enrichCommand(input, output, cwd) {
     milestone: currentMilestone ? currentMilestone.version : null,
     milestone_name: currentMilestone ? currentMilestone.name : null
   };
-  const phaseNum = detectPhaseArg(input.parts, input.command, input.arguments);
+  const phaseNum = detectPhaseArg(input.parts, rawCommand, input.arguments);
   let effectivePhaseNum = phaseNum;
   let plans = null;
   let summaryFiles = null;
@@ -9313,6 +9309,10 @@ ${JSON.stringify(enrichment, null, 2)}
       writeDebugDiagnostic2("[bgsd-enricher]", `dangling references found (no elision): ${allDanglingWarnings.map((w) => w.section).join(", ")}`);
     }
   }
+}
+function normalizeCommandName(command) {
+  if (typeof command !== "string") return "";
+  return command.trim().replace(/^\//, "").split(/\s+/, 1)[0] || "";
 }
 function detectPhaseArg(parts, commandStr, argumentsStr) {
   if (parts && Array.isArray(parts)) {
@@ -10942,6 +10942,13 @@ function buildTargetArgs(options = {}) {
   }
   return args;
 }
+function buildGlobalArgs(options = {}) {
+  const args = [];
+  if (options.idFormat) {
+    args.push("--id-format", String(options.idFormat));
+  }
+  return args;
+}
 function normalizeExecError(error, { timedOut = false } = {}) {
   if (!error) return null;
   if (timedOut) {
@@ -10978,11 +10985,36 @@ function normalizeExecError(error, { timedOut = false } = {}) {
 function ensureJsonFlag(args) {
   return args.includes("--json") ? [...args] : [...args, "--json"];
 }
+function parseSidebarStateText(stdout) {
+  const text = String(stdout || "").trim();
+  if (!text) return null;
+  const result = { status: [] };
+  let currentSection = null;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/\s+$/, "");
+    if (!line) continue;
+    const indentedEntry = line.match(/^\s+([^=]+)=(.*)$/);
+    if (indentedEntry && currentSection === "status") {
+      result.status.push({
+        key: indentedEntry[1].trim(),
+        value: indentedEntry[2].trim()
+      });
+      continue;
+    }
+    const entry = line.match(/^([^=]+)=(.*)$/);
+    if (!entry) continue;
+    const key = entry[1].trim();
+    const value = entry[2].trim();
+    result[key] = value;
+    currentSection = key === "status_count" ? "status" : null;
+  }
+  return result;
+}
 async function runCmuxCommand(commandName, commandArgs = [], options = {}) {
   const executable = options.command || "cmux";
   const timeoutMs = normalizeTimeout(options.timeoutMs);
   const signal = options.signal;
-  const args = [commandName, ...commandArgs, ...buildTargetArgs(options)];
+  const args = [...buildGlobalArgs(options), commandName, ...commandArgs, ...buildTargetArgs(options)];
   let timedOut = false;
   let cleanupAbort = null;
   const result = await new Promise((resolve4) => {
@@ -11066,19 +11098,36 @@ function capabilities(options = {}) {
   return runCmuxJson("capabilities", [], options);
 }
 function identify(options = {}) {
-  return runCmuxJson("identify", [], options);
+  return runCmuxJson("identify", [], { ...options, idFormat: options.idFormat || "both" });
 }
 function listWorkspaces(options = {}) {
   return runCmuxJson("list-workspaces", [], options);
 }
 function sidebarState(options = {}) {
-  return runCmuxJson("sidebar-state", [], options);
+  return runCmuxJson("sidebar-state", [], options).then((result) => {
+    if (result.ok || result?.error?.type !== "invalid-json") {
+      return result;
+    }
+    const parsed = parseSidebarStateText(result.stdout);
+    if (!parsed) {
+      return result;
+    }
+    return {
+      ...result,
+      ok: true,
+      json: { result: parsed },
+      error: null
+    };
+  });
 }
 
 // src/plugin/cmux-targeting.js
 var REQUIRED_SIDEBAR_METHODS = ["set-status", "clear-status", "set-progress", "clear-progress", "log"];
 var CMUX_WRITE_PROBE_KEY = "bgsd.target.probe";
 var CMUX_WRITE_PROBE_VALUE = "attach-check";
+function usesNamespacedSocketMethods(methods) {
+  return Array.isArray(methods) && methods.some((method) => String(method).includes("."));
+}
 function normalizeAccessMode(value) {
   if (!value) return null;
   const normalized = String(value).trim().toLowerCase();
@@ -11123,10 +11172,25 @@ function extractJsonPayload(result) {
   return result.json.result || result.json;
 }
 function extractWorkspaceId(payload) {
-  return payload?.workspace?.id || payload?.workspace_id || payload?.workspaceId || payload?.id || null;
+  return payload?.workspace?.id || payload?.workspace_id || payload?.workspaceId || payload?.workspace_ref || payload?.workspaceRef || payload?.id || null;
 }
 function extractSurfaceId(payload) {
-  return payload?.surface?.id || payload?.surface_id || payload?.surfaceId || null;
+  return payload?.surface?.id || payload?.surface_id || payload?.surfaceId || payload?.surface_ref || payload?.surfaceRef || payload?.id || null;
+}
+function extractIdentifyHandle(payload, extractor) {
+  const candidates = [
+    payload?.caller,
+    payload?.result?.caller,
+    payload?.focused,
+    payload?.result?.focused,
+    payload?.result,
+    payload
+  ];
+  for (const candidate of candidates) {
+    const value = extractor(candidate);
+    if (value) return value;
+  }
+  return null;
 }
 function extractWorkspaceEntries(payload) {
   const candidates = [
@@ -11206,6 +11270,14 @@ function buildCmuxClient(options = {}) {
       if (source) args.push("--source", String(source));
       args.push(String(message));
       return runCmuxCommand("log", args, { ...shared, ...callOptions });
+    },
+    notify: ({ title, subtitle, body, level, ...callOptions } = {}) => {
+      const args = [];
+      if (level) args.push("--level", String(level));
+      if (title) args.push("--title", String(title));
+      if (subtitle) args.push("--subtitle", String(subtitle));
+      if (body) args.push("--body", String(body));
+      return runCmuxCommand("notify", args, { ...shared, ...callOptions });
     }
   };
 }
@@ -11281,8 +11353,8 @@ async function resolveManagedWorkspaceTarget(options = {}) {
     };
   }
   const identifyPayload = extractJsonPayload(identifyResult);
-  const identifiedWorkspaceId = extractWorkspaceId(identifyPayload?.workspace ? identifyPayload : identifyPayload?.result || identifyPayload);
-  const identifiedSurfaceId = extractSurfaceId(identifyPayload?.surface ? identifyPayload : identifyPayload?.result || identifyPayload);
+  const identifiedWorkspaceId = extractIdentifyHandle(identifyPayload, extractWorkspaceId);
+  const identifiedSurfaceId = extractIdentifyHandle(identifyPayload, extractSurfaceId);
   if (identifiedWorkspaceId !== workspaceId) {
     return {
       ok: false,
@@ -11360,6 +11432,10 @@ async function resolveAlongsideWorkspaceTarget(options = {}) {
     suppressionReason: null
   };
 }
+function suppressionReason(value) {
+  if (!value || typeof value !== "object") return null;
+  return value.suppressionReason || value.verdict?.suppressionReason || null;
+}
 function createNoopCmuxAdapter(verdict = {}) {
   const normalizedVerdict = buildVerdict(verdict);
   async function suppressed(action, details = {}) {
@@ -11396,6 +11472,9 @@ function createNoopCmuxAdapter(verdict = {}) {
     },
     log(message, options = {}) {
       return suppressed("log", { message, options });
+    },
+    notify(payload, options = {}) {
+      return suppressed("notify", { payload, options });
     }
   });
 }
@@ -11441,6 +11520,13 @@ function createAttachedCmuxAdapter(verdict = {}, options = {}) {
     },
     log(message, callOptions = {}) {
       return runAttached("log", () => cmux.log({ ...callOptions, workspace: normalizedVerdict.workspaceId, message }), { message, options: callOptions });
+    },
+    notify(payload = {}, callOptions = {}) {
+      return runAttached(
+        "notify",
+        () => cmux.notify({ ...callOptions, workspace: normalizedVerdict.workspaceId, ...payload }),
+        { payload, options: callOptions }
+      );
     }
   });
 }
@@ -11465,7 +11551,7 @@ async function resolveCmuxAvailability(options = {}) {
   const payload = extractCapabilitiesPayload(capabilitiesResult);
   const accessMode = resolveAccessMode(payload);
   const methods = extractMethods(payload);
-  const missingMethods = methods.length > 0 ? REQUIRED_SIDEBAR_METHODS.filter((method) => !methods.includes(method)) : [];
+  const missingMethods = methods.length > 0 && !usesNamespacedSocketMethods(methods) ? REQUIRED_SIDEBAR_METHODS.filter((method) => !methods.includes(method)) : [];
   if (accessMode === "off") {
     return buildVerdict({
       mode,
@@ -11750,6 +11836,351 @@ async function syncCmuxSidebar(cmuxAdapter, projectState) {
   return snapshot;
 }
 
+// src/plugin/cmux-attention-policy.js
+var LOG_ONLY_KINDS = /* @__PURE__ */ new Set(["workflow-start", "planner-start", "executor-start", "task-complete", "state-sync"]);
+var NOTIFY_KINDS = /* @__PURE__ */ new Set(["checkpoint", "waiting-input", "blocker", "warning", "plan-complete", "phase-complete", "workflow-complete"]);
+function normalizeText2(value, fallback = "unknown") {
+  if (value === void 0 || value === null || value === "") return fallback;
+  return String(value);
+}
+function normalizeLevel(kind) {
+  if (kind === "blocker") return "error";
+  if (kind === "warning") return "warning";
+  if (kind === "plan-complete" || kind === "phase-complete" || kind === "workflow-complete") return "success";
+  if (kind === "task-complete") return "progress";
+  return "info";
+}
+function buildLogMessage(event) {
+  return normalizeText2(event.message, normalizeText2(event.kind));
+}
+function buildNotifyPayload(event, message) {
+  if (!NOTIFY_KINDS.has(event.kind)) return null;
+  return {
+    title: "bGSD",
+    subtitle: event.phase ? `Phase ${event.phase}` : void 0,
+    body: message,
+    level: normalizeLevel(event.kind)
+  };
+}
+function buildAttentionEventKey(event = {}) {
+  return [
+    normalizeText2(event.workspaceId),
+    normalizeText2(event.kind),
+    normalizeText2(event.phase, "none"),
+    normalizeText2(event.plan, "none"),
+    normalizeText2(event.task, "none"),
+    normalizeText2(event.identity, "default")
+  ].join(":");
+}
+function classifyAttentionEvent(event = {}) {
+  const message = buildLogMessage(event);
+  const key = buildAttentionEventKey(event);
+  const kind = normalizeText2(event.kind);
+  const logAllowed = LOG_ONLY_KINDS.has(kind) || NOTIFY_KINDS.has(kind);
+  const notify = buildNotifyPayload({ ...event, kind }, message);
+  const cooldownMs = kind === "warning" || kind === "blocker" ? 3e5 : 0;
+  return {
+    key,
+    kind,
+    cooldownMs,
+    interruptive: Boolean(notify),
+    log: logAllowed ? {
+      level: normalizeLevel(kind),
+      message,
+      source: "bgsd"
+    } : null,
+    notify
+  };
+}
+function shouldEmitAttentionEvent(event = {}, options = {}) {
+  const classifiedEvent = classifyAttentionEvent(event);
+  const lastEvent = options.lastEvent || null;
+  if (!lastEvent || lastEvent.key !== classifiedEvent.key) {
+    return { emit: true, reason: "first-occurrence", event: classifiedEvent };
+  }
+  if (!classifiedEvent.cooldownMs) {
+    return { emit: false, reason: "duplicate", event: classifiedEvent };
+  }
+  const currentTime = Number(event.now ?? Date.now());
+  const lastSeen = Number(lastEvent.lastEmittedAt ?? lastEvent.now ?? 0);
+  if (currentTime - lastSeen < classifiedEvent.cooldownMs) {
+    return { emit: false, reason: "cooldown-active", event: classifiedEvent };
+  }
+  return {
+    emit: true,
+    reason: "cooldown-expired",
+    event: {
+      ...classifiedEvent,
+      lastEmittedAt: currentTime
+    }
+  };
+}
+
+// src/plugin/cmux-attention-sync.js
+function normalizeText3(value) {
+  return String(value || "").trim();
+}
+function lowerText(value) {
+  return normalizeText3(value).toLowerCase();
+}
+function extractSection3(state, sectionName) {
+  if (!state) return null;
+  if (typeof state.getSection === "function") {
+    return state.getSection(sectionName);
+  }
+  const raw = String(state.raw || "");
+  if (!raw) return null;
+  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = raw.match(new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i"));
+  return match ? match[1].trim() : null;
+}
+function extractBlockerLines2(state) {
+  const section = extractSection3(state, "Blockers/Concerns");
+  if (!section) return [];
+  return section.split("\n").map((line) => line.replace(/^[-*]\s*/, "").trim()).filter((line) => line && !/^none(?:\.|\s|$)/i.test(line));
+}
+function parsePhaseNumber2(state, currentPhase) {
+  const fromState = normalizeText3(state?.phase).match(/^(\d+(?:\.\d+)?)/);
+  if (fromState) return fromState[1];
+  return currentPhase?.number ? String(currentPhase.number) : null;
+}
+function parsePlanNumber2(state) {
+  const match = normalizeText3(state?.currentPlan).match(/(\d+)/);
+  return match ? match[1].padStart(2, "0") : null;
+}
+function extractContinuityText2(state) {
+  return normalizeText3(extractSection3(state, "Session Continuity"));
+}
+function buildSignalText(projectState) {
+  const state = projectState?.state || {};
+  return [normalizeText3(state.status), extractContinuityText2(state)].filter(Boolean).join(" ").trim();
+}
+function findLatestNotification(notificationHistory, severity) {
+  const normalizedSeverity = lowerText(severity);
+  const entries = Array.isArray(notificationHistory) ? notificationHistory : [];
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (lowerText(entry?.severity) === normalizedSeverity) {
+      return entry;
+    }
+  }
+  return null;
+}
+function shouldConsiderStartEvent(trigger = {}) {
+  return ["startup", "file.watcher.updated", "file.watcher.external", "command.executed"].includes(trigger.hook);
+}
+function buildStartEvent(projectState, workspaceId) {
+  const snapshot = deriveCmuxSidebarSnapshot(projectState);
+  const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
+  const plan = parsePlanNumber2(projectState?.state);
+  const identity = `${phase || "unknown"}:${plan || "unknown"}`;
+  if (snapshot.context?.label === "Planning") {
+    return {
+      workspaceId,
+      phase,
+      plan,
+      kind: "planner-start",
+      identity,
+      message: phase && plan ? `Phase ${phase} plan ${plan} started` : "Planning started"
+    };
+  }
+  if (snapshot.context?.label === "Executing" || snapshot.context?.label === "Verifying") {
+    return {
+      workspaceId,
+      phase,
+      plan,
+      kind: "executor-start",
+      identity,
+      message: phase && plan ? `Phase ${phase} plan ${plan} running` : "Execution started"
+    };
+  }
+  if (snapshot.status?.label === "Working") {
+    return {
+      workspaceId,
+      phase,
+      plan,
+      kind: "workflow-start",
+      identity,
+      message: "Workflow started"
+    };
+  }
+  return null;
+}
+function isTaskCompletionTrigger(input = {}) {
+  if (input?.error) return false;
+  return ["task", "task()"].includes(lowerText(input.tool));
+}
+function buildTaskCompletionEvent(projectState, workspaceId, input = {}) {
+  const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
+  const plan = parsePlanNumber2(projectState?.state);
+  const taskName = normalizeText3(input?.args?.task || input?.task || input?.name || "Task");
+  return {
+    workspaceId,
+    phase,
+    plan,
+    kind: "task-complete",
+    identity: taskName.toLowerCase(),
+    message: `${taskName} complete`
+  };
+}
+function buildBoundaryEvent(projectState, workspaceId, signalText) {
+  const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
+  const plan = parsePlanNumber2(projectState?.state);
+  const lowerSignal = lowerText(signalText);
+  const phaseStatus = lowerText(projectState?.currentPhase?.status);
+  if (/workflow complete|workflow completed|milestone complete|all work complete/.test(lowerSignal)) {
+    return {
+      workspaceId,
+      phase,
+      plan,
+      kind: "workflow-complete",
+      identity: phase || "workflow",
+      message: "Workflow complete"
+    };
+  }
+  if (phaseStatus === "complete" || /\bphase complete\b/.test(lowerSignal)) {
+    return {
+      workspaceId,
+      phase,
+      plan,
+      kind: "phase-complete",
+      identity: phase || "phase",
+      message: phase ? `Phase ${phase} complete` : "Phase complete"
+    };
+  }
+  if (/\bplan complete\b/.test(lowerSignal) || /completed .*?-plan\.md/.test(lowerSignal)) {
+    return {
+      workspaceId,
+      phase,
+      plan,
+      kind: "plan-complete",
+      identity: `${phase || "unknown"}:${plan || "unknown"}`,
+      message: phase && plan ? `Phase ${phase} plan ${plan} complete` : "Plan complete"
+    };
+  }
+  return null;
+}
+function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
+  const state = projectState?.state || {};
+  const notificationHistory = projectState?.notificationHistory || [];
+  const workspaceId = cmuxAdapter?.workspaceId || "workspace:unknown";
+  const signalText = buildSignalText(projectState);
+  const lowerSignal = lowerText(signalText);
+  const blockerLines = extractBlockerLines2(state);
+  const latestCritical = findLatestNotification(notificationHistory, "critical");
+  const latestWarning = findLatestNotification(notificationHistory, "warning");
+  const boundaryEvent = buildBoundaryEvent(projectState, workspaceId, signalText);
+  if (boundaryEvent) {
+    return boundaryEvent;
+  }
+  if (shouldConsiderStartEvent(trigger)) {
+    const hasEscalationSignal = /checkpoint|warning|blocked|blocker|failure|error|auth|manual action/.test(lowerSignal) || blockerLines.length > 0 || Boolean(latestCritical || latestWarning);
+    if (!hasEscalationSignal) {
+      const startEvent = buildStartEvent(projectState, workspaceId);
+      if (startEvent) return startEvent;
+    }
+  }
+  if (/\bcheckpoint\b/.test(lowerSignal)) {
+    return {
+      workspaceId,
+      phase: parsePhaseNumber2(state, projectState?.currentPhase),
+      plan: parsePlanNumber2(state),
+      kind: "checkpoint",
+      identity: lowerSignal || "checkpoint",
+      message: "Checkpoint waiting for input"
+    };
+  }
+  if (/input needed|await(?:ing)?|needs? (?:reply|response|approval|review|decision)|manual action|required reply|human action|auth|login|sign in/.test(lowerSignal)) {
+    return {
+      workspaceId,
+      phase: parsePhaseNumber2(state, projectState?.currentPhase),
+      plan: parsePlanNumber2(state),
+      kind: "waiting-input",
+      identity: lowerSignal || "waiting-input",
+      message: "Waiting for input"
+    };
+  }
+  if (blockerLines.length > 0 || latestCritical || /\bblocked\b|hard stop|cannot continue|fatal|failure|failed|error/.test(lowerSignal)) {
+    const blockerMessage = normalizeText3(blockerLines[0] || latestCritical?.message || signalText || "Blocker needs attention");
+    return {
+      workspaceId,
+      phase: parsePhaseNumber2(state, projectState?.currentPhase),
+      plan: parsePlanNumber2(state),
+      kind: "blocker",
+      identity: lowerText(blockerMessage),
+      message: blockerMessage
+    };
+  }
+  if (latestWarning || /warning|stale|spinning|degraded|attention/.test(lowerSignal)) {
+    const warningMessage = normalizeText3(latestWarning?.message || signalText || "Warning needs attention");
+    return {
+      workspaceId,
+      phase: parsePhaseNumber2(state, projectState?.currentPhase),
+      plan: parsePlanNumber2(state),
+      kind: "warning",
+      identity: lowerText(latestWarning?.type || warningMessage),
+      message: warningMessage
+    };
+  }
+  if (trigger.hook === "tool.execute.after" && isTaskCompletionTrigger(trigger.input)) {
+    return buildTaskCompletionEvent(projectState, workspaceId, trigger.input);
+  }
+  return null;
+}
+function getWorkspaceKindMap(memory, workspaceId) {
+  let kindMap = memory.lastEventKeys.get(workspaceId);
+  if (!kindMap) {
+    kindMap = /* @__PURE__ */ new Map();
+    memory.lastEventKeys.set(workspaceId, kindMap);
+  }
+  return kindMap;
+}
+function getLastEvent(memory, workspaceId, kind) {
+  const kindMap = memory.lastEventKeys.get(workspaceId);
+  if (!kindMap || !kindMap.has(kind)) return null;
+  const key = kindMap.get(kind);
+  return {
+    key,
+    lastEmittedAt: memory.lastEmittedAt.get(`${workspaceId}:${kind}`) || 0
+  };
+}
+function rememberEvent(memory, workspaceId, event, now) {
+  const kindMap = getWorkspaceKindMap(memory, workspaceId);
+  kindMap.set(event.kind, event.key);
+  memory.lastEmittedAt.set(`${workspaceId}:${event.kind}`, now);
+}
+function createAttentionMemory() {
+  return {
+    lastEmittedAt: /* @__PURE__ */ new Map(),
+    lastEventKeys: /* @__PURE__ */ new Map()
+  };
+}
+async function syncCmuxAttention(cmuxAdapter, projectState, options = {}) {
+  if (!cmuxAdapter || typeof cmuxAdapter.log !== "function" || typeof cmuxAdapter.notify !== "function") {
+    return { emitted: false, reason: "missing-adapter" };
+  }
+  const memory = options.memory || createAttentionMemory();
+  const now = Number(options.now ?? Date.now());
+  const candidate = buildAttentionCandidate(projectState, cmuxAdapter, options.trigger || {});
+  if (!candidate) {
+    return { emitted: false, reason: "no-meaningful-event" };
+  }
+  const decision = shouldEmitAttentionEvent({ ...candidate, now }, {
+    lastEvent: getLastEvent(memory, candidate.workspaceId, candidate.kind)
+  });
+  if (!decision.emit) {
+    return { emitted: false, reason: decision.reason, event: decision.event };
+  }
+  if (decision.event?.log) {
+    await cmuxAdapter.log(decision.event.log.message, decision.event.log);
+  }
+  if (decision.event?.notify) {
+    await cmuxAdapter.notify(decision.event.notify);
+  }
+  rememberEvent(memory, candidate.workspaceId, decision.event, now);
+  return { emitted: true, reason: decision.reason, event: decision.event };
+}
+
 // src/plugin/index.js
 init_config();
 await init_state();
@@ -11760,6 +12191,16 @@ init_project();
 init_intent();
 await init_parsers();
 var cmuxAdapterCache = /* @__PURE__ */ new Map();
+var cmuxAdapterRetryState = /* @__PURE__ */ new Map();
+var CMUX_RETRY_COOLDOWN_MS = 3e3;
+var NON_RETRYABLE_CMUX_SUPPRESSION_REASONS = /* @__PURE__ */ new Set([
+  "missing-env",
+  "workspace-mismatch",
+  "surface-mismatch",
+  "missing-methods",
+  "access-mode-off",
+  "access-mode-blocked"
+]);
 function buildCmuxCacheKey(projectDir, env = process.env) {
   return JSON.stringify({
     projectDir,
@@ -11772,9 +12213,19 @@ function buildCmuxCacheKey(projectDir, env = process.env) {
 async function getCachedCmuxAdapter(projectDir, options = {}) {
   const env = options.env || process.env;
   const cacheKey = buildCmuxCacheKey(projectDir, env);
+  const allowRetry = options.allowRetry === true;
+  const now = Number(options.now ?? Date.now());
   const cmuxClient = options.client || (typeof options.ping === "function" || typeof options.setStatus === "function" || typeof options.sidebarState === "function" ? options : null);
   if (cmuxAdapterCache.has(cacheKey)) {
-    return cmuxAdapterCache.get(cacheKey);
+    const cachedAdapter = await cmuxAdapterCache.get(cacheKey);
+    const suppressionReason2 = cachedAdapter?.suppressionReason || cachedAdapter?.verdict?.suppressionReason || null;
+    const retryableSuppression = suppressionReason2 === null || !NON_RETRYABLE_CMUX_SUPPRESSION_REASONS.has(suppressionReason2);
+    const lastRetryAt = cmuxAdapterRetryState.get(cacheKey) || 0;
+    if (!allowRetry || cachedAdapter?.attached || !retryableSuppression || now - lastRetryAt < CMUX_RETRY_COOLDOWN_MS) {
+      return cachedAdapter;
+    }
+    cmuxAdapterRetryState.set(cacheKey, now);
+    cmuxAdapterCache.delete(cacheKey);
   }
   const adapterPromise = (async () => {
     try {
@@ -11814,15 +12265,52 @@ async function getCachedCmuxAdapter(projectDir, options = {}) {
   cmuxAdapterCache.set(cacheKey, adapterPromise);
   return adapterPromise;
 }
+function buildCmuxSuppressionNotification(cmuxAdapter) {
+  const reason = suppressionReason(cmuxAdapter);
+  if (!reason || cmuxAdapter?.attached) return null;
+  if (cmuxAdapter?.mode !== "managed" || !cmuxAdapter?.workspaceId) {
+    return null;
+  }
+  const detailByReason = {
+    "write-probe-failed": "workspace write probe failed",
+    "workspace-mismatch": "workspace identity did not match this terminal",
+    "surface-mismatch": "surface identity did not match this terminal",
+    "identify-unavailable": "cmux could not confirm terminal identity",
+    "missing-env": "required cmux workspace environment is incomplete",
+    "missing-methods": "cmux capability metadata did not expose legacy sidebar commands",
+    "capabilities-unavailable": "cmux capabilities could not be read",
+    "access-mode-off": "cmux socket access is turned off"
+  };
+  const detail = detailByReason[reason] || reason.replace(/-/g, " ");
+  return {
+    type: "cmux-suppressed",
+    severity: "info",
+    message: `bGSD cmux integration suppressed: ${detail}. Sidebar status, logs, and notifications stay off for this session.`
+  };
+}
 function resetCmuxAdapterCache() {
   cmuxAdapterCache.clear();
+  cmuxAdapterRetryState.clear();
 }
 var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const registry = createToolRegistry(safeHook);
   const projectDir = directory || process.cwd();
+  const cmuxOptions = cmux || {};
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
-  const cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmux || {});
+  let cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmuxOptions);
+  const cmuxAttentionMemory = createAttentionMemory();
+  const cmuxSuppressionNotification = buildCmuxSuppressionNotification(cmuxAdapter);
+  async function getCurrentCmuxAdapter(options = {}) {
+    cmuxAdapter = await getCachedCmuxAdapter(projectDir, {
+      ...cmuxOptions,
+      ...options
+    });
+    return cmuxAdapter;
+  }
+  if (cmuxSuppressionNotification) {
+    await notifier.notify(cmuxSuppressionNotification);
+  }
   try {
     if (existsSync9(join20(projectDir, ".planning"))) {
       getToolAvailability(projectDir, { refreshIfNeeded: true });
@@ -11885,18 +12373,20 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     maxPaths: config.file_watcher?.max_watched_paths || 500,
     onExternalChange: (filePath) => {
       void handleExternalPlanningChange(filePath);
+      void handleExternalCmuxPlanningChange(filePath);
     }
   });
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config);
   const stuckDetector = createStuckDetector(notifier, config);
   const guardrails = createAdvisoryGuardrails(projectDir, notifier, config);
-  async function refreshCmuxSidebar() {
+  async function refreshCmuxSidebar(options = {}) {
     try {
+      const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry: options.allowRetry === true });
       const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
       invalidateAll2(projectDir);
       const projectState = getProjectState(projectDir);
       if (!projectState) return;
-      await syncCmuxSidebar(cmuxAdapter, {
+      await syncCmuxSidebar(currentCmuxAdapter, {
         ...projectState,
         notificationHistory: notifier.getHistory()
       });
@@ -11904,8 +12394,34 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
       writeDebugDiagnostic2("[bgsd-plugin]", `cmux sidebar sync failed (non-fatal): ${error.message || String(error)}`);
     }
   }
+  async function refreshCmuxAttention(options = {}) {
+    try {
+      const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry: options.allowRetry === true });
+      const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
+      invalidateAll2(projectDir);
+      const projectState = getProjectState(projectDir);
+      if (!projectState) return;
+      await syncCmuxAttention(currentCmuxAdapter, {
+        ...projectState,
+        notificationHistory: notifier.getHistory()
+      }, {
+        memory: cmuxAttentionMemory,
+        trigger: options.trigger || {}
+      });
+    } catch (error) {
+      writeDebugDiagnostic2("[bgsd-plugin]", `cmux attention sync failed (non-fatal): ${error.message || String(error)}`);
+    }
+  }
+  async function handleExternalCmuxPlanningChange(filePath) {
+    if (!filePath || filePath.endsWith(join20(".planning", "MEMORY.md"))) {
+      return;
+    }
+    await refreshCmuxSidebar({ allowRetry: true });
+    await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "file.watcher.external", filePath } });
+  }
   fileWatcher.start();
   await refreshCmuxSidebar();
+  await refreshCmuxAttention({ trigger: { hook: "startup" } });
   setTimeout(() => {
     try {
       getProjectState(projectDir);
@@ -11937,7 +12453,8 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   });
   const commandEnrich = safeHook("command.enrich", async (input, output) => {
     const cmdDir = directory || process.cwd();
-    if (input?.command && input.command.startsWith("bgsd-")) {
+    const normalizedCommand = typeof input?.command === "string" ? input.command.trim().replace(/^\//, "").split(/\s+/, 1)[0] : "";
+    if (normalizedCommand.startsWith("bgsd-")) {
       guardrails.setBgsdCommandActive();
     }
     enrichCommand(input, output, cmdDir);
@@ -11946,19 +12463,26 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     if (event.type === "session.idle") {
       await idleValidator.onIdle();
       guardrails.clearBgsdCommandActive();
-      await refreshCmuxSidebar();
+      await refreshCmuxSidebar({ allowRetry: true });
+      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "session.idle", event } });
     }
     if (event.type === "file.watcher.updated") {
       const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
       invalidateAll2(projectDir);
       await handleExternalPlanningChange(event.path || event.filePath || null);
-      await refreshCmuxSidebar();
+      await refreshCmuxSidebar({ allowRetry: true });
+      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "file.watcher.updated", event } });
+    }
+    if (event.type === "command.executed") {
+      await refreshCmuxSidebar({ allowRetry: true });
+      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "command.executed", event } });
     }
   });
   const toolAfter = safeHook("tool.execute.after", async (input) => {
     stuckDetector.trackToolCall(input);
     await guardrails.onToolAfter(input);
-    await refreshCmuxSidebar();
+    await refreshCmuxSidebar({ allowRetry: true });
+    await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "tool.execute.after", input } });
   });
   return {
     "experimental.session.compacting": compacting,
@@ -11966,7 +12490,9 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     "command.execute.before": commandEnrich,
     "event": eventHandler,
     "tool.execute.after": toolAfter,
-    cmuxAdapter,
+    get cmuxAdapter() {
+      return cmuxAdapter;
+    },
     tool: getTools(registry)
   };
 };

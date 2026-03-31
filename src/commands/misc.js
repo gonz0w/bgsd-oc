@@ -5,7 +5,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
 const { loadConfig, isGitIgnored, invalidateConfigCache } = require('../lib/config');
-const { applyConfigValue, buildDefaultConfig, deepMerge, migrateConfig, serializeConfig } = require('../lib/config-contract');
+const { applyConfigValue, buildDefaultConfig, deepMerge, serializeConfig } = require('../lib/config-contract');
 const { CONFIG_SCHEMA } = require('../lib/constants');
 const { writeFileAtomic } = require('../lib/atomic-write');
 const { execJj, classifyPathScopedCommitFallback } = require('../lib/jj');
@@ -362,56 +362,6 @@ function cmdConfigGet(cwd, keyPath, raw) {
   }
 
   output(current, raw, String(current));
-}
-
-function cmdConfigMigrate(cwd, raw) {
-  const configPath = path.join(cwd, '.planning', 'config.json');
-  const backupPath = configPath + '.bak';
-
-  // Read existing config
-  let config = {};
-  try {
-    if (fs.existsSync(configPath)) {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    } else {
-      error('No config.json found at ' + configPath + '. Run config-ensure-section first.');
-    }
-  } catch (err) {
-    debugLog('config.migrate', 'read failed', err);
-    if (err.message.startsWith('No config.json')) throw err;
-    error('Failed to read config.json: ' + err.message);
-  }
-
-  const migration = migrateConfig(config);
-  config = migration.config;
-  const migratedKeys = migration.migratedKeys;
-  const unchangedKeys = migration.unchangedKeys;
-
-  // Only write if there are changes
-  if (migratedKeys.length > 0) {
-    try {
-      fs.copyFileSync(configPath, backupPath);
-    } catch (err) {
-      debugLog('config.migrate', 'backup failed', err);
-      error('Failed to create backup: ' + err.message);
-    }
-
-    try {
-      writeFileAtomic(configPath, serializeConfig(config));
-      invalidateConfigCache(cwd);
-    } catch (err) {
-      debugLog('config.migrate', 'write failed', err);
-      error('Failed to write config.json: ' + err.message);
-    }
-  }
-
-  const result = {
-    migrated_keys: migratedKeys,
-    unchanged_keys: unchangedKeys,
-    config_path: '.planning/config.json',
-    backup_path: migratedKeys.length > 0 ? '.planning/config.json.bak' : null,
-  };
-  output(result, raw);
 }
 
 function cmdHistoryDigest(cwd, options, raw) {
@@ -2955,7 +2905,6 @@ module.exports = {
   cmdConfigEnsureSection,
   cmdConfigSet,
   cmdConfigGet,
-  cmdConfigMigrate,
   cmdHistoryDigest,
   cmdResolveModel,
   cmdFindPhase,

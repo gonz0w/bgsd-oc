@@ -650,11 +650,6 @@ Get configuration value from .planning/config.json.`,
   'util:config-set': `Usage: bgsd-tools util:config-set <key.path> <value>
 
 Set configuration value in .planning/config.json.`,
-  'util:config-migrate': `Usage: bgsd-tools util:config-migrate
-
-Migrate .planning/config.json to match CONFIG_SCHEMA.
-Adds missing keys with default values. Never overwrites existing values.
-Creates backup before writing changes.`,
   'util:env': `Usage: bgsd-tools util:env <subcommand> [options]
 
 Detect project languages, tools, and runtimes.

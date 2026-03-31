@@ -550,7 +550,6 @@ function validateCommandRegistry() {
       'cache': ['research-stats', 'research-clear', 'status', 'clear', 'warm'],
       'agent': ['audit', 'list', 'validate-contracts'],
       'git': ['log', 'diff-summary', 'blame', 'branch-info', 'rewind', 'trajectory-branch'],
-      'config-migrate': null,
       'resolve-model': null,
       'template': ['select', 'fill'],
       'generate-slug': null,
