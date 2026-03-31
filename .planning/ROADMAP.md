@@ -47,7 +47,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
   1. Users running inside or alongside `cmux` only see ambient integration when the active workspace can be targeted safely.
   2. Users with multiple active `cmux` workspaces see workspace-scoped updates that do not leak into or overwrite another workspace.
   3. Users outside `cmux`, or in unreachable `cmux` environments, experience unchanged plugin behavior with quiet fail-open fallback.
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 ### Phase 171: Ambient Workspace Status & Progress
 **Goal**: Users can glance at `cmux` and trust the workspace status, compact context, and progress signals it shows
@@ -75,7 +75,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 |-------|----------------|--------|-----------|
 | 168. Adaptive Model Settings Contract | 4/4 | Complete    | 2026-03-31 |
 | 169. Canonical Model Resolution & Visibility | 4/4 | Complete    | 2026-03-31 |
-| 170. cmux Workspace Detection & Safe Targeting | 1/3 | In Progress|  |
+| 170. cmux Workspace Detection & Safe Targeting | 2/3 | In Progress|  |
 | 171. Ambient Workspace Status & Progress | 0/TBD | Not started | - |
 | 172. Ambient Attention UX & Noise Control | 0/TBD | Not started | - |
 

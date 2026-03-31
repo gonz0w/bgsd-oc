@@ -29,7 +29,7 @@ Make bGSD easier to tune and monitor by shipping provider-agnostic dynamic model
 - [ ] `CMUX-04` User sees sidebar progress derived from trustworthy phase, plan, task, or workflow state, and progress is hidden rather than guessed when signal quality is weak.
 - [ ] `CMUX-05` User sees concise sidebar log entries for major lifecycle moments such as planner start, task completion, waiting for input, blocker detection, and state warnings.
 - [ ] `CMUX-06` User gets `cmux` notifications for attention-worthy moments such as checkpoints, blockers, warnings, and completion events.
-- [ ] `CMUX-07` User running several active `cmux` workspaces gets workspace-scoped updates that do not leak or overwrite another workspace's status.
+- [x] `CMUX-07` User running several active `cmux` workspaces gets workspace-scoped updates that do not leak or overwrite another workspace's status.
 - [x] `CMUX-08` User outside `cmux` experiences unchanged plugin behavior because the integration fails open and stays silent when unavailable.
 - [ ] `CMUX-09` User does not get noisy or repetitive sidebar churn because non-essential updates are deduped and rate-limited.
 
