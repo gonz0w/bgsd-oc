@@ -37,7 +37,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
   1. Changing model settings changes actual workflow and init model selection everywhere bGSD spawns agents, without prompt edits or path-specific exceptions.
   2. Wherever bGSD shows model state, users can see both the configured selected profile or direct override and the resolved concrete model that will actually run.
   3. Agent routing behavior stays consistent even when the concrete provider model behind a profile changes, because routing no longer depends on Anthropic tier names.
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 
 ### Phase 170: cmux Workspace Detection & Safe Targeting
 **Goal**: Users get `cmux` integration only when bGSD can safely identify and target the correct workspace, while non-`cmux` usage stays unchanged
@@ -74,7 +74,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 168. Adaptive Model Settings Contract | 4/4 | Complete    | 2026-03-31 |
-| 169. Canonical Model Resolution & Visibility | 2/4 | In Progress|  |
+| 169. Canonical Model Resolution & Visibility | 3/4 | In Progress|  |
 | 170. cmux Workspace Detection & Safe Targeting | 0/TBD | Not started | - |
 | 171. Ambient Workspace Status & Progress | 0/TBD | Not started | - |
 | 172. Ambient Attention UX & Noise Control | 0/TBD | Not started | - |

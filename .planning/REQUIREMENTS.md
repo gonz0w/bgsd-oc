@@ -19,7 +19,7 @@ Make bGSD easier to tune and monitor by shipping provider-agnostic dynamic model
 - [x] `MODEL-05` User can inspect both the configured global profile or direct override and the resolved concrete model in settings or init output where model state is shown.
 - [x] `MODEL-06` Phase 168 ships as a break-and-replace contract centered on `quality`, `balanced`, and `budget` instead of preserving legacy `opus`, `sonnet`, and `haiku` naming.
 - [x] `MODEL-07` User reads settings, workflow, and skill guidance that describes profiles by capability and speed rather than provider-specific defaults.
-- [ ] `MODEL-08` User gets consistent agent routing behavior even when concrete providers change because routing logic no longer depends directly on Anthropic tier names.
+- [x] `MODEL-08` User gets consistent agent routing behavior even when concrete providers change because routing logic no longer depends directly on Anthropic tier names.
 
 ### CMUX - Ambient Workspace UX
 
