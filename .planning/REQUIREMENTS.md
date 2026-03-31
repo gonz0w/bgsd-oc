@@ -13,7 +13,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 ### AUDIT - Simplification Audit
 
 - [x] **AUDIT-01** Maintainer can review a milestone audit that identifies dead code, duplication, simplification opportunities, concurrency risks, error-handling gaps, and maintainability hotspots with file-level references.
-- [ ] **AUDIT-02** Maintainer can prioritize cleanup work by blast radius and safe order of operations so low-risk deletions land before risky refactors.
+- [x] **AUDIT-02** Maintainer can prioritize cleanup work by blast radius and safe order of operations so low-risk deletions land before risky refactors.
 
 ### CLEAN - Greenfield Compatibility Cleanup
 

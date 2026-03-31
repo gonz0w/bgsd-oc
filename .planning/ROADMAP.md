@@ -11,7 +11,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 
 ## Phases
 
-- [ ] **Phase 173: Simplification Audit & Safe Sequencing** - Classify cleanup targets and safe order of operations before deleting or flattening anything.
+- [x] **Phase 173: Simplification Audit & Safe Sequencing** (completed 2026-03-31) - Classify cleanup targets and safe order of operations before deleting or flattening anything.
 - [ ] **Phase 174: Greenfield Compatibility Surface Cleanup** - Remove migration-only and superseded normalization paths while keeping canonical artifacts valid.
 - [ ] **Phase 175: Canonical Command Surface Alignment** - Move routing, aliases, help, and discovery toward one clearer command definition and supported guidance surface.
 - [ ] **Phase 176: Command Hotspot Simplification & Hardening** - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
@@ -26,7 +26,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Maintainers can review one audit artifact that identifies dead code, duplication, simplification opportunities, concurrency risks, error-handling gaps, and maintainability hotspots with file-level references.
   2. Maintainers can tell which candidates are safe low-blast-radius deletions versus higher-risk refactors because the audit classifies them by risk and rationale.
   3. Maintainers can follow a safe order of operations that lands low-risk cleanup before risky router or command-module changes.
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ### Phase 174: Greenfield Compatibility Surface Cleanup
 **Goal**: Maintainers can remove compatibility-only product drag so the repo reflects one current greenfield support model without breaking canonical planning artifacts
@@ -62,7 +62,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 173. Simplification Audit & Safe Sequencing | 1/2 | In Progress|  |
+| 173. Simplification Audit & Safe Sequencing | 2/2 | Complete   | 2026-03-31 |
 | 174. Greenfield Compatibility Surface Cleanup | 0/TBD | Not started | - |
 | 175. Canonical Command Surface Alignment | 0/TBD | Not started | - |
 | 176. Command Hotspot Simplification & Hardening | 0/TBD | Not started | - |
