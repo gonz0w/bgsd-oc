@@ -12,8 +12,8 @@ The workflow foundation is stable enough to turn outward again: operators need b
 
 ## Priorities
 
-- Make model configuration editable through settings rather than workflow text or provider-specific defaults
-- Keep model resolution and routing provider-agnostic while preserving migration-safe legacy behavior
+- Make model configuration editable through settings by letting projects choose the concrete models behind `quality`, `balanced`, and `budget` plus one global active profile instead of workflow text or provider-specific defaults
+- Keep model configuration and later resolution work provider-agnostic, use sparse direct agent overrides for exceptions, and do not preserve migration-safe legacy behavior inside Phase 168
 - Bias the first `cmux` slice toward trustworthy workspace-level status, progress, and attention moments
 - Prefer quiet fallback behavior over ambitious but noisy instrumentation
 
@@ -27,5 +27,6 @@ The workflow foundation is stable enough to turn outward again: operators need b
 ## Notes
 
 - Use `.planning/research/DYNAMIC-MODEL-CONFIG-PRD.md`, `.planning/research/CMUX-FIRST-UX-PRD.md`, and `.planning/research/CMUX-FIRST-UX-BACKLOG.md` as the primary planning seeds.
+- Treat `.planning/phases/168-adaptive-model-settings-contract/168-CONTEXT.md` as the locked scope for the model-settings slice: shared built-in profiles, one selected global profile, and sparse direct overrides.
 - Prefer existing plugin lifecycle signals and persisted planning state over inventing new orchestration layers.
 - Keep `cmux` integration workspace-scoped first; only add richer agent detail if signal quality proves reliable.
