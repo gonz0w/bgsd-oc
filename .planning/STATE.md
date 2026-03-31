@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** v18.1 Greenfield Cleanup & CLI Simplification requirements and roadmap definition
+**Current focus:** Ready to plan Phase 173 for v18.1 Greenfield Cleanup & CLI Simplification
 
 ## Current Position
 
 **Phase:** Not started
 **Current Plan:** Not started
-**Total Plans in Phase:** 0
-**Status:** Defining requirements
-**Last Activity:** 2026-03-31
+**Total Plans in Phase:** TBD
+**Status:** Ready to plan
+**Last Activity:** 2026-03-31 — Created v18.1 roadmap and mapped milestone requirements to phases 173-176
 
 **Progress:** [----------] 0%
 
@@ -38,9 +38,9 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ### Decisions
 
-- v18.1 is a cleanup-first milestone focused on behavior-preserving simplification rather than new feature expansion.
-- Keep JJ/workspace-first guidance and canonical command families as the supported model while removing compatibility-only surfaces.
-- Use the cleanup and CLI simplification PRDs plus audit findings to drive phase boundaries.
+- v18.1 phase boundaries follow milestone-local cleanup requirements only, starting at Phase 173 after v18.0 ended at Phase 172.
+- Cleanup work stays behavior-preserving and biased toward deletion, source-of-truth reduction, and smaller command reasoning surfaces.
+- Audit-first sequencing must call out dead code, duplication, concurrency risks, error-handling gaps, and maintainability hotspots before risky CLI simplification lands.
 
 ### Pending Todos
 
@@ -48,10 +48,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Working tree is already dirty; milestone commits must stay path-scoped to touched planning files.
+None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-31 milestone init
-Stopped at: Capturing v18.1 scope before roadmap creation
+Last session: 2026-03-31 roadmap creation
+Stopped at: Roadmap created and milestone is ready for Phase 173 planning
 Resume file: None

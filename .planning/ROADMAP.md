@@ -1,0 +1,72 @@
+# Roadmap: bGSD Plugin
+
+## Milestones
+
+- ✅ **v18.0 Adaptive Models & Ambient cmux UX** - Phases 168-172 (shipped 2026-03-31)
+- 🚧 **v18.1 Greenfield Cleanup & CLI Simplification** - Phases 173-176 (active)
+
+## Overview
+
+v18.1 reduces cleanup drag before adding anything new. The milestone starts with a code-review-grade audit that classifies dead code, duplication, simplification opportunities, concurrency risks, error-handling gaps, and maintainability hotspots by safe removal order, then removes greenfield-incompatible migration and normalization paths while keeping canonical `.planning/` artifacts valid. With compatibility-only product drag reduced, the milestone simplifies command routing around clearer canonical definitions, aligned help and discovery surfaces, and smaller command subdomains, and closes by hardening touched paths so supported planning and settings workflows still behave the same with stronger regression proof and less ambient complexity.
+
+## Phases
+
+- [ ] **Phase 173: Simplification Audit & Safe Sequencing** - Classify cleanup targets and safe order of operations before deleting or flattening anything.
+- [ ] **Phase 174: Greenfield Compatibility Surface Cleanup** - Remove migration-only and superseded normalization paths while keeping canonical artifacts valid.
+- [ ] **Phase 175: Canonical Command Surface Alignment** - Move routing, aliases, help, and discovery toward one clearer command definition and supported guidance surface.
+- [ ] **Phase 176: Command Hotspot Simplification & Hardening** - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
+
+## Phase Details
+
+### Phase 173: Simplification Audit & Safe Sequencing
+**Goal**: Maintainers can review one milestone audit that shows exactly what can be deleted, simplified, or deferred, and in what safe order, before behavior-preserving cleanup begins
+**Depends on**: Phase 172
+**Requirements**: AUDIT-01, AUDIT-02
+**Success Criteria** (what must be TRUE):
+  1. Maintainers can review one audit artifact that identifies dead code, duplication, simplification opportunities, concurrency risks, error-handling gaps, and maintainability hotspots with file-level references.
+  2. Maintainers can tell which candidates are safe low-blast-radius deletions versus higher-risk refactors because the audit classifies them by risk and rationale.
+  3. Maintainers can follow a safe order of operations that lands low-risk cleanup before risky router or command-module changes.
+**Plans**: TBD
+
+### Phase 174: Greenfield Compatibility Surface Cleanup
+**Goal**: Maintainers can remove compatibility-only product drag so the repo reflects one current greenfield support model without breaking canonical planning artifacts
+**Depends on**: Phase 173
+**Requirements**: CLEAN-01, CLEAN-02, CLEAN-03
+**Success Criteria** (what must be TRUE):
+  1. Maintainers can remove migration-only commands and helpers for obsolete installs, storage transitions, or local-state upgrades without leaving routed dead surfaces behind.
+  2. Current canonical `.planning/` files still parse and validate without legacy normalization paths for superseded planning or config shapes.
+  3. Users see docs, templates, and help text that consistently teach the supported JJ/workspace-first model instead of stale worktree-era or compatibility-era guidance.
+**Plans**: TBD
+
+### Phase 175: Canonical Command Surface Alignment
+**Goal**: Maintainers can change the supported command surface from one clearer canonical definition instead of keeping routing, aliases, help, and discovery in parallel drift-prone paths
+**Depends on**: Phase 174
+**Requirements**: CLI-01, CLI-02, SAFE-03
+**Success Criteria** (what must be TRUE):
+  1. Maintainers can update a supported command route, alias, or help/discovery entry from one canonical definition instead of editing parallel registries by hand.
+  2. Maintainers can change touched router parsing behavior without wading through repeated hand-written flag scans and unrelated startup logic in the same edit path.
+  3. Users see help and workflow guidance that teach the real supported command surface first, with stale aliases or contradictory guidance removed.
+**Plans**: TBD
+
+### Phase 176: Command Hotspot Simplification & Hardening
+**Goal**: Maintainers can work in smaller CLI subdomains with less hidden state while supported planning and settings workflows keep behaving the same after cleanup
+**Depends on**: Phase 175
+**Requirements**: CLI-03, SAFE-01, SAFE-02
+**Success Criteria** (what must be TRUE):
+  1. Maintainers can change touched command families inside smaller, easier-to-reason-about subdomain files instead of multi-thousand-line bucket modules and ambient output globals.
+  2. Maintainers can show that touched cleanup paths no longer rely on silent error swallowing, unnecessary async or control-flow indirection, or unguarded shared mutable state.
+  3. Users can run supported planning and settings workflows after cleanup with regression proof showing canonical command routes still work.
+**Plans**: TBD
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 173. Simplification Audit & Safe Sequencing | 0/TBD | Not started | - |
+| 174. Greenfield Compatibility Surface Cleanup | 0/TBD | Not started | - |
+| 175. Canonical Command Surface Alignment | 0/TBD | Not started | - |
+| 176. Command Hotspot Simplification & Hardening | 0/TBD | Not started | - |
+
+---
+
+*Last updated: 2026-03-31*
