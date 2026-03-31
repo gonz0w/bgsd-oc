@@ -39,6 +39,69 @@ afterEach(() => {
   }
 });
 
+function createCmuxStub(overrides = {}) {
+  const calls = [];
+  const cmux = {
+    ping: async () => {
+      calls.push('ping');
+      return { ok: true, stdout: 'pong' };
+    },
+    capabilities: async () => {
+      calls.push('capabilities');
+      return {
+        ok: true,
+        json: {
+          result: {
+            access_mode: 'cmux processes only',
+            methods: ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'],
+          },
+        },
+      };
+    },
+    identify: async () => {
+      calls.push('identify');
+      return {
+        ok: true,
+        json: {
+          result: {
+            workspace: { id: 'workspace:1' },
+            surface: { id: 'surface:1' },
+          },
+        },
+      };
+    },
+    listWorkspaces: async () => {
+      calls.push('listWorkspaces');
+      return {
+        ok: true,
+        json: {
+          result: {
+            workspaces: [
+              { id: 'workspace:1' },
+            ],
+          },
+        },
+      };
+    },
+    sidebarState: async ({ workspace }) => {
+      calls.push(`sidebarState:${workspace}`);
+      return {
+        ok: true,
+        json: {
+          result: {
+            cwd: '/repo',
+          },
+        },
+      };
+    },
+  };
+
+  return {
+    calls,
+    cmux: { ...cmux, ...overrides },
+  };
+}
+
 describe('plugin cmux transport', () => {
   test('runCmuxCommand returns a structured missing-cli result', async () => {
     const { runCmuxCommand } = await loadCmuxModules();
@@ -82,25 +145,15 @@ describe('plugin cmux transport', () => {
 });
 
 describe('plugin cmux targeting', () => {
-  test('resolveCmuxAvailability treats managed cmux sessions as available but not attached', async () => {
+  test('resolveCmuxAvailability proves a managed target when env and identify agree', async () => {
     const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub();
     const verdict = await resolveCmuxAvailability({
       env: {
         CMUX_WORKSPACE_ID: 'workspace:1',
         CMUX_SURFACE_ID: 'surface:1',
       },
-      cmux: {
-        ping: async () => ({ ok: true, stdout: 'pong' }),
-        capabilities: async () => ({
-          ok: true,
-          json: {
-            result: {
-              access_mode: 'cmux processes only',
-              methods: ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'],
-            },
-          },
-        }),
-      },
+      cmux,
     });
 
     assert.strictEqual(verdict.available, true);
@@ -109,29 +162,276 @@ describe('plugin cmux targeting', () => {
     assert.strictEqual(verdict.workspaceId, 'workspace:1');
     assert.strictEqual(verdict.surfaceId, 'surface:1');
     assert.strictEqual(verdict.suppressionReason, null);
+    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'identify']);
   });
 
-  test('resolveCmuxAvailability suppresses inaccessible alongside sessions with an explicit reason', async () => {
+  test('resolveCmuxAvailability suppresses managed workspace mismatch', async () => {
     const { resolveCmuxAvailability } = await loadCmuxModules();
-    const verdict = await resolveCmuxAvailability({
-      env: {},
-      cmux: {
-        ping: async () => ({ ok: true, stdout: 'pong' }),
-        capabilities: async () => ({
+    const { cmux, calls } = createCmuxStub({
+      identify: async () => {
+        calls.push('identify');
+        return {
           ok: true,
           json: {
             result: {
-              access_mode: 'cmux processes only',
+              workspace: { id: 'workspace:2' },
+              surface: { id: 'surface:1' },
+            },
+          },
+        };
+      },
+    });
+    const verdict = await resolveCmuxAvailability({
+      env: {
+        CMUX_WORKSPACE_ID: 'workspace:1',
+        CMUX_SURFACE_ID: 'surface:1',
+      },
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, false);
+    assert.strictEqual(verdict.mode, 'managed');
+    assert.strictEqual(verdict.workspaceId, null);
+    assert.strictEqual(verdict.suppressionReason, 'workspace-mismatch');
+    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'identify']);
+  });
+
+  test('resolveCmuxAvailability suppresses managed surface mismatch', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub({
+      identify: async () => {
+        calls.push('identify');
+        return {
+          ok: true,
+          json: {
+            result: {
+              workspace: { id: 'workspace:1' },
+              surface: { id: 'surface:2' },
+            },
+          },
+        };
+      },
+    });
+    const verdict = await resolveCmuxAvailability({
+      env: {
+        CMUX_WORKSPACE_ID: 'workspace:1',
+        CMUX_SURFACE_ID: 'surface:1',
+      },
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, false);
+    assert.strictEqual(verdict.mode, 'managed');
+    assert.strictEqual(verdict.workspaceId, null);
+    assert.strictEqual(verdict.suppressionReason, 'surface-mismatch');
+    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'identify']);
+  });
+
+  test('resolveCmuxAvailability proves one alongside target from exact cwd matching', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub({
+      capabilities: async () => {
+        calls.push('capabilities');
+        return {
+          ok: true,
+          json: {
+            result: {
+              access_mode: 'allowAll',
               methods: ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'],
             },
           },
-        }),
+        };
       },
+      listWorkspaces: async () => {
+        calls.push('listWorkspaces');
+        return {
+          ok: true,
+          json: {
+            result: {
+              workspaces: [
+                { id: 'workspace:1' },
+                { id: 'workspace:2' },
+              ],
+            },
+          },
+        };
+      },
+      sidebarState: async ({ workspace }) => {
+        calls.push(`sidebarState:${workspace}`);
+        return {
+          ok: true,
+          json: {
+            result: {
+              cwd: workspace === 'workspace:2' ? '/repo' : '/other',
+            },
+          },
+        };
+      },
+    });
+    const verdict = await resolveCmuxAvailability({
+      env: {},
+      projectDir: '/repo',
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, true);
+    assert.strictEqual(verdict.mode, 'alongside');
+    assert.strictEqual(verdict.workspaceId, 'workspace:2');
+    assert.strictEqual(verdict.surfaceId, null);
+    assert.strictEqual(verdict.suppressionReason, null);
+    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'listWorkspaces', 'sidebarState:workspace:1', 'sidebarState:workspace:2']);
+  });
+
+  test('resolveCmuxAvailability suppresses alongside access-mode-blocked callers', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const verdict = await resolveCmuxAvailability({
+      env: {},
+      cmux: createCmuxStub().cmux,
     });
 
     assert.strictEqual(verdict.available, false);
     assert.strictEqual(verdict.mode, 'alongside');
     assert.strictEqual(verdict.suppressionReason, 'access-mode-blocked');
+  });
+
+  test('resolveCmuxAvailability suppresses alongside sessions with zero cwd matches', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux } = createCmuxStub({
+      capabilities: async () => ({
+        ok: true,
+        json: {
+          result: {
+            access_mode: 'allowAll',
+            methods: ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'],
+          },
+        },
+      }),
+      listWorkspaces: async () => ({
+        ok: true,
+        json: {
+          result: {
+            workspaces: [
+              { id: 'workspace:1' },
+              { id: 'workspace:2' },
+            ],
+          },
+        },
+      }),
+      sidebarState: async () => ({
+        ok: true,
+        json: {
+          result: {
+            cwd: '/elsewhere',
+          },
+        },
+      }),
+    });
+    const verdict = await resolveCmuxAvailability({
+      env: {},
+      projectDir: '/repo',
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, false);
+    assert.strictEqual(verdict.mode, 'alongside');
+    assert.strictEqual(verdict.suppressionReason, 'ambiguous-cwd');
+  });
+
+  test('resolveCmuxAvailability suppresses alongside sessions with multiple cwd matches', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux } = createCmuxStub({
+      capabilities: async () => ({
+        ok: true,
+        json: {
+          result: {
+            access_mode: 'allowAll',
+            methods: ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'],
+          },
+        },
+      }),
+      listWorkspaces: async () => ({
+        ok: true,
+        json: {
+          result: {
+            workspaces: [
+              { id: 'workspace:1' },
+              { id: 'workspace:2' },
+            ],
+          },
+        },
+      }),
+      sidebarState: async () => ({
+        ok: true,
+        json: {
+          result: {
+            cwd: '/repo',
+          },
+        },
+      }),
+    });
+    const verdict = await resolveCmuxAvailability({
+      env: {},
+      projectDir: '/repo',
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, false);
+    assert.strictEqual(verdict.mode, 'alongside');
+    assert.strictEqual(verdict.suppressionReason, 'ambiguous-cwd');
+  });
+
+  test('resolveCmuxAvailability does not fall back to cwd heuristics after managed proof conflicts', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub({
+      capabilities: async () => {
+        calls.push('capabilities');
+        return {
+          ok: true,
+          json: {
+            result: {
+              access_mode: 'allowAll',
+              methods: ['set-status', 'clear-status', 'set-progress', 'clear-progress', 'log'],
+            },
+          },
+        };
+      },
+      identify: async () => {
+        calls.push('identify');
+        return {
+          ok: true,
+          json: {
+            result: {
+              workspace: { id: 'workspace:2' },
+              surface: { id: 'surface:1' },
+            },
+          },
+        };
+      },
+      listWorkspaces: async () => {
+        calls.push('listWorkspaces');
+        return {
+          ok: true,
+          json: {
+            result: {
+              workspaces: [{ id: 'workspace:1' }],
+            },
+          },
+        };
+      },
+    });
+    const verdict = await resolveCmuxAvailability({
+      env: {
+        CMUX_WORKSPACE_ID: 'workspace:1',
+        CMUX_SURFACE_ID: 'surface:1',
+      },
+      projectDir: '/repo',
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, false);
+    assert.strictEqual(verdict.mode, 'managed');
+    assert.strictEqual(verdict.suppressionReason, 'workspace-mismatch');
+    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'identify']);
   });
 
   test('createNoopCmuxAdapter preserves the verdict and no-ops writes', async () => {
