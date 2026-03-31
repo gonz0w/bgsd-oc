@@ -73,7 +73,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 168. Adaptive Model Settings Contract | 4/4 | Complete   | 2026-03-31 |
+| 168. Adaptive Model Settings Contract | 4/4 | Complete    | 2026-03-31 |
 | 169. Canonical Model Resolution & Visibility | 0/TBD | Not started | - |
 | 170. cmux Workspace Detection & Safe Targeting | 0/TBD | Not started | - |
 | 171. Ambient Workspace Status & Progress | 0/TBD | Not started | - |
