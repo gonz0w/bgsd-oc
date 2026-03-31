@@ -909,3 +909,79 @@ describe('Plugin MEMORY.md integration', () => {
     }
   });
 });
+
+describe('Plugin cmux adapter fail-open contract', () => {
+  const pluginPath = path.join(__dirname, '..', 'plugin.js');
+
+  test('plugin startup caches a suppressed cmux adapter and keeps normal hooks working', async () => {
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+    let resolveCount = 0;
+
+    try {
+      writePluginMemoryFixture(tmpDir, null);
+      mod.resetCmuxAdapterCache();
+
+      const cmux = {
+        resolveAvailability: async () => {
+          resolveCount += 1;
+          return {
+            available: false,
+            attached: false,
+            mode: 'none',
+            suppressionReason: 'cmux-missing',
+            workspaceId: null,
+            surfaceId: null,
+            writeProven: false,
+          };
+        },
+      };
+
+      const pluginA = await mod.BgsdPlugin({ directory: tmpDir, cmux });
+      const pluginB = await mod.BgsdPlugin({ directory: tmpDir, cmux });
+      const system = await runSystemTransform(pluginA);
+
+      assert.strictEqual(resolveCount, 1, 'cmux availability should be cached per session key');
+      assert.strictEqual(pluginA.cmuxAdapter.suppressionReason, 'cmux-missing');
+      assert.strictEqual(pluginB.cmuxAdapter.suppressionReason, 'cmux-missing');
+      assert.match(system, /<bgsd>[\s\S]*Structured Agent Memory[\s\S]*<\/bgsd>/, 'suppressed cmux should not break normal state injection');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('available cmux startup verdict stays inert until later attachment proof exists', async () => {
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+
+    try {
+      writePluginMemoryFixture(tmpDir, null);
+      mod.resetCmuxAdapterCache();
+
+      const plugin = await mod.BgsdPlugin({
+        directory: tmpDir,
+        cmux: {
+          resolveAvailability: async () => ({
+            available: true,
+            attached: false,
+            mode: 'managed',
+            suppressionReason: null,
+            workspaceId: 'workspace:1',
+            surfaceId: 'surface:1',
+            writeProven: false,
+          }),
+        },
+      });
+
+      const result = await plugin.cmuxAdapter.setStatus('build', 'running');
+      assert.strictEqual(plugin.cmuxAdapter.available, true);
+      assert.strictEqual(plugin.cmuxAdapter.attached, false);
+      assert.strictEqual(plugin.cmuxAdapter.mode, 'managed');
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.suppressed, true);
+      assert.strictEqual(result.reason, 'not-attached');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+});
