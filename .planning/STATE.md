@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 169 — canonical-model-resolution-visibility plan 04 of 4
+**Current focus:** Phase 169 complete — ready for verification
 
 ## Current Position
 
 **Phase:** 169
 **Current Plan:** 4
 **Total Plans in Phase:** 4
-**Status:** Ready to execute
+**Status:** Phase complete — ready for verification
 **Last Activity:** 2026-03-31
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [██████████] 99%
 | Phase 168 P04 | 9 min | 1 tasks | 9 files |
 | Phase 169 P02 | 9 min | 2 tasks | 2 files |
 | Phase 169 P03 | 7 min | 2 tasks | 5 files |
+| Phase 169-canonical-model-resolution-visibility P04 | 9 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,7 @@ Progress: [██████████] 99%
 - [Phase 168]: Settings guidance now uses the canonical model_settings contract with one selected default profile, shared quality/balanced/budget model definitions, and sparse direct overrides. — This makes /bgsd-settings and user-facing docs match the runtime/config contract without provider-specific tier wording.
 - [Phase 169]: Init surfaces now show compact configured-versus-resolved model summaries plus verbose per-agent state objects. — Reusing the shared model-state presenter keeps init output aligned with settings and workflow resolution without breaking existing workflow model fields.
 - [Phase 169]: Orchestration now routes by shared quality, balanced, and budget profiles before canonical concrete-model resolution. — Shared-profile routing keeps semantics stable when the concrete model behind a profile changes.
+- [Phase 169-canonical-model-resolution-visibility]: Legacy cache and SQLite model-profile surfaces are now compatibility-only; canonical config remains the only live model-selection truth. — Removing dead cache APIs and fresh default seeding prevents future reads from reviving provider-tier model selection outside canonical config.
 
 ### Pending Todos
 
@@ -144,6 +146,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-03-31T05:10:08.209Z
-Stopped at: Completed 169-03-PLAN.md
+Last session: 2026-03-31T05:23:16.237Z
+Stopped at: Completed 169-04-PLAN.md
 Resume file: None
