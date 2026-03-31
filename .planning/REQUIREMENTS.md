@@ -15,8 +15,8 @@ Make bGSD easier to tune and monitor by shipping provider-agnostic dynamic model
 - [x] `MODEL-01` User can define the concrete models behind built-in `quality`, `balanced`, and `budget` profiles in settings.
 - [x] `MODEL-02` User can choose one provider-agnostic global active profile for the project instead of editing workflow prompts or maintaining a per-agent mapping matrix.
 - [x] `MODEL-03` User can override any specific agent through one canonical `model_settings.agent_overrides` key that points directly to a concrete model when an exception is needed.
-- [ ] `MODEL-04` User can change model behavior from settings alone because all workflow spawn paths resolve through one canonical model resolver.
-- [ ] `MODEL-05` User can inspect both the configured global profile or direct override and the resolved concrete model in settings or init output where model state is shown.
+- [x] `MODEL-04` User can change model behavior from settings alone because all workflow spawn paths resolve through one canonical model resolver.
+- [x] `MODEL-05` User can inspect both the configured global profile or direct override and the resolved concrete model in settings or init output where model state is shown.
 - [x] `MODEL-06` Phase 168 ships as a break-and-replace contract centered on `quality`, `balanced`, and `budget` instead of preserving legacy `opus`, `sonnet`, and `haiku` naming.
 - [x] `MODEL-07` User reads settings, workflow, and skill guidance that describes profiles by capability and speed rather than provider-specific defaults.
 - [ ] `MODEL-08` User gets consistent agent routing behavior even when concrete providers change because routing logic no longer depends directly on Anthropic tier names.
