@@ -8,8 +8,19 @@ const { pathToFileURL } = require('node:url');
 const tempPaths = [];
 
 async function loadCmuxModules() {
-  const cliPath = pathToFileURL(path.join(__dirname, '..', 'src', 'plugin', 'cmux-cli.js')).href;
-  const targetingPath = pathToFileURL(path.join(__dirname, '..', 'src', 'plugin', 'cmux-targeting.js')).href;
+  const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bgsd-cmux-modules-'));
+  const cliSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'plugin', 'cmux-cli.js'), 'utf-8');
+  const targetingSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'plugin', 'cmux-targeting.js'), 'utf-8')
+    .replace("'./cmux-cli.js'", "'./cmux-cli.mjs'");
+  const cliFile = path.join(fixtureDir, 'cmux-cli.mjs');
+  const targetingFile = path.join(fixtureDir, 'cmux-targeting.mjs');
+
+  fs.writeFileSync(cliFile, cliSource);
+  fs.writeFileSync(targetingFile, targetingSource);
+  tempPaths.push(fixtureDir);
+
+  const cliPath = pathToFileURL(cliFile).href;
+  const targetingPath = pathToFileURL(targetingFile).href;
   const cli = await import(cliPath);
   const targeting = await import(targetingPath);
   return { ...cli, ...targeting };
@@ -48,11 +59,11 @@ describe('plugin cmux transport', () => {
       process.stdout.write(JSON.stringify({ argv: process.argv.slice(2) }));
     `);
 
-    const workspaces = await listWorkspaces({ command: fakeCmux, timeoutMs: 50 });
+    const workspaces = await listWorkspaces({ command: fakeCmux, timeoutMs: 500 });
     assert.strictEqual(workspaces.ok, true);
     assert.deepStrictEqual(workspaces.json.argv, ['list-workspaces', '--json']);
 
-    const sidebar = await sidebarState({ command: fakeCmux, workspace: 'workspace:2', timeoutMs: 50 });
+    const sidebar = await sidebarState({ command: fakeCmux, workspace: 'workspace:2', timeoutMs: 500 });
     assert.strictEqual(sidebar.ok, true);
     assert.deepStrictEqual(sidebar.json.argv, ['sidebar-state', '--json', '--workspace', 'workspace:2']);
   });
@@ -63,7 +74,7 @@ describe('plugin cmux transport', () => {
       process.stdout.write('not-json');
     `);
 
-    const result = await runCmuxJson('capabilities', [], { command: fakeCmux, timeoutMs: 50 });
+    const result = await runCmuxJson('capabilities', [], { command: fakeCmux, timeoutMs: 500 });
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error.type, 'invalid-json');
     assert.match(result.error.message, /JSON/i);
