@@ -8,20 +8,24 @@ A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, pr
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: None active
+## Current Milestone: v18.1 Greenfield Cleanup & CLI Simplification
 
-**Status:** v18.0 Adaptive Models & Ambient cmux UX shipped on 2026-03-31.
-**Next milestone setup:** Use `/bgsd-new-milestone` when ready to define the next roadmap slice.
+**Goal:** Reduce compatibility-era drag and command-system complexity so maintainers and agents can change bGSD safely with less context overhead.
+**Target features:**
+- Remove migration-only commands, normalization paths, and stale compatibility guidance that no longer fit the greenfield product model
+- Simplify command routing, help, alias, and discovery surfaces around clearer canonical definitions
+- Break down the highest-friction CLI hotspots so cleanup work lands with smaller, easier-to-reason-about modules
+- Preserve supported JJ/workspace-first behavior with stronger regression proof while the codebase gets smaller and flatter
 
 ## Milestone Status
 
-**Current milestone:** None active
-**Next step:** Define the next milestone with `/bgsd-new-milestone`
+**Current milestone:** v18.1 Greenfield Cleanup & CLI Simplification
+**Next step:** Finalize milestone requirements and create the roadmap starting at Phase 173
 
 ## Current State
 
 **Last shipped:** v18.0 Adaptive Models & Ambient cmux UX (2026-03-31)
-**Now planning:** No active milestone - ready for next milestone definition
+**Now planning:** v18.1 Greenfield Cleanup & CLI Simplification
 
 <details>
 <summary>Latest shipment: v18.0 Adaptive Models & Ambient cmux UX (shipped 2026-03-31)</summary>
@@ -401,7 +405,6 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 - TDD reliability follow-up using `.planning/research/TDD-RELIABILITY-PRD.md` as the planning seed
 - Workflow acceleration follow-up using `.planning/research/WORKFLOW-ACCELERATION-PRD.md` as the planning seed
-- Greenfield compatibility cleanup follow-up using `.planning/research/GREENFIELD-COMPAT-CLEANUP-PRD.md` as the planning seed
 - Multi-user repo coordination follow-up using `.planning/research/MULTI-USER-REPO-COORDINATION-PRD.md` and `.planning/research/MULTI-USER-REPO-COORDINATION-BACKLOG.md` as the planning seeds
 - Bun-first migration follow-up using `.planning/research/BUN-MIGRATION-PRD.md` and `.planning/research/BUN-MIGRATION-BACKLOG.md` as the planning seeds
 - Clarify legacy `verify:state` `Plan` alias expectations or explicitly deprecate them in a follow-up reliability slice
@@ -541,4 +544,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-31 after completing milestone v18.0 Adaptive Models & Ambient cmux UX*
+*Last updated: 2026-03-31 after initializing milestone v18.1 Greenfield Cleanup & CLI Simplification*
