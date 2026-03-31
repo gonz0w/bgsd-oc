@@ -1189,7 +1189,7 @@ None yet.
       fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), buildState({
         status: 'Working',
         progressLine: null,
-        continuity: 'Executing plan work',
+        continuity: 'Executing focused work',
         lastActivity: '2099-03-31T15:00:00Z',
       }));
       await plugin['tool.execute.after']({ tool: 'write', args: { file: 'STATE.md' } });

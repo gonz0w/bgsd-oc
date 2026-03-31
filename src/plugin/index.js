@@ -12,6 +12,7 @@ import { createIdleValidator } from './idle-validator.js';
 import { createStuckDetector } from './stuck-detector.js';
 import { createAdvisoryGuardrails } from './advisory-guardrails.js';
 import { createAttachedCmuxAdapter, createNoopCmuxAdapter, resolveCmuxAvailability } from './cmux-targeting.js';
+import { syncCmuxSidebar } from './cmux-sidebar-sync.js';
 import { parseConfig } from './parsers/config.js';
 import { writeDebugDiagnostic } from './debug-contract.js';
 import { getToolAvailability } from './tool-availability.js';
@@ -106,6 +107,7 @@ export { createFileWatcher } from './file-watcher.js';
 export { createIdleValidator } from './idle-validator.js';
 export { createStuckDetector } from './stuck-detector.js';
 export { createAdvisoryGuardrails } from './advisory-guardrails.js';
+export { syncCmuxSidebar, BGSD_STATE_KEY, BGSD_CONTEXT_KEY, BGSD_ACTIVITY_KEY } from './cmux-sidebar-sync.js';
 
 /**
  * bGSD (Get Stuff Done) — Plugin Entry Point
@@ -227,8 +229,26 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const stuckDetector = createStuckDetector(notifier, config);
   const guardrails = createAdvisoryGuardrails(projectDir, notifier, config);
 
+  async function refreshCmuxSidebar() {
+    try {
+      const { invalidateAll } = await import('./parsers/index.js');
+      invalidateAll(projectDir);
+
+      const projectState = getProjectState(projectDir);
+      if (!projectState) return;
+
+      await syncCmuxSidebar(cmuxAdapter, {
+        ...projectState,
+        notificationHistory: notifier.getHistory(),
+      });
+    } catch (error) {
+      writeDebugDiagnostic('[bgsd-plugin]', `cmux sidebar sync failed (non-fatal): ${error.message || String(error)}`);
+    }
+  }
+
   // Start file watcher for .planning/ directory
   fileWatcher.start();
+  await refreshCmuxSidebar();
 
   // ENR-03: Background cache warm-up — non-blocking, runs after plugin init completes.
   // Calls getProjectState to trigger parsing + SQLite write-through for all planning files,
@@ -289,11 +309,13 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     if (event.type === 'session.idle') {
       await idleValidator.onIdle();
       guardrails.clearBgsdCommandActive();
+      await refreshCmuxSidebar();
     }
     if (event.type === 'file.watcher.updated') {
       const { invalidateAll } = await import('./parsers/index.js');
       invalidateAll(projectDir);
       await handleExternalPlanningChange(event.path || event.filePath || null);
+      await refreshCmuxSidebar();
     }
   });
 
@@ -301,6 +323,7 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const toolAfter = safeHook('tool.execute.after', async (input) => {
     stuckDetector.trackToolCall(input);
     await guardrails.onToolAfter(input);
+    await refreshCmuxSidebar();
   });
 
   return {

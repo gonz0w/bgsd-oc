@@ -6110,19 +6110,19 @@ ${content}`);
       const revision = revisionMatch ? parseInt(revisionMatch[1], 10) : null;
       const created = createdMatch ? createdMatch[1] : null;
       const updated = updatedMatch ? updatedMatch[1] : null;
-      function extractSection2(tag) {
+      function extractSection3(tag) {
         const pattern = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
         const match = content.match(pattern);
         return match ? match[1].trim() : null;
       }
-      const objectiveRaw = extractSection2("objective");
+      const objectiveRaw = extractSection3("objective");
       const objective = { statement: "", elaboration: "" };
       if (objectiveRaw) {
         const lines = objectiveRaw.split("\n");
         objective.statement = lines[0].trim();
         objective.elaboration = lines.slice(1).join("\n").trim();
       }
-      const usersRaw = extractSection2("users");
+      const usersRaw = extractSection3("users");
       const users = [];
       if (usersRaw) {
         const userLines = usersRaw.split("\n").filter((l) => l.match(/^\s*-\s+/));
@@ -6131,7 +6131,7 @@ ${content}`);
           if (text) users.push({ text });
         }
       }
-      const outcomesRaw = extractSection2("outcomes");
+      const outcomesRaw = extractSection3("outcomes");
       const outcomes = [];
       if (outcomesRaw) {
         const outcomePattern = /^\s*-\s+(DO-\d+)\s+\[(P[123])\]:\s*(.+)/;
@@ -6142,7 +6142,7 @@ ${content}`);
           }
         }
       }
-      const criteriaRaw = extractSection2("criteria");
+      const criteriaRaw = extractSection3("criteria");
       const criteria = [];
       if (criteriaRaw) {
         const criteriaPattern = /^\s*-\s+(SC-\d+):\s*(.+)/;
@@ -6153,7 +6153,7 @@ ${content}`);
           }
         }
       }
-      const constraintsRaw = extractSection2("constraints");
+      const constraintsRaw = extractSection3("constraints");
       const constraints = { technical: [], business: [], timeline: [] };
       if (constraintsRaw) {
         const constraintPattern = /^\s*-\s+(C-\d+):\s*(.+)/;
@@ -6179,7 +6179,7 @@ ${content}`);
           }
         }
       }
-      const healthRaw = extractSection2("health");
+      const healthRaw = extractSection3("health");
       const health = { quantitative: [], qualitative: "" };
       if (healthRaw) {
         const healthPattern = /^\s*-\s+(HM-\d+):\s*(.+)/;
@@ -6209,7 +6209,7 @@ ${content}`);
         }
         health.qualitative = qualLines.join("\n");
       }
-      const historyRaw = extractSection2("history");
+      const historyRaw = extractSection3("history");
       const history = [];
       if (historyRaw) {
         let currentEntry = null;
@@ -11571,6 +11571,185 @@ async function resolveCmuxAvailability(options = {}) {
   });
 }
 
+// src/plugin/cmux-sidebar-snapshot.js
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+function hasPattern(value, pattern) {
+  return pattern.test(normalizeText(value));
+}
+function getSignalText(state) {
+  return `${normalizeText(state?.status)} ${extractContinuityText(state)}`.trim();
+}
+function extractSection2(state, sectionName) {
+  if (!state) return null;
+  if (typeof state.getSection === "function") {
+    return state.getSection(sectionName);
+  }
+  const raw = String(state.raw || "");
+  if (!raw) return null;
+  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = raw.match(new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i"));
+  return match ? match[1].trim() : null;
+}
+function extractBlockerLines(state) {
+  const section = extractSection2(state, "Blockers/Concerns");
+  if (!section) return [];
+  return section.split("\n").map((line) => line.replace(/^[-*]\s*/, "").trim()).filter((line) => line && !/^none(?:\.|\s|$)/i.test(line));
+}
+function extractContinuityText(state) {
+  const section = extractSection2(state, "Session Continuity");
+  return normalizeText(section || "");
+}
+function parsePhaseNumber(state, currentPhase) {
+  const fromState = String(state?.phase || "").match(/^(\d+(?:\.\d+)?)/);
+  if (fromState) return fromState[1];
+  return currentPhase?.number ? String(currentPhase.number) : null;
+}
+function parsePlanNumber(state) {
+  const match = String(state?.currentPlan || "").match(/(\d+)/);
+  return match ? match[1].padStart(2, "0") : null;
+}
+function deriveWorkflowLabel(state) {
+  const signal = getSignalText(state);
+  if (/\bverif(?:y|ying|ication)\b/.test(signal)) return "Verifying";
+  if (/\bplan(?:ning)?\b/.test(signal) || /ready to plan/.test(signal)) return "Planning";
+  if (/\bexecut(?:e|ing|ion)?\b/.test(signal) || /\bin progress\b/.test(signal) || /\bworking\b/.test(signal) || /\brunning\b/.test(signal)) {
+    return "Executing";
+  }
+  return null;
+}
+function isHumanGate(state) {
+  const signal = `${getSignalText(state)} ${extractBlockerLines(state).join(" ")}`.trim();
+  return /(ready to plan|input needed|await(?:ing)? (?:reply|response|approval|review|decision)|needs? (?:reply|response|approval|review|decision)|checkpoint|manual (?:setup|action|step)|auth|login|sign in|required reply|human action)/.test(signal);
+}
+function hasHardStop(state, notificationHistory) {
+  if (hasPattern(state?.status, /\bblocked\b|hard stop|cannot continue|fatal|failure|failed|error/)) {
+    return !isHumanGate(state);
+  }
+  const blockerLines = extractBlockerLines(state);
+  if (blockerLines.some((line) => /(cannot continue|hard stop|fatal|failure|broken|repair required|critical)/i.test(line)) && blockerLines.every((line) => !/(auth|manual|decision|approval|reply|review)/i.test(line))) {
+    return true;
+  }
+  return (notificationHistory || []).some((entry) => normalizeText(entry?.severity) === "critical");
+}
+function hasWarningOverlay(state, notificationHistory) {
+  if ((notificationHistory || []).some((entry) => normalizeText(entry?.severity) === "warning")) {
+    return true;
+  }
+  return hasPattern(state?.status, /warning|stale|spinning|degraded|attention/);
+}
+function isComplete(state, currentPhase) {
+  if (typeof state?.progress === "number" && state.progress >= 100) return true;
+  if (hasPattern(state?.status, /complete|completed|done|finished/)) return true;
+  return normalizeText(currentPhase?.status) === "complete";
+}
+function isActive(state) {
+  const workflowLabel = deriveWorkflowLabel(state);
+  if (workflowLabel) return true;
+  return hasPattern(state?.status, /in progress|working|active|running/);
+}
+function isFresh(lastActivity) {
+  if (!lastActivity) return false;
+  const timestamp = Date.parse(lastActivity);
+  if (Number.isNaN(timestamp)) return false;
+  return Date.now() - timestamp <= 36 * 60 * 60 * 1e3;
+}
+function buildStructuralLabel(state, currentPhase) {
+  const phaseNumber = parsePhaseNumber(state, currentPhase);
+  const planNumber = parsePlanNumber(state);
+  if (phaseNumber && planNumber) return `Phase ${phaseNumber} P${planNumber}`;
+  if (phaseNumber) return `Phase ${phaseNumber}`;
+  return null;
+}
+function derivePrimaryState(projectState) {
+  const state = projectState?.state || {};
+  const currentPhase = projectState?.currentPhase || null;
+  const notificationHistory = projectState?.notificationHistory || [];
+  if (isHumanGate(state)) return { label: "Input needed", reason: "human-gated", priority: 6 };
+  if (hasHardStop(state, notificationHistory)) return { label: "Blocked", reason: "hard-stop", priority: 5 };
+  if (hasWarningOverlay(state, notificationHistory)) return { label: "Warning", reason: "warning-overlay", priority: 4 };
+  if (isActive(state)) return { label: "Working", reason: "active-work", priority: 3 };
+  if (isComplete(state, currentPhase)) return { label: "Complete", reason: "complete", priority: 2 };
+  return { label: "Idle", reason: "idle", priority: 1 };
+}
+function deriveContextLabel(projectState) {
+  const state = projectState?.state || {};
+  const currentPhase = projectState?.currentPhase || null;
+  const workflowLabel = deriveWorkflowLabel(state);
+  if (workflowLabel) {
+    return { label: workflowLabel, source: "workflow", trustworthy: true };
+  }
+  const structuralLabel = buildStructuralLabel(state, currentPhase);
+  if (structuralLabel) {
+    return { label: structuralLabel, source: "structure", trustworthy: true };
+  }
+  return { label: null, source: "none", trustworthy: false };
+}
+function deriveProgressSignal(projectState) {
+  const state = projectState?.state || {};
+  const currentPhase = projectState?.currentPhase || null;
+  if (typeof state.progress === "number" && Number.isFinite(state.progress)) {
+    const phaseNumber = parsePhaseNumber(state, currentPhase);
+    return {
+      mode: "exact",
+      value: Math.max(0, Math.min(100, state.progress)) / 100,
+      label: phaseNumber ? `Phase ${phaseNumber}` : "Progress"
+    };
+  }
+  if (isActive(state) && isFresh(state.lastActivity || null)) {
+    const workflowLabel = deriveWorkflowLabel(state);
+    return {
+      mode: "activity",
+      label: workflowLabel || "Active"
+    };
+  }
+  return { mode: "hidden" };
+}
+function deriveCmuxSidebarSnapshot(projectState) {
+  return {
+    status: derivePrimaryState(projectState),
+    context: deriveContextLabel(projectState),
+    progress: deriveProgressSignal(projectState)
+  };
+}
+
+// src/plugin/cmux-sidebar-sync.js
+var BGSD_STATE_KEY = "bgsd.state";
+var BGSD_CONTEXT_KEY = "bgsd.context";
+var BGSD_ACTIVITY_KEY = "bgsd.activity";
+async function syncStatusKey(cmuxAdapter, key, value) {
+  if (value) {
+    await cmuxAdapter.setStatus(key, value);
+    return;
+  }
+  await cmuxAdapter.clearStatus(key);
+}
+async function syncCmuxSidebar(cmuxAdapter, projectState) {
+  if (!cmuxAdapter || typeof cmuxAdapter.setStatus !== "function") {
+    return null;
+  }
+  const snapshot = deriveCmuxSidebarSnapshot(projectState);
+  await syncStatusKey(cmuxAdapter, BGSD_STATE_KEY, snapshot.status?.label || null);
+  await syncStatusKey(
+    cmuxAdapter,
+    BGSD_CONTEXT_KEY,
+    snapshot.context?.trustworthy ? snapshot.context.label || null : null
+  );
+  if (snapshot.progress?.mode === "activity") {
+    await syncStatusKey(cmuxAdapter, BGSD_ACTIVITY_KEY, snapshot.progress.label || "Active");
+    await cmuxAdapter.clearProgress();
+    return snapshot;
+  }
+  await syncStatusKey(cmuxAdapter, BGSD_ACTIVITY_KEY, null);
+  if (snapshot.progress?.mode === "exact") {
+    await cmuxAdapter.setProgress(snapshot.progress.value, { label: snapshot.progress.label });
+    return snapshot;
+  }
+  await cmuxAdapter.clearProgress();
+  return snapshot;
+}
+
 // src/plugin/index.js
 init_config();
 await init_state();
@@ -11711,7 +11890,22 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config);
   const stuckDetector = createStuckDetector(notifier, config);
   const guardrails = createAdvisoryGuardrails(projectDir, notifier, config);
+  async function refreshCmuxSidebar() {
+    try {
+      const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
+      invalidateAll2(projectDir);
+      const projectState = getProjectState(projectDir);
+      if (!projectState) return;
+      await syncCmuxSidebar(cmuxAdapter, {
+        ...projectState,
+        notificationHistory: notifier.getHistory()
+      });
+    } catch (error) {
+      writeDebugDiagnostic2("[bgsd-plugin]", `cmux sidebar sync failed (non-fatal): ${error.message || String(error)}`);
+    }
+  }
   fileWatcher.start();
+  await refreshCmuxSidebar();
   setTimeout(() => {
     try {
       getProjectState(projectDir);
@@ -11752,16 +11946,19 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     if (event.type === "session.idle") {
       await idleValidator.onIdle();
       guardrails.clearBgsdCommandActive();
+      await refreshCmuxSidebar();
     }
     if (event.type === "file.watcher.updated") {
       const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
       invalidateAll2(projectDir);
       await handleExternalPlanningChange(event.path || event.filePath || null);
+      await refreshCmuxSidebar();
     }
   });
   const toolAfter = safeHook("tool.execute.after", async (input) => {
     stuckDetector.trackToolCall(input);
     await guardrails.onToolAfter(input);
+    await refreshCmuxSidebar();
   });
   return {
     "experimental.session.compacting": compacting,
@@ -11774,6 +11971,9 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   };
 };
 export {
+  BGSD_ACTIVITY_KEY,
+  BGSD_CONTEXT_KEY,
+  BGSD_STATE_KEY,
   BgsdPlugin,
   buildCompactionContext,
   buildMemorySnapshot,
@@ -11802,5 +12002,6 @@ export {
   parseRoadmap,
   parseState,
   resetCmuxAdapterCache,
-  safeHook
+  safeHook,
+  syncCmuxSidebar
 };
