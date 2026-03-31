@@ -115,6 +115,10 @@ function createCmuxStub(overrides = {}) {
       calls.push(`log:${workspace}:${level || 'info'}:${source || ''}:${message}`);
       return { ok: true, stdout: '' };
     },
+    notify: async ({ workspace, title, subtitle, body, level }) => {
+      calls.push(`notify:${workspace}:${level || 'info'}:${title || ''}:${subtitle || ''}:${body || ''}`);
+      return { ok: true, stdout: '' };
+    },
   };
 
   return {
@@ -567,12 +571,16 @@ describe('plugin cmux targeting', () => {
     assert.strictEqual(suppressionReason(adapter), 'cmux-missing');
 
     const result = await adapter.setStatus('build', 'running');
+    const notifyResult = await adapter.notify({ title: 'bGSD', body: 'suppressed' });
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.suppressed, true);
     assert.strictEqual(result.reason, 'cmux-missing');
+    assert.strictEqual(notifyResult.ok, false);
+    assert.strictEqual(notifyResult.suppressed, true);
+    assert.strictEqual(notifyResult.reason, 'cmux-missing');
   });
 
-  test('createAttachedCmuxAdapter exposes targeted transport-only sidebar methods', async () => {
+  test('createAttachedCmuxAdapter exposes targeted transport-only sidebar methods and workspace-scoped notify delivery', async () => {
     const { createAttachedCmuxAdapter } = await loadCmuxModules();
     const { cmux, calls } = createCmuxStub();
     const adapter = createAttachedCmuxAdapter({
@@ -590,6 +598,12 @@ describe('plugin cmux targeting', () => {
     const progressResult = await adapter.setProgress(0.5, { label: 'Building' });
     const clearProgressResult = await adapter.clearProgress();
     const logResult = await adapter.log('Done', { level: 'success', source: 'bgsd' });
+    const notifyResult = await adapter.notify({
+      title: 'bGSD',
+      subtitle: 'workspace',
+      body: 'notify:workspace',
+      level: 'warning',
+    });
 
     assert.strictEqual(statusResult.ok, true);
     assert.strictEqual(statusResult.workspaceId, 'workspace:1');
@@ -597,12 +611,33 @@ describe('plugin cmux targeting', () => {
     assert.strictEqual(progressResult.ok, true);
     assert.strictEqual(clearProgressResult.ok, true);
     assert.strictEqual(logResult.ok, true);
+    assert.strictEqual(notifyResult.ok, true);
     assert.deepStrictEqual(calls, [
       'setStatus:workspace:1:build:running',
       'clearStatus:workspace:1:build',
       'setProgress:workspace:1:0.5:Building',
       'clearProgress:workspace:1',
       'log:workspace:1:success:bgsd:Done',
+      'notify:workspace:1:warning:bGSD:workspace:notify:workspace',
     ]);
+  });
+
+  test('suppressed and not-attached adapters keep notify transport inert', async () => {
+    const { createNoopCmuxAdapter } = await loadCmuxModules();
+    const adapter = createNoopCmuxAdapter({
+      available: true,
+      attached: false,
+      mode: 'alongside',
+      suppressionReason: 'not-attached',
+      workspaceId: null,
+      surfaceId: null,
+      writeProven: false,
+    });
+
+    const result = await adapter.notify({ title: 'bGSD', body: 'not-attached suppressed' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.suppressed, true);
+    assert.strictEqual(result.reason, 'not-attached');
+    assert.strictEqual(result.action, 'notify');
   });
 });
