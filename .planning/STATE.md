@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 170 complete — ready for verification
+**Current focus:** Phase 171 Plan 02 — ready to wire sidebar sync against the canonical snapshot helper
 
 ## Current Position
 
-**Phase:** 170
-**Current Plan:** Not started
-**Total Plans in Phase:** 3
-**Status:** Ready to plan
+**Phase:** 171 — Ambient Workspace Status & Progress
+**Current Plan:** 02
+**Total Plans in Phase:** 2
+**Status:** In progress
 **Last Activity:** 2026-03-31
 
-Progress: [██████████] 100%
+**Progress:** [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [██████████] 100%
 | 168 | 1 | 1 | ~2.0 min |
 | 169 | 1 | 1 | ~10.0 min |
 | 170 | 2 | 2 | ~14.5 min |
+| 171 | 1 | 1 | 67 min |
 
 **Recent Trend:**
 - Last shipped milestone: v17.1 completed 5 phases (163-167)
@@ -50,6 +51,7 @@ Progress: [██████████] 100%
 | Phase 170 P01 | 24 min | 2 tasks | 6 files |
 | Phase 170 P02 | 5 min | 2 tasks | 3 files |
 | Phase 170 P03 | 14 min | 2 tasks | 5 files |
+| Phase 171 P01 | 67 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -308,6 +310,7 @@ Progress: [██████████] 100%
 - [Phase 169]: Orchestration now routes by shared quality, balanced, and budget profiles before canonical concrete-model resolution. — Shared-profile routing keeps semantics stable when the concrete model behind a profile changes.
 - [Phase 169-canonical-model-resolution-visibility]: Legacy cache and SQLite model-profile surfaces are now compatibility-only; canonical config remains the only live model-selection truth. — Removing dead cache APIs and fresh default seeding prevents future reads from reviving provider-tier model selection outside canonical config.
 - [Phase 170]: Plugin startup now classifies cmux availability through one bounded transport and caches an inert adapter with explicit suppression reasons, keeping non-cmux behavior quiet and unchanged until later proof phases attach safely.
+- [Phase 171]: Ambient workspace truth now derives from one pure snapshot helper that applies action-first state precedence, workflow-first context fallback, and exact-versus-activity progress trust gates before any cmux write path consumes it.
 - [Phase 147-148]: Security and release flows now use normalized findings, narrow suppressions, dry-run-first release steps, and explicit skip/fallback semantics rather than hidden guesswork.
 - [Phase 149-150]: TDD guidance now comes from one canonical contract, with exact-command RED/GREEN/REFACTOR proof and summary audit coverage.
 - [Phase 151-154]: Shared phase snapshots, durable handoffs, resume freshness, and proof-preserving TDD audit sidecars now anchor fresh-context chaining.
@@ -406,6 +409,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-03-31T13:37:10.027Z
-Stopped at: Completed 170-03-PLAN.md
-Resume file: None
+**Last session:** 2026-03-31T14:57:08Z
+**Stopped at:** Completed 171-01-PLAN.md
+**Resume file:** .planning/phases/171-ambient-workspace-status-progress/171-02-PLAN.md

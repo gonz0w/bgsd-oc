@@ -57,7 +57,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
   1. Users see stable workspace states such as `Working`, `Input needed`, `Blocked`, `Idle`, `Warning`, and `Complete` that match real plugin lifecycle state.
   2. Users see a compact sidebar status pill with phase, plan, task, or workflow context whenever that context is reliable enough to trust.
   3. Users see sidebar progress when phase, plan, task, or workflow progress is trustworthy, and the plugin hides progress instead of guessing when signal quality is weak.
-**Plans**: TBD
+**Plans**: 1/2 plans executed
 
 ### Phase 172: Ambient Attention UX & Noise Control
 **Goal**: Users get actionable ambient logs and notifications from `cmux` without spam or distracting churn
@@ -76,7 +76,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 | 168. Adaptive Model Settings Contract | 4/4 | Complete    | 2026-03-31 |
 | 169. Canonical Model Resolution & Visibility | 4/4 | Complete    | 2026-03-31 |
 | 170. cmux Workspace Detection & Safe Targeting | 3/3 | Complete    | 2026-03-31 |
-| 171. Ambient Workspace Status & Progress | 0/TBD | Not started | - |
+| 171. Ambient Workspace Status & Progress | 1/2 | In Progress|  |
 | 172. Ambient Attention UX & Noise Control | 0/TBD | Not started | - |
 
 ---

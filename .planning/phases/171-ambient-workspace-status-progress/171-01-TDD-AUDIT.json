@@ -1,0 +1,25 @@
+{
+  "phases": {
+    "red": {
+      "target_command": "npm run test:file -- tests/plugin-cmux-sidebar-snapshot.test.cjs",
+      "exit_code": 1,
+      "matched_evidence_snippet": "✖ Input needed outranks Blocked when trustworthy signals compete (1.297709ms)",
+      "expected_outcome": "fail",
+      "observed_outcome": "fail"
+    },
+    "green": {
+      "target_command": "npm run test:file -- tests/plugin-cmux-sidebar-snapshot.test.cjs",
+      "exit_code": 0,
+      "matched_evidence_snippet": "ℹ pass 6",
+      "expected_outcome": "pass",
+      "observed_outcome": "pass"
+    },
+    "refactor": {
+      "target_command": "npm run test:file -- tests/plugin-cmux-sidebar-snapshot.test.cjs",
+      "exit_code": 0,
+      "matched_evidence_snippet": "ℹ pass 6",
+      "expected_outcome": "pass",
+      "observed_outcome": "pass"
+    }
+  }
+}
