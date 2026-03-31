@@ -1,0 +1,18 @@
+{
+  "phases": {
+    "red": {
+      "target_command": "npm run test:file -- tests/plugin-cmux-targeting.test.cjs tests/plugin-cmux-attention-policy.test.cjs",
+      "exit_code": 1,
+      "matched_evidence_snippet": "✖ planner-start, executor-start, and task-complete stay log-only (0.989916ms)",
+      "expected_outcome": "fail",
+      "observed_outcome": "fail"
+    },
+    "green": {
+      "target_command": "npm run test:file -- tests/plugin-cmux-targeting.test.cjs tests/plugin-cmux-attention-policy.test.cjs",
+      "exit_code": 0,
+      "matched_evidence_snippet": "ℹ pass 20",
+      "expected_outcome": "pass",
+      "observed_outcome": "pass"
+    }
+  }
+}

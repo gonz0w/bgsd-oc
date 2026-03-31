@@ -173,6 +173,14 @@ function buildCmuxClient(options = {}) {
       args.push(String(message));
       return runCmuxCommand('log', args, { ...shared, ...callOptions });
     },
+    notify: ({ title, subtitle, body, level, ...callOptions } = {}) => {
+      const args = [];
+      if (level) args.push('--level', String(level));
+      if (title) args.push('--title', String(title));
+      if (subtitle) args.push('--subtitle', String(subtitle));
+      if (body) args.push('--body', String(body));
+      return runCmuxCommand('notify', args, { ...shared, ...callOptions });
+    },
   };
 }
 
@@ -395,6 +403,9 @@ export function createNoopCmuxAdapter(verdict = {}) {
     log(message, options = {}) {
       return suppressed('log', { message, options });
     },
+    notify(payload, options = {}) {
+      return suppressed('notify', { payload, options });
+    },
   });
 }
 
@@ -442,6 +453,13 @@ export function createAttachedCmuxAdapter(verdict = {}, options = {}) {
     },
     log(message, callOptions = {}) {
       return runAttached('log', () => cmux.log({ ...callOptions, workspace: normalizedVerdict.workspaceId, message }), { message, options: callOptions });
+    },
+    notify(payload = {}, callOptions = {}) {
+      return runAttached(
+        'notify',
+        () => cmux.notify({ ...callOptions, workspace: normalizedVerdict.workspaceId, ...payload }),
+        { payload, options: callOptions },
+      );
     },
   });
 }
