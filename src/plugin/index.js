@@ -13,6 +13,7 @@ import { createStuckDetector } from './stuck-detector.js';
 import { createAdvisoryGuardrails } from './advisory-guardrails.js';
 import { createAttachedCmuxAdapter, createNoopCmuxAdapter, resolveCmuxAvailability } from './cmux-targeting.js';
 import { syncCmuxSidebar } from './cmux-sidebar-sync.js';
+import { createAttentionMemory, syncCmuxAttention } from './cmux-attention-sync.js';
 import { parseConfig } from './parsers/config.js';
 import { writeDebugDiagnostic } from './debug-contract.js';
 import { getToolAvailability } from './tool-availability.js';
@@ -146,6 +147,7 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
   const cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmux || {});
+  const cmuxAttentionMemory = createAttentionMemory();
 
   // Best-effort tool cache warmup so first subagent handoffs have fresh availability data.
   try {
@@ -246,9 +248,30 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     }
   }
 
+  async function refreshCmuxAttention(trigger = {}) {
+    try {
+      const { invalidateAll } = await import('./parsers/index.js');
+      invalidateAll(projectDir);
+
+      const projectState = getProjectState(projectDir);
+      if (!projectState) return;
+
+      await syncCmuxAttention(cmuxAdapter, {
+        ...projectState,
+        notificationHistory: notifier.getHistory(),
+      }, {
+        memory: cmuxAttentionMemory,
+        trigger,
+      });
+    } catch (error) {
+      writeDebugDiagnostic('[bgsd-plugin]', `cmux attention sync failed (non-fatal): ${error.message || String(error)}`);
+    }
+  }
+
   // Start file watcher for .planning/ directory
   fileWatcher.start();
   await refreshCmuxSidebar();
+  await refreshCmuxAttention({ hook: 'startup' });
 
   // ENR-03: Background cache warm-up — non-blocking, runs after plugin init completes.
   // Calls getProjectState to trigger parsing + SQLite write-through for all planning files,
@@ -310,12 +333,14 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
       await idleValidator.onIdle();
       guardrails.clearBgsdCommandActive();
       await refreshCmuxSidebar();
+      await refreshCmuxAttention({ hook: 'session.idle', event });
     }
     if (event.type === 'file.watcher.updated') {
       const { invalidateAll } = await import('./parsers/index.js');
       invalidateAll(projectDir);
       await handleExternalPlanningChange(event.path || event.filePath || null);
       await refreshCmuxSidebar();
+      await refreshCmuxAttention({ hook: 'file.watcher.updated', event });
     }
   });
 
@@ -324,6 +349,7 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     stuckDetector.trackToolCall(input);
     await guardrails.onToolAfter(input);
     await refreshCmuxSidebar();
+    await refreshCmuxAttention({ hook: 'tool.execute.after', input });
   });
 
   return {

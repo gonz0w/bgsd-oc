@@ -6,6 +6,13 @@
       "matched_evidence_snippet": "✖ Plugin cmux attention sync keeps startup and routine task completion log-only while checkpoint waits notify (177.621166ms)",
       "expected_outcome": "fail",
       "observed_outcome": "fail"
+    },
+    "green": {
+      "target_command": "node --test --test-force-exit --test-name-pattern \"Plugin cmux attention sync\" tests/plugin.test.cjs",
+      "exit_code": 0,
+      "matched_evidence_snippet": "ℹ pass 2",
+      "expected_outcome": "pass",
+      "observed_outcome": "pass"
     }
   }
 }
