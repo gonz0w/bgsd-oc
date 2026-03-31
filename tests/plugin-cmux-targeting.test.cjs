@@ -90,7 +90,7 @@ function createCmuxStub(overrides = {}) {
         json: {
           result: {
             cwd: '/repo',
-            status: [],
+            status: [{ key: 'bgsd.target.probe' }],
           },
         },
       };
@@ -325,7 +325,20 @@ describe('plugin cmux targeting', () => {
 
   test('resolveCmuxAvailability suppresses attachment when the targeted write probe is not visible', async () => {
     const { resolveCmuxAvailability } = await loadCmuxModules();
-    const { cmux, calls } = createCmuxStub();
+    const { cmux, calls } = createCmuxStub({
+      sidebarState: async ({ workspace }) => {
+        calls.push(`sidebarState:${workspace}`);
+        return {
+          ok: true,
+          json: {
+            result: {
+              cwd: '/repo',
+              status: [],
+            },
+          },
+        };
+      },
+    });
     const verdict = await resolveCmuxAvailability({
       env: {
         CMUX_WORKSPACE_ID: 'workspace:1',
