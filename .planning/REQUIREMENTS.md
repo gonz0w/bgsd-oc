@@ -1,0 +1,65 @@
+# Requirements
+
+**Milestone:** v18.1 Greenfield Cleanup & CLI Simplification
+**Generated:** 2026-03-31
+**Status:** Drafted
+
+## Goal
+
+Make bGSD easier to maintain and safer for agents to modify by removing compatibility-era drag and simplifying the CLI's most overloaded architecture without changing supported behavior.
+
+## Requirement Categories
+
+### AUDIT - Simplification Audit
+
+- [ ] `AUDIT-01` Maintainer can review a milestone audit that identifies dead code, duplication, simplification opportunities, concurrency risks, error-handling gaps, and maintainability hotspots with file-level references.
+- [ ] `AUDIT-02` Maintainer can prioritize cleanup work by blast radius and safe order of operations so low-risk deletions land before risky refactors.
+
+### CLEAN - Greenfield Compatibility Cleanup
+
+- [ ] `CLEAN-01` Maintainer can remove migration-only commands and helpers that exist only for legacy installs, storage transitions, or obsolete local-state upgrades.
+- [ ] `CLEAN-02` Maintainer can remove planning and config normalization paths that only support superseded file shapes while current canonical `.planning/` artifacts still parse and validate.
+- [ ] `CLEAN-03` Users see docs, templates, and help text that match the supported JJ/workspace-first model rather than stale worktree-era or compatibility-era guidance.
+
+### CLI - Command-System Simplification
+
+- [ ] `CLI-01` Maintainer can change command dispatch, help, aliases, and discovery from a clearer canonical definition instead of parallel registries that drift.
+- [ ] `CLI-02` Maintainer can change router parsing behavior without editing a god-object full of repeated hand-written flag scans and unrelated startup logic.
+- [ ] `CLI-03` Maintainer can work within smaller command subdomains instead of multi-thousand-line bucket modules and ambient output globals.
+
+### SAFE - Behavior Preservation & Hardening
+
+- [ ] `SAFE-01` Users can run supported planning and settings workflows after cleanup with regression coverage proving canonical command routes still work.
+- [ ] `SAFE-02` Maintainers can eliminate silent error swallowing, unnecessary async or control-flow indirection, and unguarded shared mutable state on touched cleanup paths before milestone close.
+- [ ] `SAFE-03` Users see help and workflow guidance that match the real supported command surface after cleanup, with stale aliases or contradictory guidance removed.
+
+## Future Requirements
+
+- Multi-user repo coordination with explicit ownership, lease, and handoff semantics.
+- Bun-first migration for runtime, build, packaging, and test workflows.
+- Workflow acceleration follow-up that is not directly required by cleanup or simplification work.
+- Deeper per-agent ambient UX only if later signal quality justifies it.
+
+## Out of Scope
+
+- Shipping new end-user features beyond cleanup-driven clarity and reliability.
+- Bun-first runtime replacement or package-manager migration.
+- Multi-user repo coordination, GitHub ownership flows, or team lock semantics.
+- Rewriting healthy runtime resilience fallbacks that still protect supported current environments.
+- Broad OpenCode core UI or chat behavior changes.
+
+## Traceability
+
+| Requirement | Source | Planned Phase |
+|-------------|--------|---------------|
+| `AUDIT-01` | User simplification review prompt plus CLI simplification PRD | TBD |
+| `AUDIT-02` | User simplification review prompt plus cleanup sequencing need | TBD |
+| `CLEAN-01` | Greenfield cleanup PRD - migration-only commands and helpers | TBD |
+| `CLEAN-02` | Greenfield cleanup PRD - legacy planning and config normalization | TBD |
+| `CLEAN-03` | Greenfield cleanup PRD - stale guidance and worktree-era docs | TBD |
+| `CLI-01` | CLI simplification PRD - canonical command definition | TBD |
+| `CLI-02` | CLI simplification PRD - router simplification | TBD |
+| `CLI-03` | CLI simplification PRD - smaller command subdomains and less ambient state | TBD |
+| `SAFE-01` | Both PRDs - preserve supported behavior with regression proof | TBD |
+| `SAFE-02` | User simplification review prompt - hardening touched cleanup paths | TBD |
+| `SAFE-03` | Both PRDs - align help, workflows, and supported surface | TBD |
