@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 168 Plan 02 completed — ready to continue model-settings execution with Plan 03.
+**Current focus:** Phase 168 — adaptive-model-settings-contract plan 04 of 4
 
 ## Current Position
 
 **Phase:** 168
-**Current Plan:** 3
+**Current Plan:** 4
 **Total Plans in Phase:** 4
 **Status:** Ready to execute
 **Last Activity:** 2026-03-31
 
-Progress: [██████████] 98%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [██████████] 98%
 - Last shipped milestone: v17.1 completed 5 phases (163-167)
 - Trend: Stable
 | Phase 168-adaptive-model-settings-contract P02 | 13 min | 2 tasks | 7 files |
+| Phase 168 P03 | 9 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,7 @@ Progress: [██████████] 98%
 - [Phase 168-adaptive-model-settings-contract]: Phase 168 planning artifacts now center on built-in quality/balanced/budget profiles, one selected global profile, and sparse direct overrides instead of aliases or migration-safe legacy compatibility.
 - [Phase 168-adaptive-model-settings-contract]: Canonical model settings now normalize through one nested model_settings contract with shared profile definitions, one default profile, and sparse agent overrides.
 - [Phase 168-adaptive-model-settings-contract]: CLI and plugin config parsing now derive compatibility model_profile and model_overrides fields from the shared normalizer instead of separate parsing logic.
+- [Phase 168]: Runtime model resolution now uses the canonical model_settings contract across helpers, decisions, init, enricher, and diagnostics. — A single config-first resolver removes legacy fallback drift so selected profiles and sparse overrides change live behavior consistently.
 
 ### Pending Todos
 
@@ -73,6 +75,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-03-31T02:26:48.895Z
-Stopped at: Completed 168-02-PLAN.md
+Last session: 2026-03-31T02:40:05.490Z
+Stopped at: Completed 168-03-PLAN.md
 Resume file: None
