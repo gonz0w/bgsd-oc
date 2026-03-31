@@ -67,7 +67,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
   1. Users see concise sidebar log entries for major lifecycle moments like workflow start, task completion, waiting for input, blocker detection, and state warnings.
   2. Users receive `cmux` notifications for attention-worthy events such as checkpoints, blockers, warnings, and completion moments.
   3. Users do not get noisy or repetitive sidebar churn because non-essential updates are deduped and rate-limited.
-**Plans**: TBD
+**Plans**: 0/2 plans complete
 
 ## Progress
 
@@ -77,7 +77,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 | 169. Canonical Model Resolution & Visibility | 4/4 | Complete    | 2026-03-31 |
 | 170. cmux Workspace Detection & Safe Targeting | 3/3 | Complete    | 2026-03-31 |
 | 171. Ambient Workspace Status & Progress | 2/2 | Complete   | 2026-03-31 |
-| 172. Ambient Attention UX & Noise Control | 0/TBD | Not started | - |
+| 172. Ambient Attention UX & Noise Control | 0/2 | Not started | - |
 
 ---
 
