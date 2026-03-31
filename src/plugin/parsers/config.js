@@ -9,7 +9,8 @@ const { buildDefaultConfig, normalizeConfig, serializeConfig } = configContract;
  * Extracts configuration from .planning/config.json with schema defaults.
  *
  * Parsing logic reuses the shared config contract so CLI and plugin touched
- * settings stay aligned on one schema-driven normalization path.
+ * settings stay aligned on one schema-driven normalization path, including the
+ * canonical model_settings contract.
  */
 
 // Module-level cache: cwd → frozen parsed config

@@ -57,6 +57,15 @@ test('default config file shape derives from CONFIG_SCHEMA', async () => {
 test('CLI and plugin normalization share nested coercion and workflow alias handling', async () => {
   await withProject(async ({ tmpDir, pluginModule }) => {
     const rawConfig = {
+      model_settings: {
+        default_profile: 'quality',
+        profiles: {
+          quality: { model: 'gpt-5.4' },
+        },
+        agent_overrides: {
+          'bgsd-executor': 'ollama/qwen3-coder:latest',
+        },
+      },
       planning: { commit_docs: false },
       git: { branching_strategy: 'parallel' },
       workflow: { research: false, plan_check: false, verifier: false },
@@ -74,30 +83,66 @@ test('CLI and plugin normalization share nested coercion and workflow alias hand
     assert.strictEqual(normalized.plan_checker, false);
     assert.strictEqual(normalized.verifier, false);
     assert.strictEqual(normalized.parallelization, false);
+    assert.strictEqual(normalized.model_settings.default_profile, 'quality');
+    assert.strictEqual(normalized.model_settings.profiles.quality.model, 'gpt-5.4');
+    assert.strictEqual(normalized.model_settings.profiles.balanced.model, CONFIG_SCHEMA.model_settings.default.profiles.balanced.model);
+    assert.strictEqual(normalized.model_settings.agent_overrides['bgsd-executor'], 'ollama/qwen3-coder:latest');
+    assert.strictEqual(normalized.model_profile, 'quality');
 
-    for (const key of ['commit_docs', 'branching_strategy', 'research', 'plan_checker', 'verifier', 'parallelization']) {
+    for (const key of ['commit_docs', 'branching_strategy', 'research', 'plan_checker', 'verifier', 'parallelization', 'model_profile']) {
       assert.deepStrictEqual(cliConfig[key], normalized[key], `CLI should normalize ${key} through shared contract`);
       assert.deepStrictEqual(pluginConfig[key], normalized[key], `plugin should normalize ${key} through shared contract`);
     }
+
+    assert.deepStrictEqual(cliConfig.model_settings, normalized.model_settings, 'CLI should expose canonical model settings shape');
+    assert.deepStrictEqual(pluginConfig.model_settings, normalized.model_settings, 'plugin should expose canonical model settings shape');
+    assert.deepStrictEqual(cliConfig.model_overrides, normalized.model_overrides, 'CLI should derive sparse agent override compatibility data');
+    assert.deepStrictEqual(pluginConfig.model_overrides, normalized.model_overrides, 'plugin should derive sparse agent override compatibility data');
   });
 });
 
-test('migrate adds schema defaults without overriding aliased workflow values', async () => {
+test('migrate adds canonical model settings defaults without overriding aliased workflow values', async () => {
   await withProject(async ({ tmpDir }) => {
     const configPath = path.join(tmpDir, '.planning', 'config.json');
-    fs.writeFileSync(configPath, JSON.stringify({ model_profile: 'quality', workflow: { plan_check: false } }, null, 2), 'utf-8');
+    fs.writeFileSync(configPath, JSON.stringify({ workflow: { plan_check: false } }, null, 2), 'utf-8');
 
     captureStdout(() => cmdConfigMigrate(tmpDir, true));
 
     const migrated = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    const directMigration = migrateConfig({ model_profile: 'quality', workflow: { plan_check: false } });
+    const directMigration = migrateConfig({ workflow: { plan_check: false } });
 
-    assert.strictEqual(migrated.model_profile, 'quality');
+    assert.strictEqual(migrated.model_settings.default_profile, CONFIG_SCHEMA.model_settings.default.default_profile);
+    assert.strictEqual(migrated.model_settings.profiles.quality.model, CONFIG_SCHEMA.model_settings.default.profiles.quality.model);
     assert.strictEqual(migrated.workflow.plan_check, false);
     assert.strictEqual(migrated.planning.commit_docs, true);
     assert.strictEqual(migrated.git.branching_strategy, CONFIG_SCHEMA.branching_strategy.default);
     assert.deepStrictEqual(migrated, directMigration.config, 'CLI migrate should write the shared migrated shape');
     assert.strictEqual(loadConfig(tmpDir).plan_checker, false, 'aliased workflow value should stay intact after migrate');
+  });
+});
+
+test('normalizeConfig canonicalizes partial model settings onto one stable shape', async () => {
+  await withProject(async ({ tmpDir, pluginModule }) => {
+    const rawConfig = {
+      model_settings: {
+        profiles: {
+          budget: 'gpt-5.4-nano',
+        },
+      },
+    };
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify(rawConfig, null, 2), 'utf-8');
+
+    const cliConfig = loadConfig(tmpDir);
+    const pluginConfig = pluginModule.parseConfig(tmpDir);
+
+    for (const config of [cliConfig, pluginConfig]) {
+      assert.strictEqual(config.model_settings.default_profile, 'balanced');
+      assert.strictEqual(config.model_settings.profiles.quality.model, 'gpt-5.4');
+      assert.strictEqual(config.model_settings.profiles.balanced.model, 'gpt-5.4-mini');
+      assert.strictEqual(config.model_settings.profiles.budget.model, 'gpt-5.4-nano');
+      assert.deepStrictEqual(config.model_settings.agent_overrides, {});
+      assert.strictEqual(config.model_profile, 'balanced');
+    }
   });
 });
 

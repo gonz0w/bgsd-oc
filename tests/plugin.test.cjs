@@ -137,7 +137,10 @@ describe('plugin parsers and tool registry', () => {
     assert.strictEqual(typeof mod.parseConfig, 'function', 'parseConfig should be a function');
     const config = mod.parseConfig();
     assert.ok(config, 'parseConfig should return a non-null config');
-    assert.strictEqual(typeof config.model_profile, 'string', 'config should have model_profile');
+    assert.strictEqual(typeof config.model_settings, 'object', 'config should have canonical model_settings object');
+    assert.strictEqual(config.model_settings.default_profile, 'balanced', 'config should default to the balanced built-in profile');
+    assert.strictEqual(config.model_settings.profiles.quality.model, 'gpt-5.4', 'quality should default to the flagship GPT model');
+    assert.strictEqual(typeof config.model_profile, 'string', 'config should still expose compatibility model_profile');
     assert.strictEqual(typeof config.commit_docs, 'boolean', 'config should have commit_docs as boolean');
     // Verify immutability via Object.isFrozen
     assert.ok(Object.isFrozen(config), 'config should be frozen');

@@ -17,10 +17,36 @@ const MODEL_PROFILES = {
   'bgsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
 };
 
+const MODEL_SETTING_PROFILES = Object.freeze(['quality', 'balanced', 'budget']);
+
+const DEFAULT_MODEL_SETTINGS = Object.freeze({
+  default_profile: 'balanced',
+  profiles: Object.freeze({
+    quality: Object.freeze({ model: 'gpt-5.4' }),
+    balanced: Object.freeze({ model: 'gpt-5.4-mini' }),
+    budget: Object.freeze({ model: 'gpt-5.4-nano' }),
+  }),
+  agent_overrides: Object.freeze({}),
+});
+
+const VALID_MODEL_OVERRIDE_AGENTS = Object.freeze([
+  'bgsd-planner',
+  'bgsd-roadmapper',
+  'bgsd-executor',
+  'bgsd-phase-researcher',
+  'bgsd-project-researcher',
+  'bgsd-debugger',
+  'bgsd-codebase-mapper',
+  'bgsd-verifier',
+  'bgsd-plan-checker',
+  'bgsd-reviewer',
+  'bgsd-github-ci',
+]);
+
 // ─── Config Schema ───────────────────────────────────────────────────────────
 
 const CONFIG_SCHEMA = {
-  model_profile:             { type: 'string',  default: 'balanced',                     description: 'Active model profile (quality/balanced/budget)',  aliases: [], nested: null },
+  model_settings:            { type: 'object',  default: DEFAULT_MODEL_SETTINGS,          description: 'Shared model settings contract (default profile, profile models, agent overrides)', aliases: [], nested: null },
   commit_docs:               { type: 'boolean', default: true,                            description: 'Auto-commit planning docs',                      aliases: [], nested: { section: 'planning', field: 'commit_docs' } },
   search_gitignored:         { type: 'boolean', default: false,                           description: 'Include gitignored files in searches',            aliases: [], nested: { section: 'planning', field: 'search_gitignored' } },
   branching_strategy:        { type: 'string',  default: 'none',                          description: 'Git branching strategy',                          aliases: [], nested: { section: 'git', field: 'branching_strategy' } },
@@ -1940,4 +1966,12 @@ Examples:
   bgsd-tools questions:validate --json`,
 };
 
-module.exports = { MODEL_PROFILES, CONFIG_SCHEMA, COMMAND_HELP, VALID_TRAJECTORY_SCOPES };
+module.exports = {
+  MODEL_PROFILES,
+  MODEL_SETTING_PROFILES,
+  DEFAULT_MODEL_SETTINGS,
+  VALID_MODEL_OVERRIDE_AGENTS,
+  CONFIG_SCHEMA,
+  COMMAND_HELP,
+  VALID_TRAJECTORY_SCOPES,
+};

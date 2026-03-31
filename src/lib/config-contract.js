@@ -1,4 +1,8 @@
-const { CONFIG_SCHEMA } = require('./constants');
+const {
+  CONFIG_SCHEMA,
+  DEFAULT_MODEL_SETTINGS,
+  MODEL_SETTING_PROFILES,
+} = require('./constants');
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -66,6 +70,65 @@ function normalizeSchemaValue(rawValue, def) {
     return cloneValue(def.default);
   }
   return cloneValue(rawValue);
+}
+
+function normalizeProfileDefinition(rawValue, fallback) {
+  const fallbackEntry = cloneValue(fallback);
+  if (typeof rawValue === 'string') {
+    const model = rawValue.trim();
+    return model ? { model } : fallbackEntry;
+  }
+  if (isPlainObject(rawValue)) {
+    const model = typeof rawValue.model === 'string' ? rawValue.model.trim() : '';
+    if (model) return { model };
+  }
+  return fallbackEntry;
+}
+
+function normalizeAgentOverrides(rawValue) {
+  if (!isPlainObject(rawValue)) return {};
+
+  const overrides = {};
+  for (const [agentId, modelValue] of Object.entries(rawValue)) {
+    if (typeof modelValue === 'string') {
+      const model = modelValue.trim();
+      if (model) overrides[agentId] = model;
+      continue;
+    }
+    if (isPlainObject(modelValue) && typeof modelValue.model === 'string') {
+      const model = modelValue.model.trim();
+      if (model) overrides[agentId] = model;
+    }
+  }
+  return overrides;
+}
+
+function normalizeModelSettings(rawValue) {
+  const defaults = cloneValue(DEFAULT_MODEL_SETTINGS);
+  if (!isPlainObject(rawValue)) return defaults;
+
+  const normalized = {
+    default_profile: typeof rawValue.default_profile === 'string' && rawValue.default_profile.trim()
+      ? rawValue.default_profile.trim()
+      : defaults.default_profile,
+    profiles: {},
+    agent_overrides: normalizeAgentOverrides(rawValue.agent_overrides),
+  };
+
+  const rawProfiles = isPlainObject(rawValue.profiles) ? rawValue.profiles : {};
+  for (const profileName of MODEL_SETTING_PROFILES) {
+    normalized.profiles[profileName] = normalizeProfileDefinition(rawProfiles[profileName], defaults.profiles[profileName]);
+  }
+
+  return normalized;
+}
+
+function applyDerivedModelSettings(result) {
+  const modelSettings = normalizeModelSettings(result.model_settings);
+  result.model_settings = modelSettings;
+  result.model_profile = modelSettings.default_profile;
+  result.model_overrides = cloneValue(modelSettings.agent_overrides);
+  return result;
 }
 
 function preferredSchemaPath(key, def) {
@@ -139,6 +202,8 @@ function normalizeConfig(rawConfig, options = {}) {
       result[key] = cloneValue(rawValue);
     }
   }
+
+  applyDerivedModelSettings(result);
 
   return options.freeze === false ? result : deepFreeze(result);
 }
