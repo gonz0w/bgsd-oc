@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 **Phase:** 168
-**Current Plan:** 2
+**Current Plan:** 3
 **Total Plans in Phase:** 4
-**Status:** In progress
+**Status:** Ready to execute
 **Last Activity:** 2026-03-31
 
-Progress: [██████████] 97%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [██████████] 97%
 **Recent Trend:**
 - Last shipped milestone: v17.1 completed 5 phases (163-167)
 - Trend: Stable
+| Phase 168-adaptive-model-settings-contract P02 | 13 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,8 @@ Progress: [██████████] 97%
 - [v18.0 Roadmap]: Kept the first `cmux` slice workspace-scoped and fallback-safe; deeper per-agent identity remains deferred until signal quality proves reliable.
 - [v18.0 Roadmap]: Kept dynamic model work provider-agnostic by separating settings contract work from canonical resolution and routing behavior.
 - [Phase 168-adaptive-model-settings-contract]: Phase 168 planning artifacts now center on built-in quality/balanced/budget profiles, one selected global profile, and sparse direct overrides instead of aliases or migration-safe legacy compatibility.
+- [Phase 168-adaptive-model-settings-contract]: Canonical model settings now normalize through one nested model_settings contract with shared profile definitions, one default profile, and sparse agent overrides.
+- [Phase 168-adaptive-model-settings-contract]: CLI and plugin config parsing now derive compatibility model_profile and model_overrides fields from the shared normalizer instead of separate parsing logic.
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-03-31T01:58:16.517Z
-Stopped at: Completed 168-01-PLAN.md
+Last session: 2026-03-31T02:26:48.895Z
+Stopped at: Completed 168-02-PLAN.md
 Resume file: None

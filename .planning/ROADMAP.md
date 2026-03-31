@@ -27,7 +27,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
   1. Users can define the concrete models behind built-in `quality`, `balanced`, and `budget` profiles and choose one project-wide active profile in settings without editing workflow prompts.
   2. Users can leave agent overrides empty by default and add sparse direct overrides only for exceptions such as routing one agent to a different concrete model.
   3. Settings and guidance describe the contract in provider-agnostic capability language, and Phase 168 does not preserve legacy `opus`, `sonnet`, or `haiku` naming as part of the public contract.
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 ### Phase 169: Canonical Model Resolution & Visibility
 **Goal**: Users can change settings once and trust every workflow path to resolve, route, and display model state consistently
@@ -73,7 +73,7 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 168. Adaptive Model Settings Contract | 1/4 | In Progress |  |
+| 168. Adaptive Model Settings Contract | 2/4 | In Progress|  |
 | 169. Canonical Model Resolution & Visibility | 0/TBD | Not started | - |
 | 170. cmux Workspace Detection & Safe Targeting | 0/TBD | Not started | - |
 | 171. Ambient Workspace Status & Progress | 0/TBD | Not started | - |
