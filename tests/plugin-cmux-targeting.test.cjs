@@ -90,9 +90,30 @@ function createCmuxStub(overrides = {}) {
         json: {
           result: {
             cwd: '/repo',
+            status: [],
           },
         },
       };
+    },
+    setStatus: async ({ workspace, key, value }) => {
+      calls.push(`setStatus:${workspace}:${key}:${value}`);
+      return { ok: true, stdout: '' };
+    },
+    clearStatus: async ({ workspace, key }) => {
+      calls.push(`clearStatus:${workspace}:${key}`);
+      return { ok: true, stdout: '' };
+    },
+    setProgress: async ({ workspace, progress, label }) => {
+      calls.push(`setProgress:${workspace}:${progress}:${label || ''}`);
+      return { ok: true, stdout: '' };
+    },
+    clearProgress: async ({ workspace }) => {
+      calls.push(`clearProgress:${workspace}`);
+      return { ok: true, stdout: '' };
+    },
+    log: async ({ workspace, message, level, source }) => {
+      calls.push(`log:${workspace}:${level || 'info'}:${source || ''}:${message}`);
+      return { ok: true, stdout: '' };
     },
   };
 
@@ -157,12 +178,20 @@ describe('plugin cmux targeting', () => {
     });
 
     assert.strictEqual(verdict.available, true);
-    assert.strictEqual(verdict.attached, false);
+    assert.strictEqual(verdict.attached, true);
     assert.strictEqual(verdict.mode, 'managed');
     assert.strictEqual(verdict.workspaceId, 'workspace:1');
     assert.strictEqual(verdict.surfaceId, 'surface:1');
     assert.strictEqual(verdict.suppressionReason, null);
-    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'identify']);
+    assert.strictEqual(verdict.writeProven, true);
+    assert.deepStrictEqual(calls, [
+      'ping',
+      'capabilities',
+      'identify',
+      'setStatus:workspace:1:bgsd.target.probe:attach-check',
+      'sidebarState:workspace:1',
+      'clearStatus:workspace:1:bgsd.target.probe',
+    ]);
   });
 
   test('resolveCmuxAvailability suppresses managed workspace mismatch', async () => {
@@ -263,6 +292,7 @@ describe('plugin cmux targeting', () => {
           json: {
             result: {
               cwd: workspace === 'workspace:2' ? '/repo' : '/other',
+              status: workspace === 'workspace:2' ? [{ key: 'bgsd.target.probe' }] : [],
             },
           },
         };
@@ -275,11 +305,85 @@ describe('plugin cmux targeting', () => {
     });
 
     assert.strictEqual(verdict.available, true);
+    assert.strictEqual(verdict.attached, true);
     assert.strictEqual(verdict.mode, 'alongside');
     assert.strictEqual(verdict.workspaceId, 'workspace:2');
     assert.strictEqual(verdict.surfaceId, null);
     assert.strictEqual(verdict.suppressionReason, null);
-    assert.deepStrictEqual(calls, ['ping', 'capabilities', 'listWorkspaces', 'sidebarState:workspace:1', 'sidebarState:workspace:2']);
+    assert.strictEqual(verdict.writeProven, true);
+    assert.deepStrictEqual(calls, [
+      'ping',
+      'capabilities',
+      'listWorkspaces',
+      'sidebarState:workspace:1',
+      'sidebarState:workspace:2',
+      'setStatus:workspace:2:bgsd.target.probe:attach-check',
+      'sidebarState:workspace:2',
+      'clearStatus:workspace:2:bgsd.target.probe',
+    ]);
+  });
+
+  test('resolveCmuxAvailability suppresses attachment when the targeted write probe is not visible', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub();
+    const verdict = await resolveCmuxAvailability({
+      env: {
+        CMUX_WORKSPACE_ID: 'workspace:1',
+        CMUX_SURFACE_ID: 'surface:1',
+      },
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, true);
+    assert.strictEqual(verdict.attached, false);
+    assert.strictEqual(verdict.writeProven, false);
+    assert.strictEqual(verdict.suppressionReason, 'write-probe-failed');
+    assert.deepStrictEqual(calls, [
+      'ping',
+      'capabilities',
+      'identify',
+      'setStatus:workspace:1:bgsd.target.probe:attach-check',
+      'sidebarState:workspace:1',
+      'clearStatus:workspace:1:bgsd.target.probe',
+    ]);
+  });
+
+  test('probeCmuxWritePath suppresses attachment when cleanup fails', async () => {
+    const { probeCmuxWritePath } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub({
+      sidebarState: async ({ workspace }) => {
+        calls.push(`sidebarState:${workspace}`);
+        return {
+          ok: true,
+          json: {
+            result: {
+              cwd: '/repo',
+              status: [{ key: 'bgsd.target.probe' }],
+            },
+          },
+        };
+      },
+      clearStatus: async ({ workspace, key }) => {
+        calls.push(`clearStatus:${workspace}:${key}`);
+        return {
+          ok: false,
+          error: { type: 'command-failed', message: 'clear failed', code: 1, signal: null },
+        };
+      },
+    });
+
+    const probe = await probeCmuxWritePath({ cmux, workspaceId: 'workspace:1' });
+    assert.deepStrictEqual(probe, {
+      ok: false,
+      suppressionReason: 'write-probe-failed',
+      workspaceId: 'workspace:1',
+      probeKey: 'bgsd.target.probe',
+    });
+    assert.deepStrictEqual(calls, [
+      'setStatus:workspace:1:bgsd.target.probe:attach-check',
+      'sidebarState:workspace:1',
+      'clearStatus:workspace:1:bgsd.target.probe',
+    ]);
   });
 
   test('resolveCmuxAvailability suppresses alongside access-mode-blocked callers', async () => {
@@ -453,5 +557,39 @@ describe('plugin cmux targeting', () => {
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.suppressed, true);
     assert.strictEqual(result.reason, 'cmux-missing');
+  });
+
+  test('createAttachedCmuxAdapter exposes targeted transport-only sidebar methods', async () => {
+    const { createAttachedCmuxAdapter } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub();
+    const adapter = createAttachedCmuxAdapter({
+      available: true,
+      attached: true,
+      mode: 'managed',
+      workspaceId: 'workspace:1',
+      surfaceId: 'surface:1',
+      suppressionReason: null,
+      writeProven: true,
+    }, { cmux });
+
+    const statusResult = await adapter.setStatus('build', 'running');
+    const clearStatusResult = await adapter.clearStatus('build');
+    const progressResult = await adapter.setProgress(0.5, { label: 'Building' });
+    const clearProgressResult = await adapter.clearProgress();
+    const logResult = await adapter.log('Done', { level: 'success', source: 'bgsd' });
+
+    assert.strictEqual(statusResult.ok, true);
+    assert.strictEqual(statusResult.workspaceId, 'workspace:1');
+    assert.strictEqual(clearStatusResult.ok, true);
+    assert.strictEqual(progressResult.ok, true);
+    assert.strictEqual(clearProgressResult.ok, true);
+    assert.strictEqual(logResult.ok, true);
+    assert.deepStrictEqual(calls, [
+      'setStatus:workspace:1:build:running',
+      'clearStatus:workspace:1:build',
+      'setProgress:workspace:1:0.5:Building',
+      'clearProgress:workspace:1',
+      'log:workspace:1:success:bgsd:Done',
+    ]);
   });
 });
