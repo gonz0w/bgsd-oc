@@ -845,3 +845,27 @@
 ---
 
 
+
+## v18.0 Adaptive Models & Ambient cmux UX (Shipped: 2026-03-31)
+
+**Phases completed:** 5 phases, 15 plans, 6 tasks
+
+**Key accomplishments:**
+- Phase 168 planning artifacts now describe built-in quality/balanced/budget profiles, one global default, and sparse direct overrides without legacy alias promises.
+- Canonical model_settings normalization now maps quality, balanced, and budget profiles to concrete models with one default profile and sparse agent overrides.
+- Canonical model_settings resolution now drives helpers, decision rules, init output, enricher context, and resolve-model diagnostics from one config-first path.
+- Project-default-first settings UX and docs now edit shared quality/balanced/budget models, one selected default profile, and sparse direct overrides with GPT-family defaults.
+- Configured-versus-resolved model-state now flows through shared helpers, decision payloads, enricher context, and misc diagnostics.
+- Init compact summaries now show configured-versus-resolved model state, and verbose init output expands the same contract per agent across execute, plan, quick, and progress flows.
+- Orchestration now recommends quality/balanced/budget profiles and resolves the final executor model through canonical config.
+- Legacy cache model-profile APIs are gone, SQLite keeps only inert compatibility rows, and plugin/runtime checks prove canonical config remains the sole live model-selection truth.
+- Bounded cmux transport helpers now classify availability and cache an inert plugin adapter that stays quiet when cmux is missing or unusable.
+- cmux workspace targeting now trusts only env-plus-identify proof or one exact allowAll cwd match, suppressing mismatches and ambiguity.
+- cmux attachment now requires a reversible targeted sidebar write probe, then exposes cached workspace-scoped status, progress, and log methods through one trusted adapter.
+- Pure ambient snapshot derivation for trustworthy cmux workspace state, workflow-aware context, and exact-versus-activity progress gating
+- Attached cmux sidebar sync that publishes trusted state, workflow context, and exact-or-activity progress through one lifecycle-driven adapter path
+- Pure cmux attention policy with semantic dedupe keys and trusted attached-only notify delivery
+- Edge-triggered plugin attention sync that logs meaningful lifecycle moments, notifies checkpoints and completion boundaries, and suppresses repeated warning churn
+
+---
+
