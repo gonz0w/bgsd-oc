@@ -318,9 +318,9 @@ Classify all tasks in a plan file with 1-5 complexity scores.
 Scoring factors: file count, cross-module blast radius, test requirements,
 checkpoint complexity, action length.
 
-Model mapping: score 1-2 → sonnet, score 3 → sonnet, score 4-5 → opus
+Profile mapping: score 1-2 → budget, score 3 → balanced, score 4-5 → quality
 
-Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_model }
+Output: { plan, wave, autonomous, task_count, tasks: [{name, complexity}], plan_complexity, recommended_profile }
 
 Examples:
   bgsd-tools util:classify plan .planning/phases/39-orchestration-intelligence/39-01-PLAN.md`,

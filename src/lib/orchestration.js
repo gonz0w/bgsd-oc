@@ -5,6 +5,7 @@ const path = require('path');
 const { debugLog, output, error } = require('./output');
 const { extractFrontmatter } = require('./frontmatter');
 const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS } = require('./format');
+const { buildCanonicalModelSettings, resolveModelSelectionFromConfig } = require('./helpers');
 
 // ─── Task XML Parser ─────────────────────────────────────────────────────────
 
@@ -70,12 +71,18 @@ const COMPLEXITY_LABELS = {
   5: 'very_complex',
 };
 
-const MODEL_MAP = {
-  1: 'sonnet',
-  2: 'sonnet',
-  3: 'sonnet',
-  4: 'opus',
-  5: 'opus',
+const PROFILE_MAP = {
+  1: 'budget',
+  2: 'budget',
+  3: 'balanced',
+  4: 'quality',
+  5: 'quality',
+};
+
+const PROFILE_PRIORITY = {
+  budget: 0,
+  balanced: 1,
+  quality: 2,
 };
 
 /**
@@ -83,7 +90,7 @@ const MODEL_MAP = {
  *
  * @param {object} task - Parsed task: { name, type, files, action, verify, done }
  * @param {object} context - { cwd: string, depGraph?: { reverse: object } }
- * @returns {{ score: number, label: string, factors: string[], recommended_model: string, recommended_agent: string }}
+ * @returns {{ score: number, label: string, factors: string[], recommended_profile: string, recommended_agent: string }}
  */
 function classifyTaskComplexity(task, context) {
   try {
@@ -150,7 +157,7 @@ function classifyTaskComplexity(task, context) {
       score,
       label: COMPLEXITY_LABELS[score],
       factors,
-      recommended_model: MODEL_MAP[score],
+      recommended_profile: PROFILE_MAP[score],
       recommended_agent: 'bgsd-executor',
     };
   } catch (e) {
@@ -159,7 +166,7 @@ function classifyTaskComplexity(task, context) {
       score: 3,
       label: 'moderate',
       factors: ['classification error — defaulting'],
-      recommended_model: 'sonnet',
+      recommended_profile: 'balanced',
       recommended_agent: 'bgsd-executor',
     };
   }
@@ -210,12 +217,11 @@ function classifyPlan(planPath, cwd) {
       ? Math.max(...classifiedTasks.map(t => t.complexity.score))
       : 1;
 
-    const highestModel = classifiedTasks.reduce((best, t) => {
-      const modelPriority = { haiku: 0, sonnet: 1, opus: 2 };
-      const current = modelPriority[t.complexity.recommended_model] || 0;
-      const bestPriority = modelPriority[best] || 0;
-      return current > bestPriority ? t.complexity.recommended_model : best;
-    }, 'sonnet');
+    const highestProfile = classifiedTasks.reduce((best, t) => {
+      const current = PROFILE_PRIORITY[t.complexity.recommended_profile] || 0;
+      const bestPriority = PROFILE_PRIORITY[best] || 0;
+      return current > bestPriority ? t.complexity.recommended_profile : best;
+    }, 'budget');
 
     return {
       plan: path.basename(absPath),
@@ -224,7 +230,7 @@ function classifyPlan(planPath, cwd) {
       task_count: classifiedTasks.length,
       tasks: classifiedTasks,
       plan_complexity: planComplexity,
-      recommended_model: highestModel,
+      recommended_profile: highestProfile,
     };
   } catch (e) {
     debugLog('orchestration.classifyPlan', 'plan classification failed', e);
@@ -347,69 +353,40 @@ function selectExecutionMode(planClassifications) {
 // ─── Task Router ─────────────────────────────────────────────────────────────
 
 /**
- * Map complexity score to model using config profile overrides.
+ * Map complexity score to a shared profile, then resolve the concrete model canonically.
  *
- * @param {object} complexity - { score, label, recommended_model, ... }
- * @param {object} [config] - { model_profile?: string }
- * @returns {{ model: string, agent: string, reason: string }}
+ * @param {object} complexity - { score, label, recommended_profile, ... }
+ * @param {object} [config] - configuration object
+ * @returns {{ profile: string, model: string, agent: string, reason: string }}
  */
 function routeTask(complexity, config, cwd) {
   try {
     const score = complexity?.score || 3;
-    const baseModel = MODEL_MAP[score] || 'sonnet';
-
-    // If config has a model profile, try model-selection decision rule first (Phase 122)
-    if (config && config.model_profile) {
-      try {
-        const { resolveModelSelection } = require('./decision-rules');
-        const { getDb } = require('./db');
-        const resolvedCwd = cwd || process.cwd();
-        const db = getDb(resolvedCwd);
-        const result = resolveModelSelection({ agent_type: 'bgsd-executor', model_profile: config.model_profile, db });
-        if (result && result.value && result.value.model) {
-          const profileModel = result.value.model;
-          // Use the higher of profile model and complexity recommendation
-          const priority = { haiku: 0, sonnet: 1, opus: 2, inherit: 2 };
-          const profilePriority = priority[profileModel] || 1;
-          const basePriority = priority[baseModel] || 1;
-          const resolvedModel = profilePriority >= basePriority ? profileModel : baseModel;
-          return {
-            model: resolvedModel === 'opus' ? 'inherit' : resolvedModel,
-            agent: 'bgsd-executor',
-            reason: `score ${score} (${complexity.label}) via ${config.model_profile} profile (decision-rule)`,
-          };
-        }
-      } catch { /* Fall through to static lookup */ }
-
-      // Static fallback
-      const { MODEL_PROFILES } = require('./constants');
-      const agentModels = MODEL_PROFILES['bgsd-executor'];
-      if (agentModels && agentModels[config.model_profile]) {
-        const profileModel = agentModels[config.model_profile];
-        // Use the higher of profile model and complexity recommendation
-        const priority = { haiku: 0, sonnet: 1, opus: 2, inherit: 2 };
-        const profilePriority = priority[profileModel] || 1;
-        const basePriority = priority[baseModel] || 1;
-        const resolvedModel = profilePriority >= basePriority ? profileModel : baseModel;
-        return {
-          model: resolvedModel === 'opus' ? 'inherit' : resolvedModel,
-          agent: 'bgsd-executor',
-          reason: `score ${score} (${complexity.label}) via ${config.model_profile} profile`,
-        };
-      }
-    }
+    const recommendedProfile = complexity?.recommended_profile || PROFILE_MAP[score] || 'balanced';
+    const canonicalModelSettings = buildCanonicalModelSettings(config || {});
+    const routedConfig = {
+      ...(config || {}),
+      model_settings: {
+        ...canonicalModelSettings,
+        default_profile: recommendedProfile,
+      },
+    };
+    const resolved = resolveModelSelectionFromConfig(routedConfig, 'bgsd-executor');
 
     return {
-      model: baseModel === 'opus' ? 'inherit' : baseModel,
+      profile: recommendedProfile,
+      model: resolved.model,
       agent: 'bgsd-executor',
-      reason: `score ${score} (${complexity.label})`,
+      reason: `score ${score} (${complexity.label}) recommends ${recommendedProfile} and resolves canonically`,
     };
   } catch (e) {
     debugLog('orchestration.routeTask', 'routing failed', e);
+    const resolved = resolveModelSelectionFromConfig({}, 'bgsd-executor');
     return {
-      model: 'sonnet',
+      profile: 'balanced',
+      model: resolved.model,
       agent: 'bgsd-executor',
-      reason: 'routing error — defaulting to sonnet',
+      reason: 'routing error — defaulting to balanced canonical profile',
     };
   }
 }
@@ -438,16 +415,16 @@ function cmdClassifyPlan(cwd, args, raw) {
       lines.push('');
       lines.push(sectionHeader(`Plan: ${result.plan}`));
       lines.push(` Wave: ${result.wave}  |  Autonomous: ${result.autonomous}  |  Plan Complexity: ${result.plan_complexity}/5`);
-      lines.push(` Recommended Model: ${color.bold(result.recommended_model)}`);
+      lines.push(` Recommended Profile: ${color.bold(result.recommended_profile)}`);
       lines.push('');
 
       // Tasks table
-      const headers = ['Task', 'Score', 'Label', 'Model', 'Factors'];
+      const headers = ['Task', 'Score', 'Label', 'Profile', 'Factors'];
       const rows = result.tasks.map(t => [
         t.name,
         String(t.complexity.score),
         t.complexity.label,
-        t.complexity.recommended_model,
+        t.complexity.recommended_profile,
         t.complexity.factors.join(', ') || 'minimal',
       ]);
       lines.push(formatTable(headers, rows, { showAll: true }));
@@ -512,7 +489,7 @@ function cmdClassifyPhase(cwd, args, raw) {
       // Per-plan tables
       for (const plan of res.plans) {
         lines.push(sectionHeader(plan.plan));
-        lines.push(` Complexity: ${plan.plan_complexity}/5  |  Model: ${color.bold(plan.recommended_model)}  |  Tasks: ${plan.task_count}`);
+        lines.push(` Complexity: ${plan.plan_complexity}/5  |  Profile: ${color.bold(plan.recommended_profile)}  |  Tasks: ${plan.task_count}`);
 
         const headers = ['Task', 'Score', 'Label', 'Factors'];
         const rows = plan.tasks.map(t => [
@@ -545,6 +522,7 @@ module.exports = {
   classifyPlan,
   selectExecutionMode,
   parseTasksFromPlan,
+  routeTask,
   cmdClassifyPlan,
   cmdClassifyPhase,
 };
