@@ -11,7 +11,7 @@ import { createFileWatcher } from './file-watcher.js';
 import { createIdleValidator } from './idle-validator.js';
 import { createStuckDetector } from './stuck-detector.js';
 import { createAdvisoryGuardrails } from './advisory-guardrails.js';
-import { createNoopCmuxAdapter, resolveCmuxAvailability } from './cmux-targeting.js';
+import { createAttachedCmuxAdapter, createNoopCmuxAdapter, resolveCmuxAvailability } from './cmux-targeting.js';
 import { parseConfig } from './parsers/config.js';
 import { writeDebugDiagnostic } from './debug-contract.js';
 import { getToolAvailability } from './tool-availability.js';
@@ -31,6 +31,12 @@ function buildCmuxCacheKey(projectDir, env = process.env) {
 async function getCachedCmuxAdapter(projectDir, options = {}) {
   const env = options.env || process.env;
   const cacheKey = buildCmuxCacheKey(projectDir, env);
+  const cmuxClient = options.client
+    || (typeof options.ping === 'function'
+      || typeof options.setStatus === 'function'
+      || typeof options.sidebarState === 'function'
+      ? options
+      : null);
 
   if (cmuxAdapterCache.has(cacheKey)) {
     return cmuxAdapterCache.get(cacheKey);
@@ -44,11 +50,21 @@ async function getCachedCmuxAdapter(projectDir, options = {}) {
       const verdict = await resolveAvailability({
         projectDir,
         env,
-        cmux: options.client,
+        cmux: cmuxClient,
         command: options.command,
         timeoutMs: options.timeoutMs,
         maxBuffer: options.maxBuffer,
       });
+      if (verdict?.attached) {
+        return createAttachedCmuxAdapter(verdict, {
+          projectDir,
+          env,
+          cmux: cmuxClient,
+          command: options.command,
+          timeoutMs: options.timeoutMs,
+          maxBuffer: options.maxBuffer,
+        });
+      }
       return createNoopCmuxAdapter(verdict);
     } catch (error) {
       writeDebugDiagnostic('[bgsd-plugin]', `cmux initialization failed (non-fatal): ${error.message || String(error)}`);

@@ -11077,6 +11077,8 @@ function sidebarState(options = {}) {
 
 // src/plugin/cmux-targeting.js
 var REQUIRED_SIDEBAR_METHODS = ["set-status", "clear-status", "set-progress", "clear-progress", "log"];
+var CMUX_WRITE_PROBE_KEY = "bgsd.target.probe";
+var CMUX_WRITE_PROBE_VALUE = "attach-check";
 function normalizeAccessMode(value) {
   if (!value) return null;
   const normalized = String(value).trim().toLowerCase();
@@ -11140,6 +11142,18 @@ function extractWorkspaceEntries(payload) {
 function extractSidebarCwd(payload) {
   return payload?.cwd || payload?.workspace?.cwd || payload?.state?.cwd || null;
 }
+function extractSidebarStatusEntries(payload) {
+  const candidates = [
+    payload?.status,
+    payload?.sidebar?.status,
+    payload?.state?.status,
+    payload?.workspace?.status
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return [];
+}
 function normalizeComparablePath(targetPath) {
   if (!targetPath) return null;
   try {
@@ -11181,7 +11195,66 @@ function buildCmuxClient(options = {}) {
     capabilities: (callOptions = {}) => capabilities({ ...shared, ...callOptions }),
     identify: (callOptions = {}) => identify({ ...shared, ...callOptions }),
     listWorkspaces: (callOptions = {}) => listWorkspaces({ ...shared, ...callOptions }),
-    sidebarState: (callOptions = {}) => sidebarState({ ...shared, ...callOptions })
+    sidebarState: (callOptions = {}) => sidebarState({ ...shared, ...callOptions }),
+    setStatus: ({ key, value, ...callOptions } = {}) => runCmuxCommand("set-status", [String(key), String(value)], { ...shared, ...callOptions }),
+    clearStatus: ({ key, ...callOptions } = {}) => runCmuxCommand("clear-status", [String(key)], { ...shared, ...callOptions }),
+    setProgress: ({ progress, label, ...callOptions } = {}) => runCmuxCommand("set-progress", label ? [String(progress), "--label", String(label)] : [String(progress)], { ...shared, ...callOptions }),
+    clearProgress: (callOptions = {}) => runCmuxCommand("clear-progress", [], { ...shared, ...callOptions }),
+    log: ({ message, level, source, ...callOptions } = {}) => {
+      const args = [];
+      if (level) args.push("--level", String(level));
+      if (source) args.push("--source", String(source));
+      args.push(String(message));
+      return runCmuxCommand("log", args, { ...shared, ...callOptions });
+    }
+  };
+}
+async function probeCmuxWritePath(options = {}) {
+  const cmux = buildCmuxClient(options);
+  const workspaceId = options.workspaceId || null;
+  if (!workspaceId) {
+    return {
+      ok: false,
+      suppressionReason: "write-probe-failed",
+      workspaceId: null,
+      probeKey: CMUX_WRITE_PROBE_KEY
+    };
+  }
+  const setResult = await cmux.setStatus({
+    workspace: workspaceId,
+    key: CMUX_WRITE_PROBE_KEY,
+    value: CMUX_WRITE_PROBE_VALUE
+  });
+  if (!setResult?.ok) {
+    return {
+      ok: false,
+      suppressionReason: "write-probe-failed",
+      workspaceId,
+      probeKey: CMUX_WRITE_PROBE_KEY
+    };
+  }
+  let sidebarResult = null;
+  let cleanupResult = null;
+  try {
+    sidebarResult = await cmux.sidebarState({ workspace: workspaceId });
+  } finally {
+    cleanupResult = await cmux.clearStatus({ workspace: workspaceId, key: CMUX_WRITE_PROBE_KEY });
+  }
+  const sidebarPayload = extractJsonPayload(sidebarResult);
+  const visible = sidebarResult?.ok && extractSidebarStatusEntries(sidebarPayload).some((entry) => entry?.key === CMUX_WRITE_PROBE_KEY);
+  if (!visible || !cleanupResult?.ok) {
+    return {
+      ok: false,
+      suppressionReason: "write-probe-failed",
+      workspaceId,
+      probeKey: CMUX_WRITE_PROBE_KEY
+    };
+  }
+  return {
+    ok: true,
+    suppressionReason: null,
+    workspaceId,
+    probeKey: CMUX_WRITE_PROBE_KEY
   };
 }
 async function resolveManagedWorkspaceTarget(options = {}) {
@@ -11326,6 +11399,51 @@ function createNoopCmuxAdapter(verdict = {}) {
     }
   });
 }
+function createAttachedCmuxAdapter(verdict = {}, options = {}) {
+  const normalizedVerdict = buildVerdict({
+    ...verdict,
+    attached: true,
+    writeProven: true
+  });
+  const cmux = buildCmuxClient(options);
+  async function runAttached(action, run, details = {}) {
+    const result = await run();
+    return {
+      ok: Boolean(result?.ok),
+      suppressed: false,
+      action,
+      mode: normalizedVerdict.mode,
+      available: normalizedVerdict.available,
+      attached: normalizedVerdict.attached,
+      workspaceId: normalizedVerdict.workspaceId,
+      surfaceId: normalizedVerdict.surfaceId,
+      details,
+      error: result?.error || null
+    };
+  }
+  return Object.freeze({
+    ...normalizedVerdict,
+    verdict: normalizedVerdict,
+    getVerdict() {
+      return normalizedVerdict;
+    },
+    setStatus(key, value, callOptions = {}) {
+      return runAttached("set-status", () => cmux.setStatus({ ...callOptions, workspace: normalizedVerdict.workspaceId, key, value }), { key, value, options: callOptions });
+    },
+    clearStatus(key, callOptions = {}) {
+      return runAttached("clear-status", () => cmux.clearStatus({ ...callOptions, workspace: normalizedVerdict.workspaceId, key }), { key, options: callOptions });
+    },
+    setProgress(progress, callOptions = {}) {
+      return runAttached("set-progress", () => cmux.setProgress({ ...callOptions, workspace: normalizedVerdict.workspaceId, progress }), { progress, options: callOptions });
+    },
+    clearProgress(callOptions = {}) {
+      return runAttached("clear-progress", () => cmux.clearProgress({ ...callOptions, workspace: normalizedVerdict.workspaceId }), { options: callOptions });
+    },
+    log(message, callOptions = {}) {
+      return runAttached("log", () => cmux.log({ ...callOptions, workspace: normalizedVerdict.workspaceId, message }), { message, options: callOptions });
+    }
+  });
+}
 async function resolveCmuxAvailability(options = {}) {
   const env = options.env || process.env;
   const cmux = buildCmuxClient(options);
@@ -11384,13 +11502,27 @@ async function resolveCmuxAvailability(options = {}) {
         suppressionReason: managedTarget.suppressionReason
       });
     }
+    const writeProbe2 = await probeCmuxWritePath({ ...options, cmux, workspaceId: managedTarget.workspaceId });
+    if (!writeProbe2.ok) {
+      return buildVerdict({
+        available: true,
+        mode: "managed",
+        workspaceId: managedTarget.workspaceId,
+        surfaceId: managedTarget.surfaceId,
+        accessMode,
+        methods,
+        suppressionReason: writeProbe2.suppressionReason
+      });
+    }
     return buildVerdict({
       available: true,
+      attached: true,
       mode: "managed",
       workspaceId: managedTarget.workspaceId,
       surfaceId: managedTarget.surfaceId,
       accessMode,
-      methods
+      methods,
+      writeProven: true
     });
   }
   if (accessMode && accessMode !== "allowAll") {
@@ -11415,13 +11547,27 @@ async function resolveCmuxAvailability(options = {}) {
       suppressionReason: alongsideTarget.suppressionReason
     });
   }
+  const writeProbe = await probeCmuxWritePath({ ...options, cmux, workspaceId: alongsideTarget.workspaceId });
+  if (!writeProbe.ok) {
+    return buildVerdict({
+      available: true,
+      mode: "alongside",
+      workspaceId: alongsideTarget.workspaceId,
+      surfaceId: null,
+      accessMode,
+      methods,
+      suppressionReason: writeProbe.suppressionReason
+    });
+  }
   return buildVerdict({
     available: true,
+    attached: true,
     mode: "alongside",
     workspaceId: alongsideTarget.workspaceId,
     surfaceId: null,
     accessMode,
-    methods
+    methods,
+    writeProven: true
   });
 }
 
@@ -11447,6 +11593,7 @@ function buildCmuxCacheKey(projectDir, env = process.env) {
 async function getCachedCmuxAdapter(projectDir, options = {}) {
   const env = options.env || process.env;
   const cacheKey = buildCmuxCacheKey(projectDir, env);
+  const cmuxClient = options.client || (typeof options.ping === "function" || typeof options.setStatus === "function" || typeof options.sidebarState === "function" ? options : null);
   if (cmuxAdapterCache.has(cacheKey)) {
     return cmuxAdapterCache.get(cacheKey);
   }
@@ -11456,11 +11603,21 @@ async function getCachedCmuxAdapter(projectDir, options = {}) {
       const verdict = await resolveAvailability({
         projectDir,
         env,
-        cmux: options.client,
+        cmux: cmuxClient,
         command: options.command,
         timeoutMs: options.timeoutMs,
         maxBuffer: options.maxBuffer
       });
+      if (verdict?.attached) {
+        return createAttachedCmuxAdapter(verdict, {
+          projectDir,
+          env,
+          cmux: cmuxClient,
+          command: options.command,
+          timeoutMs: options.timeoutMs,
+          maxBuffer: options.maxBuffer
+        });
+      }
       return createNoopCmuxAdapter(verdict);
     } catch (error) {
       writeDebugDiagnostic2("[bgsd-plugin]", `cmux initialization failed (non-fatal): ${error.message || String(error)}`);
