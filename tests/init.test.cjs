@@ -44,6 +44,52 @@ describe('init commands', () => {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ mode: 'yolo' }, null, 2));
   }
 
+  function writeInitModelVisibilityFixture(phaseNumber = '169', phaseDirName = '169-canonical-model-resolution-visibility') {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', phaseDirName);
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, `${phaseNumber}-01-PLAN.md`), `---
+phase: ${phaseDirName}
+plan: 01
+type: tdd
+autonomous: true
+depends_on: []
+files_modified:
+  - src/example.js
+---
+
+<objective>Fixture</objective>
+`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap
+
+### Phase ${Number(phaseNumber)}: Canonical Model Resolution & Visibility
+**Goal:** Model-state visibility parity
+**Plans:** 1 plans
+`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State
+
+## Current Position
+
+**Phase:** ${phaseNumber}
+**Current Plan:** 01
+**Total Plans in Phase:** 1
+**Status:** In Progress
+`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({
+      commit_docs: true,
+      model_settings: {
+        default_profile: 'quality',
+        profiles: {
+          quality: { model: 'gpt-5.4' },
+          balanced: { model: 'gpt-5.4-mini' },
+          budget: { model: 'gpt-5.4-nano' },
+        },
+        agent_overrides: {
+          'bgsd-executor': 'ollama/qwen3-coder:latest',
+        },
+      },
+    }, null, 2));
+  }
+
   function writeCurrentPhaseState(phase = '152') {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), `# Project State
 
@@ -712,6 +758,7 @@ Add compact milestone and phase intent so planning flows can refine current focu
     assert.ok('completed_count' in output, 'compact has completed_count');
     assert.ok('current_phase' in output, 'compact has current_phase');
     assert.ok('session_diff' in output, 'compact has session_diff');
+    assert.ok('model_summary' in output, 'compact has model_summary');
 
     // Must NOT have dropped keys
     assert.strictEqual(output.executor_model, undefined, 'compact drops executor_model');
@@ -721,6 +768,132 @@ Add compact milestone and phase intent so planning flows can refine current focu
     assert.strictEqual(output.commit_docs, undefined, 'compact drops commit_docs');
     assert.strictEqual(output.state_exists, undefined, 'compact drops state_exists');
     assert.strictEqual(output.project_path, undefined, 'compact drops project_path');
+  });
+
+  test('init execute-phase surfaces configured and resolved model state in compact and verbose output', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    writeInitModelVisibilityFixture();
+    initGitRepo(tmpDir);
+    initJjRepo(tmpDir);
+
+    const compact = runGsdToolsInRepo('init:execute-phase 169 --compact', tmpDir);
+    assert.ok(compact.success, `compact execute-phase failed: ${compact.error}`);
+    const compactData = JSON.parse(compact.output);
+    assert.match(compactData.model_summary, /executor override ollama\/qwen3-coder:latest -> ollama\/qwen3-coder:latest/);
+    assert.match(compactData.model_summary, /verifier quality -> gpt-5\.4/);
+
+    const verbose = runGsdToolsInRepo('init:execute-phase 169 --verbose', tmpDir);
+    assert.ok(verbose.success, `verbose execute-phase failed: ${verbose.error}`);
+    const verboseData = JSON.parse(verbose.output);
+    assert.deepStrictEqual(verboseData.executor_model_state, {
+      agent_type: 'bgsd-executor',
+      configured: 'ollama/qwen3-coder:latest',
+      selected_profile: 'quality',
+      resolved_model: 'ollama/qwen3-coder:latest',
+      source: 'agent_override',
+      unknown_agent: false,
+    });
+    assert.deepStrictEqual(verboseData.verifier_model_state, {
+      agent_type: 'bgsd-verifier',
+      configured: 'quality',
+      selected_profile: 'quality',
+      resolved_model: 'gpt-5.4',
+      source: 'default_profile',
+      unknown_agent: false,
+    });
+  });
+
+  test('init plan-phase surfaces compact summaries and verbose per-agent model-state details', () => {
+    writeInitModelVisibilityFixture();
+
+    const compact = runGsdTools('init:plan-phase 169 --compact', tmpDir);
+    assert.ok(compact.success, `compact plan-phase failed: ${compact.error}`);
+    const compactData = JSON.parse(compact.output);
+    assert.match(compactData.model_summary, /planner quality -> gpt-5\.4/);
+    assert.match(compactData.model_summary, /checker quality -> gpt-5\.4/);
+
+    const verbose = runGsdTools('init:plan-phase 169 --verbose', tmpDir);
+    assert.ok(verbose.success, `verbose plan-phase failed: ${verbose.error}`);
+    const verboseData = JSON.parse(verbose.output);
+    assert.deepStrictEqual(verboseData.planner_model_state, {
+      agent_type: 'bgsd-planner',
+      configured: 'quality',
+      selected_profile: 'quality',
+      resolved_model: 'gpt-5.4',
+      source: 'default_profile',
+      unknown_agent: false,
+    });
+    assert.deepStrictEqual(verboseData.checker_model_state, {
+      agent_type: 'bgsd-plan-checker',
+      configured: 'quality',
+      selected_profile: 'quality',
+      resolved_model: 'gpt-5.4',
+      source: 'default_profile',
+      unknown_agent: false,
+    });
+  });
+
+  test('init quick keeps compact model summary while verbose expands workflow model states', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    writeInitModelVisibilityFixture();
+    initGitRepo(tmpDir);
+    initJjRepo(tmpDir);
+
+    const compact = runGsdToolsInRepo('init:quick "visibility task" --compact', tmpDir);
+    assert.ok(compact.success, `compact quick failed: ${compact.error}`);
+    const compactData = JSON.parse(compact.output);
+    assert.match(compactData.model_summary, /executor override ollama\/qwen3-coder:latest -> ollama\/qwen3-coder:latest/);
+    assert.match(compactData.model_summary, /planner quality -> gpt-5\.4/);
+
+    const verbose = runGsdToolsInRepo('init:quick "visibility task" --verbose', tmpDir);
+    assert.ok(verbose.success, `verbose quick failed: ${verbose.error}`);
+    const verboseData = JSON.parse(verbose.output);
+    assert.deepStrictEqual(verboseData.executor_model_state, {
+      agent_type: 'bgsd-executor',
+      configured: 'ollama/qwen3-coder:latest',
+      selected_profile: 'quality',
+      resolved_model: 'ollama/qwen3-coder:latest',
+      source: 'agent_override',
+      unknown_agent: false,
+    });
+    assert.deepStrictEqual(verboseData.verifier_model_state, {
+      agent_type: 'bgsd-verifier',
+      configured: 'quality',
+      selected_profile: 'quality',
+      resolved_model: 'gpt-5.4',
+      source: 'default_profile',
+      unknown_agent: false,
+    });
+  });
+
+  test('init progress reports concise compact model summary and verbose model-state helpers', () => {
+    writeInitModelVisibilityFixture();
+
+    const compact = runGsdTools('init:progress --compact', tmpDir);
+    assert.ok(compact.success, `compact progress failed: ${compact.error}`);
+    const compactData = JSON.parse(compact.output);
+    assert.match(compactData.model_summary, /executor override ollama\/qwen3-coder:latest -> ollama\/qwen3-coder:latest/);
+    assert.match(compactData.model_summary, /planner quality -> gpt-5\.4/);
+
+    const verbose = runGsdTools('init:progress --verbose', tmpDir);
+    assert.ok(verbose.success, `verbose progress failed: ${verbose.error}`);
+    const verboseData = JSON.parse(verbose.output);
+    assert.deepStrictEqual(verboseData.executor_model_state, {
+      agent_type: 'bgsd-executor',
+      configured: 'ollama/qwen3-coder:latest',
+      selected_profile: 'quality',
+      resolved_model: 'ollama/qwen3-coder:latest',
+      source: 'agent_override',
+      unknown_agent: false,
+    });
+    assert.deepStrictEqual(verboseData.planner_model_state, {
+      agent_type: 'bgsd-planner',
+      configured: 'quality',
+      selected_profile: 'quality',
+      resolved_model: 'gpt-5.4',
+      source: 'default_profile',
+      unknown_agent: false,
+    });
   });
 
   test('compact default reduces init output size by at least 38% vs --verbose', () => {
