@@ -984,4 +984,84 @@ describe('Plugin cmux adapter fail-open contract', () => {
       cleanup(tmpDir);
     }
   });
+
+  test('attached cmux startup caches one write-proven adapter and reuses targeted writes', async () => {
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+    let resolveCount = 0;
+    const calls = [];
+
+    try {
+      writePluginMemoryFixture(tmpDir, null);
+      mod.resetCmuxAdapterCache();
+
+      const cmux = {
+        resolveAvailability: async () => {
+          resolveCount += 1;
+          return {
+            available: true,
+            attached: true,
+            mode: 'managed',
+            suppressionReason: null,
+            workspaceId: 'workspace:1',
+            surfaceId: 'surface:1',
+            writeProven: true,
+          };
+        },
+        setStatus: async ({ workspace, key, value }) => {
+          calls.push(`setStatus:${workspace}:${key}:${value}`);
+          return { ok: true };
+        },
+      };
+
+      const pluginA = await mod.BgsdPlugin({ directory: tmpDir, cmux });
+      const pluginB = await mod.BgsdPlugin({ directory: tmpDir, cmux });
+      const result = await pluginB.cmuxAdapter.setStatus('build', 'running');
+
+      assert.strictEqual(resolveCount, 1, 'attached verdict should be cached per session key');
+      assert.strictEqual(pluginA.cmuxAdapter.attached, true);
+      assert.strictEqual(pluginA.cmuxAdapter.writeProven, true);
+      assert.strictEqual(result.ok, true);
+      assert.deepStrictEqual(calls, ['setStatus:workspace:1:build:running']);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('write-probe-failed verdict stays suppressed and keeps plugin behavior quiet', async () => {
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+
+    try {
+      writePluginMemoryFixture(tmpDir, null);
+      mod.resetCmuxAdapterCache();
+
+      const plugin = await mod.BgsdPlugin({
+        directory: tmpDir,
+        cmux: {
+          resolveAvailability: async () => ({
+            available: true,
+            attached: false,
+            mode: 'managed',
+            suppressionReason: 'write-probe-failed',
+            workspaceId: 'workspace:1',
+            surfaceId: 'surface:1',
+            writeProven: false,
+          }),
+        },
+      });
+
+      const system = await runSystemTransform(plugin);
+      const result = await plugin.cmuxAdapter.setStatus('build', 'running');
+
+      assert.strictEqual(plugin.cmuxAdapter.attached, false);
+      assert.strictEqual(plugin.cmuxAdapter.suppressionReason, 'write-probe-failed');
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.suppressed, true);
+      assert.strictEqual(result.reason, 'write-probe-failed');
+      assert.match(system, /<bgsd>[\s\S]*Structured Agent Memory[\s\S]*<\/bgsd>/, 'suppressed write probe should not break normal state injection');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
 });
