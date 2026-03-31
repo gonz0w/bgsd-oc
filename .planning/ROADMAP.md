@@ -7,12 +7,12 @@
 
 ## Overview
 
-v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone first replaces provider-shaped model assumptions with a migration-safe, settings-driven contract, then makes every workflow spawn resolve through one canonical model path with visible configured-versus-resolved state. With that settings foundation in place, the milestone adds a workspace-scoped `cmux` adapter that only speaks when targeting is safe, then layers on trustworthy sidebar status and progress, and finishes with concise logs, attention notifications, and aggressive noise control so ambient UX stays useful instead of chatty.
+v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone first replaces provider-shaped model assumptions with a settings-driven contract built around shared `quality` / `balanced` / `budget` profiles, one selected global profile, and sparse direct agent overrides, then makes every workflow spawn resolve through one canonical model path with visible configured-versus-resolved state. With that settings foundation in place, the milestone adds a workspace-scoped `cmux` adapter that only speaks when targeting is safe, then layers on trustworthy sidebar status and progress, and finishes with concise logs, attention notifications, and aggressive noise control so ambient UX stays useful instead of chatty.
 
 ## Phases
 
-- [ ] **Phase 168: Adaptive Model Settings Contract** - Give users one provider-agnostic, migration-safe settings surface for aliases, profiles, and overrides.
-- [ ] **Phase 169: Canonical Model Resolution & Visibility** - Resolve every workflow spawn through one alias-aware model path and expose configured versus concrete model state.
+- [ ] **Phase 168: Adaptive Model Settings Contract** - Give users one provider-agnostic settings surface for built-in profiles, one global default, and sparse direct overrides.
+- [ ] **Phase 169: Canonical Model Resolution & Visibility** - Resolve every workflow spawn through one canonical model path and expose configured versus concrete model state.
 - [ ] **Phase 170: cmux Workspace Detection & Safe Targeting** - Detect reachable `cmux` workspaces, scope updates correctly, and stay silent when targeting is unsafe or unavailable.
 - [ ] **Phase 171: Ambient Workspace Status & Progress** - Surface trustworthy workspace state, context, and progress only when plugin signal quality is strong enough.
 - [ ] **Phase 172: Ambient Attention UX & Noise Control** - Show concise logs and notifications for meaningful moments without repetitive sidebar churn.
@@ -20,13 +20,13 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 ## Phase Details
 
 ### Phase 168: Adaptive Model Settings Contract
-**Goal**: Users can configure bGSD model behavior through one provider-agnostic, migration-safe settings contract instead of provider-specific workflow assumptions
+**Goal**: Users can configure bGSD model behavior through one provider-agnostic settings contract built around shared profiles, one selected global default, and sparse direct overrides instead of provider-specific workflow assumptions
 **Depends on**: Phase 167
 **Requirements**: MODEL-01, MODEL-02, MODEL-03, MODEL-06, MODEL-07
 **Success Criteria** (what must be TRUE):
-  1. Users can define reusable model aliases, profile-to-agent mappings, and per-agent overrides in settings without editing workflow prompts.
-  2. Existing configs that still use legacy `opus`, `sonnet`, or `haiku` naming continue to run through a documented compatibility path after upgrade.
-  3. Settings and guidance describe profiles in terms of capability, speed, and use case rather than provider-branded default tiers.
+  1. Users can define the concrete models behind built-in `quality`, `balanced`, and `budget` profiles and choose one project-wide active profile in settings without editing workflow prompts.
+  2. Users can leave agent overrides empty by default and add sparse direct overrides only for exceptions such as routing one agent to a different concrete model.
+  3. Settings and guidance describe the contract in provider-agnostic capability language, and Phase 168 does not preserve legacy `opus`, `sonnet`, or `haiku` naming as part of the public contract.
 **Plans**: TBD
 
 ### Phase 169: Canonical Model Resolution & Visibility
@@ -35,8 +35,8 @@ v18.0 makes bGSD easier to tune and easier to trust at a glance. The milestone f
 **Requirements**: MODEL-04, MODEL-05, MODEL-08
 **Success Criteria** (what must be TRUE):
   1. Changing model settings changes actual workflow and init model selection everywhere bGSD spawns agents, without prompt edits or path-specific exceptions.
-  2. Wherever bGSD shows model state, users can see both the configured alias and the resolved concrete model that will actually run.
-  3. Agent routing behavior stays consistent even when the concrete provider model behind an alias changes, because routing no longer depends on Anthropic tier names.
+  2. Wherever bGSD shows model state, users can see both the configured selected profile or direct override and the resolved concrete model that will actually run.
+  3. Agent routing behavior stays consistent even when the concrete provider model behind a profile changes, because routing no longer depends on Anthropic tier names.
 **Plans**: TBD
 
 ### Phase 170: cmux Workspace Detection & Safe Targeting

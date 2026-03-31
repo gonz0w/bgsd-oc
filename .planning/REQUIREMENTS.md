@@ -12,12 +12,12 @@ Make bGSD easier to tune and monitor by shipping provider-agnostic dynamic model
 
 ### MODEL - Dynamic Model Configuration
 
-- [ ] `MODEL-01` User can define reusable `model_aliases` in settings so one alias can back multiple agent mappings.
-- [ ] `MODEL-02` User can define provider-agnostic per-profile, per-agent mappings through `model_profiles` instead of editing workflow prompts.
-- [ ] `MODEL-03` User can override any specific agent through one canonical `model_overrides` key.
+- [ ] `MODEL-01` User can define the concrete models behind built-in `quality`, `balanced`, and `budget` profiles in settings.
+- [ ] `MODEL-02` User can choose one provider-agnostic global active profile for the project instead of editing workflow prompts or maintaining a per-agent mapping matrix.
+- [ ] `MODEL-03` User can override any specific agent through one canonical `model_overrides` key that points directly to a concrete model when an exception is needed.
 - [ ] `MODEL-04` User can change model behavior from settings alone because all workflow spawn paths resolve through one canonical model resolver.
-- [ ] `MODEL-05` User can inspect both the configured alias and the resolved concrete model in settings or init output where model state is shown.
-- [ ] `MODEL-06` Existing configs that still use legacy `opus`, `sonnet`, and `haiku` naming continue to resolve through a migration-safe compatibility path.
+- [ ] `MODEL-05` User can inspect both the configured global profile or direct override and the resolved concrete model in settings or init output where model state is shown.
+- [ ] `MODEL-06` Phase 168 ships as a break-and-replace contract centered on `quality`, `balanced`, and `budget` instead of preserving legacy `opus`, `sonnet`, and `haiku` naming.
 - [ ] `MODEL-07` User reads settings, workflow, and skill guidance that describes profiles by capability and speed rather than provider-specific defaults.
 - [ ] `MODEL-08` User gets consistent agent routing behavior even when concrete providers change because routing logic no longer depends directly on Anthropic tier names.
 
@@ -52,12 +52,12 @@ Make bGSD easier to tune and monitor by shipping provider-agnostic dynamic model
 
 | Requirement | Source | Planned Phase |
 |-------------|--------|---------------|
-| `MODEL-01` | Dynamic model config PRD - aliases | Phase 168 |
-| `MODEL-02` | Dynamic model config PRD - profile to agent mapping | Phase 168 |
-| `MODEL-03` | Dynamic model config PRD - canonical overrides key | Phase 168 |
+| `MODEL-01` | Dynamic model config PRD - built-in profile definitions | Phase 168 |
+| `MODEL-02` | Dynamic model config PRD - one global active profile | Phase 168 |
+| `MODEL-03` | Dynamic model config PRD - canonical direct overrides key | Phase 168 |
 | `MODEL-04` | Dynamic model config PRD - canonical resolver across workflows | Phase 169 |
-| `MODEL-05` | Dynamic model config PRD - resolved model visibility | Phase 169 |
-| `MODEL-06` | Dynamic model config PRD - migration-safe legacy compatibility | Phase 168 |
+| `MODEL-05` | Dynamic model config PRD - configured versus resolved model visibility | Phase 169 |
+| `MODEL-06` | Dynamic model config PRD - break-and-replace built-in profile contract | Phase 168 |
 | `MODEL-07` | Dynamic model config PRD - provider-agnostic docs and settings copy | Phase 168 |
 | `MODEL-08` | Dynamic model config PRD - routing independent from provider tier names | Phase 169 |
 | `CMUX-01` | CMUX PRD FR1 + backlog Epic 1 | Phase 170 |
