@@ -26,7 +26,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Maintainers can review one audit artifact that identifies dead code, duplication, simplification opportunities, concurrency risks, error-handling gaps, and maintainability hotspots with file-level references.
   2. Maintainers can tell which candidates are safe low-blast-radius deletions versus higher-risk refactors because the audit classifies them by risk and rationale.
   3. Maintainers can follow a safe order of operations that lands low-risk cleanup before risky router or command-module changes.
-**Plans**: TBD
+**Plans**: 1/2 plans executed
 
 ### Phase 174: Greenfield Compatibility Surface Cleanup
 **Goal**: Maintainers can remove compatibility-only product drag so the repo reflects one current greenfield support model without breaking canonical planning artifacts
@@ -62,7 +62,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 173. Simplification Audit & Safe Sequencing | 0/TBD | Not started | - |
+| 173. Simplification Audit & Safe Sequencing | 1/2 | In Progress|  |
 | 174. Greenfield Compatibility Surface Cleanup | 0/TBD | Not started | - |
 | 175. Canonical Command Surface Alignment | 0/TBD | Not started | - |
 | 176. Command Hotspot Simplification & Hardening | 0/TBD | Not started | - |
