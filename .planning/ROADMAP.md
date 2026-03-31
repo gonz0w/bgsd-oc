@@ -13,7 +13,7 @@ No active milestone. Ready for next `/bgsd-new-milestone`.
 
 ## v15.0 Workflow Questioning & Decision Quality (Shipped 2026-03-20)
 
-**Goal:** Ensure all workflow discussions provide clear, thoughtful multiple-choice options rather than bare open-ended questions.
+**Goal:** Establish the question taxonomy and migrate all primary workflows plus most remaining workflows to clear, thoughtful multiple-choice options, with residual inline cases tracked for follow-up.
 
 **Phases:** 3 (141-143), 14 plans, 14 summaries
 
@@ -23,7 +23,7 @@ No active milestone. Ready for next `/bgsd-new-milestone`.
 - resolveQuestionType and resolveOptionGeneration decision functions for taxonomy routing
 - 6 primary workflows migrated to template references (discuss-phase, new-milestone, plan-phase, transition, verify-work, execute-phase)
 - questions:audit/list/validate CLI commands for taxonomy compliance
-- 44 workflows audited, 6 additional workflows migrated, 90.5% taxonomy compliance
+- 44 workflows audited, 6 additional workflows migrated, 90.5% taxonomy compliance with remaining inline cases tracked for follow-up
 
 <details>
 <summary>Phase 141: Taxonomy & Infrastructure</summary>
@@ -48,7 +48,7 @@ No active milestone. Ready for next `/bgsd-new-milestone`.
 <details>
 <summary>Phase 143: Remaining Workflows & CLI Tools</summary>
 
-**Goal:** Audit remaining workflows, migrate all to templates, add questions:audit/list/validate CLI commands
+**Goal:** Audit remaining workflows, migrate the remaining high-value template targets, add questions:audit/list/validate CLI commands, and track residual inline cases for follow-up
 
 **Requirements:** MIGRATE-07, MIGRATE-08, CLI-01, CLI-02, CLI-03
 **Plans:** 5/5 complete

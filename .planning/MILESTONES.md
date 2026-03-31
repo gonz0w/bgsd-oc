@@ -736,7 +736,7 @@
 
 ## v15.0 Workflow Questioning & Decision Quality (Shipped: 2026-03-20)
 
-**Phases completed:** 3 phases, 14 plans, 0 tasks
+**Phases completed:** 3 phases, 14 plans
 
 **Key accomplishments:**
 - Question taxonomy enum with 7 types, option rules with diversity constraints, and runtime option generation
@@ -755,4 +755,3 @@
 - Phase 143 complete: questions CLI tools operational, 13 templates added, 6 workflows migrated, 90.5% taxonomy compliance
 
 ---
-
