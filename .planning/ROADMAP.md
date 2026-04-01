@@ -117,7 +117,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 | 176. Command Hotspot Simplification & Hardening | 4/4 | Complete    | 2026-04-01 |
 | 177. Runtime Guidance Integrity Cleanup | 1/1 | Complete    | 2026-04-01 |
 | 178. Phase 176 Hardening Truth Reconciliation | 2/2 | Complete    | 2026-04-01 |
-| 179. Shipped Guidance Surface Integrity | 1/1 | Complete   | 2026-04-01 |
+| 179. Shipped Guidance Surface Integrity | 1/1 | Complete    | 2026-04-01 |
 | 180. Command Validator Drift Resolution | 0/0 | Planned     | - |
 
 ## Backlog
