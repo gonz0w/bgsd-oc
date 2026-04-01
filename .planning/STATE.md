@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 178 — plan 02 verification and artifact reconciliation pending
+**Current focus:** Phase 178 complete — ready for verification
 
 ## Current Position
 
 **Phase:** 178
-**Current Plan:** 02
+**Current Plan:** 2
 **Total Plans in Phase:** 2
-**Status:** In progress
+**Status:** Phase complete — ready for verification
 **Last Activity:** 2026-04-01
 
-**Progress:** [██████████] 99%
+**Progress:** [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 359 (through Phase 178 P01)
+- Total plans completed: 360 (through Phase 178 P02)
 - Average duration: ~12 min/plan
 - Total execution time: ~55.1 hours
 
@@ -52,13 +52,12 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 176 P04 | 14 min | 2 tasks | 0 files |
 | Phase 177 P01 | 8 min | 2 tasks | 6 files |
 | Phase 178-phase-176-hardening-truth-reconciliation P01 | 4 min | 2 tasks | 10 files |
+| Phase 178-phase-176-hardening-truth-reconciliation P02 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
-- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
 - [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
@@ -557,6 +556,8 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 - [Phase 176]: Extracted verify.js (3383 LOC) into verify/ subdomain with barrel re-export — Phase 176 CLI-03 requires maintainers to work within smaller command subdomains; backward compatibility preserved via barrel at original path
 - [Phase 176]: Full test suite (>5min) too large for executor timeout - smoke tests + validate-commands provide sufficient canonical route verification after cleanup
 - [Phase 178-phase-176-hardening-truth-reconciliation]: Added focused Phase 176 truth-reconciliation proof and a shared output-context shim for the touched router/output/debug surfaces.
+- [Phase 178-phase-176-hardening-truth-reconciliation]: Phase 176 verification is now defined by current source plus the focused Phase 178 proof rerun, with stale summary and milestone-close claims explicitly narrowed. — This reconciliation slice restores trustworthy milestone evidence without overclaiming broad hardening or broad-suite status.
+- [Phase 178-phase-176-hardening-truth-reconciliation]: Phase 176 verification now uses a claim-by-claim disposition matrix tied to current source and the focused Phase 178 proof rerun, while stale summary and milestone-close claims are explicitly narrowed.
 
 ### Pending Todos
 
@@ -568,6 +569,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-01T14:37:23.987Z
-Stopped at: Completed 178-01-PLAN.md
+Last session: 2026-04-01T14:51:05.080Z
+Stopped at: Completed 178-02-PLAN.md
 Resume file: None

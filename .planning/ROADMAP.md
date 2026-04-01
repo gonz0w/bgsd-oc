@@ -16,7 +16,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 - [x] **Phase 175: Canonical Command Surface Alignment** - Move routing, aliases, help, and discovery toward one clearer command definition and supported guidance surface, including the remaining Phase 174 command-integrity blocker. (completed 2026-04-01)
 - [x] **Phase 176: Command Hotspot Simplification & Hardening** (completed 2026-04-01) - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
 - [x] **Phase 177: Runtime Guidance Integrity Cleanup** (completed 2026-04-01) - Repair runtime/plugin roadmap follow-up guidance so surfaced canonical commands are runnable and validator-clean.
-- [ ] **Phase 178: Phase 176 Hardening Truth Reconciliation** - Bring the shipped hardening state, regression proof, and verification artifacts back into alignment with current source.
+- [x] **Phase 178: Phase 176 Hardening Truth Reconciliation** (completed 2026-04-01) - Bring the shipped hardening state, regression proof, and verification artifacts back into alignment with current source.
 
 ## Phase Details
 
@@ -81,7 +81,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Touched command-hotspot cleanup claims are made true in current source or corrected so planning artifacts no longer overstate shipped behavior.
   2. Supported planning and settings workflows have current regression proof aligned to the real cleanup state.
   3. Phase 176 has a verification artifact that matches current source, tests, and milestone-close evidence.
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ## Progress
 
@@ -92,7 +92,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 | 175. Canonical Command Surface Alignment | 4/4 | Complete    | 2026-04-01 |
 | 176. Command Hotspot Simplification & Hardening | 4/4 | Complete    | 2026-04-01 |
 | 177. Runtime Guidance Integrity Cleanup | 1/1 | Complete    | 2026-04-01 |
-| 178. Phase 176 Hardening Truth Reconciliation | 1/2 | In Progress|  |
+| 178. Phase 176 Hardening Truth Reconciliation | 2/2 | Complete   | 2026-04-01 |
 
 ## Backlog
 
