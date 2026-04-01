@@ -8,6 +8,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { loadPlanningCommandSurface } = require('./planning-command-surface');
+
 const COMMAND_ALIASES = {
   'p': 'plan',
   'p:p': 'plan:phase',
@@ -889,6 +891,26 @@ function cleanCommandCapture(command) {
     .replace(/\s+/g, ' ');
 }
 
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getCommandTextForValidation(mention) {
+  const command = mention.text || '';
+  const lineText = mention.lineText || '';
+  if (!command || !lineText.includes(command)) return command;
+
+  const normalizedCommand = command.trim();
+  const inlineSegments = Array.from(lineText.matchAll(/`([^`]*)`/g), (match) => match[1]);
+  const segment = inlineSegments.find((candidate) => candidate.includes(normalizedCommand));
+  if (segment) return segment.trim().replace(/\s+/g, ' ');
+
+  const backtickMatch = lineText.match(new RegExp('`' + escapeRegExp(command) + '([^`]*)`'));
+  if (!backtickMatch) return command;
+
+  return cleanCommandCapture(`${command}${backtickMatch[1] || ''}`);
+}
+
 function countSlashCommandsInLine(lineText = '') {
   return (lineText.match(/\/bgsd-[a-z0-9-]+/gi) || []).length;
 }
@@ -916,12 +938,100 @@ function getWorkflowSelfCommand(surfacePath) {
   return `/bgsd-${commandName}`;
 }
 
-const LEGACY_SLASH_COMMAND_ALIASES = {
-  '/bgsd-plan-phase': '/bgsd-plan phase',
-  '/bgsd-discuss-phase': '/bgsd-plan discuss',
-  '/bgsd-research-phase': '/bgsd-plan research',
-  '/bgsd-assumptions-phase': '/bgsd-plan assumptions',
-};
+function getPlanningCommandSurface(cwd = process.cwd()) {
+  try {
+    return loadPlanningCommandSurface(cwd);
+  } catch {
+    return {
+      subactions: ['phase', 'discuss', 'research', 'assumptions', 'roadmap', 'gaps', 'todo'],
+      routeEntries: [],
+      routes: {},
+      legacyAliases: {
+        '/bgsd-plan-phase': ['/bgsd-plan', 'phase'],
+        '/bgsd-discuss-phase': ['/bgsd-plan', 'discuss'],
+        '/bgsd-research-phase': ['/bgsd-plan', 'research'],
+        '/bgsd-assumptions-phase': ['/bgsd-plan', 'assumptions'],
+      },
+    };
+  }
+}
+
+function getLegacyPlanningAliasSuggestions(planningSurface) {
+  const entries = Object.entries((planningSurface && planningSurface.legacyAliases) || {});
+  return Object.fromEntries(entries.map(([alias, tokens]) => [alias, tokens.join(' ')]));
+}
+
+function getPlanningRouteMatches(args, planningSurface) {
+  if (!Array.isArray(args) || args.length === 0) return [];
+  return (planningSurface.routeEntries || []).filter((entry) =>
+    entry.literalPrefix.every((token, index) => args[index] === token)
+  );
+}
+
+function validatePlanningSlashCommand(baseCommand, args, mention, surfacePath, surfaceType, planningSurface) {
+  const issues = [];
+  const subactions = new Set((planningSurface.subactions || []).filter(Boolean));
+  const routeMatches = getPlanningRouteMatches(args, planningSurface);
+
+  if (args.length === 0) {
+    issues.push({
+      kind: 'unsupported-command',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      suggestion: '/bgsd-plan phase <phase-number>',
+      message: '/bgsd-plan requires an explicit supported sub-action',
+    });
+    return issues;
+  }
+
+  if (routeMatches.length > 0) {
+    const exactRoute = routeMatches.sort((a, b) => b.literalPrefix.length - a.literalPrefix.length)[0];
+    const providedOperands = args.length - exactRoute.literalPrefix.length;
+    if (providedOperands < exactRoute.requiredOperandCount) {
+      issues.push({
+        kind: 'missing-argument',
+        surface: surfaceType,
+        file: surfacePath,
+        line: mention.line,
+        command: mention.text,
+        message: `${baseCommand} ${exactRoute.literalPrefix.join(' ')} requires additional arguments`,
+      });
+    }
+    return issues;
+  }
+
+  if (subactions.has(args[0])) {
+    const nextTokens = Array.from(new Set((planningSurface.routeEntries || [])
+      .filter((entry) => entry.literalPrefix[0] === args[0] && entry.literalPrefix.length > 1)
+      .map((entry) => entry.literalPrefix[1])
+      .filter(Boolean)));
+
+    issues.push({
+      kind: 'missing-argument',
+      surface: surfaceType,
+      file: surfacePath,
+      line: mention.line,
+      command: mention.text,
+      message: nextTokens.length > 0
+        ? `${baseCommand} ${args[0]} requires one of: ${nextTokens.join(', ')}`
+        : `${baseCommand} ${args[0]} requires additional arguments`,
+    });
+    return issues;
+  }
+
+  issues.push({
+    kind: 'unsupported-command',
+    surface: surfaceType,
+    file: surfacePath,
+    line: mention.line,
+    command: mention.text,
+    suggestion: '/bgsd-plan phase <phase-number>',
+    message: '/bgsd-plan surfaced guidance must start with an explicit supported sub-action',
+  });
+  return issues;
+}
 
 function isWorkflowSelfReference(surfacePath, mention) {
   const selfCommand = getWorkflowSelfCommand(surfacePath);
@@ -961,19 +1071,20 @@ function isReferenceOutputFence(mention) {
 
 function isReferenceStyleMention(mention) {
   const lineText = mention.lineText || '';
+  const commandText = getCommandTextForValidation(mention);
   const markdownTableLine = /^\s*\|/.test(lineText);
   const referenceHints = /\b(reference|references|matrix|ownership|owner|index|table|routes?|family|families|canonical planning-family|sub-action|responsible|accountable|consulted|preferred canonical|compatibility alias|historical context)\b/i.test(lineText);
   const runnableHints = /\b(run|next|then|continue|fix|switch|execute|retry)\b/i.test(lineText);
   const slashCommandCount = countSlashCommandsInLine(lineText);
-  const usageLine = /^\s*(#\s+\/bgsd-|\*\*Usage:\*\*)/i.test(lineText);
+  const usageLine = /^\s*(#{1,6}\s+`?\/bgsd-|\*\*Usage:\*\*)/i.test(lineText);
   const antiPatternLine = /^\s*-\s+do(?:\s+not|n't)\b/i.test(lineText);
   const variableAssignmentLine = /^\s*[A-Z0-9_]+\s*=\s*["'`].*\/bgsd-/i.test(lineText);
   const firstSlashIndex = lineText.search(/\/bgsd-[a-z0-9-]+/i);
   const mentionIndex = mention.text ? lineText.indexOf(mention.text) : -1;
 
-   if (isXmlTagMention(mention) || isReferenceOutputFence(mention) || usageLine || antiPatternLine || variableAssignmentLine) {
-    return true;
-   }
+   if (isXmlTagMention(mention) || isReferenceOutputFence(mention) || usageLine || antiPatternLine || variableAssignmentLine || /\.\.\./.test(commandText) || (commandText === '/bgsd-plan' && /not runnable shorthand|reference-style planning-family index|family labels inside/i.test(lineText))) {
+     return true;
+    }
 
   if (/compatibility alias/i.test(lineText) && mentionIndex > firstSlashIndex) {
     return true;
@@ -987,7 +1098,7 @@ function isReferenceStyleMention(mention) {
     return true;
   }
 
-  if (!runnableHints && referenceHints && (hasReferenceSyntax(mention.text) || slashCommandCount > 1)) {
+  if (!runnableHints && referenceHints && (hasReferenceSyntax(mention.text) || slashCommandCount > 1 || /\bnot runnable\b|family labels inside|reference-style planning-family index/i.test(lineText))) {
     return true;
   }
 
@@ -1066,13 +1177,15 @@ function buildSlashSuggestion(baseCommand, args, aliasToCanonical) {
   return [canonical, ...args].filter(Boolean).join(' ').trim();
 }
 
-function validateSlashMention(mention, surfacePath, surfaceType, slashInventory) {
+function validateSlashMention(mention, surfacePath, surfaceType, slashInventory, planningSurface = getPlanningCommandSurface()) {
   const issues = [];
-  const tokens = mention.text.split(/\s+/).filter(Boolean);
+  const commandText = getCommandTextForValidation(mention);
+  const tokens = commandText.split(/\s+/).filter(Boolean);
   const baseCommand = tokens[0];
   const args = tokens.slice(1);
   const slashSet = new Set(slashInventory.slashCommands);
-  const legacyCanonical = slashInventory.aliasToCanonical[baseCommand] || LEGACY_SLASH_COMMAND_ALIASES[baseCommand] || null;
+  const planningAliasSuggestions = getLegacyPlanningAliasSuggestions(planningSurface);
+  const legacyCanonical = slashInventory.aliasToCanonical[baseCommand] || planningAliasSuggestions[baseCommand] || null;
   const referenceStyle = isReferenceStyleMention(mention) || isWorkflowSelfReference(surfacePath, mention) || isWorkflowFallbackReconstructionContext(surfacePath, mention);
 
   if (referenceStyle) {
@@ -1082,12 +1195,12 @@ function validateSlashMention(mention, surfacePath, surfaceType, slashInventory)
   if (!slashSet.has(baseCommand) && !legacyCanonical) {
     issues.push({
       kind: 'nonexistent-command',
-      surface: surfaceType,
-      file: surfacePath,
-      line: mention.line,
-      command: mention.text,
-      message: `Unknown slash command ${baseCommand}`,
-    });
+        surface: surfaceType,
+        file: surfacePath,
+        line: mention.line,
+        command: commandText,
+        message: `Unknown slash command ${baseCommand}`,
+      });
     return issues;
   }
 
@@ -1097,23 +1210,14 @@ function validateSlashMention(mention, surfacePath, surfaceType, slashInventory)
       surface: surfaceType,
       file: surfacePath,
       line: mention.line,
-      command: mention.text,
-      suggestion: buildSlashSuggestion(baseCommand, args, { ...LEGACY_SLASH_COMMAND_ALIASES, ...slashInventory.aliasToCanonical }),
+      command: commandText,
+      suggestion: buildSlashSuggestion(baseCommand, args, { ...planningAliasSuggestions, ...slashInventory.aliasToCanonical }),
       message: `${baseCommand} is a compatibility alias and should not appear in surfaced guidance`,
     });
   }
 
-  if (!referenceStyle && baseCommand === '/bgsd-plan' && ['phase', 'discuss', 'research', 'assumptions'].includes(args[0])) {
-    if (!args[1] || args[1].startsWith('--')) {
-      issues.push({
-        kind: 'missing-argument',
-        surface: surfaceType,
-        file: surfacePath,
-        line: mention.line,
-        command: mention.text,
-        message: `${baseCommand} ${args[0]} requires a phase argument`,
-      });
-    }
+  if (!referenceStyle && baseCommand === '/bgsd-plan') {
+    issues.push(...validatePlanningSlashCommand(baseCommand, args, { ...mention, text: commandText }, surfacePath, surfaceType, planningSurface));
   }
 
   if (!referenceStyle && baseCommand === '/bgsd-settings' && args[0] === 'profile' && (!args[1] || args[1].startsWith('--'))) {
@@ -1240,13 +1344,14 @@ function validateCommandIntegrity(options = {}) {
   const cwd = options.cwd || process.cwd();
   const slashInventory = options.slashInventory || getSlashCommandInventory(cwd);
   const cliInventory = options.cliInventory || getCliCommandInventory();
+  const planningSurface = options.planningSurface || getPlanningCommandSurface(cwd);
   const surfaces = Array.isArray(options.surfaces) ? options.surfaces : collectValidationSurfaces(cwd);
   const issues = [];
 
   for (const surface of surfaces) {
     for (const mention of extractCommandMentions(surface.content || '')) {
       if (mention.type === 'slash') {
-        issues.push(...validateSlashMention(mention, surface.path, surface.surface || 'surface', slashInventory));
+        issues.push(...validateSlashMention(mention, surface.path, surface.surface || 'surface', slashInventory, planningSurface));
       } else if (mention.type === 'cli') {
         issues.push(...validateCliMention(mention, surface.path, surface.surface || 'surface', cliInventory));
       }
