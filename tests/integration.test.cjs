@@ -302,6 +302,16 @@ describe('integration: phase 181 workspace proof-first fallback contract', () =>
     assert.match(executePhase, /intended workspace, observed executor cwd, observed `jj workspace root`, and one generic fallback reason/i);
     assert.match(executePhase, /downgrade to Mode B sequential execution before any plan work, summary creation, plan-local outputs, or other repo-relative work begin/i);
   });
+
+  test('execute-plan keeps workspace-rooted outputs inside the assigned workspace', () => {
+    const projectRoot = path.join(__dirname, '..');
+    const executePlan = fs.readFileSync(path.join(projectRoot, 'workflows', 'execute-plan.md'), 'utf-8');
+
+    assert.match(executePlan, /executor's current repo root is the assigned workspace root/i);
+    assert.match(executePlan, /repo-relative reads, writes, and plan-local outputs rooted there/i);
+    assert.match(executePlan, /Do not create `SUMMARY\.md`, workspace proof sidecars, or other plan-local artifacts until workspace proof status is known/i);
+    assert.match(executePlan, /keep those artifacts inside the assigned workspace checkout while workspace mode remains active/i);
+  });
 });
 
 describe('integration: state round-trip', () => {

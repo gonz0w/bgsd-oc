@@ -1134,6 +1134,15 @@ describe('Phase 181 workspace proof-first workflow contracts', () => {
     assert.match(execute, /observed executor cwd, observed `jj workspace root`, and one generic fallback reason/i);
     assert.match(execute, /before any plan work, summary creation, plan-local outputs, or other repo-relative work begin/i);
   });
+
+  test('execute-plan keeps workspace-rooted output containment explicit', () => {
+    const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');
+
+    assert.match(executePlan, /executor's current repo root is the assigned workspace root/i);
+    assert.match(executePlan, /repo-relative reads, writes, and plan-local outputs rooted there/i);
+    assert.match(executePlan, /Do not create `SUMMARY\.md`, workspace proof sidecars, or other plan-local artifacts until workspace proof status is known/i);
+    assert.match(executePlan, /inside the assigned workspace checkout while workspace mode remains active/i);
+  });
 });
 
 describe('Phase 166 completion metadata workflow contracts', () => {

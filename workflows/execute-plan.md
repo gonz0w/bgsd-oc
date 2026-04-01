@@ -121,6 +121,10 @@ Pattern B only. Per segment: subagent for auto tasks, main for checkpoints. Afte
 <step name="load_prompt">
 Read PLAN.md — this IS the execution instructions. If plan references CONTEXT.md: honor throughout.
 
+When workspace mode is active, the executor's current repo root is the assigned workspace root. Keep repo-relative reads, writes, and plan-local outputs rooted there instead of drifting back to the main checkout.
+
+Do not create `SUMMARY.md`, workspace proof sidecars, or other plan-local artifacts until workspace proof status is known. After proof succeeds, keep those artifacts inside the assigned workspace checkout while workspace mode remains active.
+
 **Pre-computed decision:** If `decisions.previous-check-gate` in `<bgsd-context>`, use `.value` (proceed/warn/block). Else: if previous SUMMARY has unresolved issues/blockers, ask proceed/address/review.
 </step>
 
