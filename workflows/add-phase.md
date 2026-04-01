@@ -30,7 +30,7 @@ Exit.
 
 **If `<bgsd-context>` is present:** Parse that JSON directly.
 
-**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan roadmap add` execution where the slash-command hook was bypassed. Reconstruct the same roadmap context:
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan roadmap add <description>` execution where the slash-command hook was bypassed. Reconstruct the same roadmap context:
 
 ```bash
 BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)

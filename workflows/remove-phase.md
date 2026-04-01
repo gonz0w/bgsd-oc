@@ -30,7 +30,7 @@ Exit.
 
 **If `<bgsd-context>` is present:** Parse that JSON directly.
 
-**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan roadmap remove` execution where the slash-command hook was bypassed. Reconstruct the same phase-operation context from the explicit target phase:
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan roadmap remove <phase-number>` execution where the slash-command hook was bypassed. Reconstruct the same phase-operation context from the explicit target phase:
 
 ```bash
 BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${target}" --raw)

@@ -13,10 +13,10 @@ Read all execution_context files before starting.
 
 **If `<bgsd-context>` is present:** Parse that JSON directly.
 
-**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan todo add` execution where the slash-command hook was bypassed. Reconstruct the same todo-capture context:
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan todo add <description>` execution where the slash-command hook was bypassed. Reconstruct the same todo-capture context:
 
 ```bash
-BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos --raw)
+BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos --raw)
 ```
 
 If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
@@ -83,9 +83,9 @@ If overlapping, questionTemplate('add-todo-duplicate-action'):
 <step name="create_file">
 Use values from init context: `timestamp` and `date` are already available.
 
-Generate slug for the title:
+Generate slug for the title (lowercase with hyphens):
 ```bash
-slug=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:generate-slug "$title")
+slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
 ```
 
 Write to `.planning/todos/pending/${date}-${slug}.md`:

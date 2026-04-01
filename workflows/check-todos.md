@@ -19,9 +19,9 @@ Read all files referenced by the invoking prompt's execution_context before star
 
 ```bash
 if [ -n "${AREA}" ]; then
-  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos "${AREA}" --raw)
+  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos "${AREA}" --raw)
 else
-  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos --raw)
+  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos --raw)
 fi
 ```
 
@@ -33,14 +33,14 @@ If `todo_count` is 0:
 ```
 No pending todos.
 
-Todos are captured during work sessions with /bgsd-plan todo add.
+Todos are captured during work sessions with /bgsd-plan todo add <description>.
 
 ---
 
 Would you like to:
 
 1. Review current phase status (/bgsd-inspect progress)
-2. Add a todo now (/bgsd-plan todo add "Describe the todo")
+2. Add a todo now (/bgsd-plan todo add <description>)
 ```
 
 Exit.
