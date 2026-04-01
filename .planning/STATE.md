@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 174 verification found remaining gaps — ready for gap planning
+**Current focus:** Phase 174 complete — ready for verification
 
 ## Current Position
 
 **Phase:** 174
-**Current Plan:** 7
-**Total Plans in Phase:** 7
-**Status:** Verification gaps found — follow-on gap planning needed
+**Current Plan:** 8
+**Total Plans in Phase:** 8
+**Status:** Phase complete — ready for verification
 **Last Activity:** 2026-04-01
 
 **Progress:** [██████████] 100%
@@ -42,6 +42,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 174 P04 | 3 min | 2 tasks | 4 files |
 | Phase 174 P06 | 10 min | 2 tasks | 2 files |
 | Phase 174 P07 | 5 min | 3 tasks | 8 files |
+| Phase 174 P08 | 6 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 - [Phase 174]: Aligned hidden NL discovery to canonical verify:state, plan:milestone, and /bgsd-inspect progress guidance
 - [Phase 174]: Published config docs now teach the supported JJ workspace-first model and remove worktree-era or migration-helper guidance. — Phase 174 intent requires docs, templates, and troubleshooting to match the active runtime contract instead of preserving stale compatibility-era instructions.
 - [Phase 174]: Aligned hidden NL helpers and surfaced guidance to canonical slash-command routes
+- [Phase 174]: Command integrity now distinguishes legacy planning aliases from workflow-internal fallback reconstruction context — Phase 174 required canonical surfaced guidance to stay strict while treating removed aliases and internal bootstrap examples with precise classifications.
 
 ### Pending Todos
 
@@ -113,6 +115,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-01T01:53:29.756Z
-Stopped at: Completed 174-07-PLAN.md
+Last session: 2026-04-01T02:37:24.456Z
+Stopped at: Completed 174-08-PLAN.md
 Resume file: None
