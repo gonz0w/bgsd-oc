@@ -36,7 +36,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Maintainers can remove migration-only commands and helpers for obsolete installs, storage transitions, or local-state upgrades without leaving routed dead surfaces behind.
   2. Current canonical `.planning/` files still parse and validate without legacy normalization paths for superseded planning or config shapes.
   3. Users see docs, templates, and help text that consistently teach the supported JJ/workspace-first model instead of stale worktree-era or compatibility-era guidance.
-**Plans**: 5/5 plans complete
+**Plans**: 5/7 plans complete
 
 ### Phase 175: Canonical Command Surface Alignment
 **Goal**: Maintainers can change the supported command surface from one clearer canonical definition instead of keeping routing, aliases, help, and discovery in parallel drift-prone paths
