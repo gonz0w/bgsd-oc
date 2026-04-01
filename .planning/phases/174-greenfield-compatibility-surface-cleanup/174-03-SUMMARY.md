@@ -46,6 +46,8 @@ Each task was committed atomically:
 1. **Task 1: Add RED regressions for canonical-only roadmap and plan reads** - `309c0e3` (test)
 2. **Task 2: Remove mirrored normalization from helpers, init, roadmap, and plugin readers** - `2a2ae61` (feat)
 
+**Plan metadata:** `8a3d665` (docs)
+
 ## TDD Audit Trail
 
 Review the exact RED/GREEN/REFACTOR proof package here. REFACTOR evidence is required when a refactor commit exists.
@@ -135,6 +137,7 @@ None - plan executed exactly as written.
 - FOUND: `.planning/phases/174-greenfield-compatibility-surface-cleanup/174-03-SUMMARY.md`
 - FOUND: `309c0e3` task commit
 - FOUND: `2a2ae61` task commit
+- FOUND: `8a3d665` metadata commit
 
 ---
 *Phase: 174-greenfield-compatibility-surface-cleanup*
