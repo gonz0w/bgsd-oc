@@ -11,24 +11,24 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 
 Phase: 181 of 186 (Workspace Root Truth & Safe Fallback)
 Plan: 02 of 02 in current phase
-Status: Plan 01 complete; ready for plan 02 execution
-Last activity: 2026-04-01 - Shipped runtime workspace proof gating with `workspace prove` and generic fallback coverage
+Status: Phase plans complete; ready for phase verification/transition
+Last activity: 2026-04-01 - Completed proof-first workspace execution guidance with workspace-rooted plan-local output containment
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 364
+- Total plans completed: 365
 - Average duration: ~12 min
-- Total execution time: ~55.5 hours
+- Total execution time: ~55.6 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 173-180 | 22 | ~4.4 hours | ~12 min |
-| 181 | 1 | 5 min | 5 min |
+| 181 | 2 | 8 min | 4 min |
 
 **Recent Trend:**
 - Last shipped milestone: v18.1 completed 8 phases (173-180)
@@ -43,6 +43,7 @@ Progress: [█████░░░░░] 50%
 - [Carry-forward] Risk-based verification routing must shape runtime-hardening proof early, while `cmux` polish follows real execution and recovery state.
 - [Phase 181] Workspace-parallel execution now unlocks only when intended root, observed cwd realpath, and `jj workspace root` canonically match.
 - [Phase 181] Workspace proof failures collapse to one generic fallback-to-sequential reason while preserving intended/observed evidence fields.
+- [Phase 181] Workspace-mode repo-relative reads, writes, summaries, and proof sidecars stay rooted in the assigned workspace checkout until later reconcile/finalize phases take over shared-state ownership.
 
 ### Pending Todos
 
@@ -54,6 +55,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01 20:21
-Stopped at: Completed 181-01-PLAN.md
-Resume file: .planning/phases/181-workspace-root-truth-safe-fallback/181-02-PLAN.md
+Last session: 2026-04-01 20:29
+Stopped at: Completed 181-02-PLAN.md
+Resume file: None

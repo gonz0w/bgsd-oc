@@ -11,7 +11,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 
 ## Phases
 
-- [ ] **Phase 181: Workspace Root Truth & Safe Fallback** - Runtime-prove JJ workspace pinning before parallel execution is allowed to proceed.
+- [x] **Phase 181: Workspace Root Truth & Safe Fallback** (completed 2026-04-01) - Runtime-prove JJ workspace pinning before parallel execution is allowed to proceed.
 - [ ] **Phase 182: Risk-Routed Hardening Proof Policy** - Make `skip` / `light` / `full` verification routing govern runtime-hardening work early.
 - [ ] **Phase 183: Plan-Local Workspace Ownership** - Keep workspace execution isolated from shared planning artifacts until finalize.
 - [ ] **Phase 184: Deterministic Finalize & Partial-Wave Recovery** - Finalize shared state once, preserve healthy sibling progress, and keep recovery inspectable.
@@ -28,7 +28,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
   1. Operator can start a workspace-targeted plan and prove the executor's working directory and `jj workspace root` both match the intended workspace.
   2. Repo-relative reads, writes, and plan-local artifact output stay inside the assigned workspace while workspace mode is active.
   3. If workspace pinning proof fails or workspace mode is unavailable, execution falls back to the supported sequential path before plan work begins.
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans complete
 
 ### Phase 182: Risk-Routed Hardening Proof Policy
 **Goal**: Planning, execution, and verification all use one explicit verification-route contract that matches proof cost to blast radius for this milestone's runtime hardening
@@ -85,7 +85,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 181. Workspace Root Truth & Safe Fallback | 1/2 | In Progress|  |
+| 181. Workspace Root Truth & Safe Fallback | 2/2 | Complete   | 2026-04-01 |
 | 182. Risk-Routed Hardening Proof Policy | 0/2 | Not started | - |
 | 183. Plan-Local Workspace Ownership | 0/2 | Not started | - |
 | 184. Deterministic Finalize & Partial-Wave Recovery | 0/3 | Not started | - |
