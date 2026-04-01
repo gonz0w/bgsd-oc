@@ -965,6 +965,20 @@ describe('Phase 156 JJ-first workspace guidance contracts', () => {
   });
 });
 
+describe('Phase 183 workspace ownership workflow contracts', () => {
+  test('execute workflows keep shared planning updates behind finalize and teach inspection escalation', () => {
+    const executePhase = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+    const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');
+
+    assert.match(executePhase, /workspace reconcile remains preview-only/i);
+    assert.match(executePhase, /summary-first inspection by default/i);
+    assert.match(executePhase, /direct proof review for major completion claims or risky runtime\/shared-state work/i);
+    assert.match(executePlan, /forbids shared planning mutations before finalize/i);
+    assert.match(executePlan, /first clearly containable shared-planning write/i);
+    assert.match(executePlan, /repeated or serious violations escalate to quarantine/i);
+  });
+});
+
 describe('Phase 157 planning context cascade workflow contracts', () => {
   test('new-milestone gives milestone strategy a single owned home', () => {
     const workflow = fs.readFileSync(path.join(process.cwd(), 'workflows', 'new-milestone.md'), 'utf-8');
@@ -1142,6 +1156,24 @@ describe('Phase 181 workspace proof-first workflow contracts', () => {
     assert.match(executePlan, /repo-relative reads, writes, and plan-local outputs rooted there/i);
     assert.match(executePlan, /Do not create `SUMMARY\.md`, workspace proof sidecars, or other plan-local artifacts until workspace proof status is known/i);
     assert.match(executePlan, /inside the assigned workspace checkout while workspace mode remains active/i);
+  });
+
+  test('phase 182 route-aware workflow and report surfaces keep proof buckets separate', () => {
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+    const verify = fs.readFileSync(path.join(process.cwd(), 'workflows', 'verify-work.md'), 'utf-8');
+    const report = fs.readFileSync(path.join(process.cwd(), 'templates', 'verification-report.md'), 'utf-8');
+
+    for (const content of [verify, report]) {
+      assert.match(content, /Behavior Proof/i);
+      assert.match(content, /Regression Proof/i);
+      assert.match(content, /Human Verification/i);
+      assert.match(content, /not required/i);
+    }
+
+    assert.match(execute, /structural proof only/i);
+    assert.match(execute, /named focused proof plus smoke regression/i);
+    assert.match(execute, /one broad regression gate/i);
+    assert.match(verify, /route-exempt buckets as `not required`/i);
   });
 });
 
