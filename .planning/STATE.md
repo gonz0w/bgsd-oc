@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 176 — command-hotspot-simplification-hardening plan 03 of 4
+**Current focus:** Phase 178 — phase-176-hardening-truth-reconciliation not started
 
 ## Current Position
 
-**Phase:** 176
-**Current Plan:** 4
-**Total Plans in Phase:** 4
-**Status:** Ready to execute
+**Phase:** 178
+**Current Plan:** Not planned
+**Total Plans in Phase:** 0
+**Status:** Phase 177 complete
 **Last Activity:** 2026-04-01
 
-**Progress:** [██████████] 100%
+**Progress:** [████████░░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 357 (through Phase 175 P01)
+- Total plans completed: 358 (through Phase 177 P01)
 - Average duration: ~12 min/plan
-- Total execution time: ~54.9 hours
+- Total execution time: ~55.0 hours
 
 **By Phase:**
 
@@ -50,11 +50,13 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 176-command-hotspot-simplification-hardening P02 | 5 min | 2 tasks | 6 files |
 | Phase 176-command-hotspot-simplification-hardening P03 | 12 min | 2 tasks | 5 files |
 | Phase 176 P04 | 14 min | 2 tasks | 0 files |
+| Phase 177 P01 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
 ### Decisions
 
+- [Phase 177-runtime-guidance-integrity-cleanup]: Runtime roadmap warnings now surface operand-complete canonical `/bgsd-plan roadmap add|remove|insert ...` syntax from the plugin source of truth, and command-integrity parsing now preserves quoted placeholder operands so shipped runtime guidance validates without plugin-only exceptions.
 - [Phase 174]: Deleted dead plugin roadmap normalization helpers so the touched parser source matches the canonical non-normalizing read contract instead of preserving hidden compatibility residue.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.

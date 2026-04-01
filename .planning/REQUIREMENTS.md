@@ -29,7 +29,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 
 ### SAFE - Behavior Preservation & Hardening
 
-- [x] **SAFE-01** Users can run supported planning and settings workflows after cleanup with regression coverage proving canonical command routes still work.
+- [ ] **SAFE-01** Users can run supported planning and settings workflows after cleanup with regression coverage proving canonical command routes still work.
 - [ ] **SAFE-02** Maintainers can eliminate silent error swallowing, unnecessary async or control-flow indirection, and unguarded shared mutable state on touched cleanup paths before milestone close.
 - [x] **SAFE-03** Users see help and workflow guidance that match the real supported command surface after cleanup, with stale aliases or contradictory guidance removed.
 
@@ -59,7 +59,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 | CLEAN-03 | Phase 175 | Greenfield cleanup PRD - stale guidance and worktree-era docs |
 | CLI-01 | Phase 175 | CLI simplification PRD - canonical command definition |
 | CLI-02 | Phase 175 | CLI simplification PRD - router simplification |
-| CLI-03 | Phase 176 | CLI simplification PRD - smaller command subdomains and less ambient state |
-| SAFE-01 | Phase 176 | Both PRDs - preserve supported behavior with regression proof |
-| SAFE-02 | Phase 176 | User simplification review prompt - hardening touched cleanup paths |
-| SAFE-03 | Phase 175 | Both PRDs - align help, workflows, and supported surface |
+| CLI-03 | Phase 178 | CLI simplification PRD - smaller command subdomains and less ambient state |
+| SAFE-01 | Phase 178 | Both PRDs - preserve supported behavior with regression proof |
+| SAFE-02 | Phase 178 | User simplification review prompt - hardening touched cleanup paths |
+| SAFE-03 | Phase 177 | Both PRDs - align help, workflows, and supported surface |

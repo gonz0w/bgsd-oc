@@ -15,7 +15,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 - [x] **Phase 174: Greenfield Compatibility Surface Cleanup** (completed 2026-04-01) - Remove migration-only and superseded normalization paths while keeping canonical artifacts valid; verification gaps remain.
 - [x] **Phase 175: Canonical Command Surface Alignment** - Move routing, aliases, help, and discovery toward one clearer command definition and supported guidance surface, including the remaining Phase 174 command-integrity blocker. (completed 2026-04-01)
 - [x] **Phase 176: Command Hotspot Simplification & Hardening** (completed 2026-04-01) - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
-- [ ] **Phase 177: Runtime Guidance Integrity Cleanup** - Repair runtime/plugin roadmap follow-up guidance so surfaced canonical commands are runnable and validator-clean.
+- [x] **Phase 177: Runtime Guidance Integrity Cleanup** (completed 2026-04-01) - Repair runtime/plugin roadmap follow-up guidance so surfaced canonical commands are runnable and validator-clean.
 - [ ] **Phase 178: Phase 176 Hardening Truth Reconciliation** - Bring the shipped hardening state, regression proof, and verification artifacts back into alignment with current source.
 
 ## Phase Details
@@ -70,7 +70,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Runtime and plugin follow-up guidance only surfaces canonical roadmap commands with the required operands or clearly marks them as reference syntax.
   2. Command-integrity validation no longer reports the runtime/plugin roadmap guidance gap.
   3. Users can follow roadmap next-step guidance from shipped runtime surfaces without hitting invalid-command or missing-argument failures.
-**Plans**: 0/1 plans complete
+**Plans**: 1/1 plans complete
 
 ### Phase 178: Phase 176 Hardening Truth Reconciliation
 **Goal**: Maintainers can trust that the shipped cleanup state, regression proof, and verification artifacts for the Phase 176 hotspot work match the live repo state
@@ -91,7 +91,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 | 174. Greenfield Compatibility Surface Cleanup | 8/8 | Complete   | 2026-04-01 |
 | 175. Canonical Command Surface Alignment | 4/4 | Complete    | 2026-04-01 |
 | 176. Command Hotspot Simplification & Hardening | 4/4 | Complete    | 2026-04-01 |
-| 177. Runtime Guidance Integrity Cleanup | 0/0 | Planned | - |
+| 177. Runtime Guidance Integrity Cleanup | 1/1 | Complete   | 2026-04-01 |
 | 178. Phase 176 Hardening Truth Reconciliation | 0/0 | Planned | - |
 
 ## Backlog
