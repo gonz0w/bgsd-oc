@@ -81,7 +81,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Touched command-hotspot cleanup claims are made true in current source or corrected so planning artifacts no longer overstate shipped behavior.
   2. Supported planning and settings workflows have current regression proof aligned to the real cleanup state.
   3. Phase 176 has a verification artifact that matches current source, tests, and milestone-close evidence.
-**Plans**: 0/0 plans complete
+**Plans**: 0/2 plans complete
 
 ## Progress
 
