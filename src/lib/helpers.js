@@ -50,172 +50,10 @@ function normalizeTddHintValue(value) {
   const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, '');
   if (!raw) return null;
 
-  const tokenMatch = raw.match(/^(required|require|mandatory|must|enforced|recommended|recommend|suggested|prefer(?:red)?|true|yes|y|false|no|n|skip(?:ped)?|omit(?:ted)?|none|n\/a|na|not applicable)\b/);
-  const token = tokenMatch ? tokenMatch[1] : raw;
-
-  if (['required', 'require', 'mandatory', 'must', 'enforced'].includes(token)) return 'required';
-  if (['recommended', 'recommend', 'suggested', 'prefer', 'preferred', 'true', 'yes', 'y'].includes(token)) return 'recommended';
-  if (['false', 'no', 'n', 'skip', 'skipped', 'omit', 'omitted', 'none', 'n/a', 'na', 'not applicable'].includes(token)) return null;
+  if (raw === 'required') return 'required';
+  if (raw === 'recommended') return 'recommended';
 
   return null;
-}
-
-function normalizePlanTddDecisionValue(value) {
-  if (value === null || value === undefined) return null;
-
-  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, '');
-  if (!raw) return null;
-
-  const tokenMatch = raw.match(/^(selected|select|tdd|true|yes|required|recommended|skipped|skip|false|no|none|omit(?:ted)?)\b/);
-  const token = tokenMatch ? tokenMatch[1] : raw;
-
-  if (['selected', 'select', 'tdd', 'true', 'yes', 'required', 'recommended'].includes(token)) return 'selected';
-  if (['skipped', 'skip', 'false', 'no', 'none', 'omit', 'omitted'].includes(token)) return 'skipped';
-
-  return null;
-}
-
-function buildCanonicalTddDecisionCallout(decision, rationale) {
-  if (!decision) return null;
-  const label = decision === 'selected' ? 'Selected' : 'Skipped';
-  const fallback = decision === 'selected'
-    ? 'this legacy plan already marked testable behavior for TDD, so it now uses the canonical visible decision callout.'
-    : 'this legacy plan already marked TDD as not selected, so it now uses the canonical visible decision callout.';
-  return `> **TDD Decision:** ${label} — ${String(rationale || fallback).trim()}`;
-}
-
-function normalizeRoadmapTddMetadata(content) {
-  if (!content || typeof content !== 'string') return { content, changed: false };
-
-  let changed = false;
-  const next = content.replace(/^(\*\*TDD:?\*\*:?\s*)([^\n]*)$/gim, (match, _prefix, rawValue) => {
-    const normalized = normalizeTddHintValue(rawValue);
-    const canonical = normalized ? `**TDD:** ${normalized}` : '';
-    if (canonical !== match) changed = true;
-    return canonical;
-  }).replace(/\n{3,}/g, '\n\n');
-
-  return { content: next, changed };
-}
-
-function readRoadmapWithTddNormalization(cwd) {
-  const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const original = cachedReadFile(roadmapPath);
-  if (!original) return null;
-
-  const normalized = normalizeRoadmapTddMetadata(original);
-  if (normalized.changed) {
-    fs.writeFileSync(roadmapPath, normalized.content, 'utf-8');
-    invalidateFileCache(roadmapPath);
-    return normalized.content;
-  }
-
-  return original;
-}
-
-function normalizePlanTddMetadata(content) {
-  if (!content || typeof content !== 'string') return { content, changed: false, decision: null };
-
-  const frontmatter = require('./frontmatter').extractFrontmatter(content);
-  const newFrontmatter = { ...frontmatter };
-  let changed = false;
-
-  const canonicalMatch = content.match(/^>\s*\*\*TDD Decision:\*\*\s*(Selected|Skipped)\s*[—-]\s*(.+)$/im);
-  const legacyCalloutMatch = content.match(/^>\s*\*\*TDD(?: Decision)?\*\*\s*:?\s*(.+)$/im);
-
-  let decision = canonicalMatch ? canonicalMatch[1].toLowerCase() : null;
-  if (!decision) {
-    decision = normalizePlanTddDecisionValue(
-      newFrontmatter.tdd_decision ??
-      newFrontmatter.tddDecision ??
-      newFrontmatter.tdd ??
-      newFrontmatter['tdd-decision'] ??
-      newFrontmatter['tdd_decision'] ??
-      newFrontmatter['tddDecision'] ??
-      newFrontmatter['tdd-hint'] ??
-      newFrontmatter['tdd_hint']
-    );
-  }
-  if (!decision && String(newFrontmatter.type || '').trim().toLowerCase() === 'tdd') {
-    decision = 'selected';
-  }
-
-  const rationale = canonicalMatch?.[2]?.trim()
-    || newFrontmatter.tdd_rationale
-    || newFrontmatter.tddRationale
-    || newFrontmatter['tdd-rationale']
-    || newFrontmatter.tdd_reason
-    || newFrontmatter.tddReason
-    || newFrontmatter['tdd-reason']
-    || (legacyCalloutMatch ? legacyCalloutMatch[1].trim() : null);
-
-  for (const key of ['tdd', 'tdd_decision', 'tddDecision', 'tdd_rationale', 'tddRationale', 'tdd_reason', 'tddReason', 'tdd-hint', 'tdd_hint', 'tdd-rationale', 'tdd-reason']) {
-    if (Object.prototype.hasOwnProperty.call(newFrontmatter, key)) {
-      delete newFrontmatter[key];
-      changed = true;
-    }
-  }
-
-  if (decision === 'selected' && newFrontmatter.type !== 'tdd') {
-    newFrontmatter.type = 'tdd';
-    changed = true;
-  }
-  if (decision === 'skipped' && (!newFrontmatter.type || newFrontmatter.type === 'tdd')) {
-    newFrontmatter.type = 'execute';
-    changed = true;
-  }
-
-  let next = content;
-  if (JSON.stringify(frontmatter) !== JSON.stringify(newFrontmatter)) {
-    next = require('./frontmatter').spliceFrontmatter(next, newFrontmatter);
-    changed = true;
-  }
-
-  if (decision) {
-    const canonicalCallout = buildCanonicalTddDecisionCallout(decision, rationale);
-    if (canonicalMatch) {
-      if (canonicalMatch[0] !== canonicalCallout) {
-        next = next.replace(canonicalMatch[0], canonicalCallout);
-        changed = true;
-      }
-    } else if (legacyCalloutMatch) {
-      next = next.replace(legacyCalloutMatch[0], canonicalCallout);
-      changed = true;
-    } else {
-      const objectiveClose = next.indexOf('</objective>');
-      if (objectiveClose !== -1) {
-        const insertAt = objectiveClose + '</objective>'.length;
-        next = `${next.slice(0, insertAt)}\n\n${canonicalCallout}${next.slice(insertAt)}`;
-        changed = true;
-      }
-    }
-  }
-
-  return { content: next, changed, decision };
-}
-
-function normalizePlanFileTddMetadata(filePath) {
-  const original = safeReadFile(filePath);
-  if (!original) return { changed: false, decision: null };
-  const normalized = normalizePlanTddMetadata(original);
-  if (normalized.changed) {
-    fs.writeFileSync(filePath, normalized.content, 'utf-8');
-    invalidateFileCache(filePath);
-  }
-  return { changed: normalized.changed, decision: normalized.decision };
-}
-
-function normalizePhasePlanFilesTddMetadata(cwd, phaseInfo) {
-  const results = [];
-  if (!phaseInfo?.directory || !Array.isArray(phaseInfo.plans)) return results;
-
-  for (const planFile of phaseInfo.plans) {
-    const filePath = path.join(cwd, phaseInfo.directory, planFile);
-    const result = normalizePlanFileTddMetadata(filePath);
-    if (result.changed) results.push({ file: filePath, decision: result.decision });
-  }
-
-  return results;
 }
 
 /**
@@ -857,7 +695,7 @@ function getRoadmapPhaseInternal(cwd, phaseNum) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
 
   try {
-    const content = readRoadmapWithTddNormalization(cwd);
+    const content = cachedReadFile(roadmapPath);
     if (!content) return null;
     const phaseStr = phaseNum.toString();
     const normalizedPhase = normalizePhaseName(phaseStr);
@@ -1719,10 +1557,6 @@ module.exports = {
   getMilestoneInfo,
   extractAtReferences,
   normalizeTddHintValue,
-  readRoadmapWithTddNormalization,
-  normalizePlanTddMetadata,
-  normalizePlanFileTddMetadata,
-  normalizePhasePlanFilesTddMetadata,
   parseIntentMd,
   generateIntentMd,
   parsePlanIntent,

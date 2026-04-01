@@ -7,7 +7,7 @@ const { getDb } = require('../lib/db');
 const { PlanningCache } = require('../lib/planning-cache');
 const { banner, sectionHeader, progressBar, formatTable, summaryLine, actionHint, color, SYMBOLS, colorByPercent } = require('../lib/format');
 const { loadConfig, readRawConfig } = require('../lib/config');
-const { safeReadFile, cachedReadFile, findPhaseInternal, resolveConfiguredModelStateFromConfig, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree, normalizePhasePlanFilesTddMetadata, buildPhaseSnapshotInternal, buildPhaseHandoffExpectedFingerprint, getRuntimeFreshness } = require('../lib/helpers');
+const { safeReadFile, cachedReadFile, findPhaseInternal, resolveConfiguredModelStateFromConfig, resolveModelInternal, getRoadmapPhaseInternal, getMilestoneInfo, getArchivedPhaseDirs, normalizePhaseName, isValidDateString, sanitizeShellArg, pathExistsInternal, generateSlugInternal, getPhaseTree, buildPhaseSnapshotInternal, buildPhaseHandoffExpectedFingerprint, getRuntimeFreshness } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 const { execGit } = require('../lib/git');
 const { buildPhaseHandoffValidation, listPhaseHandoffArtifacts } = require('../lib/phase-handoff');
@@ -690,7 +690,6 @@ function cmdInitPlanPhase(cwd, phase, raw) {
   const phaseInfo = snapshotInfo.phaseInfo;
   const roadmapPhase = getRoadmapPhaseInternal(cwd, phase);
   const handoffResumeSummary = buildPhaseHandoffResumeSummary(cwd, metadata?.number || phase, metadata?.name || null);
-  normalizePhasePlanFilesTddMetadata(cwd, phaseInfo);
   let rawConfig = {};
   try {
     rawConfig = readRawConfig(cwd) || {};

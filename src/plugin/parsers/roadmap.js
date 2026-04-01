@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getDb, PlanningCache } from '../lib/db-cache.js';
 
@@ -8,12 +8,8 @@ function normalizeTddHintValue(value) {
   const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, '');
   if (!raw) return null;
 
-  const tokenMatch = raw.match(/^(required|require|mandatory|must|enforced|recommended|recommend|suggested|prefer(?:red)?|true|yes|y|false|no|n|skip(?:ped)?|omit(?:ted)?|none|n\/a|na|not applicable)\b/);
-  const token = tokenMatch ? tokenMatch[1] : raw;
-
-  if (['required', 'require', 'mandatory', 'must', 'enforced'].includes(token)) return 'required';
-  if (['recommended', 'recommend', 'suggested', 'prefer', 'preferred', 'true', 'yes', 'y'].includes(token)) return 'recommended';
-  if (['false', 'no', 'n', 'skip', 'skipped', 'omit', 'omitted', 'none', 'n/a', 'na', 'not applicable'].includes(token)) return null;
+  if (raw === 'required') return 'required';
+  if (raw === 'recommended') return 'recommended';
 
   return null;
 }
@@ -333,7 +329,7 @@ export function parseRoadmap(cwd) {
   // --- Markdown parse ---
   let raw;
   try {
-    raw = readRoadmapWithTddNormalization(resolvedCwd) || readFileSync(roadmapPath, 'utf-8');
+    raw = readFileSync(roadmapPath, 'utf-8');
   } catch {
     return null;
   }

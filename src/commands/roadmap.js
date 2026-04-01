@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
-const { normalizePhaseName, cachedReadFile, findPhaseInternal, getPhaseTree, invalidateFileCache, readRoadmapWithTddNormalization, normalizeTddHintValue } = require('../lib/helpers');
+const { normalizePhaseName, cachedReadFile, findPhaseInternal, getPhaseTree, invalidateFileCache, normalizeTddHintValue } = require('../lib/helpers');
 const { extractFrontmatter } = require('../lib/frontmatter');
 
 // ─── Roadmap Commands ────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
 
   try {
-    const content = readRoadmapWithTddNormalization(cwd);
+    const content = cachedReadFile(roadmapPath);
     if (!content) {
       output({ found: false, error: 'ROADMAP.md not found' }, raw, '');
       return;
@@ -97,7 +97,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
 
 function cmdRoadmapAnalyze(cwd, raw) {
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const content = readRoadmapWithTddNormalization(cwd);
+  const content = cachedReadFile(roadmapPath);
 
   if (!content) {
     output({ error: 'ROADMAP.md not found', milestones: [], phases: [], current_phase: null }, raw);
