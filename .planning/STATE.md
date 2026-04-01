@@ -5,12 +5,12 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 176 — command-hotspot-simplification-hardening plan 02 of 4
+**Current focus:** Phase 176 — command-hotspot-simplification-hardening plan 03 of 4
 
 ## Current Position
 
 **Phase:** 176
-**Current Plan:** 02
+**Current Plan:** 03
 **Total Plans in Phase:** 4
 **Status:** Ready to execute
 **Last Activity:** 2026-04-01
@@ -48,6 +48,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 175-canonical-command-surface-alignment P03 | 10 min | 2 tasks | 6 files |
 | Phase 175-canonical-command-surface-alignment P04 | 8 min | 2 tasks | 2 files |
 | Phase 176-command-hotspot-simplification-hardening P02 | 5 min | 2 tasks | 6 files |
+| Phase 176-command-hotspot-simplification-hardening P03 | 12 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -284,6 +285,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 - [Phase 175-canonical-command-surface-alignment]: Primary planning-entry docs now teach explicit /bgsd-plan phase, discuss, research, and assumptions routes with visible phase operands. — Phase 175 requires primary planning-family guidance to reinforce the canonical /bgsd-plan grammar and keep shorthand out of runnable entry surfaces.
 - [Phase 175-canonical-command-surface-alignment]: Expanded sibling-route parity tests and aligned roadmap/gaps/todo workflows to canonical /bgsd-plan umbrella — Workflow surfaces must teach canonical planning routes to prevent drift
 - [Phase 175-canonical-command-surface-alignment]: Adjacent surfaces already aligned to canonical planning-family routes — Tests confirm templates/state.md, workflows/new-milestone.md, workflows/progress.md, and docs/expert-guide.md teach canonical /bgsd-plan routes
+- [Phase 176]: Completed incomplete misc.js extraction from plan 176-02 — Plan 176-02 left 12+ functions unextracted from misc.js to subdomain files, causing build failures. Added cmdCurrentTimestamp, cmdValidateArtifacts, cmdValidateCommands, cmdProgressRender, cmdWebsearch, cmdResolveModel, cmdGenerateSlug, cmdVerifyPathExists, cmdFindPhase, cmdPhasePlanIndex, cmdStateSnapshot, cmdSummaryExtract, cmdSummaryGenerate, and cmdTdd to appropriate subdomain files.
 - [Phase 174]: Deleted dead plugin roadmap normalization helpers so the touched parser source matches the canonical non-normalizing read contract instead of preserving hidden compatibility residue.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.

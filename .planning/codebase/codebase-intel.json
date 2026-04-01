@@ -1985,16 +1985,6 @@
       "src/commands/memory.js": [
         "src/lib/output.js"
       ],
-      "src/commands/misc.js": [
-        "src/lib/output.js",
-        "src/lib/config.js",
-        "src/lib/constants.js",
-        "src/lib/helpers.js",
-        "src/lib/frontmatter.js",
-        "src/lib/git.js",
-        "src/lib/codebase-intel.js",
-        "src/lib/utils/parity-check.js"
-      ],
       "src/commands/phase.js": [
         "src/lib/output.js",
         "src/lib/helpers.js",
@@ -2037,16 +2027,6 @@
         "src/lib/git.js",
         "src/lib/format.js",
         "src/lib/constants.js"
-      ],
-      "src/commands/verify.js": [
-        "src/lib/output.js",
-        "src/lib/helpers.js",
-        "src/lib/frontmatter.js",
-        "src/lib/git.js",
-        "src/lib/format.js",
-        "src/lib/cli-tools/index.js",
-        "src/lib/constants.js",
-        "src/lib/config.js"
       ],
       "src/lib/ast.js": [
         "src/lib/codebase-intel.js",
@@ -2275,7 +2255,6 @@
         "src/commands/research.js",
         "src/commands/state.js",
         "src/commands/trajectory.js",
-        "src/commands/verify.js",
         "src/lib/orchestration.js"
       ],
       "src/router.js": [
@@ -2284,9 +2263,7 @@
       "src/lib/constants.js": [
         "src/router.js",
         "src/commands/features.js",
-        "src/commands/misc.js",
         "src/commands/trajectory.js",
-        "src/commands/verify.js",
         "src/lib/helpers.js"
       ],
       "src/lib/output.js": [
@@ -2301,7 +2278,6 @@
         "src/commands/intent.js",
         "src/commands/mcp.js",
         "src/commands/memory.js",
-        "src/commands/misc.js",
         "src/commands/phase.js",
         "src/commands/research.js",
         "src/commands/roadmap.js",
@@ -2309,7 +2285,6 @@
         "src/commands/state.js",
         "src/commands/tools.js",
         "src/commands/trajectory.js",
-        "src/commands/verify.js",
         "src/lib/codebase-intel.js",
         "src/lib/config.js",
         "src/lib/context.js",
@@ -2331,10 +2306,8 @@
         "src/commands/features.js",
         "src/commands/init.js",
         "src/commands/intent.js",
-        "src/commands/misc.js",
         "src/commands/research.js",
         "src/commands/state.js",
-        "src/commands/verify.js",
         "src/lib/helpers.js",
         "src/lib/cli-tools/fallback.js"
       ],
@@ -2394,11 +2367,9 @@
         "src/commands/features.js",
         "src/commands/init.js",
         "src/commands/intent.js",
-        "src/commands/misc.js",
         "src/commands/phase.js",
         "src/commands/state.js",
         "src/commands/trajectory.js",
-        "src/commands/verify.js",
         "src/lib/codebase-intel.js",
         "src/lib/context.js",
         "src/lib/adapters/discovery.js"
@@ -2457,7 +2428,6 @@
         "src/commands/codebase.js",
         "src/commands/features.js",
         "src/commands/init.js",
-        "src/commands/misc.js",
         "src/lib/ast.js",
         "src/lib/context.js",
         "src/lib/conventions.js",
@@ -2483,11 +2453,9 @@
         "src/commands/features.js",
         "src/commands/init.js",
         "src/commands/intent.js",
-        "src/commands/misc.js",
         "src/commands/phase.js",
         "src/commands/roadmap.js",
         "src/commands/state.js",
-        "src/commands/verify.js",
         "src/lib/codebase-intel.js",
         "src/lib/orchestration.js"
       ],
@@ -2500,10 +2468,8 @@
         "src/commands/features.js",
         "src/commands/init.js",
         "src/commands/intent.js",
-        "src/commands/misc.js",
         "src/commands/phase.js",
         "src/commands/roadmap.js",
-        "src/commands/verify.js",
         "src/lib/helpers.js",
         "src/lib/orchestration.js"
       ],
@@ -2523,7 +2489,6 @@
         "src/commands/env.js",
         "src/commands/features.js",
         "src/commands/tools.js",
-        "src/commands/verify.js",
         "src/lib/codebase-intel.js",
         "src/lib/conventions.js",
         "src/lib/deps.js"
@@ -2542,9 +2507,6 @@
         "src/lib/cli-tools/jq.js",
         "src/lib/cli-tools/ripgrep.js",
         "src/lib/cli-tools/yq.js"
-      ],
-      "src/lib/utils/parity-check.js": [
-        "src/commands/misc.js"
       ],
       "src/lib/cli-tools/install-guidance.js": [
         "src/commands/runtime.js",
@@ -2696,13 +2658,13 @@
     },
     "stats": {
       "total_files_parsed": 112,
-      "total_edges": 285,
+      "total_edges": 269,
       "languages_parsed": [
         "javascript"
       ],
       "parse_errors": 3
     },
-    "built_at": "2026-04-01T00:07:36.182Z"
+    "built_at": "2026-04-01T06:36:42.309Z"
   },
   "conventions": {
     "naming": {
