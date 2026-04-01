@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 179 complete — ready for Phase 180
+**Current focus:** Phase 180 Plan 01 complete — ready for Plan 02
 
 ## Current Position
 
-**Phase:** 179
-**Current Plan:** Not started
-**Total Plans in Phase:** 1
-**Status:** Ready to plan
+**Phase:** 180
+**Current Plan:** 2
+**Total Plans in Phase:** 2
+**Status:** In progress
 **Last Activity:** 2026-04-01
 
-**Progress:** [██████████] 100%
+**Progress:** [██████████] 99%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 361 (through Phase 179 P01)
+- Total plans completed: 362 (through Phase 180 P01)
 - Average duration: ~12 min/plan
 - Total execution time: ~55.4 hours
 
@@ -54,14 +54,12 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 178-phase-176-hardening-truth-reconciliation P01 | 4 min | 2 tasks | 10 files |
 | Phase 178-phase-176-hardening-truth-reconciliation P02 | 4 min | 2 tasks | 5 files |
 | Phase 179-shipped-guidance-surface-integrity P01 | 16 min | 2 tasks | 5 files |
+| Phase 180-command-validator-drift-resolution P01 | 5 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-- [Phase 179-shipped-guidance-surface-integrity]: Idle-validator next-step actions now ship as command-only canonical `/bgsd-plan phase` guidance, and rebuilt-runtime touched-surface proof is sufficient when the broad runtime-pattern gate remains noisy from unrelated legacy failures.
-- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
-- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
 - [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
@@ -560,6 +558,8 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 - [Phase 178-phase-176-hardening-truth-reconciliation]: Added focused Phase 176 truth-reconciliation proof and a shared output-context shim for the touched router/output/debug surfaces.
 - [Phase 178-phase-176-hardening-truth-reconciliation]: Phase 176 verification is now defined by current source plus the focused Phase 178 proof rerun, with stale summary and milestone-close claims explicitly narrowed. — This reconciliation slice restores trustworthy milestone evidence without overclaiming broad hardening or broad-suite status.
 - [Phase 178-phase-176-hardening-truth-reconciliation]: Phase 176 verification now uses a claim-by-claim disposition matrix tied to current source and the focused Phase 178 proof rerun, while stale summary and milestone-close claims are explicitly narrowed.
+- [Phase 180-command-validator-drift-resolution]: Derived validator CLI inventory from routed command coverage plus help metadata so surfaced node-invoked guidance matches real behavior.
+- [Phase 180-command-validator-drift-resolution]: Validator raw output now reports proof inventory and named exclusions from validator-owned data so green results have stable meaning.
 
 ### Pending Todos
 
@@ -571,6 +571,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-01T16:09:35.281Z
-Stopped at: Completed 179-01-PLAN.md
+Last session: 2026-04-01T16:55:47.831Z
+Stopped at: Completed 180-01-PLAN.md
 Resume file: None

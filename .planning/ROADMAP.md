@@ -105,7 +105,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Repo-wide surfaced command validation is green for the supported docs, workflows, agent prompts, and built runtime guidance included in milestone-close proof.
   2. Validator parsing and classification no longer misreport known quoted-example, redirect, or internal-bootstrap cases that are intentionally supported or explicitly out of scope.
   3. Users and maintainers can treat `util:validate-commands --raw` as trustworthy end-to-end milestone-close evidence for the supported surfaced command family.
-**Plans**: 0/2 plans complete
+**Plans**: 1/2 plans executed
 
 ## Progress
 
@@ -118,7 +118,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 | 177. Runtime Guidance Integrity Cleanup | 1/1 | Complete    | 2026-04-01 |
 | 178. Phase 176 Hardening Truth Reconciliation | 2/2 | Complete    | 2026-04-01 |
 | 179. Shipped Guidance Surface Integrity | 1/1 | Complete    | 2026-04-01 |
-| 180. Command Validator Drift Resolution | 0/0 | Planned     | - |
+| 180. Command Validator Drift Resolution | 1/2 | In Progress|  |
 
 ## Backlog
 
