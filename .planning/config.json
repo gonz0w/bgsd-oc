@@ -1,5 +1,8 @@
 {
   "bun": {
     "detected": "1.3.11"
-  }
+  },
+  "branching_strategy": "phase",
+  "phase_branch_template": "gsd/phase-{phase}-{slug}",
+  "milestone_branch_template": "gsd/{milestone}-{slug}"
 }
