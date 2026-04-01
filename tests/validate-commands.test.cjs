@@ -559,4 +559,27 @@ describe('validateCommandIntegrity', () => {
     assert.ok(legacyAliasIssue, 'legacy planning wrappers should stay classified as legacy guidance');
     assert.equal(legacyAliasIssue.suggestion, '/bgsd-plan phase 175');
   });
+
+  test('accepts shipped runtime roadmap guidance only when plugin guidance includes full operand shapes', () => {
+    const result = validateCommandIntegrity({
+      cwd: ROOT,
+      surfaces: [
+        {
+          surface: 'runtime',
+          path: 'plugin.js',
+          content: readRepoFile('plugin.js'),
+        },
+      ],
+    });
+
+    const roadmapIssues = result.issues.filter(
+      issue => issue.file === 'plugin.js' && issue.command.includes('/bgsd-plan roadmap')
+    );
+
+    assert.deepEqual(
+      roadmapIssues,
+      [],
+      'shipped runtime roadmap guidance should keep the canonical add/remove/insert operand shapes'
+    );
+  });
 });

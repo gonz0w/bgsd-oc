@@ -206,7 +206,9 @@ describe('GARD-02: Planning file protection', () => {
 
     const planningCalls = notifier.calls.filter(c => c.type === 'advisory-planning');
     assert.strictEqual(planningCalls.length, 1);
-    assert.ok(planningCalls[0].message.includes('/bgsd-plan roadmap add'));
+    assert.ok(planningCalls[0].message.includes('/bgsd-plan roadmap add "<description>"'));
+    assert.ok(planningCalls[0].message.includes('/bgsd-plan roadmap remove <phase-number>'));
+    assert.ok(planningCalls[0].message.includes('/bgsd-plan roadmap insert <after> "<description>"'));
     assert.strictEqual(planningCalls[0].severity, 'warning');
   });
 
