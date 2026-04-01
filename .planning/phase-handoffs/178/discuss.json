@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "178",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "178-2026-04-01T13-47-42-859Z",
+  "source_fingerprint": "587acd87265f7df2",
+  "created_at": "2026-04-01T13:47:42.859Z",
+  "updated_at": "2026-04-01T13:47:42.859Z",
+  "summary": "Discuss context ready for Phase 178",
+  "resume_target": {
+    "phase": "178",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/178-phase-176-hardening-truth-reconciliation/178-CONTEXT.md",
+    "next_command": "/bgsd-plan research 178"
+  },
+  "context": {}
+}

@@ -1,5 +1,53 @@
 [
   {
+    "phase": "178-phase-176-hardening-truth-reconciliation",
+    "plan": "02",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "61a00885",
+    "timestamp": "2026-04-01T14:47:58.161Z"
+  },
+  {
+    "phase": "178-phase-176-hardening-truth-reconciliation",
+    "plan": "02",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "3df2289a",
+    "timestamp": "2026-04-01T14:46:56.175Z"
+  },
+  {
+    "phase": "178-phase-176-hardening-truth-reconciliation",
+    "plan": "01",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "5edf1201",
+    "timestamp": "2026-04-01T14:33:59.496Z"
+  },
+  {
+    "phase": "178-phase-176-hardening-truth-reconciliation",
+    "plan": "01",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "076efad6",
+    "timestamp": "2026-04-01T14:31:04.501Z"
+  },
+  {
+    "phase": "177",
+    "plan": "01",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "c59b25e6",
+    "timestamp": "2026-04-01T13:08:35.962Z"
+  },
+  {
+    "phase": "177",
+    "plan": "01",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "93275ffe",
+    "timestamp": "2026-04-01T13:05:40.145Z"
+  },
+  {
     "phase": "175",
     "plan": "02",
     "task": 2,
@@ -110,53 +158,5 @@
     "total_tasks": 2,
     "git_head": "075ae377",
     "timestamp": "2026-04-01T00:07:32.020Z"
-  },
-  {
-    "phase": "174",
-    "plan": "02",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "2ca00784",
-    "timestamp": "2026-03-31T23:59:50.987Z"
-  },
-  {
-    "phase": "174",
-    "plan": "01",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "36ea7ec1",
-    "timestamp": "2026-03-31T23:53:10.538Z"
-  },
-  {
-    "phase": "174",
-    "plan": "01",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "5d79e6f1",
-    "timestamp": "2026-03-31T23:50:37.326Z"
-  },
-  {
-    "phase": "173",
-    "plan": "02",
-    "task": 3,
-    "total_tasks": 3,
-    "git_head": "9cfc69e3",
-    "timestamp": "2026-03-31T22:54:09.418Z"
-  },
-  {
-    "phase": "173",
-    "plan": "02",
-    "task": 2,
-    "total_tasks": 3,
-    "git_head": "715ca974",
-    "timestamp": "2026-03-31T22:53:48.337Z"
-  },
-  {
-    "phase": "173",
-    "plan": "02",
-    "task": 1,
-    "total_tasks": 3,
-    "git_head": "425efcd1",
-    "timestamp": "2026-03-31T22:52:26.430Z"
   }
 ]

@@ -7,7 +7,7 @@ agents: [all]
 
 # Skill Index
 
-**Generated:** 2026-04-01T14:33:14.313Z
+**Generated:** 2026-04-01T14:55:14.792Z
 **Total skills:** 31
 
 | Skill | Type | Agents | Description |

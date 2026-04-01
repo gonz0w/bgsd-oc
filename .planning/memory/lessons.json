@@ -492,5 +492,101 @@
     "affected_agents": [
       "bgsd-executor"
     ]
+  },
+  {
+    "id": "ab516b1b-57a9-413f-96d4-4b6d74543211",
+    "date": "2026-04-01T12:13:23.628Z",
+    "title": "Prefer read-only smoke checks before build in audit-only runs",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Audit-style verification can invoke build/test commands that regenerate bundled artifacts and baselines even when the user asked for research only, because the workflow reaches for broad proof before checking whether a read-only shipped-runtime slice is sufficient.",
+    "prevention_rule": "For research-only milestone audits, start with shipped-runtime validators, focused node --test file slices, and direct source/runtime reads; only run npm build-style commands after confirming the user allows artifact regeneration or the proof cannot be obtained read-only.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "642f92fe-67a5-4ae8-bd31-fc485ec4c655",
+    "date": "2026-04-01T12:40:34.415Z",
+    "title": "Lock runtime guidance tests to full command shape",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Runtime guidance regression coverage for planning advisories asserted canonical command-family prefixes but not required operands, so bare /bgsd-plan roadmap add|remove|insert strings survived even after broader command-surface cleanup.",
+    "prevention_rule": "When a runtime or plugin surface recommends a follow-up command, tests must assert the full runnable or explicitly reference-only syntax and, for generated artifacts, verify both source and built bundle text.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "b4f6fc04-0137-41a4-98ee-e0227ac54e87",
+    "date": "2026-04-01T13:12:21.925Z",
+    "title": "TDD validator commands should fail hard or work",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The executor TDD workflow instructs agents to use execute:tdd validate-red/green/refactor, but the command currently returns 'not yet implemented', forcing manual proof capture during plan execution.",
+    "prevention_rule": "Keep executor skills and CLI surfaces in lockstep: either implement the advertised execute:tdd validators or make the workflow route to the supported proof path so TDD runs do not stall mid-plan.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "4e49557a-626f-4a0a-bc95-bd1de1758569",
+    "date": "2026-04-01T13:16:19.138Z",
+    "title": "Artifact verification helpers should fail gracefully when metadata context is unavailable",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The verify:verify artifacts and verify:verify key-links commands throw ReferenceError: createPlanMetadataContext is not defined instead of returning a structured missing/inconclusive result, forcing manual verification and breaking verifier workflow.",
+    "prevention_rule": "Add coverage for verifier helper command execution paths and ensure missing metadata-context dependencies return structured JSON errors rather than uncaught exceptions.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "437580b7-b122-47ef-ad21-2a4368a5d8c9",
+    "date": "2026-04-01T14:08:47.125Z",
+    "title": "Run focused live proof before trusting reconciliation artifacts",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Reconciliation phases inherit stale summaries and audits that can lag behind live source in either direction, so document review alone misstates the actual gap.",
+    "prevention_rule": "For artifact-truth or milestone-close research, execute the smallest authoritative proof commands (targeted tests, validation commands, smoke routes) before drafting recommendations, then treat prose artifacts as claims to verify rather than facts.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "770b918e-f377-4314-b220-dbe08ecb110b",
+    "date": "2026-04-01T14:38:59.421Z",
+    "title": "Implement execute:tdd proof validators before requiring them in executor TDD flow",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The executor workflow and TDD skill require execute:tdd validate-red/green/refactor, but the shipped CLI currently returns 'TDD command not yet implemented' for those subcommands.",
+    "prevention_rule": "Either implement the validator subcommands with structured proof output or update executor/TDD guidance to use a supported proof-recording path until the CLI support ships.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "c020100b-29f1-4800-8cb8-def6503b90a1",
+    "date": "2026-04-01T14:53:13.548Z",
+    "title": "Artifact verifier can crash on plan verification paths",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The  and  commands can call an undefined , causing a runtime crash instead of a structured verification result during execute-plan validation.",
+    "prevention_rule": "Add an automated smoke test for  and  on a real PLAN.md fixture so missing helper wiring fails in CI before executors rely on the command.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "9a4c7a4c-559d-4a2c-8468-9791e1890012",
+    "date": "2026-04-01T14:56:55.549Z",
+    "title": "Verifier helper regressions should trigger a required manual-fallback note",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The shipped verify:verify artifacts and verify:verify key-links commands can crash with ReferenceError: createPlanMetadataContext is not defined, but verification workflows assume helper availability and only discover the breakage mid-run.",
+    "prevention_rule": "When verifier-helper commands fail unexpectedly, require the verifier to record the exact helper failure and switch immediately to explicit manual artifact and wiring checks so evidence quality stays traceable.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
   }
 ]
