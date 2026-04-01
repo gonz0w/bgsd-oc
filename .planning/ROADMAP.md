@@ -85,7 +85,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 181. Workspace Root Truth & Safe Fallback | 2/2 | Complete   | 2026-04-01 |
+| 181. Workspace Root Truth & Safe Fallback | 2/2 | Complete    | 2026-04-01 |
 | 182. Risk-Routed Hardening Proof Policy | 0/2 | Not started | - |
 | 183. Plan-Local Workspace Ownership | 0/2 | Not started | - |
 | 184. Deterministic Finalize & Partial-Wave Recovery | 0/3 | Not started | - |
