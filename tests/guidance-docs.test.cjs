@@ -40,3 +40,29 @@ describe('Phase 158 canonical docs guidance', () => {
     assert.doesNotMatch(workflows, /\| `set-profile\.md` \| `\/bgsd-set-profile` \|/);
   });
 });
+
+describe('Phase 174 workspace-first config guidance', () => {
+  test('workspace-first configuration docs', () => {
+    const configTemplate = fs.readFileSync(path.join(process.cwd(), 'templates', 'config-full.json'), 'utf-8');
+    const configuration = readDoc('configuration.md');
+    const expertGuide = readDoc('expert-guide.md');
+
+    assert.match(configTemplate, /"workspace"\s*:\s*\{/);
+    assert.doesNotMatch(configTemplate, /"worktree"\s*:/);
+
+    assert.match(configuration, /workspace\.base_path/);
+    assert.doesNotMatch(configuration, /`worktree\.[^`]+`/);
+
+    assert.match(expertGuide, /workspace-first/i);
+    assert.doesNotMatch(expertGuide, /git worktree/i);
+    assert.doesNotMatch(expertGuide, /`worktree\.[^`]+`/);
+  });
+
+  test('config migration guidance', () => {
+    const troubleshooting = readDoc('troubleshooting.md');
+
+    assert.match(troubleshooting, /verify:validate-config/);
+    assert.doesNotMatch(troubleshooting, /util:config-migrate/);
+    assert.doesNotMatch(troubleshooting, /worktree\.enabled/);
+  });
+});
