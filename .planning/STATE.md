@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 178 complete — ready for verification
+**Current focus:** Phase 179 complete — ready for Phase 180
 
 ## Current Position
 
-**Phase:** 178
-**Current Plan:** Not started
-**Total Plans in Phase:** 2
-**Status:** Milestone complete
+**Phase:** 179
+**Current Plan:** 1
+**Total Plans in Phase:** 1
+**Status:** Phase complete
 **Last Activity:** 2026-04-01
 
 **Progress:** [██████████] 100%
@@ -20,9 +20,9 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 360 (through Phase 178 P02)
+- Total plans completed: 361 (through Phase 179 P01)
 - Average duration: ~12 min/plan
-- Total execution time: ~55.1 hours
+- Total execution time: ~55.4 hours
 
 **By Phase:**
 
@@ -53,11 +53,13 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 177 P01 | 8 min | 2 tasks | 6 files |
 | Phase 178-phase-176-hardening-truth-reconciliation P01 | 4 min | 2 tasks | 10 files |
 | Phase 178-phase-176-hardening-truth-reconciliation P02 | 4 min | 2 tasks | 5 files |
+| Phase 179-shipped-guidance-surface-integrity P01 | 16 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
 ### Decisions
 
+- [Phase 179-shipped-guidance-surface-integrity]: Idle-validator next-step actions now ship as command-only canonical `/bgsd-plan phase` guidance, and rebuilt-runtime touched-surface proof is sufficient when the broad runtime-pattern gate remains noisy from unrelated legacy failures.
 - [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
@@ -569,6 +571,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-01T14:51:05.080Z
-Stopped at: Completed 178-02-PLAN.md
+Last session: 2026-04-01T16:09:35.281Z
+Stopped at: Completed 179-01-PLAN.md
 Resume file: None

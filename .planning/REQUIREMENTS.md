@@ -19,7 +19,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 
 - [x] **CLEAN-01** Maintainer can remove migration-only commands and helpers that exist only for legacy installs, storage transitions, or obsolete local-state upgrades.
 - [x] **CLEAN-02** Maintainer can remove planning and config normalization paths that only support superseded file shapes while current canonical `.planning/` artifacts still parse and validate.
-- [x] **CLEAN-03** Users see docs, templates, and help text that match the supported JJ/workspace-first model rather than stale worktree-era or compatibility-era guidance.
+- [ ] **CLEAN-03** Users see docs, templates, and help text that match the supported JJ/workspace-first model rather than stale worktree-era or compatibility-era guidance.
 
 ### CLI - Command-System Simplification
 
@@ -56,10 +56,10 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 | AUDIT-02 | Phase 173 | User simplification review prompt plus cleanup sequencing need |
 | CLEAN-01 | Phase 174 | Greenfield cleanup PRD - migration-only commands and helpers |
 | CLEAN-02 | Phase 174 | Greenfield cleanup PRD - legacy planning and config normalization |
-| CLEAN-03 | Phase 175 | Greenfield cleanup PRD - stale guidance and worktree-era docs |
+| CLEAN-03 | Phase 180 | Greenfield cleanup PRD - stale guidance and worktree-era docs |
 | CLI-01 | Phase 175 | CLI simplification PRD - canonical command definition |
 | CLI-02 | Phase 175 | CLI simplification PRD - router simplification |
 | CLI-03 | Phase 178 | CLI simplification PRD - smaller command subdomains and less ambient state |
 | SAFE-01 | Phase 178 | Both PRDs - preserve supported behavior with regression proof |
 | SAFE-02 | Phase 178 | User simplification review prompt - hardening touched cleanup paths |
-| SAFE-03 | Phase 177 | Both PRDs - align help, workflows, and supported surface |
+| SAFE-03 | Phase 179 | Both PRDs - align help, workflows, and supported surface |

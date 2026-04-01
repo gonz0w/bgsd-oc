@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v18.0 Adaptive Models & Ambient cmux UX** - Phases 168-172 (shipped 2026-03-31)
-- 🚧 **v18.1 Greenfield Cleanup & CLI Simplification** - Phases 173-178 (active)
+- 🚧 **v18.1 Greenfield Cleanup & CLI Simplification** - Phases 173-180 (active)
 
 ## Overview
 
@@ -17,6 +17,8 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 - [x] **Phase 176: Command Hotspot Simplification & Hardening** (completed 2026-04-01) - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
 - [x] **Phase 177: Runtime Guidance Integrity Cleanup** (completed 2026-04-01) - Repair runtime/plugin roadmap follow-up guidance so surfaced canonical commands are runnable and validator-clean.
 - [x] **Phase 178: Phase 176 Hardening Truth Reconciliation** (completed 2026-04-01) - Bring the shipped hardening state, regression proof, and verification artifacts back into alignment with current source.
+- [x] **Phase 179: Shipped Guidance Surface Integrity** (completed 2026-04-01) - Repair shipped runtime and plugin next-step guidance so surfaced canonical commands are runnable, operand-complete, and validator-clean.
+- [ ] **Phase 180: Command Validator Drift Resolution** - Reconcile surfaced command validation with docs, workflows, agents, and built runtime guidance so milestone-close command integrity is trustworthy again.
 
 ## Phase Details
 
@@ -79,9 +81,31 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 **Gap Closure:** Closes the milestone audit gaps caused by missing `176-VERIFICATION.md`, unresolved ambient-global state, and mismatched Phase 176 summary claims.
 **Success Criteria** (what must be TRUE):
   1. Touched command-hotspot cleanup claims are made true in current source or corrected so planning artifacts no longer overstate shipped behavior.
-  2. Supported planning and settings workflows have current regression proof aligned to the real cleanup state.
-  3. Phase 176 has a verification artifact that matches current source, tests, and milestone-close evidence.
+   2. Supported planning and settings workflows have current regression proof aligned to the real cleanup state.
+   3. Phase 176 has a verification artifact that matches current source, tests, and milestone-close evidence.
 **Plans**: 2/2 plans complete
+
+### Phase 179: Shipped Guidance Surface Integrity
+**Goal**: Users can run shipped runtime and plugin next-step guidance exactly as surfaced because built guidance strings are canonical, operand-complete, and validator-clean
+**Depends on**: Phase 178
+**Requirements**: SAFE-03
+**Gap Closure:** Closes the milestone audit runtime guidance gap where plugin idle-validation and shipped next-step surfaces still emit malformed or non-runnable canonical commands.
+**Success Criteria** (what must be TRUE):
+  1. Built runtime and plugin next-step guidance only surface canonical planning commands in runnable form instead of prefixed or malformed command snippets.
+  2. Rebuilding the shipped `plugin.js` no longer reintroduces the runtime guidance failures reported by `util:validate-commands --raw`.
+  3. Users can follow runtime next-step guidance from shipped plugin surfaces without hitting malformed-command or missing-operand failures.
+**Plans**: 1/1 plans complete
+
+### Phase 180: Command Validator Drift Resolution
+**Goal**: Maintainers can trust milestone-close command-integrity proof because surfaced guidance across docs, workflows, agents, and built runtime agrees with the validator's supported-command contract
+**Depends on**: Phase 179
+**Requirements**: CLEAN-03
+**Gap Closure:** Closes the reopened milestone audit guidance-integrity gap by resolving remaining validator false positives, classification drift, and surfaced-command mismatches outside the shipped runtime fix.
+**Success Criteria** (what must be TRUE):
+  1. Repo-wide surfaced command validation is green for the supported docs, workflows, agent prompts, and built runtime guidance included in milestone-close proof.
+  2. Validator parsing and classification no longer misreport known quoted-example, redirect, or internal-bootstrap cases that are intentionally supported or explicitly out of scope.
+  3. Users and maintainers can treat `util:validate-commands --raw` as trustworthy end-to-end milestone-close evidence for the supported surfaced command family.
+**Plans**: 0/0 plans complete
 
 ## Progress
 
@@ -93,6 +117,8 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 | 176. Command Hotspot Simplification & Hardening | 4/4 | Complete    | 2026-04-01 |
 | 177. Runtime Guidance Integrity Cleanup | 1/1 | Complete    | 2026-04-01 |
 | 178. Phase 176 Hardening Truth Reconciliation | 2/2 | Complete    | 2026-04-01 |
+| 179. Shipped Guidance Surface Integrity | 1/1 | Complete   | 2026-04-01 |
+| 180. Command Validator Drift Resolution | 0/0 | Planned     | - |
 
 ## Backlog
 
