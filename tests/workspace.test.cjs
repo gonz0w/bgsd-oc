@@ -190,6 +190,56 @@ describe('workspace commands', () => {
     assert.strictEqual(listData.workspaces[0].name, '155-02');
   });
 
+  test('workspace prove unlocks parallel mode only when intended root, cwd, and jj root all match', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    createJjProject();
+
+    const workspace = createManagedWorkspace(tmpDir, '155-02');
+    const proveResult = runGsdToolsInRepo('workspace prove 155-02', workspace.path);
+    assert.ok(proveResult.success, `workspace prove failed: ${proveResult.error}`);
+
+    const proveData = JSON.parse(proveResult.output);
+    assert.strictEqual(proveData.parallel_allowed, true);
+    assert.strictEqual(proveData.fallback_reason, null);
+    assert.strictEqual(proveData.intended_root, resolvedPath(workspace.path));
+    assert.strictEqual(proveData.observed_cwd, resolvedPath(workspace.path));
+    assert.strictEqual(proveData.observed_jj_root, resolvedPath(workspace.path));
+  });
+
+  test('workspace prove downgrades a subdirectory start to the generic sequential fallback', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    createJjProject();
+
+    const workspace = createManagedWorkspace(tmpDir, '155-02');
+    const nestedDir = path.join(workspace.path, 'nested', 'child');
+    fs.mkdirSync(nestedDir, { recursive: true });
+
+    const proveResult = runGsdToolsInRepo('workspace prove 155-02', nestedDir);
+    assert.ok(proveResult.success, `workspace prove failed: ${proveResult.error}`);
+
+    const proveData = JSON.parse(proveResult.output);
+    assert.strictEqual(proveData.parallel_allowed, false);
+    assert.strictEqual(proveData.fallback_reason, 'workspace proof missing or mismatched before work start');
+    assert.strictEqual(proveData.intended_root, resolvedPath(workspace.path));
+    assert.strictEqual(proveData.observed_cwd, resolvedPath(nestedDir));
+    assert.strictEqual(proveData.observed_jj_root, resolvedPath(workspace.path));
+  });
+
+  test('workspace prove returns the same generic fallback when authoritative workspace proof is unavailable', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    createJjProject();
+
+    const proveResult = runGsdToolsInRepo('workspace prove 155-02', tmpDir);
+    assert.ok(proveResult.success, `workspace prove failed: ${proveResult.error}`);
+
+    const proveData = JSON.parse(proveResult.output);
+    assert.strictEqual(proveData.parallel_allowed, false);
+    assert.strictEqual(proveData.fallback_reason, 'workspace proof missing or mismatched before work start');
+    assert.strictEqual(proveData.intended_root, null);
+    assert.strictEqual(proveData.observed_cwd, resolvedPath(tmpDir));
+    assert.strictEqual(proveData.observed_jj_root, resolvedPath(tmpDir));
+  });
+
   test('rejects duplicate workspace add for same plan', (t) => {
     if (!hasJj()) t.skip('jj unavailable');
     createJjProject();
