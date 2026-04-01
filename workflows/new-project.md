@@ -124,7 +124,7 @@ Task(prompt="
 - .planning/INTENT.md (if exists)
 - .planning/config.json
 </files_to_read>
-Create roadmap: derive phases, map every v1 requirement, 2-5 success criteria per phase, 100% coverage. Write ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability. Return ROADMAP CREATED.
+Create roadmap: derive phases, map every v1 requirement, 2-5 success criteria per phase, 100% coverage. Write ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability. Initialize `STATE.md` Current Position with numeric execution-ready phase/plan values that match the first phase instead of `Not started` or `TBD`. Return ROADMAP CREATED.
 ", subagent_type="bgsd-roadmapper", model="{roadmapper_model}", description="Create roadmap")
 ```
 

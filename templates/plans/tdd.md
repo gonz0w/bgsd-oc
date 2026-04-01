@@ -57,7 +57,7 @@ Output: [Working, tested feature with 2-3 commits.]
   <name>[Feature name]</name>
   <files>[source file], [test file]</files>
   <tdd-targets>
-    <red>[Exact command that should fail in RED]</red>
+    <red>[Exact command that should fail in RED. Prefer a direct file/test selector over shell substitutions or inline scripts.]</red>
     <green>[Exact command that should pass in GREEN; usually same selector as RED]</green>
     <refactor>[Exact command that should keep passing in REFACTOR; usually same selector as GREEN]</refactor>
   </tdd-targets>

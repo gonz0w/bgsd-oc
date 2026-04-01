@@ -184,6 +184,7 @@ Before declaring complete, verify:
 
 <output>
 Write to: {phase_dir}/{padded_phase}-RESEARCH.md
+If the current runtime does not expose a direct Write tool, create or update the file with `apply_patch` instead of stopping on the missing tool.
 </output>",
   subagent_type="bgsd-phase-researcher",
   model="{researcher_model}",

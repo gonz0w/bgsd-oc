@@ -60,7 +60,7 @@ Output: [Concrete deliverables when complete.]
 Include code snippets, exact values, and step-by-step instructions where helpful.]
   </action>
   <verify>
-[Exact commands or checks to confirm task completion.]
+[Exact commands or checks to confirm task completion. Prefer simple `node --test`, `npm`, `rg`, or direct file checks over `node -e` snippets or command substitutions unless the extra complexity is essential.]
 ```bash
 [verification command]
 ```

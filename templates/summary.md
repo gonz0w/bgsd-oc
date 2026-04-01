@@ -84,21 +84,21 @@ Review the exact RED/GREEN/REFACTOR proof package here. REFACTOR evidence is req
 ### RED
 - **Commit:** `abc123f` (test: add failing test)
 - **GSD-Phase:** red
-- **Target command:** `node --test tests/foo.test.cjs --test-name-pattern "foo"`
+- **Target command:** `node --test --test-name-pattern "foo" tests/foo.test.cjs`
 - **Exit status:** `1`
 - **Matched evidence:** `not ok 1 - foo handles missing input`
 
 ### GREEN
 - **Commit:** `def456g` (feat: implement foo)
 - **GSD-Phase:** green
-- **Target command:** `node --test tests/foo.test.cjs --test-name-pattern "foo"`
+- **Target command:** `node --test --test-name-pattern "foo" tests/foo.test.cjs`
 - **Exit status:** `0`
 - **Matched evidence:** `ok 1 - foo handles missing input`
 
 ### REFACTOR
 - **Commit:** `hij789k` (refactor: clean up foo)
 - **GSD-Phase:** refactor
-- **Target command:** `node --test tests/foo.test.cjs --test-name-pattern "foo"`
+- **Target command:** `node --test --test-name-pattern "foo" tests/foo.test.cjs`
 - **Exit status:** `0`
 - **Matched evidence:** `ok 1 - foo handles missing input`
 

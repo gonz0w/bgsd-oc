@@ -206,7 +206,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
   )
   ```
 
-4. **Spot-check:** Verify first 2 files from `key-files.created`. `jj log --no-graph -T 'change_id.shortest(8) ++ " " ++ description.first_line() ++ "\n"' | grep "{phase}-{plan}"` ≥1 commit. Check for `## Self-Check: FAILED`. Fail → report, ask "Retry?" or "Continue?".
+4. **Spot-check:** Verify first 2 files from `key-files.created`. Because `execute:commit` returns git commit hashes, check commits with `jj log --no-graph -T 'commit_id.shortest(8) ++ " " ++ description.first_line() ++ "\n"' | grep "{phase}-{plan}"` ≥1 commit. Check for `## Self-Check: FAILED`. Fail → report, ask "Retry?" or "Continue?".
 
 5. **Failures:** `classifyHandoffIfNeeded` error → spot-check; if pass → treat as success. Real failures → report → ask continue/stop.
 

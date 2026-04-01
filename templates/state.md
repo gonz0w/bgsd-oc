@@ -19,7 +19,7 @@ See: .planning/PROJECT.md (updated [date])
 ## Current Position
 
 Phase: [X] of [Y] ([Phase name])
-Plan: [A] of [B] in current phase
+Plan: [01] of [03] in current phase
 Status: [Ready to plan / Planning / Ready to execute / In progress / Phase complete]
 Last activity: [YYYY-MM-DD] — [What happened]
 
@@ -93,6 +93,7 @@ STATE.md is the project's short-term memory spanning all phases and sessions.
 - Reference PROJECT.md (read it for current context)
 - Initialize empty accumulated context sections
 - Set position to "Phase 1 ready to plan"
+- When ROADMAP.md already defines plan counts, initialize `Current Position` with numeric execution-ready values (for example `Plan: 01 of 03 in current phase`) instead of `Not started` or `TBD` placeholders.
 - During milestone resets or other major rewrites, prefer rewriting the full file from the template instead of patching sections in place so stale trailing content cannot survive.
 
 **Reading:** First step of every workflow

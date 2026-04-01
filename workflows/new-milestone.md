@@ -217,7 +217,7 @@ Create roadmap for milestone v[X.Y]:
 4.5. Treat project intent as the durable north star and milestone intent as the current why-now/priorities/non-goals layer
 5. Validate 100% coverage
 6. Before rewriting an active roadmap, inspect the most recent archived milestone roadmap plus the template so the new active roadmap preserves the expected milestone-grouped shape.
-7. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability)
+7. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability) and initialize `STATE.md` Current Position with numeric execution-ready phase/plan values for the first active phase
 8. After writing, run full validation across ROADMAP.md, STATE.md, and REQUIREMENTS.md and fix any format issues before returning success
 9. Return ROADMAP CREATED with summary
 </instructions>
@@ -236,7 +236,7 @@ Create roadmap for milestone v[X.Y]:
 ROADMAP_CHECK=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null)
 ```
 
-Also run the full planning validator for the rewritten `ROADMAP.md`, `STATE.md`, and `REQUIREMENTS.md`, and fix any reported state/roadmap shape issues before committing.
+Also run the full planning validator for the rewritten `ROADMAP.md`, `STATE.md`, and `REQUIREMENTS.md`, confirm the first active phase has numeric execution-ready plan fields, and fix any reported state/roadmap shape issues before committing.
 
 ```bash
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs: create milestone v[X.Y] roadmap ([N] phases)" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md

@@ -60,7 +60,7 @@ Document findings in DISCOVERY.md with:
 - Recommendation with rationale
   </action>
   <verify>
-[How to verify research quality — e.g., DISCOVERY.md exists and contains comparison table.]
+[How to verify research quality — e.g., DISCOVERY.md exists and contains comparison table. Prefer direct file checks or simple commands over inline scripts.]
 ```bash
 [ -f .planning/phases/[XX-phase-name]/DISCOVERY.md ] && echo "FOUND" || echo "MISSING"
 ```
@@ -84,7 +84,7 @@ Prototype scope:
 Add prototype results to DISCOVERY.md under "## Prototype Results".
   </action>
   <verify>
-[Prototype runs and produces measurable results.]
+[Prototype runs and produces measurable results. Keep the proof command simple and directly tied to the prototype result.]
 ```bash
 [prototype verification command]
 ```

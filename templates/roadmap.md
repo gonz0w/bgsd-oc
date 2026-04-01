@@ -112,7 +112,7 @@ Phases execute in numeric order: 2 → 2.1 → 2.2 → 3 → 3.1 → 4
 - Plans use naming: {phase}-{plan}-PLAN.md (e.g., 01-02-PLAN.md)
 - No time estimates (this isn't enterprise PM)
 - Progress table updated by execute workflow
-- Plan count can be "TBD" initially, refined during planning
+- Draft notes may start uncertain, but once ROADMAP.md and STATE.md are written the phase plan counts must be numeric and execution-ready so downstream execution helpers never depend on `TBD` or similar placeholders
 
 **CRITICAL — Checklist/section parity:**
 - Every `### Phase N:` detail section MUST have a matching `- [ ] **Phase N: ...**` checklist entry

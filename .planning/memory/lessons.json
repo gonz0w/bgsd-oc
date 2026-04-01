@@ -108,18 +108,6 @@
     ]
   },
   {
-    "id": "8a8bc3c6-45e0-474a-aa5a-6edacd79d07a",
-    "date": "2026-03-31T01:59:19.228Z",
-    "title": "State advance-plan should handle Not started phase state",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "verify:state advance-plan assumes STATE.md already has numeric Current Plan and Total Plans in Phase values, but freshly planned phases can still be in 'Not started' / 'TBD' form when the first execution plan completes.",
-    "prevention_rule": "Teach verify:state advance-plan to initialize numeric plan position from on-disk phase plans and summaries before incrementing so first-plan execution can follow the normal state-update protocol without manual repair.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
     "id": "2de0badc-cc6b-4106-a8c7-1ea70fd254bf",
     "date": "2026-03-31T02:57:24.953Z",
     "title": "Verifier helper should fail structured, not crash",
@@ -139,18 +127,6 @@
     "type": "workflow",
     "root_cause": "Integration tests for CLI commands execute bin/bgsd-tools.cjs, so source-only edits can leave tests exercising stale runtime artifacts until npm run build refreshes the bundle.",
     "prevention_rule": "When a task changes source used by runtime-backed integration commands, rebuild before the first green proof instead of waiting for final verification.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "b7ce85b6-dcc9-4d8d-8cdf-66fbe0c73eae",
-    "date": "2026-03-31T05:01:50.590Z",
-    "title": "Place Node test-name filters before file paths",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "Focused verification initially still executed the entire test file because the Node test runner respected --test-name-pattern only when the flag appeared before positional file arguments in this environment.",
-    "prevention_rule": "When using node --test for scoped proof, place --test-name-pattern before test file paths and verify the filtered run reports only the intended subtests before relying on it for green evidence.",
     "affected_agents": [
       "bgsd-executor"
     ]
@@ -199,18 +175,6 @@
     "type": "tooling",
     "root_cause": "The local Node test runner treats src/plugin/*.js source files as non-importable CommonJS in this workspace, so new source-level plugin tests can fail before exercising behavior.",
     "prevention_rule": "When adding focused tests for new src/plugin modules, either exercise the built plugin bundle or copy the touched source files to temporary .mjs fixtures before importing them so RED/GREEN proofs reflect behavior instead of loader mismatches.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
-    "id": "8734e0ca-6d23-4ec0-9f67-d0e7d506daa2",
-    "date": "2026-03-31T13:19:25.562Z",
-    "title": "Executor self-check should verify execute:commit hashes against commit_id",
-    "severity": "MEDIUM",
-    "type": "workflow",
-    "root_cause": "The execute-plan self-check example checks jj change IDs, but execute:commit returns git commit hashes. Executors can incorrectly think commits are missing unless they inspect commit_id instead.",
-    "prevention_rule": "Update executor workflow and summary guidance so self-check commands verify execute:commit hashes with jj commit_id.shortest(...) or clearly state when to use change_id versus commit_id.",
     "affected_agents": [
       "bgsd-executor"
     ]
@@ -300,30 +264,6 @@
     ]
   },
   {
-    "id": "6f3e4944-175e-4ef8-98fb-605e20408a98",
-    "date": "2026-03-31T18:50:53.608Z",
-    "title": "Cold-cache plan-structure should not crash",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "The first verify:verify plan-structure invocation can hit a cold-cache warmup path that references writeDebugDiagnostic before definition, causing a ReferenceError and forcing a retry before plan verification can proceed.",
-    "prevention_rule": "Guard cache-warmup diagnostics behind a defined helper or remove the call so verifier subcommands remain deterministic on first run without manual retry.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "5887fe13-7c4f-48d0-a930-7eb883aafe28",
-    "date": "2026-03-31T18:53:13.934Z",
-    "title": "Re-run plan-structure verification on revised plans",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "Plan approval can hinge on verifier-consumable must_haves metadata that looks present in the file but only  confirms is acceptable.",
-    "prevention_rule": "On every plan re-check, rerun  and  against the current files before carrying forward any prior blockers or approvals.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
     "id": "881b622e-9e9c-4c80-9594-41bc763ba1e2",
     "date": "2026-03-31T19:09:16.889Z",
     "title": "Repair STATE.md after complete-plan leaves stale phase header",
@@ -361,42 +301,6 @@
     ]
   },
   {
-    "id": "fbada314-2f2f-47f3-8d84-62b1be28ef14",
-    "date": "2026-03-31T22:39:29.669Z",
-    "title": "Prefer simple file-check verifies in PLAN.md",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "verify:verify analyze-plan tokenizes task <verify> commands heuristically and can misread complex node -e snippets or shell substitutions as unavailable file paths, causing false approval blockers.",
-    "prevention_rule": "When writing PLAN.md verification commands, prefer simple test/rg/npm commands over embedded node -e scripts or command substitutions unless the extra complexity is essential.",
-    "affected_agents": [
-      "bgsd-planner"
-    ]
-  },
-  {
-    "id": "c01be0ad-8f1c-4039-86f6-e1a058c0741c",
-    "date": "2026-03-31T22:40:34.769Z",
-    "title": "Retry verify:verify plan-structure before treating tool failures as blockers",
-    "severity": "LOW",
-    "type": "tooling",
-    "root_cause": "The first plan-structure invocation threw an internal CLI ReferenceError, but an immediate retry succeeded, showing some verifier failures can be transient rather than plan defects.",
-    "prevention_rule": "When a required verifier command fails unexpectedly, retry once before converting the failure into a plan blocker; only persistent failures should be reported as unavailable validation steps.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "29e95754-f03c-4d7b-aa96-fcc47834ba7b",
-    "date": "2026-03-31T22:50:18.292Z",
-    "title": "Seed numeric STATE plan fields before first execute-phase run",
-    "severity": "LOW",
-    "type": "workflow",
-    "root_cause": "verify:state complete-plan assumes STATE.md already contains parseable numeric Current Plan and Total Plans in Phase values, but newly planned phases can still hold 'Not started' and 'TBD'.",
-    "prevention_rule": "When phase planning finishes, normalize STATE.md to numeric execution-ready placeholders (phase number, current plan 01, total plan count) so execute-phase helpers do not fail on the first completion update.",
-    "affected_agents": [
-      "bgsd-executor"
-    ]
-  },
-  {
     "id": "977adbdc-9ea2-4386-99ea-f031237be662",
     "date": "2026-03-31T23:00:09.863Z",
     "title": "Artifact verifier false-negatives on comma-separated contains metadata",
@@ -418,42 +322,6 @@
     "prevention_rule": "When PLAN artifact metadata needs multiple required markers, encode them in a verifier-supported form or update the helper to split and test each marker independently before using contains results as evidence.",
     "affected_agents": [
       "bgsd-verifier"
-    ]
-  },
-  {
-    "id": "5bc725a0-8c24-4f69-af5f-1be61690f42a",
-    "date": "2026-03-31T23:20:28.106Z",
-    "title": "Phase researchers should fall back to apply_patch when write tool is unavailable",
-    "severity": "LOW",
-    "type": "tooling",
-    "root_cause": "The phase-researcher workflow assumes a Write-capable runtime, but some tool manifests expose read/edit/apply_patch without a direct write function.",
-    "prevention_rule": "After loading context, check available filesystem mutation tools; if Write is absent, switch immediately to apply_patch for artifact creation instead of delaying at output time.",
-    "affected_agents": [
-      "bgsd-phase-researcher"
-    ]
-  },
-  {
-    "id": "2280ccb2-2bb0-4200-b5f7-fa1a7f0bcc6e",
-    "date": "2026-03-31T23:35:18.558Z",
-    "title": "Retry plan-structure after cache-warm verifier crash",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "The first parallel verify:verify plan-structure call can crash during cache warm-up because the bundled verifier references an undefined writeDebugDiagnostic helper before returning results.",
-    "prevention_rule": "When plan-structure crashes during initial parallel verification, immediately rerun the affected plan serially and treat the failure as a tooling retry case rather than a malformed plan.",
-    "affected_agents": [
-      "bgsd-plan-checker"
-    ]
-  },
-  {
-    "id": "bcf4dc3c-c98d-47f1-8cd6-197ed4661b6b",
-    "date": "2026-03-31T23:39:54.488Z",
-    "title": "Avoid first-run parallel plan-structure verifier fan-out on cold cache",
-    "severity": "MEDIUM",
-    "type": "tooling",
-    "root_cause": "Running multiple verify:verify plan-structure commands in parallel on a cold cache can trigger a bgsd-tools bug where cache warming calls an undefined writeDebugDiagnostic helper, causing a spurious verifier crash.",
-    "prevention_rule": "Warm phase/plan cache with one serial verifier invocation before parallelizing additional plan-structure checks, or fix bgsd-tools so cache warming never references undefined diagnostics.",
-    "affected_agents": [
-      "bgsd-plan-checker"
     ]
   },
   {
@@ -524,6 +392,18 @@
     "type": "tooling",
     "root_cause": "The bundled verification path can invoke cache warm-up code that calls writeDebugDiagnostic even when that helper is undefined in the runtime bundle, causing verify:key-links to crash before returning evidence.",
     "prevention_rule": "Add a bundled-runtime smoke check that exercises verify:key-links and other cache-warming verification commands, and guard optional debug hooks behind a defined-function check before calling them.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "0ba24f74-6a81-4898-8a19-ed1b28995a9f",
+    "date": "2026-04-01T02:06:29.431Z",
+    "title": "Verifier should treat helper-runtime crashes as tooling warnings and continue manual proof",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The bundled verifier helpers can crash on cache warm paths (for example when writeDebugDiagnostic is undefined), which blocks helper-only evidence collection even when the underlying artifacts are verifiable from source and focused tests.",
+    "prevention_rule": "When verify helpers crash, record the helper failure as a tooling warning and immediately switch to manual artifact/key-link checks plus focused tests instead of treating the crash as the only source of truth.",
     "affected_agents": [
       "bgsd-verifier"
     ]
