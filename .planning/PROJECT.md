@@ -10,21 +10,25 @@ A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, pr
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: None Active
+## Current Milestone: v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing
 
-**Status:** v18.1 shipped and archived.
-**Next step:** Start `/bgsd-new-milestone` after `/clear`.
+**Goal:** Make JJ workspace execution runtime-truthful, keep shared planning state single-writer and deterministic, surface trustworthy cmux coordination, and align verification cost to change risk.
+**Target features:**
+- Runtime-enforced JJ workspace pinning with safe sequential fallback
+- Deterministic reconcile and single-writer finalize flow for shared `.planning/` truth
+- Debounced cmux runtime coordination with truthful status, progress, and attention signals
+- Risk-based `skip` / `light` / `full` verification routing across planning, execution, and verification
 
 ## Milestone Status
 
-**Current milestone:** None active
+**Current milestone:** v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing
 **Last completed milestone:** v18.1 Greenfield Cleanup & CLI Simplification
-**Next step:** Choose the next milestone scope and generate a fresh roadmap
+**Next step:** Define requirements and create the milestone roadmap
 
 ## Current State
 
 **Last shipped:** v18.1 Greenfield Cleanup & CLI Simplification (2026-04-01)
-**Now planning:** Next milestone not started
+**Now planning:** v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing
 
 <details>
 <summary>Latest shipment: v18.1 Greenfield Cleanup & CLI Simplification (shipped 2026-04-01)</summary>
@@ -554,4 +558,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-04-01 after completing and archiving milestone v18.1 Greenfield Cleanup & CLI Simplification*
+*Last updated: 2026-04-01 after starting milestone v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing*
