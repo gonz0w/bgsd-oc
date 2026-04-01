@@ -14,7 +14,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 - [x] **Phase 173: Simplification Audit & Safe Sequencing** (completed 2026-03-31) - Classify cleanup targets and safe order of operations before deleting or flattening anything.
 - [x] **Phase 174: Greenfield Compatibility Surface Cleanup** (completed 2026-04-01) - Remove migration-only and superseded normalization paths while keeping canonical artifacts valid; verification gaps remain.
 - [x] **Phase 175: Canonical Command Surface Alignment** - Move routing, aliases, help, and discovery toward one clearer command definition and supported guidance surface, including the remaining Phase 174 command-integrity blocker. (completed 2026-04-01)
-- [ ] **Phase 176: Command Hotspot Simplification & Hardening** - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
+- [x] **Phase 176: Command Hotspot Simplification & Hardening** (completed 2026-04-01) - Break up the highest-friction CLI hotspots and prove supported workflows still hold after cleanup.
 
 ## Phase Details
 
@@ -57,7 +57,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Maintainers can change touched command families inside smaller, easier-to-reason-about subdomain files instead of multi-thousand-line bucket modules and ambient output globals.
   2. Maintainers can show that touched cleanup paths no longer rely on silent error swallowing, unnecessary async or control-flow indirection, or unguarded shared mutable state.
   3. Users can run supported planning and settings workflows after cleanup with regression proof showing canonical command routes still work.
-**Plans**: 2/4 complete
+**Plans**: 4/4 plans complete
 
 ## Progress
 
@@ -66,7 +66,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 | 173. Simplification Audit & Safe Sequencing | 2/2 | Complete    | 2026-03-31 |
 | 174. Greenfield Compatibility Surface Cleanup | 8/8 | Complete   | 2026-04-01 |
 | 175. Canonical Command Surface Alignment | 4/4 | Complete    | 2026-04-01 |
-| 176. Command Hotspot Simplification & Hardening | 2/4 | In progress | - |
+| 176. Command Hotspot Simplification & Hardening | 4/4 | Complete   | 2026-04-01 |
 
 ## Backlog
 

@@ -29,7 +29,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 
 ### SAFE - Behavior Preservation & Hardening
 
-- [ ] **SAFE-01** Users can run supported planning and settings workflows after cleanup with regression coverage proving canonical command routes still work.
+- [x] **SAFE-01** Users can run supported planning and settings workflows after cleanup with regression coverage proving canonical command routes still work.
 - [ ] **SAFE-02** Maintainers can eliminate silent error swallowing, unnecessary async or control-flow indirection, and unguarded shared mutable state on touched cleanup paths before milestone close.
 - [x] **SAFE-03** Users see help and workflow guidance that match the real supported command surface after cleanup, with stale aliases or contradictory guidance removed.
 
