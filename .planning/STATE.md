@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 175 — canonical-command-surface-alignment plan 04 of 4
+**Current focus:** Phase 176 — command-hotspot-simplification-hardening plan 02 of 4
 
 ## Current Position
 
-**Phase:** 175
-**Current Plan:** Not started
+**Phase:** 176
+**Current Plan:** 02
 **Total Plans in Phase:** 4
-**Status:** Ready to plan
+**Status:** Ready to execute
 **Last Activity:** 2026-04-01
 
 **Progress:** [██████████] 99%
@@ -47,6 +47,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 175-canonical-command-surface-alignment P02 | 6 min | 2 tasks | 8 files |
 | Phase 175-canonical-command-surface-alignment P03 | 10 min | 2 tasks | 6 files |
 | Phase 175-canonical-command-surface-alignment P04 | 8 min | 2 tasks | 2 files |
+| Phase 176-command-hotspot-simplification-hardening P02 | 5 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -514,6 +515,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 - [Phase 175-canonical-command-surface-alignment]: Primary planning-entry docs now teach explicit /bgsd-plan phase, discuss, research, and assumptions routes with visible phase operands. — Phase 175 requires primary planning-family guidance to reinforce the canonical /bgsd-plan grammar and keep shorthand out of runnable entry surfaces.
 - [Phase 175-canonical-command-surface-alignment]: Expanded sibling-route parity tests and aligned roadmap/gaps/todo workflows to canonical /bgsd-plan umbrella — Workflow surfaces must teach canonical planning routes to prevent drift
 - [Phase 175-canonical-command-surface-alignment]: Adjacent surfaces already aligned to canonical planning-family routes — Tests confirm templates/state.md, workflows/new-milestone.md, workflows/progress.md, and docs/expert-guide.md teach canonical /bgsd-plan routes
+- [Phase 176]: Extracted verify.js (3383 LOC) into verify/ subdomain with barrel re-export — Phase 176 CLI-03 requires maintainers to work within smaller command subdomains; backward compatibility preserved via barrel at original path
 
 ### Pending Todos
 
