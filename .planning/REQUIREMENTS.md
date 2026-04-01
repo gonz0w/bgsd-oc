@@ -23,8 +23,8 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 
 ### CLI - Command-System Simplification
 
-- [ ] **CLI-01** Maintainer can change command dispatch, help, aliases, and discovery from a clearer canonical definition instead of parallel registries that drift.
-- [ ] **CLI-02** Maintainer can change router parsing behavior without editing a god-object full of repeated hand-written flag scans and unrelated startup logic.
+- [x] **CLI-01** Maintainer can change command dispatch, help, aliases, and discovery from a clearer canonical definition instead of parallel registries that drift.
+- [x] **CLI-02** Maintainer can change router parsing behavior without editing a god-object full of repeated hand-written flag scans and unrelated startup logic.
 - [ ] **CLI-03** Maintainer can work within smaller command subdomains instead of multi-thousand-line bucket modules and ambient output globals.
 
 ### SAFE - Behavior Preservation & Hardening

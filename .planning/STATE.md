@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 174 complete — ready for verification
+**Current focus:** Phase 175 — canonical-command-surface-alignment plan 02 of 4
 
 ## Current Position
 
-**Phase:** 174
-**Current Plan:** 8
-**Total Plans in Phase:** 8
-**Status:** Phase complete — ready for verification
+**Phase:** 175
+**Current Plan:** 2
+**Total Plans in Phase:** 4
+**Status:** Ready to execute
 **Last Activity:** 2026-04-01
 
-**Progress:** [██████████] 100%
+**Progress:** [██████████] 97%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 356 (through Phase 174 P01)
+- Total plans completed: 357 (through Phase 175 P01)
 - Average duration: ~12 min/plan
-- Total execution time: ~54.8 hours
+- Total execution time: ~54.9 hours
 
 **By Phase:**
 
@@ -43,6 +43,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 | Phase 174 P06 | 10 min | 2 tasks | 2 files |
 | Phase 174 P07 | 5 min | 3 tasks | 8 files |
 | Phase 174 P08 | 6 min | 2 tasks | 2 files |
+| Phase 175-canonical-command-surface-alignment P01 | 9 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,64 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 - [Phase 174]: Published config docs now teach the supported JJ workspace-first model and remove worktree-era or migration-helper guidance. — Phase 174 intent requires docs, templates, and troubleshooting to match the active runtime contract instead of preserving stale compatibility-era instructions.
 - [Phase 174]: Aligned hidden NL helpers and surfaced guidance to canonical slash-command routes
 - [Phase 174]: Command integrity now distinguishes legacy planning aliases from workflow-internal fallback reconstruction context — Phase 174 required canonical surfaced guidance to stay strict while treating removed aliases and internal bootstrap examples with precise classifications.
+- [Phase 174]: Command integrity now distinguishes legacy planning aliases from workflow-internal fallback reconstruction context — Phase 174 required canonical surfaced guidance to stay strict while treating removed aliases and internal bootstrap examples with precise classifications.
+- [Phase 174]: Deleted dead plugin roadmap normalization helpers so the touched parser source matches the canonical non-normalizing read contract instead of preserving hidden compatibility residue.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 174]: Aligned hidden NL discovery to canonical verify:state, plan:milestone, and /bgsd-inspect progress guidance
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
+- [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
+- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
+- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
+- [Phase 174]: Aligned hidden NL discovery to canonical verify:state, plan:milestone, and /bgsd-inspect progress guidance
+- [Phase 174]: Published config docs now teach the supported JJ workspace-first model and remove worktree-era or migration-helper guidance. — Phase 174 intent requires docs, templates, and troubleshooting to match the active runtime contract instead of preserving stale compatibility-era instructions.
+- [Phase 174]: Aligned hidden NL helpers and surfaced guidance to canonical slash-command routes
+- [Phase 174]: Command integrity now distinguishes legacy planning aliases from workflow-internal fallback reconstruction context — Phase 174 required canonical surfaced guidance to stay strict while treating removed aliases and internal bootstrap examples with precise classifications.
+- [Phase 175-canonical-command-surface-alignment]: Planning-family validation now loads canonical route metadata from commands/bgsd-plan.md and rejects shorthand /bgsd-plan invocations without guessing intent. — Phase 175 needs one maintainable planning-family definition for alias suggestions, required operands, and future docs parity work.
 
 ### Pending Todos
 
@@ -115,6 +174,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-01T02:37:24.456Z
-Stopped at: Completed 174-08-PLAN.md
+Last session: 2026-04-01T03:52:57.692Z
+Stopped at: Completed 175-01-PLAN.md
 Resume file: None
