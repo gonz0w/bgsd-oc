@@ -1108,7 +1108,7 @@ function isReferenceStyleMention(mention) {
 function extractCommandMentions(content) {
   const mentions = [];
   const lines = content.split(/\r?\n/);
-  const slashRegex = /(^|[\s`"'([<{|:;-])(?<command>\/bgsd-[a-z0-9-]+(?:\s+(?:\[[^\]]+\]|\{[^}]+\}|<[^>]+>|[^\s`"'<>()[\]{}]+))*)/gi;
+  const slashRegex = /(^|[\s`"'([<{|:;-])(?<command>\/bgsd-[a-z0-9-]+(?:\s+(?:"[^"]+"|'[^']+'|\[[^\]]+\]|\{[^}]+\}|<[^>]+>|[^\s`"'<>()[\]{}]+))*)/gi;
   const cliRegex = /(?:^|[^a-z0-9-])((?:(?:bgsd-tools|gsd-tools)\s+(?:[a-z0-9-]+(?::[a-z0-9-]+)?)(?:\s+(?:--[a-z0-9-]+(?:=[^\s`"'<>()[\]{}]+)?|[a-z0-9./:_-]+))*|node\s+[^\s`"'<>()[\]{}]*bgsd-tools\.cjs\s+(?:[a-z0-9-]+(?::[a-z0-9-]+)?)(?:\s+(?:--[a-z0-9-]+(?:=[^\s`"'<>()[\]{}]+)?|[a-z0-9./:_-]+))*))/gi;
   let inFence = false;
   let fenceLabel = '';

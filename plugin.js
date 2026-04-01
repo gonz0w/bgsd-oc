@@ -10440,7 +10440,11 @@ function toConvention(name, convention) {
   }
 }
 var PLANNING_COMMANDS = {
-  "ROADMAP.md": ["/bgsd-plan roadmap add", "/bgsd-plan roadmap remove", "/bgsd-plan roadmap insert"],
+  "ROADMAP.md": [
+    '/bgsd-plan roadmap add "<description>"',
+    "/bgsd-plan roadmap remove <phase-number>",
+    '/bgsd-plan roadmap insert <after> "<description>"'
+  ],
   "STATE.md": ["/bgsd-inspect progress", "/bgsd-execute-phase"],
   "PLAN.md": ["/bgsd-plan phase [phase]"],
   "CONTEXT.md": ["/bgsd-plan discuss [phase]"],
