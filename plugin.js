@@ -10285,7 +10285,7 @@ function createIdleValidator(cwd, notifier, fileWatcher, config) {
                 type: "phase-complete",
                 severity: "warning",
                 message: `Phase ${phaseNum} complete! Next: Phase ${nextPhase.number} (${nextPhase.name}). Verify against this repo's current checkout, and rebuild the local runtime before trusting generated guidance if runtime surfaces changed.`,
-                action: `Next: /bgsd-plan phase ${nextPhase.number}`
+                action: `/bgsd-plan phase ${nextPhase.number}`
               });
             }
           }
