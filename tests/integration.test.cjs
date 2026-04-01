@@ -292,6 +292,18 @@ describe('integration: phase 156 workspace execution contract', () => {
   });
 });
 
+describe('integration: phase 181 workspace proof-first fallback contract', () => {
+  test('execute-phase requires workspace proof before plan work begins', () => {
+    const projectRoot = path.join(__dirname, '..');
+    const executePhase = fs.readFileSync(path.join(projectRoot, 'workflows', 'execute-phase.md'), 'utf-8');
+
+    assert.match(executePhase, /`workspace prove \{plan_id\}` immediately after workspace creation and before executor plan work starts/i);
+    assert.match(executePhase, /Only if proof succeeds may the workflow continue with workspace-parallel execution/i);
+    assert.match(executePhase, /intended workspace, observed executor cwd, observed `jj workspace root`, and one generic fallback reason/i);
+    assert.match(executePhase, /downgrade to Mode B sequential execution before any plan work, summary creation, plan-local outputs, or other repo-relative work begin/i);
+  });
+});
+
 describe('integration: state round-trip', () => {
   let tmpDir;
 

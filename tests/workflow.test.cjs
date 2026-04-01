@@ -1123,6 +1123,19 @@ describe('Phase 165 repo-local rebuilt-runtime workflow contracts', () => {
   });
 });
 
+describe('Phase 181 workspace proof-first workflow contracts', () => {
+  test('execute-phase keeps proof-first sequential fallback wording explicit', () => {
+    const execute = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-phase.md'), 'utf-8');
+
+    assert.match(execute, /`workspace prove \{plan_id\}` immediately after workspace creation/i);
+    assert.match(execute, /before executor plan work starts/i);
+    assert.match(execute, /Only if proof succeeds may the workflow continue with workspace-parallel execution/i);
+    assert.match(execute, /fall back to Mode B sequential execution before any plan work begins/i);
+    assert.match(execute, /observed executor cwd, observed `jj workspace root`, and one generic fallback reason/i);
+    assert.match(execute, /before any plan work, summary creation, plan-local outputs, or other repo-relative work begin/i);
+  });
+});
+
 describe('Phase 166 completion metadata workflow contracts', () => {
   test('execute-plan uses the repaired completion path and readback repair wording', () => {
     const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');

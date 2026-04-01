@@ -136,13 +136,16 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
 **Mode A: Workspace-based parallel** (`workspace_enabled` + parallel + multi-plan wave)
 
-  a. `workspace add {plan_id}` for each runnable plan in the wave so every plan gets its own managed JJ workspace. Fail → fall back to sequential.
-  b. Inject codebase context (same as Mode B).
-  c. Spawn in workspace dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{workspace_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
-  d. Monitor each workspace independently: check `{workspace_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`, track commit/summary status per workspace, and keep the plan → workspace mapping visible in wave reporting.
-  e. Wait. Separate healthy/successful workspaces from failed or recovery-needed workspaces. Report partial-wave outcomes honestly instead of collapsing the whole wave into one success/failure bit.
-  f. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace, use the returned status/recovery preview to reconcile healthy workspaces immediately, and leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
-  g. Cleanup: keep failed or divergent workspaces during recovery work, and only let `workspace cleanup` remove obsolete failed workspaces after successful phase completion confirms they are no longer needed.
+  a. `workspace add {plan_id}` for each runnable plan in the wave so every plan gets its own managed JJ workspace. If workspace creation fails or workspace mode is unavailable, fall back to Mode B sequential execution before any plan work begins.
+  b. Run `workspace prove {plan_id}` immediately after workspace creation and before executor plan work starts. Treat this as the proof gate, not an advisory check.
+  c. Only if proof succeeds may the workflow continue with workspace-parallel execution. Operator-facing proof/fallback guidance must name the intended workspace, observed executor cwd, observed `jj workspace root`, and one generic fallback reason.
+  d. If proof fails or workspace mode is unavailable, downgrade to Mode B sequential execution before any plan work, summary creation, plan-local outputs, or other repo-relative work begin.
+  e. Inject codebase context (same as Mode B).
+  f. Spawn in workspace dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{workspace_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
+  g. Monitor each workspace independently: check `{workspace_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`, track commit/summary status per workspace, and keep the plan → workspace mapping visible in wave reporting.
+  h. Wait. Separate healthy/successful workspaces from failed or recovery-needed workspaces. Report partial-wave outcomes honestly instead of collapsing the whole wave into one success/failure bit.
+  i. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace, use the returned status/recovery preview to reconcile healthy workspaces immediately, and leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
+  j. Cleanup: keep failed or divergent workspaces during recovery work, and only let `workspace cleanup` remove obsolete failed workspaces after successful phase completion confirms they are no longer needed.
 
 **Mode B: Standard execution** (workspace disabled OR single-plan OR no parallelization)
 
