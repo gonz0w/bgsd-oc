@@ -39,10 +39,10 @@ Canonical docs should teach `/bgsd-plan ...` first. Older planning aliases may s
 
 | Workflow | Command | What It Does |
 |----------|---------|-------------|
-| `plan-phase.md` | `/bgsd-plan phase [phase]` | Creates PLAN.md files: optional research → planner agent → plan-checker review |
-| `discuss-phase.md` | `/bgsd-plan discuss [phase]` | Interactive decision gathering, produces CONTEXT.md |
-| `list-phase-assumptions.md` | `/bgsd-plan assumptions [phase]` | Surfaces AI assumptions (conversational, no files created) |
-| `research-phase.md` | `/bgsd-plan research [phase]` | Spawns phase researcher for domain investigation |
+| `plan-phase.md` | `/bgsd-plan phase <phase>` | Creates PLAN.md files: optional research → planner agent → plan-checker review |
+| `discuss-phase.md` | `/bgsd-plan discuss <phase>` | Interactive decision gathering, produces CONTEXT.md |
+| `list-phase-assumptions.md` | `/bgsd-plan assumptions <phase>` | Surfaces AI assumptions (conversational, no files created) |
+| `research-phase.md` | `/bgsd-plan research <phase>` | Spawns phase researcher for domain investigation |
 | `tdd.md` | (internal) | TDD plan execution workflow (RED-GREEN-REFACTOR state machine) |
 
 ### Execution (4 workflows)
@@ -206,7 +206,7 @@ Several workflows spawn multiple agents simultaneously:
 ### Quality Review Loop
 
 ```
-/bgsd-plan phase [phase]:
+/bgsd-plan phase <phase>:
   Spawn gsd-planner → Creates PLAN.md
   Spawn gsd-plan-checker → Reviews PLAN.md
   If revision needed:

@@ -50,7 +50,7 @@ Analyze an existing codebase using 4 parallel mapper agents. Produces structured
 
 ### Phase Planning
 
-Reference-style planning-family index: `phase`, `discuss`, `research`, and `assumptions` are family labels inside `/bgsd-plan`, not runnable shorthand. Use the concrete examples in the table below when you want to execute one of these routes.
+Reference-style planning-family index: `phase`, `discuss`, `research`, and `assumptions` are family labels inside `/bgsd-plan`, not runnable shorthand. Use the concrete examples in the table below when you want to execute one of these routes, and keep the required phase operand visible.
 
 #### `/bgsd-plan`
 

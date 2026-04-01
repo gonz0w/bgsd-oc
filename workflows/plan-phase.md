@@ -14,7 +14,7 @@ Read all files referenced by execution_context.
 
 **If `<bgsd-context>` is present:** Parse that JSON directly.
 
-**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan phase` execution where the slash-command hook was bypassed. Reconstruct the same planning context from the explicit phase argument:
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan phase <phase-number>` execution where the slash-command hook was bypassed. Reconstruct the same planning context from the explicit phase argument:
 
 - Extract `PHASE` from the first non-flag token in `$ARGUMENTS`. If no phase number can be extracted, use the existing required-phase error in Step 2 and exit.
 

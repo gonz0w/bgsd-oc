@@ -50,7 +50,7 @@ Phase: "CLI for database backups" → Output format, Flag design, Progress repor
 
 **If `<bgsd-context>` is present:** Parse that JSON directly.
 
-**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan discuss` execution where the slash-command hook was bypassed. Reconstruct the same phase-discussion context from the explicit phase argument:
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan discuss <phase-number>` execution where the slash-command hook was bypassed. Reconstruct the same phase-discussion context from the explicit phase argument:
 
 - Extract `PHASE` from the first non-flag token in `$ARGUMENTS`. If no phase number can be extracted:
 
@@ -86,7 +86,7 @@ Exit.
 Use `resume_summary` as the chain-aware re-entry contract when prior handoff artifacts exist.
 
 - If `resume_summary` is absent: `discuss` is the only workflow step allowed to start cleanly with no prior chain state.
-- That clean-start path stays additive: it does not invent a second orchestration mode or change the reference-style standalone `/bgsd-plan discuss [phase]` behavior.
+- That clean-start path stays additive: it does not invent a second orchestration mode or change the reference-style standalone `/bgsd-plan discuss <phase-number>` behavior.
 - If `resume_summary` is present and valid: show the explicit resume summary first and preserve the exact `resume` / `inspect` / `restart` contract instead of silently resuming.
 - If `resume_summary` is present but invalid: fail closed for chained continuation, keep `inspect` and `restart` available, and do not guess from `STATE.md` or partial markdown artifacts.
 - On `restart`, treat `discuss` as the clean-start exception, but replace the previous same-phase handoff set only after the new discuss handoff artifacts are durable and fresh for the current planning inputs.

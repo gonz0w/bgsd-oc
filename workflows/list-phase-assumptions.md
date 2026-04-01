@@ -14,18 +14,15 @@ Phase number: $ARGUMENTS (required)
 ```
 Error: Phase number required.
 
-Usage: /bgsd-plan assumptions [phase-number]
+Usage: /bgsd-plan assumptions <phase-number>
 Example: /bgsd-plan assumptions 3
+Use /bgsd-inspect progress to see available phases.
 ```
 
 Exit workflow.
 
 **If argument provided:**
-Validate phase exists in roadmap:
-
-```bash
-cat .planning/ROADMAP.md | grep -i "Phase ${PHASE}"
-```
+Validate phase exists in roadmap.
 
 **If phase not found:**
 
@@ -34,6 +31,8 @@ Error: Phase ${PHASE} not found in roadmap.
 
 Available phases:
 [list phases from roadmap]
+
+Use /bgsd-inspect progress to see available phases.
 ```
 
 Exit workflow.
