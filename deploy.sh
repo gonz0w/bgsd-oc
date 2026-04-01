@@ -64,7 +64,7 @@ if [ -d "$OLD_CMD_DIR" ] && [ "$CMD_DIR" != "$OLD_CMD_DIR" ]; then
 	fi
 fi
 
-# Step 3: Manifest-based file sync for canonical and compatibility wrappers
+# Step 3: Manifest-based file sync for canonical command wrappers
 AGENT_DIR="$HOME/.config/opencode/agents"
 SKILL_DIR="$HOME/.config/opencode/skills"
 MANIFEST="$SRC/bin/manifest.json"
@@ -76,7 +76,7 @@ if [ ! -f "$MANIFEST" ]; then
 fi
 
 # Map a manifest file path to its deploy destination
-# Command wrappers stay manifest-driven so canonical families and legacy aliases ship together.
+# Command wrappers stay manifest-driven so the shipped slash-command inventory stays aligned.
 dest_for_file() {
 	local file="$1"
 	case "$file" in

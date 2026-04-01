@@ -14,5 +14,5 @@ $ARGUMENTS: Optional arguments
 </context>
 
 <process>
-Execute the github-ci workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/github-ci.md end-to-end.
+Execute the github-ci workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/github-ci.md` end-to-end.
 </process>

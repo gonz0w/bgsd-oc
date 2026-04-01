@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "172",
+  "step": "research",
+  "status": "complete",
+  "run_id": "172-2026-03-31T17-51-05-483Z",
+  "source_fingerprint": "32ca8be7db46343d",
+  "created_at": "2026-03-31T17:57:55.326Z",
+  "updated_at": "2026-03-31T17:57:55.326Z",
+  "summary": "Research ready for Phase 172",
+  "resume_target": {
+    "phase": "172",
+    "step": "research",
+    "plan": null,
+    "resume_file": ".planning/phases/172-ambient-attention-ux-noise-control/172-RESEARCH.md",
+    "next_command": "/bgsd-plan phase 172"
+  },
+  "context": {}
+}

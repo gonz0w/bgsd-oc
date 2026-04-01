@@ -14,5 +14,5 @@ $ARGUMENTS: Test command output
 </context>
 
 <process>
-Execute the cmd-test-run workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-test-run.md end-to-end.
+Execute the cmd-test-run workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-test-run.md` end-to-end.
 </process>

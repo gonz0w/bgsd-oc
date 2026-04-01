@@ -4,6 +4,7 @@ const { describe, test, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const { createTempProject, cleanup, writeStateFixture } = require('./helpers.cjs');
@@ -11,18 +12,33 @@ const { hasSQLiteSupport } = require('../src/lib/db');
 
 const pluginPath = path.join(__dirname, '..', 'plugin.js');
 
-function runPluginScript(body, cwdArg) {
+function runPluginScript(body, cwdArg, extraArgs = []) {
   const script = `
     import * as mod from ${JSON.stringify(`file://${pluginPath}`)};
     const cwd = process.argv[1];
     ${body}
     process.exit(0);
   `;
-  const output = execFileSync(process.execPath, ['--input-type=module', '--eval', script, cwdArg], {
+  const output = execFileSync(process.execPath, ['--input-type=module', '--eval', script, cwdArg, ...extraArgs], {
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   return JSON.parse(output);
+}
+
+function makeNonNodeExecutable(prefix = 'bgsd-fake-exec-') {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const file = path.join(dir, process.platform === 'win32' ? 'fake-opencode.cmd' : 'fake-opencode');
+  const content = process.platform === 'win32'
+    ? '@echo off\r\necho not-node 1>&2\r\nexit /b 64\r\n'
+    : '#!/bin/sh\nprintf "not-node\\n" >&2\nexit 64\n';
+
+  fs.writeFileSync(file, content);
+  if (process.platform !== 'win32') {
+    fs.chmodSync(file, 0o755);
+  }
+
+  return { dir, file };
 }
 
 describe('plugin progress canonical contract', () => {
@@ -67,6 +83,25 @@ describe('plugin progress canonical contract', () => {
     assert.match(stateContent, /\*\*Current Plan:\*\* 2/);
     assert.match(stateContent, /Use canonical plugin mutations/);
     assert.doesNotMatch(stateContent, /Config drift issue/);
+  });
+
+  test('progress actions fall back to a usable Node runtime when process.execPath is not Node', () => {
+    const fakeExec = makeNonNodeExecutable();
+
+    try {
+      const result = runPluginScript(`
+        const fakePath = process.argv[2];
+        Object.defineProperty(process, 'execPath', { value: fakePath, configurable: true });
+        const plugin = await mod.BgsdPlugin({ directory: cwd });
+        const output = JSON.parse(await plugin.tool.bgsd_progress.execute({ action: 'complete-task' }, { directory: cwd }));
+        process.stdout.write(JSON.stringify(output));
+      `, tmpDir, [fakeExec.file]);
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.state.progress, 10);
+    } finally {
+      cleanup(fakeExec.dir);
+    }
   });
 
   test('invalidateState clears related session tables beyond session_state', async () => {

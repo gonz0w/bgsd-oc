@@ -10,11 +10,23 @@ Read all files referenced by execution_context.
 
 ## 1. Initialize
 
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+**Context:** This workflow prefers project context from `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook.
 
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+**If `<bgsd-context>` is present:** Parse that JSON directly.
 
-Parse `<bgsd-context>` JSON for: `researcher_model`, `planner_model`, `checker_model`, `research_enabled`, `plan_checker_enabled`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `plan_count`, `resume_summary`, `effective_intent`, `jj_planning_context`.
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan phase` execution where the slash-command hook was bypassed. Reconstruct the same planning context from the explicit phase argument:
+
+- Extract `PHASE` from the first non-flag token in `$ARGUMENTS`. If no phase number can be extracted, use the existing required-phase error in Step 2 and exit.
+
+```bash
+BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:plan-phase "${PHASE}" --raw)
+```
+
+If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+**Load planning context from `<bgsd-context>` JSON or `BGSD_CONTEXT`:**
+
+Parse the loaded JSON for: `researcher_model`, `planner_model`, `checker_model`, `research_enabled`, `plan_checker_enabled`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `plan_count`, `resume_summary`, `effective_intent`, `jj_planning_context`.
 
 This workflow is the `/bgsd-plan phase` branch of the broader canonical planning family. Roadmap mutation, milestone-gap planning entry, and plan-scoped todo actions normalize through `/bgsd-plan` onto their own existing workflows instead of expanding this phase-planning workflow into a general planning catch-all.
 

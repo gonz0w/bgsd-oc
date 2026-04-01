@@ -1886,7 +1886,8 @@
         "tests/helpers.cjs"
       ],
       "tests/orchestration.test.cjs": [
-        "tests/helpers.cjs"
+        "tests/helpers.cjs",
+        "src/lib/orchestration.js"
       ],
       "tests/plan.test.cjs": [
         "tests/helpers.cjs"
@@ -2044,6 +2045,7 @@
         "src/lib/git.js",
         "src/lib/format.js",
         "src/lib/cli-tools/index.js",
+        "src/lib/constants.js",
         "src/lib/config.js"
       ],
       "src/lib/ast.js": [
@@ -2096,10 +2098,9 @@
         "src/lib/output.js",
         "src/lib/frontmatter.js",
         "src/lib/format.js",
+        "src/lib/helpers.js",
         "src/lib/codebase-intel.js",
-        "src/lib/deps.js",
-        "src/lib/constants.js",
-        "src/lib/helpers.js"
+        "src/lib/deps.js"
       ],
       "src/lib/runtime-capabilities.js": [
         "src/lib/output.js"
@@ -2285,8 +2286,8 @@
         "src/commands/features.js",
         "src/commands/misc.js",
         "src/commands/trajectory.js",
-        "src/lib/helpers.js",
-        "src/lib/orchestration.js"
+        "src/commands/verify.js",
+        "src/lib/helpers.js"
       ],
       "src/lib/output.js": [
         "src/router.js",
@@ -2404,6 +2405,7 @@
       ],
       "src/lib/orchestration.js": [
         "src/router.js",
+        "tests/orchestration.test.cjs",
         "src/commands/init.js"
       ],
       "src/commands/cache.js": [
@@ -2694,13 +2696,13 @@
     },
     "stats": {
       "total_files_parsed": 112,
-      "total_edges": 284,
+      "total_edges": 285,
       "languages_parsed": [
         "javascript"
       ],
       "parse_errors": 3
     },
-    "built_at": "2026-03-31T00:01:35.670Z"
+    "built_at": "2026-04-01T00:07:36.182Z"
   },
   "conventions": {
     "naming": {

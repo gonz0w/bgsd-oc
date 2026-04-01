@@ -142,10 +142,14 @@ describe('plugin cmux transport', () => {
   });
 
   test('JSON helpers add --json and target flags', async () => {
-    const { listWorkspaces, sidebarState } = await loadCmuxModules();
+    const { identify, listWorkspaces, sidebarState } = await loadCmuxModules();
     const fakeCmux = createFakeCmux(`
       process.stdout.write(JSON.stringify({ argv: process.argv.slice(2) }));
     `);
+
+    const identity = await identify({ command: fakeCmux, timeoutMs: 500 });
+    assert.strictEqual(identity.ok, true);
+    assert.deepStrictEqual(identity.json.argv, ['--id-format', 'both', 'identify', '--json']);
 
     const workspaces = await listWorkspaces({ command: fakeCmux, timeoutMs: 500 });
     assert.strictEqual(workspaces.ok, true);
@@ -167,12 +171,68 @@ describe('plugin cmux transport', () => {
     assert.strictEqual(result.error.type, 'invalid-json');
     assert.match(result.error.message, /JSON/i);
   });
+
+  test('sidebarState parses plain-text sidebar output when cmux does not emit JSON', async () => {
+    const { sidebarState } = await loadCmuxModules();
+    const fakeCmux = createFakeCmux(`
+      process.stdout.write('tab=workspace-uuid\\ncwd=/repo\\nstatus_count=1\\n  bgsd.target.probe=attach-check\\nlog_count=0\\n');
+    `);
+
+    const result = await sidebarState({ command: fakeCmux, workspace: 'workspace:2', timeoutMs: 500 });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.json.result.cwd, '/repo');
+    assert.deepStrictEqual(result.json.result.status, [
+      { key: 'bgsd.target.probe', value: 'attach-check' },
+    ]);
+  });
 });
 
 describe('plugin cmux targeting', () => {
   test('resolveCmuxAvailability proves a managed target when env and identify agree', async () => {
     const { resolveCmuxAvailability } = await loadCmuxModules();
     const { cmux, calls } = createCmuxStub();
+    const verdict = await resolveCmuxAvailability({
+      env: {
+        CMUX_WORKSPACE_ID: 'workspace:1',
+        CMUX_SURFACE_ID: 'surface:1',
+      },
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, true);
+    assert.strictEqual(verdict.attached, true);
+    assert.strictEqual(verdict.mode, 'managed');
+    assert.strictEqual(verdict.workspaceId, 'workspace:1');
+    assert.strictEqual(verdict.surfaceId, 'surface:1');
+    assert.strictEqual(verdict.suppressionReason, null);
+    assert.strictEqual(verdict.writeProven, true);
+    assert.deepStrictEqual(calls, [
+      'ping',
+      'capabilities',
+      'identify',
+      'setStatus:workspace:1:bgsd.target.probe:attach-check',
+      'sidebarState:workspace:1',
+      'clearStatus:workspace:1:bgsd.target.probe',
+    ]);
+  });
+
+  test('resolveCmuxAvailability accepts namespaced socket methods when managed CLI aliases still probe successfully', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub({
+      capabilities: async () => {
+        calls.push('capabilities');
+        return {
+          ok: true,
+          json: {
+            result: {
+              access_mode: 'cmuxOnly',
+              methods: ['system.capabilities', 'system.identify', 'workspace.list', 'notification.create'],
+            },
+          },
+        };
+      },
+    });
     const verdict = await resolveCmuxAvailability({
       env: {
         CMUX_WORKSPACE_ID: 'workspace:1',
@@ -258,6 +318,56 @@ describe('plugin cmux targeting', () => {
     assert.strictEqual(verdict.workspaceId, null);
     assert.strictEqual(verdict.suppressionReason, 'surface-mismatch');
     assert.deepStrictEqual(calls, ['ping', 'capabilities', 'identify']);
+  });
+
+  test('resolveCmuxAvailability accepts live identify payloads with UUID ids from managed cmux env', async () => {
+    const { resolveCmuxAvailability } = await loadCmuxModules();
+    const { cmux, calls } = createCmuxStub({
+      identify: async () => {
+        calls.push('identify');
+        return {
+          ok: true,
+          json: {
+            caller: {
+              workspace_id: 'ED8229E2-4D19-44FE-914B-2F2E1D0DABE3',
+              workspace_ref: 'workspace:2',
+              surface_id: '07E56326-ABDD-4967-B32D-2E1EA597F3B6',
+              surface_ref: 'surface:2',
+            },
+            focused: {
+              workspace_id: 'ED8229E2-4D19-44FE-914B-2F2E1D0DABE3',
+              workspace_ref: 'workspace:2',
+              surface_id: '07E56326-ABDD-4967-B32D-2E1EA597F3B6',
+              surface_ref: 'surface:2',
+            },
+          },
+        };
+      },
+    });
+
+    const verdict = await resolveCmuxAvailability({
+      env: {
+        CMUX_WORKSPACE_ID: 'ED8229E2-4D19-44FE-914B-2F2E1D0DABE3',
+        CMUX_SURFACE_ID: '07E56326-ABDD-4967-B32D-2E1EA597F3B6',
+      },
+      cmux,
+    });
+
+    assert.strictEqual(verdict.available, true);
+    assert.strictEqual(verdict.attached, true);
+    assert.strictEqual(verdict.mode, 'managed');
+    assert.strictEqual(verdict.workspaceId, 'ED8229E2-4D19-44FE-914B-2F2E1D0DABE3');
+    assert.strictEqual(verdict.surfaceId, '07E56326-ABDD-4967-B32D-2E1EA597F3B6');
+    assert.strictEqual(verdict.suppressionReason, null);
+    assert.strictEqual(verdict.writeProven, true);
+    assert.deepStrictEqual(calls, [
+      'ping',
+      'capabilities',
+      'identify',
+      'setStatus:ED8229E2-4D19-44FE-914B-2F2E1D0DABE3:bgsd.target.probe:attach-check',
+      'sidebarState:ED8229E2-4D19-44FE-914B-2F2E1D0DABE3',
+      'clearStatus:ED8229E2-4D19-44FE-914B-2F2E1D0DABE3:bgsd.target.probe',
+    ]);
   });
 
   test('resolveCmuxAvailability proves one alongside target from exact cwd matching', async () => {

@@ -14,5 +14,5 @@ $ARGUMENTS: Optional project name
 </context>
 
 <process>
-Execute the new-project workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/new-project.md end-to-end.
+Execute the new-project workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/new-project.md` end-to-end.
 </process>

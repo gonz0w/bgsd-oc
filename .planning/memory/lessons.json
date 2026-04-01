@@ -130,5 +130,402 @@
     "affected_agents": [
       "bgsd-verifier"
     ]
+  },
+  {
+    "id": "3d99cb0a-811e-4f23-870d-a72744253556",
+    "date": "2026-03-31T04:47:44.935Z",
+    "title": "Rebuild runtime before runtime-backed integration proofs",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Integration tests for CLI commands execute bin/bgsd-tools.cjs, so source-only edits can leave tests exercising stale runtime artifacts until npm run build refreshes the bundle.",
+    "prevention_rule": "When a task changes source used by runtime-backed integration commands, rebuild before the first green proof instead of waiting for final verification.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "b7ce85b6-dcc9-4d8d-8cdf-66fbe0c73eae",
+    "date": "2026-03-31T05:01:50.590Z",
+    "title": "Place Node test-name filters before file paths",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Focused verification initially still executed the entire test file because the Node test runner respected --test-name-pattern only when the flag appeared before positional file arguments in this environment.",
+    "prevention_rule": "When using node --test for scoped proof, place --test-name-pattern before test file paths and verify the filtered run reports only the intended subtests before relying on it for green evidence.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "59c474cb-9cf4-4d9f-a7e3-97456d2a898e",
+    "date": "2026-03-31T05:10:58.730Z",
+    "title": "Verify requirement marker helpers against on-disk checklist state",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The plan:requirements mark-complete helper returned not_found for phase requirement IDs during plan completion, so metadata automation did not update REQUIREMENTS.md even though the workflow expected it to.",
+    "prevention_rule": "After plan:requirements mark-complete, always read REQUIREMENTS.md and repair any still-unchecked plan requirement IDs before reporting success or creating the metadata commit.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "361d6420-f72a-46e8-b0a4-0fff05bf0390",
+    "date": "2026-03-31T05:24:08.639Z",
+    "title": "Verify plugin ESM import after touched plugin rebuilds",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Runtime rebuilds can pass bundle validation while still failing at module import time when plugin code pulls CLI-only CommonJS helpers into the ESM bundle.",
+    "prevention_rule": "After any plan that touches src/plugin/** or plugin-adjacent runtime imports, run a direct import smoke check like node -e \"import('./plugin.js')\" before treating build output as verified.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "d78e9b4a-b932-4fb0-a60d-5542296f6e64",
+    "date": "2026-03-31T05:27:49.337Z",
+    "title": "Guard verifier helpers against missing debug logger dependencies",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The installed verify:verify artifacts path can throw ReferenceError: writeDebugDiagnostic is not defined while warming caches, which turns artifact verification into a tooling failure instead of a reportable result.",
+    "prevention_rule": "Keep debug-diagnostic hooks optional in verifier/cache code paths and add a regression test that verify:verify artifacts returns structured status even when debug logging helpers are absent or disabled.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "becab36c-99a8-46a5-a9ab-6c73a7725b37",
+    "date": "2026-03-31T13:09:06.298Z",
+    "title": "Plugin source tests need an explicit ESM loading path",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The local Node test runner treats src/plugin/*.js source files as non-importable CommonJS in this workspace, so new source-level plugin tests can fail before exercising behavior.",
+    "prevention_rule": "When adding focused tests for new src/plugin modules, either exercise the built plugin bundle or copy the touched source files to temporary .mjs fixtures before importing them so RED/GREEN proofs reflect behavior instead of loader mismatches.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "8734e0ca-6d23-4ec0-9f67-d0e7d506daa2",
+    "date": "2026-03-31T13:19:25.562Z",
+    "title": "Executor self-check should verify execute:commit hashes against commit_id",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The execute-plan self-check example checks jj change IDs, but execute:commit returns git commit hashes. Executors can incorrectly think commits are missing unless they inspect commit_id instead.",
+    "prevention_rule": "Update executor workflow and summary guidance so self-check commands verify execute:commit hashes with jj commit_id.shortest(...) or clearly state when to use change_id versus commit_id.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "041da23d-450e-4629-bc95-421d02c986fd",
+    "date": "2026-03-31T13:37:42.489Z",
+    "title": "Prefer focused plugin suite patterns when file-level plugin tests hang",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The generic file-level test runner for tests/plugin.test.cjs can stall in this workspace even after touched-surface cmux assertions are green, which makes the broader gate unreliable for plan-local verification.",
+    "prevention_rule": "When a plan touches only one focused plugin behavior and tests/plugin.test.cjs hangs under file-level execution, run the touched suite with --test-name-pattern plus the relevant focused test file, then keep npm run build as the broader runtime gate and document the stalled broad attempt once.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "34a88843-bfbc-4405-a816-1cfcbaefc160",
+    "date": "2026-03-31T13:42:24.924Z",
+    "title": "Prefer focused node --test slices when plugin.test hangs after partial progress",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Broad plugin test invocations can hang after unrelated suites complete, leaving verification evidence ambiguous even when the touched cmux slice is green.",
+    "prevention_rule": "For phase verification, run targeted node --test file or name-pattern slices for the touched surface first, then record any broader-suite timeout separately instead of relying on the hanging aggregate command.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "50158e0c-1fa3-40dc-9abc-d576a16fb677",
+    "date": "2026-03-31T14:40:55.902Z",
+    "title": "Plan checks should re-evaluate must_haves observability after pre-run analyzers",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Pre-run structure and realism analyzers can encourage checkers to assume must_haves metadata quality is already settled, but approval readiness still depends on whether truths remain user-observable and verifier-facing.",
+    "prevention_rule": "Even when plan-structure and analyze-plan are reported as already run, re-check each plan's must_haves truths for user-observable wording and flag implementation-shaped truths during final approval review.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "2612104f-9484-47ee-b450-799e2743dc91",
+    "date": "2026-03-31T15:01:17.282Z",
+    "title": "State completion helpers should tolerate legacy unbolded session fields",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "verify:state complete-plan expected a narrower STATE.md field shape than the live repo used, so plan completion repair failed even though the needed Current Position data existed on disk.",
+    "prevention_rule": "Make state-completion helpers parse both bolded and unbolded STATE.md field variants before refusing completion-path updates, then add regression coverage against live legacy formatting.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "bce8f4c8-a698-4ba9-a8d3-b825139fc8bb",
+    "date": "2026-03-31T15:14:51.555Z",
+    "title": "Invalidate parser caches before hook-driven state re-reads",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Hook-triggered refresh logic reused cached planning parser results after on-disk STATE.md changes, so lifecycle updates could publish stale sidebar metadata even when the sync helper was correct.",
+    "prevention_rule": "When lifecycle hooks recompute UI or status from planning files after potential writes, invalidate parser caches for the repo before re-reading project state and rerun the focused proof against the rebuilt runtime.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "de21b5f0-efb9-4325-8eb1-5bf54ea3cc2c",
+    "date": "2026-03-31T15:20:07.966Z",
+    "title": "Artifact verifier patterns should avoid comma-joined contains fields",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Plan artifact metadata used comma-joined  strings, but the artifact verifier treated each full string as one literal pattern and produced false stub-like failures despite implemented code and passing focused tests.",
+    "prevention_rule": "Artifact-verification metadata should either support list semantics for multiple expected symbols or require one pattern per entry so verifier evidence matches real implementations without manual override.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "8e8fcbee-4d76-46a5-81e9-d62e4434d492",
+    "date": "2026-03-31T17:57:33.971Z",
+    "title": "Phase research should trace requirement IDs to linked PRDs before final recommendations",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase prompts often include local context and requirements, but the phase boundary and non-goals can still drift unless the researcher follows traceability from REQUIREMENTS.md to the linked PRD/backlog artifacts.",
+    "prevention_rule": "After mandatory input reads, phase researchers should grep requirement traceability for the phase's requirement IDs and read the linked PRD/backlog sections before writing prescriptive recommendations.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "6f3e4944-175e-4ef8-98fb-605e20408a98",
+    "date": "2026-03-31T18:50:53.608Z",
+    "title": "Cold-cache plan-structure should not crash",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The first verify:verify plan-structure invocation can hit a cold-cache warmup path that references writeDebugDiagnostic before definition, causing a ReferenceError and forcing a retry before plan verification can proceed.",
+    "prevention_rule": "Guard cache-warmup diagnostics behind a defined helper or remove the call so verifier subcommands remain deterministic on first run without manual retry.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "5887fe13-7c4f-48d0-a930-7eb883aafe28",
+    "date": "2026-03-31T18:53:13.934Z",
+    "title": "Re-run plan-structure verification on revised plans",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Plan approval can hinge on verifier-consumable must_haves metadata that looks present in the file but only  confirms is acceptable.",
+    "prevention_rule": "On every plan re-check, rerun  and  against the current files before carrying forward any prior blockers or approvals.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "881b622e-9e9c-4c80-9594-41bc763ba1e2",
+    "date": "2026-03-31T19:09:16.889Z",
+    "title": "Repair STATE.md after complete-plan leaves stale phase header",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The verify:state complete-plan helper updated Current focus for the active plan but left the top Current Position phase line on the previous phase, so metadata success reporting would have been inconsistent without a manual readback.",
+    "prevention_rule": "After every complete-plan call, read the Current focus and Current Position header together; if phase or plan disagree, repair STATE.md before the final metadata commit and flag the helper for follow-up.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "119e1866-2bcd-4ea0-85a2-8566c35e5e87",
+    "date": "2026-03-31T19:24:14.598Z",
+    "title": "Use stable verifier tokens in plan artifact metadata",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Plan artifact metadata used prose/comma-separated contains strings, so artifact helper checks reported false negatives even though the code and focused tests verified the implementation.",
+    "prevention_rule": "When writing PLAN.md artifact metadata, use stable exact function/test identifiers or separately listed verifier tokens instead of prose lists in a single contains field.",
+    "affected_agents": [
+      "bgsd-verifier",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "feb577ed-f6af-4283-ba54-2263f89e8077",
+    "date": "2026-03-31T21:31:27.156Z",
+    "title": "Initial roadmap validation should not rely on post-execution requirement coverage",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The available requirements validation command checks whether traced phases already have summaries, which makes a freshly created roadmap look unresolved even when traceability is correct.",
+    "prevention_rule": "When roadmapping, pair roadmap and state validators with a traceability-shape check that validates requirement-to-phase mappings without requiring executed phase summaries.",
+    "affected_agents": [
+      "bgsd-roadmapper"
+    ]
+  },
+  {
+    "id": "fbada314-2f2f-47f3-8d84-62b1be28ef14",
+    "date": "2026-03-31T22:39:29.669Z",
+    "title": "Prefer simple file-check verifies in PLAN.md",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "verify:verify analyze-plan tokenizes task <verify> commands heuristically and can misread complex node -e snippets or shell substitutions as unavailable file paths, causing false approval blockers.",
+    "prevention_rule": "When writing PLAN.md verification commands, prefer simple test/rg/npm commands over embedded node -e scripts or command substitutions unless the extra complexity is essential.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "c01be0ad-8f1c-4039-86f6-e1a058c0741c",
+    "date": "2026-03-31T22:40:34.769Z",
+    "title": "Retry verify:verify plan-structure before treating tool failures as blockers",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "The first plan-structure invocation threw an internal CLI ReferenceError, but an immediate retry succeeded, showing some verifier failures can be transient rather than plan defects.",
+    "prevention_rule": "When a required verifier command fails unexpectedly, retry once before converting the failure into a plan blocker; only persistent failures should be reported as unavailable validation steps.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "29e95754-f03c-4d7b-aa96-fcc47834ba7b",
+    "date": "2026-03-31T22:50:18.292Z",
+    "title": "Seed numeric STATE plan fields before first execute-phase run",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "verify:state complete-plan assumes STATE.md already contains parseable numeric Current Plan and Total Plans in Phase values, but newly planned phases can still hold 'Not started' and 'TBD'.",
+    "prevention_rule": "When phase planning finishes, normalize STATE.md to numeric execution-ready placeholders (phase number, current plan 01, total plan count) so execute-phase helpers do not fail on the first completion update.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "977adbdc-9ea2-4386-99ea-f031237be662",
+    "date": "2026-03-31T23:00:09.863Z",
+    "title": "Artifact verifier false-negatives on comma-separated contains metadata",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Plan artifact metadata can express multiple required markers in one comma-separated contains string, but verify:verify artifacts may treat that payload as one literal pattern and report missing sections even when the artifact clearly contains each marker.",
+    "prevention_rule": "When artifact verification fails on contains metadata, inspect whether the plan encoded multiple expected markers as one comma-separated string; if so, cross-check the artifact directly and flag the helper result as a tooling warning instead of assuming the artifact is a stub.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "89a32955-fa51-440c-86f2-029083a68d18",
+    "date": "2026-03-31T23:02:32.077Z",
+    "title": "Artifact verifier misreads comma-separated contains metadata",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "verify:verify artifacts appears to treat comma-separated PLAN.md contains strings as a single literal pattern, so present headings/fields are reported missing during phase verification.",
+    "prevention_rule": "When PLAN artifact metadata needs multiple required markers, encode them in a verifier-supported form or update the helper to split and test each marker independently before using contains results as evidence.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "5bc725a0-8c24-4f69-af5f-1be61690f42a",
+    "date": "2026-03-31T23:20:28.106Z",
+    "title": "Phase researchers should fall back to apply_patch when write tool is unavailable",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "The phase-researcher workflow assumes a Write-capable runtime, but some tool manifests expose read/edit/apply_patch without a direct write function.",
+    "prevention_rule": "After loading context, check available filesystem mutation tools; if Write is absent, switch immediately to apply_patch for artifact creation instead of delaying at output time.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "2280ccb2-2bb0-4200-b5f7-fa1a7f0bcc6e",
+    "date": "2026-03-31T23:35:18.558Z",
+    "title": "Retry plan-structure after cache-warm verifier crash",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The first parallel verify:verify plan-structure call can crash during cache warm-up because the bundled verifier references an undefined writeDebugDiagnostic helper before returning results.",
+    "prevention_rule": "When plan-structure crashes during initial parallel verification, immediately rerun the affected plan serially and treat the failure as a tooling retry case rather than a malformed plan.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "bcf4dc3c-c98d-47f1-8cd6-197ed4661b6b",
+    "date": "2026-03-31T23:39:54.488Z",
+    "title": "Avoid first-run parallel plan-structure verifier fan-out on cold cache",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Running multiple verify:verify plan-structure commands in parallel on a cold cache can trigger a bgsd-tools bug where cache warming calls an undefined writeDebugDiagnostic helper, causing a spurious verifier crash.",
+    "prevention_rule": "Warm phase/plan cache with one serial verifier invocation before parallelizing additional plan-structure checks, or fix bgsd-tools so cache warming never references undefined diagnostics.",
+    "affected_agents": [
+      "bgsd-plan-checker"
+    ]
+  },
+  {
+    "id": "af68eb14-eda5-45fb-874e-92e7e4806888",
+    "date": "2026-03-31T23:55:49.050Z",
+    "title": "Summary verifier mistakes backticked commands for file references",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "verify:summary extracts every backticked token that looks path-like, so TDD audit command examples in SUMMARY.md can be misclassified as missing files during self-check.",
+    "prevention_rule": "Teach verify:summary to ignore command-form inline code blocks or validate only file-list sections before using it as a completion gate.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "a2cc1ae6-87b6-4ffe-bd76-f7e6f2e8393f",
+    "date": "2026-04-01T00:12:40.943Z",
+    "title": "Record unrelated baseline failures alongside rebuilt smoke proof for shared-file TDD gates",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Plan-level TDD targets that execute whole shared test files can stay red because unrelated pre-existing failures live in the same files even after the touched behavior is fixed.",
+    "prevention_rule": "When a plan's declared broad file gate stays red for unrelated baseline failures, record that baseline once, then run a rebuilt-runtime smoke proof or narrower touched-surface check before reporting completion.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "584c9aef-938e-4d99-99af-5fe47cedc9e3",
+    "date": "2026-04-01T00:35:48.039Z",
+    "title": "Treat hanging broad node:test file gates as one-shot evidence attempts",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "File-level node:test gates can still drag in unrelated long-running suites or pre-existing failures even after touched-surface proofs already passed, which wastes time when executors keep retrying the same broad command.",
+    "prevention_rule": "Attempt the broad gate once, record the unrelated failure or hang, then switch to rebuilt-runtime plus explicit touched-surface proof commands instead of rerunning the same hanging file set.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "8b60140b-0e03-4350-bbaf-7a79f78e1bd5",
+    "date": "2026-04-01T00:45:44.328Z",
+    "title": "State completion helper can fail after successful execution",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The bundled verify:state complete-plan path references writeDebugDiagnostic, which is undefined at runtime, so plan-finalization can fail after task work is already complete.",
+    "prevention_rule": "Add a post-build smoke test for verify:state complete-plan and document the executor fallback to granular state-update commands when the helper crashes.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "f54161d5-fa96-4a96-93c9-38f3a0d291e9",
+    "date": "2026-04-01T00:51:57.671Z",
+    "title": "Keep docs TDD targets isolated when shared files have baseline failures",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "A shared docs regression file already contained unrelated failing assertions, so the plan's broad node:test target could not provide clean GREEN proof for the new workspace-first slice.",
+    "prevention_rule": "When adding TDD coverage to an existing multi-contract docs test file, ensure the new phase's checks can run in isolation or pair the broad gate with an explicit focused smoke command in the plan.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "cb2604ae-fdb1-45bf-8922-8de0ba52492a",
+    "date": "2026-04-01T00:57:16.670Z",
+    "title": "Verification helpers should not depend on missing debug globals",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The bundled verification path can invoke cache warm-up code that calls writeDebugDiagnostic even when that helper is undefined in the runtime bundle, causing verify:key-links to crash before returning evidence.",
+    "prevention_rule": "Add a bundled-runtime smoke check that exercises verify:key-links and other cache-warming verification commands, and guard optional debug hooks behind a defined-function check before calling them.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
   }
 ]

@@ -878,13 +878,10 @@ describe('Phase 151 workflow acceleration contracts', () => {
     assert.match(command, /Optional grouped mode: `--batch N`/);
   });
 
-  test('discuss-phase wrapper keeps fast mode as compatibility wording only', () => {
-    const command = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-discuss-phase.md'), 'utf-8');
+  test('canonical planning wrapper does not mention removed discuss aliases', () => {
+    const command = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-plan.md'), 'utf-8');
 
-    assert.match(command, /optional compatibility flags \(e\.g\., `108`, `108 --fast`\)/i);
-    assert.match(command, /compatibility alias only/i);
-    assert.match(command, /legacy flags such as `--fast`/i);
-    assert.match(command, /without making this alias the preferred path again/i);
+    assert.doesNotMatch(command, /\/bgsd-discuss-phase|\/bgsd-research-phase|\/bgsd-list-assumptions/i);
   });
 });
 
@@ -1008,19 +1005,13 @@ describe('Phase 157 planning context cascade workflow contracts', () => {
 });
 
 describe('Phase 158 canonical wrapper contracts', () => {
-  test('quick canonical command and compatibility alias stay on the same workflow contract', () => {
+  test('quick canonical command points at the quick workflow', () => {
     const quick = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-quick.md'), 'utf-8');
-    const quickAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-quick-task.md'), 'utf-8');
 
     assert.match(quick, /canonical quick-entry command/i);
     assert.match(quick, /preferred quick-entry command/i);
-    assert.match(quickAlias, /compatibility alias/i);
-    assert.match(quickAlias, /compatibility alias only/i);
-
-    for (const commandText of [quick, quickAlias]) {
-      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/workflows\/quick\.md/);
-      assert.match(commandText, /all provided arguments/i);
-    }
+    assert.match(quick, /@__OPENCODE_CONFIG__\/bgsd-oc\/workflows\/quick\.md/);
+    assert.match(quick, /all provided arguments/i);
   });
 
   test('canonical plan and inspect wrappers exist as executable family entrypoints', () => {
@@ -1038,6 +1029,8 @@ describe('Phase 158 canonical wrapper contracts', () => {
     assert.match(plan, /todo add\|check.*plan-scoped todo/is);
     assert.match(plan, /Settings and read-only inspection remain separate canonical families/i);
     assert.match(plan, /Do not preload sibling planning-family workflows into context/i);
+    assert.match(plan, /operational command invocation, not a request to inspect or explain the planning-family router itself/i);
+    assert.match(plan, /immediately execute the selected workflow and continue that workflow's planning or planning-prep behavior/i);
     assert.match(plan, /use the Read tool to load only the selected workflow file/i);
     assert.match(plan, /Do not read non-selected sibling workflows unless the selected workflow explicitly requires them/i);
 
@@ -1045,6 +1038,8 @@ describe('Phase 158 canonical wrapper contracts', () => {
     assert.match(inspect, /canonical read-only diagnostics hub/i);
     assert.match(inspect, /Do not preload sibling inspect-family workflows into context/i);
     assert.match(inspect, /use the Read tool to load only the selected workflow file/i);
+    assert.match(inspect, /operational command invocation, not a request to modify or audit the command family itself/i);
+    assert.match(inspect, /immediately execute the selected workflow and return that workflow's diagnostic result/i);
     assert.match(inspect, /velocity[\s\S]*cmd-velocity\.md/i);
     assert.match(inspect, /context-budget[\s\S]*cmd-context-budget\.md/i);
     assert.match(inspect, /session-diff[\s\S]*cmd-session-diff\.md/i);
@@ -1057,42 +1052,28 @@ describe('Phase 158 canonical wrapper contracts', () => {
     assert.match(settings, /use the Read tool to load only the selected workflow file/i);
   });
 
-  test('remaining inspect aliases are thin compatibility shims into `/bgsd-inspect` sub-actions', () => {
-    const expectations = [
-      ['bgsd-velocity.md', /compatibility alias/i, /\/bgsd-inspect velocity/i, /cmd-velocity\.md/i],
-      ['bgsd-context-budget.md', /compatibility alias/i, /\/bgsd-inspect context-budget/i, /cmd-context-budget\.md/i],
-      ['bgsd-session-diff.md', /compatibility alias/i, /\/bgsd-inspect session-diff/i, /cmd-session-diff\.md/i],
-      ['bgsd-rollback-info.md', /compatibility alias/i, /\/bgsd-inspect rollback-info/i, /cmd-rollback-info\.md/i],
-      ['bgsd-validate-deps.md', /compatibility alias/i, /\/bgsd-inspect validate-deps/i, /cmd-validate-deps\.md/i]
-    ];
+  test('canonical plan inspect and settings wrappers do not reference removed alias commands', () => {
+    const plan = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-plan.md'), 'utf-8');
+    const inspect = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-inspect.md'), 'utf-8');
+    const settings = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-settings.md'), 'utf-8');
 
-    for (const [fileName, compatibilityPattern, canonicalPattern, workflowPattern] of expectations) {
-      const commandText = fs.readFileSync(path.join(process.cwd(), 'commands', fileName), 'utf-8');
-      assert.match(commandText, compatibilityPattern);
-      assert.match(commandText, canonicalPattern);
-      assert.match(commandText, workflowPattern);
-      assert.match(commandText, /Keep this alias read-only and compatibility-focused/i);
-    }
+    assert.doesNotMatch(plan, /\/bgsd-plan-phase|\/bgsd-discuss-phase|\/bgsd-research-phase|\/bgsd-list-assumptions|\/bgsd-add-phase|\/bgsd-insert-phase|\/bgsd-remove-phase|\/bgsd-plan-gaps|\/bgsd-add-todo|\/bgsd-check-todos/i);
+    assert.doesNotMatch(inspect, /\/bgsd-progress|\/bgsd-health|\/bgsd-impact|\/bgsd-trace|\/bgsd-search-decisions|\/bgsd-search-lessons|\/bgsd-velocity|\/bgsd-context-budget|\/bgsd-session-diff|\/bgsd-rollback-info|\/bgsd-validate-deps/i);
+    assert.doesNotMatch(settings, /\/bgsd-set-profile|\/bgsd-validate-config/i);
   });
 
-  test('legacy planning aliases are thin compatibility shims into `/bgsd-plan` sub-actions', () => {
-    const planAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-plan-phase.md'), 'utf-8');
-    const discussAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-discuss-phase.md'), 'utf-8');
-    const researchAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-research-phase.md'), 'utf-8');
-    const assumptionsAlias = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-list-assumptions.md'), 'utf-8');
+  test('command wrappers keep file includes inside execution_context blocks only', () => {
+    const commandDir = path.join(process.cwd(), 'commands');
+    const commandFiles = fs.readdirSync(commandDir).filter((name) => name.endsWith('.md'));
 
-    const expectations = [
-      [planAlias, /compatibility alias/i, /\/bgsd-plan phase \$ARGUMENTS/i],
-      [discussAlias, /compatibility alias/i, /\/bgsd-plan discuss \$ARGUMENTS/i],
-      [researchAlias, /compatibility alias/i, /\/bgsd-plan research \$ARGUMENTS/i],
-      [assumptionsAlias, /compatibility alias/i, /\/bgsd-plan assumptions \$ARGUMENTS/i]
-    ];
-
-    for (const [commandText, compatibilityPattern, canonicalPattern] of expectations) {
-      assert.match(commandText, compatibilityPattern);
-      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-plan\.md/);
-      assert.match(commandText, canonicalPattern);
-      assert.match(commandText, /Do not present this alias as the preferred path|without making this alias the preferred path again/i);
+    for (const file of commandFiles) {
+      const content = fs.readFileSync(path.join(commandDir, file), 'utf-8');
+      const sanitized = content.replace(/<execution_context>[\s\S]*?<\/execution_context>/gi, '<execution_context></execution_context>');
+      assert.doesNotMatch(
+        sanitized,
+        /@__OPENCODE_CONFIG__\/bgsd-oc\//,
+        `${file} should not contain OpenCode file references outside execution_context`
+      );
     }
   });
 
@@ -1104,43 +1085,14 @@ describe('Phase 158 canonical wrapper contracts', () => {
     assert.doesNotMatch(initCommand, /\/bgsd-research-phase \$\{safePhase\}|\/bgsd-discuss-phase \$\{safePhase\}/, 'runtime handoff defaults should not regress to legacy planning-prep aliases');
   });
 
-  test('roadmap gap and todo aliases preserve canonical routing parity through `/bgsd-plan`', () => {
-    const expectations = [
-      ['bgsd-add-phase.md', /compatibility alias/i, /\/bgsd-plan roadmap add \$ARGUMENTS/i, /Phase description/i],
-      ['bgsd-insert-phase.md', /compatibility alias/i, /\/bgsd-plan roadmap insert \$ARGUMENTS/i, /Position and phase description/i],
-      ['bgsd-remove-phase.md', /compatibility alias/i, /\/bgsd-plan roadmap remove \$ARGUMENTS/i, /Phase number to remove/i],
-      ['bgsd-plan-gaps.md', /compatibility alias/i, /\/bgsd-plan gaps \$ARGUMENTS/i, /existing gap-planning entrypoint/i],
-      ['bgsd-add-todo.md', /compatibility alias/i, /\/bgsd-plan todo add \$ARGUMENTS/i, /plan-scoped/i],
-      ['bgsd-check-todos.md', /compatibility alias/i, /\/bgsd-plan todo check \$ARGUMENTS/i, /plan-scoped/i]
-    ];
-
-    for (const [fileName, compatibilityPattern, canonicalPattern, scopePattern] of expectations) {
-      const commandText = fs.readFileSync(path.join(process.cwd(), 'commands', fileName), 'utf-8');
-      assert.match(commandText, compatibilityPattern);
-      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-plan\.md/);
-      assert.match(commandText, canonicalPattern);
-      assert.match(commandText, scopePattern);
-    }
-  });
-
-  test('settings canonical family and legacy aliases stay on one shared settings contract', () => {
+  test('settings canonical family stays on one shared settings contract', () => {
     const settings = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-settings.md'), 'utf-8');
-    const setProfile = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-set-profile.md'), 'utf-8');
-    const validateConfig = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-validate-config.md'), 'utf-8');
 
     assert.match(settings, /canonical settings family/i);
     assert.match(settings, /`profile <name>`/i);
     assert.match(settings, /`validate \[config-path\]`/i);
     assert.match(settings, /keep `\/bgsd-settings` separate from the canonical planning and read-only inspection families/i);
-
-    for (const commandText of [setProfile, validateConfig]) {
-      assert.match(commandText, /compatibility alias/i);
-      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-settings\.md/);
-      assert.match(commandText, /do not present this alias as the preferred path/i);
-    }
-
-    assert.match(setProfile, /\/bgsd-settings profile \$ARGUMENTS/i);
-    assert.match(validateConfig, /\/bgsd-settings validate \$ARGUMENTS/i);
+    assert.doesNotMatch(settings, /\/bgsd-set-profile|\/bgsd-validate-config/i);
   });
 
   test('help workflow prefers canonical planning inspect and settings family names on touched surfaces', () => {

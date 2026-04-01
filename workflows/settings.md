@@ -225,7 +225,7 @@ Display:
 These settings apply to future /bgsd-plan phase and /bgsd-execute-phase runs.
 
 Quick commands:
-- /bgsd-settings profile <profile> — switch the selected project profile (`/bgsd-set-profile` remains a compatibility alias)
+- /bgsd-settings profile <profile> — switch the selected project profile
 - /bgsd-plan phase <phase> --research — force research
 - /bgsd-plan phase <phase> --skip-research — skip research
 - /bgsd-plan phase <phase> --skip-verify — skip plan check

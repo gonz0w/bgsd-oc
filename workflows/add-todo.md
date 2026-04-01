@@ -9,11 +9,19 @@ Read all execution_context files before starting.
 <process>
 
 <step name="init_context">
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+**Context:** This workflow prefers project context from `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook.
 
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+**If `<bgsd-context>` is present:** Parse that JSON directly.
 
-Extract from `<bgsd-context>` JSON: `commit_docs`, `date`, `timestamp`, `todo_count`, `todos`, `pending_dir`, `todos_dir_exists`.
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan todo add` execution where the slash-command hook was bypassed. Reconstruct the same todo-capture context:
+
+```bash
+BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos --raw)
+```
+
+If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Extract from `<bgsd-context>` JSON or `BGSD_CONTEXT`: `commit_docs`, `date`, `timestamp`, `todo_count`, `todos`, `pending_dir`, `todos_dir_exists`.
 
 Ensure directories exist:
 ```bash

@@ -23,6 +23,16 @@ function buildTargetArgs(options = {}) {
   return args;
 }
 
+function buildGlobalArgs(options = {}) {
+  const args = [];
+
+  if (options.idFormat) {
+    args.push('--id-format', String(options.idFormat));
+  }
+
+  return args;
+}
+
 function normalizeExecError(error, { timedOut = false } = {}) {
   if (!error) return null;
 
@@ -65,11 +75,43 @@ function ensureJsonFlag(args) {
   return args.includes('--json') ? [...args] : [...args, '--json'];
 }
 
+function parseSidebarStateText(stdout) {
+  const text = String(stdout || '').trim();
+  if (!text) return null;
+
+  const result = { status: [] };
+  let currentSection = null;
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/\s+$/, '');
+    if (!line) continue;
+
+    const indentedEntry = line.match(/^\s+([^=]+)=(.*)$/);
+    if (indentedEntry && currentSection === 'status') {
+      result.status.push({
+        key: indentedEntry[1].trim(),
+        value: indentedEntry[2].trim(),
+      });
+      continue;
+    }
+
+    const entry = line.match(/^([^=]+)=(.*)$/);
+    if (!entry) continue;
+
+    const key = entry[1].trim();
+    const value = entry[2].trim();
+    result[key] = value;
+    currentSection = key === 'status_count' ? 'status' : null;
+  }
+
+  return result;
+}
+
 export async function runCmuxCommand(commandName, commandArgs = [], options = {}) {
   const executable = options.command || 'cmux';
   const timeoutMs = normalizeTimeout(options.timeoutMs);
   const signal = options.signal;
-  const args = [commandName, ...commandArgs, ...buildTargetArgs(options)];
+  const args = [...buildGlobalArgs(options), commandName, ...commandArgs, ...buildTargetArgs(options)];
 
   let timedOut = false;
   let cleanupAbort = null;
@@ -167,7 +209,7 @@ export function capabilities(options = {}) {
 }
 
 export function identify(options = {}) {
-  return runCmuxJson('identify', [], options);
+  return runCmuxJson('identify', [], { ...options, idFormat: options.idFormat || 'both' });
 }
 
 export function listWorkspaces(options = {}) {
@@ -175,5 +217,21 @@ export function listWorkspaces(options = {}) {
 }
 
 export function sidebarState(options = {}) {
-  return runCmuxJson('sidebar-state', [], options);
+  return runCmuxJson('sidebar-state', [], options).then((result) => {
+    if (result.ok || result?.error?.type !== 'invalid-json') {
+      return result;
+    }
+
+    const parsed = parseSidebarStateText(result.stdout);
+    if (!parsed) {
+      return result;
+    }
+
+    return {
+      ...result,
+      ok: true,
+      json: { result: parsed },
+      error: null,
+    };
+  });
 }

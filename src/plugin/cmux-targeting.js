@@ -6,6 +6,10 @@ const REQUIRED_SIDEBAR_METHODS = ['set-status', 'clear-status', 'set-progress', 
 export const CMUX_WRITE_PROBE_KEY = 'bgsd.target.probe';
 const CMUX_WRITE_PROBE_VALUE = 'attach-check';
 
+function usesNamespacedSocketMethods(methods) {
+  return Array.isArray(methods) && methods.some((method) => String(method).includes('.'));
+}
+
 function normalizeAccessMode(value) {
   if (!value) return null;
 
@@ -67,6 +71,8 @@ function extractWorkspaceId(payload) {
   return payload?.workspace?.id
     || payload?.workspace_id
     || payload?.workspaceId
+    || payload?.workspace_ref
+    || payload?.workspaceRef
     || payload?.id
     || null;
 }
@@ -75,7 +81,28 @@ function extractSurfaceId(payload) {
   return payload?.surface?.id
     || payload?.surface_id
     || payload?.surfaceId
+    || payload?.surface_ref
+    || payload?.surfaceRef
+    || payload?.id
     || null;
+}
+
+function extractIdentifyHandle(payload, extractor) {
+  const candidates = [
+    payload?.caller,
+    payload?.result?.caller,
+    payload?.focused,
+    payload?.result?.focused,
+    payload?.result,
+    payload,
+  ];
+
+  for (const candidate of candidates) {
+    const value = extractor(candidate);
+    if (value) return value;
+  }
+
+  return null;
 }
 
 function extractWorkspaceEntries(payload) {
@@ -268,8 +295,8 @@ export async function resolveManagedWorkspaceTarget(options = {}) {
   }
 
   const identifyPayload = extractJsonPayload(identifyResult);
-  const identifiedWorkspaceId = extractWorkspaceId(identifyPayload?.workspace ? identifyPayload : identifyPayload?.result || identifyPayload);
-  const identifiedSurfaceId = extractSurfaceId(identifyPayload?.surface ? identifyPayload : identifyPayload?.result || identifyPayload);
+  const identifiedWorkspaceId = extractIdentifyHandle(identifyPayload, extractWorkspaceId);
+  const identifiedSurfaceId = extractIdentifyHandle(identifyPayload, extractSurfaceId);
 
   if (identifiedWorkspaceId !== workspaceId) {
     return {
@@ -488,7 +515,7 @@ export async function resolveCmuxAvailability(options = {}) {
   const payload = extractCapabilitiesPayload(capabilitiesResult);
   const accessMode = resolveAccessMode(payload);
   const methods = extractMethods(payload);
-  const missingMethods = methods.length > 0
+  const missingMethods = methods.length > 0 && !usesNamespacedSocketMethods(methods)
     ? REQUIRED_SIDEBAR_METHODS.filter((method) => !methods.includes(method))
     : [];
 

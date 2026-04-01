@@ -14,5 +14,5 @@ $ARGUMENTS: Optional project path
 </context>
 
 <process>
-Execute the resume-project workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/resume-project.md end-to-end.
+Execute the resume-project workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/resume-project.md` end-to-end.
 </process>

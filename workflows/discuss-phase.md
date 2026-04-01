@@ -46,9 +46,32 @@ Phase: "CLI for database backups" → Output format, Flag design, Progress repor
 
 <!-- section: initialize -->
 <step name="initialize" priority="first">
-<skill:bgsd-context-init />
+**Context:** This workflow prefers project context from `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook.
 
-Parse `<bgsd-context>` JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`, `resume_summary`.
+**If `<bgsd-context>` is present:** Parse that JSON directly.
+
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan discuss` execution where the slash-command hook was bypassed. Reconstruct the same phase-discussion context from the explicit phase argument:
+
+- Extract `PHASE` from the first non-flag token in `$ARGUMENTS`. If no phase number can be extracted:
+
+```
+ERROR: Phase number required.
+Usage: /bgsd-plan discuss <phase-number>
+Example: /bgsd-plan discuss 92
+Use /bgsd-inspect progress to see available phases.
+```
+
+Exit.
+
+```bash
+BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op "${PHASE}" --raw)
+```
+
+If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+**Load phase discussion context from `<bgsd-context>` JSON or `BGSD_CONTEXT`:**
+
+Parse the loaded JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`, `resume_summary`.
 
 **If `phase_found` is false:**
 ```

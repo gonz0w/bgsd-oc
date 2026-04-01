@@ -14,5 +14,5 @@ $ARGUMENTS: Optional milestone name
 </context>
 
 <process>
-Execute the audit-milestone workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/audit-milestone.md end-to-end.
+Execute the audit-milestone workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/audit-milestone.md` end-to-end.
 </process>

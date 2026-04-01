@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "170",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "170-2026-03-31T12-14-08-030Z",
+  "source_fingerprint": "6057cb4bf1ac7874",
+  "created_at": "2026-03-31T12:14:08.030Z",
+  "updated_at": "2026-03-31T12:14:08.030Z",
+  "summary": "Discuss context ready for Phase 170",
+  "resume_target": {
+    "phase": "170",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/170-cmux-workspace-detection-safe-targeting/170-CONTEXT.md",
+    "next_command": "/bgsd-plan research 170"
+  },
+  "context": {}
+}

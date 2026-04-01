@@ -14,5 +14,5 @@ $ARGUMENTS: Optional arguments
 </context>
 
 <process>
-Execute the cleanup workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/cleanup.md end-to-end.
+Execute the cleanup workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/cleanup.md` end-to-end.
 </process>

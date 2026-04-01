@@ -65,6 +65,10 @@ function findLatestNotification(notificationHistory, severity) {
   return null;
 }
 
+function shouldConsiderStartEvent(trigger = {}) {
+  return ['startup', 'file.watcher.updated', 'file.watcher.external', 'command.executed'].includes(trigger.hook);
+}
+
 function buildStartEvent(projectState, workspaceId) {
   const snapshot = deriveCmuxSidebarSnapshot(projectState);
   const phase = parsePhaseNumber(projectState?.state, projectState?.currentPhase);
@@ -184,7 +188,7 @@ function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
     return boundaryEvent;
   }
 
-  if (trigger.hook === 'startup') {
+  if (shouldConsiderStartEvent(trigger)) {
     const hasEscalationSignal = /checkpoint|warning|blocked|blocker|failure|error|auth|manual action/.test(lowerSignal)
       || blockerLines.length > 0
       || Boolean(latestCritical || latestWarning);

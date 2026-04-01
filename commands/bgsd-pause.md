@@ -14,5 +14,5 @@ $ARGUMENTS: Optional pause note
 </context>
 
 <process>
-Execute the pause-work workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/pause-work.md end-to-end.
+Execute the pause-work workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/pause-work.md` end-to-end.
 </process>

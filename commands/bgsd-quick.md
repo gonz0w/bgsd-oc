@@ -16,5 +16,5 @@ $ARGUMENTS: Task description or quick-execution request
 <process>
 Treat `/bgsd-quick` as the preferred quick-entry command.
 
-Execute the quick workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/quick.md end-to-end with all provided arguments.
+Execute the quick workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/quick.md` end-to-end with all provided arguments.
 </process>

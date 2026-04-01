@@ -91,7 +91,8 @@ export function enrichCommand(input, output, cwd) {
   if (!input || !output) return;
 
   // Extract command name from input
-  const command = input.command || (input.parts && input.parts[0]) || '';
+  const rawCommand = input.command || (input.parts && input.parts[0]) || '';
+  const command = normalizeCommandName(rawCommand);
 
   // Only intercept /bgsd-* commands
   if (!command.startsWith('bgsd-')) return;
@@ -154,7 +155,7 @@ export function enrichCommand(input, output, cwd) {
   // Phase-aware detection: scan command parts for a phase number argument.
   // Falls back to parsing input.command (e.g. "bgsd-execute-phase 15") if
   // input.parts is absent or contains no numeric arg.
-  const phaseNum = detectPhaseArg(input.parts, input.command, input.arguments);
+  const phaseNum = detectPhaseArg(input.parts, rawCommand, input.arguments);
 
   // Resolve effective phase number (explicit arg or current from STATE.md)
   let effectivePhaseNum = phaseNum;
@@ -689,6 +690,11 @@ export function enrichCommand(input, output, cwd) {
       writeDebugDiagnostic('[bgsd-enricher]', `dangling references found (no elision): ${allDanglingWarnings.map(w => w.section).join(', ')}`);
     }
   }
+}
+
+function normalizeCommandName(command) {
+  if (typeof command !== 'string') return '';
+  return command.trim().replace(/^\//, '').split(/\s+/, 1)[0] || '';
 }
 
 /**

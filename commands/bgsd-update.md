@@ -14,5 +14,5 @@ $ARGUMENTS: Optional --force flag
 </context>
 
 <process>
-Execute the update workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/update.md end-to-end.
+Execute the update workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/update.md` end-to-end.
 </process>

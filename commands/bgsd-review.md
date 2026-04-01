@@ -18,5 +18,5 @@ $ARGUMENTS: Optional review scope arguments passed through to the workflow.
 </context>
 
 <process>
-Execute the review workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/review.md end-to-end.
+Execute the review workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/review.md` end-to-end.
 </process>

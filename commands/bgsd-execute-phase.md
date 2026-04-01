@@ -14,6 +14,6 @@ $ARGUMENTS: Phase number (e.g., 108)
 </context>
 
 <process>
-Execute the execute-phase workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-phase.md end-to-end.
+Execute the execute-phase workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-phase.md` end-to-end.
 Pass phase number from arguments to workflow.
 </process>

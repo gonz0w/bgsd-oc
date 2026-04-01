@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "170",
+  "step": "execute",
+  "status": "complete",
+  "run_id": "170-2026-03-31T12-14-08-030Z",
+  "source_fingerprint": "e2b300677fe7ca59",
+  "created_at": "2026-03-31T13:38:25.480Z",
+  "updated_at": "2026-03-31T13:38:25.480Z",
+  "summary": "Execution complete for Phase 170",
+  "resume_target": {
+    "phase": "170",
+    "step": "execute",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-verify-work 170"
+  },
+  "context": {}
+}

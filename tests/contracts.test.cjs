@@ -643,7 +643,7 @@ describe('Phase 156 workspace config contracts', () => {
 });
 
 describe('Phase 158 inspect family contracts', () => {
-  test('canonical inspect wrapper keeps the read-only boundary while covering remaining aliases', () => {
+  test('canonical inspect wrapper keeps the read-only boundary while covering the supported sub-actions', () => {
     const inspect = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-inspect.md'), 'utf-8');
 
     assert.match(inspect, /- `impact`/);
@@ -656,88 +656,40 @@ describe('Phase 158 inspect family contracts', () => {
     assert.match(inspect, /- `session-diff`/);
     assert.match(inspect, /- `rollback-info`/);
     assert.match(inspect, /- `validate-deps`/);
-    assert.match(inspect, /Representative compatibility shims that must stay equivalent to this contract:/);
-    assert.match(inspect, /\/bgsd-health` -> `\/bgsd-inspect health`/);
     assert.match(inspect, /Mutating actions and repair flows/);
     assert.match(inspect, /Review, security, readiness, and release families/);
     assert.match(inspect, /Do not preload sibling inspect-family workflows into context/i);
     assert.match(inspect, /Do not read non-selected sibling workflows unless the selected workflow explicitly requires them/i);
-  });
-
-  test('remaining inspect aliases preserve canonical parity through shared workflow contracts', () => {
-    const expectations = [
-      ['bgsd-health.md', /\/bgsd-inspect health/i, /workflows\/health\.md/],
-      ['bgsd-impact.md', /\/bgsd-inspect impact/i, /workflows\/cmd-codebase-impact\.md/],
-      ['bgsd-trace.md', /\/bgsd-inspect trace/i, /workflows\/cmd-trace-requirement\.md/],
-      ['bgsd-search-decisions.md', /\/bgsd-inspect search decisions/i, /workflows\/cmd-search-decisions\.md/],
-      ['bgsd-search-lessons.md', /\/bgsd-inspect search lessons/i, /workflows\/cmd-search-lessons\.md/],
-      ['bgsd-velocity.md', /\/bgsd-inspect velocity/i, /workflows\/cmd-velocity\.md/],
-      ['bgsd-context-budget.md', /\/bgsd-inspect context-budget/i, /workflows\/cmd-context-budget\.md/],
-      ['bgsd-session-diff.md', /\/bgsd-inspect session-diff/i, /workflows\/cmd-session-diff\.md/],
-      ['bgsd-rollback-info.md', /\/bgsd-inspect rollback-info/i, /workflows\/cmd-rollback-info\.md/],
-      ['bgsd-validate-deps.md', /\/bgsd-inspect validate-deps/i, /workflows\/cmd-validate-deps\.md/]
-    ];
-
-    for (const [fileName, canonicalPattern, workflowPattern] of expectations) {
-      const commandText = fs.readFileSync(path.join(process.cwd(), 'commands', fileName), 'utf-8');
-      assert.match(commandText, /Compatibility alias for `\/bgsd-inspect/i);
-      assert.match(commandText, canonicalPattern);
-      assert.match(commandText, workflowPattern);
-      assert.match(commandText, /Keep this alias read-only and compatibility-focused/i);
-    }
+    assert.doesNotMatch(inspect, /\/bgsd-health|\/bgsd-impact|\/bgsd-trace|\/bgsd-search-decisions|\/bgsd-search-lessons|\/bgsd-velocity|\/bgsd-context-budget|\/bgsd-session-diff|\/bgsd-rollback-info|\/bgsd-validate-deps/);
   });
 });
 
 describe('Phase 158 planning family alias normalization contracts', () => {
-  test('roadmap gap and todo aliases stay on one normalized planning-family contract', () => {
+  test('canonical planning family owns roadmap gap and todo routing without legacy wrappers', () => {
     const plan = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-plan.md'), 'utf-8');
-    const expectations = [
-      ['bgsd-add-phase.md', /\/bgsd-plan roadmap add \$ARGUMENTS/i, /Do not present this alias as the preferred path/i],
-      ['bgsd-insert-phase.md', /\/bgsd-plan roadmap insert \$ARGUMENTS/i, /Do not present this alias as the preferred path/i],
-      ['bgsd-remove-phase.md', /\/bgsd-plan roadmap remove \$ARGUMENTS/i, /Do not present this alias as the preferred path/i],
-      ['bgsd-plan-gaps.md', /\/bgsd-plan gaps \$ARGUMENTS/i, /existing gap-planning entrypoint/i],
-      ['bgsd-add-todo.md', /\/bgsd-plan todo add \$ARGUMENTS/i, /plan-scoped/i],
-      ['bgsd-check-todos.md', /\/bgsd-plan todo check \$ARGUMENTS/i, /plan-scoped/i]
-    ];
 
     assert.match(plan, /Normalize the first argument onto the existing planning-family workflow contract:/i);
-    assert.match(plan, /Legacy planning aliases should resolve through these same normalized sub-actions rather than owning separate behavior\./i);
-    assert.match(plan, /Representative compatibility shims that must stay equivalent to this contract:/i);
     assert.match(plan, /Do not preload sibling planning-family workflows into context/i);
     assert.match(plan, /Do not read non-selected sibling workflows unless the selected workflow explicitly requires them/i);
     assert.doesNotMatch(plan, /preferred alias wording/i, 'canonical contract should not encode legacy-preferred wording');
-
-    for (const [fileName, canonicalPattern, boundaryPattern] of expectations) {
-      const commandText = fs.readFileSync(path.join(process.cwd(), 'commands', fileName), 'utf-8');
-      assert.match(commandText, /@__OPENCODE_CONFIG__\/bgsd-oc\/commands\/bgsd-plan\.md/);
-      assert.match(commandText, canonicalPattern);
-      assert.match(commandText, boundaryPattern);
-    }
+    assert.doesNotMatch(plan, /\/bgsd-plan-phase|\/bgsd-discuss-phase|\/bgsd-research-phase|\/bgsd-list-assumptions|\/bgsd-add-phase|\/bgsd-insert-phase|\/bgsd-remove-phase|\/bgsd-plan-gaps|\/bgsd-add-todo|\/bgsd-check-todos/);
   });
 });
 
 describe('Phase 158 settings family reference contracts', () => {
-  test('settings command wrappers keep canonical family routing and compatibility alias wording', () => {
+  test('settings command wrapper keeps canonical family routing without legacy alias references', () => {
     const settings = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-settings.md'), 'utf-8');
-    const setProfile = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-set-profile.md'), 'utf-8');
-    const validateConfig = fs.readFileSync(path.join(process.cwd(), 'commands', 'bgsd-validate-config.md'), 'utf-8');
 
     assert.match(settings, /canonical settings-family command/i);
-    assert.match(settings, /\/bgsd-set-profile/);
-    assert.match(settings, /\/bgsd-validate-config/);
     assert.match(settings, /workflows\/settings\.md/);
     assert.match(settings, /workflows\/set-profile\.md/);
     assert.match(settings, /workflows\/cmd-validate-config\.md/);
     assert.match(settings, /Do not preload sibling settings-family workflows into context/i);
     assert.match(settings, /Do not read non-selected sibling workflows unless the selected workflow explicitly requires them/i);
-
-    assert.match(setProfile, /Compatibility alias for `\/bgsd-settings profile`/i);
-    assert.match(setProfile, /\/bgsd-settings profile \$ARGUMENTS/i);
-    assert.match(validateConfig, /Compatibility alias for `\/bgsd-settings validate`/i);
-    assert.match(validateConfig, /\/bgsd-settings validate \$ARGUMENTS/i);
+    assert.doesNotMatch(settings, /\/bgsd-set-profile|\/bgsd-validate-config/);
   });
 
-  test('command reference advertises canonical families while keeping settings aliases compatibility-only', () => {
+  test('command reference advertises canonical families only', () => {
     const commandsDoc = fs.readFileSync(path.join(process.cwd(), 'docs', 'commands.md'), 'utf-8');
 
     assert.match(commandsDoc, /Preferred canonical command families:/);

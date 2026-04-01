@@ -14,5 +14,5 @@ $ARGUMENTS: Optional topic
 </context>
 
 <process>
-Execute the help workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/help.md end-to-end.
+Execute the help workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/help.md` end-to-end.
 </process>

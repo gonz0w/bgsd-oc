@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "172",
+  "step": "execute",
+  "status": "complete",
+  "run_id": "172-2026-03-31T17-51-05-483Z",
+  "source_fingerprint": "5d10992f569754e6",
+  "created_at": "2026-03-31T19:21:06.829Z",
+  "updated_at": "2026-03-31T19:21:06.829Z",
+  "summary": "Execution complete for Phase 172",
+  "resume_target": {
+    "phase": "172",
+    "step": "execute",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-verify-work 172"
+  },
+  "context": {
+    "tdd_audits": [
+      {
+        "path": ".planning/phases/172-ambient-attention-ux-noise-control/172-01-TDD-AUDIT.json",
+        "plan": "01",
+        "stages": [
+          "red",
+          "green"
+        ]
+      },
+      {
+        "path": ".planning/phases/172-ambient-attention-ux-noise-control/172-02-TDD-AUDIT.json",
+        "plan": "02",
+        "stages": [
+          "red",
+          "green"
+        ]
+      }
+    ]
+  }
+}

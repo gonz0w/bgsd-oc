@@ -18,24 +18,19 @@ Treat `/bgsd-settings` as the canonical settings family.
 
 Normalize the leading arguments onto the existing settings workflows:
 
-- No sub-action or direct settings arguments -> @__OPENCODE_CONFIG__/bgsd-oc/workflows/settings.md
-- `profile <name>` -> @__OPENCODE_CONFIG__/bgsd-oc/workflows/set-profile.md with the remaining arguments after `profile`
-- `validate [config-path]` -> @__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-validate-config.md with the remaining arguments after `validate`
+- No sub-action or direct settings arguments -> `__OPENCODE_CONFIG__/bgsd-oc/workflows/settings.md`
+- `profile <name>` -> `__OPENCODE_CONFIG__/bgsd-oc/workflows/set-profile.md` with the remaining arguments after `profile`
+- `validate [config-path]` -> `__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-validate-config.md` with the remaining arguments after `validate`
 
-Representative compatibility shims that must stay equivalent to this contract:
-
-- `/bgsd-set-profile` -> `/bgsd-settings profile`
-- `/bgsd-validate-config` -> `/bgsd-settings validate`
-
-Preserve the remaining arguments after the normalized settings-family prefix so canonical and legacy entrypoints stay behaviorally equivalent.
+Preserve the remaining arguments after the normalized settings-family prefix so each `/bgsd-settings` sub-action stays behaviorally equivalent to its underlying workflow contract.
 
 Keep `/bgsd-settings` separate from the canonical planning and read-only inspection families.
 
 After you determine the target route, use the Read tool to load only the selected workflow file:
 
-- default settings flow -> `@__OPENCODE_CONFIG__/bgsd-oc/workflows/settings.md`
-- `profile` -> `@__OPENCODE_CONFIG__/bgsd-oc/workflows/set-profile.md`
-- `validate` -> `@__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-validate-config.md`
+- default settings flow -> `__OPENCODE_CONFIG__/bgsd-oc/workflows/settings.md`
+- `profile` -> `__OPENCODE_CONFIG__/bgsd-oc/workflows/set-profile.md`
+- `validate` -> `__OPENCODE_CONFIG__/bgsd-oc/workflows/cmd-validate-config.md`
 
 Do not read non-selected sibling workflows unless the selected workflow explicitly requires them.
 </process>

@@ -11,7 +11,7 @@ import { createFileWatcher } from './file-watcher.js';
 import { createIdleValidator } from './idle-validator.js';
 import { createStuckDetector } from './stuck-detector.js';
 import { createAdvisoryGuardrails } from './advisory-guardrails.js';
-import { createAttachedCmuxAdapter, createNoopCmuxAdapter, resolveCmuxAvailability } from './cmux-targeting.js';
+import { createAttachedCmuxAdapter, createNoopCmuxAdapter, resolveCmuxAvailability, suppressionReason } from './cmux-targeting.js';
 import { syncCmuxSidebar } from './cmux-sidebar-sync.js';
 import { createAttentionMemory, syncCmuxAttention } from './cmux-attention-sync.js';
 import { parseConfig } from './parsers/config.js';
@@ -19,6 +19,16 @@ import { writeDebugDiagnostic } from './debug-contract.js';
 import { getToolAvailability } from './tool-availability.js';
 
 const cmuxAdapterCache = new Map();
+const cmuxAdapterRetryState = new Map();
+const CMUX_RETRY_COOLDOWN_MS = 3000;
+const NON_RETRYABLE_CMUX_SUPPRESSION_REASONS = new Set([
+  'missing-env',
+  'workspace-mismatch',
+  'surface-mismatch',
+  'missing-methods',
+  'access-mode-off',
+  'access-mode-blocked',
+]);
 
 function buildCmuxCacheKey(projectDir, env = process.env) {
   return JSON.stringify({
@@ -33,6 +43,8 @@ function buildCmuxCacheKey(projectDir, env = process.env) {
 async function getCachedCmuxAdapter(projectDir, options = {}) {
   const env = options.env || process.env;
   const cacheKey = buildCmuxCacheKey(projectDir, env);
+  const allowRetry = options.allowRetry === true;
+  const now = Number(options.now ?? Date.now());
   const cmuxClient = options.client
     || (typeof options.ping === 'function'
       || typeof options.setStatus === 'function'
@@ -41,7 +53,18 @@ async function getCachedCmuxAdapter(projectDir, options = {}) {
       : null);
 
   if (cmuxAdapterCache.has(cacheKey)) {
-    return cmuxAdapterCache.get(cacheKey);
+    const cachedAdapter = await cmuxAdapterCache.get(cacheKey);
+    const suppressionReason = cachedAdapter?.suppressionReason || cachedAdapter?.verdict?.suppressionReason || null;
+    const retryableSuppression = suppressionReason === null
+      || !NON_RETRYABLE_CMUX_SUPPRESSION_REASONS.has(suppressionReason);
+    const lastRetryAt = cmuxAdapterRetryState.get(cacheKey) || 0;
+
+    if (!allowRetry || cachedAdapter?.attached || !retryableSuppression || (now - lastRetryAt) < CMUX_RETRY_COOLDOWN_MS) {
+      return cachedAdapter;
+    }
+
+    cmuxAdapterRetryState.set(cacheKey, now);
+    cmuxAdapterCache.delete(cacheKey);
   }
 
   const adapterPromise = (async () => {
@@ -86,8 +109,36 @@ async function getCachedCmuxAdapter(projectDir, options = {}) {
   return adapterPromise;
 }
 
+function buildCmuxSuppressionNotification(cmuxAdapter) {
+  const reason = suppressionReason(cmuxAdapter);
+  if (!reason || cmuxAdapter?.attached) return null;
+
+  if (cmuxAdapter?.mode !== 'managed' || !cmuxAdapter?.workspaceId) {
+    return null;
+  }
+
+  const detailByReason = {
+    'write-probe-failed': 'workspace write probe failed',
+    'workspace-mismatch': 'workspace identity did not match this terminal',
+    'surface-mismatch': 'surface identity did not match this terminal',
+    'identify-unavailable': 'cmux could not confirm terminal identity',
+    'missing-env': 'required cmux workspace environment is incomplete',
+    'missing-methods': 'cmux capability metadata did not expose legacy sidebar commands',
+    'capabilities-unavailable': 'cmux capabilities could not be read',
+    'access-mode-off': 'cmux socket access is turned off',
+  };
+
+  const detail = detailByReason[reason] || reason.replace(/-/g, ' ');
+  return {
+    type: 'cmux-suppressed',
+    severity: 'info',
+    message: `bGSD cmux integration suppressed: ${detail}. Sidebar status, logs, and notifications stay off for this session.`,
+  };
+}
+
 export function resetCmuxAdapterCache() {
   cmuxAdapterCache.clear();
+  cmuxAdapterRetryState.clear();
 }
 
 // Re-export parsers, tool registry, and safeHook for external consumption
@@ -144,10 +195,24 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
 
   // Initialize Phase 75 event subsystems
   const projectDir = directory || process.cwd();
+  const cmuxOptions = cmux || {};
   const config = parseConfig(projectDir);
   const notifier = createNotifier($, projectDir);
-  const cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmux || {});
+  let cmuxAdapter = await getCachedCmuxAdapter(projectDir, cmuxOptions);
   const cmuxAttentionMemory = createAttentionMemory();
+  const cmuxSuppressionNotification = buildCmuxSuppressionNotification(cmuxAdapter);
+
+  async function getCurrentCmuxAdapter(options = {}) {
+    cmuxAdapter = await getCachedCmuxAdapter(projectDir, {
+      ...cmuxOptions,
+      ...options,
+    });
+    return cmuxAdapter;
+  }
+
+  if (cmuxSuppressionNotification) {
+    await notifier.notify(cmuxSuppressionNotification);
+  }
 
   // Best-effort tool cache warmup so first subagent handoffs have fresh availability data.
   try {
@@ -225,21 +290,23 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     maxPaths: config.file_watcher?.max_watched_paths || 500,
     onExternalChange: (filePath) => {
       void handleExternalPlanningChange(filePath);
+      void handleExternalCmuxPlanningChange(filePath);
     },
   });
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config);
   const stuckDetector = createStuckDetector(notifier, config);
   const guardrails = createAdvisoryGuardrails(projectDir, notifier, config);
 
-  async function refreshCmuxSidebar() {
+  async function refreshCmuxSidebar(options = {}) {
     try {
+      const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry: options.allowRetry === true });
       const { invalidateAll } = await import('./parsers/index.js');
       invalidateAll(projectDir);
 
       const projectState = getProjectState(projectDir);
       if (!projectState) return;
 
-      await syncCmuxSidebar(cmuxAdapter, {
+      await syncCmuxSidebar(currentCmuxAdapter, {
         ...projectState,
         notificationHistory: notifier.getHistory(),
       });
@@ -248,30 +315,40 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     }
   }
 
-  async function refreshCmuxAttention(trigger = {}) {
+  async function refreshCmuxAttention(options = {}) {
     try {
+      const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry: options.allowRetry === true });
       const { invalidateAll } = await import('./parsers/index.js');
       invalidateAll(projectDir);
 
       const projectState = getProjectState(projectDir);
       if (!projectState) return;
 
-      await syncCmuxAttention(cmuxAdapter, {
+      await syncCmuxAttention(currentCmuxAdapter, {
         ...projectState,
         notificationHistory: notifier.getHistory(),
       }, {
         memory: cmuxAttentionMemory,
-        trigger,
+        trigger: options.trigger || {},
       });
     } catch (error) {
       writeDebugDiagnostic('[bgsd-plugin]', `cmux attention sync failed (non-fatal): ${error.message || String(error)}`);
     }
   }
 
+  async function handleExternalCmuxPlanningChange(filePath) {
+    if (!filePath || filePath.endsWith(join('.planning', 'MEMORY.md'))) {
+      return;
+    }
+
+    await refreshCmuxSidebar({ allowRetry: true });
+    await refreshCmuxAttention({ allowRetry: true, trigger: { hook: 'file.watcher.external', filePath } });
+  }
+
   // Start file watcher for .planning/ directory
   fileWatcher.start();
   await refreshCmuxSidebar();
-  await refreshCmuxAttention({ hook: 'startup' });
+  await refreshCmuxAttention({ trigger: { hook: 'startup' } });
 
   // ENR-03: Background cache warm-up — non-blocking, runs after plugin init completes.
   // Calls getProjectState to trigger parsing + SQLite write-through for all planning files,
@@ -320,8 +397,11 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   // Prepends <bgsd-context> JSON block to output.parts before workflow execution
   const commandEnrich = safeHook('command.enrich', async (input, output) => {
     const cmdDir = directory || process.cwd();
+    const normalizedCommand = typeof input?.command === 'string'
+      ? input.command.trim().replace(/^\//, '').split(/\s+/, 1)[0]
+      : '';
     // Set guardrails flag for bGSD commands — suppresses planning file warnings
-    if (input?.command && input.command.startsWith('bgsd-')) {
+    if (normalizedCommand.startsWith('bgsd-')) {
       guardrails.setBgsdCommandActive();
     }
     enrichCommand(input, output, cmdDir);
@@ -332,15 +412,19 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     if (event.type === 'session.idle') {
       await idleValidator.onIdle();
       guardrails.clearBgsdCommandActive();
-      await refreshCmuxSidebar();
-      await refreshCmuxAttention({ hook: 'session.idle', event });
+      await refreshCmuxSidebar({ allowRetry: true });
+      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: 'session.idle', event } });
     }
     if (event.type === 'file.watcher.updated') {
       const { invalidateAll } = await import('./parsers/index.js');
       invalidateAll(projectDir);
       await handleExternalPlanningChange(event.path || event.filePath || null);
-      await refreshCmuxSidebar();
-      await refreshCmuxAttention({ hook: 'file.watcher.updated', event });
+      await refreshCmuxSidebar({ allowRetry: true });
+      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: 'file.watcher.updated', event } });
+    }
+    if (event.type === 'command.executed') {
+      await refreshCmuxSidebar({ allowRetry: true });
+      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: 'command.executed', event } });
     }
   });
 
@@ -348,8 +432,8 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const toolAfter = safeHook('tool.execute.after', async (input) => {
     stuckDetector.trackToolCall(input);
     await guardrails.onToolAfter(input);
-    await refreshCmuxSidebar();
-    await refreshCmuxAttention({ hook: 'tool.execute.after', input });
+    await refreshCmuxSidebar({ allowRetry: true });
+    await refreshCmuxAttention({ allowRetry: true, trigger: { hook: 'tool.execute.after', input } });
   });
 
   return {
@@ -358,7 +442,9 @@ export const BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     'command.execute.before': commandEnrich,
     'event': eventHandler,
     'tool.execute.after': toolAfter,
-    cmuxAdapter,
+    get cmuxAdapter() {
+      return cmuxAdapter;
+    },
     tool: getTools(registry),
   };
 };

@@ -18,5 +18,5 @@ $ARGUMENTS: Optional release arguments passed through to the workflow.
 </context>
 
 <process>
-Execute the release workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/release.md end-to-end.
+Execute the release workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/release.md` end-to-end.
 </process>

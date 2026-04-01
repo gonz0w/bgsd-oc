@@ -4,6 +4,7 @@ import { getProjectState } from '../project-state.js';
 import { invalidateState } from '../parsers/state.js';
 import { invalidatePlans } from '../parsers/plan.js';
 import { resolveBundledCliPath } from '../cli-path.js';
+import { resolveNodeRuntime } from '../node-runtime.js';
 
 /**
  * bgsd_progress — State mutation tool.
@@ -24,7 +25,8 @@ function resolveCliPath() {
 
 function runCanonicalStateCommand(projectDir, args) {
   const cliPath = resolveCliPath();
-  const output = execFileSync(process.execPath, [cliPath, 'verify:state', ...args], {
+  const nodeRuntime = resolveNodeRuntime();
+  const output = execFileSync(nodeRuntime, [cliPath, 'verify:state', ...args], {
     cwd: projectDir,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],

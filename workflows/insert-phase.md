@@ -31,11 +31,19 @@ Validate first argument is an integer.
 </step>
 
 <step name="init_context">
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+**Context:** This workflow prefers project context from `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook.
 
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+**If `<bgsd-context>` is present:** Parse that JSON directly.
 
-Check `roadmap_exists` from `<bgsd-context>` JSON. If false:
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan roadmap insert` execution where the slash-command hook was bypassed. Reconstruct the same roadmap context:
+
+```bash
+BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)
+```
+
+If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Check `roadmap_exists` from `<bgsd-context>` JSON or `BGSD_CONTEXT`. If false:
 ```
 ERROR: No roadmap found (.planning/ROADMAP.md)
 ```

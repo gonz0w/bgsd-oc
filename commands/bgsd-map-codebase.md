@@ -14,5 +14,5 @@ $ARGUMENTS: Optional focus area
 </context>
 
 <process>
-Execute the map-codebase workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/map-codebase.md end-to-end.
+Execute the map-codebase workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/map-codebase.md` end-to-end.
 </process>

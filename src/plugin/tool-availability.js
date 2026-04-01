@@ -2,6 +2,7 @@ import { execFileSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { resolveBundledCliPath } from './cli-path.js';
+import { resolveNodeRuntime } from './node-runtime.js';
 
 export const TOOL_NAMES = ['ripgrep', 'fd', 'jq', 'yq', 'ast_grep', 'sd', 'hyperfine', 'bat', 'gh'];
 export const TOOL_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -85,7 +86,8 @@ function inspectToolCache(projectDir) {
 
 function refreshToolAvailability(projectDir) {
   const cliPath = resolveCliPath();
-  const output = execFileSync(process.execPath, [cliPath, 'detect:tools', '--raw'], {
+  const nodeRuntime = resolveNodeRuntime();
+  const output = execFileSync(nodeRuntime, [cliPath, 'detect:tools', '--raw'], {
     cwd: projectDir,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],

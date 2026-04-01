@@ -18,5 +18,5 @@ $ARGUMENTS: Optional security scope arguments passed through to the workflow.
 </context>
 
 <process>
-Execute the security workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/security.md end-to-end.
+Execute the security workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/security.md` end-to-end.
 </process>

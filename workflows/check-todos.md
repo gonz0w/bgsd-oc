@@ -9,11 +9,25 @@ Read all files referenced by the invoking prompt's execution_context before star
 <process>
 
 <step name="init_context">
-**Context:** This workflow receives project context via `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook. If no `<bgsd-context>` block is present, the plugin is not loaded.
+**Context:** This workflow prefers project context from `<bgsd-context>` auto-injected by the bGSD plugin's `command.execute.before` hook.
 
-**If no `<bgsd-context>` found:** Stop and tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+**If `<bgsd-context>` is present:** Parse that JSON directly.
 
-Extract from `<bgsd-context>` JSON: `todo_count`, `todos`, `pending_dir`.
+**If no `<bgsd-context>` found:** Treat this as a routed or copied `/bgsd-plan todo check` execution where the slash-command hook was bypassed. Reconstruct the same todo-review context, preserving any optional area filter from `$ARGUMENTS`:
+
+- Extract optional `AREA` from the first argument in `$ARGUMENTS` before running the fallback command.
+
+```bash
+if [ -n "${AREA}" ]; then
+  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos "${AREA}" --raw)
+else
+  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:todos --raw)
+fi
+```
+
+If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
+
+Extract from `<bgsd-context>` JSON or `BGSD_CONTEXT`: `todo_count`, `todos`, `pending_dir`.
 
 If `todo_count` is 0:
 ```

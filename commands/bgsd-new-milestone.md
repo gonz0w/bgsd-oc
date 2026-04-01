@@ -14,5 +14,5 @@ $ARGUMENTS: Optional milestone name/version
 </context>
 
 <process>
-Execute the new-milestone workflow from @__OPENCODE_CONFIG__/bgsd-oc/workflows/new-milestone.md end-to-end.
+Execute the new-milestone workflow from `__OPENCODE_CONFIG__/bgsd-oc/workflows/new-milestone.md` end-to-end.
 </process>

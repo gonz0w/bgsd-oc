@@ -14,6 +14,7 @@
 
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -157,6 +158,21 @@ function cleanupDir(dir) {
   } catch {
     // ignore cleanup failures
   }
+}
+
+function makeNonNodeExecutable(prefix = 'bgsd-fake-exec-') {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const file = path.join(dir, process.platform === 'win32' ? 'fake-opencode.cmd' : 'fake-opencode');
+  const content = process.platform === 'win32'
+    ? '@echo off\r\necho not-node 1>&2\r\nexit /b 64\r\n'
+    : '#!/bin/sh\nprintf "not-node\\n" >&2\nexit 64\n';
+
+  fs.writeFileSync(file, content);
+  if (process.platform !== 'win32') {
+    fs.chmodSync(file, 0o755);
+  }
+
+  return { dir, file };
 }
 
 // ---------------------------------------------------------------------------
@@ -531,17 +547,22 @@ describe('Phase 158 canonical family enrichment parity', () => {
 
   it('canonical planning family command gets planner routing metadata', () => {
     assert.strictEqual(getAgentType('bgsd-plan'), 'bgsd-planner');
-    assert.strictEqual(getAgentType('bgsd-plan-phase'), 'bgsd-planner');
   });
 
   it('canonical inspect family command gets executor routing metadata', () => {
     assert.strictEqual(getAgentType('bgsd-inspect'), 'bgsd-executor');
   });
 
-  it('canonical settings family and compatibility aliases share executor routing metadata', () => {
-    for (const command of ['bgsd-settings', 'bgsd-set-profile', 'bgsd-validate-config']) {
-      assert.strictEqual(getAgentType(command), 'bgsd-executor');
-    }
+  it('slash-prefixed canonical inspect family command gets executor routing metadata', () => {
+    assert.strictEqual(getAgentType('/bgsd-inspect'), 'bgsd-executor');
+  });
+
+  it('canonical settings family command gets executor routing metadata', () => {
+    assert.strictEqual(getAgentType('bgsd-settings'), 'bgsd-executor');
+  });
+
+  it('slash-prefixed canonical planning family command gets planner routing metadata', () => {
+    assert.strictEqual(getAgentType('/bgsd-plan'), 'bgsd-planner');
   });
 });
 
@@ -603,6 +624,36 @@ describe('Tool availability refresh behavior', () => {
       assert.ok(['cache', 'cli-refresh'].includes(enrichment.tool_availability_meta.source), 'metadata should identify cache or refresh source');
       assert.ok(Object.values(enrichment.tool_availability).some((value) => value !== null), 'tool availability should contain known values after refresh');
     } finally {
+      cleanupDir(tempDir);
+    }
+  });
+
+  it('enrichCommand falls back to a usable Node runtime when process.execPath is not Node', () => {
+    const tempDir = makePlanningProject('bgsd-enr-tools-fallback-');
+    const fakeExec = makeNonNodeExecutable();
+
+    try {
+      const script = `
+        import { enrichCommand } from ${JSON.stringify(pathToFileURL(PLUGIN_PATH).href)};
+        const cwd = process.argv[1];
+        const fakePath = process.argv[2];
+        Object.defineProperty(process, 'execPath', { value: fakePath, configurable: true });
+        const input = { command: 'bgsd-help', parts: ['bgsd-help'] };
+        const output = { parts: [] };
+        enrichCommand(input, output, cwd);
+        process.stdout.write(JSON.stringify(output));
+      `;
+
+      const raw = execFileSync(process.execPath, ['--input-type=module', '--eval', script, tempDir, fakeExec.file], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      const enrichment = parseEnrichmentOutput(JSON.parse(raw));
+      assert.strictEqual(enrichment.tool_availability_meta.state, 'fresh');
+      assert.ok(Object.values(enrichment.tool_availability).some((value) => value !== null));
+    } finally {
+      cleanupDir(fakeExec.dir);
       cleanupDir(tempDir);
     }
   });

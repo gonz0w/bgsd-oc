@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "171",
+  "step": "execute",
+  "status": "complete",
+  "run_id": "171-2026-03-31T14-22-59-401Z",
+  "source_fingerprint": "ecd998190702e256",
+  "created_at": "2026-03-31T15:15:27.073Z",
+  "updated_at": "2026-03-31T15:15:27.073Z",
+  "summary": "Execution complete for Phase 171",
+  "resume_target": {
+    "phase": "171",
+    "step": "execute",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-verify-work 171"
+  },
+  "context": {
+    "tdd_audits": [
+      {
+        "path": ".planning/phases/171-ambient-workspace-status-progress/171-01-TDD-AUDIT.json",
+        "plan": "01",
+        "stages": [
+          "red",
+          "green",
+          "refactor"
+        ]
+      }
+    ]
+  }
+}
