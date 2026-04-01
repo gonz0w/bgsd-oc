@@ -582,4 +582,34 @@ describe('validateCommandIntegrity', () => {
       'shipped runtime roadmap guidance should keep the canonical add/remove/insert operand shapes'
     );
   });
+
+  test('Phase 176 canonical routes keep planning and settings command floors runnable', () => {
+    const routeMatrix = extractPlanningRouteMatrix();
+    const settingsDoc = readRepoFile('commands/bgsd-settings.md');
+
+    assert.equal(routeMatrix['phase <phase-number> [flags]'], '__OPENCODE_CONFIG__/bgsd-oc/workflows/plan-phase.md');
+    assert.equal(routeMatrix['discuss <phase-number> [flags]'], '__OPENCODE_CONFIG__/bgsd-oc/workflows/discuss-phase.md');
+    assert.match(settingsDoc, /`profile <name>` -> `__OPENCODE_CONFIG__\/bgsd-oc\/workflows\/set-profile\.md`/);
+    assert.match(settingsDoc, /`validate \[config-path\]` -> `__OPENCODE_CONFIG__\/bgsd-oc\/workflows\/cmd-validate-config\.md`/);
+
+    const repo = makeTempRepo();
+
+    writeFile(repo, '.planning/config.json', JSON.stringify({
+      mode: 'yolo',
+      workflow: { research: true, auto_advance: false },
+    }, null, 2));
+
+    const planPhaseHelp = runGsdToolsFull('plan:phase --help', repo);
+    assert.equal(planPhaseHelp.success, true, `plan:phase --help should stay runnable: ${planPhaseHelp.stderr}`);
+
+    const milestoneHelp = runGsdToolsFull('plan:milestone --help', repo);
+    assert.equal(milestoneHelp.success, true, `plan:milestone --help should stay runnable: ${milestoneHelp.stderr}`);
+
+    const setResult = runGsdToolsFull('util:config-set workflow.research false', repo);
+    assert.equal(setResult.success, true, `util:config-set should stay runnable: ${setResult.stderr}`);
+
+    const getResult = runGsdToolsFull('util:config-get workflow.research', repo);
+    assert.equal(getResult.success, true, `util:config-get should stay runnable: ${getResult.stderr}`);
+    assert.strictEqual(JSON.parse(getResult.stdout), false, 'config-get should observe the config-set update');
+  });
 });
