@@ -57,7 +57,7 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
   1. Maintainers can change touched command families inside smaller, easier-to-reason-about subdomain files instead of multi-thousand-line bucket modules and ambient output globals.
   2. Maintainers can show that touched cleanup paths no longer rely on silent error swallowing, unnecessary async or control-flow indirection, or unguarded shared mutable state.
   3. Users can run supported planning and settings workflows after cleanup with regression proof showing canonical command routes still work.
-**Plans**: TBD
+**Plans**: 4 plans created
 
 ## Progress
 
@@ -65,8 +65,8 @@ v18.1 reduces cleanup drag before adding anything new. The milestone starts with
 |-------|----------------|--------|-----------|
 | 173. Simplification Audit & Safe Sequencing | 2/2 | Complete    | 2026-03-31 |
 | 174. Greenfield Compatibility Surface Cleanup | 8/8 | Complete   | 2026-04-01 |
-| 175. Canonical Command Surface Alignment | 3/4 | Complete    | 2026-04-01 |
-| 176. Command Hotspot Simplification & Hardening | 0/TBD | Not started | - |
+| 175. Canonical Command Surface Alignment | 4/4 | Complete    | 2026-04-01 |
+| 176. Command Hotspot Simplification & Hardening | 4/4 | Ready to execute | - |
 
 ## Backlog
 
