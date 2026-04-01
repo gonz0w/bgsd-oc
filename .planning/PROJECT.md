@@ -2,30 +2,40 @@
 
 ## What This Is
 
+A single-file Node.js CLI plus bundled OpenCode plugin runtime, built from organized `src/` modules via esbuild into `bin/bgsd-tools.cjs` and `plugin.js`. It provides structured planning, execution, verification, and release operations for AI-driven workflows inside the host editor. v18.1 shipped the greenfield cleanup and command-surface simplification milestone: compatibility-only drag is reduced, command hotspots are smaller, and shipped surfaced-guidance validation now reconciles against one routed source of truth.
+
 A single-file Node.js CLI built from 52 organized `src/` modules via esbuild, producing `bin/bgsd-tools.cjs`. It provides structured data operations for AI-driven project planning workflows running in the host editor. Twenty-eight versions shipped: v1.0 (test suite, module split, observability), v1.1 (context reduction — 46.7% CLI, 54.6% workflow, 67% reference compression), v2.0 (state validation, cross-session memory, quality scoring), v3.0 (intent engineering — INTENT.md, drift validation, workflow injection), v4.0 (environment awareness, MCP profiling, worktree parallelism), v5.0 (codebase intelligence — convention extraction, dependency graphs, lifecycle awareness), v6.0 (UX overhaul — shared formatting engine, TTY-aware smart output, branded CLI), v7.0 (agent orchestration — AST intelligence, task routing, context efficiency, TDD execution, review gates), v7.1 (trajectory engineering — checkpoint, pivot, compare, choose, decision journal, dead-end detection), v8.0 (performance & agent architecture — SQLite caching, agent consolidation 11→9, namespace routing, profiler instrumentation, token budgets, RACI matrix), v8.1 (RAG-powered research — YouTube integration, NotebookLM synthesis, multi-source orchestration, 4-tier degradation, session persistence), v8.2 (cleanup & validation — dead code removal, namespace-only routing, 24-40% init speedup, RACI handoff contracts), v8.3 (agent quality & skills — OpenCode skills architecture with 27 skills and 52.4% agent line reduction, agent consistency audit, GitHub CI agent overhaul, 766 tests fully green), v9.0 (embedded plugin experience — always-on context injection, native LLM tools, event-driven sync, advisory guardrails), v9.1 (performance acceleration — valibot validation, fast-glob discovery, compile-cache, SQLite statement caching, safe adoption controls), v9.2 (CLI tool integrations — ripgrep, fd, jq, yq, bat, gh, Bun runtime), v9.3 (quality, performance & agent sharpening — command consolidation, deterministic context, Bun validation, benchmark adapter), v10.0 (agent intelligence & UX — planning/verification/execution intelligence, multi-agent collaboration, rich TTY output, interactive workflows), v12.0 (SQLite-first data layer — structured planning tables, cross-invocation persistence, enricher acceleration, memory store migration, deterministic decisions, session state in SQL), v12.1 (tool integration & agent enhancement — unified tool detection, 6 CLI tool integrations with fallbacks, capability-aware agent routing and handoff contracts), v13.0 (closed-loop agent evolution — project-local agent overrides, structured lesson schema with analysis pipeline, security-first skill discovery, deviation recovery auto-capture, enhanced research quality profiling), v14.0 (LLM workload reduction — workflow measurement, 41.1% avg compression across 10 workflows, 3 shared skills extracted, scaffold generation, conditional section elision), and v14.1 (tool-aware agent routing — 4 workflows and 3 agents consume tool detection decisions, E2E + contract validation tests, DECISION_REGISTRY pruned 22→19, 1677 tests passing).
 
 ## Core Value
 
 Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Current Milestone: v18.1 Greenfield Cleanup & CLI Simplification
+## Current Milestone: None Active
 
-**Goal:** Reduce compatibility-era drag and command-system complexity so maintainers and agents can change bGSD safely with less context overhead.
-**Target features:**
-- Remove migration-only commands, normalization paths, and stale compatibility guidance that no longer fit the greenfield product model
-- Simplify command routing, help, alias, and discovery surfaces around clearer canonical definitions
-- Break down the highest-friction CLI hotspots so cleanup work lands with smaller, easier-to-reason-about modules
-- Preserve supported JJ/workspace-first behavior with stronger regression proof while the codebase gets smaller and flatter
+**Status:** v18.1 shipped and archived.
+**Next step:** Start `/bgsd-new-milestone` after `/clear`.
 
 ## Milestone Status
 
-**Current milestone:** v18.1 Greenfield Cleanup & CLI Simplification
-**Next step:** Finalize milestone requirements and create the roadmap starting at Phase 173
+**Current milestone:** None active
+**Last completed milestone:** v18.1 Greenfield Cleanup & CLI Simplification
+**Next step:** Choose the next milestone scope and generate a fresh roadmap
 
 ## Current State
 
-**Last shipped:** v18.0 Adaptive Models & Ambient cmux UX (2026-03-31)
-**Now planning:** v18.1 Greenfield Cleanup & CLI Simplification
+**Last shipped:** v18.1 Greenfield Cleanup & CLI Simplification (2026-04-01)
+**Now planning:** Next milestone not started
+
+<details>
+<summary>Latest shipment: v18.1 Greenfield Cleanup & CLI Simplification (shipped 2026-04-01)</summary>
+
+- Compatibility-only config migration, memory import, and legacy roadmap or plan normalization paths were removed so canonical `.planning/` artifacts now define the live greenfield contract
+- Planning-family command guidance and validation now derive from shared route metadata and a router-backed CLI inventory instead of parallel drift-prone surfaces
+- `verify.js` and `misc.js` hotspot cleanup reduced multi-thousand-line command buckets, while shared `output-context` state replaced touched ambient runtime globals
+- Plugin runtime guidance now ships operand-complete roadmap help and a command-only `/bgsd-plan phase ${nextPhase.number}` next-step action with source-to-bundle parity
+- `util:validate-commands --raw` now reports proof inventory plus named exclusions and closes milestone validation with zero surfaced guidance issues on the deployed runtime
+
+</details>
 
 <details>
 <summary>Latest shipment: v18.0 Adaptive Models & Ambient cmux UX (shipped 2026-03-31)</summary>
@@ -544,4 +554,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-03-31 after initializing milestone v18.1 Greenfield Cleanup & CLI Simplification*
+*Last updated: 2026-04-01 after completing and archiving milestone v18.1 Greenfield Cleanup & CLI Simplification*

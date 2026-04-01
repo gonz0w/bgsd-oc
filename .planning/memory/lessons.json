@@ -588,5 +588,150 @@
     "affected_agents": [
       "bgsd-verifier"
     ]
+  },
+  {
+    "id": "d94f3361-07a1-457a-8c2e-4267bd255b36",
+    "date": "2026-04-01T15:09:17.168Z",
+    "title": "Separate internal bootstrap routes from surfaced command-integrity failures",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The command-integrity validator currently reports internal bootstrap routes and markdown-decorated action text as surfaced command failures, which obscures true user-facing regressions and creates conflicting milestone verification evidence.",
+    "prevention_rule": "Teach command validation to classify internal workflow/agent bootstrap commands and decorated UI action labels separately from runnable user guidance, and keep bundled-validator parity checks in the milestone smoke slice.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "091a098c-a845-48ce-a902-ce824a7d4491",
+    "date": "2026-04-01T15:23:49.422Z",
+    "title": "Rerun live validator before planning narrow gap-closure phases",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Milestone audit evidence can lag behind current source and bundle state, so a phase researcher that scopes work from audit text alone may plan already-closed sub-gaps and over-expand the phase.",
+    "prevention_rule": "For gap-closure phase research, rerun the cited validator or verification command early and compare current output to the audit snapshot before recommending plan slices or file targets.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "e2de3e7c-6bf1-4564-bc88-5b3f36f4344a",
+    "date": "2026-04-01T15:29:40.298Z",
+    "title": "Keep malformed command examples out of plan metadata",
+    "severity": "MEDIUM",
+    "type": "agent-behavior",
+    "root_cause": "Planner-authored must_haves and behavior text included literal malformed slash-command examples, which approval-time analyze-plan interpreted as surfaced runnable guidance and flagged as blocker issues.",
+    "prevention_rule": "When a plan must describe invalid or pre-fix command strings, phrase them as prose or non-runnable pattern text in must_haves and feature sections instead of embedding literal slash-command examples that the command-integrity analyzer will parse.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "854e4055-25d1-4771-9e5d-d617a2d0aa90",
+    "date": "2026-04-01T15:31:22.112Z",
+    "title": "Plan approval should rely on verifier-backed must_haves validation",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Field-presence checks can pass plans whose verifier-facing must_haves metadata is malformed or inconclusive, causing approval before execution despite missing goal-backward wiring data.",
+    "prevention_rule": "Before plan approval, require verify:verify plan-structure to succeed and treat malformed or inconclusive must_haves artifacts/key_links metadata as blockers instead of inferring readiness from raw frontmatter presence.",
+    "affected_agents": [
+      "bgsd-plan-checker",
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "c0f81a4d-eb0e-4df3-a2d8-ad0b3da0cabf",
+    "date": "2026-04-01T16:11:11.802Z",
+    "title": "Prefer direct smoke checks when node:test files are oversized",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The execute-plan light verification path assumed  would behave like a narrow slice, but Node still loads and runs large multi-suite files, so unrelated legacy failures and long runtimes can drown the touched proof.",
+    "prevention_rule": "When the touched assertions live inside oversized  files, attempt the declared broad gate once for baseline only, then switch immediately to rebuilt-runtime plus direct smoke scripts or dedicated small test files for the touched behavior instead of retrying the same filtered large-file command.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "92cd71f1-e3ff-468f-8e9e-9a3d76f004de",
+    "date": "2026-04-01T16:17:00.616Z",
+    "title": "Artifact and key-link verifier should not crash when metadata context fallback is used",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The verify:verify artifacts and verify:verify key-links commands still reference createPlanMetadataContext directly when Dn().getPlanMetadataContext is unavailable, causing a ReferenceError and forcing manual verification even when plan metadata exists.",
+    "prevention_rule": "Ensure both verifier commands import or route through a single metadata-context factory before release, and add a CLI regression test that executes artifact/key-link verification against a real plan file under the shipped bundle.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "9762876c-69f0-49cd-9068-f8d0ee6049f6",
+    "date": "2026-04-01T16:36:38.611Z",
+    "title": "Validate command-integrity negatives against routed command truth",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The surfaced command validator derives CLI inventory from documented help entries only, so routed commands that exist in the router but are absent from help metadata can be misreported as nonexistent.",
+    "prevention_rule": "Before treating a validator 'nonexistent-command' result as authoritative, compare the claimed-missing command against routed command sources or a reconciled generated inventory, and keep proof validators sourced from runtime truth instead of a single secondary registry.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "125e5f46-13b6-40b5-a87e-2e392aae5e7f",
+    "date": "2026-04-01T16:45:06.346Z",
+    "title": "Use build-plus-tests for validator-change plan verification",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Planner used direct example commands in plan-level verification for a validator-change slice, but approval-time analyze-plan checks those commands against the current pre-fix validator inventory and can reject otherwise sound plans.",
+    "prevention_rule": "When a plan's goal is to expand validator-recognized command coverage, keep approval-time verification commands on build plus targeted tests; reserve newly accepted command examples for task actions, tests, or post-fix closure proof.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "462fc1aa-f7d5-4fa0-8f8b-145129e2657e",
+    "date": "2026-04-01T16:56:23.513Z",
+    "title": "Implement or suppress TDD validation helper steps before TDD execution",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "The TDD execution workflow instructs executors to run execute:tdd validate-red/green/refactor, but the command currently returns 'TDD command not yet implemented', forcing manual proof capture and risking inconsistent TDD summaries.",
+    "prevention_rule": "Before routing a plan as type:tdd, either implement execute:tdd validation subcommands or update executor guidance to fall back explicitly to direct test-command proof capture.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "3838e46a-caad-4b3f-a7cf-a079202548a5",
+    "date": "2026-04-01T17:00:25.938Z",
+    "title": "Unify JJ commit hash semantics in execution workflows",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "Executor-facing commit helpers return Git commit IDs while self-check guidance examples verify JJ change IDs, which makes successful task commits appear missing during summary self-checks.",
+    "prevention_rule": "Use one documented hash type end-to-end for execute:commit output, summary templates, and self-check commands, or emit both explicitly with matching verification examples.",
+    "affected_agents": [
+      "bgsd-executor"
+    ]
+  },
+  {
+    "id": "cde03562-3f0d-4faa-9185-59b1c7e6df07",
+    "date": "2026-04-01T17:04:40.478Z",
+    "title": "Verifier should fall back when helper commands crash",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Phase verification helper commands can fail in the bundled CLI even after a successful build, so a verifier that assumes helper availability can stall or over-trust missing evidence.",
+    "prevention_rule": "When verify:verify artifacts or key-links crashes, record the helper failure explicitly and continue with manual source-level artifact/key-link proof instead of blocking verification.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
+  },
+  {
+    "id": "17c2bb71-7f6e-49ad-b8b4-9c9c1c74a8e7",
+    "date": "2026-04-01T17:24:21.033Z",
+    "title": "Verifier metadata helpers must be smoke-tested after bundling",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The bundled verify:verify artifacts and verify:verify key-links commands still reference createPlanMetadataContext even when that symbol is unavailable in the shipped runtime, so verification helpers can fail despite plan metadata being present.",
+    "prevention_rule": "Add a bundled-runtime smoke test that runs verify:verify artifacts and verify:verify key-links against a fixture plan during build/test so verifier helper regressions are caught before agents rely on them.",
+    "affected_agents": [
+      "bgsd-verifier"
+    ]
   }
 ]

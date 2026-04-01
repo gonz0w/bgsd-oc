@@ -1,5 +1,34 @@
 # Milestones
 
+## ✅ v18.1 Greenfield Cleanup & CLI Simplification (Shipped: 2026-04-01)
+
+**Delivered:** bGSD now ships a greener, smaller command surface with compatibility-era drag removed, smaller CLI hotspots, and trustworthy shipped guidance validation across source and bundled runtime.
+
+**Phases completed:** 8 phases (173-180), 22 plans, 52 tasks
+**Commits:** 86 | **Files changed:** 247 | **Lines:** +20,533 / -9,721
+**Timeline:** 2 days (2026-03-31 -> 2026-04-01)
+
+**Key accomplishments:**
+- Shipped a canonical cleanup audit ledger and safe sequencing contract before any destructive simplification work landed
+- Removed migration-only command, memory, and parser paths while keeping canonical `.planning/` artifacts valid and workspace-first guidance consistent
+- Moved planning-family command validation onto shared route metadata loaded from `commands/bgsd-plan.md` and a router-backed CLI contract
+- Broke up overloaded CLI hotspots by extracting `verify.js` and `misc.js` subdomains and replacing ambient output globals with explicit `output-context` state
+- Canonicalized shipped plugin roadmap and phase-next guidance so runtime actions are operand-complete, command-only where needed, and preserved in the rebuilt bundle
+- Closed milestone command-validator drift with proof inventory and named exclusions, making `util:validate-commands --raw` trustworthy milestone-close evidence again
+
+**What's next:** Ready for next milestone - `/bgsd-new-milestone`
+
+**Archives:**
+- `.planning/milestones/v18.1-ROADMAP.md`
+- `.planning/milestones/v18.1-REQUIREMENTS.md`
+- `.planning/milestones/v18.1-DOCS.md`
+- `.planning/milestones/v18.1-MILESTONE-AUDIT.md`
+- `.planning/milestones/v18.1-MILESTONE-INTENT.md`
+- `.planning/milestones/v18.1-phases/`
+- `.planning/archive/INTENT-vv18.1.md`
+
+---
+
 ## ✅ v18.0 Adaptive Models & Ambient cmux UX (Shipped: 2026-03-31)
 
 **Delivered:** bGSD now ships provider-agnostic model selection through one canonical settings contract and adds trustworthy, low-noise `cmux` workspace status, progress, logs, and attention signals behind a safe fail-open adapter boundary.
@@ -871,3 +900,4 @@
 - `.planning/milestones/v14.1-REQUIREMENTS.md`
 - `.planning/milestones/v14.1-DOCS.md`
 
+---

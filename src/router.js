@@ -1,6 +1,7 @@
 'use strict';
 
 const { COMMAND_HELP } = require('./lib/constants');
+const { formatAvailableSubcommands, getTopLevelNamespaces } = require('./lib/router-contract');
 const { error, output } = require('./lib/output');
 const {
   getCompactMode,
@@ -409,7 +410,7 @@ Use without --exact for fuzzy matching.`);
             lazyInit().cmdInitMemory(cwd, restArgs, raw);
             break;
           default:
-            error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, review, security, release, verify-work, phase-op, todos, milestone-op, map-codebase, progress, memory`);
+            error(`Unknown init workflow: ${workflow}\nAvailable: ${formatAvailableSubcommands(['init'])}`);
         }
         break;
       }
@@ -527,7 +528,7 @@ Use without --exact for fuzzy matching.`);
           };
           lazyScaffold().cmdPlanGenerate(cwd, options, raw);
         } else {
-          error(`Unknown plan subcommand: ${subcommand}. Available: intent, requirements, roadmap, phases, find-phase, milestone, phase, generate`);
+          error(`Unknown plan subcommand: ${subcommand}. Available: ${formatAvailableSubcommands(['plan'])}`);
         }
         break;
       }
@@ -615,7 +616,7 @@ Use without --exact for fuzzy matching.`);
             default: error('Unknown trajectory subcommand: ' + trajSub + '. Available: checkpoint, list, pivot, compare, choose, dead-ends');
           }
         } else {
-          error(`Unknown execute subcommand: ${subcommand}. Available: commit, rollback-info, session-diff, session-summary, velocity, tdd, test-run, trajectory`);
+          error(`Unknown execute subcommand: ${subcommand}. Available: ${formatAvailableSubcommands(['execute'])}`);
         }
         break;
       }
@@ -865,7 +866,7 @@ Use without --exact for fuzzy matching.`);
           };
           lazyScaffold().cmdVerifyGenerate(cwd, options, raw);
         } else {
-          error(`Unknown verify subcommand: ${subcommand}. Available: state, verify, assertions, search-decisions, search-lessons, review, context-budget, token-budget, summary, validate, validate-dependencies, validate-config, test-coverage, handoff, agents, generate`);
+          error(`Unknown verify subcommand: ${subcommand}. Available: ${formatAvailableSubcommands(['verify'])}`);
         }
         break;
       }
@@ -1601,7 +1602,7 @@ Examples:
          } else if (subCmd === 'gh-preflight') {
            lazyTools().cmdGhPreflight(cwd, raw);
          } else {
-           error('Unknown detect subcommand. Available: tools, gh-preflight');
+            error(`Unknown detect subcommand. Available: ${formatAvailableSubcommands(['detect'])}`);
          }
          break;
        }
@@ -1639,13 +1640,13 @@ Examples:
 
       // Unknown namespace
       default:
-        error(`Unknown namespace: ${namespace}. Available namespaces: init, plan, execute, verify, workspace, util, research, cache, audit, decisions, detect, lessons, skills, workflow, questions`);
+        error(`Unknown namespace: ${namespace}. Available namespaces: ${getTopLevelNamespaces().join(', ')}`);
     }
     return; // Exit after handling namespaced command
   }
 
   // No command matched any namespace — unknown
-  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: init, plan, execute, verify, workspace, util, research, cache, audit, decisions, lessons, skills, workflow`);
+  error(`Unknown command: ${command}. Use namespace:command syntax. Available namespaces: ${getTopLevelNamespaces().join(', ')}`);
 }
 
 // Track command execution in history (Phase 97: UX Polish)

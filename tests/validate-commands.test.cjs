@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 
 const { validateCommandIntegrity } = require('../src/lib/commandDiscovery');
+const { getRouterCommandInventory } = require('../src/lib/router-contract');
 const { runGsdToolsFull } = require('./helpers.cjs');
 
 const ROOT = path.join(__dirname, '..');
@@ -479,6 +480,33 @@ describe('validateCommandIntegrity', () => {
     assert.ok(
       payload.proofInventory.namedExclusions.includes('workflow-bootstrap-reconstruction'),
       'raw proof inventory should keep named exclusions visible for repo-close proof meaning'
+    );
+  });
+
+  test('shares CLI contract inventory between router metadata and validator proof', () => {
+    const commandDiscoverySource = readRepoFile('src/lib/commandDiscovery.js');
+    const routerSource = readRepoFile('src/router.js');
+
+    assert.equal(
+      commandDiscoverySource.includes('const ROUTER_IMPLEMENTATIONS ='),
+      false,
+      'validator should not keep a private duplicate router inventory table'
+    );
+    assert.ok(
+      routerSource.includes("require('./lib/router-contract')"),
+      'router should consume the shared router contract module'
+    );
+
+    const routerInventory = getRouterCommandInventory();
+    assert.ok(routerInventory.includes('init execute-phase'));
+    assert.ok(routerInventory.includes('verify validate roadmap'));
+    assert.ok(routerInventory.includes('detect gh-preflight'));
+
+    const proof = validateCommandIntegrity({ cwd: ROOT, surfaces: [] }).proofInventory;
+    assert.deepEqual(
+      proof.cliContractSources,
+      ['src/lib/router-contract.js', 'src/lib/constants.js'],
+      'proof inventory should name the shared CLI contract sources it actually uses'
     );
   });
 
