@@ -9,8 +9,8 @@ requires:
   - phase: 175-canonical-command-surface-alignment
     provides: Canonical command definitions and router simplification
 provides:
-  - Encapsulated output-context module replacing all global._gsd* ambient state
-  - All command modules and router using module-local state via getter/setter API
+  - Shared output-context module for the touched router/output/debug-contract hotspot surfaces
+  - Historical Phase 176 hardening claims later reconciled against live source in `176-VERIFICATION.md`
   - Fail-fast error handling on invalid state values
 affects:
   - Phase 176 subsequent plans (02-04)
@@ -35,16 +35,15 @@ key-files:
 
 key-decisions:
   - "Used null sentinel for _outputMode to preserve auto-detection logic in router"
-  - "Added isOutputModeExplicit() and isCompactModeExplicit() to track whether values were explicitly set vs auto-detected"
-  - "output-context.js exports 12 functions: 5 getters, 5 setters, 2 explicit-check helpers"
+  - "The current shared output-context module exposes 10 getter/setter functions and keeps compatibility globals synchronized for the touched hotspot boundary"
   - "debug-contract.js (ESM) imports from output-context.js (CJS) using ESM import syntax"
 
 patterns-established:
-  - "Global state encapsulation pattern: module-local vars with getter/setter API"
+  - "Shared output-context pattern for the central router/output/debug-contract hotspot surfaces"
   - "Explicit flag pattern: track whether value was explicitly set vs default/auto-detected"
 
 requirements-completed: [CLI-03, SAFE-02]
-one-liner: "Encapsulated all global._gsd* ambient state into module-local variables with getter/setter API"
+one-liner: "Shared output-context adapter for the touched router/output/debug-contract hotspot surfaces, later reconciled by Phase 178"
 
 # Metrics
 duration: 13min
@@ -53,7 +52,7 @@ completed: 2026-04-01
 
 # Phase 176: Command Hotspot Simplification & Hardening Summary
 
-**Encapsulated all global._gsd* ambient state into module-local variables with getter/setter API**
+**Shared output-context adapter for the touched router/output/debug-contract hotspot surfaces, later reconciled by Phase 178**
 
 ## Performance
 
@@ -64,10 +63,9 @@ completed: 2026-04-01
 - **Files modified:** 8
 
 ## Accomplishments
-- Created `src/lib/output-context.js` with encapsulated state for 5 output-related variables
-- Updated router.js to use output-context API exclusively
-- Updated all command modules (init, features, env, milestone) to use output-context API
-- Updated output.js and debug-contract.js to use output-context API
+- Created `src/lib/output-context.js` as the shared state adapter for the central output hotspot
+- Updated `router.js`, `src/lib/output.js`, and `src/plugin/debug-contract.js` to read the touched shared state through `output-context`
+- Established the hotspot boundary later rechecked by Phase 178's live-source proof
 - Build succeeds and CLI commands work correctly
 
 ## Task Commits
@@ -93,13 +91,21 @@ Each task was committed atomically:
 ## Decisions Made
 
 - Used null sentinel for `_outputMode` to preserve auto-detection logic in router (router checks `!isOutputModeExplicit()` before auto-detecting)
-- Added `isOutputModeExplicit()` and `isCompactModeExplicit()` to track whether values were explicitly set vs auto-detected
-- output-context.js exports 12 functions: 5 getters, 5 setters, 2 explicit-check helpers
+- The current shared `output-context.js` module exports 10 getter/setter functions and keeps compatibility globals synchronized for the touched hotspot boundary
 - debug-contract.js (ESM) imports from output-context.js (CJS) using ESM import syntax
 
 ## Deviations from Plan
 
 None - plan executed exactly as written.
+
+## Phase 178 Truth Note
+
+This summary originally overstated the shipped outcome as repo-wide ambient-global elimination. The authoritative current state is narrower:
+
+- `src/router.js`, `src/lib/output.js`, and `src/plugin/debug-contract.js` now use `src/lib/output-context.js` for the touched hotspot boundary.
+- Broader command-module direct `global._gsd*` usage still exists in current source and was not actually eliminated in Phase 176.
+
+See [`176-VERIFICATION.md`](./176-VERIFICATION.md) for the claim-by-claim disposition and current proof boundary.
 
 ## Issues Encountered
 

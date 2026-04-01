@@ -120,6 +120,12 @@ completed: 2026-04-01
 **Total deviations:** 3 blocking issues auto-fixed
 **Impact on plan:** All auto-fixes essential for build integrity. No scope creep.
 
+## Phase 178 Truth Note
+
+The local misc-subdomain extraction described here remains part of the current source, but this summary should not be treated as proof that every broader Phase 176 hardening claim already shipped.
+
+Phase 178 established [`176-VERIFICATION.md`](./176-VERIFICATION.md) as the authoritative source for the full Phase 176 truth boundary, including which hardening claims remained narrower than earlier summaries suggested.
+
 ## Issues Encountered
 
 - **Incomplete prior extraction:** Plan 176-02 claimed to extract misc.js but left 12+ functions unextracted. This plan completed that work.
