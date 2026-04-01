@@ -19,7 +19,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 
 - [x] **CLEAN-01** Maintainer can remove migration-only commands and helpers that exist only for legacy installs, storage transitions, or obsolete local-state upgrades.
 - [x] **CLEAN-02** Maintainer can remove planning and config normalization paths that only support superseded file shapes while current canonical `.planning/` artifacts still parse and validate.
-- [ ] **CLEAN-03** Users see docs, templates, and help text that match the supported JJ/workspace-first model rather than stale worktree-era or compatibility-era guidance.
+- [x] **CLEAN-03** Users see docs, templates, and help text that match the supported JJ/workspace-first model rather than stale worktree-era or compatibility-era guidance.
 
 ### CLI - Command-System Simplification
 
@@ -31,7 +31,7 @@ Make bGSD easier to maintain and safer for agents to modify by removing compatib
 
 - [ ] **SAFE-01** Users can run supported planning and settings workflows after cleanup with regression coverage proving canonical command routes still work.
 - [ ] **SAFE-02** Maintainers can eliminate silent error swallowing, unnecessary async or control-flow indirection, and unguarded shared mutable state on touched cleanup paths before milestone close.
-- [ ] **SAFE-03** Users see help and workflow guidance that match the real supported command surface after cleanup, with stale aliases or contradictory guidance removed.
+- [x] **SAFE-03** Users see help and workflow guidance that match the real supported command surface after cleanup, with stale aliases or contradictory guidance removed.
 
 ## Future Requirements
 
