@@ -12,7 +12,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 ## Phases
 
 - [x] **Phase 181: Workspace Root Truth & Safe Fallback** (completed 2026-04-01) - Runtime-prove JJ workspace pinning before parallel execution is allowed to proceed.
-- [ ] **Phase 182: Risk-Routed Hardening Proof Policy** - Make `skip` / `light` / `full` verification routing govern runtime-hardening work early.
+- [x] **Phase 182: Risk-Routed Hardening Proof Policy** (completed 2026-04-01) - Make `skip` / `light` / `full` verification routing govern runtime-hardening work early.
 - [ ] **Phase 183: Plan-Local Workspace Ownership** - Keep workspace execution isolated from shared planning artifacts until finalize.
 - [ ] **Phase 184: Deterministic Finalize & Partial-Wave Recovery** - Finalize shared state once, preserve healthy sibling progress, and keep recovery inspectable.
 - [ ] **Phase 185: cmux Coordination Backbone** - Turn bursty runtime activity into one debounced, bounded, fail-open `cmux` refresh path.
@@ -39,7 +39,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
   2. Runtime, shared-state, plugin, and generated-artifact changes in this milestone are routed to proof that includes focused behavior checks plus broad regression when risk is high.
   3. Docs-, workflow-, template-, and guidance-only slices can complete with structural or focused proof without defaulting to repeated broad-suite runs.
   4. Verifier output clearly separates missing behavior proof, missing regression proof, and missing human verification.
-**Plans**: 2 plans
+**Plans**: 2/2 plans complete
 
 ### Phase 183: Plan-Local Workspace Ownership
 **Goal**: Workspace execution stays plan-local, while shared planning artifacts remain untouched until one explicit finalize path runs from trusted main-checkout state
@@ -49,7 +49,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
   1. Parallel workspace runs write code edits, summaries, and proof outputs in their assigned workspace instead of mutating shared `.planning/` artifacts directly.
   2. `.planning/STATE.md`, `.planning/ROADMAP.md`, and `.planning/REQUIREMENTS.md` change only through one explicit finalize path after reconcile.
   3. Operator can inspect what a workspace completed before any shared milestone progress is declared complete.
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 ### Phase 184: Deterministic Finalize & Partial-Wave Recovery
 **Goal**: Healthy sibling workspaces can reconcile into one deterministic shared state while stale, divergent, or partially failed work stays inspectable and recoverable
@@ -86,12 +86,12 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 181. Workspace Root Truth & Safe Fallback | 2/2 | Complete    | 2026-04-01 |
-| 182. Risk-Routed Hardening Proof Policy | 0/2 | Not started | - |
-| 183. Plan-Local Workspace Ownership | 0/2 | Not started | - |
+| 182. Risk-Routed Hardening Proof Policy | 2/2 | Complete    | 2026-04-01 |
+| 183. Plan-Local Workspace Ownership | 1/2 | In Progress|  |
 | 184. Deterministic Finalize & Partial-Wave Recovery | 0/3 | Not started | - |
 | 185. cmux Coordination Backbone | 0/2 | Not started | - |
 | 186. cmux Truthful Lifecycle Signals | 0/2 | Not started | - |
 
 ---
 
-*Last updated: 2026-04-01*
+*Last updated: 2026-04-02*

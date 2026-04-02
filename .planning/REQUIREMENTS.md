@@ -8,7 +8,7 @@
 ### Trusted JJ Workspace Execution
 
 - [x] **JJ-01**: Operator can run a workspace-targeted plan and prove the executor's working directory matches the intended `jj workspace root`
-- [ ] **JJ-02**: Plan-local outputs are written in the assigned workspace until reconcile rather than mutating shared `.planning/` artifacts directly
+- [x] **JJ-02**: Plan-local outputs are written in the assigned workspace until reconcile rather than mutating shared `.planning/` artifacts directly
 - [x] **JJ-03**: System can fall back to the supported sequential path when workspace pinning proof fails or workspace mode is unavailable
 
 ### Deterministic Reconcile & Finalization
@@ -57,7 +57,7 @@
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
 | JJ-01 | Phase 181 | Complete | TBD |
-| JJ-02 | Phase 183 | Pending | TBD |
+| JJ-02 | Phase 183 | Complete | TBD |
 | JJ-03 | Phase 181 | Complete | TBD |
 | FIN-01 | Phase 183 | Pending | TBD |
 | FIN-02 | Phase 184 | Pending | TBD |
