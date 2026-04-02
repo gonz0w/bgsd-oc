@@ -971,11 +971,16 @@ describe('Phase 183 workspace ownership workflow contracts', () => {
     const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');
 
     assert.match(executePhase, /workspace reconcile remains preview-only/i);
+    assert.match(executePhase, /auto-call `execute:finalize-plan \{plan_id\}`/i);
+    assert.match(executePhase, /trusted main-checkout state/i);
+    assert.match(executePhase, /routine manual approval stop/i);
+    assert.match(executePhase, /Reserve human review for explicit exception cases only/i);
     assert.match(executePhase, /summary-first inspection by default/i);
     assert.match(executePhase, /direct proof review for major completion claims or risky runtime\/shared-state work/i);
     assert.match(executePlan, /forbids shared planning mutations before finalize/i);
     assert.match(executePlan, /first clearly containable shared-planning write/i);
     assert.match(executePlan, /repeated or serious violations escalate to quarantine/i);
+    assert.match(executePlan, /post-finalize outcome/i);
   });
 });
 
