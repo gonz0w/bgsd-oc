@@ -10,15 +10,8 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
 var __commonJS = (cb, mod) => function __require2() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -101,1688 +94,6 @@ var require_output_context = __commonJS({
       getDbNotices,
       setDbNotices
     };
-  }
-});
-
-// src/plugin/lib/db-cache.js
-import * as nodeFs from "node:fs";
-import * as nodePath from "node:path";
-function getDb(cwd) {
-  cwd = cwd || process.cwd();
-  const resolvedCwd = nodePath.resolve(cwd);
-  if (_instances.has(resolvedCwd)) return _instances.get(resolvedCwd);
-  let db;
-  const planningDir = nodePath.join(resolvedCwd, ".planning");
-  const planningExists = nodeFs.existsSync(planningDir);
-  if (planningExists && _DatabaseSync) {
-    const dbPath = nodePath.join(planningDir, ".cache.db");
-    try {
-      const instance = new SQLiteBackend(dbPath);
-      db = instance._degraded ? new MapBackend() : instance;
-    } catch {
-      db = new MapBackend();
-    }
-  } else {
-    db = new MapBackend();
-  }
-  _instances.set(resolvedCwd, db);
-  return db;
-}
-function _extractRequirementsFromPhases(phases) {
-  const requirements = [];
-  for (const phase of phases) {
-    const section = phase.section || "";
-    if (!section) continue;
-    const inlineMatch = section.match(/\*\*Requirements?\*\*:\s*([^\n]+)/i);
-    if (inlineMatch) {
-      const ids = inlineMatch[1].split(/[,\s]+/).filter((id) => /^[A-Z]+-\d+/.test(id));
-      for (const id of ids) {
-        requirements.push({ req_id: id, phase_number: phase.number || "", description: null });
-      }
-    }
-    const checkboxPattern = /- \[[ x]\] \*\*([A-Z]+-\d+)\*\*:?\s*([^\n]*)/g;
-    let match;
-    while ((match = checkboxPattern.exec(section)) !== null) {
-      requirements.push({ req_id: match[1], phase_number: phase.number || "", description: match[2].trim() || null });
-    }
-  }
-  return requirements;
-}
-var _DatabaseSync, MapBackend, SCHEMA_V5_SQL, SQLiteBackend, _instances, PlanningCache;
-var init_db_cache = __esm({
-  async "src/plugin/lib/db-cache.js"() {
-    _DatabaseSync = null;
-    try {
-      const m = await import("node:sqlite");
-      if (m && m.DatabaseSync) {
-        _DatabaseSync = m.DatabaseSync;
-      }
-    } catch {
-    }
-    MapBackend = class {
-      get backend() {
-        return "map";
-      }
-      exec() {
-      }
-      prepare() {
-        return { get: () => void 0, all: () => [], run: () => ({ changes: 0 }) };
-      }
-      close() {
-      }
-    };
-    SCHEMA_V5_SQL = `
-  CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT);
-  CREATE TABLE IF NOT EXISTS file_cache (
-    file_path TEXT PRIMARY KEY,
-    mtime_ms  INTEGER NOT NULL,
-    parsed_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS milestones (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd         TEXT NOT NULL,
-    name        TEXT NOT NULL,
-    version     TEXT,
-    status      TEXT NOT NULL DEFAULT 'pending',
-    phase_start INTEGER,
-    phase_end   INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS phases (
-    number       TEXT NOT NULL,
-    cwd          TEXT NOT NULL,
-    name         TEXT NOT NULL,
-    status       TEXT NOT NULL DEFAULT 'incomplete',
-    plan_count   INTEGER NOT NULL DEFAULT 0,
-    goal         TEXT,
-    depends_on   TEXT,
-    requirements TEXT,
-    section      TEXT,
-    PRIMARY KEY (number, cwd)
-  );
-  CREATE TABLE IF NOT EXISTS progress (
-    phase          TEXT NOT NULL,
-    cwd            TEXT NOT NULL,
-    plans_complete INTEGER NOT NULL DEFAULT 0,
-    plans_total    INTEGER NOT NULL DEFAULT 0,
-    status         TEXT,
-    completed_date TEXT,
-    PRIMARY KEY (phase, cwd)
-  );
-  CREATE TABLE IF NOT EXISTS plans (
-    path           TEXT PRIMARY KEY,
-    cwd            TEXT NOT NULL,
-    phase_number   TEXT,
-    plan_number    TEXT,
-    wave           INTEGER,
-    autonomous     INTEGER,
-    objective      TEXT,
-    task_count     INTEGER NOT NULL DEFAULT 0,
-    frontmatter_json TEXT,
-    raw            TEXT
-  );
-  CREATE TABLE IF NOT EXISTS tasks (
-    plan_path TEXT NOT NULL,
-    idx       INTEGER NOT NULL,
-    type      TEXT NOT NULL DEFAULT 'auto',
-    name      TEXT,
-    files_json TEXT,
-    action    TEXT,
-    verify    TEXT,
-    done      TEXT,
-    PRIMARY KEY (plan_path, idx),
-    FOREIGN KEY (plan_path) REFERENCES plans(path) ON DELETE CASCADE
-  );
-  CREATE TABLE IF NOT EXISTS requirements (
-    req_id       TEXT NOT NULL,
-    cwd          TEXT NOT NULL,
-    phase_number TEXT,
-    description  TEXT,
-    PRIMARY KEY (req_id, cwd)
-  );
-  CREATE TABLE IF NOT EXISTS memory_decisions (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd       TEXT NOT NULL,
-    summary   TEXT,
-    phase     TEXT,
-    timestamp TEXT,
-    data_json TEXT
-  );
-  CREATE TABLE IF NOT EXISTS memory_lessons (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd       TEXT NOT NULL,
-    summary   TEXT,
-    phase     TEXT,
-    timestamp TEXT,
-    data_json TEXT
-  );
-  CREATE TABLE IF NOT EXISTS memory_trajectories (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd             TEXT NOT NULL,
-    entry_id        TEXT,
-    category        TEXT,
-    text            TEXT,
-    phase           TEXT,
-    scope           TEXT,
-    checkpoint_name TEXT,
-    attempt         INTEGER,
-    confidence      TEXT,
-    timestamp       TEXT,
-    tags_json       TEXT,
-    data_json       TEXT
-  );
-  CREATE TABLE IF NOT EXISTS memory_bookmarks (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd         TEXT NOT NULL,
-    phase       TEXT,
-    plan        TEXT,
-    task        INTEGER,
-    total_tasks INTEGER,
-    git_head    TEXT,
-    timestamp   TEXT,
-    data_json   TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_phases_cwd ON phases(cwd);
-  CREATE INDEX IF NOT EXISTS idx_plans_cwd ON plans(cwd);
-  CREATE INDEX IF NOT EXISTS idx_plans_phase ON plans(phase_number);
-  CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_path);
-  CREATE INDEX IF NOT EXISTS idx_requirements_cwd ON requirements(cwd);
-  CREATE INDEX IF NOT EXISTS idx_file_cache_mtime ON file_cache(mtime_ms);
-  CREATE INDEX IF NOT EXISTS idx_mem_decisions_cwd ON memory_decisions(cwd);
-  CREATE INDEX IF NOT EXISTS idx_mem_decisions_phase ON memory_decisions(phase);
-  CREATE INDEX IF NOT EXISTS idx_mem_lessons_cwd ON memory_lessons(cwd);
-  CREATE INDEX IF NOT EXISTS idx_mem_lessons_phase ON memory_lessons(phase);
-  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_cwd ON memory_trajectories(cwd);
-  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_category ON memory_trajectories(category);
-  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_phase ON memory_trajectories(phase);
-  CREATE INDEX IF NOT EXISTS idx_mem_bookmarks_cwd ON memory_bookmarks(cwd);
-  CREATE TABLE IF NOT EXISTS model_profiles (
-    agent_type     TEXT NOT NULL,
-    cwd            TEXT NOT NULL,
-    quality_model  TEXT NOT NULL DEFAULT 'opus',
-    balanced_model TEXT NOT NULL DEFAULT 'sonnet',
-    budget_model   TEXT NOT NULL DEFAULT 'haiku',
-    override_model TEXT,
-    PRIMARY KEY (agent_type, cwd)
-  );
-  CREATE INDEX IF NOT EXISTS idx_model_profiles_cwd ON model_profiles(cwd);
-  CREATE TABLE IF NOT EXISTS session_state (
-    cwd            TEXT PRIMARY KEY,
-    phase_number   TEXT,
-    phase_name     TEXT,
-    total_phases   INTEGER,
-    current_plan   TEXT,
-    status         TEXT,
-    last_activity  TEXT,
-    progress       INTEGER,
-    milestone      TEXT,
-    data_json      TEXT
-  );
-  CREATE TABLE IF NOT EXISTS session_metrics (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd         TEXT NOT NULL,
-    milestone   TEXT,
-    phase       TEXT,
-    plan        TEXT,
-    duration    TEXT,
-    tasks       INTEGER,
-    files       INTEGER,
-    test_count  INTEGER,
-    timestamp   TEXT,
-    data_json   TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_session_metrics_cwd ON session_metrics(cwd);
-  CREATE INDEX IF NOT EXISTS idx_session_metrics_phase ON session_metrics(phase);
-  CREATE TABLE IF NOT EXISTS session_decisions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd         TEXT NOT NULL,
-    milestone   TEXT,
-    phase       TEXT,
-    summary     TEXT,
-    rationale   TEXT,
-    timestamp   TEXT,
-    data_json   TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_session_decisions_cwd ON session_decisions(cwd);
-  CREATE INDEX IF NOT EXISTS idx_session_decisions_phase ON session_decisions(phase);
-  CREATE TABLE IF NOT EXISTS session_todos (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd         TEXT NOT NULL,
-    text        TEXT NOT NULL,
-    priority    TEXT,
-    category    TEXT,
-    status      TEXT NOT NULL DEFAULT 'pending',
-    created_at  TEXT,
-    completed_at TEXT,
-    data_json   TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_session_todos_cwd ON session_todos(cwd);
-  CREATE INDEX IF NOT EXISTS idx_session_todos_status ON session_todos(status);
-  CREATE TABLE IF NOT EXISTS session_blockers (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    cwd            TEXT NOT NULL,
-    text           TEXT NOT NULL,
-    status         TEXT NOT NULL DEFAULT 'open',
-    created_at     TEXT,
-    resolved_at    TEXT,
-    resolution     TEXT,
-    linked_decision_id INTEGER,
-    data_json      TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_session_blockers_cwd ON session_blockers(cwd);
-  CREATE INDEX IF NOT EXISTS idx_session_blockers_status ON session_blockers(status);
-  CREATE TABLE IF NOT EXISTS session_continuity (
-    cwd          TEXT PRIMARY KEY,
-    last_session TEXT,
-    stopped_at   TEXT,
-    next_step    TEXT,
-    data_json    TEXT
-  );
-`;
-    SQLiteBackend = class {
-      constructor(dbPath) {
-        this._dbPath = dbPath;
-        this._degraded = false;
-        this._db = null;
-        try {
-          try {
-            this._db = new _DatabaseSync(dbPath, { timeout: 5e3, defensive: false });
-          } catch {
-            try {
-              this._db = new _DatabaseSync(dbPath, { timeout: 5e3 });
-            } catch {
-              this._db = new _DatabaseSync(dbPath);
-            }
-          }
-          try {
-            this._db.exec("PRAGMA busy_timeout = 5000");
-          } catch {
-          }
-          this._db.exec("PRAGMA journal_mode = WAL");
-          this._ensureSchema();
-        } catch {
-          this._degraded = true;
-        }
-      }
-      _ensureSchema() {
-        let version = 0;
-        try {
-          const row = this._db.prepare("PRAGMA user_version").get();
-          version = row ? row.user_version : 0;
-        } catch {
-        }
-        if (version >= 5) return;
-        try {
-          this._db.exec("BEGIN");
-          this._db.exec(SCHEMA_V5_SQL);
-          this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + (/* @__PURE__ */ new Date()).toISOString() + "')");
-          this._db.exec("PRAGMA user_version = 5");
-          this._db.exec("COMMIT");
-        } catch {
-          try {
-            this._db.exec("ROLLBACK");
-          } catch {
-          }
-          try {
-            this._db.close();
-            for (const suffix of ["", "-wal", "-shm"]) {
-              const fp = this._dbPath + suffix;
-              if (nodeFs.existsSync(fp)) try {
-                nodeFs.unlinkSync(fp);
-              } catch {
-              }
-            }
-            this._db = new _DatabaseSync(this._dbPath);
-            this._db.exec("PRAGMA journal_mode = WAL");
-            this._db.exec("BEGIN");
-            this._db.exec(SCHEMA_V5_SQL);
-            this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + (/* @__PURE__ */ new Date()).toISOString() + "')");
-            this._db.exec("PRAGMA user_version = 5");
-            this._db.exec("COMMIT");
-          } catch {
-            this._degraded = true;
-          }
-        }
-      }
-      get backend() {
-        return "sqlite";
-      }
-      exec(sql) {
-        this._db.exec(sql);
-      }
-      prepare(sql) {
-        return this._db.prepare(sql);
-      }
-      close() {
-        try {
-          this._db.close();
-        } catch {
-        }
-      }
-    };
-    _instances = /* @__PURE__ */ new Map();
-    PlanningCache = class {
-      constructor(db) {
-        this._db = db;
-        this._stmts = {};
-      }
-      _isMap() {
-        return this._db.backend === "map";
-      }
-      _stmt(key, sql) {
-        if (!this._stmts[key]) this._stmts[key] = this._db.prepare(sql);
-        return this._stmts[key];
-      }
-      checkFreshness(filePath) {
-        if (this._isMap()) return "missing";
-        try {
-          const row = this._stmt("fc_get", "SELECT mtime_ms FROM file_cache WHERE file_path = ?").get(filePath);
-          if (!row) return "missing";
-          const currentMtime = nodeFs.statSync(filePath).mtimeMs;
-          return currentMtime === row.mtime_ms ? "fresh" : "stale";
-        } catch {
-          return "missing";
-        }
-      }
-      checkAllFreshness(filePaths) {
-        const result = { fresh: [], stale: [], missing: [] };
-        for (const fp of filePaths) result[this.checkFreshness(fp)].push(fp);
-        return result;
-      }
-      invalidateFile(filePath) {
-        if (this._isMap()) return;
-        try {
-          this._db.exec("BEGIN");
-          this._stmt("fc_del", "DELETE FROM file_cache WHERE file_path = ?").run(filePath);
-          this._stmt("plans_del_path", "DELETE FROM plans WHERE path = ?").run(filePath);
-          this._db.exec("COMMIT");
-        } catch {
-          try {
-            this._db.exec("ROLLBACK");
-          } catch {
-          }
-        }
-      }
-      clearForCwd(cwd) {
-        if (this._isMap()) return;
-        try {
-          this._db.exec("BEGIN");
-          this._stmt("ph_del_cwd", "DELETE FROM phases WHERE cwd = ?").run(cwd);
-          this._stmt("ms_del_cwd", "DELETE FROM milestones WHERE cwd = ?").run(cwd);
-          this._stmt("pr_del_cwd", "DELETE FROM progress WHERE cwd = ?").run(cwd);
-          this._stmt("rq_del_cwd", "DELETE FROM requirements WHERE cwd = ?").run(cwd);
-          this._stmt("pl_del_cwd", "DELETE FROM plans WHERE cwd = ?").run(cwd);
-          this._stmt("fc_del_cwd", "DELETE FROM file_cache WHERE file_path LIKE ?").run(cwd + "%");
-          this._db.exec("COMMIT");
-        } catch {
-          try {
-            this._db.exec("ROLLBACK");
-          } catch {
-          }
-        }
-      }
-      _updateMtimeInTx(filePath) {
-        try {
-          const mtime_ms = nodeFs.statSync(filePath).mtimeMs;
-          this._stmt("fc_upsert", "INSERT OR REPLACE INTO file_cache (file_path, mtime_ms, parsed_at) VALUES (?, ?, ?)").run(filePath, mtime_ms, (/* @__PURE__ */ new Date()).toISOString());
-        } catch {
-        }
-      }
-      storeRoadmap(cwd, roadmapPath, parsed) {
-        if (this._isMap()) return;
-        try {
-          this._db.exec("BEGIN");
-          this._stmt("ph_del_cwd2", "DELETE FROM phases WHERE cwd = ?").run(cwd);
-          this._stmt("ms_del_cwd2", "DELETE FROM milestones WHERE cwd = ?").run(cwd);
-          this._stmt("pr_del_cwd2", "DELETE FROM progress WHERE cwd = ?").run(cwd);
-          this._stmt("rq_del_cwd2", "DELETE FROM requirements WHERE cwd = ?").run(cwd);
-          const phIns = this._stmt("ph_ins", `INSERT OR REPLACE INTO phases (number, cwd, name, status, plan_count, goal, depends_on, requirements, section) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-          for (const p of parsed.phases || []) {
-            phIns.run(
-              p.number || "",
-              cwd,
-              p.name || "",
-              p.status || "incomplete",
-              p.plan_count != null ? p.plan_count : 0,
-              p.goal || null,
-              p.depends_on ? JSON.stringify(p.depends_on) : null,
-              p.requirements ? JSON.stringify(p.requirements) : null,
-              p.section || null
-            );
-          }
-          const msIns = this._stmt("ms_ins", `INSERT INTO milestones (cwd, name, version, status, phase_start, phase_end) VALUES (?, ?, ?, ?, ?, ?)`);
-          for (const m of parsed.milestones || []) {
-            msIns.run(
-              cwd,
-              m.name || "",
-              m.version || null,
-              m.status || "pending",
-              m.phase_start != null ? m.phase_start : null,
-              m.phase_end != null ? m.phase_end : null
-            );
-          }
-          const prIns = this._stmt("pr_ins", `INSERT OR REPLACE INTO progress (phase, cwd, plans_complete, plans_total, status, completed_date) VALUES (?, ?, ?, ?, ?, ?)`);
-          for (const p of parsed.progress || []) {
-            prIns.run(
-              p.phase || "",
-              cwd,
-              p.plans_complete != null ? p.plans_complete : 0,
-              p.plans_total != null ? p.plans_total : 0,
-              p.status || null,
-              p.completed_date || null
-            );
-          }
-          const rqIns = this._stmt("rq_ins", `INSERT OR REPLACE INTO requirements (req_id, cwd, phase_number, description) VALUES (?, ?, ?, ?)`);
-          const reqs = parsed.requirements || _extractRequirementsFromPhases(parsed.phases || []);
-          for (const r of reqs) {
-            rqIns.run(r.req_id || r.id || "", cwd, r.phase_number || r.phase || null, r.description || null);
-          }
-          if (roadmapPath) this._updateMtimeInTx(roadmapPath);
-          this._db.exec("COMMIT");
-        } catch {
-          try {
-            this._db.exec("ROLLBACK");
-          } catch {
-          }
-        }
-      }
-      storePlan(planPath, cwd, parsed) {
-        if (this._isMap()) return;
-        try {
-          this._db.exec("BEGIN");
-          this._stmt("pl_del_path", "DELETE FROM plans WHERE path = ?").run(planPath);
-          const fm = parsed.frontmatter || {};
-          this._stmt(
-            "pl_ins",
-            `INSERT OR REPLACE INTO plans (path, cwd, phase_number, plan_number, wave, autonomous, objective, task_count, frontmatter_json, raw) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).run(
-            planPath,
-            cwd,
-            fm.phase ? String(fm.phase).split("-")[0] : null,
-            fm.plan != null ? String(fm.plan) : null,
-            fm.wave != null ? fm.wave : null,
-            fm.autonomous != null ? fm.autonomous ? 1 : 0 : null,
-            parsed.objective || null,
-            (parsed.tasks || []).length,
-            JSON.stringify(fm),
-            parsed.raw || null
-          );
-          const tkIns = this._stmt("tk_ins", `INSERT OR REPLACE INTO tasks (plan_path, idx, type, name, files_json, action, verify, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-          for (let i = 0; i < (parsed.tasks || []).length; i++) {
-            const t = parsed.tasks[i];
-            tkIns.run(
-              planPath,
-              i,
-              t.type || "auto",
-              t.name || null,
-              t.files ? JSON.stringify(t.files) : null,
-              t.action || null,
-              t.verify || null,
-              t.done || null
-            );
-          }
-          this._updateMtimeInTx(planPath);
-          this._db.exec("COMMIT");
-        } catch {
-          try {
-            this._db.exec("ROLLBACK");
-          } catch {
-          }
-        }
-      }
-      getPhases(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("ph_all", "SELECT * FROM phases WHERE cwd = ? ORDER BY number").all(cwd);
-          return rows.length > 0 ? rows : null;
-        } catch {
-          return null;
-        }
-      }
-      getPhase(number, cwd) {
-        if (this._isMap()) return null;
-        try {
-          const row = this._stmt("ph_one", "SELECT * FROM phases WHERE number = ? AND cwd = ?").get(number, cwd);
-          return row || null;
-        } catch {
-          return null;
-        }
-      }
-      getPlans(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("pl_all", "SELECT * FROM plans WHERE cwd = ? ORDER BY phase_number, plan_number").all(cwd);
-          return rows.length > 0 ? rows : null;
-        } catch {
-          return null;
-        }
-      }
-      getPlan(planPath) {
-        if (this._isMap()) return null;
-        try {
-          const plan = this._stmt("pl_one", "SELECT * FROM plans WHERE path = ?").get(planPath);
-          if (!plan) return null;
-          const tasks = this._stmt("tk_for_plan", "SELECT * FROM tasks WHERE plan_path = ? ORDER BY idx").all(planPath);
-          return { ...plan, tasks };
-        } catch {
-          return null;
-        }
-      }
-      getPlansForPhase(phaseNumber, cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("pl_phase", "SELECT * FROM plans WHERE phase_number = ? AND cwd = ? ORDER BY plan_number").all(phaseNumber, cwd);
-          return rows.length > 0 ? rows : null;
-        } catch {
-          return null;
-        }
-      }
-      /**
-       * Get summary count for a phase by checking which plan paths have matching SUMMARY files on disk.
-       * Returns { planCount, summaryCount, summaryFiles } or null on Map backend / error.
-       *
-       * @param {number|string} phaseNumber - Phase number
-       * @param {string} cwd - Working directory
-       * @returns {{ planCount: number, summaryCount: number, summaryFiles: string[] } | null}
-       */
-      getSummaryCount(phaseNumber, cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("pl_phase2", "SELECT path FROM plans WHERE phase_number = ? AND cwd = ? ORDER BY plan_number").all(String(phaseNumber), cwd);
-          if (!rows || rows.length === 0) return null;
-          const summaryFiles = [];
-          for (const row of rows) {
-            const summaryPath = row.path.replace(/-PLAN\.md$/, "-SUMMARY.md");
-            const summaryName = summaryPath.split("/").pop();
-            if (nodeFs.existsSync(summaryPath)) {
-              summaryFiles.push(summaryName);
-            }
-          }
-          return { planCount: rows.length, summaryCount: summaryFiles.length, summaryFiles };
-        } catch {
-          return null;
-        }
-      }
-      /**
-       * Get incomplete plan filenames (those without a matching SUMMARY file) for a phase.
-       * Returns array of incomplete plan filenames or null on Map backend / error.
-       *
-       * @param {number|string} phaseNumber - Phase number
-       * @param {string} cwd - Working directory
-       * @returns {string[] | null}
-       */
-      getIncompletePlans(phaseNumber, cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("pl_phase3", "SELECT path FROM plans WHERE phase_number = ? AND cwd = ? ORDER BY plan_number").all(String(phaseNumber), cwd);
-          if (!rows || rows.length === 0) return null;
-          const incomplete = [];
-          for (const row of rows) {
-            const summaryPath = row.path.replace(/-PLAN\.md$/, "-SUMMARY.md");
-            if (!nodeFs.existsSync(summaryPath)) {
-              incomplete.push(row.path.split("/").pop());
-            }
-          }
-          return incomplete;
-        } catch {
-          return null;
-        }
-      }
-      getRequirements(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("rq_all", "SELECT * FROM requirements WHERE cwd = ? ORDER BY req_id").all(cwd);
-          return rows.length > 0 ? rows : null;
-        } catch {
-          return null;
-        }
-      }
-      getRequirement(reqId, cwd) {
-        if (this._isMap()) return null;
-        try {
-          const row = this._stmt("rq_one", "SELECT * FROM requirements WHERE req_id = ? AND cwd = ?").get(reqId, cwd);
-          return row || null;
-        } catch {
-          return null;
-        }
-      }
-      getMilestones(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("ms_all", "SELECT * FROM milestones WHERE cwd = ? ORDER BY id").all(cwd);
-          return rows.length > 0 ? rows : null;
-        } catch {
-          return null;
-        }
-      }
-      getProgress(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const rows = this._stmt("pr_all", "SELECT * FROM progress WHERE cwd = ? ORDER BY phase").all(cwd);
-          return rows.length > 0 ? rows : null;
-        } catch {
-          return null;
-        }
-      }
-      // Legacy model_profiles helpers were intentionally removed in Phase 169.
-      // The plugin cache still tolerates the compatibility table on disk, but live
-      // model resolution must go through canonical config helpers instead.
-      // -------------------------------------------------------------------------
-      // Session State Operations (Phase 123)
-      // -------------------------------------------------------------------------
-      storeSessionState(cwd, state) {
-        if (this._isMap()) return null;
-        try {
-          this._stmt(
-            "ss_upsert",
-            `INSERT OR REPLACE INTO session_state (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).run(cwd, state.phase_number || null, state.phase_name || null, state.total_phases != null ? state.total_phases : null, state.current_plan || null, state.status || null, state.last_activity || null, state.progress != null ? state.progress : null, state.milestone || null, JSON.stringify(state));
-          return { stored: true };
-        } catch {
-          return null;
-        }
-      }
-      getSessionState(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const row = this._stmt("ss_get", "SELECT * FROM session_state WHERE cwd = ?").get(cwd);
-          return row || null;
-        } catch {
-          return null;
-        }
-      }
-      migrateStateFromMarkdown(cwd, parsed) {
-        if (this._isMap()) return null;
-        try {
-          const existing = this._stmt("ss_check", "SELECT cwd FROM session_state WHERE cwd = ?").get(cwd);
-          if (existing) return { migrated: false, reason: "already_exists" };
-          this._db.exec("BEGIN");
-          this._stmt(
-            "ss_upsert2",
-            `INSERT OR REPLACE INTO session_state (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).run(cwd, parsed.phase_number || null, parsed.phase_name || null, parsed.total_phases != null ? parsed.total_phases : null, parsed.current_plan || null, parsed.status || null, parsed.last_activity || null, parsed.progress != null ? parsed.progress : null, parsed.milestone || null, JSON.stringify(parsed));
-          if (Array.isArray(parsed.decisions) && parsed.decisions.length > 0) {
-            const ins = this._stmt("ss_dec_ins", "INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            for (const d of parsed.decisions) ins.run(cwd, d.milestone || null, d.phase || null, d.summary || null, d.rationale || null, d.timestamp || null, JSON.stringify(d));
-          }
-          if (Array.isArray(parsed.metrics) && parsed.metrics.length > 0) {
-            const ins = this._stmt("ss_met_ins", "INSERT INTO session_metrics (cwd, milestone, phase, plan, duration, tasks, files, test_count, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            for (const m of parsed.metrics) ins.run(cwd, m.milestone || null, m.phase || null, m.plan || null, m.duration || null, m.tasks != null ? m.tasks : null, m.files != null ? m.files : null, m.test_count != null ? m.test_count : null, m.timestamp || null, JSON.stringify(m));
-          }
-          if (Array.isArray(parsed.todos) && parsed.todos.length > 0) {
-            const ins = this._stmt("ss_todo_ins", "INSERT INTO session_todos (cwd, text, priority, category, status, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            for (const t of parsed.todos) ins.run(cwd, t.text || "", t.priority || null, t.category || null, t.status || "pending", t.created_at || null, JSON.stringify(t));
-          }
-          if (Array.isArray(parsed.blockers) && parsed.blockers.length > 0) {
-            const ins = this._stmt("ss_blk_ins", "INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)");
-            for (const b of parsed.blockers) ins.run(cwd, b.text || "", b.status || "open", b.created_at || null, JSON.stringify(b));
-          }
-          if (parsed.continuity) {
-            const c = parsed.continuity;
-            this._stmt("ss_cont_ins", "INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)").run(cwd, c.last_session || null, c.stopped_at || null, c.next_step || null, JSON.stringify(c));
-          }
-          this._db.exec("COMMIT");
-          return { migrated: true };
-        } catch {
-          try {
-            this._db.exec("ROLLBACK");
-          } catch {
-          }
-          return null;
-        }
-      }
-      writeSessionMetric(cwd, metric) {
-        if (this._isMap()) return null;
-        try {
-          this._stmt(
-            "sm_ins",
-            "INSERT INTO session_metrics (cwd, milestone, phase, plan, duration, tasks, files, test_count, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-          ).run(cwd, metric.milestone || null, metric.phase || null, metric.plan || null, metric.duration || null, metric.tasks != null ? metric.tasks : null, metric.files != null ? metric.files : null, metric.test_count != null ? metric.test_count : null, metric.timestamp || null, JSON.stringify(metric));
-          return { inserted: true };
-        } catch {
-          return null;
-        }
-      }
-      getSessionMetrics(cwd, options) {
-        if (this._isMap()) return null;
-        try {
-          const opts = options || {};
-          const limit = opts.limit != null ? opts.limit : 100;
-          let w = "cwd = ?";
-          const p = [cwd];
-          if (opts.phase) {
-            w += " AND phase = ?";
-            p.push(opts.phase);
-          }
-          const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_metrics WHERE " + w).get(...p) || {}).cnt || 0;
-          const rows = this._db.prepare("SELECT * FROM session_metrics WHERE " + w + " ORDER BY id DESC LIMIT ?").all(...p, limit);
-          return { entries: rows.map((r) => {
-            try {
-              return JSON.parse(r.data_json);
-            } catch {
-              return r;
-            }
-          }), total };
-        } catch {
-          return null;
-        }
-      }
-      writeSessionDecision(cwd, decision) {
-        if (this._isMap()) return null;
-        try {
-          this._stmt(
-            "sd_ins",
-            "INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
-          ).run(cwd, decision.milestone || null, decision.phase || null, decision.summary || null, decision.rationale || null, decision.timestamp || null, JSON.stringify(decision));
-          return { inserted: true };
-        } catch {
-          return null;
-        }
-      }
-      getSessionDecisions(cwd, options) {
-        if (this._isMap()) return null;
-        try {
-          const opts = options || {};
-          const limit = opts.limit != null ? opts.limit : 100;
-          const offset = opts.offset != null ? opts.offset : 0;
-          let w = "cwd = ?";
-          const p = [cwd];
-          if (opts.phase) {
-            w += " AND phase = ?";
-            p.push(opts.phase);
-          }
-          const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_decisions WHERE " + w).get(...p) || {}).cnt || 0;
-          const rows = this._db.prepare("SELECT * FROM session_decisions WHERE " + w + " ORDER BY id DESC LIMIT ? OFFSET ?").all(...p, limit, offset);
-          return { entries: rows.map((r) => {
-            try {
-              return JSON.parse(r.data_json);
-            } catch {
-              return r;
-            }
-          }), total };
-        } catch {
-          return null;
-        }
-      }
-      writeSessionTodo(cwd, todo) {
-        if (this._isMap()) return null;
-        try {
-          const result = this._stmt(
-            "st_ins",
-            "INSERT INTO session_todos (cwd, text, priority, category, status, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
-          ).run(cwd, todo.text || "", todo.priority || null, todo.category || null, todo.status || "pending", todo.created_at || null, JSON.stringify(todo));
-          return { inserted: true, id: result ? result.lastInsertRowid : null };
-        } catch {
-          return null;
-        }
-      }
-      getSessionTodos(cwd, options) {
-        if (this._isMap()) return null;
-        try {
-          const opts = options || {};
-          const limit = opts.limit != null ? opts.limit : 100;
-          let w = "cwd = ?";
-          const p = [cwd];
-          if (opts.status) {
-            w += " AND status = ?";
-            p.push(opts.status);
-          }
-          const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_todos WHERE " + w).get(...p) || {}).cnt || 0;
-          const rows = this._db.prepare("SELECT * FROM session_todos WHERE " + w + " ORDER BY id DESC LIMIT ?").all(...p, limit);
-          return { entries: rows.map((r) => {
-            try {
-              return JSON.parse(r.data_json);
-            } catch {
-              return r;
-            }
-          }), total };
-        } catch {
-          return null;
-        }
-      }
-      completeSessionTodo(cwd, id) {
-        if (this._isMap()) return null;
-        try {
-          this._stmt("st_complete", "UPDATE session_todos SET status='completed', completed_at=? WHERE id=? AND cwd=?").run((/* @__PURE__ */ new Date()).toISOString(), id, cwd);
-          return { updated: true };
-        } catch {
-          return null;
-        }
-      }
-      writeSessionBlocker(cwd, blocker) {
-        if (this._isMap()) return null;
-        try {
-          const result = this._stmt(
-            "sb_ins",
-            "INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)"
-          ).run(cwd, blocker.text || "", blocker.status || "open", blocker.created_at || null, JSON.stringify(blocker));
-          return { inserted: true, id: result ? result.lastInsertRowid : null };
-        } catch {
-          return null;
-        }
-      }
-      getSessionBlockers(cwd, options) {
-        if (this._isMap()) return null;
-        try {
-          const opts = options || {};
-          const limit = opts.limit != null ? opts.limit : 100;
-          let w = "cwd = ?";
-          const p = [cwd];
-          if (opts.status) {
-            w += " AND status = ?";
-            p.push(opts.status);
-          }
-          const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_blockers WHERE " + w).get(...p) || {}).cnt || 0;
-          const rows = this._db.prepare("SELECT * FROM session_blockers WHERE " + w + " ORDER BY id DESC LIMIT ?").all(...p, limit);
-          return { entries: rows.map((r) => {
-            try {
-              return JSON.parse(r.data_json);
-            } catch {
-              return r;
-            }
-          }), total };
-        } catch {
-          return null;
-        }
-      }
-      resolveSessionBlocker(cwd, id, resolution) {
-        if (this._isMap()) return null;
-        try {
-          this._stmt("sb_resolve", "UPDATE session_blockers SET status='resolved', resolved_at=?, resolution=? WHERE id=? AND cwd=?").run((/* @__PURE__ */ new Date()).toISOString(), resolution || null, id, cwd);
-          return { updated: true };
-        } catch {
-          return null;
-        }
-      }
-      recordSessionContinuity(cwd, continuity) {
-        if (this._isMap()) return null;
-        try {
-          this._stmt(
-            "sc_upsert",
-            "INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)"
-          ).run(cwd, continuity.last_session || null, continuity.stopped_at || null, continuity.next_step || null, JSON.stringify(continuity));
-          return { stored: true };
-        } catch {
-          return null;
-        }
-      }
-      getSessionContinuity(cwd) {
-        if (this._isMap()) return null;
-        try {
-          const row = this._stmt("sc_get", "SELECT * FROM session_continuity WHERE cwd = ?").get(cwd);
-          return row || null;
-        } catch {
-          return null;
-        }
-      }
-    };
-  }
-});
-
-// src/plugin/parsers/state.js
-import { readFileSync } from "fs";
-import { join as join4 } from "path";
-function extractField(content, fieldName) {
-  const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, "i");
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-function extractSection(content, sectionName) {
-  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i");
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-function extractProgress(content) {
-  const match = content.match(/\[[\u2588\u2591]+\]\s*(\d+)%/);
-  return match ? parseInt(match[1], 10) : null;
-}
-function parseState(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache.has(resolvedCwd)) {
-    return _cache.get(resolvedCwd);
-  }
-  const statePath = join4(resolvedCwd, ".planning", "STATE.md");
-  let sqlRow = null;
-  let db = null;
-  let cache = null;
-  try {
-    db = getDb(resolvedCwd);
-    if (db.backend === "sqlite") {
-      cache = new PlanningCache(db);
-      sqlRow = cache.getSessionState(resolvedCwd);
-    }
-  } catch {
-    sqlRow = null;
-  }
-  let raw;
-  try {
-    raw = readFileSync(statePath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  let result;
-  if (sqlRow && db && cache) {
-    const _db = db;
-    const _cache_ref = cache;
-    result = Object.freeze({
-      raw,
-      // Primary fields from SQLite columns
-      phase: sqlRow.phase_number ? sqlRow.total_phases ? `${sqlRow.phase_number} of ${sqlRow.total_phases}${sqlRow.phase_name ? ` (${sqlRow.phase_name})` : ""}` : sqlRow.phase_number : extractField(raw, "Phase"),
-      currentPlan: sqlRow.current_plan || extractField(raw, "Current Plan"),
-      status: sqlRow.status || extractField(raw, "Status"),
-      lastActivity: sqlRow.last_activity || extractField(raw, "Last Activity"),
-      progress: sqlRow.progress != null ? sqlRow.progress : extractProgress(raw),
-      // getField falls back to markdown parsing for fields not in SQLite
-      getField(name) {
-        const nameLower = name.toLowerCase().replace(/\s+/g, "_");
-        if (nameLower === "phase" || nameLower === "phase_number") {
-          return sqlRow.phase_number || extractField(raw, name);
-        }
-        if (nameLower === "current_plan" || name === "Current Plan") {
-          return sqlRow.current_plan || extractField(raw, name);
-        }
-        if (nameLower === "status") {
-          return sqlRow.status || extractField(raw, name);
-        }
-        if (nameLower === "last_activity" || name === "Last Activity") {
-          return sqlRow.last_activity || extractField(raw, name);
-        }
-        return extractField(raw, name);
-      },
-      getSection(name) {
-        return extractSection(raw, name);
-      },
-      // ─── SQLite-backed query methods (SES-03) ──────────────────────────
-      // Returns structured data from SQLite without parsing STATE.md sections.
-      // Returns null on Map backend — callers should fall back to getSection().
-      getDecisions(options) {
-        try {
-          return _cache_ref.getSessionDecisions(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      },
-      getTodos(options) {
-        try {
-          return _cache_ref.getSessionTodos(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      },
-      getBlockers(options) {
-        try {
-          return _cache_ref.getSessionBlockers(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      },
-      getMetrics(options) {
-        try {
-          return _cache_ref.getSessionMetrics(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      }
-    });
-  } else {
-    const _db_ref = db;
-    const _cache_fallback = cache;
-    result = Object.freeze({
-      raw,
-      phase: extractField(raw, "Phase"),
-      currentPlan: extractField(raw, "Current Plan"),
-      status: extractField(raw, "Status"),
-      lastActivity: extractField(raw, "Last Activity"),
-      progress: extractProgress(raw),
-      getField(name) {
-        return extractField(raw, name);
-      },
-      getSection(name) {
-        return extractSection(raw, name);
-      },
-      // Query methods return null on Map backend or cold start
-      getDecisions(options) {
-        if (!_cache_fallback || _cache_fallback._isMap()) return null;
-        try {
-          return _cache_fallback.getSessionDecisions(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      },
-      getTodos(options) {
-        if (!_cache_fallback || _cache_fallback._isMap()) return null;
-        try {
-          return _cache_fallback.getSessionTodos(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      },
-      getBlockers(options) {
-        if (!_cache_fallback || _cache_fallback._isMap()) return null;
-        try {
-          return _cache_fallback.getSessionBlockers(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      },
-      getMetrics(options) {
-        if (!_cache_fallback || _cache_fallback._isMap()) return null;
-        try {
-          return _cache_fallback.getSessionMetrics(resolvedCwd, options);
-        } catch {
-          return null;
-        }
-      }
-    });
-  }
-  _cache.set(resolvedCwd, result);
-  return result;
-}
-function invalidateState(cwd) {
-  if (cwd) {
-    _cache.delete(cwd);
-    try {
-      const db = getDb(cwd);
-      if (db.backend === "sqlite") {
-        const tables = [
-          "session_state",
-          "session_metrics",
-          "session_decisions",
-          "session_todos",
-          "session_blockers",
-          "session_continuity"
-        ];
-        for (const table of tables) {
-          db.prepare(`DELETE FROM ${table} WHERE cwd = ?`).run(cwd);
-        }
-      }
-    } catch {
-    }
-  } else {
-    _cache.clear();
-  }
-}
-var _cache;
-var init_state = __esm({
-  async "src/plugin/parsers/state.js"() {
-    await init_db_cache();
-    _cache = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/plugin/parsers/roadmap.js
-import { readFileSync as readFileSync2 } from "fs";
-import { join as join5 } from "path";
-function normalizeTddHintValue(value) {
-  if (value === null || value === void 0) return null;
-  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, "");
-  if (!raw) return null;
-  if (raw === "required") return "required";
-  if (raw === "recommended") return "recommended";
-  return null;
-}
-function _getPlanningCache(cwd) {
-  try {
-    const db = getDb(cwd);
-    return new PlanningCache(db);
-  } catch {
-    return null;
-  }
-}
-function parseMilestones(content) {
-  const milestones = [];
-  const pattern = /[-*]\s*(?:✅|🔵|🔲)\s*\*\*v(\d+(?:\.\d+)*)\s+([^*]+)\*\*([^\n]*)/g;
-  let match;
-  while ((match = pattern.exec(content)) !== null) {
-    const status = match[0].includes("\u2705") ? "complete" : match[0].includes("\u{1F535}") ? "active" : "pending";
-    const rangeMatch = match[0].match(/Phases?\s+(\d+)\s*[-–]\s*(\d+)/i);
-    const phases = rangeMatch ? { start: parseInt(rangeMatch[1], 10), end: parseInt(rangeMatch[2], 10) } : null;
-    milestones.push(Object.freeze({
-      name: match[2].trim(),
-      version: "v" + match[1],
-      status,
-      phases
-    }));
-  }
-  return milestones;
-}
-function parsePhases(content) {
-  const phases = [];
-  const pattern = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
-  let match;
-  while ((match = pattern.exec(content)) !== null) {
-    const number = match[1];
-    const name = match[2].trim();
-    const sectionStart = match.index;
-    const restOfContent = content.slice(sectionStart);
-    const nextHeader = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
-    const sectionEnd = nextHeader ? sectionStart + nextHeader.index : content.length;
-    const section = content.slice(sectionStart, sectionEnd).trim();
-    const goalMatch = section.match(/\*\*Goal:?\*\*:?\s*([^\n]+)/i);
-    const goal = goalMatch ? goalMatch[1].trim() : null;
-    const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
-    const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
-    const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
-    const escaped = number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, "i");
-    const status = checkboxPattern.test(content) ? "complete" : "incomplete";
-    phases.push(Object.freeze({
-      number,
-      name,
-      status,
-      planCount,
-      goal,
-      tdd,
-      section
-    }));
-  }
-  return phases;
-}
-function parseProgressTable(content) {
-  const progress = [];
-  const tableMatch = content.match(/\|[^\n]*Phase[^\n]*\|[^\n]*Plans?[^\n]*\|[^\n]*Status[^\n]*\|[^\n]*\n\|[-|\s]+\n((?:\|[^\n]+\n?)*)/i);
-  if (!tableMatch) return progress;
-  const rows = tableMatch[1].trim().split("\n");
-  for (const row of rows) {
-    const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
-    if (cells.length >= 3) {
-      const plansParts = cells[1].match(/(\d+)\/(\d+)/);
-      progress.push(Object.freeze({
-        phase: cells[0],
-        milestone: null,
-        // Can be derived from position if needed
-        plansComplete: plansParts ? parseInt(plansParts[1], 10) : 0,
-        plansTotal: plansParts ? parseInt(plansParts[2], 10) : 0,
-        status: cells[2],
-        completed: cells.length >= 4 ? cells[3] || null : null
-      }));
-    }
-  }
-  return progress;
-}
-function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedCwd) {
-  const milestones = (milestoneRows || []).map((row) => Object.freeze({
-    name: row.name || "",
-    version: row.version || null,
-    status: row.status || "pending",
-    phases: row.phase_start != null && row.phase_end != null ? { start: row.phase_start, end: row.phase_end } : null
-  }));
-  const phases = (phaseRows || []).map((row) => {
-    const sec = row.section || "";
-    const tddMatch = sec.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-    return Object.freeze({
-      number: row.number || "",
-      name: row.name || "",
-      status: row.status || "incomplete",
-      planCount: row.plan_count != null ? row.plan_count : 0,
-      goal: row.goal || null,
-      tdd: tddMatch ? normalizeTddHintValue(tddMatch[1]) : null,
-      section: sec
-    });
-  });
-  const progress = (progressRows || []).map((row) => Object.freeze({
-    phase: row.phase || "",
-    milestone: null,
-    plansComplete: row.plans_complete != null ? row.plans_complete : 0,
-    plansTotal: row.plans_total != null ? row.plans_total : 0,
-    status: row.status || "",
-    completed: row.completed_date || null
-  }));
-  return Object.freeze({
-    raw: null,
-    // not stored in cache — consumers needing raw markdown should parse fresh
-    milestones,
-    phases,
-    progress,
-    getPhase(num) {
-      const numStr = String(num);
-      const found = phases.find((p) => p.number === numStr);
-      if (!found) return null;
-      const section = found.section || "";
-      const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
-      const dependsOn = dependsMatch ? dependsMatch[1].trim() : null;
-      const reqMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
-      const requirements = reqMatch ? reqMatch[1].trim() : null;
-      const criteriaMatch = section.match(/\*\*Success Criteria\*\*[^\n]*:\s*\n((?:\s*\d+\.\s*[^\n]+\n?)+)/i);
-      const successCriteria = criteriaMatch ? criteriaMatch[1].trim().split("\n").map((l) => l.replace(/^\s*\d+\.\s*/, "").trim()).filter(Boolean) : [];
-      const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
-      const plans = plansMatch ? {
-        completed: plansMatch[1] ? parseInt(plansMatch[1], 10) : 0,
-        total: parseInt(plansMatch[2], 10)
-      } : null;
-      const tddMatch2 = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
-      const tdd = tddMatch2 ? normalizeTddHintValue(tddMatch2[1]) : found.tdd;
-      return Object.freeze({
-        number: found.number,
-        name: found.name,
-        goal: found.goal,
-        tdd,
-        dependsOn,
-        requirements,
-        successCriteria,
-        plans
-      });
-    },
-    getMilestone(name) {
-      return milestones.find(
-        (m) => m.name.toLowerCase().includes(name.toLowerCase()) || m.version && m.version.toLowerCase() === name.toLowerCase()
-      ) || null;
-    },
-    get currentMilestone() {
-      return milestones.find((m) => m.status === "active") || null;
-    }
-  });
-}
-function parseRoadmap(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache2.has(resolvedCwd)) {
-    return _cache2.get(resolvedCwd);
-  }
-  const roadmapPath = join5(resolvedCwd, ".planning", "ROADMAP.md");
-  const planningCache = _getPlanningCache(resolvedCwd);
-  if (planningCache) {
-    const freshness = planningCache.checkFreshness(roadmapPath);
-    if (freshness === "fresh") {
-      const phaseRows = planningCache.getPhases(resolvedCwd);
-      if (phaseRows && phaseRows.length > 0) {
-        const milestoneRows = planningCache.getMilestones(resolvedCwd);
-        const progressRows = planningCache.getProgress(resolvedCwd);
-        const result2 = buildRoadmapFromCache(phaseRows, milestoneRows || [], progressRows || [], resolvedCwd);
-        _cache2.set(resolvedCwd, result2);
-        return result2;
-      }
-    }
-  }
-  let raw;
-  try {
-    raw = readFileSync2(roadmapPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const milestones = parseMilestones(raw);
-  const phases = parsePhases(raw);
-  const progress = parseProgressTable(raw);
-  const result = Object.freeze({
-    raw,
-    milestones,
-    phases,
-    progress,
-    getPhase(num) {
-      const numStr = String(num);
-      const found = phases.find((p) => p.number === numStr);
-      if (!found) return null;
-      const section = found.section;
-      const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
-      const dependsOn = dependsMatch ? dependsMatch[1].trim() : null;
-      const reqMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
-      const requirements = reqMatch ? reqMatch[1].trim() : null;
-      const criteriaMatch = section.match(/\*\*Success Criteria\*\*[^\n]*:\s*\n((?:\s*\d+\.\s*[^\n]+\n?)+)/i);
-      const successCriteria = criteriaMatch ? criteriaMatch[1].trim().split("\n").map((l) => l.replace(/^\s*\d+\.\s*/, "").trim()).filter(Boolean) : [];
-      const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
-      const plans = plansMatch ? {
-        completed: plansMatch[1] ? parseInt(plansMatch[1], 10) : 0,
-        total: parseInt(plansMatch[2], 10)
-      } : null;
-      return Object.freeze({
-        number: found.number,
-        name: found.name,
-        goal: found.goal,
-        tdd: found.tdd,
-        dependsOn,
-        requirements,
-        successCriteria,
-        plans
-      });
-    },
-    getMilestone(name) {
-      return milestones.find(
-        (m) => m.name.toLowerCase().includes(name.toLowerCase()) || m.version.toLowerCase() === name.toLowerCase()
-      ) || null;
-    },
-    get currentMilestone() {
-      return milestones.find((m) => m.status === "active") || null;
-    }
-  });
-  if (planningCache) {
-    const storedPhases = phases.map((p) => ({
-      number: p.number,
-      name: p.name,
-      status: p.status,
-      plan_count: p.planCount,
-      goal: p.goal,
-      section: p.section
-    }));
-    const storedMilestones = milestones.map((m) => ({
-      name: m.name,
-      version: m.version,
-      status: m.status,
-      phase_start: m.phases ? m.phases.start : null,
-      phase_end: m.phases ? m.phases.end : null
-    }));
-    const storedProgress = progress.map((p) => ({
-      phase: p.phase,
-      plans_complete: p.plansComplete,
-      plans_total: p.plansTotal,
-      status: p.status,
-      completed_date: p.completed
-    }));
-    planningCache.storeRoadmap(resolvedCwd, roadmapPath, {
-      phases: storedPhases,
-      milestones: storedMilestones,
-      progress: storedProgress
-    });
-  }
-  _cache2.set(resolvedCwd, result);
-  return result;
-}
-function invalidateRoadmap(cwd) {
-  if (cwd) {
-    _cache2.delete(cwd);
-    try {
-      const planningCache = _getPlanningCache(cwd);
-      if (planningCache) {
-        const roadmapPath = join5(cwd, ".planning", "ROADMAP.md");
-        planningCache.invalidateFile(roadmapPath);
-      }
-    } catch {
-    }
-  } else {
-    _cache2.clear();
-  }
-}
-var _cache2;
-var init_roadmap = __esm({
-  async "src/plugin/parsers/roadmap.js"() {
-    await init_db_cache();
-    _cache2 = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/plugin/parsers/plan.js
-import { readFileSync as readFileSync3, readdirSync } from "fs";
-import { join as join6, dirname } from "path";
-function _getPlanningCache2(cwd) {
-  try {
-    const db = getDb(cwd);
-    return new PlanningCache(db);
-  } catch {
-    return null;
-  }
-}
-function _cwdFromPlanPath(planPath) {
-  let dir = dirname(planPath);
-  while (dir !== dirname(dir)) {
-    if (dir.endsWith("/.planning") || dir.includes("/.planning/")) {
-      const planningIdx = dir.indexOf("/.planning");
-      if (planningIdx !== -1) {
-        return dir.slice(0, planningIdx) || "/";
-      }
-    }
-    dir = dirname(dir);
-  }
-  return null;
-}
-function _buildPlanFromCache(planRow) {
-  const frontmatter = planRow.frontmatter_json ? JSON.parse(planRow.frontmatter_json) : {};
-  const tasks = (planRow.tasks || []).map((t) => Object.freeze({
-    type: t.type || "auto",
-    name: t.name || null,
-    files: t.files_json ? JSON.parse(t.files_json) : [],
-    action: t.action || null,
-    verify: t.verify || null,
-    done: t.done || null
-  }));
-  return Object.freeze({
-    raw: null,
-    // not stored in cache
-    path: planRow.path,
-    frontmatter: Object.freeze(frontmatter),
-    objective: planRow.objective || null,
-    context: null,
-    // not stored separately — available on fresh parse
-    tasks: Object.freeze(tasks),
-    verification: null,
-    // not stored separately
-    successCriteria: null,
-    // not stored separately
-    output: null
-    // not stored separately
-  });
-}
-function extractFrontmatter(content) {
-  if (!content || typeof content !== "string") return {};
-  if (!content.startsWith("---\n")) return {};
-  const frontmatter = {};
-  const match = content.match(FM_DELIMITERS);
-  if (!match) return frontmatter;
-  const yaml = match[1];
-  const lines = yaml.split("\n");
-  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
-  for (const line of lines) {
-    if (line.trim() === "") continue;
-    const indentMatch = line.match(/^(\s*)/);
-    const indent = indentMatch ? indentMatch[1].length : 0;
-    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
-      stack.pop();
-    }
-    const current = stack[stack.length - 1];
-    const keyMatch = line.match(FM_KEY_VALUE);
-    if (keyMatch) {
-      const key = keyMatch[2];
-      const value = keyMatch[3].trim();
-      if (value === "" || value === "[") {
-        current.obj[key] = value === "[" ? [] : {};
-        current.key = null;
-        stack.push({ obj: current.obj[key], key: null, indent });
-      } else if (value.startsWith("[") && value.endsWith("]")) {
-        current.obj[key] = value.slice(1, -1).split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-        current.key = null;
-      } else {
-        current.obj[key] = value.replace(/^["']|["']$/g, "");
-        current.key = null;
-      }
-    } else if (line.trim().startsWith("- ")) {
-      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, "");
-      if (typeof current.obj === "object" && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
-        const parent = stack.length > 1 ? stack[stack.length - 2] : null;
-        if (parent) {
-          for (const k of Object.keys(parent.obj)) {
-            if (parent.obj[k] === current.obj) {
-              parent.obj[k] = [itemValue];
-              current.obj = parent.obj[k];
-              break;
-            }
-          }
-        }
-      } else if (Array.isArray(current.obj)) {
-        current.obj.push(itemValue);
-      }
-    }
-  }
-  return frontmatter;
-}
-function extractXmlSection(content, tagName) {
-  const pattern = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-function extractTasks(content) {
-  const tasksSection = extractXmlSection(content, "tasks");
-  if (!tasksSection) return [];
-  const tasks = [];
-  const taskPattern = /<task\s+([^>]*)>([\s\S]*?)<\/task>/g;
-  let match;
-  while ((match = taskPattern.exec(tasksSection)) !== null) {
-    const attrs = match[1];
-    const body = match[2];
-    const typeMatch = attrs.match(/type="([^"]+)"/);
-    const type = typeMatch ? typeMatch[1] : "auto";
-    const nameMatch = body.match(/<name>([\s\S]*?)<\/name>/);
-    const filesMatch = body.match(/<files>([\s\S]*?)<\/files>/);
-    const actionMatch = body.match(/<action>([\s\S]*?)<\/action>/);
-    const verifyMatch = body.match(/<verify>([\s\S]*?)<\/verify>/);
-    const doneMatch = body.match(/<done>([\s\S]*?)<\/done>/);
-    tasks.push(Object.freeze({
-      type,
-      name: nameMatch ? nameMatch[1].trim() : null,
-      files: filesMatch ? filesMatch[1].trim().split(",").map((f) => f.trim()).filter(Boolean) : [],
-      action: actionMatch ? actionMatch[1].trim() : null,
-      verify: verifyMatch ? verifyMatch[1].trim() : null,
-      done: doneMatch ? doneMatch[1].trim() : null
-    }));
-  }
-  return tasks;
-}
-function parsePlan(planPath, cwd) {
-  if (_planCache.has(planPath)) {
-    return _planCache.get(planPath);
-  }
-  const resolvedCwd = cwd || _cwdFromPlanPath(planPath) || process.cwd();
-  const planningCache = _getPlanningCache2(resolvedCwd);
-  if (planningCache) {
-    const freshness = planningCache.checkFreshness(planPath);
-    if (freshness === "fresh") {
-      const planRow = planningCache.getPlan(planPath);
-      if (planRow) {
-        const result2 = _buildPlanFromCache(planRow);
-        _planCache.set(planPath, result2);
-        return result2;
-      }
-    }
-  }
-  let raw;
-  try {
-    raw = readFileSync3(planPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const frontmatter = extractFrontmatter(raw);
-  const tasks = extractTasks(raw);
-  const result = Object.freeze({
-    raw,
-    path: planPath,
-    frontmatter: Object.freeze(frontmatter),
-    objective: extractXmlSection(raw, "objective"),
-    context: extractXmlSection(raw, "context"),
-    tasks,
-    verification: extractXmlSection(raw, "verification"),
-    successCriteria: extractXmlSection(raw, "success_criteria"),
-    output: extractXmlSection(raw, "output")
-  });
-  if (planningCache) {
-    planningCache.storePlan(planPath, resolvedCwd, result);
-  }
-  _planCache.set(planPath, result);
-  return result;
-}
-function parsePlans(phaseNum, cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  const cacheKey = `${resolvedCwd}:${phaseNum}`;
-  if (_plansCache.has(cacheKey)) {
-    return _plansCache.get(cacheKey);
-  }
-  const normalized = String(phaseNum).replace(/^0+/, "") || "0";
-  const phasesDir = join6(resolvedCwd, ".planning", "phases");
-  let phaseDir = null;
-  try {
-    const entries = readdirSync(phasesDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
-      if (!dirMatch) continue;
-      const dirPhaseNum = dirMatch[1].replace(/^0+/, "") || "0";
-      if (dirPhaseNum === normalized) {
-        phaseDir = join6(phasesDir, entry.name);
-        break;
-      }
-    }
-  } catch {
-    return Object.freeze([]);
-  }
-  if (!phaseDir) {
-    return Object.freeze([]);
-  }
-  let planFiles;
-  try {
-    const files = readdirSync(phaseDir);
-    planFiles = files.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md").sort();
-  } catch {
-    return Object.freeze([]);
-  }
-  const planningCache = _getPlanningCache2(resolvedCwd);
-  if (planningCache && planFiles.length > 0) {
-    const planPaths = planFiles.map((f) => join6(phaseDir, f));
-    const freshnessResult = planningCache.checkAllFreshness(planPaths);
-    if (freshnessResult.stale.length === 0 && freshnessResult.missing.length === 0) {
-      const phaseNumStr = String(phaseNum);
-      const cachedRows = planningCache.getPlansForPhase(phaseNumStr, resolvedCwd);
-      if (cachedRows && cachedRows.length === planFiles.length) {
-        const plans2 = cachedRows.map((row) => {
-          const planRow = planningCache.getPlan(row.path);
-          if (!planRow) return null;
-          const result = _buildPlanFromCache(planRow);
-          _planCache.set(row.path, result);
-          return result;
-        }).filter(Boolean);
-        if (plans2.length === planFiles.length) {
-          const frozen2 = Object.freeze(plans2);
-          _plansCache.set(cacheKey, frozen2);
-          return frozen2;
-        }
-      }
-    }
-  }
-  const plans = planFiles.map((f) => parsePlan(join6(phaseDir, f), resolvedCwd)).filter(Boolean);
-  const frozen = Object.freeze(plans);
-  _plansCache.set(cacheKey, frozen);
-  return frozen;
-}
-function invalidatePlans(cwd) {
-  if (cwd) {
-    for (const key of _plansCache.keys()) {
-      if (key.startsWith(cwd + ":")) {
-        _plansCache.delete(key);
-      }
-    }
-    const planPaths = [];
-    for (const key of _planCache.keys()) {
-      if (key.startsWith(cwd)) {
-        _planCache.delete(key);
-        planPaths.push(key);
-      }
-    }
-    try {
-      const planningCache = _getPlanningCache2(cwd);
-      if (planningCache) {
-        for (const planPath of planPaths) {
-          planningCache.invalidateFile(planPath);
-        }
-      }
-    } catch {
-    }
-  } else {
-    _planCache.clear();
-    _plansCache.clear();
-  }
-}
-var _planCache, _plansCache, FM_DELIMITERS, FM_KEY_VALUE;
-var init_plan = __esm({
-  async "src/plugin/parsers/plan.js"() {
-    await init_db_cache();
-    _planCache = /* @__PURE__ */ new Map();
-    _plansCache = /* @__PURE__ */ new Map();
-    FM_DELIMITERS = /^---\n([\s\S]+?)\n---/;
-    FM_KEY_VALUE = /^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/;
   }
 });
 
@@ -3889,259 +2200,6 @@ var require_config_contract = __commonJS({
       normalizeConfig: normalizeConfig2,
       serializeConfig: serializeConfig2
     };
-  }
-});
-
-// src/plugin/parsers/config.js
-import { readFileSync as readFileSync4 } from "fs";
-import { join as join7 } from "path";
-function parseConfig(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache3.has(resolvedCwd)) {
-    return _cache3.get(resolvedCwd);
-  }
-  const configPath = join7(resolvedCwd, ".planning", "config.json");
-  let parsed = {};
-  try {
-    const raw = readFileSync4(configPath, "utf-8");
-    parsed = JSON.parse(raw);
-  } catch {
-    const defaults = normalizeConfig({}, { extraDefaults: CONFIG_DEFAULTS });
-    _cache3.set(resolvedCwd, defaults);
-    return defaults;
-  }
-  const frozen = normalizeConfig(parsed, { extraDefaults: CONFIG_DEFAULTS });
-  _cache3.set(resolvedCwd, frozen);
-  return frozen;
-}
-function buildDefaultConfigText() {
-  return serializeConfig(buildDefaultConfig());
-}
-function invalidateConfig(cwd) {
-  if (cwd) {
-    _cache3.delete(cwd);
-  } else {
-    _cache3.clear();
-  }
-}
-var import_config_contract, buildDefaultConfig, normalizeConfig, serializeConfig, _cache3, CONFIG_DEFAULTS;
-var init_config = __esm({
-  "src/plugin/parsers/config.js"() {
-    import_config_contract = __toESM(require_config_contract());
-    ({ buildDefaultConfig, normalizeConfig, serializeConfig } = import_config_contract.default);
-    _cache3 = /* @__PURE__ */ new Map();
-    CONFIG_DEFAULTS = Object.freeze({
-      staleness_threshold: 2,
-      // Phase 75: Event-driven state sync settings
-      idle_validation: Object.freeze({
-        enabled: true,
-        cooldown_seconds: 5,
-        staleness_threshold_hours: 2
-      }),
-      notifications: Object.freeze({
-        enabled: true,
-        os_notifications: true,
-        dnd_mode: false,
-        rate_limit_per_minute: 5,
-        sound: false
-      }),
-      stuck_detection: Object.freeze({
-        error_threshold: 3,
-        spinning_threshold: 5
-      }),
-      file_watcher: Object.freeze({
-        debounce_ms: 200,
-        max_watched_paths: 500
-      }),
-      // Phase 76: Advisory guardrails settings
-      advisory_guardrails: Object.freeze({
-        enabled: true,
-        conventions: true,
-        planning_protection: true,
-        test_suggestions: true,
-        convention_confidence_threshold: 70,
-        dedup_threshold: 3,
-        test_debounce_ms: 500,
-        // Phase 144: Destructive command detection (GARD-04)
-        destructive_commands: Object.freeze({
-          enabled: true,
-          sandbox_mode: "auto",
-          categories: Object.freeze({
-            filesystem: true,
-            database: true,
-            git: true,
-            system: true,
-            "supply-chain": true
-          }),
-          disabled_patterns: [],
-          custom_patterns: []
-        })
-      })
-    });
-  }
-});
-
-// src/plugin/parsers/project.js
-import { readFileSync as readFileSync5 } from "fs";
-import { join as join8 } from "path";
-function parseProject(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache4.has(resolvedCwd)) {
-    return _cache4.get(resolvedCwd);
-  }
-  const projectPath = join8(resolvedCwd, ".planning", "PROJECT.md");
-  let raw;
-  try {
-    raw = readFileSync5(projectPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const coreValueMatch = raw.match(/##\s*Core\s+Value\s*\n+([^\n]+)/i) || raw.match(/\*\*Core\s+[Vv]alue:?\*\*:?\s*([^\n]+)/i);
-  const coreValue = coreValueMatch ? coreValueMatch[1].trim() : null;
-  const techStackMatch = raw.match(/Tech\s+stack:\s*([^\n]+)/i) || raw.match(/\*\*Tech:?\*\*:?\s*([^\n]+)/i);
-  const techStack = techStackMatch ? techStackMatch[1].trim() : null;
-  const milestoneMatch = raw.match(/##\s*Current\s+Milestone:\s*([^\n]+)/i);
-  const currentMilestone = milestoneMatch ? milestoneMatch[1].trim() : null;
-  const result = Object.freeze({
-    raw,
-    coreValue,
-    techStack,
-    currentMilestone
-  });
-  _cache4.set(resolvedCwd, result);
-  return result;
-}
-function invalidateProject(cwd) {
-  if (cwd) {
-    _cache4.delete(cwd);
-  } else {
-    _cache4.clear();
-  }
-}
-var _cache4;
-var init_project = __esm({
-  "src/plugin/parsers/project.js"() {
-    _cache4 = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/plugin/parsers/intent.js
-import { readFileSync as readFileSync6 } from "fs";
-import { join as join9 } from "path";
-function parseIntent(cwd) {
-  const resolvedCwd = cwd || process.cwd();
-  if (_cache5.has(resolvedCwd)) {
-    return _cache5.get(resolvedCwd);
-  }
-  const intentPath = join9(resolvedCwd, ".planning", "INTENT.md");
-  let raw;
-  try {
-    raw = readFileSync6(intentPath, "utf-8");
-  } catch {
-    return null;
-  }
-  if (!raw || raw.trim().length === 0) {
-    return null;
-  }
-  const objectiveMatch = raw.match(/<objective>([\s\S]*?)<\/objective>/);
-  const objective = objectiveMatch ? objectiveMatch[1].trim() : null;
-  const outcomesMatch = raw.match(/<outcomes>([\s\S]*?)<\/outcomes>/);
-  const outcomes = [];
-  if (outcomesMatch) {
-    const outcomesContent = outcomesMatch[1];
-    const entryPattern = /-\s*(DO-\d+)\s*(?:\[P\d+\])?\s*:\s*([^\n]+)/g;
-    let match;
-    while ((match = entryPattern.exec(outcomesContent)) !== null) {
-      outcomes.push(Object.freeze({
-        id: match[1],
-        text: match[2].trim()
-      }));
-    }
-  }
-  const result = Object.freeze({
-    raw,
-    objective,
-    outcomes: Object.freeze(outcomes)
-  });
-  _cache5.set(resolvedCwd, result);
-  return result;
-}
-function invalidateIntent(cwd) {
-  if (cwd) {
-    _cache5.delete(cwd);
-  } else {
-    _cache5.clear();
-  }
-}
-var _cache5;
-var init_intent = __esm({
-  "src/plugin/parsers/intent.js"() {
-    _cache5 = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/plugin/parsers/index.js
-var parsers_exports = {};
-__export(parsers_exports, {
-  invalidateAll: () => invalidateAll,
-  invalidateConfig: () => invalidateConfig,
-  invalidateIntent: () => invalidateIntent,
-  invalidatePlanningCache: () => invalidatePlanningCache,
-  invalidatePlans: () => invalidatePlans,
-  invalidateProject: () => invalidateProject,
-  invalidateRoadmap: () => invalidateRoadmap,
-  invalidateState: () => invalidateState,
-  parseConfig: () => parseConfig,
-  parseIntent: () => parseIntent,
-  parsePlan: () => parsePlan,
-  parsePlans: () => parsePlans,
-  parseProject: () => parseProject,
-  parseRoadmap: () => parseRoadmap,
-  parseState: () => parseState
-});
-function invalidateAll(cwd) {
-  invalidateState(cwd);
-  invalidateRoadmap(cwd);
-  invalidatePlans(cwd);
-  invalidateConfig(cwd);
-  invalidateProject(cwd);
-  invalidateIntent(cwd);
-  if (cwd) {
-    try {
-      const db = getDb(cwd);
-      const cache = new PlanningCache(db);
-      cache.clearForCwd(cwd);
-    } catch {
-    }
-  }
-}
-function invalidatePlanningCache(cwd) {
-  if (!cwd) return;
-  try {
-    const db = getDb(cwd);
-    const cache = new PlanningCache(db);
-    cache.clearForCwd(cwd);
-  } catch {
-  }
-}
-var init_parsers = __esm({
-  async "src/plugin/parsers/index.js"() {
-    await init_state();
-    await init_roadmap();
-    await init_plan();
-    init_config();
-    init_project();
-    init_intent();
-    await init_state();
-    await init_roadmap();
-    await init_plan();
-    init_config();
-    init_project();
-    init_intent();
-    await init_db_cache();
   }
 });
 
@@ -8067,18 +6125,1847 @@ import { existsSync as existsSync3, readFileSync as readFileSync7 } from "fs";
 import { join as join11 } from "path";
 
 // src/plugin/project-state.js
-await init_state();
-await init_roadmap();
-await init_plan();
-init_config();
-init_project();
-init_intent();
-await init_state();
-await init_roadmap();
-await init_plan();
-await init_db_cache();
 import { join as join10 } from "path";
 import { readdirSync as readdirSync2 } from "fs";
+
+// src/plugin/parsers/state.js
+import { readFileSync } from "fs";
+import { join as join4 } from "path";
+
+// src/plugin/lib/db-cache.js
+import * as nodeFs from "node:fs";
+import * as nodePath from "node:path";
+var _DatabaseSync = null;
+try {
+  const m = await import("node:sqlite");
+  if (m && m.DatabaseSync) {
+    _DatabaseSync = m.DatabaseSync;
+  }
+} catch {
+}
+var MapBackend = class {
+  get backend() {
+    return "map";
+  }
+  exec() {
+  }
+  prepare() {
+    return { get: () => void 0, all: () => [], run: () => ({ changes: 0 }) };
+  }
+  close() {
+  }
+};
+var SCHEMA_V5_SQL = `
+  CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT);
+  CREATE TABLE IF NOT EXISTS file_cache (
+    file_path TEXT PRIMARY KEY,
+    mtime_ms  INTEGER NOT NULL,
+    parsed_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS milestones (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    version     TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    phase_start INTEGER,
+    phase_end   INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS phases (
+    number       TEXT NOT NULL,
+    cwd          TEXT NOT NULL,
+    name         TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'incomplete',
+    plan_count   INTEGER NOT NULL DEFAULT 0,
+    goal         TEXT,
+    depends_on   TEXT,
+    requirements TEXT,
+    section      TEXT,
+    PRIMARY KEY (number, cwd)
+  );
+  CREATE TABLE IF NOT EXISTS progress (
+    phase          TEXT NOT NULL,
+    cwd            TEXT NOT NULL,
+    plans_complete INTEGER NOT NULL DEFAULT 0,
+    plans_total    INTEGER NOT NULL DEFAULT 0,
+    status         TEXT,
+    completed_date TEXT,
+    PRIMARY KEY (phase, cwd)
+  );
+  CREATE TABLE IF NOT EXISTS plans (
+    path           TEXT PRIMARY KEY,
+    cwd            TEXT NOT NULL,
+    phase_number   TEXT,
+    plan_number    TEXT,
+    wave           INTEGER,
+    autonomous     INTEGER,
+    objective      TEXT,
+    task_count     INTEGER NOT NULL DEFAULT 0,
+    frontmatter_json TEXT,
+    raw            TEXT
+  );
+  CREATE TABLE IF NOT EXISTS tasks (
+    plan_path TEXT NOT NULL,
+    idx       INTEGER NOT NULL,
+    type      TEXT NOT NULL DEFAULT 'auto',
+    name      TEXT,
+    files_json TEXT,
+    action    TEXT,
+    verify    TEXT,
+    done      TEXT,
+    PRIMARY KEY (plan_path, idx),
+    FOREIGN KEY (plan_path) REFERENCES plans(path) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS requirements (
+    req_id       TEXT NOT NULL,
+    cwd          TEXT NOT NULL,
+    phase_number TEXT,
+    description  TEXT,
+    PRIMARY KEY (req_id, cwd)
+  );
+  CREATE TABLE IF NOT EXISTS memory_decisions (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd       TEXT NOT NULL,
+    summary   TEXT,
+    phase     TEXT,
+    timestamp TEXT,
+    data_json TEXT
+  );
+  CREATE TABLE IF NOT EXISTS memory_lessons (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd       TEXT NOT NULL,
+    summary   TEXT,
+    phase     TEXT,
+    timestamp TEXT,
+    data_json TEXT
+  );
+  CREATE TABLE IF NOT EXISTS memory_trajectories (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd             TEXT NOT NULL,
+    entry_id        TEXT,
+    category        TEXT,
+    text            TEXT,
+    phase           TEXT,
+    scope           TEXT,
+    checkpoint_name TEXT,
+    attempt         INTEGER,
+    confidence      TEXT,
+    timestamp       TEXT,
+    tags_json       TEXT,
+    data_json       TEXT
+  );
+  CREATE TABLE IF NOT EXISTS memory_bookmarks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    phase       TEXT,
+    plan        TEXT,
+    task        INTEGER,
+    total_tasks INTEGER,
+    git_head    TEXT,
+    timestamp   TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_phases_cwd ON phases(cwd);
+  CREATE INDEX IF NOT EXISTS idx_plans_cwd ON plans(cwd);
+  CREATE INDEX IF NOT EXISTS idx_plans_phase ON plans(phase_number);
+  CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_path);
+  CREATE INDEX IF NOT EXISTS idx_requirements_cwd ON requirements(cwd);
+  CREATE INDEX IF NOT EXISTS idx_file_cache_mtime ON file_cache(mtime_ms);
+  CREATE INDEX IF NOT EXISTS idx_mem_decisions_cwd ON memory_decisions(cwd);
+  CREATE INDEX IF NOT EXISTS idx_mem_decisions_phase ON memory_decisions(phase);
+  CREATE INDEX IF NOT EXISTS idx_mem_lessons_cwd ON memory_lessons(cwd);
+  CREATE INDEX IF NOT EXISTS idx_mem_lessons_phase ON memory_lessons(phase);
+  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_cwd ON memory_trajectories(cwd);
+  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_category ON memory_trajectories(category);
+  CREATE INDEX IF NOT EXISTS idx_mem_trajectories_phase ON memory_trajectories(phase);
+  CREATE INDEX IF NOT EXISTS idx_mem_bookmarks_cwd ON memory_bookmarks(cwd);
+  CREATE TABLE IF NOT EXISTS model_profiles (
+    agent_type     TEXT NOT NULL,
+    cwd            TEXT NOT NULL,
+    quality_model  TEXT NOT NULL DEFAULT 'opus',
+    balanced_model TEXT NOT NULL DEFAULT 'sonnet',
+    budget_model   TEXT NOT NULL DEFAULT 'haiku',
+    override_model TEXT,
+    PRIMARY KEY (agent_type, cwd)
+  );
+  CREATE INDEX IF NOT EXISTS idx_model_profiles_cwd ON model_profiles(cwd);
+  CREATE TABLE IF NOT EXISTS session_state (
+    cwd            TEXT PRIMARY KEY,
+    phase_number   TEXT,
+    phase_name     TEXT,
+    total_phases   INTEGER,
+    current_plan   TEXT,
+    status         TEXT,
+    last_activity  TEXT,
+    progress       INTEGER,
+    milestone      TEXT,
+    data_json      TEXT
+  );
+  CREATE TABLE IF NOT EXISTS session_metrics (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    milestone   TEXT,
+    phase       TEXT,
+    plan        TEXT,
+    duration    TEXT,
+    tasks       INTEGER,
+    files       INTEGER,
+    test_count  INTEGER,
+    timestamp   TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_metrics_cwd ON session_metrics(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_metrics_phase ON session_metrics(phase);
+  CREATE TABLE IF NOT EXISTS session_decisions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    milestone   TEXT,
+    phase       TEXT,
+    summary     TEXT,
+    rationale   TEXT,
+    timestamp   TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_decisions_cwd ON session_decisions(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_decisions_phase ON session_decisions(phase);
+  CREATE TABLE IF NOT EXISTS session_todos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd         TEXT NOT NULL,
+    text        TEXT NOT NULL,
+    priority    TEXT,
+    category    TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    created_at  TEXT,
+    completed_at TEXT,
+    data_json   TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_todos_cwd ON session_todos(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_todos_status ON session_todos(status);
+  CREATE TABLE IF NOT EXISTS session_blockers (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    cwd            TEXT NOT NULL,
+    text           TEXT NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'open',
+    created_at     TEXT,
+    resolved_at    TEXT,
+    resolution     TEXT,
+    linked_decision_id INTEGER,
+    data_json      TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_session_blockers_cwd ON session_blockers(cwd);
+  CREATE INDEX IF NOT EXISTS idx_session_blockers_status ON session_blockers(status);
+  CREATE TABLE IF NOT EXISTS session_continuity (
+    cwd          TEXT PRIMARY KEY,
+    last_session TEXT,
+    stopped_at   TEXT,
+    next_step    TEXT,
+    data_json    TEXT
+  );
+`;
+var SQLiteBackend = class {
+  constructor(dbPath) {
+    this._dbPath = dbPath;
+    this._degraded = false;
+    this._db = null;
+    try {
+      try {
+        this._db = new _DatabaseSync(dbPath, { timeout: 5e3, defensive: false });
+      } catch {
+        try {
+          this._db = new _DatabaseSync(dbPath, { timeout: 5e3 });
+        } catch {
+          this._db = new _DatabaseSync(dbPath);
+        }
+      }
+      try {
+        this._db.exec("PRAGMA busy_timeout = 5000");
+      } catch {
+      }
+      this._db.exec("PRAGMA journal_mode = WAL");
+      this._ensureSchema();
+    } catch {
+      this._degraded = true;
+    }
+  }
+  _ensureSchema() {
+    let version = 0;
+    try {
+      const row = this._db.prepare("PRAGMA user_version").get();
+      version = row ? row.user_version : 0;
+    } catch {
+    }
+    if (version >= 5) return;
+    try {
+      this._db.exec("BEGIN");
+      this._db.exec(SCHEMA_V5_SQL);
+      this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + (/* @__PURE__ */ new Date()).toISOString() + "')");
+      this._db.exec("PRAGMA user_version = 5");
+      this._db.exec("COMMIT");
+    } catch {
+      try {
+        this._db.exec("ROLLBACK");
+      } catch {
+      }
+      try {
+        this._db.close();
+        for (const suffix of ["", "-wal", "-shm"]) {
+          const fp = this._dbPath + suffix;
+          if (nodeFs.existsSync(fp)) try {
+            nodeFs.unlinkSync(fp);
+          } catch {
+          }
+        }
+        this._db = new _DatabaseSync(this._dbPath);
+        this._db.exec("PRAGMA journal_mode = WAL");
+        this._db.exec("BEGIN");
+        this._db.exec(SCHEMA_V5_SQL);
+        this._db.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('created_at', '" + (/* @__PURE__ */ new Date()).toISOString() + "')");
+        this._db.exec("PRAGMA user_version = 5");
+        this._db.exec("COMMIT");
+      } catch {
+        this._degraded = true;
+      }
+    }
+  }
+  get backend() {
+    return "sqlite";
+  }
+  exec(sql) {
+    this._db.exec(sql);
+  }
+  prepare(sql) {
+    return this._db.prepare(sql);
+  }
+  close() {
+    try {
+      this._db.close();
+    } catch {
+    }
+  }
+};
+var _instances = /* @__PURE__ */ new Map();
+function getDb(cwd) {
+  cwd = cwd || process.cwd();
+  const resolvedCwd = nodePath.resolve(cwd);
+  if (_instances.has(resolvedCwd)) return _instances.get(resolvedCwd);
+  let db;
+  const planningDir = nodePath.join(resolvedCwd, ".planning");
+  const planningExists = nodeFs.existsSync(planningDir);
+  if (planningExists && _DatabaseSync) {
+    const dbPath = nodePath.join(planningDir, ".cache.db");
+    try {
+      const instance = new SQLiteBackend(dbPath);
+      db = instance._degraded ? new MapBackend() : instance;
+    } catch {
+      db = new MapBackend();
+    }
+  } else {
+    db = new MapBackend();
+  }
+  _instances.set(resolvedCwd, db);
+  return db;
+}
+var PlanningCache = class {
+  constructor(db) {
+    this._db = db;
+    this._stmts = {};
+  }
+  _isMap() {
+    return this._db.backend === "map";
+  }
+  _stmt(key, sql) {
+    if (!this._stmts[key]) this._stmts[key] = this._db.prepare(sql);
+    return this._stmts[key];
+  }
+  checkFreshness(filePath) {
+    if (this._isMap()) return "missing";
+    try {
+      const row = this._stmt("fc_get", "SELECT mtime_ms FROM file_cache WHERE file_path = ?").get(filePath);
+      if (!row) return "missing";
+      const currentMtime = nodeFs.statSync(filePath).mtimeMs;
+      return currentMtime === row.mtime_ms ? "fresh" : "stale";
+    } catch {
+      return "missing";
+    }
+  }
+  checkAllFreshness(filePaths) {
+    const result = { fresh: [], stale: [], missing: [] };
+    for (const fp of filePaths) result[this.checkFreshness(fp)].push(fp);
+    return result;
+  }
+  invalidateFile(filePath) {
+    if (this._isMap()) return;
+    try {
+      this._db.exec("BEGIN");
+      this._stmt("fc_del", "DELETE FROM file_cache WHERE file_path = ?").run(filePath);
+      this._stmt("plans_del_path", "DELETE FROM plans WHERE path = ?").run(filePath);
+      this._db.exec("COMMIT");
+    } catch {
+      try {
+        this._db.exec("ROLLBACK");
+      } catch {
+      }
+    }
+  }
+  clearForCwd(cwd) {
+    if (this._isMap()) return;
+    try {
+      this._db.exec("BEGIN");
+      this._stmt("ph_del_cwd", "DELETE FROM phases WHERE cwd = ?").run(cwd);
+      this._stmt("ms_del_cwd", "DELETE FROM milestones WHERE cwd = ?").run(cwd);
+      this._stmt("pr_del_cwd", "DELETE FROM progress WHERE cwd = ?").run(cwd);
+      this._stmt("rq_del_cwd", "DELETE FROM requirements WHERE cwd = ?").run(cwd);
+      this._stmt("pl_del_cwd", "DELETE FROM plans WHERE cwd = ?").run(cwd);
+      this._stmt("fc_del_cwd", "DELETE FROM file_cache WHERE file_path LIKE ?").run(cwd + "%");
+      this._db.exec("COMMIT");
+    } catch {
+      try {
+        this._db.exec("ROLLBACK");
+      } catch {
+      }
+    }
+  }
+  _updateMtimeInTx(filePath) {
+    try {
+      const mtime_ms = nodeFs.statSync(filePath).mtimeMs;
+      this._stmt("fc_upsert", "INSERT OR REPLACE INTO file_cache (file_path, mtime_ms, parsed_at) VALUES (?, ?, ?)").run(filePath, mtime_ms, (/* @__PURE__ */ new Date()).toISOString());
+    } catch {
+    }
+  }
+  storeRoadmap(cwd, roadmapPath, parsed) {
+    if (this._isMap()) return;
+    try {
+      this._db.exec("BEGIN");
+      this._stmt("ph_del_cwd2", "DELETE FROM phases WHERE cwd = ?").run(cwd);
+      this._stmt("ms_del_cwd2", "DELETE FROM milestones WHERE cwd = ?").run(cwd);
+      this._stmt("pr_del_cwd2", "DELETE FROM progress WHERE cwd = ?").run(cwd);
+      this._stmt("rq_del_cwd2", "DELETE FROM requirements WHERE cwd = ?").run(cwd);
+      const phIns = this._stmt("ph_ins", `INSERT OR REPLACE INTO phases (number, cwd, name, status, plan_count, goal, depends_on, requirements, section) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (const p of parsed.phases || []) {
+        phIns.run(
+          p.number || "",
+          cwd,
+          p.name || "",
+          p.status || "incomplete",
+          p.plan_count != null ? p.plan_count : 0,
+          p.goal || null,
+          p.depends_on ? JSON.stringify(p.depends_on) : null,
+          p.requirements ? JSON.stringify(p.requirements) : null,
+          p.section || null
+        );
+      }
+      const msIns = this._stmt("ms_ins", `INSERT INTO milestones (cwd, name, version, status, phase_start, phase_end) VALUES (?, ?, ?, ?, ?, ?)`);
+      for (const m of parsed.milestones || []) {
+        msIns.run(
+          cwd,
+          m.name || "",
+          m.version || null,
+          m.status || "pending",
+          m.phase_start != null ? m.phase_start : null,
+          m.phase_end != null ? m.phase_end : null
+        );
+      }
+      const prIns = this._stmt("pr_ins", `INSERT OR REPLACE INTO progress (phase, cwd, plans_complete, plans_total, status, completed_date) VALUES (?, ?, ?, ?, ?, ?)`);
+      for (const p of parsed.progress || []) {
+        prIns.run(
+          p.phase || "",
+          cwd,
+          p.plans_complete != null ? p.plans_complete : 0,
+          p.plans_total != null ? p.plans_total : 0,
+          p.status || null,
+          p.completed_date || null
+        );
+      }
+      const rqIns = this._stmt("rq_ins", `INSERT OR REPLACE INTO requirements (req_id, cwd, phase_number, description) VALUES (?, ?, ?, ?)`);
+      const reqs = parsed.requirements || _extractRequirementsFromPhases(parsed.phases || []);
+      for (const r of reqs) {
+        rqIns.run(r.req_id || r.id || "", cwd, r.phase_number || r.phase || null, r.description || null);
+      }
+      if (roadmapPath) this._updateMtimeInTx(roadmapPath);
+      this._db.exec("COMMIT");
+    } catch {
+      try {
+        this._db.exec("ROLLBACK");
+      } catch {
+      }
+    }
+  }
+  storePlan(planPath, cwd, parsed) {
+    if (this._isMap()) return;
+    try {
+      this._db.exec("BEGIN");
+      this._stmt("pl_del_path", "DELETE FROM plans WHERE path = ?").run(planPath);
+      const fm = parsed.frontmatter || {};
+      this._stmt(
+        "pl_ins",
+        `INSERT OR REPLACE INTO plans (path, cwd, phase_number, plan_number, wave, autonomous, objective, task_count, frontmatter_json, raw) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        planPath,
+        cwd,
+        fm.phase ? String(fm.phase).split("-")[0] : null,
+        fm.plan != null ? String(fm.plan) : null,
+        fm.wave != null ? fm.wave : null,
+        fm.autonomous != null ? fm.autonomous ? 1 : 0 : null,
+        parsed.objective || null,
+        (parsed.tasks || []).length,
+        JSON.stringify(fm),
+        parsed.raw || null
+      );
+      const tkIns = this._stmt("tk_ins", `INSERT OR REPLACE INTO tasks (plan_path, idx, type, name, files_json, action, verify, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (let i = 0; i < (parsed.tasks || []).length; i++) {
+        const t = parsed.tasks[i];
+        tkIns.run(
+          planPath,
+          i,
+          t.type || "auto",
+          t.name || null,
+          t.files ? JSON.stringify(t.files) : null,
+          t.action || null,
+          t.verify || null,
+          t.done || null
+        );
+      }
+      this._updateMtimeInTx(planPath);
+      this._db.exec("COMMIT");
+    } catch {
+      try {
+        this._db.exec("ROLLBACK");
+      } catch {
+      }
+    }
+  }
+  getPhases(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("ph_all", "SELECT * FROM phases WHERE cwd = ? ORDER BY number").all(cwd);
+      return rows.length > 0 ? rows : null;
+    } catch {
+      return null;
+    }
+  }
+  getPhase(number, cwd) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt("ph_one", "SELECT * FROM phases WHERE number = ? AND cwd = ?").get(number, cwd);
+      return row || null;
+    } catch {
+      return null;
+    }
+  }
+  getPlans(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("pl_all", "SELECT * FROM plans WHERE cwd = ? ORDER BY phase_number, plan_number").all(cwd);
+      return rows.length > 0 ? rows : null;
+    } catch {
+      return null;
+    }
+  }
+  getPlan(planPath) {
+    if (this._isMap()) return null;
+    try {
+      const plan = this._stmt("pl_one", "SELECT * FROM plans WHERE path = ?").get(planPath);
+      if (!plan) return null;
+      const tasks = this._stmt("tk_for_plan", "SELECT * FROM tasks WHERE plan_path = ? ORDER BY idx").all(planPath);
+      return { ...plan, tasks };
+    } catch {
+      return null;
+    }
+  }
+  getPlansForPhase(phaseNumber, cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("pl_phase", "SELECT * FROM plans WHERE phase_number = ? AND cwd = ? ORDER BY plan_number").all(phaseNumber, cwd);
+      return rows.length > 0 ? rows : null;
+    } catch {
+      return null;
+    }
+  }
+  /**
+   * Get summary count for a phase by checking which plan paths have matching SUMMARY files on disk.
+   * Returns { planCount, summaryCount, summaryFiles } or null on Map backend / error.
+   *
+   * @param {number|string} phaseNumber - Phase number
+   * @param {string} cwd - Working directory
+   * @returns {{ planCount: number, summaryCount: number, summaryFiles: string[] } | null}
+   */
+  getSummaryCount(phaseNumber, cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("pl_phase2", "SELECT path FROM plans WHERE phase_number = ? AND cwd = ? ORDER BY plan_number").all(String(phaseNumber), cwd);
+      if (!rows || rows.length === 0) return null;
+      const summaryFiles = [];
+      for (const row of rows) {
+        const summaryPath = row.path.replace(/-PLAN\.md$/, "-SUMMARY.md");
+        const summaryName = summaryPath.split("/").pop();
+        if (nodeFs.existsSync(summaryPath)) {
+          summaryFiles.push(summaryName);
+        }
+      }
+      return { planCount: rows.length, summaryCount: summaryFiles.length, summaryFiles };
+    } catch {
+      return null;
+    }
+  }
+  /**
+   * Get incomplete plan filenames (those without a matching SUMMARY file) for a phase.
+   * Returns array of incomplete plan filenames or null on Map backend / error.
+   *
+   * @param {number|string} phaseNumber - Phase number
+   * @param {string} cwd - Working directory
+   * @returns {string[] | null}
+   */
+  getIncompletePlans(phaseNumber, cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("pl_phase3", "SELECT path FROM plans WHERE phase_number = ? AND cwd = ? ORDER BY plan_number").all(String(phaseNumber), cwd);
+      if (!rows || rows.length === 0) return null;
+      const incomplete = [];
+      for (const row of rows) {
+        const summaryPath = row.path.replace(/-PLAN\.md$/, "-SUMMARY.md");
+        if (!nodeFs.existsSync(summaryPath)) {
+          incomplete.push(row.path.split("/").pop());
+        }
+      }
+      return incomplete;
+    } catch {
+      return null;
+    }
+  }
+  getRequirements(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("rq_all", "SELECT * FROM requirements WHERE cwd = ? ORDER BY req_id").all(cwd);
+      return rows.length > 0 ? rows : null;
+    } catch {
+      return null;
+    }
+  }
+  getRequirement(reqId, cwd) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt("rq_one", "SELECT * FROM requirements WHERE req_id = ? AND cwd = ?").get(reqId, cwd);
+      return row || null;
+    } catch {
+      return null;
+    }
+  }
+  getMilestones(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("ms_all", "SELECT * FROM milestones WHERE cwd = ? ORDER BY id").all(cwd);
+      return rows.length > 0 ? rows : null;
+    } catch {
+      return null;
+    }
+  }
+  getProgress(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const rows = this._stmt("pr_all", "SELECT * FROM progress WHERE cwd = ? ORDER BY phase").all(cwd);
+      return rows.length > 0 ? rows : null;
+    } catch {
+      return null;
+    }
+  }
+  // Legacy model_profiles helpers were intentionally removed in Phase 169.
+  // The plugin cache still tolerates the compatibility table on disk, but live
+  // model resolution must go through canonical config helpers instead.
+  // -------------------------------------------------------------------------
+  // Session State Operations (Phase 123)
+  // -------------------------------------------------------------------------
+  storeSessionState(cwd, state) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt(
+        "ss_upsert",
+        `INSERT OR REPLACE INTO session_state (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(cwd, state.phase_number || null, state.phase_name || null, state.total_phases != null ? state.total_phases : null, state.current_plan || null, state.status || null, state.last_activity || null, state.progress != null ? state.progress : null, state.milestone || null, JSON.stringify(state));
+      return { stored: true };
+    } catch {
+      return null;
+    }
+  }
+  getSessionState(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt("ss_get", "SELECT * FROM session_state WHERE cwd = ?").get(cwd);
+      return row || null;
+    } catch {
+      return null;
+    }
+  }
+  migrateStateFromMarkdown(cwd, parsed) {
+    if (this._isMap()) return null;
+    try {
+      const existing = this._stmt("ss_check", "SELECT cwd FROM session_state WHERE cwd = ?").get(cwd);
+      if (existing) return { migrated: false, reason: "already_exists" };
+      this._db.exec("BEGIN");
+      this._stmt(
+        "ss_upsert2",
+        `INSERT OR REPLACE INTO session_state (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(cwd, parsed.phase_number || null, parsed.phase_name || null, parsed.total_phases != null ? parsed.total_phases : null, parsed.current_plan || null, parsed.status || null, parsed.last_activity || null, parsed.progress != null ? parsed.progress : null, parsed.milestone || null, JSON.stringify(parsed));
+      if (Array.isArray(parsed.decisions) && parsed.decisions.length > 0) {
+        const ins = this._stmt("ss_dec_ins", "INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        for (const d of parsed.decisions) ins.run(cwd, d.milestone || null, d.phase || null, d.summary || null, d.rationale || null, d.timestamp || null, JSON.stringify(d));
+      }
+      if (Array.isArray(parsed.metrics) && parsed.metrics.length > 0) {
+        const ins = this._stmt("ss_met_ins", "INSERT INTO session_metrics (cwd, milestone, phase, plan, duration, tasks, files, test_count, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        for (const m of parsed.metrics) ins.run(cwd, m.milestone || null, m.phase || null, m.plan || null, m.duration || null, m.tasks != null ? m.tasks : null, m.files != null ? m.files : null, m.test_count != null ? m.test_count : null, m.timestamp || null, JSON.stringify(m));
+      }
+      if (Array.isArray(parsed.todos) && parsed.todos.length > 0) {
+        const ins = this._stmt("ss_todo_ins", "INSERT INTO session_todos (cwd, text, priority, category, status, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        for (const t of parsed.todos) ins.run(cwd, t.text || "", t.priority || null, t.category || null, t.status || "pending", t.created_at || null, JSON.stringify(t));
+      }
+      if (Array.isArray(parsed.blockers) && parsed.blockers.length > 0) {
+        const ins = this._stmt("ss_blk_ins", "INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)");
+        for (const b of parsed.blockers) ins.run(cwd, b.text || "", b.status || "open", b.created_at || null, JSON.stringify(b));
+      }
+      if (parsed.continuity) {
+        const c = parsed.continuity;
+        this._stmt("ss_cont_ins", "INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)").run(cwd, c.last_session || null, c.stopped_at || null, c.next_step || null, JSON.stringify(c));
+      }
+      this._db.exec("COMMIT");
+      return { migrated: true };
+    } catch {
+      try {
+        this._db.exec("ROLLBACK");
+      } catch {
+      }
+      return null;
+    }
+  }
+  writeSessionMetric(cwd, metric) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt(
+        "sm_ins",
+        "INSERT INTO session_metrics (cwd, milestone, phase, plan, duration, tasks, files, test_count, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      ).run(cwd, metric.milestone || null, metric.phase || null, metric.plan || null, metric.duration || null, metric.tasks != null ? metric.tasks : null, metric.files != null ? metric.files : null, metric.test_count != null ? metric.test_count : null, metric.timestamp || null, JSON.stringify(metric));
+      return { inserted: true };
+    } catch {
+      return null;
+    }
+  }
+  getSessionMetrics(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      let w = "cwd = ?";
+      const p = [cwd];
+      if (opts.phase) {
+        w += " AND phase = ?";
+        p.push(opts.phase);
+      }
+      const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_metrics WHERE " + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare("SELECT * FROM session_metrics WHERE " + w + " ORDER BY id DESC LIMIT ?").all(...p, limit);
+      return { entries: rows.map((r) => {
+        try {
+          return JSON.parse(r.data_json);
+        } catch {
+          return r;
+        }
+      }), total };
+    } catch {
+      return null;
+    }
+  }
+  writeSessionDecision(cwd, decision) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt(
+        "sd_ins",
+        "INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).run(cwd, decision.milestone || null, decision.phase || null, decision.summary || null, decision.rationale || null, decision.timestamp || null, JSON.stringify(decision));
+      return { inserted: true };
+    } catch {
+      return null;
+    }
+  }
+  getSessionDecisions(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      const offset = opts.offset != null ? opts.offset : 0;
+      let w = "cwd = ?";
+      const p = [cwd];
+      if (opts.phase) {
+        w += " AND phase = ?";
+        p.push(opts.phase);
+      }
+      const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_decisions WHERE " + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare("SELECT * FROM session_decisions WHERE " + w + " ORDER BY id DESC LIMIT ? OFFSET ?").all(...p, limit, offset);
+      return { entries: rows.map((r) => {
+        try {
+          return JSON.parse(r.data_json);
+        } catch {
+          return r;
+        }
+      }), total };
+    } catch {
+      return null;
+    }
+  }
+  writeSessionTodo(cwd, todo) {
+    if (this._isMap()) return null;
+    try {
+      const result = this._stmt(
+        "st_ins",
+        "INSERT INTO session_todos (cwd, text, priority, category, status, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).run(cwd, todo.text || "", todo.priority || null, todo.category || null, todo.status || "pending", todo.created_at || null, JSON.stringify(todo));
+      return { inserted: true, id: result ? result.lastInsertRowid : null };
+    } catch {
+      return null;
+    }
+  }
+  getSessionTodos(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      let w = "cwd = ?";
+      const p = [cwd];
+      if (opts.status) {
+        w += " AND status = ?";
+        p.push(opts.status);
+      }
+      const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_todos WHERE " + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare("SELECT * FROM session_todos WHERE " + w + " ORDER BY id DESC LIMIT ?").all(...p, limit);
+      return { entries: rows.map((r) => {
+        try {
+          return JSON.parse(r.data_json);
+        } catch {
+          return r;
+        }
+      }), total };
+    } catch {
+      return null;
+    }
+  }
+  completeSessionTodo(cwd, id) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt("st_complete", "UPDATE session_todos SET status='completed', completed_at=? WHERE id=? AND cwd=?").run((/* @__PURE__ */ new Date()).toISOString(), id, cwd);
+      return { updated: true };
+    } catch {
+      return null;
+    }
+  }
+  writeSessionBlocker(cwd, blocker) {
+    if (this._isMap()) return null;
+    try {
+      const result = this._stmt(
+        "sb_ins",
+        "INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)"
+      ).run(cwd, blocker.text || "", blocker.status || "open", blocker.created_at || null, JSON.stringify(blocker));
+      return { inserted: true, id: result ? result.lastInsertRowid : null };
+    } catch {
+      return null;
+    }
+  }
+  getSessionBlockers(cwd, options) {
+    if (this._isMap()) return null;
+    try {
+      const opts = options || {};
+      const limit = opts.limit != null ? opts.limit : 100;
+      let w = "cwd = ?";
+      const p = [cwd];
+      if (opts.status) {
+        w += " AND status = ?";
+        p.push(opts.status);
+      }
+      const total = (this._db.prepare("SELECT COUNT(*) AS cnt FROM session_blockers WHERE " + w).get(...p) || {}).cnt || 0;
+      const rows = this._db.prepare("SELECT * FROM session_blockers WHERE " + w + " ORDER BY id DESC LIMIT ?").all(...p, limit);
+      return { entries: rows.map((r) => {
+        try {
+          return JSON.parse(r.data_json);
+        } catch {
+          return r;
+        }
+      }), total };
+    } catch {
+      return null;
+    }
+  }
+  resolveSessionBlocker(cwd, id, resolution) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt("sb_resolve", "UPDATE session_blockers SET status='resolved', resolved_at=?, resolution=? WHERE id=? AND cwd=?").run((/* @__PURE__ */ new Date()).toISOString(), resolution || null, id, cwd);
+      return { updated: true };
+    } catch {
+      return null;
+    }
+  }
+  recordSessionContinuity(cwd, continuity) {
+    if (this._isMap()) return null;
+    try {
+      this._stmt(
+        "sc_upsert",
+        "INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)"
+      ).run(cwd, continuity.last_session || null, continuity.stopped_at || null, continuity.next_step || null, JSON.stringify(continuity));
+      return { stored: true };
+    } catch {
+      return null;
+    }
+  }
+  getSessionContinuity(cwd) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt("sc_get", "SELECT * FROM session_continuity WHERE cwd = ?").get(cwd);
+      return row || null;
+    } catch {
+      return null;
+    }
+  }
+};
+function _extractRequirementsFromPhases(phases) {
+  const requirements = [];
+  for (const phase of phases) {
+    const section = phase.section || "";
+    if (!section) continue;
+    const inlineMatch = section.match(/\*\*Requirements?\*\*:\s*([^\n]+)/i);
+    if (inlineMatch) {
+      const ids = inlineMatch[1].split(/[,\s]+/).filter((id) => /^[A-Z]+-\d+/.test(id));
+      for (const id of ids) {
+        requirements.push({ req_id: id, phase_number: phase.number || "", description: null });
+      }
+    }
+    const checkboxPattern = /- \[[ x]\] \*\*([A-Z]+-\d+)\*\*:?\s*([^\n]*)/g;
+    let match;
+    while ((match = checkboxPattern.exec(section)) !== null) {
+      requirements.push({ req_id: match[1], phase_number: phase.number || "", description: match[2].trim() || null });
+    }
+  }
+  return requirements;
+}
+
+// src/plugin/parsers/state.js
+var _cache = /* @__PURE__ */ new Map();
+function extractField(content, fieldName) {
+  const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, "i");
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+function extractSection(content, sectionName) {
+  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i");
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+function extractProgress(content) {
+  const match = content.match(/\[[\u2588\u2591]+\]\s*(\d+)%/);
+  return match ? parseInt(match[1], 10) : null;
+}
+function parseState(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache.has(resolvedCwd)) {
+    return _cache.get(resolvedCwd);
+  }
+  const statePath = join4(resolvedCwd, ".planning", "STATE.md");
+  let sqlRow = null;
+  let db = null;
+  let cache = null;
+  try {
+    db = getDb(resolvedCwd);
+    if (db.backend === "sqlite") {
+      cache = new PlanningCache(db);
+      sqlRow = cache.getSessionState(resolvedCwd);
+    }
+  } catch {
+    sqlRow = null;
+  }
+  let raw;
+  try {
+    raw = readFileSync(statePath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  let result;
+  if (sqlRow && db && cache) {
+    const _db = db;
+    const _cache_ref = cache;
+    result = Object.freeze({
+      raw,
+      // Primary fields from SQLite columns
+      phase: sqlRow.phase_number ? sqlRow.total_phases ? `${sqlRow.phase_number} of ${sqlRow.total_phases}${sqlRow.phase_name ? ` (${sqlRow.phase_name})` : ""}` : sqlRow.phase_number : extractField(raw, "Phase"),
+      currentPlan: sqlRow.current_plan || extractField(raw, "Current Plan"),
+      status: sqlRow.status || extractField(raw, "Status"),
+      lastActivity: sqlRow.last_activity || extractField(raw, "Last Activity"),
+      progress: sqlRow.progress != null ? sqlRow.progress : extractProgress(raw),
+      // getField falls back to markdown parsing for fields not in SQLite
+      getField(name) {
+        const nameLower = name.toLowerCase().replace(/\s+/g, "_");
+        if (nameLower === "phase" || nameLower === "phase_number") {
+          return sqlRow.phase_number || extractField(raw, name);
+        }
+        if (nameLower === "current_plan" || name === "Current Plan") {
+          return sqlRow.current_plan || extractField(raw, name);
+        }
+        if (nameLower === "status") {
+          return sqlRow.status || extractField(raw, name);
+        }
+        if (nameLower === "last_activity" || name === "Last Activity") {
+          return sqlRow.last_activity || extractField(raw, name);
+        }
+        return extractField(raw, name);
+      },
+      getSection(name) {
+        return extractSection(raw, name);
+      },
+      // ─── SQLite-backed query methods (SES-03) ──────────────────────────
+      // Returns structured data from SQLite without parsing STATE.md sections.
+      // Returns null on Map backend — callers should fall back to getSection().
+      getDecisions(options) {
+        try {
+          return _cache_ref.getSessionDecisions(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      },
+      getTodos(options) {
+        try {
+          return _cache_ref.getSessionTodos(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      },
+      getBlockers(options) {
+        try {
+          return _cache_ref.getSessionBlockers(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      },
+      getMetrics(options) {
+        try {
+          return _cache_ref.getSessionMetrics(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      }
+    });
+  } else {
+    const _db_ref = db;
+    const _cache_fallback = cache;
+    result = Object.freeze({
+      raw,
+      phase: extractField(raw, "Phase"),
+      currentPlan: extractField(raw, "Current Plan"),
+      status: extractField(raw, "Status"),
+      lastActivity: extractField(raw, "Last Activity"),
+      progress: extractProgress(raw),
+      getField(name) {
+        return extractField(raw, name);
+      },
+      getSection(name) {
+        return extractSection(raw, name);
+      },
+      // Query methods return null on Map backend or cold start
+      getDecisions(options) {
+        if (!_cache_fallback || _cache_fallback._isMap()) return null;
+        try {
+          return _cache_fallback.getSessionDecisions(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      },
+      getTodos(options) {
+        if (!_cache_fallback || _cache_fallback._isMap()) return null;
+        try {
+          return _cache_fallback.getSessionTodos(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      },
+      getBlockers(options) {
+        if (!_cache_fallback || _cache_fallback._isMap()) return null;
+        try {
+          return _cache_fallback.getSessionBlockers(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      },
+      getMetrics(options) {
+        if (!_cache_fallback || _cache_fallback._isMap()) return null;
+        try {
+          return _cache_fallback.getSessionMetrics(resolvedCwd, options);
+        } catch {
+          return null;
+        }
+      }
+    });
+  }
+  _cache.set(resolvedCwd, result);
+  return result;
+}
+function invalidateState(cwd) {
+  if (cwd) {
+    _cache.delete(cwd);
+    try {
+      const db = getDb(cwd);
+      if (db.backend === "sqlite") {
+        const tables = [
+          "session_state",
+          "session_metrics",
+          "session_decisions",
+          "session_todos",
+          "session_blockers",
+          "session_continuity"
+        ];
+        for (const table of tables) {
+          db.prepare(`DELETE FROM ${table} WHERE cwd = ?`).run(cwd);
+        }
+      }
+    } catch {
+    }
+  } else {
+    _cache.clear();
+  }
+}
+
+// src/plugin/parsers/roadmap.js
+import { readFileSync as readFileSync2 } from "fs";
+import { join as join5 } from "path";
+function normalizeTddHintValue(value) {
+  if (value === null || value === void 0) return null;
+  const raw = String(value).trim().toLowerCase().replace(/^['"]|['"]$/g, "");
+  if (!raw) return null;
+  if (raw === "required") return "required";
+  if (raw === "recommended") return "recommended";
+  return null;
+}
+var _cache2 = /* @__PURE__ */ new Map();
+function _getPlanningCache(cwd) {
+  try {
+    const db = getDb(cwd);
+    return new PlanningCache(db);
+  } catch {
+    return null;
+  }
+}
+function parseMilestones(content) {
+  const milestones = [];
+  const pattern = /[-*]\s*(?:✅|🔵|🔲)\s*\*\*v(\d+(?:\.\d+)*)\s+([^*]+)\*\*([^\n]*)/g;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    const status = match[0].includes("\u2705") ? "complete" : match[0].includes("\u{1F535}") ? "active" : "pending";
+    const rangeMatch = match[0].match(/Phases?\s+(\d+)\s*[-–]\s*(\d+)/i);
+    const phases = rangeMatch ? { start: parseInt(rangeMatch[1], 10), end: parseInt(rangeMatch[2], 10) } : null;
+    milestones.push(Object.freeze({
+      name: match[2].trim(),
+      version: "v" + match[1],
+      status,
+      phases
+    }));
+  }
+  return milestones;
+}
+function parsePhases(content) {
+  const phases = [];
+  const pattern = /#{2,4}\s*Phase\s+(\d+(?:\.\d+)?)\s*:\s*([^\n]+)/gi;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    const number = match[1];
+    const name = match[2].trim();
+    const sectionStart = match.index;
+    const restOfContent = content.slice(sectionStart);
+    const nextHeader = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const sectionEnd = nextHeader ? sectionStart + nextHeader.index : content.length;
+    const section = content.slice(sectionStart, sectionEnd).trim();
+    const goalMatch = section.match(/\*\*Goal:?\*\*:?\s*([^\n]+)/i);
+    const goal = goalMatch ? goalMatch[1].trim() : null;
+    const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
+    const planCount = plansMatch ? parseInt(plansMatch[2], 10) : 0;
+    const tddMatch = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    const tdd = tddMatch ? normalizeTddHintValue(tddMatch[1]) : null;
+    const escaped = number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const checkboxPattern = new RegExp(`-\\s*\\[x\\]\\s*.*Phase\\s+${escaped}`, "i");
+    const status = checkboxPattern.test(content) ? "complete" : "incomplete";
+    phases.push(Object.freeze({
+      number,
+      name,
+      status,
+      planCount,
+      goal,
+      tdd,
+      section
+    }));
+  }
+  return phases;
+}
+function parseProgressTable(content) {
+  const progress = [];
+  const tableMatch = content.match(/\|[^\n]*Phase[^\n]*\|[^\n]*Plans?[^\n]*\|[^\n]*Status[^\n]*\|[^\n]*\n\|[-|\s]+\n((?:\|[^\n]+\n?)*)/i);
+  if (!tableMatch) return progress;
+  const rows = tableMatch[1].trim().split("\n");
+  for (const row of rows) {
+    const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
+    if (cells.length >= 3) {
+      const plansParts = cells[1].match(/(\d+)\/(\d+)/);
+      progress.push(Object.freeze({
+        phase: cells[0],
+        milestone: null,
+        // Can be derived from position if needed
+        plansComplete: plansParts ? parseInt(plansParts[1], 10) : 0,
+        plansTotal: plansParts ? parseInt(plansParts[2], 10) : 0,
+        status: cells[2],
+        completed: cells.length >= 4 ? cells[3] || null : null
+      }));
+    }
+  }
+  return progress;
+}
+function buildRoadmapFromCache(phaseRows, milestoneRows, progressRows, resolvedCwd) {
+  const milestones = (milestoneRows || []).map((row) => Object.freeze({
+    name: row.name || "",
+    version: row.version || null,
+    status: row.status || "pending",
+    phases: row.phase_start != null && row.phase_end != null ? { start: row.phase_start, end: row.phase_end } : null
+  }));
+  const phases = (phaseRows || []).map((row) => {
+    const sec = row.section || "";
+    const tddMatch = sec.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+    return Object.freeze({
+      number: row.number || "",
+      name: row.name || "",
+      status: row.status || "incomplete",
+      planCount: row.plan_count != null ? row.plan_count : 0,
+      goal: row.goal || null,
+      tdd: tddMatch ? normalizeTddHintValue(tddMatch[1]) : null,
+      section: sec
+    });
+  });
+  const progress = (progressRows || []).map((row) => Object.freeze({
+    phase: row.phase || "",
+    milestone: null,
+    plansComplete: row.plans_complete != null ? row.plans_complete : 0,
+    plansTotal: row.plans_total != null ? row.plans_total : 0,
+    status: row.status || "",
+    completed: row.completed_date || null
+  }));
+  return Object.freeze({
+    raw: null,
+    // not stored in cache — consumers needing raw markdown should parse fresh
+    milestones,
+    phases,
+    progress,
+    getPhase(num) {
+      const numStr = String(num);
+      const found = phases.find((p) => p.number === numStr);
+      if (!found) return null;
+      const section = found.section || "";
+      const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
+      const dependsOn = dependsMatch ? dependsMatch[1].trim() : null;
+      const reqMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
+      const requirements = reqMatch ? reqMatch[1].trim() : null;
+      const criteriaMatch = section.match(/\*\*Success Criteria\*\*[^\n]*:\s*\n((?:\s*\d+\.\s*[^\n]+\n?)+)/i);
+      const successCriteria = criteriaMatch ? criteriaMatch[1].trim().split("\n").map((l) => l.replace(/^\s*\d+\.\s*/, "").trim()).filter(Boolean) : [];
+      const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
+      const plans = plansMatch ? {
+        completed: plansMatch[1] ? parseInt(plansMatch[1], 10) : 0,
+        total: parseInt(plansMatch[2], 10)
+      } : null;
+      const tddMatch2 = section.match(/\*\*TDD:?\*\*:?\s*([^\n]+)/i);
+      const tdd = tddMatch2 ? normalizeTddHintValue(tddMatch2[1]) : found.tdd;
+      return Object.freeze({
+        number: found.number,
+        name: found.name,
+        goal: found.goal,
+        tdd,
+        dependsOn,
+        requirements,
+        successCriteria,
+        plans
+      });
+    },
+    getMilestone(name) {
+      return milestones.find(
+        (m) => m.name.toLowerCase().includes(name.toLowerCase()) || m.version && m.version.toLowerCase() === name.toLowerCase()
+      ) || null;
+    },
+    get currentMilestone() {
+      return milestones.find((m) => m.status === "active") || null;
+    }
+  });
+}
+function parseRoadmap(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache2.has(resolvedCwd)) {
+    return _cache2.get(resolvedCwd);
+  }
+  const roadmapPath = join5(resolvedCwd, ".planning", "ROADMAP.md");
+  const planningCache = _getPlanningCache(resolvedCwd);
+  if (planningCache) {
+    const freshness = planningCache.checkFreshness(roadmapPath);
+    if (freshness === "fresh") {
+      const phaseRows = planningCache.getPhases(resolvedCwd);
+      if (phaseRows && phaseRows.length > 0) {
+        const milestoneRows = planningCache.getMilestones(resolvedCwd);
+        const progressRows = planningCache.getProgress(resolvedCwd);
+        const result2 = buildRoadmapFromCache(phaseRows, milestoneRows || [], progressRows || [], resolvedCwd);
+        _cache2.set(resolvedCwd, result2);
+        return result2;
+      }
+    }
+  }
+  let raw;
+  try {
+    raw = readFileSync2(roadmapPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const milestones = parseMilestones(raw);
+  const phases = parsePhases(raw);
+  const progress = parseProgressTable(raw);
+  const result = Object.freeze({
+    raw,
+    milestones,
+    phases,
+    progress,
+    getPhase(num) {
+      const numStr = String(num);
+      const found = phases.find((p) => p.number === numStr);
+      if (!found) return null;
+      const section = found.section;
+      const dependsMatch = section.match(/\*\*Depends on:?\*\*:?\s*([^\n]+)/i);
+      const dependsOn = dependsMatch ? dependsMatch[1].trim() : null;
+      const reqMatch = section.match(/\*\*Requirements:?\*\*:?\s*([^\n]+)/i);
+      const requirements = reqMatch ? reqMatch[1].trim() : null;
+      const criteriaMatch = section.match(/\*\*Success Criteria\*\*[^\n]*:\s*\n((?:\s*\d+\.\s*[^\n]+\n?)+)/i);
+      const successCriteria = criteriaMatch ? criteriaMatch[1].trim().split("\n").map((l) => l.replace(/^\s*\d+\.\s*/, "").trim()).filter(Boolean) : [];
+      const plansMatch = section.match(/\*\*Plans:?\*\*:?\s*(?:(\d+)\/)?(\d+)\s*plan/i);
+      const plans = plansMatch ? {
+        completed: plansMatch[1] ? parseInt(plansMatch[1], 10) : 0,
+        total: parseInt(plansMatch[2], 10)
+      } : null;
+      return Object.freeze({
+        number: found.number,
+        name: found.name,
+        goal: found.goal,
+        tdd: found.tdd,
+        dependsOn,
+        requirements,
+        successCriteria,
+        plans
+      });
+    },
+    getMilestone(name) {
+      return milestones.find(
+        (m) => m.name.toLowerCase().includes(name.toLowerCase()) || m.version.toLowerCase() === name.toLowerCase()
+      ) || null;
+    },
+    get currentMilestone() {
+      return milestones.find((m) => m.status === "active") || null;
+    }
+  });
+  if (planningCache) {
+    const storedPhases = phases.map((p) => ({
+      number: p.number,
+      name: p.name,
+      status: p.status,
+      plan_count: p.planCount,
+      goal: p.goal,
+      section: p.section
+    }));
+    const storedMilestones = milestones.map((m) => ({
+      name: m.name,
+      version: m.version,
+      status: m.status,
+      phase_start: m.phases ? m.phases.start : null,
+      phase_end: m.phases ? m.phases.end : null
+    }));
+    const storedProgress = progress.map((p) => ({
+      phase: p.phase,
+      plans_complete: p.plansComplete,
+      plans_total: p.plansTotal,
+      status: p.status,
+      completed_date: p.completed
+    }));
+    planningCache.storeRoadmap(resolvedCwd, roadmapPath, {
+      phases: storedPhases,
+      milestones: storedMilestones,
+      progress: storedProgress
+    });
+  }
+  _cache2.set(resolvedCwd, result);
+  return result;
+}
+function invalidateRoadmap(cwd) {
+  if (cwd) {
+    _cache2.delete(cwd);
+    try {
+      const planningCache = _getPlanningCache(cwd);
+      if (planningCache) {
+        const roadmapPath = join5(cwd, ".planning", "ROADMAP.md");
+        planningCache.invalidateFile(roadmapPath);
+      }
+    } catch {
+    }
+  } else {
+    _cache2.clear();
+  }
+}
+
+// src/plugin/parsers/plan.js
+import { readFileSync as readFileSync3, readdirSync } from "fs";
+import { join as join6, dirname } from "path";
+var _planCache = /* @__PURE__ */ new Map();
+var _plansCache = /* @__PURE__ */ new Map();
+function _getPlanningCache2(cwd) {
+  try {
+    const db = getDb(cwd);
+    return new PlanningCache(db);
+  } catch {
+    return null;
+  }
+}
+function _cwdFromPlanPath(planPath) {
+  let dir = dirname(planPath);
+  while (dir !== dirname(dir)) {
+    if (dir.endsWith("/.planning") || dir.includes("/.planning/")) {
+      const planningIdx = dir.indexOf("/.planning");
+      if (planningIdx !== -1) {
+        return dir.slice(0, planningIdx) || "/";
+      }
+    }
+    dir = dirname(dir);
+  }
+  return null;
+}
+function _buildPlanFromCache(planRow) {
+  const frontmatter = planRow.frontmatter_json ? JSON.parse(planRow.frontmatter_json) : {};
+  const tasks = (planRow.tasks || []).map((t) => Object.freeze({
+    type: t.type || "auto",
+    name: t.name || null,
+    files: t.files_json ? JSON.parse(t.files_json) : [],
+    action: t.action || null,
+    verify: t.verify || null,
+    done: t.done || null
+  }));
+  return Object.freeze({
+    raw: null,
+    // not stored in cache
+    path: planRow.path,
+    frontmatter: Object.freeze(frontmatter),
+    objective: planRow.objective || null,
+    context: null,
+    // not stored separately — available on fresh parse
+    tasks: Object.freeze(tasks),
+    verification: null,
+    // not stored separately
+    successCriteria: null,
+    // not stored separately
+    output: null
+    // not stored separately
+  });
+}
+var FM_DELIMITERS = /^---\n([\s\S]+?)\n---/;
+var FM_KEY_VALUE = /^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/;
+function extractFrontmatter(content) {
+  if (!content || typeof content !== "string") return {};
+  if (!content.startsWith("---\n")) return {};
+  const frontmatter = {};
+  const match = content.match(FM_DELIMITERS);
+  if (!match) return frontmatter;
+  const yaml = match[1];
+  const lines = yaml.split("\n");
+  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1].length : 0;
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
+    const current = stack[stack.length - 1];
+    const keyMatch = line.match(FM_KEY_VALUE);
+    if (keyMatch) {
+      const key = keyMatch[2];
+      const value = keyMatch[3].trim();
+      if (value === "" || value === "[") {
+        current.obj[key] = value === "[" ? [] : {};
+        current.key = null;
+        stack.push({ obj: current.obj[key], key: null, indent });
+      } else if (value.startsWith("[") && value.endsWith("]")) {
+        current.obj[key] = value.slice(1, -1).split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+        current.key = null;
+      } else {
+        current.obj[key] = value.replace(/^["']|["']$/g, "");
+        current.key = null;
+      }
+    } else if (line.trim().startsWith("- ")) {
+      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, "");
+      if (typeof current.obj === "object" && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
+        const parent = stack.length > 1 ? stack[stack.length - 2] : null;
+        if (parent) {
+          for (const k of Object.keys(parent.obj)) {
+            if (parent.obj[k] === current.obj) {
+              parent.obj[k] = [itemValue];
+              current.obj = parent.obj[k];
+              break;
+            }
+          }
+        }
+      } else if (Array.isArray(current.obj)) {
+        current.obj.push(itemValue);
+      }
+    }
+  }
+  return frontmatter;
+}
+function extractXmlSection(content, tagName) {
+  const pattern = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+function extractTasks(content) {
+  const tasksSection = extractXmlSection(content, "tasks");
+  if (!tasksSection) return [];
+  const tasks = [];
+  const taskPattern = /<task\s+([^>]*)>([\s\S]*?)<\/task>/g;
+  let match;
+  while ((match = taskPattern.exec(tasksSection)) !== null) {
+    const attrs = match[1];
+    const body = match[2];
+    const typeMatch = attrs.match(/type="([^"]+)"/);
+    const type = typeMatch ? typeMatch[1] : "auto";
+    const nameMatch = body.match(/<name>([\s\S]*?)<\/name>/);
+    const filesMatch = body.match(/<files>([\s\S]*?)<\/files>/);
+    const actionMatch = body.match(/<action>([\s\S]*?)<\/action>/);
+    const verifyMatch = body.match(/<verify>([\s\S]*?)<\/verify>/);
+    const doneMatch = body.match(/<done>([\s\S]*?)<\/done>/);
+    tasks.push(Object.freeze({
+      type,
+      name: nameMatch ? nameMatch[1].trim() : null,
+      files: filesMatch ? filesMatch[1].trim().split(",").map((f) => f.trim()).filter(Boolean) : [],
+      action: actionMatch ? actionMatch[1].trim() : null,
+      verify: verifyMatch ? verifyMatch[1].trim() : null,
+      done: doneMatch ? doneMatch[1].trim() : null
+    }));
+  }
+  return tasks;
+}
+function parsePlan(planPath, cwd) {
+  if (_planCache.has(planPath)) {
+    return _planCache.get(planPath);
+  }
+  const resolvedCwd = cwd || _cwdFromPlanPath(planPath) || process.cwd();
+  const planningCache = _getPlanningCache2(resolvedCwd);
+  if (planningCache) {
+    const freshness = planningCache.checkFreshness(planPath);
+    if (freshness === "fresh") {
+      const planRow = planningCache.getPlan(planPath);
+      if (planRow) {
+        const result2 = _buildPlanFromCache(planRow);
+        _planCache.set(planPath, result2);
+        return result2;
+      }
+    }
+  }
+  let raw;
+  try {
+    raw = readFileSync3(planPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const frontmatter = extractFrontmatter(raw);
+  const tasks = extractTasks(raw);
+  const result = Object.freeze({
+    raw,
+    path: planPath,
+    frontmatter: Object.freeze(frontmatter),
+    objective: extractXmlSection(raw, "objective"),
+    context: extractXmlSection(raw, "context"),
+    tasks,
+    verification: extractXmlSection(raw, "verification"),
+    successCriteria: extractXmlSection(raw, "success_criteria"),
+    output: extractXmlSection(raw, "output")
+  });
+  if (planningCache) {
+    planningCache.storePlan(planPath, resolvedCwd, result);
+  }
+  _planCache.set(planPath, result);
+  return result;
+}
+function parsePlans(phaseNum, cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  const cacheKey = `${resolvedCwd}:${phaseNum}`;
+  if (_plansCache.has(cacheKey)) {
+    return _plansCache.get(cacheKey);
+  }
+  const normalized = String(phaseNum).replace(/^0+/, "") || "0";
+  const phasesDir = join6(resolvedCwd, ".planning", "phases");
+  let phaseDir = null;
+  try {
+    const entries = readdirSync(phasesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirMatch = entry.name.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      if (!dirMatch) continue;
+      const dirPhaseNum = dirMatch[1].replace(/^0+/, "") || "0";
+      if (dirPhaseNum === normalized) {
+        phaseDir = join6(phasesDir, entry.name);
+        break;
+      }
+    }
+  } catch {
+    return Object.freeze([]);
+  }
+  if (!phaseDir) {
+    return Object.freeze([]);
+  }
+  let planFiles;
+  try {
+    const files = readdirSync(phaseDir);
+    planFiles = files.filter((f) => f.endsWith("-PLAN.md") || f === "PLAN.md").sort();
+  } catch {
+    return Object.freeze([]);
+  }
+  const planningCache = _getPlanningCache2(resolvedCwd);
+  if (planningCache && planFiles.length > 0) {
+    const planPaths = planFiles.map((f) => join6(phaseDir, f));
+    const freshnessResult = planningCache.checkAllFreshness(planPaths);
+    if (freshnessResult.stale.length === 0 && freshnessResult.missing.length === 0) {
+      const phaseNumStr = String(phaseNum);
+      const cachedRows = planningCache.getPlansForPhase(phaseNumStr, resolvedCwd);
+      if (cachedRows && cachedRows.length === planFiles.length) {
+        const plans2 = cachedRows.map((row) => {
+          const planRow = planningCache.getPlan(row.path);
+          if (!planRow) return null;
+          const result = _buildPlanFromCache(planRow);
+          _planCache.set(row.path, result);
+          return result;
+        }).filter(Boolean);
+        if (plans2.length === planFiles.length) {
+          const frozen2 = Object.freeze(plans2);
+          _plansCache.set(cacheKey, frozen2);
+          return frozen2;
+        }
+      }
+    }
+  }
+  const plans = planFiles.map((f) => parsePlan(join6(phaseDir, f), resolvedCwd)).filter(Boolean);
+  const frozen = Object.freeze(plans);
+  _plansCache.set(cacheKey, frozen);
+  return frozen;
+}
+function invalidatePlans(cwd) {
+  if (cwd) {
+    for (const key of _plansCache.keys()) {
+      if (key.startsWith(cwd + ":")) {
+        _plansCache.delete(key);
+      }
+    }
+    const planPaths = [];
+    for (const key of _planCache.keys()) {
+      if (key.startsWith(cwd)) {
+        _planCache.delete(key);
+        planPaths.push(key);
+      }
+    }
+    try {
+      const planningCache = _getPlanningCache2(cwd);
+      if (planningCache) {
+        for (const planPath of planPaths) {
+          planningCache.invalidateFile(planPath);
+        }
+      }
+    } catch {
+    }
+  } else {
+    _planCache.clear();
+    _plansCache.clear();
+  }
+}
+
+// src/plugin/parsers/config.js
+var import_config_contract = __toESM(require_config_contract());
+import { readFileSync as readFileSync4 } from "fs";
+import { join as join7 } from "path";
+var { buildDefaultConfig, normalizeConfig, serializeConfig } = import_config_contract.default;
+var _cache3 = /* @__PURE__ */ new Map();
+var CONFIG_DEFAULTS = Object.freeze({
+  staleness_threshold: 2,
+  // Phase 75: Event-driven state sync settings
+  idle_validation: Object.freeze({
+    enabled: true,
+    cooldown_seconds: 5,
+    staleness_threshold_hours: 2
+  }),
+  notifications: Object.freeze({
+    enabled: true,
+    os_notifications: true,
+    dnd_mode: false,
+    rate_limit_per_minute: 5,
+    sound: false
+  }),
+  stuck_detection: Object.freeze({
+    error_threshold: 3,
+    spinning_threshold: 5
+  }),
+  file_watcher: Object.freeze({
+    debounce_ms: 200,
+    max_watched_paths: 500
+  }),
+  // Phase 76: Advisory guardrails settings
+  advisory_guardrails: Object.freeze({
+    enabled: true,
+    conventions: true,
+    planning_protection: true,
+    test_suggestions: true,
+    convention_confidence_threshold: 70,
+    dedup_threshold: 3,
+    test_debounce_ms: 500,
+    // Phase 144: Destructive command detection (GARD-04)
+    destructive_commands: Object.freeze({
+      enabled: true,
+      sandbox_mode: "auto",
+      categories: Object.freeze({
+        filesystem: true,
+        database: true,
+        git: true,
+        system: true,
+        "supply-chain": true
+      }),
+      disabled_patterns: [],
+      custom_patterns: []
+    })
+  })
+});
+function parseConfig(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache3.has(resolvedCwd)) {
+    return _cache3.get(resolvedCwd);
+  }
+  const configPath = join7(resolvedCwd, ".planning", "config.json");
+  let parsed = {};
+  try {
+    const raw = readFileSync4(configPath, "utf-8");
+    parsed = JSON.parse(raw);
+  } catch {
+    const defaults = normalizeConfig({}, { extraDefaults: CONFIG_DEFAULTS });
+    _cache3.set(resolvedCwd, defaults);
+    return defaults;
+  }
+  const frozen = normalizeConfig(parsed, { extraDefaults: CONFIG_DEFAULTS });
+  _cache3.set(resolvedCwd, frozen);
+  return frozen;
+}
+function buildDefaultConfigText() {
+  return serializeConfig(buildDefaultConfig());
+}
+function invalidateConfig(cwd) {
+  if (cwd) {
+    _cache3.delete(cwd);
+  } else {
+    _cache3.clear();
+  }
+}
+
+// src/plugin/parsers/project.js
+import { readFileSync as readFileSync5 } from "fs";
+import { join as join8 } from "path";
+var _cache4 = /* @__PURE__ */ new Map();
+function parseProject(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache4.has(resolvedCwd)) {
+    return _cache4.get(resolvedCwd);
+  }
+  const projectPath = join8(resolvedCwd, ".planning", "PROJECT.md");
+  let raw;
+  try {
+    raw = readFileSync5(projectPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const coreValueMatch = raw.match(/##\s*Core\s+Value\s*\n+([^\n]+)/i) || raw.match(/\*\*Core\s+[Vv]alue:?\*\*:?\s*([^\n]+)/i);
+  const coreValue = coreValueMatch ? coreValueMatch[1].trim() : null;
+  const techStackMatch = raw.match(/Tech\s+stack:\s*([^\n]+)/i) || raw.match(/\*\*Tech:?\*\*:?\s*([^\n]+)/i);
+  const techStack = techStackMatch ? techStackMatch[1].trim() : null;
+  const milestoneMatch = raw.match(/##\s*Current\s+Milestone:\s*([^\n]+)/i);
+  const currentMilestone = milestoneMatch ? milestoneMatch[1].trim() : null;
+  const result = Object.freeze({
+    raw,
+    coreValue,
+    techStack,
+    currentMilestone
+  });
+  _cache4.set(resolvedCwd, result);
+  return result;
+}
+function invalidateProject(cwd) {
+  if (cwd) {
+    _cache4.delete(cwd);
+  } else {
+    _cache4.clear();
+  }
+}
+
+// src/plugin/parsers/intent.js
+import { readFileSync as readFileSync6 } from "fs";
+import { join as join9 } from "path";
+var _cache5 = /* @__PURE__ */ new Map();
+function parseIntent(cwd) {
+  const resolvedCwd = cwd || process.cwd();
+  if (_cache5.has(resolvedCwd)) {
+    return _cache5.get(resolvedCwd);
+  }
+  const intentPath = join9(resolvedCwd, ".planning", "INTENT.md");
+  let raw;
+  try {
+    raw = readFileSync6(intentPath, "utf-8");
+  } catch {
+    return null;
+  }
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  const objectiveMatch = raw.match(/<objective>([\s\S]*?)<\/objective>/);
+  const objective = objectiveMatch ? objectiveMatch[1].trim() : null;
+  const outcomesMatch = raw.match(/<outcomes>([\s\S]*?)<\/outcomes>/);
+  const outcomes = [];
+  if (outcomesMatch) {
+    const outcomesContent = outcomesMatch[1];
+    const entryPattern = /-\s*(DO-\d+)\s*(?:\[P\d+\])?\s*:\s*([^\n]+)/g;
+    let match;
+    while ((match = entryPattern.exec(outcomesContent)) !== null) {
+      outcomes.push(Object.freeze({
+        id: match[1],
+        text: match[2].trim()
+      }));
+    }
+  }
+  const result = Object.freeze({
+    raw,
+    objective,
+    outcomes: Object.freeze(outcomes)
+  });
+  _cache5.set(resolvedCwd, result);
+  return result;
+}
+function invalidateIntent(cwd) {
+  if (cwd) {
+    _cache5.delete(cwd);
+  } else {
+    _cache5.clear();
+  }
+}
+
+// src/plugin/project-state.js
 function _eagerMtimeCheck(resolvedCwd, phaseNum) {
   try {
     const db = getDb(resolvedCwd);
@@ -8669,10 +8556,26 @@ ${parts.join("\n")}
   return blocks.join("\n\n");
 }
 
+// src/plugin/parsers/index.js
+function invalidateAll(cwd) {
+  invalidateState(cwd);
+  invalidateRoadmap(cwd);
+  invalidatePlans(cwd);
+  invalidateConfig(cwd);
+  invalidateProject(cwd);
+  invalidateIntent(cwd);
+  if (cwd) {
+    try {
+      const db = getDb(cwd);
+      const cache = new PlanningCache(db);
+      cache.clearForCwd(cwd);
+    } catch {
+    }
+  }
+}
+
 // src/plugin/command-enricher.js
-await init_parsers();
 var import_decision_rules = __toESM(require_decision_rules());
-await init_db_cache();
 
 // src/plugin/tool-availability.js
 import { execFileSync as execFileSync2 } from "child_process";
@@ -9667,8 +9570,6 @@ var bgsd_status = {
 
 // src/plugin/tools/bgsd-plan.js
 import { z } from "zod";
-await init_roadmap();
-await init_plan();
 var bgsd_plan = {
   description: "Get roadmap overview or detailed phase information.\n\nTwo modes:\n- No args: returns all phases with status, goal, and plan count (roadmap summary)\n- With phase number: returns detailed phase info (goal, requirements, success criteria, dependencies) plus plan contents (tasks, objectives) if plans exist\n\nUse no-args mode to understand project structure. Use phase mode to dive into specific phase details.",
   args: {
@@ -9983,8 +9884,6 @@ var bgsd_validate = {
 // src/plugin/tools/bgsd-progress.js
 import { z as z3 } from "zod";
 import { execFileSync as execFileSync3 } from "child_process";
-await init_state();
-await init_plan();
 var VALID_ACTIONS = ["complete-task", "uncomplete-task", "add-blocker", "remove-blocker", "record-decision", "advance"];
 function resolveCliPath2() {
   return resolveBundledCliPath({ moduleUrl: import.meta.url });
@@ -10261,7 +10160,6 @@ function createNotifier($, directory) {
 }
 
 // src/plugin/file-watcher.js
-await init_parsers();
 import { watch } from "fs";
 import { existsSync as existsSync7 } from "fs";
 import { join as join16 } from "path";
@@ -10385,9 +10283,6 @@ import { existsSync as existsSync8, readFileSync as readFileSync10, writeFileSyn
 import { join as join17 } from "path";
 import { execSync } from "child_process";
 import { homedir as homedir4 } from "os";
-await init_state();
-await init_roadmap();
-init_config();
 function createIdleValidator(cwd, notifier, fileWatcher, config) {
   const planningDir = join17(cwd, ".planning");
   let lastValidation = 0;
@@ -11043,6 +10938,153 @@ function createAdvisoryGuardrails(cwd, notifier, config) {
     onToolAfter,
     setBgsdCommandActive,
     clearBgsdCommandActive
+  };
+}
+
+// src/plugin/cmux-refresh-backbone.js
+function isPlanningChange(trigger = {}) {
+  const filePath = typeof trigger.filePath === "string" ? trigger.filePath : typeof trigger.event?.path === "string" ? trigger.event.path : typeof trigger.event?.filePath === "string" ? trigger.event.filePath : null;
+  return Boolean(filePath && filePath.includes(".planning/"));
+}
+function mergeHooks(current = [], nextHook) {
+  const hooks = Array.isArray(current) ? current.slice(0, 8) : [];
+  if (!nextHook || hooks.includes(nextHook)) {
+    return hooks;
+  }
+  hooks.push(nextHook);
+  return hooks.slice(-8);
+}
+function mergeTriggerDetail(previous = null, incoming = {}) {
+  const next = incoming && typeof incoming === "object" ? incoming : {};
+  const merged = {
+    ...previous || {},
+    ...next
+  };
+  merged.hook = next.hook || previous?.hook || "unknown";
+  merged.hooks = mergeHooks(previous?.hooks, next.hook);
+  if (next.input !== void 0) {
+    merged.input = next.input;
+  } else if (previous?.input !== void 0) {
+    merged.input = previous.input;
+  }
+  if (next.event !== void 0) {
+    merged.event = next.event;
+  } else if (previous?.event !== void 0) {
+    merged.event = previous.event;
+  }
+  if (next.filePath !== void 0) {
+    merged.filePath = next.filePath;
+  } else if (previous?.filePath !== void 0) {
+    merged.filePath = previous.filePath;
+  }
+  merged.planningChange = Boolean(previous?.planningChange || isPlanningChange(next));
+  return merged;
+}
+function createCmuxRefreshBackbone(options = {}) {
+  const {
+    projectDir,
+    debounceMs = 200,
+    invalidateAll: invalidateAll2 = () => {
+    },
+    getProjectState: getProjectState2 = () => null,
+    getCurrentCmuxAdapter = async () => null,
+    getNotificationHistory = () => [],
+    syncCmuxSidebar: syncCmuxSidebar2 = async () => null,
+    syncCmuxAttention: syncCmuxAttention2 = async () => null,
+    attentionMemory,
+    setTimeoutFn = setTimeout,
+    clearTimeoutFn = clearTimeout,
+    onError = () => {
+    }
+  } = options;
+  let timer = null;
+  let inFlight = null;
+  let rerunRequested = false;
+  let pendingTrigger = null;
+  let pendingAllowRetry = false;
+  function clearScheduledTimer() {
+    if (!timer) return;
+    clearTimeoutFn(timer);
+    timer = null;
+  }
+  function recordPendingTrigger(trigger, executionOptions = {}) {
+    pendingTrigger = mergeTriggerDetail(pendingTrigger, trigger);
+    pendingAllowRetry = pendingAllowRetry || executionOptions.allowRetry === true;
+  }
+  async function runCycle() {
+    clearScheduledTimer();
+    if (inFlight) {
+      return inFlight;
+    }
+    const trigger = pendingTrigger || mergeTriggerDetail(null, { hook: "unknown" });
+    const allowRetry = pendingAllowRetry;
+    pendingTrigger = null;
+    pendingAllowRetry = false;
+    inFlight = (async () => {
+      try {
+        invalidateAll2(projectDir);
+        const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry });
+        const projectState = await getProjectState2(projectDir);
+        if (!projectState) {
+          return null;
+        }
+        const payload = {
+          ...projectState,
+          notificationHistory: getNotificationHistory()
+        };
+        await syncCmuxSidebar2(currentCmuxAdapter, payload);
+        await syncCmuxAttention2(currentCmuxAdapter, payload, {
+          memory: attentionMemory,
+          trigger
+        });
+        return payload;
+      } catch (error) {
+        onError(error, trigger);
+        return null;
+      } finally {
+        inFlight = null;
+        if (rerunRequested) {
+          rerunRequested = false;
+          void runCycle();
+        }
+      }
+    })();
+    return inFlight;
+  }
+  function schedule(trigger, executionOptions = {}) {
+    recordPendingTrigger(trigger, executionOptions);
+    if (inFlight) {
+      rerunRequested = true;
+      return inFlight;
+    }
+    if (executionOptions.immediate === true) {
+      return runCycle();
+    }
+    clearScheduledTimer();
+    timer = setTimeoutFn(() => {
+      void runCycle();
+    }, Math.max(0, debounceMs));
+    return null;
+  }
+  function enqueue(trigger = {}, executionOptions = {}) {
+    return schedule(trigger, executionOptions);
+  }
+  function refreshNow(trigger = {}, executionOptions = {}) {
+    return schedule(trigger, {
+      ...executionOptions,
+      immediate: true
+    });
+  }
+  function dispose() {
+    clearScheduledTimer();
+    pendingTrigger = null;
+    pendingAllowRetry = false;
+    rerunRequested = false;
+  }
+  return {
+    enqueue,
+    refreshNow,
+    dispose
   };
 }
 
@@ -11785,15 +11827,15 @@ async function resolveCmuxAvailability(options = {}) {
   });
 }
 
-// src/plugin/cmux-sidebar-snapshot.js
+// src/plugin/cmux-lifecycle-signal.js
 function normalizeText(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "").trim();
+}
+function lowerText(value) {
+  return normalizeText(value).toLowerCase();
 }
 function hasPattern(value, pattern) {
-  return pattern.test(normalizeText(value));
-}
-function getSignalText(state) {
-  return `${normalizeText(state?.status)} ${extractContinuityText(state)}`.trim();
+  return pattern.test(lowerText(value));
 }
 function extractSection2(state, sectionName) {
   if (!state) return null;
@@ -11812,62 +11854,16 @@ function extractBlockerLines(state) {
   return section.split("\n").map((line) => line.replace(/^[-*]\s*/, "").trim()).filter((line) => line && !/^none(?:\.|\s|$)/i.test(line));
 }
 function extractContinuityText(state) {
-  const section = extractSection2(state, "Session Continuity");
-  return normalizeText(section || "");
+  return normalizeText(extractSection2(state, "Session Continuity"));
 }
 function parsePhaseNumber(state, currentPhase) {
-  const fromState = String(state?.phase || "").match(/^(\d+(?:\.\d+)?)/);
+  const fromState = normalizeText(state?.phase).match(/^(\d+(?:\.\d+)?)/);
   if (fromState) return fromState[1];
   return currentPhase?.number ? String(currentPhase.number) : null;
 }
 function parsePlanNumber(state) {
-  const match = String(state?.currentPlan || "").match(/(\d+)/);
+  const match = normalizeText(state?.currentPlan).match(/(\d+)/);
   return match ? match[1].padStart(2, "0") : null;
-}
-function deriveWorkflowLabel(state) {
-  const signal = getSignalText(state);
-  if (/\bverif(?:y|ying|ication)\b/.test(signal)) return "Verifying";
-  if (/\bplan(?:ning)?\b/.test(signal) || /ready to plan/.test(signal)) return "Planning";
-  if (/\bexecut(?:e|ing|ion)?\b/.test(signal) || /\bin progress\b/.test(signal) || /\bworking\b/.test(signal) || /\brunning\b/.test(signal)) {
-    return "Executing";
-  }
-  return null;
-}
-function isHumanGate(state) {
-  const signal = `${getSignalText(state)} ${extractBlockerLines(state).join(" ")}`.trim();
-  return /(ready to plan|input needed|await(?:ing)? (?:reply|response|approval|review|decision)|needs? (?:reply|response|approval|review|decision)|checkpoint|manual (?:setup|action|step)|auth|login|sign in|required reply|human action)/.test(signal);
-}
-function hasHardStop(state, notificationHistory) {
-  if (hasPattern(state?.status, /\bblocked\b|hard stop|cannot continue|fatal|failure|failed|error/)) {
-    return !isHumanGate(state);
-  }
-  const blockerLines = extractBlockerLines(state);
-  if (blockerLines.some((line) => /(cannot continue|hard stop|fatal|failure|broken|repair required|critical)/i.test(line)) && blockerLines.every((line) => !/(auth|manual|decision|approval|reply|review)/i.test(line))) {
-    return true;
-  }
-  return (notificationHistory || []).some((entry) => normalizeText(entry?.severity) === "critical");
-}
-function hasWarningOverlay(state, notificationHistory) {
-  if ((notificationHistory || []).some((entry) => normalizeText(entry?.severity) === "warning")) {
-    return true;
-  }
-  return hasPattern(state?.status, /warning|stale|spinning|degraded|attention/);
-}
-function isComplete(state, currentPhase) {
-  if (typeof state?.progress === "number" && state.progress >= 100) return true;
-  if (hasPattern(state?.status, /complete|completed|done|finished/)) return true;
-  return normalizeText(currentPhase?.status) === "complete";
-}
-function isActive(state) {
-  const workflowLabel = deriveWorkflowLabel(state);
-  if (workflowLabel) return true;
-  return hasPattern(state?.status, /in progress|working|active|running/);
-}
-function isFresh(lastActivity) {
-  if (!lastActivity) return false;
-  const timestamp = Date.parse(lastActivity);
-  if (Number.isNaN(timestamp)) return false;
-  return Date.now() - timestamp <= 36 * 60 * 60 * 1e3;
 }
 function buildStructuralLabel(state, currentPhase) {
   const phaseNumber = parsePhaseNumber(state, currentPhase);
@@ -11876,16 +11872,78 @@ function buildStructuralLabel(state, currentPhase) {
   if (phaseNumber) return `Phase ${phaseNumber}`;
   return null;
 }
-function derivePrimaryState(projectState) {
-  const state = projectState?.state || {};
-  const currentPhase = projectState?.currentPhase || null;
-  const notificationHistory = projectState?.notificationHistory || [];
-  if (isHumanGate(state)) return { label: "Input needed", reason: "human-gated", priority: 6 };
-  if (hasHardStop(state, notificationHistory)) return { label: "Blocked", reason: "hard-stop", priority: 5 };
-  if (hasWarningOverlay(state, notificationHistory)) return { label: "Warning", reason: "warning-overlay", priority: 4 };
-  if (isActive(state)) return { label: "Working", reason: "active-work", priority: 3 };
-  if (isComplete(state, currentPhase)) return { label: "Complete", reason: "complete", priority: 2 };
-  return { label: "Idle", reason: "idle", priority: 1 };
+function buildSignalText(state) {
+  return [normalizeText(state?.status), extractContinuityText(state)].filter(Boolean).join(" ").trim();
+}
+function deriveWorkflowLabel(state) {
+  const signal = lowerText(buildSignalText(state));
+  if (/\bverif(?:y|ying|ication)\b/.test(signal)) return "Verifying";
+  if (/\bplan(?:ning)?\b/.test(signal) || /ready to plan/.test(signal)) return "Planning";
+  if (/\bexecut(?:e|ing|ion)?\b/.test(signal) || /\bin progress\b/.test(signal) || /\bworking\b/.test(signal) || /\brunning\b/.test(signal)) {
+    return "Executing";
+  }
+  return null;
+}
+function getLatestNotification(notificationHistory, predicate) {
+  const entries = Array.isArray(notificationHistory) ? notificationHistory : [];
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (predicate(entry)) return entry;
+  }
+  return null;
+}
+function getStructuredBlockingReason(state) {
+  const candidates = [
+    state?.blocking_reason,
+    state?.recovery_summary?.blocking_reason,
+    state?.recovery_summary?.status
+  ];
+  for (const value of candidates) {
+    const normalized = lowerText(value).replace(/_/g, "-");
+    if (normalized) return normalized;
+  }
+  return null;
+}
+function isHumanGate(state) {
+  const signal = `${buildSignalText(state)} ${extractBlockerLines(state).join(" ")}`.trim();
+  return /(ready to plan|input needed|await(?:ing)? (?:reply|response|approval|review|decision)|needs? (?:reply|response|approval|review|decision)|checkpoint|manual (?:setup|action|step)|auth|login|sign in|required reply|human action)/i.test(signal);
+}
+function isFinalizeFailed(state, notificationHistory) {
+  const blockingReason = getStructuredBlockingReason(state);
+  if (blockingReason === "finalize-failed") return true;
+  if (hasPattern(state?.status, /finalize[\s_-]*failed|finalize failure|finalization failed/)) return true;
+  return Boolean(getLatestNotification(notificationHistory, (entry) => /finalize/i.test(entry?.message) && lowerText(entry?.severity) === "critical"));
+}
+function isStale(state, notificationHistory) {
+  const blockingReason = getStructuredBlockingReason(state);
+  if (blockingReason === "stale") return true;
+  if (hasPattern(state?.status, /\bstale\b|update-stale|workspace stale/)) return true;
+  return Boolean(getLatestNotification(notificationHistory, (entry) => /stale/i.test(entry?.message)));
+}
+function isBlocked(state, notificationHistory) {
+  if (hasPattern(state?.status, /\bblocked\b|hard stop|cannot continue|fatal|failure|failed|error/)) {
+    return !isHumanGate(state) && !isFinalizeFailed(state, notificationHistory) && !isStale(state, notificationHistory);
+  }
+  const blockerLines = extractBlockerLines(state);
+  if (blockerLines.some((line) => /(cannot continue|hard stop|fatal|failure|broken|repair required|critical)/i.test(line)) && blockerLines.every((line) => !/(auth|manual|decision|approval|reply|review|stale|finalize)/i.test(line))) {
+    return true;
+  }
+  const latestCritical = getLatestNotification(notificationHistory, (entry) => lowerText(entry?.severity) === "critical");
+  return Boolean(latestCritical);
+}
+function isReconciling(state) {
+  const status = lowerText(state?.status);
+  return /reconcil|recovering|finalizing|finalising|merging/.test(status);
+}
+function isComplete(state, currentPhase) {
+  if (typeof state?.progress === "number" && state.progress >= 100) return true;
+  if (hasPattern(state?.status, /complete|completed|done|finished/)) return true;
+  return lowerText(currentPhase?.status) === "complete";
+}
+function isRunning(state) {
+  const workflowLabel = deriveWorkflowLabel(state);
+  if (workflowLabel) return true;
+  return hasPattern(state?.status, /in progress|working|active|running/);
 }
 function deriveContextLabel(projectState) {
   const state = projectState?.state || {};
@@ -11900,31 +11958,139 @@ function deriveContextLabel(projectState) {
   }
   return { label: null, source: "none", trustworthy: false };
 }
-function deriveProgressSignal(projectState) {
+function buildHint(stateName, projectState) {
   const state = projectState?.state || {};
+  const notificationHistory = projectState?.notificationHistory || [];
+  const signalText = normalizeText(state.status);
+  const blockerLines = extractBlockerLines(state);
+  const latestCritical = getLatestNotification(notificationHistory, (entry) => lowerText(entry?.severity) === "critical");
+  const latestWarning = getLatestNotification(notificationHistory, (entry) => lowerText(entry?.severity) === "warning");
+  if (stateName === "finalize-failed") {
+    return "Finalize needs intervention";
+  }
+  if (stateName === "waiting") {
+    if (/auth|login|sign in/i.test(signalText)) return "Login required";
+    if (/decision/i.test(signalText)) return "Decision required";
+    if (/review|approval|checkpoint/i.test(signalText)) return "Checkpoint waiting for review";
+    return "Waiting for input";
+  }
+  if (stateName === "stale") {
+    return "Workspace recovery required";
+  }
+  if (stateName === "blocked") {
+    return normalizeText(blockerLines[0] || latestCritical?.message || latestWarning?.message || signalText || "Blocked by error");
+  }
+  if (stateName === "reconciling") {
+    return signalText || "Reconciling workspace state";
+  }
+  if (stateName === "running") {
+    if (signalText && !/^in progress$/i.test(signalText)) return signalText;
+    const workflowLabel = deriveWorkflowLabel(state);
+    if (workflowLabel === "Verifying") return "Verification running";
+    if (workflowLabel === "Planning") return "Planning in progress";
+    return "Execution running";
+  }
+  if (stateName === "complete") {
+    return "Latest plan complete";
+  }
+  return "Awaiting work";
+}
+function deriveStateName(projectState) {
+  const state = projectState?.state || {};
+  const notificationHistory = projectState?.notificationHistory || [];
   const currentPhase = projectState?.currentPhase || null;
+  if (isFinalizeFailed(state, notificationHistory)) return "finalize-failed";
+  if (isHumanGate(state)) return "waiting";
+  if (isStale(state, notificationHistory)) return "stale";
+  if (isBlocked(state, notificationHistory)) return "blocked";
+  if (isReconciling(state)) return "reconciling";
+  if (isComplete(state, currentPhase)) return "complete";
+  if (isRunning(state)) return "running";
+  return "idle";
+}
+function toLabel(stateName) {
+  const labels = {
+    "finalize-failed": "Finalize failed",
+    waiting: "Waiting",
+    stale: "Stale",
+    blocked: "Blocked",
+    reconciling: "Reconciling",
+    running: "Running",
+    complete: "Complete",
+    idle: "Idle"
+  };
+  return labels[stateName] || "Idle";
+}
+function toSeverity(stateName) {
+  if (["finalize-failed", "waiting", "stale", "blocked"].includes(stateName)) return "needs-human";
+  return "quiet";
+}
+function deriveProgress(stateName, projectState, hint) {
+  const state = projectState?.state || {};
+  if (["finalize-failed", "waiting", "stale", "blocked"].includes(stateName)) {
+    return { mode: "hidden" };
+  }
   if (typeof state.progress === "number" && Number.isFinite(state.progress)) {
-    const phaseNumber = parsePhaseNumber(state, currentPhase);
     return {
       mode: "exact",
       value: Math.max(0, Math.min(100, state.progress)) / 100,
-      label: phaseNumber ? `Phase ${phaseNumber}` : "Progress"
+      label: parsePhaseNumber(state, projectState?.currentPhase) ? `Phase ${parsePhaseNumber(state, projectState?.currentPhase)}` : "Progress"
     };
   }
-  if (isActive(state) && isFresh(state.lastActivity || null)) {
-    const workflowLabel = deriveWorkflowLabel(state);
+  if (stateName === "running" || stateName === "reconciling") {
     return {
       mode: "activity",
-      label: workflowLabel || "Active"
+      label: hint
     };
   }
   return { mode: "hidden" };
 }
+function deriveWorkspaceLifecycleSignal(projectState) {
+  const stateName = deriveStateName(projectState);
+  const context = deriveContextLabel(projectState);
+  const hint = buildHint(stateName, projectState);
+  return {
+    state: stateName,
+    label: toLabel(stateName),
+    severity: toSeverity(stateName),
+    hint,
+    context,
+    progress: deriveProgress(stateName, projectState, hint)
+  };
+}
+
+// src/plugin/cmux-sidebar-snapshot.js
+function derivePrimaryState(projectState) {
+  const signal = deriveWorkspaceLifecycleSignal(projectState);
+  const priorities = {
+    "finalize-failed": 8,
+    waiting: 7,
+    stale: 6,
+    blocked: 5,
+    reconciling: 4,
+    running: 3,
+    complete: 2,
+    idle: 1
+  };
+  return {
+    label: signal.label,
+    reason: signal.state,
+    priority: priorities[signal.state] || 1,
+    severity: signal.severity
+  };
+}
 function deriveCmuxSidebarSnapshot(projectState) {
+  const signal = deriveWorkspaceLifecycleSignal(projectState);
   return {
     status: derivePrimaryState(projectState),
-    context: deriveContextLabel(projectState),
-    progress: deriveProgressSignal(projectState)
+    context: signal.context,
+    activity: {
+      label: signal.hint,
+      source: "lifecycle",
+      trustworthy: Boolean(signal.hint)
+    },
+    progress: signal.progress,
+    lifecycle: signal
   };
 }
 
@@ -11950,12 +12116,15 @@ async function syncCmuxSidebar(cmuxAdapter, projectState) {
     BGSD_CONTEXT_KEY,
     snapshot.context?.trustworthy ? snapshot.context.label || null : null
   );
+  await syncStatusKey(
+    cmuxAdapter,
+    BGSD_ACTIVITY_KEY,
+    snapshot.activity?.trustworthy ? snapshot.activity.label || null : null
+  );
   if (snapshot.progress?.mode === "activity") {
-    await syncStatusKey(cmuxAdapter, BGSD_ACTIVITY_KEY, snapshot.progress.label || "Active");
     await cmuxAdapter.clearProgress();
     return snapshot;
   }
-  await syncStatusKey(cmuxAdapter, BGSD_ACTIVITY_KEY, null);
   if (snapshot.progress?.mode === "exact") {
     await cmuxAdapter.setProgress(snapshot.progress.value, { label: snapshot.progress.label });
     return snapshot;
@@ -12048,7 +12217,7 @@ function shouldEmitAttentionEvent(event = {}, options = {}) {
 function normalizeText3(value) {
   return String(value || "").trim();
 }
-function lowerText(value) {
+function lowerText2(value) {
   return normalizeText3(value).toLowerCase();
 }
 function extractSection3(state, sectionName) {
@@ -12079,16 +12248,16 @@ function parsePlanNumber2(state) {
 function extractContinuityText2(state) {
   return normalizeText3(extractSection3(state, "Session Continuity"));
 }
-function buildSignalText(projectState) {
+function buildSignalText2(projectState) {
   const state = projectState?.state || {};
   return [normalizeText3(state.status), extractContinuityText2(state)].filter(Boolean).join(" ").trim();
 }
 function findLatestNotification(notificationHistory, severity) {
-  const normalizedSeverity = lowerText(severity);
+  const normalizedSeverity = lowerText2(severity);
   const entries = Array.isArray(notificationHistory) ? notificationHistory : [];
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index];
-    if (lowerText(entry?.severity) === normalizedSeverity) {
+    if (lowerText2(entry?.severity) === normalizedSeverity) {
       return entry;
     }
   }
@@ -12136,7 +12305,7 @@ function buildStartEvent(projectState, workspaceId) {
 }
 function isTaskCompletionTrigger(input = {}) {
   if (input?.error) return false;
-  return ["task", "task()"].includes(lowerText(input.tool));
+  return ["task", "task()"].includes(lowerText2(input.tool));
 }
 function buildTaskCompletionEvent(projectState, workspaceId, input = {}) {
   const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
@@ -12154,8 +12323,8 @@ function buildTaskCompletionEvent(projectState, workspaceId, input = {}) {
 function buildBoundaryEvent(projectState, workspaceId, signalText) {
   const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
   const plan = parsePlanNumber2(projectState?.state);
-  const lowerSignal = lowerText(signalText);
-  const phaseStatus = lowerText(projectState?.currentPhase?.status);
+  const lowerSignal = lowerText2(signalText);
+  const phaseStatus = lowerText2(projectState?.currentPhase?.status);
   if (/workflow complete|workflow completed|milestone complete|all work complete/.test(lowerSignal)) {
     return {
       workspaceId,
@@ -12192,8 +12361,8 @@ function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
   const state = projectState?.state || {};
   const notificationHistory = projectState?.notificationHistory || [];
   const workspaceId = cmuxAdapter?.workspaceId || "workspace:unknown";
-  const signalText = buildSignalText(projectState);
-  const lowerSignal = lowerText(signalText);
+  const signalText = buildSignalText2(projectState);
+  const lowerSignal = lowerText2(signalText);
   const blockerLines = extractBlockerLines2(state);
   const latestCritical = findLatestNotification(notificationHistory, "critical");
   const latestWarning = findLatestNotification(notificationHistory, "warning");
@@ -12235,7 +12404,7 @@ function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
       phase: parsePhaseNumber2(state, projectState?.currentPhase),
       plan: parsePlanNumber2(state),
       kind: "blocker",
-      identity: lowerText(blockerMessage),
+      identity: lowerText2(blockerMessage),
       message: blockerMessage
     };
   }
@@ -12246,7 +12415,7 @@ function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
       phase: parsePhaseNumber2(state, projectState?.currentPhase),
       plan: parsePlanNumber2(state),
       kind: "warning",
-      identity: lowerText(latestWarning?.type || warningMessage),
+      identity: lowerText2(latestWarning?.type || warningMessage),
       message: warningMessage
     };
   }
@@ -12310,14 +12479,6 @@ async function syncCmuxAttention(cmuxAdapter, projectState, options = {}) {
 }
 
 // src/plugin/index.js
-init_config();
-await init_state();
-await init_roadmap();
-await init_plan();
-init_config();
-init_project();
-init_intent();
-await init_parsers();
 var cmuxAdapterCache = /* @__PURE__ */ new Map();
 var cmuxAdapterRetryState = /* @__PURE__ */ new Map();
 var CMUX_RETRY_COOLDOWN_MS = 3e3;
@@ -12392,6 +12553,12 @@ async function getCachedCmuxAdapter(projectDir, options = {}) {
   })();
   cmuxAdapterCache.set(cacheKey, adapterPromise);
   return adapterPromise;
+}
+function clearCachedCmuxAdapter(projectDir, options = {}) {
+  const env = options.env || process.env;
+  const cacheKey = buildCmuxCacheKey(projectDir, env);
+  cmuxAdapterCache.delete(cacheKey);
+  cmuxAdapterRetryState.delete(cacheKey);
 }
 function buildCmuxSuppressionNotification(cmuxAdapter) {
   const reason = suppressionReason(cmuxAdapter);
@@ -12507,49 +12674,39 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
   const idleValidator = createIdleValidator(projectDir, notifier, fileWatcher, config);
   const stuckDetector = createStuckDetector(notifier, config);
   const guardrails = createAdvisoryGuardrails(projectDir, notifier, config);
-  async function refreshCmuxSidebar(options = {}) {
-    try {
-      const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry: options.allowRetry === true });
-      const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
-      invalidateAll2(projectDir);
-      const projectState = getProjectState(projectDir);
-      if (!projectState) return;
-      await syncCmuxSidebar(currentCmuxAdapter, {
-        ...projectState,
-        notificationHistory: notifier.getHistory()
-      });
-    } catch (error) {
-      writeDebugDiagnostic2("[bgsd-plugin]", `cmux sidebar sync failed (non-fatal): ${error.message || String(error)}`);
+  const cmuxRefreshBackbone = createCmuxRefreshBackbone({
+    projectDir,
+    invalidateAll,
+    getProjectState,
+    getCurrentCmuxAdapter,
+    getNotificationHistory: () => notifier.getHistory(),
+    syncCmuxSidebar,
+    syncCmuxAttention,
+    attentionMemory: cmuxAttentionMemory,
+    onError(error) {
+      writeDebugDiagnostic2("[bgsd-plugin]", `cmux coordinated refresh failed (non-fatal): ${error.message || String(error)}`);
     }
+  });
+  function isPlanningFilePath(filePath) {
+    return typeof filePath === "string" && filePath.includes(join20(".planning", ""));
   }
-  async function refreshCmuxAttention(options = {}) {
-    try {
-      const currentCmuxAdapter = await getCurrentCmuxAdapter({ allowRetry: options.allowRetry === true });
-      const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
-      invalidateAll2(projectDir);
-      const projectState = getProjectState(projectDir);
-      if (!projectState) return;
-      await syncCmuxAttention(currentCmuxAdapter, {
-        ...projectState,
-        notificationHistory: notifier.getHistory()
-      }, {
-        memory: cmuxAttentionMemory,
-        trigger: options.trigger || {}
-      });
-    } catch (error) {
-      writeDebugDiagnostic2("[bgsd-plugin]", `cmux attention sync failed (non-fatal): ${error.message || String(error)}`);
+  async function enqueueCmuxRefresh(trigger = {}, options = {}) {
+    const filePath = trigger.filePath || trigger.event?.path || trigger.event?.filePath || null;
+    const wakeSuppressedCmux = isPlanningFilePath(filePath) && !filePath.endsWith(join20(".planning", "MEMORY.md")) && !cmuxAdapter?.attached && Boolean(suppressionReason(cmuxAdapter));
+    if (wakeSuppressedCmux) {
+      clearCachedCmuxAdapter(projectDir, cmuxOptions);
     }
+    return options.immediate === true ? cmuxRefreshBackbone.refreshNow(trigger, options) : cmuxRefreshBackbone.enqueue(trigger, options);
   }
   async function handleExternalCmuxPlanningChange(filePath) {
     if (!filePath || filePath.endsWith(join20(".planning", "MEMORY.md"))) {
       return;
     }
-    await refreshCmuxSidebar({ allowRetry: true });
-    await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "file.watcher.external", filePath } });
+    clearCachedCmuxAdapter(projectDir, cmuxOptions);
+    await enqueueCmuxRefresh({ hook: "file.watcher.external", filePath }, { allowRetry: true });
   }
   fileWatcher.start();
-  await refreshCmuxSidebar();
-  await refreshCmuxAttention({ trigger: { hook: "startup" } });
+  await enqueueCmuxRefresh({ hook: "startup" }, { immediate: true });
   setTimeout(() => {
     try {
       getProjectState(projectDir);
@@ -12591,26 +12748,20 @@ var BgsdPlugin = async ({ directory, $, cmux } = {}) => {
     if (event.type === "session.idle") {
       await idleValidator.onIdle();
       guardrails.clearBgsdCommandActive();
-      await refreshCmuxSidebar({ allowRetry: true });
-      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "session.idle", event } });
+      await enqueueCmuxRefresh({ hook: "session.idle", event }, { allowRetry: true });
     }
     if (event.type === "file.watcher.updated") {
-      const { invalidateAll: invalidateAll2 } = await init_parsers().then(() => parsers_exports);
-      invalidateAll2(projectDir);
       await handleExternalPlanningChange(event.path || event.filePath || null);
-      await refreshCmuxSidebar({ allowRetry: true });
-      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "file.watcher.updated", event } });
+      await enqueueCmuxRefresh({ hook: "file.watcher.updated", event }, { allowRetry: true });
     }
     if (event.type === "command.executed") {
-      await refreshCmuxSidebar({ allowRetry: true });
-      await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "command.executed", event } });
+      await enqueueCmuxRefresh({ hook: "command.executed", event }, { allowRetry: true });
     }
   });
   const toolAfter = safeHook("tool.execute.after", async (input) => {
     stuckDetector.trackToolCall(input);
     await guardrails.onToolAfter(input);
-    await refreshCmuxSidebar({ allowRetry: true });
-    await refreshCmuxAttention({ allowRetry: true, trigger: { hook: "tool.execute.after", input } });
+    await enqueueCmuxRefresh({ hook: "tool.execute.after", input }, { allowRetry: true });
   });
   return {
     "experimental.session.compacting": compacting,
