@@ -901,3 +901,27 @@
 - `.planning/milestones/v14.1-DOCS.md`
 
 ---
+
+## v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing (Shipped: 2026-04-02)
+
+**Phases completed:** 7 phases, 15 plans, 0 tasks
+
+**Key accomplishments:**
+- Runtime JJ workspace proof gate with `workspace prove` triple-match evidence and one generic sequential fallback
+- Proof-first workspace execution gate with generic sequential fallback and workspace-rooted plan-local outputs
+- Policy-first verification routing now normalizes explicit proof buckets for risky runtime and plugin work
+- Planner and verifier artifacts now enforce explicit route metadata and bucketed required-versus-exempt proof reporting
+- Preview-only workspace reconcile now emits normalized result manifests with inspection escalation and shared-planning violation triage
+- Single-writer workspace finalize coordinator that auto-promotes healthy reconcile-ready workspaces through canonical state, roadmap, and requirements mutators
+- Wave-aware staged-ready reconcile metadata with canonical gating-sibling recovery summaries for JJ workspaces
+- Deterministic execute:finalize-wave promotion that preserves staged-ready siblings and regenerates canonical recovery metadata on rerun
+- Wave-aware workspace inventory now reports staged-ready blockers and execute-phase guidance points operators to canonical recovery summaries plus trusted-main finalize-wave reruns.
+- Single-flight cmux refresh backbone with debounced coalescing, one shared project snapshot, and bounded reruns
+- Plugin hooks now share one debounced cmux refresh backbone with quiet suppression backoff and planning-file wake-up
+- Shared cmux lifecycle classification now drives truthful waiting/stale/finalize-failed/running sidebar status, compact hints, and progress suppression from one source of truth.
+- cmux attention now reuses the shared lifecycle snapshot to notify only for waiting, stale, and finalize-failed workspaces while logging truthful recovery transitions.
+- Locked rebuilt-runtime proof wording is restored across execute and verify workflow guidance with the focused workflow suite green again
+- Phase 182 now has formal three-source verification coverage and TEST traceability rows that point at focused proof instead of summary-only claims
+
+---
+
