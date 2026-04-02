@@ -4,13 +4,13 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { pathToFileURL } = require('node:url');
 
 const backboneModulePath = path.join(__dirname, '..', 'src', 'plugin', 'cmux-refresh-backbone.js');
 
 async function loadBackboneModule() {
   try {
-    return await import(`${pathToFileURL(backboneModulePath).href}?t=${Date.now()}`);
+    const source = fs.readFileSync(backboneModulePath, 'utf-8');
+    return await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`);
   } catch (error) {
     if (error && (error.code === 'ERR_MODULE_NOT_FOUND' || error.code === 'ENOENT')) {
       return {};
@@ -108,18 +108,19 @@ describe('createCmuxRefreshBackbone', () => {
     const { createCmuxRefreshBackbone } = await loadBackboneModule();
     assert.strictEqual(typeof createCmuxRefreshBackbone, 'function');
 
-    let releaseFirstCycle;
-    const firstCycleGate = new Promise((resolve) => {
-      releaseFirstCycle = resolve;
+    let releaseSidebar;
+    const firstSidebarGate = new Promise((resolve) => {
+      releaseSidebar = resolve;
     });
 
     const { calls, deps } = createHarness({
       debounceMs: 50,
-      async getProjectState(projectDir, callNumber) {
-        if (callNumber === 1) {
-          await firstCycleGate;
+      async syncCmuxSidebar(currentAdapter, payload) {
+        calls.syncCmuxSidebar.push({ currentAdapter, payload });
+        if (calls.syncCmuxSidebar.length === 1) {
+          await firstSidebarGate;
         }
-        return { callNumber, projectDir };
+        return { currentAdapter, payload };
       },
     });
 
@@ -131,9 +132,10 @@ describe('createCmuxRefreshBackbone', () => {
     backbone.enqueue({ hook: 'file.watcher.external', filePath: '/repo/.planning/STATE.md' });
 
     assert.strictEqual(calls.invalidateAll.length, 1, 'first cycle should start immediately');
-    assert.strictEqual(calls.syncCmuxSidebar.length, 0, 'first cycle remains in flight until released');
+    assert.strictEqual(calls.syncCmuxSidebar.length, 1, 'first cycle should reach the shared sidebar sink once before the rerun');
+    assert.strictEqual(calls.syncCmuxAttention.length, 0, 'attention should wait until the gated first cycle is released');
 
-    releaseFirstCycle();
+    releaseSidebar();
     await firstRun;
     await flushMicrotasks();
     await flushMicrotasks();
