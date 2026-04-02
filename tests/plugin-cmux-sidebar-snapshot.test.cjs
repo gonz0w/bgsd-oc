@@ -6,11 +6,18 @@ const fs = require('fs');
 const path = require('path');
 
 const snapshotModulePath = path.join(__dirname, '..', 'src', 'plugin', 'cmux-sidebar-snapshot.js');
+const lifecycleModulePath = path.join(__dirname, '..', 'src', 'plugin', 'cmux-lifecycle-signal.js');
 
 async function loadSnapshotModule() {
   try {
-    const source = fs.readFileSync(snapshotModulePath, 'utf-8');
-    return await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`);
+    const lifecycleSource = fs.readFileSync(lifecycleModulePath, 'utf-8');
+    const lifecycleUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(lifecycleSource).replace(/'/g, '%27')}`;
+    const snapshotSource = fs.readFileSync(snapshotModulePath, 'utf-8')
+      .replace(
+        /import \{[\s\S]*?\} from '\.\/cmux-lifecycle-signal\.js';/,
+        `import { deriveContextLabel as deriveLifecycleContextLabel, deriveWorkspaceLifecycleSignal } from '${lifecycleUrl}';`,
+      );
+    return await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(snapshotSource)}`);
   } catch (error) {
     if (error && (error.code === 'ERR_MODULE_NOT_FOUND' || error.code === 'ENOENT')) {
       return {};
@@ -24,7 +31,7 @@ function makeProjectState(overrides = {}) {
     phase: '171 — Ambient Workspace Status & Progress',
     currentPlan: '01',
     status: 'In progress',
-    lastActivity: '2026-03-31T12:00:00Z',
+    lastActivity: '2026-04-02T05:00:00Z',
     progress: null,
     raw: '',
     getSection(name) {
@@ -49,29 +56,32 @@ function makeProjectState(overrides = {}) {
 }
 
 describe('cmux sidebar snapshot contract', () => {
-  test('Input needed outranks Blocked when trustworthy signals compete', async () => {
+  test('waiting state projects one truthful compact hint and clears misleading progress', async () => {
     const { deriveCmuxSidebarSnapshot } = await loadSnapshotModule();
     const snapshot = deriveCmuxSidebarSnapshot(makeProjectState({
       state: {
-        status: 'Ready to plan',
+        status: 'Checkpoint waiting for review',
+        progress: 61,
       },
-      notificationHistory: [
-        { severity: 'critical', message: 'hard failure' },
-      ],
     }));
 
-    assert.strictEqual(snapshot.status.label, 'Input needed');
-    assert.strictEqual(snapshot.context.label, 'Planning');
-    assert.strictEqual(snapshot.progress.mode, 'activity');
+    assert.strictEqual(snapshot.status.label, 'Waiting');
+    assert.strictEqual(snapshot.context.label, 'Phase 171 P01');
+    assert.match(snapshot.activity.label, /waiting|review/i);
+    assert.strictEqual(snapshot.progress.mode, 'hidden');
   });
 
-  test('warning-only overlays stay Warning while hard-stop signals become Blocked', async () => {
+  test('roadmap intervention states replace warning overlays with truthful lifecycle states', async () => {
     const { derivePrimaryState } = await loadSnapshotModule();
 
-    const warningOnly = derivePrimaryState(makeProjectState({
-      notificationHistory: [{ severity: 'warning', message: 'stale workspace signal' }],
+    const stale = derivePrimaryState(makeProjectState({
+      state: {
+        status: 'In progress',
+        blocking_reason: 'stale',
+        recovery_summary: { blocking_reason: 'stale' },
+      },
     }));
-    assert.strictEqual(warningOnly.label, 'Warning');
+    assert.strictEqual(stale.label, 'Stale');
 
     const blocked = derivePrimaryState(makeProjectState({
       notificationHistory: [{ severity: 'critical', message: 'workspace cannot continue' }],
@@ -130,7 +140,7 @@ describe('cmux sidebar snapshot contract', () => {
     }));
     assert.deepStrictEqual(activity, {
       mode: 'activity',
-      label: 'Verifying',
+      label: 'Verification running',
     });
   });
 
