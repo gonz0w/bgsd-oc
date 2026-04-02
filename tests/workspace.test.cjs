@@ -25,6 +25,12 @@ function resolvedPath(targetPath) {
   }
 }
 
+function writePlan(repoDir, planId, route, filesModified, wave = 1) {
+  const phaseDir = path.join(repoDir, '.planning', 'phases', '155-jj-workspaces');
+  fs.mkdirSync(phaseDir, { recursive: true });
+  fs.writeFileSync(path.join(phaseDir, `${planId}-PLAN.md`), `---\nphase: 155-jj-workspaces\nplan: ${planId.split('-')[1]}\nwave: ${wave}\nverification_route: ${route}\nfiles_modified:\n${filesModified.map((file) => `  - ${file}`).join('\n')}\n---\n`);
+}
+
 describe('workspace commands', () => {
   let tmpDir;
   let workspaceBase;
@@ -171,6 +177,32 @@ describe('workspace commands', () => {
     assert.strictEqual(reconcileData.recovery_allowed, false);
     assert.match(reconcileData.recovery_preview.summary, /manual resolution/i);
     assert.match(reconcileData.diagnostics.evidence[0].summary, /conflict/i);
+  });
+
+  test('reconcile keeps later healthy siblings inspectable as staged_ready behind the first stale blocker', (t) => {
+    if (!hasJj()) t.skip('jj unavailable');
+    createJjProject();
+
+    writePlan(tmpDir, '155-01', 'full', ['src/lib/jj-workspace.js']);
+    writePlan(tmpDir, '155-02', 'full', ['src/commands/workspace.js']);
+
+    const first = createManagedWorkspace(tmpDir, '155-01');
+    const second = createManagedWorkspace(tmpDir, '155-02');
+    writePlan(first.path, '155-01', 'full', ['src/lib/jj-workspace.js']);
+    writePlan(second.path, '155-02', 'full', ['src/commands/workspace.js']);
+    fs.writeFileSync(path.join(first.path, '.planning', 'phases', '155-jj-workspaces', '155-01-SUMMARY.md'), '# Summary\n');
+    fs.writeFileSync(path.join(second.path, '.planning', 'phases', '155-jj-workspaces', '155-02-SUMMARY.md'), '# Summary\n');
+    markWorkspaceStale(tmpDir, first.path);
+
+    const reconcileData = JSON.parse(runGsdToolsInRepo('workspace reconcile 155-02', tmpDir).output);
+    assert.strictEqual(reconcileData.reconciled, false);
+    assert.strictEqual(reconcileData.status, 'staged_ready');
+    assert.strictEqual(reconcileData.workspace.gating_sibling, '155-01');
+    assert.strictEqual(reconcileData.workspace.blocking_reason, 'stale');
+    assert.strictEqual(reconcileData.result_manifest.gating_sibling, '155-01');
+    assert.strictEqual(reconcileData.result_manifest.staged_ready, true);
+    assert.match(reconcileData.recovery_summary.next_command, /workspace reconcile 155-01/);
+    assert.match(reconcileData.recovery_summary.proof_artifacts.jj_op_log, /op log --limit 5/);
   });
 
   test('cleanup retains stale recovery workspaces while removing healthy ones', (t) => {

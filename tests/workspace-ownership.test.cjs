@@ -10,6 +10,10 @@ const fs = require('fs');
 const path = require('path');
 
 const {
+  createWaveRecoverySummary,
+} = require('../src/lib/jj-workspace');
+
+const {
   runGsdToolsInRepo,
   hasJj,
   initWorkspaceProject,
@@ -100,5 +104,118 @@ describe('workspace result ownership', () => {
     const reconcile = JSON.parse(runGsdToolsInRepo('workspace reconcile 155-02', tmpDir).output);
     assert.strictEqual(reconcile.result_manifest.shared_planning_violation.status, 'quarantine');
     assert.match(reconcile.message, /preview only/i);
+  });
+
+  test('createWaveRecoverySummary marks later healthy siblings as staged_ready behind the first blocker', () => {
+    const summary = createWaveRecoverySummary({
+      name: '155-03',
+      plan_id: '155-03',
+      path: '/tmp/workspaces/155-03',
+      status: 'healthy',
+      result_manifest: {
+        summary_path: '.planning/phases/155-jj-workspaces/155-03-SUMMARY.md',
+        shared_planning_violation: { quarantine: false },
+      },
+      diagnostics: { op_log: [{ id: 'feedbeef', summary: 'healthy sibling op' }] },
+      recovery_preview: null,
+    }, [
+      {
+        name: '155-01',
+        plan_id: '155-01',
+        path: '/tmp/workspaces/155-01',
+        status: 'stale',
+        result_manifest: {
+          summary_path: '.planning/phases/155-jj-workspaces/155-01-SUMMARY.md',
+          shared_planning_violation: { quarantine: false },
+        },
+        diagnostics: { op_log: [{ id: 'abc12345', summary: 'workspace became stale' }] },
+        recovery_preview: {
+          commands: [{ command: 'jj -R "/tmp/workspaces/155-01" workspace update-stale' }],
+        },
+      },
+      {
+        name: '155-02',
+        plan_id: '155-02',
+        path: '/tmp/workspaces/155-02',
+        status: 'healthy',
+        result_manifest: {
+          summary_path: '.planning/phases/155-jj-workspaces/155-02-SUMMARY.md',
+          shared_planning_violation: { quarantine: false },
+        },
+        diagnostics: { op_log: [] },
+        recovery_preview: null,
+      },
+    ]);
+
+    assert.strictEqual(summary.status, 'staged_ready');
+    assert.strictEqual(summary.gating_sibling, '155-01');
+    assert.strictEqual(summary.blocking_reason, 'stale');
+    assert.match(summary.next_command, /workspace reconcile 155-01/);
+    assert.match(summary.proof_artifacts.jj_op_log, /op log --limit 5/);
+    assert.match(summary.proof_artifacts.reconcile_preview, /workspace reconcile 155-01/);
+  });
+
+  test('createWaveRecoverySummary preserves canonical blocker taxonomy for proof_missing and finalize_failed siblings', () => {
+    const proofMissing = createWaveRecoverySummary({
+      name: '155-02',
+      plan_id: '155-02',
+      path: '/tmp/workspaces/155-02',
+      status: 'healthy',
+      result_manifest: {
+        summary_path: '.planning/phases/155-jj-workspaces/155-02-SUMMARY.md',
+        shared_planning_violation: { quarantine: false },
+      },
+      diagnostics: { op_log: [] },
+      recovery_preview: null,
+    }, [
+      {
+        name: '155-01',
+        plan_id: '155-01',
+        path: '/tmp/workspaces/155-01',
+        status: 'healthy',
+        result_manifest: {
+          summary_path: null,
+          inspection_level: 'direct-proof',
+          shared_planning_violation: { quarantine: false },
+        },
+        diagnostics: { op_log: [] },
+        recovery_preview: null,
+      },
+    ]);
+
+    assert.strictEqual(proofMissing.status, 'staged_ready');
+    assert.strictEqual(proofMissing.gating_sibling, '155-01');
+    assert.strictEqual(proofMissing.blocking_reason, 'proof_missing');
+
+    const finalizeFailed = createWaveRecoverySummary({
+      name: '155-02',
+      plan_id: '155-02',
+      path: '/tmp/workspaces/155-02',
+      status: 'healthy',
+      result_manifest: {
+        summary_path: '.planning/phases/155-jj-workspaces/155-02-SUMMARY.md',
+        shared_planning_violation: { quarantine: false },
+      },
+      diagnostics: { op_log: [] },
+      recovery_preview: null,
+    }, [
+      {
+        name: '155-01',
+        plan_id: '155-01',
+        path: '/tmp/workspaces/155-01',
+        status: 'finalize_failed',
+        result_manifest: {
+          summary_path: '.planning/phases/155-jj-workspaces/155-01-SUMMARY.md',
+          shared_planning_violation: { quarantine: false },
+        },
+        diagnostics: { op_log: [] },
+        recovery_preview: null,
+      },
+    ]);
+
+    assert.strictEqual(finalizeFailed.status, 'staged_ready');
+    assert.strictEqual(finalizeFailed.gating_sibling, '155-01');
+    assert.strictEqual(finalizeFailed.blocking_reason, 'finalize_failed');
+    assert.match(finalizeFailed.next_command, /workspace reconcile 155-01/);
   });
 });
