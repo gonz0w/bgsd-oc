@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 **Phase:** 185 of 186 (cmux Coordination Backbone)
-**Current Plan:** 2
+**Current Plan:** Not started
 **Total Plans in Phase:** 2
-**Status:** Phase complete — ready for verification
+**Status:** Ready to plan
 **Last Activity:** 2026-04-02
 
 Progress: [██████████] 100%
