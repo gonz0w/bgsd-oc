@@ -1,36 +1,15 @@
 import { deriveCmuxSidebarSnapshot } from './cmux-sidebar-snapshot.js';
 import { shouldEmitAttentionEvent } from './cmux-attention-policy.js';
 
+const INTERVENTION_STATES = new Set(['waiting', 'stale', 'finalize-failed']);
+const LOG_ONLY_STATES = new Set(['blocked', 'running', 'reconciling', 'complete', 'idle']);
+
 function normalizeText(value) {
   return String(value || '').trim();
 }
 
 function lowerText(value) {
   return normalizeText(value).toLowerCase();
-}
-
-function extractSection(state, sectionName) {
-  if (!state) return null;
-  if (typeof state.getSection === 'function') {
-    return state.getSection(sectionName);
-  }
-
-  const raw = String(state.raw || '');
-  if (!raw) return null;
-
-  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = raw.match(new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, 'i'));
-  return match ? match[1].trim() : null;
-}
-
-function extractBlockerLines(state) {
-  const section = extractSection(state, 'Blockers/Concerns');
-  if (!section) return [];
-
-  return section
-    .split('\n')
-    .map((line) => line.replace(/^[-*]\s*/, '').trim())
-    .filter((line) => line && !/^none(?:\.|\s|$)/i.test(line));
 }
 
 function parsePhaseNumber(state, currentPhase) {
@@ -44,33 +23,8 @@ function parsePlanNumber(state) {
   return match ? match[1].padStart(2, '0') : null;
 }
 
-function extractContinuityText(state) {
-  return normalizeText(extractSection(state, 'Session Continuity'));
-}
-
-function buildSignalText(projectState) {
-  const state = projectState?.state || {};
-  return [normalizeText(state.status), extractContinuityText(state)].filter(Boolean).join(' ').trim();
-}
-
-function findLatestNotification(notificationHistory, severity) {
-  const normalizedSeverity = lowerText(severity);
-  const entries = Array.isArray(notificationHistory) ? notificationHistory : [];
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
-    if (lowerText(entry?.severity) === normalizedSeverity) {
-      return entry;
-    }
-  }
-  return null;
-}
-
-function shouldConsiderStartEvent(trigger = {}) {
-  return ['startup', 'file.watcher.updated', 'file.watcher.external', 'command.executed'].includes(trigger.hook);
-}
-
-function buildStartEvent(projectState, workspaceId) {
-  const snapshot = deriveCmuxSidebarSnapshot(projectState);
+function buildStartEvent(snapshot, workspaceId) {
+  const projectState = snapshot?.projectState || {};
   const phase = parsePhaseNumber(projectState?.state, projectState?.currentPhase);
   const plan = parsePlanNumber(projectState?.state);
   const identity = `${phase || 'unknown'}:${plan || 'unknown'}`;
@@ -131,124 +85,104 @@ function buildTaskCompletionEvent(projectState, workspaceId, input = {}) {
   };
 }
 
-function buildBoundaryEvent(projectState, workspaceId, signalText) {
+function buildSignalEntry(projectState, cmuxAdapter) {
+  const snapshot = deriveCmuxSidebarSnapshot(projectState);
+  const workspaceId = cmuxAdapter?.workspaceId || 'workspace:unknown';
   const phase = parsePhaseNumber(projectState?.state, projectState?.currentPhase);
   const plan = parsePlanNumber(projectState?.state);
-  const lowerSignal = lowerText(signalText);
-  const phaseStatus = lowerText(projectState?.currentPhase?.status);
+  const lifecycle = snapshot.lifecycle || {};
+  const hint = normalizeText(snapshot.activity?.label || lifecycle.hint || lifecycle.label || lifecycle.state);
+  const context = normalizeText(snapshot.context?.label || lifecycle.context?.label || '');
+  const identity = [lifecycle.state, phase || 'none', plan || 'none', hint || 'none'].join(':');
 
-  if (/workflow complete|workflow completed|milestone complete|all work complete/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase,
-      plan,
-      kind: 'workflow-complete',
-      identity: phase || 'workflow',
-      message: 'Workflow complete',
-    };
-  }
-
-  if (phaseStatus === 'complete' || /\bphase complete\b/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase,
-      plan,
-      kind: 'phase-complete',
-      identity: phase || 'phase',
-      message: phase ? `Phase ${phase} complete` : 'Phase complete',
-    };
-  }
-
-  if (/\bplan complete\b/.test(lowerSignal) || /completed .*?-plan\.md/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase,
-      plan,
-      kind: 'plan-complete',
-      identity: `${phase || 'unknown'}:${plan || 'unknown'}`,
-      message: phase && plan ? `Phase ${phase} plan ${plan} complete` : 'Plan complete',
-    };
-  }
-
-  return null;
+  return {
+    workspaceId,
+    phase,
+    plan,
+    lifecycle,
+    hint,
+    context,
+    identity,
+    snapshot,
+    projectState,
+  };
 }
 
-function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
-  const state = projectState?.state || {};
-  const notificationHistory = projectState?.notificationHistory || [];
-  const workspaceId = cmuxAdapter?.workspaceId || 'workspace:unknown';
-  const signalText = buildSignalText(projectState);
-  const lowerSignal = lowerText(signalText);
-  const blockerLines = extractBlockerLines(state);
-  const latestCritical = findLatestNotification(notificationHistory, 'critical');
-  const latestWarning = findLatestNotification(notificationHistory, 'warning');
-  const boundaryEvent = buildBoundaryEvent(projectState, workspaceId, signalText);
+function buildInterventionEvent(entry) {
+  return {
+    workspaceId: entry.workspaceId,
+    phase: entry.phase,
+    plan: entry.plan,
+    kind: entry.lifecycle.state,
+    identity: entry.identity,
+    message: entry.hint || entry.lifecycle.label || 'Intervention required',
+  };
+}
 
-  if (boundaryEvent) {
-    return boundaryEvent;
+function buildResolvedEvent(entry, previous) {
+  const previousLabel = normalizeText(previous?.lifecycle?.label || previous?.lifecycle?.state || 'Intervention');
+  const currentMessage = entry.hint || entry.lifecycle.label || 'State updated';
+  return {
+    workspaceId: entry.workspaceId,
+    phase: entry.phase,
+    plan: entry.plan,
+    kind: entry.lifecycle.state,
+    identity: `${previous?.identity || 'unknown'}->${entry.identity}`,
+    message: `${previousLabel} resolved — ${currentMessage}`,
+  };
+}
+
+function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}, previousEntry = null) {
+  const entry = buildSignalEntry(projectState, cmuxAdapter);
+  const currentState = entry.lifecycle?.state;
+  const previousState = previousEntry?.lifecycle?.state || null;
+
+  if (INTERVENTION_STATES.has(currentState)) {
+    return {
+      candidate: buildInterventionEvent(entry),
+      entry,
+    };
   }
 
-  if (shouldConsiderStartEvent(trigger)) {
-    const hasEscalationSignal = /checkpoint|warning|blocked|blocker|failure|error|auth|manual action/.test(lowerSignal)
-      || blockerLines.length > 0
-      || Boolean(latestCritical || latestWarning);
-    if (!hasEscalationSignal) {
-      const startEvent = buildStartEvent(projectState, workspaceId);
-      if (startEvent) return startEvent;
+  if (currentState === 'blocked') {
+    return {
+      candidate: {
+        workspaceId: entry.workspaceId,
+        phase: entry.phase,
+        plan: entry.plan,
+        kind: currentState,
+        identity: entry.identity,
+        message: entry.hint || 'Blocked by error',
+      },
+      entry,
+    };
+  }
+
+  if (previousEntry && INTERVENTION_STATES.has(previousState) && LOG_ONLY_STATES.has(currentState) && previousState !== currentState) {
+    return {
+      candidate: buildResolvedEvent(entry, previousEntry),
+      entry,
+    };
+  }
+
+  if (!previousEntry && ['startup', 'file.watcher.updated', 'file.watcher.external', 'command.executed'].includes(trigger.hook)) {
+    const startEvent = buildStartEvent({ ...entry.snapshot, projectState }, entry.workspaceId);
+    if (startEvent) {
+      return {
+        candidate: startEvent,
+        entry,
+      };
     }
   }
 
-  if (/\bcheckpoint\b/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase: parsePhaseNumber(state, projectState?.currentPhase),
-      plan: parsePlanNumber(state),
-      kind: 'checkpoint',
-      identity: lowerSignal || 'checkpoint',
-      message: 'Checkpoint waiting for input',
-    };
-  }
-
-  if (/input needed|await(?:ing)?|needs? (?:reply|response|approval|review|decision)|manual action|required reply|human action|auth|login|sign in/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase: parsePhaseNumber(state, projectState?.currentPhase),
-      plan: parsePlanNumber(state),
-      kind: 'waiting-input',
-      identity: lowerSignal || 'waiting-input',
-      message: 'Waiting for input',
-    };
-  }
-
-  if (blockerLines.length > 0 || latestCritical || /\bblocked\b|hard stop|cannot continue|fatal|failure|failed|error/.test(lowerSignal)) {
-    const blockerMessage = normalizeText(blockerLines[0] || latestCritical?.message || signalText || 'Blocker needs attention');
-    return {
-      workspaceId,
-      phase: parsePhaseNumber(state, projectState?.currentPhase),
-      plan: parsePlanNumber(state),
-      kind: 'blocker',
-      identity: lowerText(blockerMessage),
-      message: blockerMessage,
-    };
-  }
-
-  if (latestWarning || /warning|stale|spinning|degraded|attention/.test(lowerSignal)) {
-    const warningMessage = normalizeText(latestWarning?.message || signalText || 'Warning needs attention');
-    return {
-      workspaceId,
-      phase: parsePhaseNumber(state, projectState?.currentPhase),
-      plan: parsePlanNumber(state),
-      kind: 'warning',
-      identity: lowerText(latestWarning?.type || warningMessage),
-      message: warningMessage,
-    };
-  }
-
   if (trigger.hook === 'tool.execute.after' && isTaskCompletionTrigger(trigger.input)) {
-    return buildTaskCompletionEvent(projectState, workspaceId, trigger.input);
+    return {
+      candidate: buildTaskCompletionEvent(projectState, entry.workspaceId, trigger.input),
+      entry,
+    };
   }
 
-  return null;
+  return { candidate: null, entry };
 }
 
 function getWorkspaceKindMap(memory, workspaceId) {
@@ -280,6 +214,7 @@ export function createAttentionMemory() {
   return {
     lastEmittedAt: new Map(),
     lastEventKeys: new Map(),
+    lastLifecycleByWorkspace: new Map(),
   };
 }
 
@@ -290,7 +225,9 @@ export async function syncCmuxAttention(cmuxAdapter, projectState, options = {})
 
   const memory = options.memory || createAttentionMemory();
   const now = Number(options.now ?? Date.now());
-  const candidate = buildAttentionCandidate(projectState, cmuxAdapter, options.trigger || {});
+  const previousEntry = memory.lastLifecycleByWorkspace.get(cmuxAdapter?.workspaceId || 'workspace:unknown') || null;
+  const { candidate, entry } = buildAttentionCandidate(projectState, cmuxAdapter, options.trigger || {}, previousEntry);
+  memory.lastLifecycleByWorkspace.set(entry.workspaceId, entry);
 
   if (!candidate) {
     return { emitted: false, reason: 'no-meaningful-event' };

@@ -1,5 +1,5 @@
-const LOG_ONLY_KINDS = new Set(['workflow-start', 'planner-start', 'executor-start', 'task-complete', 'state-sync']);
-const NOTIFY_KINDS = new Set(['checkpoint', 'waiting-input', 'blocker', 'warning', 'plan-complete', 'phase-complete', 'workflow-complete']);
+const LOG_ONLY_KINDS = new Set(['planner-start', 'executor-start', 'task-complete', 'state-sync', 'blocked', 'running', 'reconciling', 'complete', 'idle']);
+const NOTIFY_KINDS = new Set(['waiting', 'stale', 'finalize-failed']);
 
 function normalizeText(value, fallback = 'unknown') {
   if (value === undefined || value === null || value === '') return fallback;
@@ -7,9 +7,9 @@ function normalizeText(value, fallback = 'unknown') {
 }
 
 function normalizeLevel(kind) {
-  if (kind === 'blocker') return 'error';
-  if (kind === 'warning') return 'warning';
-  if (kind === 'plan-complete' || kind === 'phase-complete' || kind === 'workflow-complete') return 'success';
+  if (kind === 'blocked' || kind === 'finalize-failed') return 'error';
+  if (kind === 'waiting' || kind === 'stale') return 'warning';
+  if (kind === 'complete') return 'success';
   if (kind === 'task-complete') return 'progress';
   return 'info';
 }
@@ -46,7 +46,7 @@ export function classifyAttentionEvent(event = {}) {
   const kind = normalizeText(event.kind);
   const logAllowed = LOG_ONLY_KINDS.has(kind) || NOTIFY_KINDS.has(kind);
   const notify = buildNotifyPayload({ ...event, kind }, message);
-  const cooldownMs = kind === 'warning' || kind === 'blocker' ? 300000 : 0;
+  const cooldownMs = NOTIFY_KINDS.has(kind) ? 300000 : 0;
 
   return {
     key,
