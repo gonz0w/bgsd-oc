@@ -52,28 +52,28 @@
 
 | Requirement | Phase | Status | Test Command |
 |-------------|-------|--------|--------------|
-| JJUX-01 | TBD | Pending | TBD |
-| JJUX-02 | TBD | Pending | TBD |
-| JJUX-03 | TBD | Pending | TBD |
-| JJUX-04 | TBD | Pending | TBD |
-| JJUX-05 | TBD | Pending | TBD |
-| SIMP-01 | TBD | Pending | TBD |
-| SIMP-02 | TBD | Pending | TBD |
-| SIMP-03 | TBD | Pending | TBD |
-| SIMP-04 | TBD | Pending | TBD |
-| SIMP-05 | TBD | Pending | TBD |
-| SPEC-01 | TBD | Pending | TBD |
-| SPEC-02 | TBD | Pending | TBD |
-| SPEC-03 | TBD | Pending | TBD |
-| SPEC-04 | TBD | Pending | TBD |
-| SPEC-05 | TBD | Pending | TBD |
-| SPEC-06 | TBD | Pending | TBD |
+| JJUX-01 | Phase 189 | Pending | TBD |
+| JJUX-02 | Phase 188 | Pending | TBD |
+| JJUX-03 | Phase 188 | Pending | TBD |
+| JJUX-04 | Phase 190 | Pending | TBD |
+| JJUX-05 | Phase 189 | Pending | TBD |
+| SIMP-01 | Phase 191 | Pending | TBD |
+| SIMP-02 | Phase 191 | Pending | TBD |
+| SIMP-03 | Phase 192 | Pending | TBD |
+| SIMP-04 | Phase 192 | Pending | TBD |
+| SIMP-05 | Phase 192 | Pending | TBD |
+| SPEC-01 | Phase 193 | Pending | TBD |
+| SPEC-02 | Phase 193 | Pending | TBD |
+| SPEC-03 | Phase 193 | Pending | TBD |
+| SPEC-04 | Phase 193 | Pending | TBD |
+| SPEC-05 | Phase 193 | Pending | TBD |
+| SPEC-06 | Phase 193 | Pending | TBD |
 
 **Coverage:**
 - v19.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after milestone v19.1 definition*
+*Last updated: 2026-04-02 after roadmap creation for milestone v19.1*

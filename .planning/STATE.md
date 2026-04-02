@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** v19.1 requirements and roadmap definition
+**Current focus:** Phase 188 - JJ Repo-State Correctness & Detached-HEAD Safety
 
 ## Current Position
 
-**Phase:** Not started (next planned phase: 188)
-**Current Plan:** None active
+**Phase:** 188 of 193 (JJ Repo-State Correctness & Detached-HEAD Safety)
+**Current Plan:** 0
 **Total Plans in Phase:** 0
-**Status:** Defining requirements
-**Last Activity:** 2026-04-02 — Started milestone v19.1 planning from three approved EDD inputs
+**Status:** Ready to plan
+**Last Activity:** 2026-04-02 — Created v19.1 roadmap and set Phase 188 as the first active slice
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -28,7 +28,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 181-187 | 14 | ~1.2 hours | ~5 min |
+| 181-187 | 15 | ~1.3 hours | ~5 min |
 | 173-180 | 22 | ~4.4 hours | ~12 min |
 
 **Recent Trend:**
@@ -39,9 +39,9 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
-- [Milestone v19.1]: Plan all three approved EDD streams in one milestone across multiple phases
-- [Milestone v19.1]: Use research-first synthesis before requirements and roadmap creation
-- [Phase 184-187 carry-forward]: Preserve finalize-only shared planning truth and runtime-truthful JJ workspace execution while extending the system
+- [Milestone v19.1]: Sequence work as JJ correctness first, simplification analysis before simplify-loop automation, and speculative-contract hardening last.
+- [Milestone v19.1]: Treat bookmark/workspace terminology as the canonical local model while preserving Git branch wording only for remote interop.
+- [Milestone v19.1]: Require measurable validation for speculative-decoding-oriented contract changes instead of performance claims by prompt theory alone.
 
 ### Pending Todos
 
@@ -49,12 +49,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Simplification must remain refactor-only and verifiable
-- Speculative-decoding gains should be measured, not assumed from prompt tightening alone
-- JJ-first UX work must preserve required Git compatibility behavior in colocated repos
+None yet.
 
 ## Session Continuity
 
 Last session: 2026-04-02 00:00
-Stopped at: Milestone initialized and awaiting requirements/roadmap generation
+Stopped at: Roadmap created; Phase 188 is ready for phase planning
 Resume file: None
