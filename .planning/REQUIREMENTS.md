@@ -27,10 +27,10 @@
 
 ### Risk-Based Verification Routing
 
-- [ ] **TEST-01**: Planner and execution artifacts carry an explicit `verification_route` of `skip`, `light`, or `full` for implementation work
-- [ ] **TEST-02**: Runtime, shared-state, plugin, and generated-artifact changes in this milestone require focused proof plus broad regression when the blast radius is high
-- [ ] **TEST-03**: Docs-, workflow-, template-, and guidance-only slices can use structural or focused proof without defaulting to repeated broad-suite runs
-- [ ] **TEST-04**: Verifier output distinguishes missing behavior proof, missing regression proof, and missing human verification instead of conflating them
+- [x] **TEST-01**: Planner and execution artifacts carry an explicit `verification_route` of `skip`, `light`, or `full` for implementation work
+- [x] **TEST-02**: Runtime, shared-state, plugin, and generated-artifact changes in this milestone require focused proof plus broad regression when the blast radius is high
+- [x] **TEST-03**: Docs-, workflow-, template-, and guidance-only slices can use structural or focused proof without defaulting to repeated broad-suite runs
+- [x] **TEST-04**: Verifier output distinguishes missing behavior proof, missing regression proof, and missing human verification instead of conflating them
 
 ## Future Requirements
 
@@ -67,10 +67,10 @@
 | CMUX-02 | Phase 186 | Complete | TBD |
 | CMUX-03 | Phase 186 | Complete | TBD |
 | CMUX-04 | Phase 185 | Complete | TBD |
-| TEST-01 | Phase 182 | Pending | TBD |
-| TEST-02 | Phase 182 | Pending | TBD |
-| TEST-03 | Phase 182 | Pending | TBD |
-| TEST-04 | Phase 182 | Pending | TBD |
+| TEST-01 | Phase 187 | Complete | `.planning/phases/182-risk-routed-hardening-proof-policy/182-VERIFICATION.md`<br>`node --test tests/decisions.test.cjs tests/enricher-decisions.test.cjs tests/workflow.test.cjs`<br>`node --test tests/verify.test.cjs tests/workflow.test.cjs tests/guidance-intent-alignment.test.cjs` |
+| TEST-02 | Phase 187 | Complete | `.planning/phases/182-risk-routed-hardening-proof-policy/182-VERIFICATION.md`<br>`node --test tests/decisions.test.cjs tests/enricher-decisions.test.cjs tests/workflow.test.cjs` |
+| TEST-03 | Phase 187 | Complete | `.planning/phases/182-risk-routed-hardening-proof-policy/182-VERIFICATION.md`<br>`node --test tests/verify.test.cjs tests/workflow.test.cjs tests/guidance-intent-alignment.test.cjs` |
+| TEST-04 | Phase 187 | Complete | `.planning/phases/182-risk-routed-hardening-proof-policy/182-VERIFICATION.md`<br>`node --test tests/verify.test.cjs tests/workflow.test.cjs tests/guidance-intent-alignment.test.cjs` |
 
 **Coverage:**
 - v19.0 requirements: 15 total
@@ -79,4 +79,4 @@
 
 ---
 *Requirements defined: 2026-04-01*
-*Last updated: 2026-04-01 after creating the v19.0 active milestone roadmap*
+*Last updated: 2026-04-02 after assigning TEST gap closure to Phase 187*
