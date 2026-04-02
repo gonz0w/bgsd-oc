@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 184 complete — ready for verification
+**Current focus:** Phase 185 plan 01 complete — shared cmux backbone ready for plugin wiring
 
 ## Current Position
 
-**Phase:** 184 of 186 (Deterministic Finalize & Partial-Wave Recovery)
-**Current Plan:** Not started
-**Total Plans in Phase:** 3
-**Status:** Ready to plan
+**Phase:** 185 of 186 (cmux Coordination Backbone)
+**Current Plan:** 2
+**Total Plans in Phase:** 2
+**Status:** In progress
 **Last Activity:** 2026-04-02
 
-Progress: [██████████] 100%
+Progress: [█████████░] 99%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 370
+- Total plans completed: 371
 - Average duration: ~12 min
-- Total execution time: ~56.3 hours
+- Total execution time: ~56.4 hours
 
 **By Phase:**
 
@@ -33,6 +33,7 @@ Progress: [██████████] 100%
 | 182 | 2 | ~0.3 hours | ~9 min |
 | 183 | 2 | 16 min | 8 min |
 | 184 | 3 | 23 min | 8 min |
+| 185 | 1 | 3 min | 3 min |
 
 **Recent Trend:**
 - Last shipped milestone: v18.1 completed 8 phases (173-180)
@@ -42,7 +43,6 @@ Progress: [██████████] 100%
 
 ### Decisions
 
-- [Phase 182]: Verifier/report surfaces now keep behavior proof, regression proof, and human verification in separate buckets, with route-exempt buckets rendered as `not required`. — Phase 182 needs verifier output to distinguish missing proof from exempt proof clearly.
 - [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
@@ -543,6 +543,7 @@ Progress: [██████████] 100%
 - [Phase 180-command-validator-drift-resolution]: Use util:validate-commands --raw as the sole authority for surfaced backlog reconciliation, leaving Phase 180 backlog files untouched when the settled contract already validates them cleanly.
 - [Phase 180-command-validator-drift-resolution]: Lock validator-drift closure with a focused regression over the exact backlog files plus raw proof-inventory assertions instead of adding a second manifest or extra exclusions.
 - [Phase 184-deterministic-finalize-partial-wave-recovery]: Wave-aware inventory now surfaces staged-ready blockers and canonical recovery-summary guidance. — Phase 184 needs operator-facing surfaces to preserve deterministic recovery truth instead of forcing raw manifest reconstruction.
+- [Phase 185-cmux-coordination-backbone]: Added a dependency-injected single-flight cmux refresh backbone with bounded trigger merging so later plugin hooks can share one fresh payload instead of spawning duplicate cmux refresh work.
 
 ### Pending Todos
 
@@ -554,6 +555,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-02T03:23:45.845Z
-Stopped at: Completed 184-03-PLAN.md
+Last session: 2026-04-02T04:22:23Z
+Stopped at: Completed 185-01-PLAN.md
 Resume file: None

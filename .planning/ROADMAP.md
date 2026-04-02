@@ -69,7 +69,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
   1. During bursty parallel activity, plugin refreshes coalesce into a debounced, bounded `cmux` pipeline instead of duplicate parse or process storms.
   2. One coordinated refresh cycle produces workspace-scoped `cmux` state from fresh runtime data rather than independent repeated sidebar and attention reads.
   3. When `cmux` is unavailable, unreachable, or not trusted for attachment, execution continues with quiet fail-open behavior instead of noisy errors or misleading status.
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 ### Phase 186: cmux Truthful Lifecycle Signals
 **Goal**: Users can read real execution and recovery state from `cmux` without guessing which workspace is working normally versus waiting on intervention
@@ -89,7 +89,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 | 182. Risk-Routed Hardening Proof Policy | 2/2 | Complete    | 2026-04-01 |
 | 183. Plan-Local Workspace Ownership | 2/2 | Complete    | 2026-04-02 |
 | 184. Deterministic Finalize & Partial-Wave Recovery | 3/3 | Complete    | 2026-04-02 |
-| 185. cmux Coordination Backbone | 0/2 | Not started | - |
+| 185. cmux Coordination Backbone | 1/2 | In Progress|  |
 | 186. cmux Truthful Lifecycle Signals | 0/2 | Not started | - |
 
 ---
