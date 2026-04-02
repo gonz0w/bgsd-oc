@@ -12,20 +12,23 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current Milestone
 
-**Current milestone:** None active
-**Last completed milestone:** v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing
-**Next step:** Start the next milestone with `/bgsd-new-milestone`
+**Current milestone:** v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX
+**Goal:** Make bGSD execution output simpler, more predictable, and more JJ-native while reducing avoidable token-generation overhead.
+**Target features:**
+- Phase-level simplification analysis and refactor loop between execution and verification
+- Speculative-decoding-friendly agent, workflow, and template contracts
+- JJ-first bookmark/workspace UX with detached-HEAD-safe JJ repo behavior
 
 ## Milestone Status
 
-**Current milestone:** None active
+**Current milestone:** v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX
 **Last completed milestone:** v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing
-**Next step:** Ready for next milestone discovery and planning
+**Next step:** Define requirements, create roadmap, and start Phase 188 planning
 
 ## Current State
 
 **Last shipped:** v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing (2026-04-02)
-**Now planning:** No active milestone
+**Now planning:** v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX
 
 <details>
 <summary>Latest shipment: v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing (shipped 2026-04-02)</summary>
@@ -571,8 +574,32 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 
 ---
 
+### Active Constraints
+- **Milestone v19.1**: Deliver all three approved EDD streams across multiple phases, not a single combined implementation dump — preserves reviewability and execution safety
+- **Milestone v19.1**: Keep Git compatibility as a backend while making JJ bookmarks/workspaces the canonical user-facing local model — current execution/runtime depends on colocated JJ/Git repos
+- **Milestone v19.1**: Research-first milestone — requirements and roadmap should use the supplied EDDs plus current-source validation before implementation
+
+### Active
+
+- [ ] Add a deterministic simplification engine that analyzes phase output, generates refactor-only follow-up work, and reports before/after simplification proof
+- [ ] Tighten agent, workflow, and template output contracts so bGSD becomes more speculative-decoding-friendly without changing delivered semantics
+- [ ] Normalize JJ-first UX around bookmarks/workspaces and stop treating detached Git HEAD as a generic failure in JJ-backed repos
+
+### Out of Scope for v19.1
+
+- Remove Git as a storage or remote-interop backend — deferred beyond this milestone
+- Change underlying inference infrastructure or provider APIs — this milestone optimizes bGSD outputs/contracts, not host inference stacks
+- Deliver full GitHub PR/release/bookmark automation or a total trajectory-engine rewrite in one pass — keep scope execution-safe and phaseable
+
+### Active Milestone Decisions
+
+| Decision | Rationale | Outcome |
+|----------|-----------|---------|
+| Deliver EDD-002, EDD-003, and speculative decoding optimization in one milestone but across multiple phases | User explicitly wants all three docs included while keeping the work phaseable | — Pending |
+| Use research-first planning with the supplied EDDs as primary milestone inputs | The milestone spans CLI, workflow, template, runtime, and UX contracts that benefit from explicit synthesis before roadmaping | — Pending |
+
 ### Archived Constraints
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-04-02 after completing milestone v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing*
+*Last updated: 2026-04-02 after starting milestone v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX*
