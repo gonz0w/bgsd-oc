@@ -27,13 +27,16 @@ export async function syncCmuxSidebar(cmuxAdapter, projectState) {
     snapshot.context?.trustworthy ? snapshot.context.label || null : null,
   );
 
+  await syncStatusKey(
+    cmuxAdapter,
+    BGSD_ACTIVITY_KEY,
+    snapshot.activity?.trustworthy ? snapshot.activity.label || null : null,
+  );
+
   if (snapshot.progress?.mode === 'activity') {
-    await syncStatusKey(cmuxAdapter, BGSD_ACTIVITY_KEY, snapshot.progress.label || 'Active');
     await cmuxAdapter.clearProgress();
     return snapshot;
   }
-
-  await syncStatusKey(cmuxAdapter, BGSD_ACTIVITY_KEY, null);
 
   if (snapshot.progress?.mode === 'exact') {
     await cmuxAdapter.setProgress(snapshot.progress.value, { label: snapshot.progress.label });
