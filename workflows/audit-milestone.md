@@ -38,7 +38,7 @@ PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:find-phase
 
 For each phase, read VERIFICATION.md and extract: Status (passed|gaps_found), critical gaps (blockers), non-critical gaps (tech debt/deferred), anti-patterns, requirements coverage. Missing VERIFICATION.md → flag as unverified phase (blocker).
 
-Do not trust historical blockers blindly. Pair the archived phase reports with a current repo-wide validator or surfaced-file check so resolved older blockers are not treated as still live.
+Do not trust historical blockers blindly. Pair the archived phase reports with a current repo-wide validator or surfaced-file check so resolved older blockers are not treated as still live. Start with the smallest read-only or shipped-runtime smoke checks that can confirm the current state before reaching for rebuilds.
 <!-- /section -->
 
 <!-- section: spawn_checker -->
@@ -49,6 +49,7 @@ Extract `MILESTONE_REQ_IDS` from REQUIREMENTS.md traceability table.
 ```
 Task(
   prompt="Check cross-phase integration and E2E flows. Phases: {phase_dirs}. Phase exports: {from SUMMARYs}. API routes: {routes}. Milestone Requirements: {MILESTONE_REQ_IDS with description+phase}. Map each finding to affected REQ-IDs. Verify cross-phase wiring and E2E user flows.
+Start with read-only or shipped-runtime smoke checks when they can answer the audit question; only escalate to rebuild-style commands if the proof cannot be obtained otherwise.
 When shipped behavior depends on generated runtimes or parser contracts, compare current source surfaces with the bundled runtime users actually execute.
 Run or require one scoped integration smoke suite aligned to milestone requirements in addition to static source inspection.
 Use current validator state and touched surfaced files as the pass/fail source of truth rather than relying only on older phase-level blocker text.",

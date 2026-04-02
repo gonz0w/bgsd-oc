@@ -24,12 +24,12 @@ const {
 // ─── PLAN_JUDGMENT_SECTIONS ────────────────────────────────────────────────────
 
 /** Headings that contain LLM-fills content in a generated PLAN.md scaffold */
-const PLAN_JUDGMENT_SECTIONS = ['Must-Haves', 'Tasks', 'Verification'];
+const PLAN_JUDGMENT_SECTIONS = ['Must-Haves', 'Tasks', 'Verification Route', 'Verification'];
 
 // ─── VERIFY_JUDGMENT_SECTIONS ─────────────────────────────────────────────────
 
 /** Headings that contain LLM-fills content in a generated VERIFICATION.md scaffold */
-const VERIFY_JUDGMENT_SECTIONS = ['Gaps Summary', 'Result', 'Anti-Patterns Found', 'Human Verification Required'];
+const VERIFY_JUDGMENT_SECTIONS = ['Behavior Proof', 'Regression Proof', 'Human Verification', 'Gaps Summary', 'Result', 'Anti-Patterns Found', 'Human Verification Required'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -269,6 +269,8 @@ function cmdPlanGenerate(cwd, args, raw) {
       requirements: roadmap.requirements,
       depends_on: dependsOnArr,
       files_modified: [],
+      verification_route: 'light',
+      verification_route_reason: 'TODO: explain why this route is proportionate, especially for any downgrade.',
       estimated_tasks: 2,
       wave: waveArg,
     };
@@ -330,6 +332,14 @@ must_haves:
       'judgment'
     );
 
+    const verificationRouteContent = markSection(
+      `TODO: Declare the explicit verification route for this implementation slice.
+
+- verification_route: skip | light | full
+- verification_route_reason: Explain why this route is proportionate. Required when lowering below the default risk route.`,
+      'judgment'
+    );
+
     const verificationContent = markSection(
       `TODO: Describe how to verify this plan is complete. Include commands to run, files to check, and expected outputs.`,
       'judgment'
@@ -348,7 +358,7 @@ must_haves:
     const fmYaml = formatFrontmatter(frontmatter);
     const planTitle = `Plan ${planArg}: TODO`;
 
-    const freshScaffold = `---\n${fmYaml}\n---\n\n# ${planTitle}\n\n## Objective\n\n${objectiveContent}\n\n## Context\n\n${contextContent}\n\n## Requirements\n\n${requirementsContent}\n\n## Must-Haves\n\n${mustHavesContent}\n\n## Tasks\n\n${tasksContent}\n\n## Verification\n\n${verificationContent}\n\n## Success Criteria\n\n${successCriteriaContent}\n`;
+    const freshScaffold = `---\n${fmYaml}\n---\n\n# ${planTitle}\n\n## Objective\n\n${objectiveContent}\n\n## Context\n\n${contextContent}\n\n## Requirements\n\n${requirementsContent}\n\n## Must-Haves\n\n${mustHavesContent}\n\n## Tasks\n\n${tasksContent}\n\n## Verification Route\n\n${verificationRouteContent}\n\n## Verification\n\n${verificationContent}\n\n## Success Criteria\n\n${successCriteriaContent}\n`;
 
     // Idempotent merge
     const outFileName = `${paddedPhase}-${planArg}-PLAN.md`;
@@ -490,6 +500,21 @@ function cmdVerifyGenerate(cwd, args, raw) {
 
     const requirementsCoverageSection = markSection(requirementsCoverageContent, 'data');
 
+    const behaviorProofContent = markSection(
+      'TODO: Record the named behavior proof that demonstrates the touched behavior. Use `not required` only when the selected route exempts behavior proof.',
+      'judgment'
+    );
+
+    const regressionProofContent = markSection(
+      'TODO: Record regression proof separately from behavior proof. Use `not required` when the selected route exempts broad or smoke regression.',
+      'judgment'
+    );
+
+    const humanVerificationContent = markSection(
+      'TODO: Record any required human verification separately. Use `not required` when no human check is part of this route.',
+      'judgment'
+    );
+
     const gapsSummaryContent = markSection(
       `TODO: List any gaps found during verification. For each gap:\n- What was expected\n- What was found\n- Severity (blocking/non-blocking)`,
       'judgment'
@@ -503,7 +528,7 @@ function cmdVerifyGenerate(cwd, args, raw) {
     // Assemble full verification scaffold
     const fmYaml = formatFrontmatter(frontmatter);
 
-    const freshScaffold = `---\n${fmYaml}\n---\n\n# Verification: Phase ${paddedPhase} — ${roadmap.phase_name || 'Scaffold Infrastructure'}\n\n## Goal Achievement\n\n${goalAchievementContent}\n\n## Requirements Coverage\n\n${requirementsCoverageSection}\n\n## Gaps Summary\n\n${gapsSummaryContent}\n\n## Result\n\n${resultContent}\n`;
+    const freshScaffold = `---\n${fmYaml}\n---\n\n# Verification: Phase ${paddedPhase} — ${roadmap.phase_name || 'Scaffold Infrastructure'}\n\n## Proof Buckets\n\n### Behavior Proof\n\n${behaviorProofContent}\n\n### Regression Proof\n\n${regressionProofContent}\n\n### Human Verification\n\n${humanVerificationContent}\n\n## Goal Achievement\n\n${goalAchievementContent}\n\n## Requirements Coverage\n\n${requirementsCoverageSection}\n\n## Gaps Summary\n\n${gapsSummaryContent}\n\n## Result\n\n${resultContent}\n`;
 
     // Idempotent merge
     const outFileName = `${paddedPhase}-VERIFICATION.md`;

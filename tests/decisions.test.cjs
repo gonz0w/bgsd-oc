@@ -637,42 +637,62 @@ describe('decisions: resolveModelSelection contract', () => {
 
 describe('decisions: resolveVerificationRouting contract', () => {
   it('contract check: returns {value, confidence, rule_id}', () => {
-    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
+    const result = resolveVerificationRouting({ files_modified: ['docs/guide.md'], verifier_enabled: true });
     const contract = contractCheck(result, DECISION_CONTRACT, 'verification-routing');
     assert.ok(contract.pass, contract.message);
     assert.strictEqual(result.rule_id, 'verification-routing');
+    assert.ok(result.metadata, 'should include normalized metadata');
+    assert.ok(result.metadata.required_proof, 'should include required proof bundle');
   });
 
-  it('returns full for high task count', () => {
-    const result = resolveVerificationRouting({ task_count: 5, files_modified_count: 6, verifier_enabled: true });
+  it('defaults runtime slices to full with broad regression proof', () => {
+    const result = resolveVerificationRouting({ files_modified: ['src/lib/decision-rules.js'], verifier_enabled: true });
     assert.strictEqual(result.value, 'full');
     assert.strictEqual(result.confidence, 'HIGH');
+    assert.strictEqual(result.metadata.required_proof.regression_proof, 'broad');
   });
 
-  it('returns light for small plan (<=2 tasks, <=4 files)', () => {
-    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
+  it('keeps docs-only slices on structural proof', () => {
+    const result = resolveVerificationRouting({ files_modified: ['docs/guide.md'], verifier_enabled: true });
+    assert.strictEqual(result.value, 'skip');
+    assert.strictEqual(result.metadata.required_proof.behavior_proof, 'not required');
+  });
+
+  it('keeps workflow and template slices on focused proof', () => {
+    const result = resolveVerificationRouting({ files_modified: ['workflows/verify-work.md', 'templates/verification-report.md'], verifier_enabled: true });
     assert.strictEqual(result.value, 'light');
+    assert.strictEqual(result.metadata.required_proof.regression_proof, 'smoke');
   });
 
-  it('returns light for exactly 2 tasks and 4 files boundary', () => {
-    const result = resolveVerificationRouting({ task_count: 2, files_modified_count: 4, verifier_enabled: true });
+  it('allows explicit downgrade with written justification', () => {
+    const result = resolveVerificationRouting({
+      files_modified: ['src/plugin/command-enricher.js'],
+      verification_route: 'light',
+      verification_route_reason: 'Focused policy update with targeted proof already locked by tests.',
+      verifier_enabled: true,
+    });
     assert.strictEqual(result.value, 'light');
+    assert.strictEqual(result.metadata.downgrade.justified, true);
   });
 
-  it('returns full when task_count exceeds boundary', () => {
-    const result = resolveVerificationRouting({ task_count: 3, files_modified_count: 4, verifier_enabled: true });
+  it('ignores explicit downgrade without written justification', () => {
+    const result = resolveVerificationRouting({
+      files_modified: ['src/plugin/command-enricher.js'],
+      verification_route: 'light',
+      verifier_enabled: true,
+    });
     assert.strictEqual(result.value, 'full');
+    assert.strictEqual(result.metadata.downgrade.missing_reason, true);
   });
 
   it('returns skip when verifier disabled', () => {
-    const result = resolveVerificationRouting({ task_count: 10, files_modified_count: 20, verifier_enabled: false });
+    const result = resolveVerificationRouting({ files_modified: ['src/lib/decision-rules.js'], verifier_enabled: false });
     assert.strictEqual(result.value, 'skip');
   });
 
-  it('handles undefined state gracefully', () => {
-    const result = resolveVerificationRouting(undefined);
+  it('falls back to legacy heuristic when no file metadata exists', () => {
+    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
     assert.strictEqual(result.rule_id, 'verification-routing');
-    // defaults: task_count=0, files_modified_count=0 → light
     assert.strictEqual(result.value, 'light');
   });
 });

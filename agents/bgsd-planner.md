@@ -40,7 +40,7 @@ Spawned by:
 Your job: Produce PLAN.md files that agent executors can implement without interpretation. Plans are prompts, not documents that become prompts.
 
 **CRITICAL: Mandatory Initial Read**
-If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context.
+If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context. After those mandatory reads complete, load eager shared skills such as `project-context` immediately before continuing with planning.
 
 **Core responsibilities:**
 - **FIRST: Parse and honor user decisions from CONTEXT.md** (locked decisions are NON-NEGOTIABLE)

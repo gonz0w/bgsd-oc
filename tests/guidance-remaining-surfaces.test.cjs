@@ -27,8 +27,10 @@ describe('Phase 158 remaining canonical guidance surfaces', () => {
     const executeWorkflow = read('workflows/execute-phase.md');
     const settingsWorkflow = read('workflows/settings.md');
 
+    assert.match(verifyWorkflow, /VERIFY_NEXT_COMMAND="\/bgsd-inspect progress"/, 'verify-work should route clean completion through /bgsd-inspect progress');
     assert.match(verifyWorkflow, /VERIFY_NEXT_COMMAND="\/bgsd-plan gaps \$\{PHASE\}"/, 'verify-work should route gap closure through /bgsd-plan gaps');
     assert.match(executeWorkflow, /offer `\/bgsd-plan gaps \{X\}`/, 'execute-phase should offer the canonical gaps subcommand after gaps are found');
+    assert.match(executeWorkflow, /Do not surface a separate transition command\./, 'execute-phase should keep transition inside the execute flow');
     assert.match(settingsWorkflow, /These settings apply to future \/bgsd-plan phase and \/bgsd-execute-phase runs\./, 'settings should reference the canonical planning family');
     assert.match(settingsWorkflow, /\/bgsd-settings profile <profile> — switch the selected project profile/, 'settings should prefer /bgsd-settings profile');
     assert.doesNotMatch(settingsWorkflow, /\/bgsd-set-profile/, 'settings should not keep the removed profile alias');

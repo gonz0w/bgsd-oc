@@ -2119,12 +2119,12 @@
         "src/plugin/stuck-detector.js",
         "src/plugin/advisory-guardrails.js",
         "src/plugin/parsers/config.js",
+        "src/plugin/parsers/index.js",
         "src/plugin/parsers/state.js",
         "src/plugin/parsers/roadmap.js",
         "src/plugin/parsers/plan.js",
         "src/plugin/parsers/project.js",
-        "src/plugin/parsers/intent.js",
-        "src/plugin/parsers/index.js"
+        "src/plugin/parsers/intent.js"
       ],
       "src/plugin/notification.js": [
         "src/plugin/logger.js"
@@ -2664,7 +2664,7 @@
       ],
       "parse_errors": 3
     },
-    "built_at": "2026-04-01T13:55:49.155Z"
+    "built_at": "2026-04-02T06:23:36.533Z"
   },
   "conventions": {
     "naming": {

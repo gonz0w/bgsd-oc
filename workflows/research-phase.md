@@ -150,10 +150,14 @@ Mode: ecosystem
 <additional_context>
 **Phase description:** {phase_description}
 Use injected `effective_intent` as the default source for project objective, milestone focus, and relevant desired outcomes. Prioritize findings relevant to the most important active outcomes.
-If the phase traces to a linked milestone PRD through INTENT.md or REQUIREMENTS.md, read that PRD before finalizing scope so research respects the intended boundary instead of drifting into adjacent phases.
+If the phase traces to requirement IDs, follow those IDs through REQUIREMENTS.md traceability first and then read any linked milestone PRD or backlog section before finalizing scope so research respects the intended boundary instead of drifting into adjacent phases.
 Use injected `jj_planning_context` only as capability context. Do not rely on live workspace inventory.
 If explicit overlap evidence supports it, you may mention a manual preference for safe low-overlap sibling work. Do not auto-route or recommend siblings heuristically.
 Read raw intent source docs only when direct editing or source-text review is genuinely necessary.
+For command-proof or gap-closure research, rerun the cited validator or smallest authoritative live proof early and compare that result to any audit or summary snapshot before recommending new plan slices.
+When the task depends on a specific CLI contract, prefer narrow command help or the exact official doc section before falling back to giant reference pages.
+If Context7 resolution returns obviously off-target libraries for a known official package, retry once with the exact canonical package name before switching to other sources.
+Treat summaries, audits, and reconciliation artifacts as claims to verify rather than facts; execute the smallest authoritative proof command you can before drafting recommendations.
 
 {If TIER < 4 AND AGENT_CONTEXT is non-empty:}
 The following sources were collected automatically from web search and YouTube. Use them to ground your research findings. Cite sources by URL when referencing specific information.

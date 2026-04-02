@@ -718,7 +718,7 @@ Prove TDD execution end to end.
     assert.ok(Array.isArray(output.artifact.context.tdd_audits), 'execute handoff should capture discovered TDD proof metadata');
     assert.ok(output.artifact.context.tdd_audits.some((entry) => entry.path.endsWith('0150-01-TDD-AUDIT.json')), 'execute handoff should preserve the canonical audit path');
 
-    result = runGsdTools('verify:state handoff write --phase 150 --step verify --summary "Verification complete" --next-command "/bgsd-transition"', tmpDir);
+    result = runGsdTools('verify:state handoff write --phase 150 --step verify --summary "Verification complete" --next-command "/bgsd-inspect progress"', tmpDir);
     assert.ok(result.success, `verify handoff write failed: ${result.error}`);
     output = JSON.parse(result.output);
     assert.ok(output.artifact.context.tdd_audits.some((entry) => entry.path.endsWith('0150-01-TDD-AUDIT.json')), 'verify handoff should inherit prior TDD proof metadata');
@@ -1501,7 +1501,7 @@ Keep production handoff persistence fresh.
         ['research', '/bgsd-plan phase 153'],
         ['plan', '/bgsd-execute-phase 153'],
         ['execute', '/bgsd-verify-work 153'],
-        ['verify', '/bgsd-transition'],
+        ['verify', '/bgsd-inspect progress'],
       ]) {
         const result = runGsdTools(
           `verify:state handoff write --phase 153 --step ${step} --summary "${step} ready" --next-command "${nextCommand}"`,
@@ -1519,7 +1519,7 @@ Keep production handoff persistence fresh.
       assert.ok(result.success, `init:verify-work failed: ${result.error}`);
       let output = JSON.parse(result.output);
       assert.strictEqual(output.resume_summary.latest_valid_step, 'verify', 'full chain should reach verify');
-      assert.strictEqual(output.resume_summary.next_safe_command, '/bgsd-transition', 'verify handoff should preserve transition target');
+      assert.strictEqual(output.resume_summary.next_safe_command, '/bgsd-inspect progress', 'verify handoff should route clean completion through inspect progress');
       assert.strictEqual(output.resume_summary.valid, true, 'fresh production-written chain should be resumable');
       assert.strictEqual(output.resume_summary.stale_sources, false, 'fresh production-written chain should not be stale');
 
@@ -1532,7 +1532,7 @@ Keep production handoff persistence fresh.
       assert.ok(output.resume_summary.inspection.invalid_artifacts.some((artifact) => artifact.file.endsWith('verify.json')),
         'corrupt newest artifact should remain visible for inspection');
 
-      result = runGsdTools('verify:state handoff write --phase 153 --step verify --summary "verify repaired" --next-command "/bgsd-transition"', tmpDir);
+      result = runGsdTools('verify:state handoff write --phase 153 --step verify --summary "verify repaired" --next-command "/bgsd-inspect progress"', tmpDir);
       assert.ok(result.success, `verify handoff repair failed: ${result.error}`);
 
       fs.writeFileSync(path.join(phaseDir, '153-01-PLAN.md'), `---
@@ -1573,7 +1573,7 @@ Meaningfully drifted plan content that should invalidate the old fingerprint.
       for (const [step, nextCommand] of [
         ['plan', '/bgsd-execute-phase 153'],
         ['execute', '/bgsd-verify-work 153'],
-        ['verify', '/bgsd-transition'],
+        ['verify', '/bgsd-inspect progress'],
       ]) {
         result = runGsdTools(
           `verify:state handoff write --phase 153 --step ${step} --summary "${step} refreshed" --next-command "${nextCommand}"`,
@@ -1812,7 +1812,7 @@ Prove fresh-context proof delivery end to end.
       output = JSON.parse(result.output);
       assert.strictEqual(output.resume_summary.latest_valid_step, 'verify', 'full chain should reach the verify handoff');
       assert.strictEqual(output.resume_summary.valid, true, 'fresh full chain should remain resumable');
-      assert.strictEqual(output.resume_summary.next_safe_command, '/bgsd-transition', 'verify handoff should keep the downstream transition target');
+      assert.strictEqual(output.resume_summary.next_safe_command, '/bgsd-inspect progress', 'legacy transition handoffs should be remapped to inspect progress');
 
       const verifyArtifactPath = path.join(tmpDir, '.planning', 'phase-handoffs', '154', 'verify.json');
       fs.writeFileSync(verifyArtifactPath, '{bad json\n', 'utf-8');
@@ -1872,7 +1872,7 @@ Meaningfully drifted fresh-context proof plan content.
       for (const [step, nextCommand] of [
         ['plan', '/bgsd-execute-phase 154'],
         ['execute', '/bgsd-verify-work 154'],
-        ['verify', '/bgsd-transition'],
+        ['verify', '/bgsd-inspect progress'],
       ]) {
         result = runGsdTools(`verify:state handoff write --phase 154 --step ${step} --summary "${step} refreshed" --next-command "${nextCommand}"`, tmpDir);
         assert.ok(result.success, `${step} handoff refresh failed: ${result.error}`);

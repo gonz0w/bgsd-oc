@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "185",
+  "step": "research",
+  "status": "complete",
+  "run_id": "185-2026-04-02T04-01-03-586Z",
+  "source_fingerprint": "19eb791d02af299d",
+  "created_at": "2026-04-02T04:06:57.588Z",
+  "updated_at": "2026-04-02T04:06:57.588Z",
+  "summary": "Research ready for Phase 185",
+  "resume_target": {
+    "phase": "185",
+    "step": "research",
+    "plan": null,
+    "resume_file": ".planning/phases/185-cmux-coordination-backbone/185-RESEARCH.md",
+    "next_command": "/bgsd-plan phase 185"
+  },
+  "context": {}
+}

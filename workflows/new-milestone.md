@@ -149,7 +149,7 @@ Use questionTemplate('new-milestone-skills', 'BINARY') to confirm installing the
 
 **If yes and research recommendations exist:** For each recommended repo URL in `SKILLS.md`, run `node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs skills:install --source <url>` — security scan runs automatically.
 
-**If yes and no research recommendations exist:** Fall back to manual discovery — display current skills and `https://agentskills.io`, then user provides GitHub URL(s) to install.
+**If yes and no research recommendations exist:** Fall back to manual discovery — display current skills and `https://agentskills.io`, but prefer GitHub-hosted skill repos first and ask for GitHub URL(s) before broader web discovery.
 
 **If no:** Continue to Step 9.
 <!-- /section -->
@@ -217,8 +217,8 @@ Create roadmap for milestone v[X.Y]:
 4.5. Treat project intent as the durable north star and milestone intent as the current why-now/priorities/non-goals layer
 5. Validate 100% coverage
 6. Before rewriting an active roadmap, inspect the most recent archived milestone roadmap plus the template so the new active roadmap preserves the expected milestone-grouped shape.
-7. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability) and initialize `STATE.md` Current Position with numeric execution-ready phase/plan values for the first active phase
-8. After writing, run full validation across ROADMAP.md, STATE.md, and REQUIREMENTS.md and fix any format issues before returning success
+7. Validate requirement-to-phase traceability and roadmap/STATE shape first without relying on summary-based delivery coverage, then write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability) and initialize `STATE.md` Current Position with numeric execution-ready phase/plan values for the first active phase
+8. After writing, run full validation across ROADMAP.md, STATE.md, and REQUIREMENTS.md and fix any format or traceability issues before returning success
 9. Return ROADMAP CREATED with summary
 </instructions>
 ", subagent_type="bgsd-roadmapper", model="{roadmapper_model}", description="Create roadmap")

@@ -1,5 +1,133 @@
 [
   {
+    "phase": "186",
+    "plan": "02",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "a4320e0a",
+    "timestamp": "2026-04-02T05:21:45.193Z"
+  },
+  {
+    "phase": "186",
+    "plan": "02",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "94f99e52",
+    "timestamp": "2026-04-02T05:19:24.956Z"
+  },
+  {
+    "phase": "186-cmux-truthful-lifecycle-signals",
+    "plan": "01",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "641279db",
+    "timestamp": "2026-04-02T05:10:35.199Z"
+  },
+  {
+    "phase": "186-cmux-truthful-lifecycle-signals",
+    "plan": "01",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "de0ad80c",
+    "timestamp": "2026-04-02T05:10:11.012Z"
+  },
+  {
+    "phase": "185-cmux-coordination-backbone",
+    "plan": "02",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "aba858c6",
+    "timestamp": "2026-04-02T04:31:43.920Z"
+  },
+  {
+    "phase": "185-cmux-coordination-backbone",
+    "plan": "02",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "d51bf36e",
+    "timestamp": "2026-04-02T04:31:07.615Z"
+  },
+  {
+    "phase": "185-cmux-coordination-backbone",
+    "plan": "01",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "850350fb",
+    "timestamp": "2026-04-02T04:22:04.638Z"
+  },
+  {
+    "phase": "185-cmux-coordination-backbone",
+    "plan": "01",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "3e01d2fe",
+    "timestamp": "2026-04-02T04:19:47.335Z"
+  },
+  {
+    "phase": "184-deterministic-finalize-partial-wave-recovery",
+    "plan": "02",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "e7144cca",
+    "timestamp": "2026-04-02T03:10:59.803Z"
+  },
+  {
+    "phase": "184-deterministic-finalize-partial-wave-recovery",
+    "plan": "02",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "68f38b8b",
+    "timestamp": "2026-04-02T03:06:41.889Z"
+  },
+  {
+    "phase": "184",
+    "plan": "01",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "bbfa32d7",
+    "timestamp": "2026-04-02T02:58:13.681Z"
+  },
+  {
+    "phase": "184",
+    "plan": "01",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "a90df7de",
+    "timestamp": "2026-04-02T02:57:20.966Z"
+  },
+  {
+    "phase": "181-workspace-root-truth-safe-fallback",
+    "plan": "02",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "e2a1ce07",
+    "timestamp": "2026-04-01T20:28:57.725Z"
+  },
+  {
+    "phase": "181-workspace-root-truth-safe-fallback",
+    "plan": "02",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "81241418",
+    "timestamp": "2026-04-01T20:28:24.021Z"
+  },
+  {
+    "phase": "181",
+    "plan": "01",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "46e879de",
+    "timestamp": "2026-04-01T20:20:43.918Z"
+  },
+  {
+    "phase": "181",
+    "plan": "01",
+    "task": 1,
+    "total_tasks": 2,
+    "git_head": "db1310f6",
+    "timestamp": "2026-04-01T20:20:07.506Z"
+  },
+  {
     "phase": "179",
     "plan": "01",
     "task": 2,
@@ -30,133 +158,5 @@
     "total_tasks": 2,
     "git_head": "3df2289a",
     "timestamp": "2026-04-01T14:46:56.175Z"
-  },
-  {
-    "phase": "178-phase-176-hardening-truth-reconciliation",
-    "plan": "01",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "5edf1201",
-    "timestamp": "2026-04-01T14:33:59.496Z"
-  },
-  {
-    "phase": "178-phase-176-hardening-truth-reconciliation",
-    "plan": "01",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "076efad6",
-    "timestamp": "2026-04-01T14:31:04.501Z"
-  },
-  {
-    "phase": "177",
-    "plan": "01",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "c59b25e6",
-    "timestamp": "2026-04-01T13:08:35.962Z"
-  },
-  {
-    "phase": "177",
-    "plan": "01",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "93275ffe",
-    "timestamp": "2026-04-01T13:05:40.145Z"
-  },
-  {
-    "phase": "175",
-    "plan": "02",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "2c0a7025",
-    "timestamp": "2026-04-01T04:00:00.317Z"
-  },
-  {
-    "phase": "175",
-    "plan": "02",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "e747eb19",
-    "timestamp": "2026-04-01T03:58:24.948Z"
-  },
-  {
-    "phase": "175-canonical-command-surface-alignment",
-    "plan": "01",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "262ee50d",
-    "timestamp": "2026-04-01T03:51:34.985Z"
-  },
-  {
-    "phase": "175-canonical-command-surface-alignment",
-    "plan": "01",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "294aefae",
-    "timestamp": "2026-04-01T03:46:14.937Z"
-  },
-  {
-    "phase": "174",
-    "plan": "08",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "5c509c98",
-    "timestamp": "2026-04-01T02:35:20.005Z"
-  },
-  {
-    "phase": "174",
-    "plan": "08",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "eb4a1d41",
-    "timestamp": "2026-04-01T02:32:33.468Z"
-  },
-  {
-    "phase": "174",
-    "plan": "07",
-    "task": 1,
-    "total_tasks": 3,
-    "git_head": "75917e95",
-    "timestamp": "2026-04-01T01:46:28.093Z"
-  },
-  {
-    "phase": "174",
-    "plan": "04",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "2167d637",
-    "timestamp": "2026-04-01T00:49:12.191Z"
-  },
-  {
-    "phase": "174",
-    "plan": "04",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "be5288aa",
-    "timestamp": "2026-04-01T00:47:57.036Z"
-  },
-  {
-    "phase": "174",
-    "plan": "05",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "ba86c1d5",
-    "timestamp": "2026-04-01T00:42:11.412Z"
-  },
-  {
-    "phase": "174",
-    "plan": "05",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "31db613a",
-    "timestamp": "2026-04-01T00:39:39.407Z"
-  },
-  {
-    "phase": "174",
-    "plan": "03",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "2a2ae613",
-    "timestamp": "2026-04-01T00:30:40.758Z"
   }
 ]

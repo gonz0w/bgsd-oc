@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "183",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "183-2026-04-02T00-10-11-781Z",
+  "source_fingerprint": "558694743b3b08b8",
+  "created_at": "2026-04-02T00:10:11.781Z",
+  "updated_at": "2026-04-02T00:10:11.781Z",
+  "summary": "Discuss context ready for Phase 183",
+  "resume_target": {
+    "phase": "183",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/183-plan-local-workspace-ownership/183-CONTEXT.md",
+    "next_command": "/bgsd-plan research 183"
+  },
+  "context": {}
+}

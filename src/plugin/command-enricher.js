@@ -444,7 +444,14 @@ export function enrichCommand(input, output, cwd) {
         if (incompletePlan && incompletePlan.frontmatter) {
           const filesModified = incompletePlan.frontmatter.files_modified;
           if (Array.isArray(filesModified)) {
+            enrichment.files_modified = filesModified;
             enrichment.files_modified_count = filesModified.length;
+          }
+          if (typeof incompletePlan.frontmatter.verification_route === 'string') {
+            enrichment.verification_route = incompletePlan.frontmatter.verification_route;
+          }
+          if (typeof incompletePlan.frontmatter.verification_route_reason === 'string') {
+            enrichment.verification_route_reason = incompletePlan.frontmatter.verification_route_reason;
           }
         }
         // task_count from first incomplete plan task count
@@ -606,6 +613,13 @@ export function enrichCommand(input, output, cwd) {
         enrichment.selected_profile = modelDecision.selected_profile || modelDecision.profile || enrichment.selected_profile;
         enrichment.resolved_model = modelDecision.resolved_model || modelDecision.model || enrichment.resolved_model;
         enrichment.source = modelDecision.source || enrichment.source;
+      }
+      const verificationDecision = decisions['verification-routing'];
+      if (verificationDecision) {
+        enrichment.verification_route = verificationDecision.value;
+        enrichment.verification_default_reason = verificationDecision.metadata?.default_reason || null;
+        enrichment.verification_required_proof = verificationDecision.metadata?.required_proof || null;
+        enrichment.verification_downgrade = verificationDecision.metadata?.downgrade || null;
       }
     }
   } catch { /* decision evaluation failure is non-fatal */ }

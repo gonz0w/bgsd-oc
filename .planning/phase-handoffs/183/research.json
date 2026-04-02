@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "183",
+  "step": "research",
+  "status": "complete",
+  "run_id": "183-2026-04-02T00-10-11-781Z",
+  "source_fingerprint": "ced07e5fa044dee2",
+  "created_at": "2026-04-02T00:33:57.104Z",
+  "updated_at": "2026-04-02T00:33:57.104Z",
+  "summary": "Research ready for Phase 183",
+  "resume_target": {
+    "phase": "183",
+    "step": "research",
+    "plan": null,
+    "resume_file": ".planning/phases/183-plan-local-workspace-ownership/183-RESEARCH.md",
+    "next_command": "/bgsd-plan phase 183"
+  },
+  "context": {}
+}

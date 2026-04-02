@@ -72,6 +72,26 @@ score: N/M must-haves verified
 
 **Coverage:** {N}/{M} requirements satisfied
 
+## Proof Buckets
+
+### Behavior Proof
+
+**Status:** {provided | missing | not required}
+
+**Evidence:** {Named focused proof that demonstrates the touched behavior, or a plain reason why it was not required.}
+
+### Regression Proof
+
+**Status:** {provided | missing | not required}
+
+**Evidence:** {Smoke or broad regression gate details, or a plain reason why this bucket was not required.}
+
+### Human Verification
+
+**Status:** {provided | missing | not required}
+
+**Evidence:** {Human check details, or a plain reason why this bucket was not required.}
+
 ## Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
@@ -84,8 +104,10 @@ score: N/M must-haves verified
 
 ## Human Verification Required
 
+Mirror the `Human Verification` proof bucket above.
+
 {If no human verification needed:}
-None — all verifiable items checked programmatically.
+None — human verification is `not required` for this route.
 
 {If human verification needed:}
 

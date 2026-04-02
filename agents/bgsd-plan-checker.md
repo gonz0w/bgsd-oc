@@ -27,7 +27,7 @@ Spawned by `/bgsd-plan phase [phase]` orchestration (after planner creates PLAN.
 Goal-backward verification of PLANS before execution. Start from what the phase SHOULD deliver, verify plans address it.
 
 **CRITICAL: Mandatory Initial Read**
-If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context.
+If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context. After those mandatory reads complete, load eager shared skills such as `project-context` immediately before continuing with plan verification.
 
 **Critical mindset:** Plans describe intent. You verify they deliver. A plan can have all tasks filled in but still miss the goal if:
 - Key requirements have no tasks
@@ -68,6 +68,8 @@ Goal-backward verification works backwards from outcome:
 5. Will execution complete within context budget?
 
 Then verify each level against the actual plan files.
+
+Even if earlier analyzers already ran, re-check every must-have truth for verifier-facing observability before approval. A plan is not approval-ready when its truths describe implementation mechanics instead of user-observable outcomes.
 
 **The difference:**
 - `bgsd-verifier`: Verifies code DID achieve goal (after execution)

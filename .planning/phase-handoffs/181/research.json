@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "181",
+  "step": "research",
+  "status": "complete",
+  "run_id": "181-2026-04-01T19-50-11-115Z",
+  "source_fingerprint": "3c38e97b9df80559",
+  "created_at": "2026-04-01T20:01:56.265Z",
+  "updated_at": "2026-04-01T20:01:56.265Z",
+  "summary": "Research ready for Phase 181",
+  "resume_target": {
+    "phase": "181",
+    "step": "research",
+    "plan": null,
+    "resume_file": ".planning/phases/181-workspace-root-truth-safe-fallback/181-RESEARCH.md",
+    "next_command": "/bgsd-plan phase 181"
+  },
+  "context": {}
+}

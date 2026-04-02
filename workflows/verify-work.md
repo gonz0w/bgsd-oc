@@ -80,7 +80,12 @@ If a broad verification gate is already failing for unrelated historical reasons
 
 If explicit overlap evidence shows low risk, planners may manually prefer safe low-overlap sibling work for follow-up fixes. Keep that preference manual and non-heuristic.
 
-When a phase success criterion depends on command-family or discoverability outcomes, expand verification beyond the directly touched regression file. Check the broader surfaced guidance or command-family output that users actually rely on, not just the touched test file.
+When a phase success criterion depends on command-family or discoverability outcomes, expand verification beyond the directly touched regression file. Check the broader surfaced guidance or command-family output that users actually rely on, not just the touched test file. Keep the check scoped to the owned command family instead of inheriting unrelated validator assertions from outside the slice.
+
+Route-aware reporting rules:
+- keep behavior proof, regression proof, and human verification as separate buckets in verifier output
+- render route-exempt buckets as `not required`, not as missing proof
+- docs-, workflow-, template-, and guidance-only slices may stay on structural or focused proof paths without being framed as broad-regression failures
 
 Read raw intent source docs only when direct source-text review is actually required.
 </step>
@@ -148,7 +153,7 @@ Before any transition or gap-routing handoff, write or refresh the durable `veri
 ```bash
 VERIFY_STATUS="complete"
 VERIFY_SUMMARY="Verification passed for Phase ${PHASE}"
-VERIFY_NEXT_COMMAND="/bgsd-transition"
+VERIFY_NEXT_COMMAND="/bgsd-inspect progress"
 # If gaps remain instead: VERIFY_STATUS="blocked" and VERIFY_NEXT_COMMAND="/bgsd-plan gaps ${PHASE}"
 
 node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \
@@ -158,6 +163,8 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \
   --summary "${VERIFY_SUMMARY}" \
   --next-command "${VERIFY_NEXT_COMMAND}"
 ```
+
+When `/bgsd-verify-work` runs standalone, route the user back through `/bgsd-inspect progress` after a clean pass. `/bgsd-execute-phase` now owns the transition step inline after successful phase verification.
 
 If the phase includes canonical `*-TDD-AUDIT.json` proof sidecars, the shared handoff runtime keeps the discovered proof metadata in `context` when verification refreshes the durable handoff so resume inspection, downstream resume, and summary steps still have deterministic proof continuity.
 

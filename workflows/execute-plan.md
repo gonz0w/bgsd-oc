@@ -149,6 +149,8 @@ When workspace mode is active, the executor contract forbids shared planning mut
    - `verification-route = full` -> reserve one broad project regression command for the end of plan execution or the overall `<verification>` block, never per edit.
    - If broad suites are already red for unrelated reasons, record that baseline separately from the task-specific proof.
    - If a broad gate hangs after targeted checks already passed, record the attempted gate once and switch to rebuilt-runtime plus focused touched-surface verification instead of retrying the same hanging file repeatedly.
+   - When verification depends on generated runtime artifacts, rebuild before the first green runtime-backed proof instead of waiting until the end.
+   - If the declared proof lives in a shared docs or oversized test file, keep one isolated focused smoke command alongside any broad file-level gate so the owned slice can still go green independently.
 <!-- /section -->
 
 4. Run `<verification>` checks
@@ -235,7 +237,7 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state complete-plan \
   --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md" --resume-file "None"
 ```
 
-This repaired completion path must read back and repair stale STATE summary fields (current plan, total plans, current focus, status/progress text) so final metadata matches the active plan rather than ambient workspace noise.
+This repaired completion path must read back and repair stale STATE summary fields (current plan, total plans, current focus, current phase header, status/progress text) so final metadata matches the active plan rather than ambient workspace noise. After `complete-plan`, verify the top `Current Position` phase line and the detailed `Current focus` block agree; if they diverge, repair STATE.md before reporting success.
 
 If SUMMARY issues ≠ "None": yolo → log. Interactive → present, wait.
 </step>

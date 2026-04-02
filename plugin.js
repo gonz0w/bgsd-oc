@@ -4086,19 +4086,19 @@ ${content}`);
       const revision = revisionMatch ? parseInt(revisionMatch[1], 10) : null;
       const created = createdMatch ? createdMatch[1] : null;
       const updated = updatedMatch ? updatedMatch[1] : null;
-      function extractSection4(tag) {
+      function extractSection3(tag) {
         const pattern = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
         const match = content.match(pattern);
         return match ? match[1].trim() : null;
       }
-      const objectiveRaw = extractSection4("objective");
+      const objectiveRaw = extractSection3("objective");
       const objective = { statement: "", elaboration: "" };
       if (objectiveRaw) {
         const lines = objectiveRaw.split("\n");
         objective.statement = lines[0].trim();
         objective.elaboration = lines.slice(1).join("\n").trim();
       }
-      const usersRaw = extractSection4("users");
+      const usersRaw = extractSection3("users");
       const users = [];
       if (usersRaw) {
         const userLines = usersRaw.split("\n").filter((l) => l.match(/^\s*-\s+/));
@@ -4107,7 +4107,7 @@ ${content}`);
           if (text) users.push({ text });
         }
       }
-      const outcomesRaw = extractSection4("outcomes");
+      const outcomesRaw = extractSection3("outcomes");
       const outcomes = [];
       if (outcomesRaw) {
         const outcomePattern = /^\s*-\s+(DO-\d+)\s+\[(P[123])\]:\s*(.+)/;
@@ -4118,7 +4118,7 @@ ${content}`);
           }
         }
       }
-      const criteriaRaw = extractSection4("criteria");
+      const criteriaRaw = extractSection3("criteria");
       const criteria = [];
       if (criteriaRaw) {
         const criteriaPattern = /^\s*-\s+(SC-\d+):\s*(.+)/;
@@ -4129,7 +4129,7 @@ ${content}`);
           }
         }
       }
-      const constraintsRaw = extractSection4("constraints");
+      const constraintsRaw = extractSection3("constraints");
       const constraints = { technical: [], business: [], timeline: [] };
       if (constraintsRaw) {
         const constraintPattern = /^\s*-\s+(C-\d+):\s*(.+)/;
@@ -4155,7 +4155,7 @@ ${content}`);
           }
         }
       }
-      const healthRaw = extractSection4("health");
+      const healthRaw = extractSection3("health");
       const health = { quantitative: [], qualitative: "" };
       if (healthRaw) {
         const healthPattern = /^\s*-\s+(HM-\d+):\s*(.+)/;
@@ -4185,7 +4185,7 @@ ${content}`);
         }
         health.qualitative = qualLines.join("\n");
       }
-      const historyRaw = extractSection4("history");
+      const historyRaw = extractSection3("history");
       const history = [];
       if (historyRaw) {
         let currentEntry = null;
@@ -12134,16 +12134,16 @@ async function syncCmuxSidebar(cmuxAdapter, projectState) {
 }
 
 // src/plugin/cmux-attention-policy.js
-var LOG_ONLY_KINDS = /* @__PURE__ */ new Set(["workflow-start", "planner-start", "executor-start", "task-complete", "state-sync"]);
-var NOTIFY_KINDS = /* @__PURE__ */ new Set(["checkpoint", "waiting-input", "blocker", "warning", "plan-complete", "phase-complete", "workflow-complete"]);
+var LOG_ONLY_KINDS = /* @__PURE__ */ new Set(["planner-start", "executor-start", "task-complete", "state-sync", "blocked", "running", "reconciling", "complete", "idle"]);
+var NOTIFY_KINDS = /* @__PURE__ */ new Set(["waiting", "stale", "finalize-failed"]);
 function normalizeText2(value, fallback = "unknown") {
   if (value === void 0 || value === null || value === "") return fallback;
   return String(value);
 }
 function normalizeLevel(kind) {
-  if (kind === "blocker") return "error";
-  if (kind === "warning") return "warning";
-  if (kind === "plan-complete" || kind === "phase-complete" || kind === "workflow-complete") return "success";
+  if (kind === "blocked" || kind === "finalize-failed") return "error";
+  if (kind === "waiting" || kind === "stale") return "warning";
+  if (kind === "complete") return "success";
   if (kind === "task-complete") return "progress";
   return "info";
 }
@@ -12175,7 +12175,7 @@ function classifyAttentionEvent(event = {}) {
   const kind = normalizeText2(event.kind);
   const logAllowed = LOG_ONLY_KINDS.has(kind) || NOTIFY_KINDS.has(kind);
   const notify = buildNotifyPayload({ ...event, kind }, message);
-  const cooldownMs = kind === "warning" || kind === "blocker" ? 3e5 : 0;
+  const cooldownMs = NOTIFY_KINDS.has(kind) ? 3e5 : 0;
   return {
     key,
     kind,
@@ -12214,27 +12214,13 @@ function shouldEmitAttentionEvent(event = {}, options = {}) {
 }
 
 // src/plugin/cmux-attention-sync.js
+var INTERVENTION_STATES = /* @__PURE__ */ new Set(["waiting", "stale", "finalize-failed"]);
+var LOG_ONLY_STATES = /* @__PURE__ */ new Set(["blocked", "running", "reconciling", "complete", "idle"]);
 function normalizeText3(value) {
   return String(value || "").trim();
 }
 function lowerText2(value) {
   return normalizeText3(value).toLowerCase();
-}
-function extractSection3(state, sectionName) {
-  if (!state) return null;
-  if (typeof state.getSection === "function") {
-    return state.getSection(sectionName);
-  }
-  const raw = String(state.raw || "");
-  if (!raw) return null;
-  const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = raw.match(new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##|$)`, "i"));
-  return match ? match[1].trim() : null;
-}
-function extractBlockerLines2(state) {
-  const section = extractSection3(state, "Blockers/Concerns");
-  if (!section) return [];
-  return section.split("\n").map((line) => line.replace(/^[-*]\s*/, "").trim()).filter((line) => line && !/^none(?:\.|\s|$)/i.test(line));
 }
 function parsePhaseNumber2(state, currentPhase) {
   const fromState = normalizeText3(state?.phase).match(/^(\d+(?:\.\d+)?)/);
@@ -12245,29 +12231,8 @@ function parsePlanNumber2(state) {
   const match = normalizeText3(state?.currentPlan).match(/(\d+)/);
   return match ? match[1].padStart(2, "0") : null;
 }
-function extractContinuityText2(state) {
-  return normalizeText3(extractSection3(state, "Session Continuity"));
-}
-function buildSignalText2(projectState) {
-  const state = projectState?.state || {};
-  return [normalizeText3(state.status), extractContinuityText2(state)].filter(Boolean).join(" ").trim();
-}
-function findLatestNotification(notificationHistory, severity) {
-  const normalizedSeverity = lowerText2(severity);
-  const entries = Array.isArray(notificationHistory) ? notificationHistory : [];
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
-    if (lowerText2(entry?.severity) === normalizedSeverity) {
-      return entry;
-    }
-  }
-  return null;
-}
-function shouldConsiderStartEvent(trigger = {}) {
-  return ["startup", "file.watcher.updated", "file.watcher.external", "command.executed"].includes(trigger.hook);
-}
-function buildStartEvent(projectState, workspaceId) {
-  const snapshot = deriveCmuxSidebarSnapshot(projectState);
+function buildStartEvent(snapshot, workspaceId) {
+  const projectState = snapshot?.projectState || {};
   const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
   const plan = parsePlanNumber2(projectState?.state);
   const identity = `${phase || "unknown"}:${plan || "unknown"}`;
@@ -12320,109 +12285,94 @@ function buildTaskCompletionEvent(projectState, workspaceId, input = {}) {
     message: `${taskName} complete`
   };
 }
-function buildBoundaryEvent(projectState, workspaceId, signalText) {
+function buildSignalEntry(projectState, cmuxAdapter) {
+  const snapshot = deriveCmuxSidebarSnapshot(projectState);
+  const workspaceId = cmuxAdapter?.workspaceId || "workspace:unknown";
   const phase = parsePhaseNumber2(projectState?.state, projectState?.currentPhase);
   const plan = parsePlanNumber2(projectState?.state);
-  const lowerSignal = lowerText2(signalText);
-  const phaseStatus = lowerText2(projectState?.currentPhase?.status);
-  if (/workflow complete|workflow completed|milestone complete|all work complete/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase,
-      plan,
-      kind: "workflow-complete",
-      identity: phase || "workflow",
-      message: "Workflow complete"
-    };
-  }
-  if (phaseStatus === "complete" || /\bphase complete\b/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase,
-      plan,
-      kind: "phase-complete",
-      identity: phase || "phase",
-      message: phase ? `Phase ${phase} complete` : "Phase complete"
-    };
-  }
-  if (/\bplan complete\b/.test(lowerSignal) || /completed .*?-plan\.md/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase,
-      plan,
-      kind: "plan-complete",
-      identity: `${phase || "unknown"}:${plan || "unknown"}`,
-      message: phase && plan ? `Phase ${phase} plan ${plan} complete` : "Plan complete"
-    };
-  }
-  return null;
+  const lifecycle = snapshot.lifecycle || {};
+  const hint = normalizeText3(snapshot.activity?.label || lifecycle.hint || lifecycle.label || lifecycle.state);
+  const context = normalizeText3(snapshot.context?.label || lifecycle.context?.label || "");
+  const identity = [lifecycle.state, phase || "none", plan || "none", hint || "none"].join(":");
+  return {
+    workspaceId,
+    phase,
+    plan,
+    lifecycle,
+    hint,
+    context,
+    identity,
+    snapshot,
+    projectState
+  };
 }
-function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}) {
-  const state = projectState?.state || {};
-  const notificationHistory = projectState?.notificationHistory || [];
-  const workspaceId = cmuxAdapter?.workspaceId || "workspace:unknown";
-  const signalText = buildSignalText2(projectState);
-  const lowerSignal = lowerText2(signalText);
-  const blockerLines = extractBlockerLines2(state);
-  const latestCritical = findLatestNotification(notificationHistory, "critical");
-  const latestWarning = findLatestNotification(notificationHistory, "warning");
-  const boundaryEvent = buildBoundaryEvent(projectState, workspaceId, signalText);
-  if (boundaryEvent) {
-    return boundaryEvent;
+function buildInterventionEvent(entry) {
+  return {
+    workspaceId: entry.workspaceId,
+    phase: entry.phase,
+    plan: entry.plan,
+    kind: entry.lifecycle.state,
+    identity: entry.identity,
+    message: entry.hint || entry.lifecycle.label || "Intervention required"
+  };
+}
+function buildResolvedEvent(entry, previous) {
+  const previousLabel = normalizeText3(previous?.lifecycle?.label || previous?.lifecycle?.state || "Intervention");
+  const currentMessage = entry.hint || entry.lifecycle.label || "State updated";
+  return {
+    workspaceId: entry.workspaceId,
+    phase: entry.phase,
+    plan: entry.plan,
+    kind: entry.lifecycle.state,
+    identity: `${previous?.identity || "unknown"}->${entry.identity}`,
+    message: `${previousLabel} resolved \u2014 ${currentMessage}`
+  };
+}
+function buildAttentionCandidate(projectState, cmuxAdapter, trigger = {}, previousEntry = null) {
+  const entry = buildSignalEntry(projectState, cmuxAdapter);
+  const currentState = entry.lifecycle?.state;
+  const previousState = previousEntry?.lifecycle?.state || null;
+  if (INTERVENTION_STATES.has(currentState)) {
+    return {
+      candidate: buildInterventionEvent(entry),
+      entry
+    };
   }
-  if (shouldConsiderStartEvent(trigger)) {
-    const hasEscalationSignal = /checkpoint|warning|blocked|blocker|failure|error|auth|manual action/.test(lowerSignal) || blockerLines.length > 0 || Boolean(latestCritical || latestWarning);
-    if (!hasEscalationSignal) {
-      const startEvent = buildStartEvent(projectState, workspaceId);
-      if (startEvent) return startEvent;
+  if (currentState === "blocked") {
+    return {
+      candidate: {
+        workspaceId: entry.workspaceId,
+        phase: entry.phase,
+        plan: entry.plan,
+        kind: currentState,
+        identity: entry.identity,
+        message: entry.hint || "Blocked by error"
+      },
+      entry
+    };
+  }
+  if (previousEntry && INTERVENTION_STATES.has(previousState) && LOG_ONLY_STATES.has(currentState) && previousState !== currentState) {
+    return {
+      candidate: buildResolvedEvent(entry, previousEntry),
+      entry
+    };
+  }
+  if (!previousEntry && ["startup", "file.watcher.updated", "file.watcher.external", "command.executed"].includes(trigger.hook)) {
+    const startEvent = buildStartEvent({ ...entry.snapshot, projectState }, entry.workspaceId);
+    if (startEvent) {
+      return {
+        candidate: startEvent,
+        entry
+      };
     }
   }
-  if (/\bcheckpoint\b/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase: parsePhaseNumber2(state, projectState?.currentPhase),
-      plan: parsePlanNumber2(state),
-      kind: "checkpoint",
-      identity: lowerSignal || "checkpoint",
-      message: "Checkpoint waiting for input"
-    };
-  }
-  if (/input needed|await(?:ing)?|needs? (?:reply|response|approval|review|decision)|manual action|required reply|human action|auth|login|sign in/.test(lowerSignal)) {
-    return {
-      workspaceId,
-      phase: parsePhaseNumber2(state, projectState?.currentPhase),
-      plan: parsePlanNumber2(state),
-      kind: "waiting-input",
-      identity: lowerSignal || "waiting-input",
-      message: "Waiting for input"
-    };
-  }
-  if (blockerLines.length > 0 || latestCritical || /\bblocked\b|hard stop|cannot continue|fatal|failure|failed|error/.test(lowerSignal)) {
-    const blockerMessage = normalizeText3(blockerLines[0] || latestCritical?.message || signalText || "Blocker needs attention");
-    return {
-      workspaceId,
-      phase: parsePhaseNumber2(state, projectState?.currentPhase),
-      plan: parsePlanNumber2(state),
-      kind: "blocker",
-      identity: lowerText2(blockerMessage),
-      message: blockerMessage
-    };
-  }
-  if (latestWarning || /warning|stale|spinning|degraded|attention/.test(lowerSignal)) {
-    const warningMessage = normalizeText3(latestWarning?.message || signalText || "Warning needs attention");
-    return {
-      workspaceId,
-      phase: parsePhaseNumber2(state, projectState?.currentPhase),
-      plan: parsePlanNumber2(state),
-      kind: "warning",
-      identity: lowerText2(latestWarning?.type || warningMessage),
-      message: warningMessage
-    };
-  }
   if (trigger.hook === "tool.execute.after" && isTaskCompletionTrigger(trigger.input)) {
-    return buildTaskCompletionEvent(projectState, workspaceId, trigger.input);
+    return {
+      candidate: buildTaskCompletionEvent(projectState, entry.workspaceId, trigger.input),
+      entry
+    };
   }
-  return null;
+  return { candidate: null, entry };
 }
 function getWorkspaceKindMap(memory, workspaceId) {
   let kindMap = memory.lastEventKeys.get(workspaceId);
@@ -12449,7 +12399,8 @@ function rememberEvent(memory, workspaceId, event, now) {
 function createAttentionMemory() {
   return {
     lastEmittedAt: /* @__PURE__ */ new Map(),
-    lastEventKeys: /* @__PURE__ */ new Map()
+    lastEventKeys: /* @__PURE__ */ new Map(),
+    lastLifecycleByWorkspace: /* @__PURE__ */ new Map()
   };
 }
 async function syncCmuxAttention(cmuxAdapter, projectState, options = {}) {
@@ -12458,7 +12409,9 @@ async function syncCmuxAttention(cmuxAdapter, projectState, options = {}) {
   }
   const memory = options.memory || createAttentionMemory();
   const now = Number(options.now ?? Date.now());
-  const candidate = buildAttentionCandidate(projectState, cmuxAdapter, options.trigger || {});
+  const previousEntry = memory.lastLifecycleByWorkspace.get(cmuxAdapter?.workspaceId || "workspace:unknown") || null;
+  const { candidate, entry } = buildAttentionCandidate(projectState, cmuxAdapter, options.trigger || {}, previousEntry);
+  memory.lastLifecycleByWorkspace.set(entry.workspaceId, entry);
   if (!candidate) {
     return { emitted: false, reason: "no-meaningful-event" };
   }

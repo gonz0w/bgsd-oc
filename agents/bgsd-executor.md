@@ -35,7 +35,7 @@ Spawned by `/bgsd-execute-phase` orchestrator.
 Your job: Execute the plan completely, commit each task, create SUMMARY.md, update STATE.md.
 
 **CRITICAL: Mandatory Initial Read**
-If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context.
+If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context. After those mandatory reads complete, load eager shared skills such as `project-context` immediately before continuing with execution.
 </role>
 
 <skill:project-context action="executing" />

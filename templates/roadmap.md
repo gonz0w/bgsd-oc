@@ -126,7 +126,14 @@ Phases execute in numeric order: 2 → 2.1 → 2.2 → 3 → 3.1 → 4
 - Omit the field when TDD doesn't apply (config, UI layout, documentation phases); checker still reports the deterministic TDD selection path as info instead of staying silent
 - This field controls Phase 149 selection/rationale severity only; it does **not** add Phase 150 `execute:tdd` semantic enforcement by itself
 - The planner still must make a visible `> **TDD Decision:** Selected|Skipped` callout for every implementation plan; `Selected` maps to `type: tdd`, `Skipped` maps to `type: execute`
+- A visible TDD decision alone does not justify `type: tdd`; use `type: execute` unless the plan actually uses the dedicated TDD template and structure
 - The checker validates both plan eligibility and decision/type consistency
+
+**Plan authoring guardrails:**
+- Use stable verifier tokens in plan metadata: one exact expected marker per `contains` entry, not comma-separated prose bundles
+- Keep task `<verify>` commands narrow and delta-specific; reserve plan `<verification>` for the aggregate final proof only
+- Write command mentions for comparison or legacy context as reference-only placeholders, not runnable-looking malformed examples
+- For validator-change slices, approval-time proof should stay on build plus targeted tests until the validator update lands
 
 **Success criteria:**
 - 2-5 observable behaviors per phase (from user's perspective)

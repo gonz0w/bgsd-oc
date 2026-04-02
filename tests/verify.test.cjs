@@ -1013,6 +1013,77 @@ must_haves: []
       'should flag empty requirements');
   });
 
+  test('requires explicit verification_route for implementation plans', () => {
+    const planContent = `---
+phase: "01"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/a.js]
+autonomous: true
+requirements: [PLAN-01]
+must_haves:
+  artifacts:
+    - path: src/a.js
+---
+# Plan with missing verification route
+
+<task id="1">
+<name>Do something</name>
+<action>Act</action>
+<verify>Check</verify>
+<done>Done criteria</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'missing-route-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify:verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.valid, false, 'implementation plan should require explicit route');
+    assert.ok(data.errors.some(i => i.includes('verification_route')),
+      'should require verification_route');
+  });
+
+  test('requires verification_route_reason when lowering below the default route', () => {
+    const planContent = `---
+phase: "01"
+plan: "01"
+type: execute
+wave: 1
+depends_on: []
+files_modified: [src/plugin/command-enricher.js]
+autonomous: true
+requirements: [PLAN-01]
+verification_route: light
+must_haves:
+  artifacts:
+    - path: src/plugin/command-enricher.js
+---
+# Plan with unjustified downgrade
+
+<task id="1">
+<name>Do something</name>
+<action>Act</action>
+<verify>Check</verify>
+<done>Done criteria</done>
+</task>
+`;
+    const planPath = path.join(tmpDir, 'missing-route-reason-PLAN.md');
+    fs.writeFileSync(planPath, planContent);
+
+    const result = runGsdTools(`verify:verify plan-structure ${planPath}`);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.valid, false, 'downgrade should require rationale');
+    assert.ok(data.errors.some(i => i.includes('verification_route_reason required')),
+      'should require verification_route_reason on downgrade');
+  });
+
   test('blocks execute plans whose visible TDD decision says Selected', () => {
     const planContent = `---
 phase: "12"
@@ -1114,6 +1185,7 @@ depends_on: []
 files_modified: [src/commands/verify.js, src/router.js]
 autonomous: true
 requirements: [DX-01, PLAN-04]
+verification_route: full
 must_haves:
   artifacts:
     - path: src/commands/verify.js

@@ -474,23 +474,24 @@ describe('enricher-decisions: model-selection fires with agent_type + model_prof
   });
 });
 
-describe('enricher-decisions: verification-routing fires with task_count + verifier_enabled', () => {
-  it('returns "light" for small plan', () => {
-    const result = resolveVerificationRouting({ task_count: 1, files_modified_count: 2, verifier_enabled: true });
-    assert.strictEqual(result.value, 'light');
+describe('enricher-decisions: verification-routing fires with policy inputs', () => {
+  it('returns "full" for runtime slices even when plan is small', () => {
+    const result = resolveVerificationRouting({ files_modified: ['src/lib/decision-rules.js'], task_count: 1, files_modified_count: 1, verifier_enabled: true });
+    assert.strictEqual(result.value, 'full');
     assert.strictEqual(result.rule_id, 'verification-routing');
   });
 
-  it('returns "full" for large plan', () => {
-    const result = resolveVerificationRouting({ task_count: 5, files_modified_count: 10, verifier_enabled: true });
-    assert.strictEqual(result.value, 'full');
+  it('returns "skip" for docs-only slices', () => {
+    const result = resolveVerificationRouting({ files_modified: ['docs/guide.md'], verifier_enabled: true });
+    assert.strictEqual(result.value, 'skip');
   });
 
-  it('appears in evaluateDecisions output when verifier_enabled is present', () => {
-    const results = evaluateDecisions('bgsd-execute-phase', { verifier_enabled: true, task_count: 3, files_modified_count: 5 });
+  it('appears in evaluateDecisions output with proof metadata', () => {
+    const results = evaluateDecisions('bgsd-execute-phase', { verifier_enabled: true, files_modified: ['workflows/verify-work.md'] });
     assert.ok(results['verification-routing'], 'verification-routing should appear in results');
     assert.ok(['full', 'light', 'skip'].includes(results['verification-routing'].value),
       `Expected valid routing value, got ${results['verification-routing'].value}`);
+    assert.ok(results['verification-routing'].metadata.required_proof, 'should carry proof metadata');
   });
 });
 

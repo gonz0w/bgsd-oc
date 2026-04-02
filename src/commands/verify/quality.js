@@ -9,6 +9,7 @@ const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS, colorBy
 const { createPlanMetadataContext } = require('../../lib/plan-metadata');
 const { buildDefaultConfig, isPlainObject } = require('../../lib/config-contract');
 const { MODEL_SETTING_PROFILES, VALID_MODEL_OVERRIDE_AGENTS } = require('../../lib/constants');
+const { resolveVerificationRouting } = require('../../lib/decision-rules');
 
 function getMissingMetadataMessage(sectionName) {
   return `must_haves.${sectionName} metadata missing from frontmatter`;
@@ -638,6 +639,26 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     if (fm[field] === undefined) errors.push(`Missing required frontmatter field: ${field}`);
   }
 
+  const implementationFiles = Array.isArray(fm.files_modified)
+    ? fm.files_modified.filter(file => typeof file === 'string' && file.trim() && !file.startsWith('.planning/'))
+    : [];
+  const routeDecision = resolveVerificationRouting({
+    verifier_enabled: true,
+    files_modified: fm.files_modified,
+    files_modified_count: implementationFiles.length,
+    verification_route: fm.verification_route,
+    verification_route_reason: fm.verification_route_reason,
+  });
+  if (implementationFiles.length > 0 && fm.verification_route === undefined) {
+    errors.push('Missing required frontmatter field: verification_route');
+  }
+  if (fm.verification_route !== undefined && !['skip', 'light', 'full'].includes(fm.verification_route)) {
+    errors.push('verification_route must be one of: skip, light, full');
+  }
+  if (routeDecision.metadata?.downgrade?.missing_reason) {
+    errors.push(`verification_route_reason required when lowering route below default ${routeDecision.metadata.default_route}`);
+  }
+
   const tasks = parsePlanTasks(content);
   for (const task of tasks) {
     if (task.name === 'unnamed') errors.push('Task missing <name> element');
@@ -663,8 +684,8 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
   const canonicalTddDecision = extractCanonicalTddDecision(content);
 
   const typeRequiredFields = {
-    execute: ['wave', 'depends_on', 'files_modified', 'autonomous', 'requirements', 'must_haves'],
-    tdd: ['wave', 'depends_on', 'files_modified', 'autonomous', 'requirements'],
+    execute: ['wave', 'depends_on', 'files_modified', 'autonomous', 'requirements', 'must_haves', 'verification_route'],
+    tdd: ['wave', 'depends_on', 'files_modified', 'autonomous', 'requirements', 'verification_route'],
   };
 
   const requiredForType = typeRequiredFields[planType] || typeRequiredFields.execute;
@@ -681,6 +702,9 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     if (reqEmpty) {
       templateCompliance.type_issues.push('requirements is empty — every plan should map to requirements');
     }
+  }
+  if (routeDecision.metadata?.downgrade?.missing_reason) {
+    templateCompliance.type_issues.push(`verification_route_reason required when lowering route below default ${routeDecision.metadata.default_route}`);
   }
 
   const metadataIssues = [];

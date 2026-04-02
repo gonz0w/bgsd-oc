@@ -181,11 +181,13 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
       If focused verification needs test execution, prefer explicit `node --test <file>...` file lists or direct smoke scripts over `npm test --test-name-pattern`. If a broad gate is already red from unrelated legacy failures, record that baseline separately from the touched-slice proof.
 
-      If a broad node:test file hangs after the targeted regressions already passed, record the attempted gate, stop retrying the same hanging file, and fall back to rebuilt-runtime plus focused touched-surface checks that directly prove the plan truths.
+      If a broad node:test file hangs after the targeted regressions already passed, record the attempted gate once, stop retrying the same hanging file, and fall back to rebuilt-runtime plus focused touched-surface checks that directly prove the plan truths.
 
-      For command-surface or docs-heavy work, preserve exact canonical route callouts unless the regression contract is intentionally updated, and validate command-integrity proof against the actual touched surfaced files rather than curated snippets alone.
+      For command-surface or docs-heavy work, preserve exact canonical route callouts unless the regression contract is intentionally updated, and validate command-integrity proof against the actual touched surfaced files rather than curated snippets alone. Keep slice regressions scoped to the files and command surfaces the plan owns.
 
       When changed deliverables include generated runtime artifacts (for example `plugin.js` or `bin/bgsd-tools.cjs`), verify against the repo-local current checkout plus the rebuilt local runtime in this repo. Never trust stale generated artifacts: run `npm run build`, then rerun the focused proof against the rebuilt local runtime before reporting success.
+
+      If the declared proof lives in a shared docs or oversized test file, pair any broad file-level gate with one isolated focused smoke command so the touched slice still has attributable evidence when the broad file has unrelated failures or hangs.
 
       If the phase exposes an explicit phase-intent block, require verification to report a separate Intent Alignment verdict before or alongside Requirement Coverage using the locked ladder `aligned | partial | misaligned`. If the core expected user change did not land, the verdict cannot be `partial`. If the phase lacks the explicit phase-intent block, require `not assessed` / unavailable wording with a plain reason instead of a guessed verdict.
 
