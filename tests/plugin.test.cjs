@@ -829,6 +829,204 @@ describe('Plugin quiet default diagnostics', () => {
   });
 });
 
+describe('Plugin cmux coordinated refresh', () => {
+  const pluginPath = path.join(__dirname, '..', 'plugin.js');
+
+  function writeCoordinatedRefreshFixture(tmpDir, stateContent) {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '185-cmux-coordination-backbone'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), stateContent);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), `# Roadmap
+
+## Phases
+
+### Phase 185: cmux Coordination Backbone
+- Goal: Route plugin hooks through one shared cycle
+- Status: current
+`);
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'phases', '185-cmux-coordination-backbone', '185-02-PLAN.md'), `---
+phase: 185-cmux-coordination-backbone
+plan: 02
+---
+
+<tasks>
+<task type="auto">
+  <name>Fixture coordinated refresh task</name>
+  <files>src/plugin/index.js</files>
+  <action>Exercise shared cycle wiring</action>
+  <done>Shared cycle verified</done>
+</task>
+</tasks>
+`);
+  }
+
+  function buildCoordinatedRefreshState({
+    phase = '185 — cmux Coordination Backbone',
+    plan = '02',
+    status = 'Working',
+    lastActivity = '2026-04-02T04:30:00Z',
+    progressLine = '**Progress:** [██████░░░░] 60%',
+    continuity = 'Executing focused work',
+  } = {}) {
+    return `# Project State
+
+## Current Position
+
+**Phase:** ${phase}
+**Current Plan:** ${plan}
+**Status:** ${status}
+**Last Activity:** ${lastActivity}
+
+${progressLine}
+
+## Accumulated Context
+
+### Decisions
+
+None yet.
+
+### Blockers/Concerns
+
+None yet.
+
+## Session Continuity
+
+**Last session:** 2026-04-02
+**Stopped at:** ${continuity}
+**Resume file:** None
+`;
+  }
+
+  function createCoordinatedCmux(calls, resolveAvailability) {
+    return {
+      resolveAvailability,
+      setStatus: async ({ workspace, key, value }) => {
+        calls.push(`setStatus:${workspace}:${key}:${value}`);
+        return { ok: true };
+      },
+      clearStatus: async ({ workspace, key }) => {
+        calls.push(`clearStatus:${workspace}:${key}`);
+        return { ok: true };
+      },
+      setProgress: async ({ workspace, progress, label }) => {
+        calls.push(`setProgress:${workspace}:${progress}:${label || ''}`);
+        return { ok: true };
+      },
+      clearProgress: async ({ workspace }) => {
+        calls.push(`clearProgress:${workspace}`);
+        return { ok: true };
+      },
+      log: async ({ workspace, level, source, message }) => {
+        calls.push(`log:${workspace}:${level}:${source}:${message}`);
+        return { ok: true };
+      },
+      notify: async ({ workspace, level, title, subtitle, body }) => {
+        calls.push(`notify:${workspace}:${level}:${title}:${subtitle || ''}:${body}`);
+        return { ok: true };
+      },
+    };
+  }
+
+  test('Plugin cmux coordinated refresh keeps one immediate startup shared cycle, then coalesces later hook bursts into one shared cycle', async (context) => {
+    context.mock.timers.enable({ apis: ['setTimeout'] });
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+    const calls = [];
+
+    try {
+      writeCoordinatedRefreshFixture(tmpDir, buildCoordinatedRefreshState());
+      mod.resetCmuxAdapterCache();
+
+      const plugin = await mod.BgsdPlugin({
+        directory: tmpDir,
+        cmux: createCoordinatedCmux(calls, async () => ({
+          available: true,
+          attached: true,
+          mode: 'managed',
+          suppressionReason: null,
+          workspaceId: 'workspace:1',
+          surfaceId: 'surface:1',
+          writeProven: true,
+        })),
+      });
+
+      const startupSidebarCalls = calls.filter((entry) => /^(setStatus|clearStatus|setProgress|clearProgress):/.test(entry));
+      assert.strictEqual(startupSidebarCalls.length, 4, 'startup should perform one immediate shared cycle');
+
+      calls.length = 0;
+
+      await plugin.event({ event: { type: 'command.executed', command: 'bgsd-plan phase 185' } });
+      await plugin['tool.execute.after']({ tool: 'Task', args: { task: 'burst hook' } });
+      await plugin.event({ event: { type: 'session.idle' } });
+
+      assert.strictEqual(calls.length, 0, 'later bursts should wait for the debounced shared cycle');
+
+      context.mock.timers.tick(200);
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      const burstSidebarCalls = calls.filter((entry) => /^(setStatus|clearStatus|setProgress|clearProgress):/.test(entry));
+      assert.strictEqual(burstSidebarCalls.length, 4, 'later watcher/idle/command/tool bursts should collapse into one shared cycle');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('Plugin cmux coordinated refresh keeps bounded suppression quiet and lets a planning-file change wake retry early', async (context) => {
+    context.mock.timers.enable({ apis: ['setTimeout'] });
+    const mod = await import(pluginPath);
+    const tmpDir = createTempProject();
+    const calls = [];
+    let resolveCount = 0;
+
+    try {
+      writeCoordinatedRefreshFixture(tmpDir, buildCoordinatedRefreshState({ status: 'Paused', continuity: 'Waiting on quiet retry' }));
+      mod.resetCmuxAdapterCache();
+
+      const plugin = await mod.BgsdPlugin({
+        directory: tmpDir,
+        cmux: createCoordinatedCmux(calls, async () => {
+          resolveCount += 1;
+          return {
+            available: true,
+            attached: false,
+            mode: 'managed',
+            suppressionReason: 'write-probe-failed',
+            workspaceId: 'workspace:1',
+            surfaceId: 'surface:1',
+            writeProven: false,
+          };
+        }),
+      });
+
+      assert.strictEqual(resolveCount, 1, 'startup should capture the initial suppressed adapter once');
+
+      await plugin.event({ event: { type: 'command.executed', command: 'bgsd-plan phase 185' } });
+      context.mock.timers.tick(200);
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      assert.strictEqual(resolveCount, 2, 'the first later retryable refresh may re-check cmux once');
+      assert.deepStrictEqual(calls, [], 'bounded suppression should stay quiet while cmux is suppressed');
+
+      await plugin['tool.execute.after']({ tool: 'Task', args: { task: 'retry during backoff' } });
+      context.mock.timers.tick(200);
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      assert.strictEqual(resolveCount, 2, 'bounded suppression should not re-probe on every trigger during backoff');
+
+      await plugin.event({ event: { type: 'file.watcher.updated', path: path.join(tmpDir, '.planning', 'STATE.md') } });
+      context.mock.timers.tick(200);
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      assert.strictEqual(resolveCount, 3, 'a planning-file change should wake the bounded suppression path early');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+});
+
 describe('Plugin MEMORY.md integration', () => {
   const pluginPath = path.join(__dirname, '..', 'plugin.js');
 
