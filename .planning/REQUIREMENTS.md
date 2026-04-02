@@ -15,7 +15,7 @@
 
 - [x] **FIN-01**: System updates `.planning/STATE.md`, `.planning/ROADMAP.md`, and `.planning/REQUIREMENTS.md` through one explicit single-writer finalize path after reconcile
 - [x] **FIN-02**: Healthy sibling workspaces can reconcile and report useful status even when another workspace in the same wave fails, goes stale, or needs recovery
-- [ ] **FIN-03**: Final shared planning state is deterministic regardless of the order in which healthy workspaces finish or are finalized
+- [x] **FIN-03**: Final shared planning state is deterministic regardless of the order in which healthy workspaces finish or are finalized
 - [x] **FIN-04**: System preserves inspectable recovery metadata when a workspace becomes stale, divergent, or finalize fails partway through
 
 ### cmux Runtime Coordination & Observability
@@ -61,7 +61,7 @@
 | JJ-03 | Phase 181 | Complete | TBD |
 | FIN-01 | Phase 183 | Complete | TBD |
 | FIN-02 | Phase 184 | Complete | TBD |
-| FIN-03 | Phase 184 | Pending | TBD |
+| FIN-03 | Phase 184 | Complete | TBD |
 | FIN-04 | Phase 184 | Complete | TBD |
 | CMUX-01 | Phase 185 | Pending | TBD |
 | CMUX-02 | Phase 186 | Pending | TBD |

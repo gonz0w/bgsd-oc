@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 184 plan 01 complete — ready for deterministic finalize follow-up
+**Current focus:** Phase 184 plan 02 complete — ready for truthful partial-wave reporting
 
 ## Current Position
 
 Phase: 184 of 186 (Deterministic Finalize & Partial-Wave Recovery)
-Plan: 01 of 03 in current phase
-Status: In progress — first recovery contract shipped
-Last activity: 2026-04-02 - Completed plan 01 wave-aware recovery contract
+Plan: 02 of 03 in current phase
+Status: In progress — deterministic wave finalize shipped
+Last activity: 2026-04-02 - Completed plan 02 deterministic wave finalize
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -31,7 +31,7 @@ Progress: [███░░░░░░░] 33%
 | 181 | 2 | 8 min | 4 min |
 | 182 | 2 | ~0.3 hours | ~9 min |
 | 183 | 2 | 16 min | 8 min |
-| 184 | 1 | 9 min | 9 min |
+| 184 | 2 | 17 min | 9 min |
 
 **Recent Trend:**
 - Last shipped milestone: v18.1 completed 8 phases (173-180)
@@ -41,6 +41,7 @@ Progress: [███░░░░░░░] 33%
 
 ### Decisions
 
+- [Phase 184]: `execute:finalize-wave` now promotes only the canonical healthy prefix and regenerates shared wave recovery JSON on rerun. — Deterministic finalize needs one trusted-main command that keeps healthy siblings staged behind the first blocker without letting finish order leak into shared planning truth.
 - [Phase 184]: Wave-aware reconcile now marks later healthy siblings as `staged_ready` and routes recovery inspection through one canonical gating-sibling summary. — Deterministic finalize needs healthy work to stay inspectable behind the first blocker without inventing new recovery prose per surface.
 - [Phase 182]: Verifier/report surfaces now keep behavior proof, regression proof, and human verification in separate buckets, with route-exempt buckets rendered as `not required`. — Phase 182 needs verifier output to distinguish missing proof from exempt proof clearly.
 - [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
@@ -553,6 +554,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-02T02:58:48Z
-Stopped at: Completed 184-01-PLAN.md
+Last session: 2026-04-02T03:11:24Z
+Stopped at: Completed 184-02-PLAN.md
 Resume file: None

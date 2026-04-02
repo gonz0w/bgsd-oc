@@ -59,7 +59,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
   1. Healthy sibling workspaces can reconcile and report useful status even when another workspace in the same wave fails, goes stale, or needs recovery.
   2. Final shared planning state is the same regardless of the order in which healthy workspaces finish or are finalized.
   3. If a workspace becomes stale, divergent, or finalize fails partway through, operator can inspect durable recovery metadata and rerun recovery or finalize from the main checkout without re-executing already-healthy work.
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 ### Phase 185: cmux Coordination Backbone
 **Goal**: `cmux` updates become a trustworthy projection of runtime state because plugin refresh work is debounced, bounded, and quiet when `cmux` is absent or untrusted
@@ -88,7 +88,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 | 181. Workspace Root Truth & Safe Fallback | 2/2 | Complete    | 2026-04-01 |
 | 182. Risk-Routed Hardening Proof Policy | 2/2 | Complete    | 2026-04-01 |
 | 183. Plan-Local Workspace Ownership | 2/2 | Complete    | 2026-04-02 |
-| 184. Deterministic Finalize & Partial-Wave Recovery | 1/3 | In Progress|  |
+| 184. Deterministic Finalize & Partial-Wave Recovery | 2/3 | In Progress|  |
 | 185. cmux Coordination Backbone | 0/2 | Not started | - |
 | 186. cmux Truthful Lifecycle Signals | 0/2 | Not started | - |
 
