@@ -16,7 +16,7 @@ const { getIntentDriftData, getIntentSummary, getEffectiveIntent } = require('./
 const { autoTriggerEnvScan, formatEnvSummary, readEnvManifest } = require('./env');
 const { autoTriggerCodebaseIntel, readCodebaseIntel } = require('./codebase');
 const { requireJjForExecution, buildPlanningCapabilityContext } = require('../lib/jj');
-const { getPhaseFilesModified, listActiveWorkspaceInventory } = require('./workspace');
+const { getPhaseFilesModified, listActiveWorkspaceInventory, summarizeWorkspaceInventory } = require('./workspace');
 const { getStalenessAge } = require('../lib/codebase-intel');
 
 /**
@@ -231,7 +231,10 @@ function derivePhaseHandoffNextSafeCommand(phase, latestArtifact) {
   const explicitCommand = latestArtifact.resume_target && typeof latestArtifact.resume_target.next_command === 'string'
     ? latestArtifact.resume_target.next_command.trim()
     : '';
-  if (explicitCommand) return explicitCommand;
+  if (explicitCommand) {
+    if (explicitCommand === '/bgsd-transition') return '/bgsd-inspect progress';
+    return explicitCommand;
+  }
 
   const safePhase = /^[A-Za-z0-9._-]+$/.test(normalizedPhase) ? normalizedPhase : sanitizeShellArg(normalizedPhase);
   switch (latestArtifact.step) {
@@ -243,6 +246,8 @@ function derivePhaseHandoffNextSafeCommand(phase, latestArtifact) {
       return `/bgsd-execute-phase ${safePhase}`;
     case 'execute':
       return `/bgsd-verify-work ${safePhase}`;
+    case 'verify':
+      return '/bgsd-inspect progress';
     default:
       return null;
   }
@@ -579,6 +584,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   try {
     if (metadata?.number) {
       result.workspace_active = listActiveWorkspaceInventory(cwd, metadata.number);
+      result.workspace_active_summary = summarizeWorkspaceInventory(result.workspace_active);
     }
     if (metadata?.number) {
       const phasePlans = getPhaseFilesModified(cwd, metadata.number);
@@ -643,6 +649,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
       workspace_enabled: result.workspace_enabled,
       workspace_config: result.workspace_config,
       workspace_active: result.workspace_active,
+      workspace_active_summary: result.workspace_active_summary,
       file_overlaps: result.file_overlaps,
       task_routing: result.task_routing || null,
       previous_attempts: result.previous_attempts || null,
@@ -672,6 +679,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
   if (result.codebase_freshness === null) delete result.codebase_freshness;
   if (result.previous_attempts === null) delete result.previous_attempts;
   if (result.rag_capabilities === null) delete result.rag_capabilities;
+  if (result.workspace_active_summary === null) delete result.workspace_active_summary;
   if (!result.runtime_freshness || !result.runtime_freshness.checked) delete result.runtime_freshness;
   if (!result.resume_summary) delete result.resume_summary;
 

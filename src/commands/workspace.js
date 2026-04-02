@@ -132,6 +132,61 @@ function listManagedWorkspaces(cwd) {
     });
 }
 
+function enrichWorkspaceInventory(workspaces) {
+  const grouped = new Map();
+  for (const workspace of workspaces) {
+    const planPhase = workspace.plan_id
+      ? ((parsePlanId(workspace.plan_id)?.phase || '').replace(/^0+/, '') || '0')
+      : null;
+    const key = planPhase || '__ungrouped__';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(workspace);
+  }
+
+  const enriched = [];
+  for (const group of grouped.values()) {
+    for (const workspace of group) {
+      const siblings = group.filter((candidate) => candidate.name !== workspace.name);
+      enriched.push(applyWaveRecoveryMetadata(workspace, siblings));
+    }
+  }
+
+  return enriched.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function summarizeWorkspaceInventory(workspaces) {
+  const summary = {
+    healthy: [],
+    finalized: [],
+    staged_ready: [],
+    recovery_needed: [],
+    finalize_failed: [],
+    gating_sibling: null,
+    recovery_summary: null,
+  };
+
+  for (const workspace of workspaces || []) {
+    const planId = workspace.plan_id || workspace.name;
+    if (!planId) continue;
+    if (workspace.status === 'healthy') summary.healthy.push(planId);
+    if (workspace.status === 'finalized') summary.finalized.push(planId);
+    if (workspace.status === 'staged_ready') summary.staged_ready.push(planId);
+    if (workspace.recovery_needed && workspace.status !== 'staged_ready') summary.recovery_needed.push(planId);
+    if (workspace.status === 'finalize_failed') summary.finalize_failed.push(planId);
+  }
+
+  const preferredRecovery = (workspaces || []).find((workspace) => workspace.status === 'staged_ready' && workspace.recovery_summary)
+    || (workspaces || []).find((workspace) => workspace.recovery_needed && workspace.recovery_summary)
+    || null;
+
+  if (preferredRecovery) {
+    summary.gating_sibling = preferredRecovery.gating_sibling || null;
+    summary.recovery_summary = preferredRecovery.recovery_summary;
+  }
+
+  return summary;
+}
+
 function listActiveWorkspaceInventory(cwd, phaseNumber) {
   const normalizedPhase = phaseNumber == null
     ? null
@@ -161,12 +216,7 @@ function listActiveWorkspaceInventory(cwd, phaseNumber) {
     })
     .filter((workspace) => normalizedPhase ? workspace.phase_matches_execution : true);
 
-  return phaseWorkspaces
-    .map((workspace) => {
-      const siblings = phaseWorkspaces.filter((candidate) => candidate.name !== workspace.name);
-      return applyWaveRecoveryMetadata(workspace, siblings);
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  return enrichWorkspaceInventory(phaseWorkspaces);
 }
 
 function resolveWorkspaceTarget(cwd, target) {
@@ -233,8 +283,8 @@ function cmdWorkspaceAdd(cwd, planId, raw) {
 
 function cmdWorkspaceList(cwd, raw) {
   requireJjForExecution(cwd, 'workspace list');
-  const workspaces = listManagedWorkspaces(cwd).map((workspace) => inspectWorkspace(workspace));
-  output({ workspaces }, raw, formatWorkspaceTable(workspaces));
+  const workspaces = enrichWorkspaceInventory(listManagedWorkspaces(cwd).map((workspace) => inspectWorkspace(workspace)));
+  output({ workspaces, summary: summarizeWorkspaceInventory(workspaces) }, raw, formatWorkspaceTable(workspaces));
 }
 
 function cmdWorkspaceForget(cwd, target, raw) {
@@ -394,4 +444,5 @@ module.exports = {
   listManagedWorkspaces,
   listActiveWorkspaceInventory,
   parsePlanId,
+  summarizeWorkspaceInventory,
 };

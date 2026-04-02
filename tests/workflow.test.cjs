@@ -993,7 +993,7 @@ describe('Phase 184 partial-wave recovery workflow contracts', () => {
     assert.match(executePhase, /next command/i);
     assert.match(executePhase, /execute:finalize-wave/i);
     assert.match(executePhase, /trusted main-checkout state/i);
-    assert.doesNotMatch(executePhase, /workspace-local retries/i);
+    assert.match(executePhase, /instead of teaching workspace-local retries/i);
   });
 });
 

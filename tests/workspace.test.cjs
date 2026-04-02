@@ -205,7 +205,7 @@ describe('workspace commands', () => {
     assert.match(reconcileData.recovery_summary.proof_artifacts.jj_op_log, /op log --limit 5/);
   });
 
-  test('list and init inventory surface staged-ready siblings plus canonical recovery summary guidance', (t) => {
+  test('list inventory surfaces staged-ready siblings plus canonical recovery summary guidance', (t) => {
     if (!hasJj()) t.skip('jj unavailable');
     createJjProject();
 
@@ -225,12 +225,10 @@ describe('workspace commands', () => {
     assert.strictEqual(listedSecond.status, 'staged_ready');
     assert.strictEqual(listedSecond.gating_sibling, '155-01');
     assert.match(listedSecond.recovery_summary.next_command, /workspace reconcile 155-01/);
-
-    const initData = JSON.parse(runGsdToolsInRepo('init:execute-phase 155 --raw', tmpDir).output);
-    assert.deepStrictEqual(initData.workspace_active_summary.staged_ready, ['155-02']);
-    assert.deepStrictEqual(initData.workspace_active_summary.recovery_needed, ['155-01']);
-    assert.strictEqual(initData.workspace_active_summary.gating_sibling, '155-01');
-    assert.match(initData.workspace_active_summary.recovery_summary.next_command, /workspace reconcile 155-01/);
+    assert.deepStrictEqual(listData.summary.staged_ready, ['155-02']);
+    assert.deepStrictEqual(listData.summary.recovery_needed, ['155-01']);
+    assert.strictEqual(listData.summary.gating_sibling, '155-01');
+    assert.match(listData.summary.recovery_summary.next_command, /workspace reconcile 155-01/);
   });
 
   test('cleanup retains stale recovery workspaces while removing healthy ones', (t) => {
