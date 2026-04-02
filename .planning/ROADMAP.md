@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v18.1 Greenfield Cleanup & CLI Simplification** - Phases 173-180 (shipped 2026-04-01)
-- 🚧 **v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing** - Phases 181-186 (active)
+- 🚧 **v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing** - Phases 181-187 (active)
 
 ## Overview
 
@@ -17,6 +17,7 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 - [x] **Phase 184: Deterministic Finalize & Partial-Wave Recovery** (completed 2026-04-02) - Finalize shared state once, preserve healthy sibling progress, and keep recovery inspectable.
 - [x] **Phase 185: cmux Coordination Backbone** (completed 2026-04-02) - Turn bursty runtime activity into one debounced, bounded, fail-open `cmux` refresh path.
 - [x] **Phase 186: cmux Truthful Lifecycle Signals** (completed 2026-04-02) - Show readable workspace-scoped status, progress, logs, and intervention signals for the real execution lifecycle.
+- [x] **Phase 187: Reconstruct Phase 182 Verification Coverage** (completed 2026-04-02) - Close the v19.0 blockers by restoring formal verification coverage and fixing the live workflow wording regression.
 
 ## Phase Details
 
@@ -77,8 +78,20 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 **Requirements**: CMUX-02, CMUX-03
 **Success Criteria** (what must be TRUE):
   1. User can see truthful workspace-scoped status, progress, and logs for running, blocked, waiting, stale, reconciling, finalize-failed, idle, and complete states.
-  2. User receives a clear `cmux` attention signal when human input, stale-workspace recovery, or finalize intervention is required.
-  3. Required-intervention states stand out from normal progress so operators can tell where to act without polling raw logs.
+   2. User receives a clear `cmux` attention signal when human input, stale-workspace recovery, or finalize intervention is required.
+   3. Required-intervention states stand out from normal progress so operators can tell where to act without polling raw logs.
+**Plans**: 2/2 plans complete
+
+### Phase 187: Reconstruct Phase 182 Verification Coverage
+**Goal**: Milestone acceptance can complete because the risk-routing slice regains formal verification evidence and the workflow contract wording regression is removed
+**Depends on**: Phase 186
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04
+**Gap Closure**: Closes gaps from `v19.0-MILESTONE-AUDIT.md`
+**Success Criteria** (what must be TRUE):
+  1. Phase 182 has formal verification evidence that satisfies the milestone audit's three-source requirement cross-reference for `TEST-01` through `TEST-04`.
+  2. `tests/workflow.test.cjs` no longer fails on the locked rebuilt-runtime proof wording contract tied to `TEST-02`.
+  3. Focused proof demonstrates the verification-route contract still distinguishes `skip`, `light`, and `full` coverage expectations across planning, execution, and verifier outputs.
+  4. A follow-up milestone audit can treat the verification-routing slice as satisfied instead of blocked.
 **Plans**: 2/2 plans complete
 
 ## Progress
@@ -91,7 +104,8 @@ v19.0 hardens execution control in the order the repo needs it to become trustwo
 | 184. Deterministic Finalize & Partial-Wave Recovery | 3/3 | Complete    | 2026-04-02 |
 | 185. cmux Coordination Backbone | 2/2 | Complete    | 2026-04-02 |
 | 186. cmux Truthful Lifecycle Signals | 2/2 | Complete    | 2026-04-02 |
+| 187. Reconstruct Phase 182 Verification Coverage | 2/2 | Complete   | 2026-04-02 |
 
 ---
 
-*Last updated: 2026-04-02*
+*Last updated: 2026-04-02 after adding Phase 187 gap-closure planning*

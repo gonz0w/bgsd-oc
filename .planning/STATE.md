@@ -5,12 +5,12 @@
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
-**Current focus:** Phase 186 complete — ready for verification
+**Current focus:** Phase 187 complete — milestone ready for re-audit
 
 ## Current Position
 
-**Phase:** 186 of 186 (cmux Truthful Lifecycle Signals)
-**Current Plan:** Not started
+**Phase:** 187 of 187 (Reconstruct Phase 182 Verification Coverage)
+**Current Plan:** Complete
 **Total Plans in Phase:** 2
 **Status:** Milestone complete
 **Last Activity:** 2026-04-02
@@ -43,14 +43,12 @@ Progress: [██████████] 100%
 | Phase 185-cmux-coordination-backbone P02 | 6 min | 2 tasks | 2 files |
 | Phase 185-cmux-coordination-backbone P02 | 6 min | 2 tasks | 2 files |
 | Phase 186 P02 | 6 min | 2 tasks | 4 files |
+| Phase 187-reconstruct-phase-182-verification-coverage P02 | 3 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-- [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
-- [Phase 174]: Canonical roadmap and plan readers now stay strict and stop rewriting legacy TDD metadata on read — Phase 174 intent requires canonical-only active paths with CLI and plugin reader parity rather than hidden normalization
-- [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 173]: Defined gate-based cleanup sequencing and staged router/ambient-global hot spots last — Phase 173 now needs explicit safety boundaries so later cleanup plans can start with proven low-blast-radius work and defer router, argv, and oversized command hotspots until earlier reductions land.
 - [Phase 174]: Removed util:config-migrate from the supported CLI surface and docs — Phase 174 requires migration-only config helpers to disappear so maintainers follow canonical validate/edit workflows.
 - [Phase 174]: Removed legacy JSON memory auto-import from active init and util:memory flows — Phase 174 needs canonical greenfield-only memory behavior, so active SQLite-backed paths now ignore retired JSON migration bridges while map fallback stays explicit runtime resilience.
@@ -549,6 +547,8 @@ Progress: [██████████] 100%
 - [Phase 185-cmux-coordination-backbone]: Plugin hooks now share one debounced cmux refresh backbone with bounded suppression wake-up on planning-file changes.
 - [Phase 186-cmux-truthful-lifecycle-signals]: Sidebar truth now comes from one ordered lifecycle classifier with separate compact activity hints and hidden progress for waiting, stale, finalize-failed, and other intervention states. — Phase 186 plan 01 needed one semantic source of truth so cmux surfaces stop inventing conflicting lifecycle meanings.
 - [Phase 186]: Aligned cmux attention to the shared lifecycle snapshot and reserved notifications for true intervention states. — Phase 186 required sidebar, logs, and notifications to reuse one semantic truth so operators can act without contradictory signals.
+- [Phase 187-reconstruct-phase-182-verification-coverage]: Phase 182 acceptance is restored through a formal verification report that maps each TEST requirement across plan claim, live source, and rerun proof.
+- [Phase 187-reconstruct-phase-182-verification-coverage]: TEST traceability rows should point directly at 182-VERIFICATION.md plus the locked focused proof commands instead of TBD placeholders.
 
 ### Pending Todos
 
@@ -560,6 +560,6 @@ None
 
 ## Session Continuity
 
-Last session: 2026-04-02T05:23:18.543Z
-Stopped at: Completed 186-02-PLAN.md
+Last session: 2026-04-02T12:52:17.274Z
+Stopped at: Completed 187-02-PLAN.md
 Resume file: None
