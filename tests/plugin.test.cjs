@@ -72,6 +72,10 @@ async function runSystemTransform(plugin, event = null) {
   return output.system.join('\n');
 }
 
+function flushMicrotasks() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 describe('plugin parsers and tool registry', () => {
   const pluginPath = path.join(__dirname, '..', 'plugin.js');
 
