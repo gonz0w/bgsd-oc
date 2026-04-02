@@ -7150,20 +7150,209 @@ var require_decision_rules = __commonJS({
         rule_id: "model-selection"
       };
     }
-    function resolveVerificationRouting(state) {
+    var VERIFICATION_ROUTE_ORDER = Object.freeze({ skip: 0, light: 1, full: 2 });
+    function getRouteRank(route) {
+      return Object.prototype.hasOwnProperty.call(VERIFICATION_ROUTE_ORDER, route) ? VERIFICATION_ROUTE_ORDER[route] : -1;
+    }
+    function normalizeVerificationRoute(route) {
+      if (typeof route !== "string") return null;
+      const normalized = route.trim();
+      return Object.prototype.hasOwnProperty.call(VERIFICATION_ROUTE_ORDER, normalized) ? normalized : null;
+    }
+    function normalizeVerificationReason(reason) {
+      return typeof reason === "string" && reason.trim() ? reason.trim() : null;
+    }
+    function classifyVerificationChangeSet(filesModified) {
+      const files = Array.isArray(filesModified) ? filesModified.filter((file) => typeof file === "string" && file.trim()).map((file) => file.trim()) : [];
+      const classes = /* @__PURE__ */ new Set();
+      for (const file of files) {
+        if (/^(bin\/bgsd-tools\.cjs|plugin\.js)$/.test(file)) {
+          classes.add("generated-runtime");
+          continue;
+        }
+        if (/^src\/plugin\//.test(file)) {
+          classes.add("plugin");
+          continue;
+        }
+        if (/^(src\/|\.planning\/(STATE|ROADMAP)\.md$)/.test(file)) {
+          classes.add(file.startsWith(".planning/") ? "shared-state" : "runtime");
+          continue;
+        }
+        if (/^(workflows\/|templates\/)/.test(file)) {
+          classes.add("workflow-template");
+          continue;
+        }
+        if (/^(docs\/|references\/|commands\/).*\.md$/.test(file) || /^README\.md$/.test(file)) {
+          classes.add("docs-guidance");
+          continue;
+        }
+        if (/^tests\//.test(file)) {
+          classes.add("tests");
+        }
+      }
+      return { files, change_classes: Array.from(classes) };
+    }
+    function getDefaultVerificationRoute(state) {
       const {
         task_count = 0,
         files_modified_count = 0,
-        has_test_command = true,
-        verifier_enabled = true
+        files_modified
       } = state || {};
-      if (!verifier_enabled) {
-        return { value: "skip", confidence: "HIGH", rule_id: "verification-routing" };
+      const { files, change_classes } = classifyVerificationChangeSet(files_modified);
+      const classes = new Set(change_classes);
+      if (classes.has("runtime") || classes.has("shared-state") || classes.has("plugin")) {
+        return {
+          route: "full",
+          reason: "runtime, shared-state, and plugin-facing work defaults to full proof",
+          change_classes,
+          files
+        };
+      }
+      if (classes.has("generated-runtime")) {
+        if (classes.has("workflow-template") || classes.has("docs-guidance")) {
+          return {
+            route: classes.has("workflow-template") ? "light" : "skip",
+            reason: "generated artifacts follow the paired low-risk source or guidance surface when explicitly kept below full",
+            change_classes,
+            files
+          };
+        }
+        return {
+          route: "full",
+          reason: "generated runtime artifacts without lower-risk source context default to full proof",
+          change_classes,
+          files
+        };
+      }
+      if (classes.has("workflow-template")) {
+        return {
+          route: "light",
+          reason: "workflow and template guidance defaults to focused proof instead of broad regression",
+          change_classes,
+          files
+        };
+      }
+      if (classes.has("docs-guidance")) {
+        return {
+          route: "skip",
+          reason: "docs and guidance-only slices default to structural proof only",
+          change_classes,
+          files
+        };
+      }
+      if (files.length > 0) {
+        return {
+          route: "light",
+          reason: "non-runtime implementation slices default to focused proof",
+          change_classes,
+          files
+        };
       }
       if (task_count <= 2 && files_modified_count <= 4) {
-        return { value: "light", confidence: "HIGH", rule_id: "verification-routing" };
+        return {
+          route: "light",
+          reason: "fallback heuristic keeps small slices on focused proof",
+          change_classes,
+          files
+        };
       }
-      return { value: "full", confidence: "HIGH", rule_id: "verification-routing" };
+      return {
+        route: "full",
+        reason: "fallback heuristic escalates broader slices to full proof",
+        change_classes,
+        files
+      };
+    }
+    function getRequiredProofForRoute(route) {
+      if (route === "skip") {
+        return {
+          structural_proof: "required",
+          behavior_proof: "not required",
+          regression_proof: "not required",
+          human_verification: "not required"
+        };
+      }
+      if (route === "light") {
+        return {
+          structural_proof: "required",
+          behavior_proof: "required",
+          regression_proof: "smoke",
+          human_verification: "not required"
+        };
+      }
+      return {
+        structural_proof: "required",
+        behavior_proof: "required",
+        regression_proof: "broad",
+        human_verification: "not required"
+      };
+    }
+    function resolveVerificationRouting(state) {
+      const {
+        verifier_enabled = true,
+        verification_route,
+        verification_route_reason
+      } = state || {};
+      if (!verifier_enabled) {
+        return {
+          value: "skip",
+          confidence: "HIGH",
+          rule_id: "verification-routing",
+          metadata: {
+            route_source: "verifier-disabled",
+            default_route: "skip",
+            default_reason: "verifier is disabled, so no extra verification is required",
+            required_proof: getRequiredProofForRoute("skip"),
+            change_classes: [],
+            downgrade: null
+          }
+        };
+      }
+      const defaultDecision = getDefaultVerificationRoute(state);
+      const explicitRoute = normalizeVerificationRoute(verification_route);
+      const explicitReason = normalizeVerificationReason(verification_route_reason);
+      let selectedRoute = defaultDecision.route;
+      let routeSource = "default";
+      let downgrade = null;
+      if (explicitRoute) {
+        const explicitRank = getRouteRank(explicitRoute);
+        const defaultRank = getRouteRank(defaultDecision.route);
+        if (explicitRank >= defaultRank) {
+          selectedRoute = explicitRoute;
+          routeSource = "explicit";
+        } else if (explicitReason) {
+          selectedRoute = explicitRoute;
+          routeSource = "explicit-downgrade";
+          downgrade = {
+            from: defaultDecision.route,
+            to: explicitRoute,
+            reason: explicitReason,
+            justified: true
+          };
+        } else {
+          downgrade = {
+            from: defaultDecision.route,
+            to: explicitRoute,
+            reason: null,
+            justified: false,
+            missing_reason: true
+          };
+        }
+      }
+      return {
+        value: selectedRoute,
+        confidence: "HIGH",
+        rule_id: "verification-routing",
+        metadata: {
+          route_source: routeSource,
+          default_route: defaultDecision.route,
+          default_reason: defaultDecision.reason,
+          required_proof: getRequiredProofForRoute(selectedRoute),
+          change_classes: defaultDecision.change_classes,
+          files_considered: defaultDecision.files,
+          downgrade
+        }
+      };
     }
     function resolveResearchGate(state) {
       const {
@@ -7364,8 +7553,8 @@ var require_decision_rules = __commonJS({
         id: "verification-routing",
         name: "Verification Routing",
         category: "workflow-routing",
-        description: "Determines full, light, or skip verification based on plan complexity",
-        inputs: ["task_count", "files_modified_count", "has_test_command", "verifier_enabled"],
+        description: "Determines full, light, or skip verification from explicit risk policy inputs",
+        inputs: ["files_modified", "verification_route", "verification_route_reason", "task_count", "files_modified_count", "verifier_enabled"],
         outputs: ["full|light|skip"],
         confidence_range: ["HIGH"],
         resolve: resolveVerificationRouting
@@ -9025,7 +9214,14 @@ function enrichCommand(input, output, cwd) {
         if (incompletePlan && incompletePlan.frontmatter) {
           const filesModified = incompletePlan.frontmatter.files_modified;
           if (Array.isArray(filesModified)) {
+            enrichment.files_modified = filesModified;
             enrichment.files_modified_count = filesModified.length;
+          }
+          if (typeof incompletePlan.frontmatter.verification_route === "string") {
+            enrichment.verification_route = incompletePlan.frontmatter.verification_route;
+          }
+          if (typeof incompletePlan.frontmatter.verification_route_reason === "string") {
+            enrichment.verification_route_reason = incompletePlan.frontmatter.verification_route_reason;
           }
         }
         if (incompletePlan && incompletePlan.tasks) {
@@ -9163,6 +9359,13 @@ function enrichCommand(input, output, cwd) {
         enrichment.selected_profile = modelDecision.selected_profile || modelDecision.profile || enrichment.selected_profile;
         enrichment.resolved_model = modelDecision.resolved_model || modelDecision.model || enrichment.resolved_model;
         enrichment.source = modelDecision.source || enrichment.source;
+      }
+      const verificationDecision = decisions["verification-routing"];
+      if (verificationDecision) {
+        enrichment.verification_route = verificationDecision.value;
+        enrichment.verification_default_reason = verificationDecision.metadata?.default_reason || null;
+        enrichment.verification_required_proof = verificationDecision.metadata?.required_proof || null;
+        enrichment.verification_downgrade = verificationDecision.metadata?.downgrade || null;
       }
     }
   } catch {

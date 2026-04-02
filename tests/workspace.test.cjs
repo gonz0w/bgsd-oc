@@ -126,6 +126,8 @@ describe('workspace commands', () => {
     assert.strictEqual(reconcileData.mode, 'preview');
     assert.strictEqual(reconcileData.workspace.name, '155-02');
     assert.strictEqual(reconcileData.status, 'healthy');
+    assert.ok(reconcileData.result_manifest, 'reconcile should expose result manifest metadata');
+    assert.strictEqual(reconcileData.result_manifest.shared_planning_violation.status, 'none');
     assert.ok(Array.isArray(reconcileData.diagnostics.op_log));
     assert.strictEqual(reconcileData.recovery_preview, null);
   });

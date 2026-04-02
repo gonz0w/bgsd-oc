@@ -18,7 +18,7 @@ Read STATE.md before starting.
 <step name="initialize" priority="first">
 <skill:bgsd-context-init />
 
-Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `verification_route` (from `decisions.verification-routing.value`), `commit_docs`, `pre_flight_validation`, `workspace_enabled`, `workspace_config`, `workspace_active`, `file_overlaps`, `handoff_tool_context`, `capability_level` (from `handoff_tool_context.capability_level`, may be `UNKNOWN`), `resume_summary`.
+Parse `<bgsd-context>` JSON for: `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `parallelization`, `branching_strategy`, `branch_name`, `executor_model`, `verifier_model`, `verification_route` (from `decisions.verification-routing.value`), `verification_required_proof`, `verification_default_reason`, `verification_downgrade`, `commit_docs`, `pre_flight_validation`, `workspace_enabled`, `workspace_config`, `workspace_active`, `file_overlaps`, `handoff_tool_context`, `capability_level` (from `handoff_tool_context.capability_level`, may be `UNKNOWN`), `resume_summary`.
 
 **`phase_number` is the authoritative phase — it comes from the user's argument as resolved by the bGSD plugin. Never infer or auto-select a different phase.**
 
@@ -144,7 +144,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
   f. Spawn in workspace dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{workspace_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
   g. Monitor each workspace independently: check `{workspace_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`, track commit/summary status per workspace, and keep the plan → workspace mapping visible in wave reporting.
   h. Wait. Separate healthy/successful workspaces from failed or recovery-needed workspaces. Report partial-wave outcomes honestly instead of collapsing the whole wave into one success/failure bit.
-  i. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace, use the returned status/recovery preview to reconcile healthy workspaces immediately, and leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
+  i. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace. The returned status/recovery preview stays diagnostic only: reconcile healthy workspaces immediately in preview form, but workspace reconcile remains preview-only and must surface a normalized `result_manifest` with summary/proof paths, inspection guidance, and shared-planning violation classification. Keep summary-first inspection by default, require direct proof review for major completion claims or risky runtime/shared-state work, auto-repair only the first clearly containable shared-planning write, and quarantine repeated or serious violations before any finalize path can promote shared planning truth. Leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
   j. Cleanup: keep failed or divergent workspaces during recovery work, and only let `workspace cleanup` remove obsolete failed workspaces after successful phase completion confirms they are no longer needed.
 
 **Mode B: Standard execution** (workspace disabled OR single-plan OR no parallelization)
@@ -162,7 +162,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
     prompt="
       <objective>
       Execute plan {plan_number} of phase {phase_number}-{phase_name}.
-      Commit each task atomically. Create SUMMARY.md. Update STATE.md and ROADMAP.md.
+      Commit each task atomically. Create SUMMARY.md. In workspace mode, keep shared planning updates behind finalize instead of mutating STATE.md or ROADMAP.md directly.
       </objective>
 
       <execution_context>
@@ -172,7 +172,9 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
       Load tdd.md only if plan type is 'tdd'.
       </execution_context>
 
-      Verification route: {verification_route}. Apply it as: `skip` = no extra broad-suite reruns beyond explicit plan checks, `light` = focused verification only, `full` = one broad regression gate at plan end or overall verification, never per edit.
+      Verification route: {verification_route}. Apply it as: `skip` = structural proof only, `light` = named focused proof plus smoke regression, `full` = named focused proof plus one broad regression gate at plan end or overall verification.
+
+      Use the normalized proof bundle as the source of truth: behavior proof, regression proof, and human verification buckets must report `required` versus `not required` honestly instead of inferring proof scope from plan size.
 
       If focused verification needs test execution, prefer explicit `node --test <file>...` file lists or direct smoke scripts over `npm test --test-name-pattern`. If a broad gate is already red from unrelated legacy failures, record that baseline separately from the touched-slice proof.
 
@@ -324,9 +326,11 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit "docs(phase-{
 <step name="offer_next">
 If `gaps_found`: skip (verify_phase_goal already presented gap-closure path).
 
-**Auto-advance** (`--auto` OR `config-get workflow.auto_advance` true, AND verification passed): read and follow `transition.md` inline, passing `--auto`.
+If verification passed: read and follow `transition.md` inline as part of `/bgsd-execute-phase`.
 
-**Otherwise:** Workflow ends. User runs `/bgsd-inspect progress` or invokes transition manually. `transition.md` now includes an advisory lessons review block that surfaces recent lesson captures plus `lessons:suggest` optimization guidance before the next-phase handoff.
+Do not surface a separate transition command. Keep the user in the same execute-phase flow unless transition itself hits a destructive confirmation or milestone-routing decision that still needs user input.
+
+`transition.md` still includes the advisory lessons review block before the next-phase handoff, and its own auto-advance behavior still controls whether the next phase planning step chains forward automatically.
 </step>
 <!-- /section -->
 

@@ -309,12 +309,15 @@ function cmdWorkspaceReconcile(cwd, target, raw) {
     mode: 'preview',
     workspace: inspected,
     status: inspected.status,
+    result_manifest: inspected.result_manifest,
     diagnostics: inspected.diagnostics,
     recovery_allowed: inspected.recovery_allowed,
     recovery_preview: inspected.recovery_preview,
     message: inspected.recovery_needed
       ? 'Preview only: inspect the JJ-backed diagnostics and recovery proposal before choosing any mutation.'
-      : 'Workspace is healthy. No recovery action is required.',
+      : inspected.result_manifest?.quarantine
+        ? 'Preview only: inspect the quarantined workspace result manifest before finalize.'
+        : 'Preview only: workspace reconcile remains preview-only; inspect the summary first and review direct proof for major completion claims or risky runtime/shared-state work.',
   }, raw);
 }
 

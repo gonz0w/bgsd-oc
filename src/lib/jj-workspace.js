@@ -2,10 +2,20 @@
 
 const fs = require('fs');
 const path = require('path');
+const { extractFrontmatter } = require('./frontmatter');
 const { execJj } = require('./jj');
 
 const OP_LOG_LIMIT = 5;
 const WORKSPACE_FALLBACK_REASON = 'workspace proof missing or mismatched before work start';
+const SHARED_PLANNING_FILES = [
+  '.planning/STATE.md',
+  '.planning/ROADMAP.md',
+  '.planning/REQUIREMENTS.md',
+];
+
+function toPosixPath(targetPath) {
+  return String(targetPath || '').split(path.sep).join('/');
+}
 
 function comparablePath(targetPath) {
   if (!targetPath) return null;
@@ -78,6 +88,150 @@ function parseOpLogEntries(stdout) {
       };
     })
     .filter((entry) => entry.id);
+}
+
+function parseStatusPaths(stdout) {
+  return String(stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .map((line) => line.match(/^[AMDRC?]\s+(.+)$/))
+    .filter(Boolean)
+    .map((match) => toPosixPath(match[1].trim()));
+}
+
+function findPlanFile(workspaceRoot, planId) {
+  const phasesDir = path.join(workspaceRoot, '.planning', 'phases');
+  if (!fs.existsSync(phasesDir)) return null;
+
+  for (const entry of fs.readdirSync(phasesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const candidate = path.join(phasesDir, entry.name, `${planId}-PLAN.md`);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function findLocalArtifact(workspaceRoot, planId, suffix) {
+  const phasesDir = path.join(workspaceRoot, '.planning', 'phases');
+  if (!fs.existsSync(phasesDir)) return null;
+
+  for (const entry of fs.readdirSync(phasesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const candidate = path.join(phasesDir, entry.name, `${planId}${suffix}`);
+    if (fs.existsSync(candidate)) {
+      return toPosixPath(path.relative(workspaceRoot, candidate));
+    }
+  }
+
+  return null;
+}
+
+function getPlanMetadata(workspaceRoot, planId) {
+  const planPath = findPlanFile(workspaceRoot, planId);
+  if (!planPath) return null;
+
+  try {
+    const content = fs.readFileSync(planPath, 'utf-8');
+    const frontmatter = extractFrontmatter(content);
+    return {
+      plan_path: toPosixPath(path.relative(workspaceRoot, planPath)),
+      verification_route: String(frontmatter.verification_route || 'skip'),
+      files_modified: Array.isArray(frontmatter.files_modified) ? frontmatter.files_modified : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getProofBuckets(verificationRoute) {
+  if (verificationRoute === 'light' || verificationRoute === 'full') {
+    return {
+      behavior: 'required',
+      regression: 'required',
+      human: 'not required',
+    };
+  }
+
+  return {
+    behavior: 'not required',
+    regression: 'not required',
+    human: 'not required',
+  };
+}
+
+function claimsMajorCompletion(summaryPath, workspaceRoot) {
+  if (!summaryPath) return false;
+  try {
+    const content = fs.readFileSync(path.join(workspaceRoot, summaryPath), 'utf-8');
+    return /phase complete|milestone complete|all tasks done|major completion/i.test(content);
+  } catch {
+    return false;
+  }
+}
+
+function isRiskySurface(filePath) {
+  return /^(src\/|bin\/|plugin\.js$|workflows\/|\.planning\/(STATE|ROADMAP|REQUIREMENTS)\.md$)/.test(filePath);
+}
+
+function getInspectionLevel(planMetadata, summaryPath, workspaceRoot) {
+  const filesModified = planMetadata?.files_modified || [];
+  const verificationRoute = planMetadata?.verification_route || 'skip';
+  const risky = verificationRoute === 'full' || filesModified.some((filePath) => isRiskySurface(String(filePath)));
+  return risky || claimsMajorCompletion(summaryPath, workspaceRoot) ? 'direct-proof' : 'summary-first';
+}
+
+function classifySharedPlanningViolation(changedPaths) {
+  const files = SHARED_PLANNING_FILES.filter((filePath) => changedPaths.includes(filePath));
+  if (files.length === 0) {
+    return {
+      status: 'none',
+      files: [],
+      quarantine: false,
+      repair_candidate: false,
+      summary: 'No direct shared planning writes detected.',
+    };
+  }
+
+  if (files.length === 1) {
+    return {
+      status: 'repairable',
+      files,
+      quarantine: false,
+      repair_candidate: true,
+      summary: 'First clearly containable shared-planning write detected; repair before finalize.',
+    };
+  }
+
+  return {
+    status: 'quarantine',
+    files,
+    quarantine: true,
+    repair_candidate: false,
+    summary: 'Repeated or serious shared-planning writes detected; quarantine before finalize.',
+  };
+}
+
+function createResultManifest(workspace, statusOutput) {
+  const planMetadata = workspace.path && workspace.plan_id ? getPlanMetadata(workspace.path, workspace.plan_id) : null;
+  const summaryPath = workspace.path && workspace.plan_id ? findLocalArtifact(workspace.path, workspace.plan_id, '-SUMMARY.md') : null;
+  const tddAuditPath = workspace.path && workspace.plan_id ? findLocalArtifact(workspace.path, workspace.plan_id, '-TDD-AUDIT.json') : null;
+  const changedPaths = parseStatusPaths(statusOutput);
+  const sharedPlanningViolation = classifySharedPlanningViolation(changedPaths);
+
+  return {
+    plan_id: workspace.plan_id || null,
+    workspace_name: workspace.name,
+    workspace_root: workspace.path,
+    plan_path: planMetadata?.plan_path || null,
+    summary_path: summaryPath,
+    proof_path: tddAuditPath,
+    verification_route: planMetadata?.verification_route || 'skip',
+    proof_buckets: getProofBuckets(planMetadata?.verification_route || 'skip'),
+    inspection_level: getInspectionLevel(planMetadata, summaryPath, workspace.path),
+    shared_planning_violation: sharedPlanningViolation,
+    quarantine: sharedPlanningViolation.quarantine,
+  };
 }
 
 function createRecoveryPreview(workspace, status, statusResult) {
@@ -223,6 +377,7 @@ function inspectWorkspace(workspace) {
     recovery_needed: status !== 'healthy',
     recovery_allowed: status === 'stale',
     diagnostics,
+    result_manifest: createResultManifest(workspace, statusOutput),
     recovery_preview: createRecoveryPreview(workspace, status, statusResult),
   };
 }
@@ -231,5 +386,6 @@ module.exports = {
   collectWorkspaceProof,
   comparablePath,
   inspectWorkspace,
+  SHARED_PLANNING_FILES,
   WORKSPACE_FALLBACK_REASON,
 };

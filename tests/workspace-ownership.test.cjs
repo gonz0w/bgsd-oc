@@ -47,6 +47,7 @@ describe('workspace result ownership', () => {
     writePlan(tmpDir, '155-02', 'full', ['src/lib/jj-workspace.js']);
 
     const workspace = createManagedWorkspace(tmpDir, '155-02');
+    writePlan(workspace.path, '155-02', 'full', ['src/lib/jj-workspace.js']);
     const phaseDir = path.join(workspace.path, '.planning', 'phases', '155-jj-workspaces');
     const summaryRelPath = '.planning/phases/155-jj-workspaces/155-02-SUMMARY.md';
     fs.mkdirSync(phaseDir, { recursive: true });
@@ -73,6 +74,7 @@ describe('workspace result ownership', () => {
     writePlan(tmpDir, '155-02', 'skip', ['templates/summary.md']);
 
     const workspace = createManagedWorkspace(tmpDir, '155-02');
+    writePlan(workspace.path, '155-02', 'skip', ['templates/summary.md']);
     fs.writeFileSync(path.join(workspace.path, '.planning', 'STATE.md'), '# local change\n');
 
     const reconcile = JSON.parse(runGsdToolsInRepo('workspace reconcile 155-02', tmpDir).output);
@@ -91,6 +93,7 @@ describe('workspace result ownership', () => {
     writePlan(tmpDir, '155-02', 'light', ['workflows/execute-plan.md']);
 
     const workspace = createManagedWorkspace(tmpDir, '155-02');
+    writePlan(workspace.path, '155-02', 'light', ['workflows/execute-plan.md']);
     fs.writeFileSync(path.join(workspace.path, '.planning', 'STATE.md'), '# state change\n');
     fs.writeFileSync(path.join(workspace.path, '.planning', 'ROADMAP.md'), '# roadmap change\n');
 

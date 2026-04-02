@@ -125,6 +125,8 @@ When workspace mode is active, the executor's current repo root is the assigned 
 
 Do not create `SUMMARY.md`, workspace proof sidecars, or other plan-local artifacts until workspace proof status is known. After proof succeeds, keep those artifacts inside the assigned workspace checkout while workspace mode remains active.
 
+When workspace mode is active, the executor contract forbids shared planning mutations before finalize. Do not update shared `.planning/STATE.md`, `.planning/ROADMAP.md`, or `.planning/REQUIREMENTS.md` during workspace execution. Treat the first clearly containable shared-planning write as a recorded repair candidate, and require that repeated or serious violations escalate to quarantine before finalize is allowed to promote anything.
+
 **Pre-computed decision:** If `decisions.previous-check-gate` in `<bgsd-context>`, use `.value` (proceed/warn/block). Else: if previous SUMMARY has unresolved issues/blockers, ask proceed/address/review.
 </step>
 
