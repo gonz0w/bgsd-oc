@@ -39,14 +39,14 @@ describe('execute:finalize-plan', () => {
     fs.writeFileSync(path.join(repoDir, '.planning', 'phases', '183-plan-local-workspace-ownership', '183-02-PLAN.md'), `---\nphase: 183-plan-local-workspace-ownership\nplan: 02\nverification_route: full\nrequirements:\n  - JJ-02\n  - FIN-01\nfiles_modified:\n  - src/commands/misc/finalize.js\n  - src/router.js\n---\n`);
   }
 
-  function writeWavePlanningFiles(repoDir) {
+  function writeWavePlanningFiles(repoDir, planIds = ['184-01', '184-02', '184-03']) {
     const phaseDir = path.join(repoDir, '.planning', 'phases', '184-deterministic-finalize-partial-wave-recovery');
     fs.mkdirSync(phaseDir, { recursive: true });
     fs.writeFileSync(path.join(repoDir, '.planning', 'STATE.md'), `# Project State\n\n## Current Position\n\n**Phase:** 184 of 186 (Deterministic Finalize & Partial-Wave Recovery)\n**Current Plan:** 1\n**Total Plans in Phase:** 3\n**Plan:** 184-01 — Recovery\n**Status:** In progress\n**Current focus:** Phase 184 — Deterministic Finalize & Partial-Wave Recovery plan 01 of 03\n**Last Activity:** 2026-04-01\n\n**Progress:** [░░░░░░░░░░] 0%\n\n## Performance Metrics\n\n**Velocity:**\n- Total plans completed: 0\n- Average duration: -\n- Total execution time: 0 hours\n\n**By Phase:**\n\n| Phase | Plans | Total | Avg/Plan |\n|-------|-------|-------|----------|\n| - | - | - | - |\n\n## Accumulated Context\n\n### Decisions\n\nNone yet.\n\n### Blockers/Concerns\n\nNone yet.\n\n## Session Continuity\n\n**Last session:** 2026-04-01\n**Stopped at:** Phase 184 plan work\n**Resume file:** None\n`);
-    fs.writeFileSync(path.join(repoDir, '.planning', 'ROADMAP.md'), `# Roadmap: Test\n\n## Phases\n\n- [ ] **Phase 184: Deterministic Finalize & Partial-Wave Recovery**\n\n### Phase 184: Deterministic Finalize & Partial-Wave Recovery\n**Goal:** Finalize shared planning state deterministically across wave siblings\n**Depends on:** Phase 183\n**Requirements:** FIN-02, FIN-03, FIN-04\n**Plans:** 0/3 plans executed\n\n## Progress\n\n| Phase | Plans Complete | Status | Completed |\n|-------|----------------|--------|-----------|\n| 184. Deterministic Finalize & Partial-Wave Recovery | 0/3 | In Progress |  |\n`);
+    fs.writeFileSync(path.join(repoDir, '.planning', 'ROADMAP.md'), `# Roadmap: Test\n\n## Phases\n\n- [ ] **Phase 184: Deterministic Finalize & Partial-Wave Recovery**\n\n### Phase 184: Deterministic Finalize & Partial-Wave Recovery\n**Goal:** Finalize shared planning state deterministically across wave siblings\n**Depends on:** Phase 183\n**Requirements:** FIN-02, FIN-03, FIN-04\n**Plans:** 0/${planIds.length} plans executed\n\n## Progress\n\n| Phase | Plans Complete | Status | Completed |\n|-------|----------------|--------|-----------|\n| 184. Deterministic Finalize & Partial-Wave Recovery | 0/${planIds.length} | In Progress |  |\n`);
     fs.writeFileSync(path.join(repoDir, '.planning', 'REQUIREMENTS.md'), `# Requirements\n\n- [ ] **FIN-02**: Healthy sibling workspaces can reconcile and report useful status even when another workspace in the same wave fails, goes stale, or needs recovery\n- [ ] **FIN-03**: Final shared planning state is deterministic regardless of the order in which healthy workspaces finish or are finalized\n- [ ] **FIN-04**: System preserves inspectable recovery metadata when a workspace becomes stale, divergent, or finalize fails partway through\n\n## Traceability\n\n| Requirement | Phase | Status | Test Command |\n|-------------|-------|--------|--------------|\n| FIN-02 | Phase 184 | Pending | TBD |\n| FIN-03 | Phase 184 | Pending | TBD |\n| FIN-04 | Phase 184 | Pending | TBD |\n`);
 
-    for (const planId of ['184-01', '184-02', '184-03']) {
+    for (const planId of planIds) {
       fs.writeFileSync(path.join(phaseDir, `${planId}-PLAN.md`), `---\nphase: 184-deterministic-finalize-partial-wave-recovery\nplan: ${planId.split('-')[1]}\nwave: 2\nverification_route: full\nrequirements:\n  - FIN-02\n  - FIN-03\n  - FIN-04\nfiles_modified:\n  - src/commands/misc/finalize.js\n  - src/router.js\n  - tests/finalize.test.cjs\n---\n`);
     }
   }
@@ -75,7 +75,8 @@ describe('execute:finalize-plan', () => {
 
   function snapshotSharedPlanning(repoDir) {
     return {
-      state: fs.readFileSync(path.join(repoDir, '.planning', 'STATE.md'), 'utf-8'),
+      state: fs.readFileSync(path.join(repoDir, '.planning', 'STATE.md'), 'utf-8')
+        .replace(/\*\*Last session:\*\* .*\n/, '**Last session:** <normalized>\n'),
       roadmap: fs.readFileSync(path.join(repoDir, '.planning', 'ROADMAP.md'), 'utf-8'),
       requirements: fs.readFileSync(path.join(repoDir, '.planning', 'REQUIREMENTS.md'), 'utf-8'),
     };
@@ -165,8 +166,8 @@ describe('execute:finalize-plan', () => {
       fs.rmSync(secondProject.workspaceBase, { recursive: true, force: true });
     });
 
-    writeWavePlanningFiles(firstProject.tmpDir);
-    writeWavePlanningFiles(secondProject.tmpDir);
+    writeWavePlanningFiles(firstProject.tmpDir, ['184-01', '184-02']);
+    writeWavePlanningFiles(secondProject.tmpDir, ['184-01', '184-02']);
 
     for (const planId of ['184-02', '184-01']) {
       const workspace = createManagedWorkspace(firstProject.tmpDir, planId);
@@ -201,6 +202,8 @@ describe('execute:finalize-plan', () => {
     tmpDir = project.tmpDir;
     workspaceBase = project.workspaceBase;
     writeWavePlanningFiles(tmpDir);
+    execSync('jj status', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('jj commit -m "wave setup"', { cwd: tmpDir, stdio: 'pipe' });
 
     const first = createManagedWorkspace(tmpDir, '184-01');
     const second = createManagedWorkspace(tmpDir, '184-02');

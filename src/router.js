@@ -606,6 +606,8 @@ Use without --exact for fuzzy matching.`);
           lazyMisc().cmdTdd(cwd, tddSub, tddArgs, raw);
         } else if (subcommand === 'finalize-plan') {
           lazyMisc().cmdExecuteFinalizePlan(cwd, restArgs[0], raw);
+        } else if (subcommand === 'finalize-wave') {
+          lazyMisc().cmdExecuteFinalizeWave(cwd, restArgs, raw);
         } else if (subcommand === 'test-run') {
           lazyFeatures().cmdTestRun(cwd, raw);
         } else if (subcommand === 'trajectory') {
