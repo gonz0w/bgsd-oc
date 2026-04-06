@@ -853,5 +853,65 @@
     "affected_agents": [
       "bgsd-roadmapper"
     ]
+  },
+  {
+    "id": "dfde746e-dfd5-45c0-badc-38d3497ff12b",
+    "date": "2026-04-06T00:58:20.576Z",
+    "title": "Verify feature existence in source before treating requirements as ground truth for non-existence claims",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Phase research spent time confirming requirements from docs when the source code (grep + read) directly answers 'does X exist?' questions faster",
+    "prevention_rule": "For feature-gap research phases, check source existence first (grep for command names, function names) before deep-reading requirements traceability. Source is authoritative for 'does X exist?'; requirements are authoritative for 'what should exist?'",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "0fe31d08-9a3e-44ba-a601-1233f06d65d1",
+    "date": "2026-04-06T01:04:39.618Z",
+    "title": "key_links: greenfield plans should use empty array, not new-artifact names",
+    "severity": "MEDIUM",
+    "type": "agent-behavior",
+    "root_cause": "The key_links metadata contract expects cross-file connection tokens (existing symbols being wired). For greenfield work where ALL items in key_links are NEW artifacts being created by the plan, the verifier returns 'no actionable entries' because none of the entries exist in the current codebase yet.",
+    "prevention_rule": "For greenfield plans: use key_links: [] (empty array) and let must_haves.artifacts capture the new artifacts. Reserve key_links for plans that wire existing files/modules together (e.g., a plan that connects two pre-existing modules). Also add verification_route_reason whenever lowering from default verification_route.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "8520df8a-347a-4f36-9dab-a3205b85ccc3",
+    "date": "2026-04-06T01:12:09.378Z",
+    "title": "Include source routing files, not bundled artifacts, in files_modified when adding CLI commands",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "When adding CLI command wiring, the plan's files_modified listed src/commands/workflow.js but omitted src/router.js where the switch/case routing lives. The bundled bin/bgsd-tools.cjs is generated from source, so source files must be listed.",
+    "prevention_rule": "When a plan adds CLI command wiring: (1) include the source file with the command implementation in files_modified, (2) include the source router file (src/router.js) that contains the case block for that namespace, (3) only mention the bundled CLI as an 'after build' artifact if genuinely relevant.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "19ac0503-c27b-42e0-b4bd-ed94dfbc4c7c",
+    "date": "2026-04-06T01:16:24.611Z",
+    "title": "key_links field requires structured from/to/via/pattern format, not plain text",
+    "severity": "MEDIUM",
+    "type": "tooling",
+    "root_cause": "The PLAN.md template shows key_links: [] as a placeholder, but the verify:verify plan-structure validator requires structured entries with from, to, via, and pattern fields. Plain text strings in key_links are rejected as 'not actionable' even when semantically correct.",
+    "prevention_rule": "When adding key_links, use the structured format visible in existing plans (e.g., 80-01-PLAN.md): - from: source file or module, - to: destination file or resource, - via: function/constant/pattern name, - pattern: regex or identifier that proves the connection. Never use freeform text strings.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "6d6f0a99-4635-44b2-90be-6415d3ef8358",
+    "date": "2026-04-06T01:21:46.636Z",
+    "title": "analyze-plan unavailable-validation-step false positive with cross-plan verify dependencies",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "analyze-plan evaluates verify commands at plan-creation time in isolation, unable to reason that Plan 01 will have already modified workflow.js before Plan 02's Task 3 verify runs. The analyzer flags require('./src/commands/workflow.js') as unavailable even though the file exists and is listed in files_modified — this is a false positive for cross-plan sequential dependencies.",
+    "prevention_rule": "When a task verify requires a module that is modified by a prior plan (cross-plan dependency in verify), the inline node require will always trigger unavailable-validation-step. To work around: (1) accept the false positive if the module is clearly in files_modified and the inter-plan sequencing is correct, or (2) refactor the verify to avoid inline requires by writing a temp test script to disk first.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
   }
 ]

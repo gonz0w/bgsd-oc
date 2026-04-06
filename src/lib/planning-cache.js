@@ -22,6 +22,9 @@
 
 const fs = require('fs');
 
+// TTL for computed values: 10 minutes (stress-tested hybrid value)
+const COMPUTED_TTL_MS = 10 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // PlanningCache class
 // ---------------------------------------------------------------------------
@@ -91,6 +94,48 @@ class PlanningCache {
   }
 
   /**
+   * Get a cached computed value if fresh (TTL not expired).
+   * @param {string} key - Computed value key (e.g., "classifyTaskComplexity:<hash>")
+   * @returns {object|null} Cached value or null if missing/stale
+   */
+  getComputedValue(key) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt(
+        'cv_get',
+        'SELECT value_json, ttl_ms FROM computed_values WHERE key = ?'
+      ).get(key);
+      if (!row) return null;
+      if (Date.now() > row.ttl_ms) {
+        // Expired — delete and return null
+        this._stmt('cv_del', 'DELETE FROM computed_values WHERE key = ?').run(key);
+        return null;
+      }
+      return JSON.parse(row.value_json);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Store a computed value with TTL.
+   * @param {string} key
+   * @param {object} value
+   * @param {number} ttlMs - TTL in milliseconds (default: 10min)
+   */
+  setComputedValue(key, value, ttlMs = COMPUTED_TTL_MS) {
+    if (this._isMap()) return;
+    try {
+      this._stmt(
+        'cv_upsert',
+        'INSERT OR REPLACE INTO computed_values (key, value_json, ttl_ms, created_at) VALUES (?, ?, ?, ?)'
+      ).run(key, JSON.stringify(value), Date.now() + ttlMs, new Date().toISOString());
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  /**
    * Store the current mtime of a file in file_cache.
    *
    * @param {string} filePath
@@ -110,18 +155,64 @@ class PlanningCache {
   }
 
   /**
+   * Bulk freshness check in a SINGLE SQLite transaction.
+   * Returns files categorized by freshness status.
+   *
+   * @param {string[]} filePaths
+   * @returns {{ fresh: string[], stale: string[], missing: string[] }}
+   */
+  batchCheckFreshness(filePaths) {
+    const result = { fresh: [], stale: [], missing: [] };
+    if (this._isMap()) {
+      for (const fp of filePaths) result.missing.push(fp);
+      return result;
+    }
+    if (filePaths.length === 0) return result;
+
+    try {
+      this._db.exec('BEGIN');
+      // Single SELECT with IN clause — one SQLite call
+      const placeholders = filePaths.map(() => '?').join(',');
+      const rows = this._db.prepare(
+        `SELECT file_path, mtime_ms FROM file_cache WHERE file_path IN (${placeholders})`
+      ).all(...filePaths);
+      const rowMap = {};
+      for (const row of rows) rowMap[row.file_path] = row.mtime_ms;
+
+      for (const fp of filePaths) {
+        const cachedMtime = rowMap[fp];
+        if (cachedMtime === undefined) {
+          result.missing.push(fp);
+          continue;
+        }
+        try {
+          const currentMtime = fs.statSync(fp).mtimeMs;
+          if (currentMtime === cachedMtime) result.fresh.push(fp);
+          else result.stale.push(fp);
+        } catch {
+          result.missing.push(fp);
+        }
+      }
+      this._db.exec('COMMIT');
+    } catch {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      // Fallback to per-file on transaction failure
+      for (const fp of filePaths) {
+        const status = this.checkFreshness(fp);
+        result[status].push(fp);
+      }
+    }
+    return result;
+  }
+
+  /**
    * Bulk freshness check for multiple files.
    *
    * @param {string[]} filePaths
    * @returns {{ fresh: string[], stale: string[], missing: string[] }}
    */
   checkAllFreshness(filePaths) {
-    const result = { fresh: [], stale: [], missing: [] };
-    for (const fp of filePaths) {
-      const status = this.checkFreshness(fp);
-      result[status].push(fp);
-    }
-    return result;
+    return this.batchCheckFreshness(filePaths);
   }
 
   /**

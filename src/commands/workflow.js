@@ -4,6 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { output, error, debugLog } = require('../lib/output');
 
+// Path for ACCEL baseline output (Phase 201 measurement requirement)
+const ACCEL_BASELINE_PATH = '.planning/research/ACCEL-BASELINE.json';
+
 // Lazy-load measureAllWorkflows from features.js to avoid circular deps
 function getMeasureAllWorkflows() {
   return require('./features').measureAllWorkflows;
@@ -152,6 +155,13 @@ function cmdWorkflowBaseline(cwd, raw) {
   const baselineFile = `workflow-baseline-${ts}.json`;
   const baselinePath = path.join(baselinesDir, baselineFile);
   fs.writeFileSync(baselinePath, JSON.stringify(snapshot, null, 2), 'utf-8');
+
+  // Also save ACCEL-BASELINE.json for Phase 201 measurement requirement (ACCEL-01)
+  const researchDir = path.join(cwd, '.planning', 'research');
+  if (!fs.existsSync(researchDir)) {
+    fs.mkdirSync(researchDir, { recursive: true });
+  }
+  fs.writeFileSync(path.join(cwd, ACCEL_BASELINE_PATH), JSON.stringify(snapshot, null, 2), 'utf-8');
 
   // Print human-readable table to stderr
   const maxNameLen = Math.max(30, ...snapshot.workflows.map(w => w.name.length));
