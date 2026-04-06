@@ -9,10 +9,10 @@ Requirements for v19.4 Workflow Acceleration II + TDD Reliability. Each maps to 
 
 ### Workflow Acceleration
 
-- [ ] **ACCEL-01**: `/bgsd-deliver-phase --fresh-step-context` pipeline works end-to-end — each step runs in fresh context, reads from snapshot+handoff, writes compact output, clears context, chains to next step
-- [ ] **ACCEL-02**: Stop points at checkpoints and interactive decisions are preserved through the full deliver-phase chain
-- [ ] **ACCEL-03**: JJ workspace proof gate remains mandatory on all deliver-phase paths — never bypassed by --fast or acceleration flags
-- [ ] **ACCEL-04**: Fresh-context chaining works after `/clear` — session can be cleared mid-chain and resumed from disk truth
+- [x] **ACCEL-01**: `/bgsd-deliver-phase --fresh-step-context` pipeline works end-to-end — each step runs in fresh context, reads from snapshot+handoff, writes compact output, clears context, chains to next step
+- [x] **ACCEL-02**: Stop points at checkpoints and interactive decisions are preserved through the full deliver-phase chain
+- [x] **ACCEL-03**: JJ workspace proof gate remains mandatory on all deliver-phase paths — never bypassed by --fast or acceleration flags
+- [x] **ACCEL-04**: Fresh-context chaining works after `/clear` — session can be cleared mid-chain and resumed from disk truth
 
 ### TDD Reliability
 
@@ -69,10 +69,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status | Notes |
 |-------------|-------|--------|-------|
-| ACCEL-01 | Phase 207 | Pending | Fresh-context chaining pipeline |
-| ACCEL-02 | Phase 207 | Pending | Checkpoint preservation |
-| ACCEL-03 | Phase 207 | Pending | JJ proof gate mandatory |
-| ACCEL-04 | Phase 207 | Pending | /clear-safe resumption |
+| ACCEL-01 | Phase 207 | Complete | Fresh-context chaining pipeline |
+| ACCEL-02 | Phase 207 | Complete | Checkpoint preservation |
+| ACCEL-03 | Phase 207 | Complete | JJ proof gate mandatory |
+| ACCEL-04 | Phase 207 | Complete | /clear-safe resumption |
 | TDD-01 | Phase 206 | Complete | RED gate semantic validation |
 | TDD-02 | Phase 209 | Pending | GREEN gate semantic validation |
 | TDD-03 | Phase 209 | Pending | REFACTOR gate semantic validation |
