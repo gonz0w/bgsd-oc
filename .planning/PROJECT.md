@@ -12,23 +12,23 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current Milestone
 
-**Current milestone:** v19.3 Workflow Acceleration
-**Goal:** Accelerate workflow execution through smarter routing, reduced redundancy, and faster feedback loops.
+**Current milestone:** v19.4 Workflow Acceleration II + TDD Reliability
+**Goal:** Continue workflow acceleration from v19.3 and address TDD reliability follow-up items.
 **Target features:**
-- Workflow hot-path optimization with faster task routing
-- Reduced I/O overhead through better caching and batching
-- Parallel workflow stages where dependencies allow
+- Further workflow hot-path optimization building on v19.3
+- TDD reliability hardening following up on earlier work
+- Continued I/O overhead reduction and parallel execution improvements
 
 ## Milestone Status
 
-**Current milestone:** v19.3 Workflow Acceleration
-**Last completed milestone:** v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX
-**Next step:** Define requirements, create roadmap, and start Phase 201 planning
+**Current milestone:** v19.4 Workflow Acceleration II + TDD Reliability
+**Last completed milestone:** v19.3 Workflow Acceleration
+**Next step:** Review intent, define requirements, create roadmap
 
 ## Current State
 
-**Last shipped:** v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX (2026-04-05)
-**Now planning:** v19.3 Workflow Acceleration
+**Last shipped:** v19.3 Workflow Acceleration (2026-04-06)
+**Now planning:** v19.4 Workflow Acceleration II + TDD Reliability
 
 <details>
 <summary>Latest shipment: v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing (shipped 2026-04-02)</summary>
@@ -602,4 +602,4 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 - ~~Node.js 18+ minimum~~ — Raised to 22.5+ in v11.x for node:sqlite support
 
 ---
-*Last updated: 2026-04-02 after starting milestone v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX*
+*Last updated: 2026-04-06 after starting milestone v19.4 Workflow Acceleration II + TDD Reliability*
