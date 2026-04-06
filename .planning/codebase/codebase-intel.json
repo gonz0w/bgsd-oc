@@ -10808,6 +10808,7 @@
         "src/lib/helpers.js",
         "src/lib/frontmatter.js",
         "src/lib/git.js",
+        "src/lib/plan-metadata.js",
         "src/commands/verify/quality.js",
         "src/commands/verify/search.js"
       ],
@@ -11784,6 +11785,7 @@
         "src/commands/scaffold.js",
         "src/commands/verify/health.js",
         "src/commands/verify/quality.js",
+        "src/commands/verify/references.js",
         "tests/plan-metadata-contract.test.cjs"
       ],
       "src/lib/cli-tools/fallback.js": [
@@ -12334,12 +12336,12 @@
     },
     "stats": {
       "total_files_parsed": 304,
-      "total_edges": 690,
+      "total_edges": 691,
       "languages_parsed": [
         "javascript"
       ],
       "parse_errors": 0
     },
-    "built_at": "2026-04-06T19:30:43.565Z"
+    "built_at": "2026-04-06T20:40:30.563Z"
   }
 }

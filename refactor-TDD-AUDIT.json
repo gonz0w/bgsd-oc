@@ -1,13 +1,13 @@
 {
   "stage": "refactor",
-  "command": "exit 0",
-  "exitCode": 0,
+  "command": "exit 1",
+  "exitCode": 1,
   "stdout": "",
   "stderr": "",
-  "passed": true,
+  "passed": false,
   "testCount": null,
-  "prevCount": 1,
-  "countUnchanged": false,
-  "timestamp": "2026-04-06T19:58:23.405Z",
+  "prevCount": null,
+  "countUnchanged": true,
+  "timestamp": "2026-04-06T20:40:40.020Z",
   "gsd_phase": "refactor"
 }

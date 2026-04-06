@@ -120,3 +120,12 @@
 {"function":"classifyTaskComplexity","key":"2110662118","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T19:30:56.507Z"}
 {"function":"classifyTaskComplexity","key":"403030576","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T19:30:57.853Z"}
 {"function":"classifyTaskComplexity","key":"2127075","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T19:30:57.853Z"}
+{"function":"routeTask","key":"2051803206","profile":"balanced","model":"gpt-5.4-mini","agent":"bgsd-executor","timestamp":"2026-04-06T20:41:03.960Z"}
+{"function":"routeTask","key":"704520882","profile":"quality","model":"gpt-5.4","agent":"bgsd-executor","timestamp":"2026-04-06T20:41:03.966Z"}
+{"function":"routeTask","key":"704520882","profile":"quality","model":"gpt-5.5-preview","agent":"bgsd-executor","timestamp":"2026-04-06T20:41:03.966Z"}
+{"function":"classifyTaskComplexity","key":"402661758","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T20:41:14.420Z"}
+{"function":"classifyTaskComplexity","key":"158711384","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T20:41:14.420Z"}
+{"function":"classifyTaskComplexity","key":"1589968655","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T20:41:23.706Z"}
+{"function":"classifyTaskComplexity","key":"2110662118","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T20:41:23.707Z"}
+{"function":"classifyTaskComplexity","key":"403030576","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T20:41:30.147Z"}
+{"function":"classifyTaskComplexity","key":"2127075","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T20:41:30.148Z"}

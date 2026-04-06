@@ -12,32 +12,33 @@ Manage and deliver high-quality software with high-quality documentation, while 
 
 ## Current Milestone
 
-**Current milestone:** v19.4 Workflow Acceleration II + TDD Reliability
-**Goal:** Continue workflow acceleration from v19.3 and address TDD reliability follow-up items.
+**Current milestone:** v19.5 (not yet started)
+**Goal:** TBD
 **Target features:**
-- Further workflow hot-path optimization building on v19.3
-- TDD reliability hardening following up on earlier work
-- Continued I/O overhead reduction and parallel execution improvements
+- TBD
 
 ## Milestone Status
 
-**Current milestone:** v19.4 Workflow Acceleration II + TDD Reliability
-**Last completed milestone:** v19.3 Workflow Acceleration
-**Next step:** Review intent, define requirements, create roadmap
+**Current milestone:** v19.5 (not yet started)
+**Last completed milestone:** v19.4 Workflow Acceleration II + TDD Reliability
+**Next step:** Define v19.5 intent and requirements
 
 ## Current State
 
-**Last shipped:** v19.3 Workflow Acceleration (2026-04-06)
-**Now planning:** v19.4 Workflow Acceleration II + TDD Reliability
+**Last shipped:** v19.4 Workflow Acceleration II + TDD Reliability (2026-04-06)
+**Now planning:** v19.5
 
 <details>
-<summary>Latest shipment: v19.0 Workspace Execution, cmux Coordination & Risk-Based Testing (shipped 2026-04-02)</summary>
+<summary>Latest shipment: v19.4 Workflow Acceleration II + TDD Reliability (shipped 2026-04-06)</summary>
 
-- JJ workspace mode now requires a real `workspace prove` triple-match gate before plan work starts and falls back safely to sequential execution when proof is missing
-- Shared `.planning/` truth now moves only through trusted finalize paths, with deterministic wave promotion, staged-ready sibling handling, and durable recovery metadata
-- `cmux` refresh work now flows through one debounced, bounded, fail-open backbone, and lifecycle state, progress treatment, logs, and attention signals all reuse the same shared snapshot
-- Verification routing now carries explicit `verification_route` metadata through planning, execution, and verifier/report surfaces with separate behavior, regression, and human-proof buckets
-- Phase 182 acceptance is now backed by formal verification evidence instead of summary-only claims, closing the v19.0 milestone blocker state
+- Production `execute:tdd validate-red/green/refactor` with semantic failure detection and E2E fixture proving RED→GREEN→REFACTOR cycle
+- `/bgsd-deliver-phase --fresh-step-context` CLI orchestrator with JJ proof gate, fresh-context chaining, and disk-based handoff for resume
+- TDD audit sidecar wired into handoff inventory with narrative proof rendering and continuity validation
+- TDD gate hardening with planning-time validate-tdd-plan, mtime+size fast path, and semantic diff fallback
+- TDD mutex namespace in PlanningCache with serial cache warm and bounded parallel fan-out
+- TDD rationale extraction from PLAN.md frontmatter rendered as TDD Decision section before audit trail
+- runTddVerify implementation with child_process spawn for TDD stage validation via execute:tdd CLI
+- All 17 v19.4 requirements satisfied (ACCEL-01→04, TDD-01→08, REGR-01→08)
 
 </details>
 
@@ -430,6 +431,14 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 - ✓ Milestone, phase, and effective-intent cascade across planning and verification surfaces — v17.0
 - ✓ Explicit phase-intent blocks and separate intent-alignment verdicts in verifier and UAT flows — v17.0
 - ✓ Shared no-guess legacy phase-intent fallback parity between source and bundled runtime — v17.0
+- ✓ `execute:tdd validate-red/green/refactor` with semantic failure detection and E2E fixture — v19.4
+- ✓ `/bgsd-deliver-phase --fresh-step-context` with JJ proof gate and disk-based handoff — v19.4
+- ✓ TDD audit sidecar wired into handoff inventory with narrative proof rendering — v19.4
+- ✓ validate-tdd-plan planning-time gate, mtime+size fast path, countUnchanged for REFACTOR — v19.4
+- ✓ TDD mutex namespace in PlanningCache with serial cache warm and bounded parallel fan-out — v19.4
+- ✓ tdd_rationale extraction and TDD Decision section rendering before audit trail — v19.4
+- ✓ runTddVerify implementation with child_process spawn for TDD stage validation — v19.4
+- ✓ Deployed CLI parity (DEV and installed builds identical) — v19.4
 
 ### Backlog Seeds
 
@@ -460,7 +469,7 @@ See `.planning/MILESTONES.md` for full history of v1.0 through v8.2.
 
 ## Context
 
-Shipped v1.0 through v15.0. 1677 tests (all passing), 52 src/ modules, esbuild bundler.
+Shipped v1.0 through v19.4. 762+ tests, 52 src/ modules, esbuild bundler.
 Platform: OC (host editor).
 Tech stack: Node.js >= 22.5 (required for `node:sqlite` caching), node:test, esbuild, tokenx (bundled), acorn (bundled).
 Source: 52 modules — `src/lib/` and `src/commands/` + router + index.
@@ -571,6 +580,10 @@ Known tech debt: `node:sqlite` is Stability 1.2 (Release Candidate).
 | Shared planning state stays finalize-only from trusted main-checkout state | Parallel workspace output needed one writer for `STATE.md`, `ROADMAP.md`, and `REQUIREMENTS.md` | Good — finalize now owns canonical promotion and recovery |
 | Wave recovery must preserve healthy sibling progress behind blockers | Partial-wave failure should not force healthy work to be re-executed or hidden | Good — staged-ready inventory, canonical recovery summaries, and `execute:finalize-wave` reruns are now first-class |
 | Verification cost should follow blast radius with explicit route metadata | Runtime/plugin/shared-state work needed stronger proof while lighter slices needed proportionate checks | Good — `verification_route` plus bucketed proof reporting now stay visible across plan, execute, and verify surfaces |
+| Bounded parallel fan-out needs real TDD verification | runTddVerify placeholder was returning verified:true without actual verification | Good — runTddVerify now spawns execute:tdd validate-red/green/refactor CLI commands |
+| TDD gate hardening requires planning-time structure validation | TDD-02/03/04/07/08 needed validate-tdd-plan at planning-time plus enhanced green/refactor gates | Good — validate-tdd-plan, mtime+size fast path, and countUnchanged now part of TDD contract |
+| Fresh-context chaining needs disk-based handoff artifacts | /clear mid-chain was breaking resume because state lived in session memory | Good — deliver-phase --fresh-step-context uses spawnSync with disk-based handoff |
+| TDD rationale needs to surface in plan output and summaries | TDD rationale was only in human memory, not in plan frontmatter or summary rendering | Good — tdd_rationale field now extracted and rendered before audit trail |
 
 ---
 

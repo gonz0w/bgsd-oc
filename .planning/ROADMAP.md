@@ -4,7 +4,7 @@
 
 - ✅ **v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX** - Phases 188-200 (shipped 2026-04-05)
 - ✅ **v19.3 Workflow Acceleration** - Phases 201-205 (shipped 2026-04-06)
-- 🚧 **v19.4 Workflow Acceleration II + TDD Reliability** - Phases 206-214 (in progress)
+- ✅ **v19.4 Workflow Acceleration II + TDD Reliability** - Phases 206-214 (shipped 2026-04-06)
 
 ## Overview
 

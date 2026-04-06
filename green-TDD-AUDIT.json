@@ -1,13 +1,13 @@
 {
   "stage": "green",
-  "command": "exit 0",
-  "exitCode": 0,
+  "command": "exit 1",
+  "exitCode": 1,
   "stdout": "",
   "stderr": "",
-  "passed": true,
+  "passed": false,
   "testFileUnmodified": true,
   "method": "none",
   "testCount": null,
-  "timestamp": "2026-04-06T19:58:09.967Z",
+  "timestamp": "2026-04-06T20:40:39.313Z",
   "gsd_phase": "green"
 }
