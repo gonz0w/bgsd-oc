@@ -589,6 +589,7 @@ Use without --exact for fuzzy matching.`);
           const tddSub = restArgs[0];
           const tddTestCmdIdx = restArgs.indexOf('--test-cmd');
           const tddTestFileIdx = restArgs.indexOf('--test-file');
+          const tddPrevCountIdx = restArgs.indexOf('--prev-count');
           const tddPhaseIdx = restArgs.indexOf('--phase');
           const tddPlanIdx = restArgs.indexOf('--plan');
           const tddStageIdx = restArgs.indexOf('--stage');
@@ -597,6 +598,7 @@ Use without --exact for fuzzy matching.`);
           const tddArgs = {
             'test-cmd': tddTestCmdIdx !== -1 ? restArgs[tddTestCmdIdx + 1] : null,
             'test-file': tddTestFileIdx !== -1 ? restArgs[tddTestFileIdx + 1] : null,
+            'prev-count': tddPrevCountIdx !== -1 ? restArgs[tddPrevCountIdx + 1] : null,
             phase: tddPhaseIdx !== -1 ? restArgs[tddPhaseIdx + 1] : null,
             plan: tddPlanIdx !== -1 ? restArgs[tddPlanIdx + 1] : null,
             stage: tddStageIdx !== -1 ? restArgs[tddStageIdx + 1] : null,
