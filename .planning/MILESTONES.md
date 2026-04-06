@@ -931,3 +931,25 @@
 
 ---
 
+
+## v19.3 Workflow Acceleration (Shipped: 2026-04-06)
+
+**Phases completed:** 5 phases, 13 plans, 0 tasks
+
+**Key accomplishments:**
+- Measurement infrastructure: telemetryLog hooks in orchestration, TTL-computed cache in PlanningCache, batchCheckFreshness transaction, and ACCEL-BASELINE.json output
+- --fast flag in discuss-phase, --batch N in verify-work, and workflow:hotpath telemetry command
+- Mutex-protected PlanningCache entries with Atomics+SharedArrayBuffer CAS primitives for safe concurrent cache access during parallel stage execution
+- Kahn topological sort with cycle detection and wave assignment in resolvePhaseDependencies
+- JJ workspace proof gate preservation and Promise.all fan-in parallel coordination added to execute-phase.md
+- Batch transaction API for non-sacred state mutations with sacred data protection
+- Wired verify:state validate regression gate after batched writes and npm run build smoke test after phase completion
+- CLI contract validation with util:validate-commands --raw wired into execute-phase after routing changes
+- Wired canBatch routing and storeSessionBundleBatch into cmdStateCompletePlan for non-sacred state mutations
+- Added --dry-run output to cmdStateCompletePlan showing batch path selection based on canBatch
+- Verified end-to-end flow from execute-plan workflow to batch state API via verify:state complete-plan routing
+- Wired enrichment.phases to fire resolvePhaseDependencies and routed Kahn waves into parallel execution context
+- Kahn wave routing and mutex-protected cache access wired into fanInParallelSpawns
+
+---
+
