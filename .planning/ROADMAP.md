@@ -18,8 +18,8 @@ v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The m
 - [x] **Phase 209: TDD Gate Hardening** (completed 2026-04-06) - Implement TDD plan structure verification and Phase B/C gate semantics; extends execute:tdd beyond exit-code checks
 - [x] **Phase 210: Parallel TDD Safety** (completed 2026-04-06) - Add mutex protection for TDD cache keys; enables safe parallel TDD verification stages
 - [x] **Phase 211: TDD Gate Hardening Execution** (completed 2026-04-06) - Execute Phase 209 plans to close TDD-02/03/04/07/08 requirements
-- [ ] **Phase 212: TDD Rationale Visibility** - Implement TDD rationale visibility (Selected/Skipped surfacing) for Phase 208
-- [ ] **Phase 213: Phase 206 Deployment Fix** - Deploy updated CLI to fix installed CLI mismatch
+- [x] **Phase 212: TDD Rationale Visibility** - Implement TDD rationale visibility (Selected/Skipped surfacing) for Phase 208 (completed 2026-04-06)
+- [x] **Phase 213: Phase 206 Deployment Fix** - Deploy updated CLI to fix installed CLI mismatch (completed 2026-04-06)
 - [ ] **Phase 214: runTddVerify Implementation** - Replace runTddVerify placeholder with actual verification logic
 
 ## Phase Details
@@ -115,8 +115,8 @@ v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The m
 | 209. TDD Gate Hardening | 1/1 | Complete | 2026-04-06 |
 | 210. Parallel TDD Safety | 1/1 | Complete    | 2026-04-06 |
 | 211. TDD Gate Hardening Execution | 1/1 | Complete    | 2026-04-06 |
-| 212. TDD Rationale Visibility | 0/1 | Planned | - |
-| 213. Phase 206 Deployment Fix | 0/1 | Planned | - |
+| 212. TDD Rationale Visibility | 0/1 | Complete    | 2026-04-06 |
+| 213. Phase 206 Deployment Fix | 0/1 | Complete    | 2026-04-06 |
 | 214. runTddVerify Implementation | 0/1 | Planned | - |
 
 ---
