@@ -12,7 +12,7 @@ v19.3 accelerates workflow execution through measurement-grounded caching, fast-
 ## Phases
 
 - [x] **Phase 201: Measurement Foundation & Fast Commands** - Establish baseline telemetry, TTL-backed routing cache, batch freshness checks, and --fast/--batch hot-path commands (completed 2026-04-06)
-- [ ] **Phase 202: Parallelization Safety** - Mutex-protected cache entries, Kahn sort verification, preserved JJ proof gate, and Promise.all fan-in coordination
+- [ ] **Phase 202: Parallelization Safety** - Mutex-protected cache entries, Kahn sort verification, preserved JJ proof gate, and Promise.all fan-in coordination (3 plans)
 - [ ] **Phase 203: State Mutation Safety** - verify:state validate wired after batched writes, batch transaction support, sacred data never batched
 
 ## Phase Details
@@ -40,7 +40,7 @@ v19.3 accelerates workflow execution through measurement-grounded caching, fast-
   2. `resolvePhaseDependencies` Kahn topological sort verification confirms correct parallel wave ordering before dispatch
   3. JJ workspace proof gate is preserved on all accelerated parallel paths — the proof check may be optimized but is never bypassed
   4. `Promise.all` fan-in coordinates independent workflow stage execution using `child_process.spawn` without corrupting shared state
-**Plans**: TBD
+**Plans**: 3/3 planned
 
 ### Phase 203: State Mutation Safety
 **Goal**: Batched state writes are validated by regression checks and never interleave with sacred data mutations
@@ -59,7 +59,7 @@ v19.3 accelerates workflow execution through measurement-grounded caching, fast-
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 201. Measurement Foundation & Fast Commands | 2/2 | Complete    | 2026-04-06 |
-| 202. Parallelization Safety | 0/TBD | Not started | - |
+| 202. Parallelization Safety | 0/3 | In planning | - |
 | 203. State Mutation Safety | 0/TBD | Not started | - |
 
 ---
