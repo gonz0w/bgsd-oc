@@ -226,18 +226,25 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
 
   // Check 2: Spot-check files mentioned in summary
   const mentionedFiles = new Set();
-  const patterns = [
-    /`([^`]+\.[a-zA-Z]+)`/g,
-    /(?:Created|Modified|Added|Updated|Edited):\s*`?([^\s`]+\.[a-zA-Z]+)`?/gi,
-  ];
+  // Pattern 1: Only match actual file paths (starting with ./ ../ or /) not command strings
+  // Commands like `npm run test -- tests/foo.test.cjs` won't match because they don't start with ./ ../ or /
+  const pathPattern = /`(\.\/[^`]+|\.\.\/[^`]+|\/[^`]+)`/g;
+  // Pattern 2: Handle Created/Modified/Added/Updated/Edited: `path` format
+  const createdPattern = /(?:Created|Modified|Added|Updated|Edited):\s*`([^`]+)`/gi;
 
-  for (const pattern of patterns) {
-    let m;
-    while ((m = pattern.exec(content)) !== null) {
-      const filePath = m[1];
-      if (filePath && !filePath.startsWith('http') && filePath.includes('/')) {
-        mentionedFiles.add(filePath);
-      }
+  let m;
+  while ((m = pathPattern.exec(content)) !== null) {
+    const filePath = m[1];
+    // Already validated by pattern - only paths starting with ./ ../ or / reach here
+    if (filePath && !filePath.includes(' ') && !filePath.includes('|') && !filePath.includes('&')) {
+      mentionedFiles.add(filePath);
+    }
+  }
+
+  while ((m = createdPattern.exec(content)) !== null) {
+    const filePath = m[1];
+    if (filePath && !filePath.startsWith('http') && filePath.includes('/')) {
+      mentionedFiles.add(filePath);
     }
   }
 
