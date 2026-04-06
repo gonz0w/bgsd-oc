@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "timestamp": "2026-04-06T14:49:05.296Z",
-  "workflow_count": 47,
-  "total_tokens": 81486,
+  "timestamp": "2026-04-06T17:16:42.411Z",
+  "workflow_count": 48,
+  "total_tokens": 82742,
   "workflows": [
     {
       "name": "execute-phase.md",
@@ -865,6 +865,38 @@
         "task_calls": [],
         "cli_commands": [],
         "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "deliver-phase.md",
+      "workflow_tokens": 1256,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1256,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "'bin/bgsd-tools.cjs', `${step}-phase`, phase",
+          "'bin/bgsd-tools.cjs', 'verify:state', 'handoff', 'write',",
+          "'bin/bgsd-tools.cjs', 'verify:state', 'handoff', 'write',",
+          "node bin/bgsd-tools.cjs <command>",
+          "javascript\n   const { spawnSync } = require('child_process');\n   const result = spawnSync('node', [\n     'bin/bgsd-tools.cjs',",
+          "javascript\n   if (result.status === 'checkpoint') {\n     // Write checkpoint state to handoff for resume\n     spawnSync('node', [\n       'bin/bgsd-tools.cjs', 'verify:state', 'handoff', 'write',\n       '--phase', phase, '--step', step,\n       '--summary',",
+          "javascript\n   spawnSync('node', [\n     'bin/bgsd-tools.cjs', 'verify:state', 'handoff', 'write',\n     '--phase', phase, '--step', step,\n     '--summary',"
+        ],
+        "section_markers": [
+          "purpose",
+          "initialize",
+          "proof_gate",
+          "discover_handoff",
+          "chain_steps",
+          "complete"
+        ],
         "question_blocks": [],
         "xml_tags": [
           "purpose",

@@ -210,6 +210,8 @@ Examples:
 
 function cmdTdd(cwd, subcommand, parsedArgs, raw) {
   switch (subcommand) {
+    case 'validate-tdd-plan':
+      return validateTddPlan(cwd, parsedArgs, raw);
     case 'validate-red':
       return validateRed(cwd, parsedArgs, raw);
     case 'validate-green':
@@ -298,6 +300,144 @@ function getTestCount(stdout, stderr) {
   }
   
   return null;
+}
+
+function parsePlanFile(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) {
+    return {};
+  }
+  
+  const frontmatter = {};
+  const lines = match[1].split('\n');
+  let currentKey = null;
+  let currentValue = [];
+  
+  for (const line of lines) {
+    const keyMatch = line.match(/^(\w+):\s*(.*)$/);
+    if (keyMatch) {
+      if (currentKey) {
+        frontmatter[currentKey] = currentValue.join(' ').trim();
+      }
+      currentKey = keyMatch[1];
+      currentValue = [keyMatch[2]];
+    } else if (line.match(/^\s+-\s+/)) {
+      currentValue.push(line.replace(/^\s+-\s+/, ''));
+    } else if (currentKey) {
+      currentValue.push(line);
+    }
+  }
+  
+  if (currentKey) {
+    frontmatter[currentKey] = currentValue.join(' ').trim();
+  }
+  
+  return frontmatter;
+}
+
+function validateStepSequence(steps) {
+  if (!steps || (Array.isArray(steps) && steps.length === 0)) {
+    return { valid: false, error: 'Steps array is empty or missing' };
+  }
+  
+  let stepStr = steps;
+  if (Array.isArray(steps)) {
+    stepStr = steps.join(',');
+  }
+  
+  const lower = stepStr.toLowerCase();
+  const hasRed = /\bred\b/.test(lower);
+  const hasGreen = /\bgreen\b/.test(lower);
+  const hasRefactor = /\brefactor\b/.test(lower);
+  
+  if (!hasRed) {
+    return { valid: false, error: 'RED step is required' };
+  }
+  
+  if (!hasGreen) {
+    return { valid: false, error: 'GREEN step is required' };
+  }
+  
+  const redMatch = lower.match(/\bred\b/);
+  const greenMatch = lower.match(/\bgreen\b/);
+  const refactorMatch = lower.match(/\brefactor\b/);
+  
+  if (redMatch && greenMatch && redMatch.index >= greenMatch.index) {
+    return { valid: false, error: 'RED must come before GREEN' };
+  }
+  
+  if (hasRefactor && greenMatch && refactorMatch && greenMatch.index >= refactorMatch.index) {
+    return { valid: false, error: 'GREEN must come before REFACTOR' };
+  }
+  
+  return { valid: true, error: null };
+}
+
+function validateTddPlanStructure(planPath) {
+  const errors = [];
+  
+  let content;
+  try {
+    content = fs.readFileSync(planPath, 'utf8');
+  } catch (e) {
+    return { valid: false, errors: [`Could not read plan file: ${e.message}`] };
+  }
+  
+  const frontmatter = parsePlanFile(content);
+  
+  if (!frontmatter.type || frontmatter.type !== 'tdd') {
+    return { valid: true, errors: [], skipped: true, reason: 'Not a type:tdd plan' };
+  }
+  
+  const hasImplFiles = frontmatter.impl_files || frontmatter.files || frontmatter.files_modified;
+  if (!hasImplFiles) {
+    errors.push('Missing required field: impl_files, files, or files_modified');
+  }
+  
+  if (frontmatter.steps) {
+    const stepValidation = validateStepSequence(frontmatter.steps);
+    if (!stepValidation.valid) {
+      errors.push(`Step sequence error: ${stepValidation.error}`);
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+function validateTddPlan(cwd, args, raw) {
+  let planFile = null;
+  
+  if (args && typeof args === 'object') {
+    planFile = args['plan-file'] || args['planFile'] || null;
+  }
+  
+  if (!planFile) {
+    const idx = (Array.isArray(args) ? args : []).indexOf('--plan-file');
+    if (idx !== -1 && args[idx + 1]) {
+      planFile = args[idx + 1];
+    }
+  }
+  
+  if (!planFile) {
+    output({ error: 'Missing --plan-file argument' }, raw);
+    return;
+  }
+  
+  const planPath = path.isAbsolute(planFile) ? planFile : path.join(cwd, planFile);
+  const result = validateTddPlanStructure(planPath);
+  
+  const proof = {
+    stage: 'validate-tdd-plan',
+    planFile,
+    ...result,
+    timestamp: new Date().toISOString(),
+  };
+  
+  writeAuditFile('validate-tdd-plan', proof);
+  output(proof, raw);
 }
 
 function isSemanticFailure(stdout, stderr) {
@@ -433,20 +573,20 @@ function validateGreen(cwd, args, raw) {
   }
   
   const testFile = parseTestFile(args);
-  let testFileMtimeBefore = null;
-  let testFileMtimeAfter = null;
+  let fileMetaBefore = null;
+  let fileContentBefore = null;
   
-  // Record test file mtime before running (if provided)
   if (testFile) {
     try {
-      const stats = fs.statSync(path.join(cwd, testFile));
-      testFileMtimeBefore = stats.mtime.getTime();
+      const fullPath = path.join(cwd, testFile);
+      const stats = fs.statSync(fullPath);
+      fileMetaBefore = { mtime: stats.mtime.getTime(), size: stats.size };
+      fileContentBefore = fs.readFileSync(fullPath, 'utf8');
     } catch (e) {
       // File doesn't exist
     }
   }
   
-  // Run the test command
   const result = spawnSync(testCmd, {
     cwd,
     encoding: 'utf-8',
@@ -458,18 +598,38 @@ function validateGreen(cwd, args, raw) {
   const stdout = result.stdout || '';
   const stderr = result.stderr || '';
   
-  // Record test file mtime after running (if provided)
-  if (testFile && testFileMtimeBefore !== null) {
+  let testFileUnmodified = fileMetaBefore === null;
+  let method = 'none';
+  
+  if (testFile && fileMetaBefore !== null) {
     try {
-      const stats = fs.statSync(path.join(cwd, testFile));
-      testFileMtimeAfter = stats.mtime.getTime();
+      const fullPath = path.join(cwd, testFile);
+      const stats = fs.statSync(fullPath);
+      const fileMetaAfter = { mtime: stats.mtime.getTime(), size: stats.size };
+      
+      if (fileMetaBefore.mtime === fileMetaAfter.mtime && fileMetaBefore.size === fileMetaAfter.size) {
+        testFileUnmodified = true;
+        method = 'mtime+size';
+      } else {
+        const fileContentAfter = fs.readFileSync(fullPath, 'utf8');
+        const normalizedBefore = fileContentBefore.replace(/\s+$/gm, '').replace(/\r\n/g, '\n');
+        const normalizedAfter = fileContentAfter.replace(/\s+$/gm, '').replace(/\r\n/g, '\n');
+        
+        if (normalizedBefore === normalizedAfter) {
+          testFileUnmodified = true;
+          method = 'semantic-diff';
+        } else {
+          testFileUnmodified = false;
+          method = 'semantic-diff';
+        }
+      }
     } catch (e) {
-      // File doesn't exist
+      testFileUnmodified = false;
+      method = 'error';
     }
   }
   
   const passed = exitCode === 0;
-  const testFileUnmodified = testFileMtimeBefore === null || testFileMtimeAfter === testFileMtimeBefore;
   
   const proof = {
     stage: 'green',
@@ -479,6 +639,7 @@ function validateGreen(cwd, args, raw) {
     stderr: stderr.substring(0, 500),
     passed,
     testFileUnmodified,
+    method,
     testCount: getTestCount(stdout, stderr),
     timestamp: new Date().toISOString(),
   };

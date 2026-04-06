@@ -613,6 +613,7 @@ Use without --exact for fuzzy matching.`);
           const tddStageIdx = restArgs.indexOf('--stage');
           const tddProofIdx = restArgs.indexOf('--proof');
           const tddFilesIdx = restArgs.indexOf('--files');
+          const tddPlanFileIdx = restArgs.indexOf('--plan-file');
           const tddArgs = {
             'test-cmd': tddTestCmdIdx !== -1 ? restArgs[tddTestCmdIdx + 1] : null,
             'test-file': tddTestFileIdx !== -1 ? restArgs[tddTestFileIdx + 1] : null,
@@ -622,6 +623,7 @@ Use without --exact for fuzzy matching.`);
             stage: tddStageIdx !== -1 ? restArgs[tddStageIdx + 1] : null,
             proof: tddProofIdx !== -1 ? restArgs[tddProofIdx + 1] : null,
             files: tddFilesIdx !== -1 ? restArgs[tddFilesIdx + 1] : null,
+            'plan-file': tddPlanFileIdx !== -1 ? restArgs[tddPlanFileIdx + 1] : null,
           };
           lazyMisc().cmdTdd(cwd, tddSub, tddArgs, raw);
         } else if (subcommand === 'finalize-plan') {

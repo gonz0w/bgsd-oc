@@ -950,5 +950,42 @@
       "bgsd-verifier",
       "bgsd-executor"
     ]
+  },
+  {
+    "id": "94f43ab5-8952-4eec-a31c-cbc158a5a718",
+    "date": "2026-04-06T15:45:05.938Z",
+    "title": "Router command additions require build step before verification",
+    "severity": "MEDIUM",
+    "type": "workflow",
+    "root_cause": "Router modifications (lazy loader, namespace registration, switch case) require npm run build to be bundled into bin/bgsd-tools.cjs before verification commands will reflect the changes.",
+    "prevention_rule": "After modifying router.js to add a new command namespace, always run npm run build before running verification commands that test the new command.",
+    "affected_agents": [
+      "bgsd-executor",
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "50e499bc-24fb-4ea3-85d6-38d0d40b1a06",
+    "date": "2026-04-06T15:48:39.766Z",
+    "title": "Verify must_haves key_links format before finalizing plans",
+    "severity": "LOW",
+    "type": "agent-behavior",
+    "root_cause": "When adding key_links to must_haves, I used freeform text which failed verification. The verifier requires structured format with from/to/via/pattern fields. I discovered this by trial and error.",
+    "prevention_rule": "Before writing must_haves key_links, look at existing plans with non-empty key_links to understand the expected format. Phase 115-01 has good examples.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
+  },
+  {
+    "id": "3978e8dc-65b4-4604-b385-599c310cb733",
+    "date": "2026-04-06T17:08:19.100Z",
+    "title": "Plan verify commands and prior-phase fixture dependencies",
+    "severity": "MEDIUM",
+    "type": "agent-behavior",
+    "root_cause": "When a plan's tasks verify against fixtures from completed phases (e.g., Phase 206), the analyze-plan tool flags them as unavailable because they're not created by the current plan. The tool is correct to flag this - verify commands should either validate within the plan's scope or depend on comprehensive E2E tests for cross-phase validation.",
+    "prevention_rule": "For plans building on prior-phase artifacts: use inline verification in individual tasks (e.g., 'node -e script' that doesn't depend on external files), and rely on a dedicated E2E test (created as the final task) to provide comprehensive validation that exercises cross-phase dependencies. This avoids false positives from conservative fixture tracking while still providing thorough verification.",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
   }
 ]
