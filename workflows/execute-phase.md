@@ -125,6 +125,84 @@ Use `┌─`/`├─`/`└─` for parallel, `──` for single-plan waves. Ski
 </step>
 <!-- /section -->
 
+<!-- section: parallel_proof_gate -->
+<step name="parallel_proof_gate">
+**PARALLEL-03: JJ Workspace Proof Gate (optimized, never bypassed)**
+
+Add constants and helper function at the top of the process section, after the parallelization section header:
+
+```javascript
+const PROOF_CACHE_TTL_MS = 30_000; // Proof valid within single wave dispatch
+const { collectWorkspaceProof } = require('../src/lib/jj-workspace');
+let _cachedProof = null;
+let _cachedProofTime = 0;
+
+function getWorkspaceProof(cwd, workspaceName) {
+  const now = Date.now();
+  if (_cachedProof && (now - _cachedProofTime) < PROOF_CACHE_TTL_MS) {
+    return _cachedProof;
+  }
+  // Fresh proof check — uses collectWorkspaceProof from jj-workspace.js
+  _cachedProof = collectWorkspaceProof(cwd, workspaceName);
+  _cachedProofTime = now;
+  return _cachedProof;
+}
+```
+
+This helper caches the workspace proof for 30 seconds within a wave dispatch. The proof check itself is never removed or short-circuited — only the cache TTL is optimized for performance within a single wave.
+
+<!-- section: parallel_fan_in -->
+async function fanInParallelSpawns(plans, cwd, options = {}) {
+  const { timeout_ms = 300_000, onProgress } = options;
+  const { spawn } = require('child_process');
+
+  const spawns = plans.map(plan => {
+    return new Promise(resolve => {
+      const child = spawn(
+        process.execPath,
+        ['bin/bgsd-tools.cjs', 'execute:plan', plan.plan_id, '--no-interactive'],
+        { cwd, stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+
+      let stdout = '';
+      let stderr = '';
+      let timedOut = false;
+
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeout_ms);
+
+      child.stdout.on('data', d => { stdout += d; });
+      child.stderr.on('data', d => { stderr += d; });
+
+      child.on('close', code => {
+        clearTimeout(timeout);
+        resolve({ plan_id: plan.plan_id, code: timedOut ? -1 : code, stdout, stderr, timedOut });
+      });
+      child.on('error', err => {
+        clearTimeout(timeout);
+        resolve({ plan_id: plan.plan_id, code: -1, stdout: '', stderr: String(err), timedOut: false });
+      });
+    });
+  });
+
+  // Fan-in: wait for all simultaneously
+  const results = await Promise.all(spawns);
+
+  if (onProgress) {
+    for (const r of results) onProgress(r);
+  }
+
+  return results;
+}
+```
+
+This function coordinates independent workflow stages using Promise.all fan-in. Each plan gets its own child_process.spawn. Results are collected per-plan with structured {plan_id, code, stdout, stderr, timed_out} return values. Any single failure does NOT crash the entire wave — all results are collected and returned.
+<!-- /section -->
+</step>
+<!-- /section -->
+
 <!-- section: execute_waves -->
 <step name="execute_waves">
 Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`.
@@ -138,17 +216,51 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
   a. `workspace add {plan_id}` for each runnable plan in the wave so every plan gets its own managed JJ workspace. If workspace creation fails or workspace mode is unavailable, fall back to Mode B sequential execution before any plan work begins.
   b. Run `workspace prove {plan_id}` immediately after workspace creation and before executor plan work starts. Treat this as the proof gate, not an advisory check.
-  c. Only if proof succeeds may the workflow continue with workspace-parallel execution. Operator-facing proof/fallback guidance must name the intended workspace, observed executor cwd, observed `jj workspace root`, and one generic fallback reason.
-  d. If proof fails or workspace mode is unavailable, downgrade to Mode B sequential execution before any plan work, summary creation, plan-local outputs, or other repo-relative work begin.
-  e. Inject codebase context (same as Mode B).
-  f. Spawn in workspace dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{workspace_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
-  g. Monitor each workspace independently: check `{workspace_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`, track commit/summary status per workspace, and keep the plan → workspace mapping visible in wave reporting.
-  h. Wait. Separate healthy finalized siblings, healthy-but-blocked `staged_ready` siblings, and failed or recovery-needed workspaces explicitly. Report partial-wave outcomes honestly instead of collapsing the whole wave into one success/failure bit, and show the canonical recovery summary first whenever a blocker exists.
-  i. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace. The returned status/recovery preview stays diagnostic only: reconcile healthy workspaces immediately in preview form, but workspace reconcile remains preview-only and must surface a normalized `result_manifest` with summary/proof paths, inspection guidance, shared-planning violation classification, and canonical recovery-summary references. Keep summary-first inspection by default, require direct proof review for major completion claims or risky runtime/shared-state work, and make the canonical recovery summary name the exact gating sibling plus next command before operators inspect deeper proof artifacts. Leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
-  i.1. For a healthy reconcile-ready workspace with complete proof and no ambiguity, auto-call `execute:finalize-plan {plan_id}` from trusted main-checkout state by default instead of adding a routine manual approval stop.
-  i.2. If a wave still has a blocker after healthy siblings reconcile, keep the canonical recovery summary as the default inspection surface and rerun recovery or `execute:finalize-wave {phase_number} --wave {wave}` from trusted main-checkout state once the gating sibling is resolved instead of teaching workspace-local retries.
-  i.3. Reserve human review for explicit exception cases only: ambiguity, intent conflict, missing proof, or quarantined/policy-violating boundary behavior. Those cases must stop before shared planning writes and remain inspectable for follow-up.
-  j. Cleanup: keep failed or divergent workspaces during recovery work, and only let `workspace cleanup` remove obsolete failed workspaces after successful phase completion confirms they are no longer needed.
+  c. **PARALLEL-03 Proof Gate Check (after workspace prove, before parallel dispatch):**
+     ```javascript
+     const proof = getWorkspaceProof(cwd, workspaceName);
+     if (!proof.parallel_allowed) {
+       // FALLBACK TO SEQUENTIAL — proof gate preserved, never bypassed
+       console.log('⚠ Proof gate: parallel_allowed=false, falling back to sequential for this wave');
+       // Execute Mode B sequential for this wave instead
+       return executeWaveSequential(wavePlans);
+     }
+     // Accelerated parallel path continues — proof was checked
+     console.log('✓ Proof gate passed, proceeding with parallel dispatch');
+     ```
+
+  d. **PARALLEL-04 Promise.all Fan-In Dispatch:**
+     ```javascript
+     // Spawn all plans in parallel using Promise.all fan-in
+     const waveResults = await fanInParallelSpawns(wavePlans, cwd, {
+       timeout_ms: 300_000,
+       onProgress: (result) => {
+         console.log(`[${result.plan_id}] exit:${result.code} timed_out:${result.timedOut}`);
+       }
+     });
+
+     // Check for failures — report but don't block healthy siblings
+     const failures = waveResults.filter(r => r.code !== 0);
+     if (failures.length > 0) {
+       console.log(`⚠ ${failures.length} plans failed in wave`);
+       for (const f of failures) {
+         console.log(`  ${f.plan_id}: code=${f.code} timed_out=${f.timedOut}`);
+         if (f.stderr) console.log(`  stderr: ${f.stderr.slice(0, 200)}`);
+       }
+     }
+     ```
+
+  e. Only if proof succeeds may the workflow continue with workspace-parallel execution. Operator-facing proof/fallback guidance must name the intended workspace, observed executor cwd, observed `jj workspace root`, and one generic fallback reason.
+  f. If proof fails or workspace mode is unavailable, downgrade to Mode B sequential execution before any plan work, summary creation, plan-local outputs, or other repo-relative work begin.
+  g. Inject codebase context (same as Mode B).
+  h. Spawn in workspace dirs: `Task(subagent_type="bgsd-executor", model="{executor_model}", workdir="{workspace_path}", prompt="<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...")`
+  i. Monitor each workspace independently: check `{workspace_path}/.planning/phases/{phase_dir}/{plan_id}-SUMMARY.md`, track commit/summary status per workspace, and keep the plan → workspace mapping visible in wave reporting.
+  j. Wait. Separate healthy finalized siblings, healthy-but-blocked `staged_ready` siblings, and failed or recovery-needed workspaces explicitly. Report partial-wave outcomes honestly instead of collapsing the whole wave into one success/failure bit, and show the canonical recovery summary first whenever a blocker exists.
+  k. Sequential reconcile (smallest plan/workspace name first): run `workspace reconcile {plan_id}` for every completed workspace. The returned status/recovery preview stays diagnostic only: reconcile healthy workspaces immediately in preview form, but workspace reconcile remains preview-only and must surface a normalized `result_manifest` with summary/proof paths, inspection guidance, shared-planning violation classification, and canonical recovery-summary references. Keep summary-first inspection by default, require direct proof review for major completion claims or risky runtime/shared-state work, and make the canonical recovery summary name the exact gating sibling plus next command before operators inspect deeper proof artifacts. Leave stale/divergent/failed workspaces retained for inspection and recovery follow-up without blocking healthy siblings.
+  k.1. For a healthy reconcile-ready workspace with complete proof and no ambiguity, auto-call `execute:finalize-plan {plan_id}` from trusted main-checkout state by default instead of adding a routine manual approval stop.
+  k.2. If a wave still has a blocker after healthy siblings reconcile, keep the canonical recovery summary as the default inspection surface and rerun recovery or `execute:finalize-wave {phase_number} --wave {wave}` from trusted main-checkout state once the gating sibling is resolved instead of teaching workspace-local retries.
+  k.3. Reserve human review for explicit exception cases only: ambiguity, intent conflict, missing proof, or quarantined/policy-violating boundary behavior. Those cases must stop before shared planning writes and remain inspectable for follow-up.
+  l. Cleanup: keep failed or divergent workspaces during recovery work, and only let `workspace cleanup` remove obsolete failed workspaces after successful phase completion confirms they are no longer needed.
 
 **Mode B: Standard execution** (workspace disabled OR single-plan OR no parallelization)
 
