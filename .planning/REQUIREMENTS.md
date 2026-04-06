@@ -27,13 +27,13 @@
 
 ### STATE — State Mutation Safety
 
-- [ ] **STATE-01:** Wire `verify:state validate` regression coverage into execute-plan workflow after any batched state write
+- [x] **STATE-01:** Wire `verify:state validate` regression coverage into execute-plan workflow after any batched state write
 - [x] **STATE-02:** Extend `verify:state complete-plan` with batch transaction support for non-sacred state mutations (203-01: infrastructure added)
 - [x] **STATE-03:** Never batch sacred data writes (decisions, lessons, trajectories, requirements) — only cache/non-critical state (203-01: canBatch guard added)
 
 ### BUNDLE — Bundle Integrity
 
-- [ ] **BUNDLE-01:** Run `npm run build` smoke test after every plan — bundle parity failures are a recurring issue pattern
+- [x] **BUNDLE-01:** Run `npm run build` smoke test after every plan — bundle parity failures are a recurring issue pattern
 - [x] **BUNDLE-02:** Run `util:validate-commands --raw` to confirm CLI contract after any routing change
 
 ## Traceability
