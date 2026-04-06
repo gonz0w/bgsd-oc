@@ -37,14 +37,7 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- v19.3: Measure before optimizing — `workflow:baseline` is mandatory before any routing/caching changes
-- v19.3: Adaptive telemetry — hot-path profiling hooks added to `orchestration.js` so routing assumptions stay grounded in reality
-- v19.3: TTL-backed routing cache — `PlanningCache` extended with computed-value tables for `classifyTaskComplexity` and `routeTask`
-- v19.3: Batch freshness — phase/plan fingerprints read in single SQLite transaction, not per-file mtime
-- v19.3: Parallel safety first — mutex protection and Kahn sort verification before any parallel fan-out
+None yet.
 
 ### Pending Todos
 
@@ -54,12 +47,10 @@ None yet.
 
 ### Blockers/Concerns
 
-[Issues that affect future work]
-
-None yet.
+None
 
 ## Session Continuity
 
-Last session: 2026-04-05
-Stopped at: v19.3 roadmap created, ready to start Phase 201 planning
-Resume file: None
+Last session: 2026-04-06T00:51:12.291Z
+Stopped at: Phase 201 context gathered
+Resume file: .planning/phases/201-measurement-foundation-fast-commands/201-CONTEXT.md
