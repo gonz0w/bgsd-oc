@@ -10727,6 +10727,7 @@
         "src/lib/output.js",
         "src/lib/helpers.js",
         "src/lib/git.js",
+        "src/lib/atomic-write.js",
         "src/lib/codebase-intel.js",
         "src/lib/utils/parity-check.js"
       ],
@@ -11823,6 +11824,7 @@
       "src/lib/atomic-write.js": [
         "src/commands/memory.js",
         "src/commands/misc/config-utils.js",
+        "src/commands/misc/recovery.js",
         "src/lib/json-store-mutator.js",
         "src/lib/phase-handoff.js",
         "src/lib/review/fixes.js",
@@ -12332,12 +12334,12 @@
     },
     "stats": {
       "total_files_parsed": 304,
-      "total_edges": 689,
+      "total_edges": 690,
       "languages_parsed": [
         "javascript"
       ],
       "parse_errors": 0
     },
-    "built_at": "2026-04-06T03:33:11.471Z"
+    "built_at": "2026-04-06T14:48:38.219Z"
   }
 }

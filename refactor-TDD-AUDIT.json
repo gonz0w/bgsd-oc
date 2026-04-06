@@ -1,0 +1,13 @@
+{
+  "stage": "refactor",
+  "command": "node test/fixture/calc.test.cjs",
+  "exitCode": 0,
+  "stdout": "�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"\ftest:enqueue\"\u0004datao\"\u0007nestingI\u0000\"\u0004name\"\u000fadd returns sum\"\u0004type\"\u0004test\"\u0004lineI\f\"\u0006columnI\u0002\"\u0004file\"1/Users/cam/DEV/bgsd-oc/test/fixture/calc.test.cjs{\u0006{\u0002�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"\ftest:dequeue\"\u0004datao\"\u0007nestingI\u0000\"\u0004name\"\u000fadd returns sum\"\u0004type\"\u0004test\"\u0004lineI\f\"\u0006columnI\u0002\"\u0004file\"1/Users/cam/DEV/bgsd-oc/test/fixture/calc.test.cjs{\u0006{\u0002�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"\ftest:enqueue\"\u0004datao\"\u0007nestingI\u0000\"\u0004name\"\u0010add handles zero\"\u0004type\"\u0004test\"\u0004lineI\u0014\"\u0006columnI\u0002\"\u0004file\"1/Users/cam/DEV/bgsd-oc/test/fixture/calc.test.cjs{\u0006{\u0002�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"",
+  "stderr": "",
+  "passed": true,
+  "testCount": 3,
+  "prevCount": 3,
+  "countUnchanged": true,
+  "timestamp": "2026-04-06T14:50:41.289Z",
+  "gsd_phase": "refactor"
+}

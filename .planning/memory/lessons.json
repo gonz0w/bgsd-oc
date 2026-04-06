@@ -937,5 +937,18 @@
     "affected_agents": [
       "bgsd-planner"
     ]
+  },
+  {
+    "id": "578e0330-dbfd-45e4-9605-5c1d26f88cf4",
+    "date": "2026-04-06T14:51:43.691Z",
+    "title": "Installed CLI build can be stale after implementation; always verify against deployed config path",
+    "severity": "HIGH",
+    "type": "tooling",
+    "root_cause": "Build artifacts exist in two locations (DEV/bin and config/bin) but only the config path is used by running agents. After implementation in DEV, the config path bin was not updated.",
+    "prevention_rule": "After completing phases that modify bin/bgsd-tools.cjs, always run deploy.sh before considering the phase complete. Add post-build verification step that confirms the deployed CLI has the new features.",
+    "affected_agents": [
+      "bgsd-verifier",
+      "bgsd-executor"
+    ]
   }
 ]
