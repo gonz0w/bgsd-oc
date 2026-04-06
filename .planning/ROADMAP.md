@@ -14,7 +14,7 @@ v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The m
 
 - [x] **Phase 206: TDD Validator Shipping** - Implement cmdTdd validate-red/green/refactor stubs; unblocks all downstream TDD proof consumers (completed 2026-04-06)
 - [x] **Phase 207: Fresh-Context Chaining** - Implement /bgsd-deliver-phase --fresh-step-context; enables end-to-end delivery without giant context windows (completed 2026-04-06)
-- [ ] **Phase 208: TDD Audit Continuity** - Wire TDD audit sidecar into handoff artifact inventory; ensure proof survives resume/refresh cycles
+- [x] **Phase 208: TDD Audit Continuity** - Wire TDD audit sidecar into handoff artifact inventory; ensure proof survives resume/refresh cycles (completed 2026-04-06)
 - [ ] **Phase 209: TDD Gate Hardening** - Implement TDD plan structure verification and Phase B/C gate semantics; extends execute:tdd beyond exit-code checks
 - [ ] **Phase 210: Parallel TDD Safety** - Add mutex protection for TDD cache keys; enables safe parallel TDD verification stages
 
@@ -52,7 +52,7 @@ v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The m
   2. tdd_audit added to handoff artifact inventory in phase-handoff.js — proof survives resume/refresh cycles
   3. Human-legible TDD proof rendering in summary:generate — not backtick-wrapped raw tokens but narrative format
   4. verify:state includes TDD audit sidecar checks — audit continuity verified at state validation
-**Plans**: 1/1
+**Plans**: 1/1 plans complete
 
 ### Phase 209: TDD Gate Hardening
 **Goal**: TDD plan structure verification at planning-time; RED/GREEN/REFACTOR gate semantics beyond exit-code checks
@@ -65,7 +65,7 @@ v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The m
   4. RED gate verifies test FAILED for expected missing behavior (file-diff per phase)
   5. GREEN gate verifies test PASSED + test file NOT modified (no-new-behavior enforcement)
   6. REFACTOR gate verifies all tests still pass + no new behavior added (test count unchanged)
-**Plans**: TBD
+**Plans**: 1/1 plans planned
 
 ### Phase 210: Parallel TDD Safety
 **Goal**: Safe parallel TDD verification stages with mutex-protected cache writes; extends v19.3 mutex infrastructure to TDD-specific cache keys
@@ -83,8 +83,8 @@ v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The m
 |-------|----------------|--------|-----------|
 | 206. TDD Validator Shipping | 0/1 | Complete    | 2026-04-06 |
 | 207. Fresh-Context Chaining | 0/1 | Complete    | 2026-04-06 |
-| 208. TDD Audit Continuity | 0/1 | Planned | - |
-| 209. TDD Gate Hardening | 0/1 | Not started | - |
+| 208. TDD Audit Continuity | 0/1 | Complete    | 2026-04-06 |
+| 209. TDD Gate Hardening | 1/1 | Planned | - |
 | 210. Parallel TDD Safety | 0/1 | Not started | - |
 
 ---
