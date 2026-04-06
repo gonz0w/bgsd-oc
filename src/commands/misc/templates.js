@@ -403,6 +403,10 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
     return;
   }
 
+  // Extract tdd_rationale from plan frontmatter
+  const planFrontmatter = extractFrontmatter(planContent);
+  const tddRationale = planFrontmatter.tdd_rationale || null;
+
   // Find TDD-AUDIT.json files in phase directory
   const tddAuditFiles = fs.readdirSync(phaseDir)
     .filter(f => f.endsWith('-TDD-AUDIT.json'))
@@ -411,7 +415,12 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
   // Render TDD audit narrative if audits exist
   let tddNarrative = null;
   if (tddAuditFiles.length > 0) {
-    const narrativeParts = ['## TDD Audit Trail\n'];
+    const narrativeParts = [];
+    // Add TDD Decision section if tdd_rationale exists
+    if (tddRationale) {
+      narrativeParts.push('## TDD Decision\n\n**Rationale:** ' + tddRationale + '\n\n');
+    }
+    narrativeParts.push('## TDD Audit Trail\n');
     for (const auditFile of tddAuditFiles) {
       const auditPath = path.join(phaseDir, auditFile);
       let auditData;
