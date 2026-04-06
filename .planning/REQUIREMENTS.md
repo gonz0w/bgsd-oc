@@ -1,79 +1,71 @@
-# Requirements: bGSD Plugin
+# Requirements: v19.3 Workflow Acceleration
 
-**Defined:** 2026-04-02
+**Defined:** 2026-04-05
 **Core Value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## v19.1 Requirements
+## Categories
 
-### JJ-First UX & Bookmark Handling
+### ACCEL — Acceleration Infrastructure
 
-- [ ] **JJUX-01**: User sees bookmark/workspace terminology as the canonical local model across JJ-first help, workflows, and runtime guidance
-- [ ] **JJUX-02**: JJ-backed repos treat detached Git HEAD as expected/informational instead of a generic health failure
-- [ ] **JJUX-03**: Runtime can inspect local bookmark state (existence, tracked status, target, conflict state) without inferring health from checked-out Git branch state
-- [ ] **JJUX-04**: Logical branch handling for phase and milestone work consistently computes and updates canonical bookmark names
-- [ ] **JJUX-05**: Git-oriented user-facing surfaces preserve required interoperability language only where remote Git behavior is actually relevant
+- [ ] **ACCEL-01:** Run `workflow:baseline` before any routing/caching changes and save baseline metrics to `.planning/research/ACCEL-BASELINE.json`
+- [ ] **ACCEL-02:** Add adaptive hot-path telemetry hooks to `orchestration.js` that log which routing paths are actually taken
+- [ ] **ACCEL-03:** Extend `PlanningCache` with TTL-backed computed-value tables for `classifyTaskComplexity` and `routeTask` results
+- [ ] **ACCEL-04:** Add batch freshness check to `PlanningCache` that reads N phase/plan fingerprints in a single SQLite transaction instead of per-file mtime checks
 
-### Simplification Engine
+### FAST — Fast Mode Commands
 
-- [ ] **SIMP-01**: Phase execution can identify phase-touched files and separate simplification targets from test/reference files
-- [ ] **SIMP-02**: CLI can analyze touched source files for duplication, dead code, cognitive/structural complexity, and clarity opportunities with structured JSON output
-- [ ] **SIMP-03**: Execution workflow can run a bounded simplification decision step between execution aggregation and verification
-- [ ] **SIMP-04**: When warranted, bGSD can generate a refactor-only simplification plan and run a bounded simplify loop without changing behavior
-- [ ] **SIMP-05**: Simplification writes before/after reporting and verification handoff artifacts so downstream proof reflects the simplified state
+- [ ] **FAST-01:** Add `discuss-phase --fast` flag that batches low-risk clarification choices and reduces turns for routine phases
+- [ ] **FAST-02:** Add `verify-work --batch N` flag that batches routine test verification (default stays one-at-a-time for ambiguous/high-risk)
+- [ ] **FAST-03:** Add `workflow:hotpath` command that shows which routing paths are most frequently used based on telemetry
 
-### Speculative-Decoding Readiness
+### PARALLEL — Parallelization
 
-- [ ] **SPEC-01**: Agent prompts suppress conversational preambles and begin with required structured output frames where applicable
-- [ ] **SPEC-02**: Shared enum vocabularies and schema conventions reduce avoidable variance across agent outputs
-- [ ] **SPEC-03**: Core planning, summary, and verification templates use more stable key ordering and canonical section shapes
-- [ ] **SPEC-04**: Workflow definitions and inter-agent communication use anchored, predictable output structures rather than loosely framed prose
-- [ ] **SPEC-05**: Research-heavy or summary-heavy outputs gain stricter contracts that reduce unnecessary free-text entropy without dropping required content
-- [ ] **SPEC-06**: Speculative-decoding-oriented contract changes are paired with measurable validation so performance claims are evidence-backed
+- [ ] **PARALLEL-01:** Add mutex-protected cache entries for parallel stages sharing cache layer
+- [ ] **PARALLEL-02:** Add Kahn topological sort verification to `resolvePhaseDependencies` to ensure correct parallel wave ordering
+- [ ] **PARALLEL-03:** Preserve JJ workspace proof gate on all accelerated parallel paths — proof check may be optimized but never bypassed
+- [ ] **PARALLEL-04:** Add `Promise.all` fan-in coordination for independent workflow stage execution using `child_process.spawn`
 
-## Future Requirements
+### STATE — State Mutation Safety
 
-### Deferred
+- [ ] **STATE-01:** Wire `verify:state validate` regression coverage into execute-plan workflow after any batched state write
+- [ ] **STATE-02:** Extend `verify:state complete-plan` with batch transaction support for non-sacred state mutations
+- [ ] **STATE-03:** Never batch sacred data writes (decisions, lessons, trajectories, requirements) — only cache/non-critical state
 
-- **GIT-01**: Remove Git as a backend or remote-interop dependency entirely
-- **INF-01**: Implement provider- or host-level speculative decoding infrastructure changes outside bGSD contracts
-- **JJUX-06**: Complete end-to-end bookmark-native GitHub PR/release automation
-- **SIMP-06**: Expand simplification into repo-wide continual cleanup beyond phase-bounded execution
+### BUNDLE — Bundle Integrity
 
-## Out of Scope
-
-| Feature | Reason |
-|---------|--------|
-| Full Git removal | Too broad for a safety-first milestone; Git compatibility remains required |
-| Host inference stack rewrites | Out of scope for bGSD repo planning/contracts work |
-| New agent roles for simplification or speculative decoding | Milestone intentionally prefers deterministic CLI/contracts over agent proliferation |
-| Whole-repo prompt/schema rewrite in one pass | Needs phased rollout to preserve execution safety and artifact compatibility |
+- [ ] **BUNDLE-01:** Run `npm run build` smoke test after every plan — bundle parity failures are a recurring issue pattern
+- [ ] **BUNDLE-02:** Run `util:validate-commands --raw` to confirm CLI contract after any routing change
 
 ## Traceability
 
-| Requirement | Phase | Status | Test Command |
-|-------------|-------|--------|--------------|
-| JJUX-01 | Phase 189 | Pending | TBD |
-| JJUX-02 | Phase 188 | Pending | TBD |
-| JJUX-03 | Phase 188 | Pending | TBD |
-| JJUX-04 | Phase 190 | Pending | TBD |
-| JJUX-05 | Phase 189 | Pending | TBD |
-| SIMP-01 | Phase 191 | Pending | TBD |
-| SIMP-02 | Phase 191 | Pending | TBD |
-| SIMP-03 | Phase 192 | Pending | TBD |
-| SIMP-04 | Phase 192 | Pending | TBD |
-| SIMP-05 | Phase 192 | Pending | TBD |
-| SPEC-01 | Phase 193 | Pending | TBD |
-| SPEC-02 | Phase 193 | Pending | TBD |
-| SPEC-03 | Phase 193 | Pending | TBD |
-| SPEC-04 | Phase 193 | Pending | TBD |
-| SPEC-05 | Phase 193 | Pending | TBD |
-| SPEC-06 | Phase 193 | Pending | TBD |
+| Requirement | Phase | Source |
+|-------------|-------|--------|
+| ACCEL-01 | 201 | Pitfalls #1 (measure first) |
+| ACCEL-02 | 201 | Pitfalls #5 (adaptive telemetry) |
+| ACCEL-03 | 201 | Stack (SQLite routing cache) |
+| ACCEL-04 | 201 | Stack (batch I/O) |
+| FAST-01 | 201 | Features (--fast mode) |
+| FAST-02 | 201 | Features (--batch mode) |
+| FAST-03 | 201 | Features (hot-path visibility) |
+| PARALLEL-01 | 202 | Pitfalls #2 (cache races) |
+| PARALLEL-02 | 202 | Architecture (Kahn sort) |
+| PARALLEL-03 | 202 | Pitfalls #3 (JJ proof gate) |
+| PARALLEL-04 | 202 | Stack (Promise.all spawn) |
+| STATE-01 | 203 | Pitfalls #4 (state compatibility) |
+| STATE-02 | 203 | Features (batched state) |
+| STATE-03 | 203 | Pitfalls #4 (sacred data) |
+| BUNDLE-01 | All | Pitfalls (bundle parity) |
+| BUNDLE-02 | All | Architecture (CLI contract) |
 
-**Coverage:**
-- v19.1 requirements: 16 total
-- Mapped to phases: 16
-- Unmapped: 0 ✓
+## Out of Scope
 
----
-*Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after roadmap creation for milestone v19.1*
+- Async I/O rewrite — synchronous I/O is appropriate for CLI tool
+- New npm dependencies — all work uses existing `node:sqlite`, `node:child_process`, `PlanningCache`
+- Dynamic parallelization — runtime dependency graph auto-detection deferred to v2+
+- Removing quality gates — acceleration without regression
+
+## Future Requirements
+
+- `/bgsd-deliver-phase --fresh-step-context` — end-to-end fresh-context chained delivery pipeline
+- Dynamic parallelization — runtime dependency graph analysis to auto-detect parallelizable segments
+- Planner self-check quality threshold calibration — when does self-check match standalone checker quality?

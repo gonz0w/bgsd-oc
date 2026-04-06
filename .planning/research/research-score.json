@@ -1,9 +1,9 @@
 {
   "source_count": 0,
-  "high_confidence_pct": 0,
-  "oldest_source_days": null,
+  "high_confidence_pct": 100,
+  "oldest_source_days": 1,
   "has_official_docs": false,
-  "confidence_level": "LOW",
+  "confidence_level": "MEDIUM",
   "flagged_gaps": [],
   "conflicts": []
 }

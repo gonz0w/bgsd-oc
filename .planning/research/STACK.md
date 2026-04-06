@@ -1,124 +1,150 @@
-# v19.0 Milestone Stack Needs
+# Stack Research — v19.3 Workflow Acceleration
+
+**Domain:** Workflow hot-path optimization, I/O reduction, parallel execution
+**Researched:** 2026-04-05
+**Confidence:** HIGH
+
+---
 
 ## Recommendation
 
-**Do not add new npm dependencies for this milestone.** v19.0 should stay on the existing Node.js/OpenCode plugin stack and harden around **installed CLIs + Node stdlib orchestration**:
+**Do not add new npm dependencies for this milestone.** v19.3 accelerates existing infrastructure through:
 
-- **JJ CLI** for workspace creation, root resolution, stale-workspace recovery, and final reconcile/finalize entrypoints
-- **cmux CLI** (with optional socket awareness later) for workspace-scoped status/progress/log/notification updates
-- **existing Node stdlib** (`child_process`, timers, fs/path, optionally `net` if socket mode is later justified)
-- **existing Node test runner + repo scripts** for risk-based verification (`node --test`, `npm test`, `npm run test:file -- ...`)
+1. **Pre-computed routing tables** — store `classifyTaskComplexity` and `routeTask` results in SQLite, eliminating repeated computation on every call
+2. **Batch I/O operations** — read-ahead phase/plan fingerprints in a single SQLite transaction instead of per-file mtime checks
+3. **SQLite-first hot-path memoization** — extend `PlanningCache` with TTL-backed computed-value storage for routing decisions
+4. **Built-in parallelism** — use `Promise.all` with `child_process.spawn` (Node.js built-in) for independent workflow stages
 
-This milestone is primarily **runtime-contract and policy work**, not a dependency-expansion milestone.
+No new packages are needed. The existing `node:sqlite`, `node:child_process`, and `node:fs` APIs are sufficient.
 
-## Required Runtime / Tooling Assumptions
+---
 
-### 1. JJ is a hard runtime dependency for workspace execution
+<!-- section: compact -->
 
-Rely on current JJ workspace primitives, not custom workspace bookkeeping:
+**Core stack (existing):**
 
-- `jj workspace add <destination>` creates the isolated workspace
-- `jj workspace root --name <workspace>` resolves the actual pinned root
-- `jj workspace forget <name>` removes repo tracking when cleanup finishes
-- `jj workspace update-stale` is the official recovery path when one workspace rewrites another workspace's checked-out commit
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| `node:sqlite` | Hot-path decision cache with TTL storage | Node 22.5+ built-in |
+| `node:child_process` | Parallel stage execution via spawn | Node 22.5+ built-in |
+| `PlanningCache` | SQLite-backed mtime cache with batch ops | existing (src/lib/planning-cache.js) |
+| `DECISION_REGISTRY` | In-process routing decisions (19 functions) | existing (src/lib/decisions.js) |
 
-Official docs confirm that multiple working copies share one repo, each workspace has its own checkout, and stale working copies are a normal cross-workspace condition that must be refreshed explicitly. For v19.0, that means the executor/orchestrator contract should treat **stale detection + update** as first-class, not exceptional.
+**Key supporting libs (existing):** fast-glob (file discovery), valibot (validation), fuse.js (fuzzy search)
 
-**Practical assumption:** execution hosts need `jj` on PATH at a known-good current version; local env currently has `jj 0.39.0`, which already exposes the needed workspace commands.
+**Avoid:** `lru-cache` (CLI is short-lived; Map is sufficient), `worker_threads` (adds complexity without benefit for this workload)
 
-### 2. cmux is an optional-but-real environment dependency for observability
+**Install:** `npm install` (no new packages)
 
-For the cmux-backed coordination/observability slice, rely on current official cmux CLI/API surface:
+<!-- /section -->
 
-- health and targeting: `ping`, `capabilities`, `identify`, `list-workspaces`
-- sidebar metadata: `set-status`, `clear-status`, `set-progress`, `clear-progress`, `log`, `sidebar-state`
-- attention UX: `notify`
+---
 
-Official docs also define the relevant environment assumptions:
+## Recommended Stack
 
-- `CMUX_WORKSPACE_ID`
-- `CMUX_SURFACE_ID`
-- `CMUX_SOCKET_PATH`
-- `CMUX_SOCKET_MODE`
+### Core Technologies
 
-That matches the existing plugin integration shape in `src/plugin/cmux-cli.js`, `src/plugin/cmux-targeting.js`, and `src/plugin/index.js`.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|----------------|
+| `node:sqlite` (built-in) | Node 22.5+ | Hot-path routing cache with TTL storage | Already in use for `PlanningCache`; extending with computed-value tables is zero-cost |
+| `node:child_process` (built-in) | Node 22.5+ | Parallel workflow stage execution | Enables `spawn()` for independent agents without async I/O rewrite |
+| `node:fs` (built-in) | Node 22.5+ | Batch file operations | `fs.readFileSync` batching already sufficient; combine with mtime batch checks |
+| `PlanningCache` | existing | SQLite-backed mtime cache | Already handles roadmap/plan/task caching; extend with routing-decision tables |
+| `DECISION_REGISTRY` | existing | 19 deterministic routing functions | Already evaluates in-process; pre-compute and store results for repeated calls |
 
-**Practical assumption:** live cmux observability is only available in macOS + cmux-managed terminal sessions. The milestone must preserve today's fail-open behavior when cmux is missing, unreachable, or not attached.
+### Supporting Libraries
 
-### 3. Testing stays on existing repo tooling
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `fast-glob` | 3.3.3 | File discovery for batch operations | When reading multiple plan files in a phase |
+| `valibot` | 1.2.0 | Schema validation for new routing tables | When adding new routing decision schemas to SQLite |
+| `fuse.js` | 7.1.0 | Fuzzy matching for task name lookup | When routing decisions need fuzzy task name matching |
+| `acorn` (bundled) | bundled | AST parsing for task complexity | Already used in `orchestration.js` |
 
-Use the current repo testing surface; do not introduce a new policy engine or test framework:
+### Development Tools
 
-- focused proof: `node --test ...`, `npm run test:file -- ...`, direct CLI smoke commands
-- broad proof when risk requires it: `npm test`
-- milestone policy source of truth: `.planning/resources/RISK-BASED-TESTING-PRD.md` and `.planning/resources/RISK-BASED-TESTING-POLICY.md`
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `node --test` | Test runner | Existing test suite; add benchmarks for routing hot-path |
+| `esbuild` | Bundler | Already in use; no changes needed |
+| `npm run build` | Production build | Already validates single-file output |
 
-For v19.0 specifically, default to:
+---
 
-- **`full`** for shared JJ execution semantics, reconcile/finalize logic, plugin runtime coordination, or bundle-impacting changes
-- **`light`** for narrow helpers around workspace targeting or cmux event batching
-- **no new harness** beyond the existing Node test runner and integration coverage already used in this repo
+## Installation
 
-## Concrete Integration Choices
+No new packages. Ensure existing dependencies are current:
 
-### Keep JJ integration shell-based
+```bash
+# Core (no changes — existing packages sufficient)
+npm install
 
-Use the JJ CLI directly from Node. Do **not** add a JS JJ SDK layer. The official commands already cover workspace lifecycle and stale recovery, and the backlog explicitly needs runtime-enforced workspace pinning plus single-writer finalize semantics, not a new abstraction library.
+# Verify current package versions
+npm list fast-glob valibot fuse.js ignore inquirer
+```
 
-### Keep cmux integration CLI-first for this milestone
+---
 
-cmux officially supports both CLI and Unix socket RPC. For v19.0, **CLI-first is sufficient** because the repo already has working child-process wrappers and write-probe targeting logic. If process pressure remains a bottleneck after debouncing/batching, later work can add socket transport behind the same adapter boundary.
+## Alternatives Considered
 
-### Implement coordination in-repo, not via packages
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|------------------------|
+| `node:sqlite` (built-in) | `better-sqlite3` | If native performance is critical; adds C++ dependency and breaks single-file deploy |
+| `node:child_process` (built-in) | `execa` / `spawn-wrap` | If process management complexity grows beyond `spawn()`; adds dependency |
+| Map-based LRU | `lru-cache` npm | If CLI lifetime grows beyond short-lived; current Map is sufficient |
+| `Promise.all` + `spawn` | `worker_threads` | If CPU-bound parallelism needed; adds significant complexity for marginal gain |
 
-The cmux event-coordinator EDD already points to the right shape: debounce, batch, and semaphore in project code. That is enough; no queue/semaphore package is justified.
+---
 
-## What NOT to Add
+## What NOT to Use
 
-- **No new npm packages** for queues, semaphores, RPC, observability, or JJ wrappers
-- **No Go `cmux` library dependency** (`github.com/soheilhy/cmux` is unrelated to this terminal/workspace tool)
-- **No database/service dependency** for reconcile state; keep single-writer finalize derived from repo truth
-- **No alternate test framework**; keep Node's built-in runner and current npm scripts
-- **No requirement that cmux be installed for normal plugin operation**; cmux remains enhancement-only
-- **No custom workspace metadata format** that duplicates JJ's workspace model
+| Avoid | Why | Use Instead |
+|-------|-----|------------|
+| `lru-cache` npm package | CLI processes are short-lived (<5s); Map eviction is not a concern; adds bundle size | Plain `Map` or extend `PlanningCache` with TTL tables |
+| `worker_threads` | CPU-bound parallelism not the bottleneck; routing decisions are I/O-bound, not compute-bound | Pre-computed routing tables in SQLite |
+| New async I/O infrastructure | "Async I/O rewrite — Synchronous I/O is appropriate for CLI tool" is explicitly out of scope | Batch sync operations with `Promise.all` over `spawn` for parallelism at process level |
+| Separate cache service | Over-engineering for CLI tool; SQLite at `.planning/.cache.db` is sufficient | Extend existing `PlanningCache` |
 
-## Net Stack Impact
+---
 
-**Additions required:**
+## Stack Patterns by Variant
 
-- operational dependency on a current **JJ CLI** install where workspace execution is used
-- operational dependency on **cmux** only for the observability slice / live UX validation
+**If accelerating task routing hot-path:**
+- Pre-compute `classifyTaskComplexity` results and store in `PlanningCache` with TTL
+- Add `routing_decisions` table to SQLite schema: `(plan_path, task_name, complexity_score, recommended_profile, cached_at)`
+- Invalidate on plan file mtime change
 
-**New npm dependencies required:**
+**If reducing I/O overhead:**
+- Add batch `checkAllFreshness` for all phase plans in single SQLite query
+- Use `fs.readFileSync` batch reads with `Promise.all` for independent files
+- Pre-fetch next-phase metadata during current-phase execution
 
-- **None**
+**If implementing parallel stages:**
+- Use `child_process.spawn` with `Promise.all` for independent workflow stages
+- `selectExecutionMode` already detects `parallel` mode when same-wave plans exist
+- Coordinate via shared SQLite state (one writer at a time via WAL mode)
 
-## Confidence
+---
 
-**HIGH** for: no-new-npm-deps recommendation, JJ workspace command surface, cmux CLI/API surface, existing repo alignment.
+## Version Compatibility
 
-**MEDIUM** for: staying CLI-first for cmux long-term; official socket API exists, but this milestone does not appear to need it if batching is implemented well.
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `node:sqlite` (built-in) | Node 22.5+ only | Graceful Map fallback on older Node (existing pattern) |
+| `valibot@1.2.0` | Node 12+ | Current version is adequate; upgrade if schema performance becomes critical |
+| `fast-glob@3.3.3` | Node 12+ | Already matches Node 22.5+ requirement |
+| `PlanningCache` (SQLite) | WAL mode enabled | Concurrent reads safe; single-writer coordination via WAL |
+
+---
 
 ## Sources
 
-### Official
+- **Context7** — `node:sqlite` built-in docs, `node:child_process` built-in docs
+- **Official docs** — JJ workspace docs (for parallel execution context)
+- **Local project** — `src/lib/planning-cache.js`, `src/lib/orchestration.js`, `src/lib/db.js`
+- **Decision registry** — 19 routing functions already in-process; pre-computing is additive, not architectural change
 
-- Jujutsu working copy + workspaces: https://docs.jj-vcs.dev/latest/working-copy/
-- Jujutsu CLI reference: https://docs.jj-vcs.dev/latest/cli-reference/
-- Local verified JJ help output: `jj --version`, `jj help workspace add`, `jj help workspace root`, `jj help workspace update-stale`
-- cmux API reference: https://www.cmux.dev/docs/api
-- cmux README / platform notes: https://github.com/manaflow-ai/cmux/blob/main/README.md
-- OpenCode plugin docs: https://opencode.ai/docs/plugins/
+---
 
-### Local project inputs
-
-- `.planning/PROJECT.md`
-- `.planning/research/JJ-WORKSPACE-PARALLEL-EXECUTION-BACKLOG.md`
-- `.planning/research/CMUX-EVENT-COORDINATOR-EDD.md`
-- `.planning/research/CMUX-FIRST-UX-PRD.md`
-- `.planning/resources/RISK-BASED-TESTING-PRD.md`
-- `.planning/resources/RISK-BASED-TESTING-POLICY.md`
-- `src/plugin/cmux-cli.js`
-- `src/plugin/cmux-targeting.js`
-- `src/plugin/index.js`
-- `package.json`
+*Stack research for: v19.3 Workflow Acceleration*
+*Researched: 2026-04-05*
