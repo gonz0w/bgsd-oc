@@ -14,7 +14,7 @@ v19.3 accelerates workflow execution through measurement-grounded caching, fast-
 - [x] **Phase 201: Measurement Foundation & Fast Commands** - Establish baseline telemetry, TTL-backed routing cache, batch freshness checks, and --fast/--batch hot-path commands (completed 2026-04-06)
 - [x] **Phase 202: Parallelization Safety** (completed 2026-04-06) - Mutex-protected cache entries, Kahn sort verification, preserved JJ proof gate, and Promise.all fan-in coordination (3 plans)
 - [x] **Phase 203: State Mutation Safety** (completed 2026-04-06) - verify:state validate wired after batched writes, batch transaction support, sacred data never batched, CLI contract validation
-- [ ] **Phase 204: Wire Batch State API** - Wire storeSessionBundleBatch into execute-plan, add canBatch routing (gap closure)
+- [x] **Phase 204: Wire Batch State API** (completed 2026-04-06) - Wire storeSessionBundleBatch into execute-plan, add canBatch routing (gap closure)
 - [ ] **Phase 205: Wire Parallelization Safety** - Trigger resolvePhaseDependencies, wire mutex primitives, fix Kahn sort bypass (gap closure)
 
 ## Phase Details
@@ -85,7 +85,7 @@ v19.3 accelerates workflow execution through measurement-grounded caching, fast-
 | 201. Measurement Foundation & Fast Commands | 2/2 | Complete    | 2026-04-06 |
 | 202. Parallelization Safety | 3/3 | Complete    | 2026-04-06 |
 | 203. State Mutation Safety | 3/3 | Complete    | 2026-04-06 |
-| 204. Wire Batch State API | 2/3 | In Progress|  |
+| 204. Wire Batch State API | 3/3 | Complete   | 2026-04-06 |
 | 205. Wire Parallelization Safety | 0/4 | Pending     | — |
 
 ---
