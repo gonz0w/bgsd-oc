@@ -2,12 +2,12 @@
   "stage": "green",
   "command": "node test/fixture/calc.test.cjs",
   "exitCode": 0,
-  "stdout": "✔ add returns sum (0.494417ms)\n✔ add handles zero (0.039459ms)\n✔ add handles negative numbers (0.034833ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 3.547917\n",
+  "stdout": "�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"\ftest:enqueue\"\u0004datao\"\u0007nestingI\u0000\"\u0004name\"\u000fadd returns sum\"\u0004type\"\u0004test\"\u0004lineI\f\"\u0006columnI\u0002\"\u0004file\"1/Users/cam/DEV/bgsd-oc/test/fixture/calc.test.cjs{\u0006{\u0002�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"\ftest:dequeue\"\u0004datao\"\u0007nestingI\u0000\"\u0004name\"\u000fadd returns sum\"\u0004type\"\u0004test\"\u0004lineI\f\"\u0006columnI\u0002\"\u0004file\"1/Users/cam/DEV/bgsd-oc/test/fixture/calc.test.cjs{\u0006{\u0002�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"\ftest:enqueue\"\u0004datao\"\u0007nestingI\u0000\"\u0004name\"\u0010add handles zero\"\u0004type\"\u0004test\"\u0004lineI\u0014\"\u0006columnI\u0002\"\u0004file\"1/Users/cam/DEV/bgsd-oc/test/fixture/calc.test.cjs{\u0006{\u0002�\u000f\u0000\u0000\u0000��\u000fo\"\u0004type\"",
   "stderr": "",
   "passed": true,
   "testFileUnmodified": true,
   "method": "mtime+size",
   "testCount": 3,
-  "timestamp": "2026-04-06T17:19:52.396Z",
+  "timestamp": "2026-04-06T17:22:26.130Z",
   "gsd_phase": "green"
 }

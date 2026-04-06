@@ -28,6 +28,12 @@ const COMPUTED_TTL_MS = 10 * 60 * 1000;
 // Fixed mutex pool size for lock-free CAS per cache key (hash-based slot selection)
 const MUTEX_POOL_SIZE = 256; // Fixed pool, hash-based slot selection
 
+// TDD cache key namespace (Phase 210):
+//   tdd_audit:${plan_path}   — TDD audit data per plan
+//   tdd_proof:${plan_path}   — TDD proof data per plan
+//   tdd_summary:${plan_path} — TDD summary data per plan
+// These keys use the same mutex primitives as spawn_* keys.
+
 // ---------------------------------------------------------------------------
 // PlanningCache class
 // ---------------------------------------------------------------------------
@@ -339,6 +345,21 @@ class PlanningCache {
       // Contended — yield to event loop briefly
       Atomics.wait(this._mutexPool, slot, 1, 1); // 1ms wait
     }
+  }
+
+  /**
+   * Get the three TDD cache keys for a given plan path.
+   * Phase 210: TDD audit/proof/summary keys use the same mutex primitives as spawn_* keys.
+   *
+   * @param {string} planPath - Plan path or plan_id
+   * @returns {{ audit: string, proof: string, summary: string }}
+   */
+  getTddMutexKeys(planPath) {
+    return {
+      audit: `tdd_audit:${planPath}`,
+      proof: `tdd_proof:${planPath}`,
+      summary: `tdd_summary:${planPath}`,
+    };
   }
 
   // -------------------------------------------------------------------------

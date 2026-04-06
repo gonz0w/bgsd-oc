@@ -987,5 +987,29 @@
     "affected_agents": [
       "bgsd-planner"
     ]
+  },
+  {
+    "id": "3e16fd0d-4d6c-4c70-bf61-5ffc782a167b",
+    "date": "2026-04-06T17:57:28.978Z",
+    "title": "Trust documented implementation in phase artifacts before re-reading source",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "When researching a phase that extends existing (v19.3) infrastructure, the grep for 'mutex' returned 231 matches across multiple phase RESEARCH/PLAN/VERIFICATION files. The mutex primitives were already documented with line numbers and verified implementations. Re-reading planning-cache.js (1728 lines) to confirm what was already documented in v19.3 phase artifacts added no new information.",
+    "prevention_rule": "For phases that extend existing infrastructure: (1) Check for existing phase artifacts in .planning/milestones/ or .planning/phases/ that document the base implementation. (2) Trust documented line-number references from prior phases. (3) Focus research effort on the NEW extension points (TDD key namespace) rather than re-verifying existing primitives.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
+  },
+  {
+    "id": "8742b591-9814-4471-9f6b-c105af14d66d",
+    "date": "2026-04-06T17:59:34.898Z",
+    "title": "Task verify commands should prefer file-pattern checks over inline node -e scripts",
+    "severity": "LOW",
+    "type": "tooling",
+    "root_cause": "The plan analyzer flags inline node -e scripts that require local modules as referencing non-existent paths, even when the path is correct in context",
+    "prevention_rule": "Use rg/fd for source file pattern checks; reserve node -e for simple expression evaluation or when the command is already in the PATH",
+    "affected_agents": [
+      "bgsd-planner"
+    ]
   }
 ]

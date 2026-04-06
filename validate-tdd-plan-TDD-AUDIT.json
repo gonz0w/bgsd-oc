@@ -1,8 +1,10 @@
 {
   "stage": "validate-tdd-plan",
-  "planFile": ".planning/phases/209-tdd-gate-hardening/209-01-PLAN.md",
+  "planFile": ".planning/PROJECT.md",
   "valid": true,
   "errors": [],
-  "timestamp": "2026-04-06T17:21:59.845Z",
+  "skipped": true,
+  "reason": "Not a type:tdd plan",
+  "timestamp": "2026-04-06T17:22:25.760Z",
   "gsd_phase": "validate-tdd-plan"
 }
