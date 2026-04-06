@@ -85,7 +85,7 @@ v19.3 accelerates workflow execution through measurement-grounded caching, fast-
 | 201. Measurement Foundation & Fast Commands | 2/2 | Complete    | 2026-04-06 |
 | 202. Parallelization Safety | 3/3 | Complete    | 2026-04-06 |
 | 203. State Mutation Safety | 3/3 | Complete    | 2026-04-06 |
-| 204. Wire Batch State API | 0/4 | Pending     | — |
+| 204. Wire Batch State API | 1/3 | In Progress|  |
 | 205. Wire Parallelization Safety | 0/4 | Pending     | — |
 
 ---
