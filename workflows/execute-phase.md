@@ -227,6 +227,29 @@ This function coordinates independent workflow stages using Promise.all fan-in. 
 
 <!-- section: execute_waves -->
 <step name="execute_waves">
+// Phase 210: TDD cache warming — serial invalidation before parallel fan-out
+// Runs once per phase to ensure fresh state before concurrent TDD verification
+function warmTddCacheForPhase(cwd, phasePlans) {
+  const { PlanningCache } = require('../src/lib/planning-cache');
+  const cache = new PlanningCache({});
+  const os = require('os');
+
+  for (const plan of phasePlans) {
+    const keys = cache.getTddMutexKeys(plan.path || plan.plan_id);
+    cache.invalidateMutex(keys.audit);
+    cache.invalidateMutex(keys.proof);
+    cache.invalidateMutex(keys.summary);
+  }
+
+  // Return bounded worker count for TDD operations
+  const configuredN = parseInt(process.env.TDD_WORKERS || '4', 10);
+  return Math.min(configuredN, os.cpus().length);
+}
+
+// Call warmTddCacheForPhase once per phase before parallel fan-out
+// Stores the returned worker bound for use in TDD parallel fan-out
+let TDD_WORKER_BOUND = warmTddCacheForPhase(cwd, PLANS_FOR_PHASE);
+
 Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`.
 
 **Per wave:**
