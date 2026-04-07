@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const { output, error, debugLog } = require('../lib/output');
 const {
   checkStaleness,
@@ -1019,6 +1020,147 @@ function matchFileConventions(file, conventions) {
   return { naming, frameworks: matchingFrameworks };
 }
 
+function getCodebaseContextState(cwd, planPath, allowWrites = true) {
+  const intel = readIntel(cwd);
+  if (!intel) {
+    error('No codebase intel. Run: codebase analyze');
+  }
+
+  const { buildDependencyGraph, findCycles } = require('../lib/deps');
+  const { extractConventions } = require('../lib/conventions');
+
+  let graph = intel.dependencies;
+  if (!graph) {
+    if (!allowWrites) {
+      error('No dependency graph in intel. Run: codebase deps');
+    }
+    debugLog('codebase.context', 'no dependency graph in intel, building...');
+    graph = buildDependencyGraph(intel);
+    intel.dependencies = graph;
+    writeIntel(cwd, intel);
+  }
+
+  let conventions = intel.conventions;
+  if (!conventions) {
+    if (!allowWrites) {
+      error('No conventions in intel. Run: codebase conventions');
+    }
+    debugLog('codebase.context', 'no conventions in intel, extracting...');
+    conventions = extractConventions(intel, { cwd });
+    intel.conventions = conventions;
+    writeIntel(cwd, intel);
+  }
+
+  const cycleData = findCycles(graph);
+  const cycleFiles = new Set();
+  for (const scc of cycleData.cycles || []) {
+    for (const f of scc) cycleFiles.add(f);
+  }
+
+  return {
+    graph,
+    conventions,
+    cycleFiles,
+    planFiles: getPlanFiles(cwd, planPath),
+    recentFiles: getRecentlyModifiedFiles(cwd),
+  };
+}
+
+function buildCodebaseFileContext(file, filePaths, state) {
+  const graph = state.graph;
+  const conventions = state.conventions;
+  const planFiles = state.planFiles || [];
+  const recentFiles = state.recentFiles || new Set();
+
+  if (!graph.forward[file] && !graph.reverse[file]) {
+    return {
+      status: 'no-data',
+      imports: [],
+      dependents: [],
+      conventions: null,
+      risk_level: 'normal',
+      relevance_score: scoreRelevance(file, filePaths, graph, planFiles, recentFiles),
+    };
+  }
+
+  const imports = [...(graph.forward[file] || [])];
+  imports.sort((a, b) => {
+    const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
+    const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return (graph.reverse[b] || []).length - (graph.reverse[a] || []).length;
+  });
+  const cappedImports = imports.slice(0, 8);
+
+  const dependents = [...(graph.reverse[file] || [])];
+  dependents.sort((a, b) => {
+    const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
+    const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return (graph.forward[b] || []).length - (graph.forward[a] || []).length;
+  });
+  const cappedDependents = dependents.slice(0, 8);
+
+  return {
+    imports: cappedImports,
+    dependents: cappedDependents,
+    conventions: matchFileConventions(file, conventions),
+    risk_level: computeRiskLevel(file, graph, state.cycleFiles || new Set()),
+    relevance_score: scoreRelevance(file, filePaths, graph, planFiles, recentFiles),
+  };
+}
+
+function buildCodebaseContextResult(filePaths, state) {
+  const files = {};
+  for (const file of filePaths) {
+    files[file] = buildCodebaseFileContext(file, filePaths, state);
+  }
+
+  const budgetResult = enforceTokenBudget(files);
+  return {
+    success: true,
+    files: budgetResult.files,
+    file_count: filePaths.length,
+    truncated: budgetResult.truncated,
+    omitted_files: budgetResult.omitted_files,
+  };
+}
+
+function spawnCodebaseContextWorker(cwd, filePath, planPath) {
+  const gsdBin = path.resolve(__dirname, '../../bin/bgsd-tools.cjs');
+  const args = ['util:codebase', 'context', '--worker-file', filePath];
+  if (planPath) {
+    args.push('--plan', planPath);
+  }
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [gsdBin, ...args], {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, BGSD_CODEBASE_CONTEXT_WORKER: '1' },
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.on('error', reject);
+    child.on('close', (exitCode) => {
+      if (exitCode !== 0) {
+        reject(new Error(stderr.trim() || `codebase context worker failed for ${filePath}`));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (parseError) {
+        reject(new Error(stderr.trim() || parseError.message));
+      }
+    });
+  });
+}
+
 /**
  * cmdCodebaseContext — Assemble per-file architectural context from cached intel.
  *
@@ -1033,7 +1175,22 @@ function matchFileConventions(file, conventions) {
  * @param {string[]} args - CLI arguments (after 'codebase context')
  * @param {boolean} raw - Raw JSON output mode
  */
-function cmdCodebaseContext(cwd, args, raw) {
+async function cmdCodebaseContext(cwd, args, raw) {
+  const workerIdx = args.indexOf('--worker-file');
+  if (workerIdx !== -1) {
+    const workerFile = args[workerIdx + 1];
+    if (!workerFile || workerFile.startsWith('--')) {
+      error('Usage: codebase context --worker-file <file>');
+      return;
+    }
+
+    const planIdx = args.indexOf('--plan');
+    const planPath = planIdx !== -1 ? args[planIdx + 1] : null;
+    const state = getCodebaseContextState(cwd, planPath, false);
+    output(buildCodebaseContextResult([workerFile], state), raw);
+    return;
+  }
+
   // Parse --task flag: comma-separated file list for task-scoped context
   const taskIdx = args.indexOf('--task');
   if (taskIdx !== -1) {
@@ -1077,111 +1234,33 @@ function cmdCodebaseContext(cwd, args, raw) {
     return;
   }
 
-  const intel = readIntel(cwd);
-  if (!intel) {
-    error('No codebase intel. Run: codebase analyze');
-    return;
-  }
+  const state = getCodebaseContextState(cwd, planPath, true);
 
-  const { buildDependencyGraph, findCycles } = require('../lib/deps');
-  const { extractConventions } = require('../lib/conventions');
-
-  // Auto-build dependency graph if missing
-  let graph = intel.dependencies;
-  if (!graph) {
-    debugLog('codebase.context', 'no dependency graph in intel, building...');
-    graph = buildDependencyGraph(intel);
-    intel.dependencies = graph;
-    writeIntel(cwd, intel);
-  }
-
-  // Auto-extract conventions if missing
-  let conventions = intel.conventions;
-  if (!conventions) {
-    debugLog('codebase.context', 'no conventions in intel, extracting...');
-    conventions = extractConventions(intel, { cwd });
-    intel.conventions = conventions;
-    writeIntel(cwd, intel);
-  }
-
-  // Get cycle data for risk assessment
-  const cycleData = findCycles(graph);
-  const cycleFiles = new Set();
-  for (const scc of cycleData.cycles) {
-    for (const f of scc) cycleFiles.add(f);
-  }
-
-  // Get scoring signals
-  const planFiles = getPlanFiles(cwd, planPath);
-  const recentFiles = getRecentlyModifiedFiles(cwd);
-
-  // Assemble per-file context
-  const filesResult = {};
-
-  for (const file of filePaths) {
-    // Check if file exists in graph
-    if (!graph.forward[file] && !graph.reverse[file]) {
-      filesResult[file] = {
-        status: 'no-data',
-        imports: [],
-        dependents: [],
-        conventions: null,
-        risk_level: 'normal',
-        relevance_score: scoreRelevance(file, filePaths, graph, planFiles, recentFiles),
+  let result;
+  if (filePaths.length > 1) {
+    try {
+      const workerResults = await Promise.all(
+        filePaths.map((filePath) => spawnCodebaseContextWorker(cwd, filePath, planPath))
+      );
+      const combinedFiles = {};
+      for (const workerResult of workerResults) {
+        Object.assign(combinedFiles, workerResult.files || {});
+      }
+      const budgetResult = enforceTokenBudget(combinedFiles);
+      result = {
+        success: true,
+        files: budgetResult.files,
+        file_count: filePaths.length,
+        truncated: budgetResult.truncated,
+        omitted_files: budgetResult.omitted_files,
       };
-      continue;
+    } catch (workerError) {
+      debugLog('codebase.context', 'parallel workers failed, falling back to sequential mode', workerError);
+      result = buildCodebaseContextResult(filePaths, state);
     }
-
-    // 1-hop imports, sorted by fan-in (most-imported first), capped at 8
-    const imports = [...(graph.forward[file] || [])];
-    imports.sort((a, b) => {
-      const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
-      const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
-      if (scoreB !== scoreA) return scoreB - scoreA;
-      // Tiebreaker: fan-in count
-      return (graph.reverse[b] || []).length - (graph.reverse[a] || []).length;
-    });
-    const cappedImports = imports.slice(0, 8);
-
-    // 1-hop dependents, sorted by relevance score first, fan-out as tiebreaker, capped at 8
-    const dependents = [...(graph.reverse[file] || [])];
-    dependents.sort((a, b) => {
-      const scoreA = scoreRelevance(a, filePaths, graph, planFiles, recentFiles);
-      const scoreB = scoreRelevance(b, filePaths, graph, planFiles, recentFiles);
-      if (scoreB !== scoreA) return scoreB - scoreA;
-      // Tiebreaker: fan-out count
-      return (graph.forward[b] || []).length - (graph.forward[a] || []).length;
-    });
-    const cappedDependents = dependents.slice(0, 8);
-
-    // Risk level
-    const riskLevel = computeRiskLevel(file, graph, cycleFiles);
-
-    // Convention matching
-    const fileConventions = matchFileConventions(file, conventions);
-
-    // Relevance score for this file
-    const relevanceScore = scoreRelevance(file, filePaths, graph, planFiles, recentFiles);
-
-    filesResult[file] = {
-      imports: cappedImports,
-      dependents: cappedDependents,
-      conventions: fileConventions,
-      risk_level: riskLevel,
-      relevance_score: relevanceScore,
-    };
+  } else {
+    result = buildCodebaseContextResult(filePaths, state);
   }
-
-  // Enforce token budget (5K cap with graceful degradation)
-  const budgetResult = enforceTokenBudget(filesResult);
-
-  const result = {
-    success: true,
-    files: budgetResult.files,
-    file_count: filePaths.length,
-    truncated: budgetResult.truncated,
-    omitted_files: budgetResult.omitted_files,
-  };
 
   if (raw) {
     output(result, raw);

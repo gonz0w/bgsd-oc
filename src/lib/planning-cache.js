@@ -21,6 +21,10 @@
  */
 
 const fs = require('fs');
+const path = require('path');
+const { withProjectLock } = require('./project-lock');
+
+const COMPUTED_TTL_MS = 10 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // PlanningCache class
@@ -60,6 +64,36 @@ class PlanningCache {
       this._stmts[key] = this._db.prepare(sql);
     }
     return this._stmts[key];
+  }
+
+  /**
+   * Resolve the project root that owns a planning file path.
+   * @param {string} filePath
+   * @returns {string|null}
+   * @private
+   */
+  _resolveProjectRoot(filePath) {
+    if (!filePath) return null;
+
+    let current = path.resolve(filePath);
+    try {
+      if (fs.existsSync(current) && fs.statSync(current).isFile()) {
+        current = path.dirname(current);
+      }
+    } catch {
+      current = path.dirname(current);
+    }
+
+    while (true) {
+      if (fs.existsSync(path.join(current, '.planning'))) {
+        return current;
+      }
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+
+    return path.dirname(path.resolve(filePath));
   }
 
   // -------------------------------------------------------------------------
@@ -116,12 +150,114 @@ class PlanningCache {
    * @returns {{ fresh: string[], stale: string[], missing: string[] }}
    */
   checkAllFreshness(filePaths) {
+    return this.batchCheckFreshness(filePaths);
+  }
+
+  /**
+   * Bulk freshness check in a single SQLite transaction.
+   *
+   * @param {string[]} filePaths
+   * @returns {{ fresh: string[], stale: string[], missing: string[] }}
+   */
+  batchCheckFreshness(filePaths) {
     const result = { fresh: [], stale: [], missing: [] };
-    for (const fp of filePaths) {
-      const status = this.checkFreshness(fp);
-      result[status].push(fp);
+    if (!Array.isArray(filePaths) || filePaths.length === 0) {
+      return result;
     }
-    return result;
+
+    if (this._isMap()) {
+      for (const fp of filePaths) result.missing.push(fp);
+      return result;
+    }
+
+    for (const fp of filePaths) {
+      // Pre-fill with missing on unexpected errors below.
+      result.missing.push(fp);
+    }
+
+    try {
+      this._db.exec('BEGIN');
+      const placeholders = filePaths.map(() => '?').join(',');
+      const rows = this._stmt(
+        'file_cache_batch_get',
+        `SELECT file_path, mtime_ms FROM file_cache WHERE file_path IN (${placeholders})`
+      ).all(...filePaths);
+      this._db.exec('COMMIT');
+
+      const rowMap = Object.create(null);
+      for (const row of rows) {
+        rowMap[row.file_path] = row.mtime_ms;
+      }
+
+      result.fresh = [];
+      result.stale = [];
+      result.missing = [];
+
+      for (const fp of filePaths) {
+        const cachedMtime = rowMap[fp];
+        if (cachedMtime === undefined) {
+          result.missing.push(fp);
+          continue;
+        }
+
+        try {
+          const currentMtime = fs.statSync(fp).mtimeMs;
+          if (currentMtime === cachedMtime) {
+            result.fresh.push(fp);
+          } else {
+            result.stale.push(fp);
+          }
+        } catch {
+          result.missing.push(fp);
+        }
+      }
+
+      return result;
+    } catch {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      return { fresh: [], stale: [], missing: [...filePaths] };
+    }
+  }
+
+  /**
+   * Get a cached computed value if its TTL is still valid.
+   * @param {string} key
+   * @returns {object|null}
+   */
+  getComputedValue(key) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt(
+        'cv_get',
+        'SELECT value_json, ttl_ms FROM computed_values WHERE key = ?'
+      ).get(key);
+      if (!row) return null;
+      if (Date.now() > row.ttl_ms) {
+        this._stmt('cv_del', 'DELETE FROM computed_values WHERE key = ?').run(key);
+        return null;
+      }
+      return JSON.parse(row.value_json);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Store a cached computed value with TTL.
+   * @param {string} key
+   * @param {object} value
+   * @param {number} ttlMs
+   */
+  setComputedValue(key, value, ttlMs = COMPUTED_TTL_MS) {
+    if (this._isMap()) return;
+    try {
+      this._stmt(
+        'cv_upsert',
+        'INSERT OR REPLACE INTO computed_values (key, value_json, ttl_ms, created_at) VALUES (?, ?, ?, ?)'
+      ).run(key, JSON.stringify(value), Date.now() + ttlMs, new Date().toISOString());
+    } catch {
+      // Non-fatal.
+    }
   }
 
   /**
@@ -134,21 +270,31 @@ class PlanningCache {
   invalidateFile(filePath) {
     if (this._isMap()) return;
 
-    try {
-      this._db.exec('BEGIN');
-      this._stmt(
-        'file_cache_delete',
-        'DELETE FROM file_cache WHERE file_path = ?'
-      ).run(filePath);
-      // Also remove plan+tasks if filePath is a plan path
-      this._stmt(
-        'plans_delete_by_path',
-        'DELETE FROM plans WHERE path = ?'
-      ).run(filePath);
-      this._db.exec('COMMIT');
-    } catch {
-      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+    const projectRoot = this._resolveProjectRoot(filePath);
+    const mutate = () => {
+      try {
+        this._db.exec('BEGIN');
+        this._stmt(
+          'file_cache_delete',
+          'DELETE FROM file_cache WHERE file_path = ?'
+        ).run(filePath);
+        // Also remove plan+tasks if filePath is a plan path
+        this._stmt(
+          'plans_delete_by_path',
+          'DELETE FROM plans WHERE path = ?'
+        ).run(filePath);
+        this._db.exec('COMMIT');
+      } catch {
+        try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      }
+    };
+
+    if (!projectRoot) {
+      mutate();
+      return;
     }
+
+    withProjectLock(projectRoot, mutate);
   }
 
   // -------------------------------------------------------------------------
@@ -171,97 +317,101 @@ class PlanningCache {
   storeRoadmap(cwd, roadmapPath, parsed) {
     if (this._isMap()) return;
 
-    try {
-      this._db.exec('BEGIN');
+    const projectRoot = this._resolveProjectRoot(roadmapPath) || cwd;
 
-      // Delete existing data for this cwd
-      this._stmt('phases_delete_cwd', 'DELETE FROM phases WHERE cwd = ?').run(cwd);
-      this._stmt('milestones_delete_cwd', 'DELETE FROM milestones WHERE cwd = ?').run(cwd);
-      this._stmt('progress_delete_cwd', 'DELETE FROM progress WHERE cwd = ?').run(cwd);
-      this._stmt('requirements_delete_cwd', 'DELETE FROM requirements WHERE cwd = ?').run(cwd);
+    withProjectLock(projectRoot, () => {
+      try {
+        this._db.exec('BEGIN');
 
-      // Insert phases
-      const phaseInsert = this._stmt(
-        'phases_insert',
-        `INSERT OR REPLACE INTO phases
+        // Delete existing data for this cwd
+        this._stmt('phases_delete_cwd', 'DELETE FROM phases WHERE cwd = ?').run(cwd);
+        this._stmt('milestones_delete_cwd', 'DELETE FROM milestones WHERE cwd = ?').run(cwd);
+        this._stmt('progress_delete_cwd', 'DELETE FROM progress WHERE cwd = ?').run(cwd);
+        this._stmt('requirements_delete_cwd', 'DELETE FROM requirements WHERE cwd = ?').run(cwd);
+
+        // Insert phases
+        const phaseInsert = this._stmt(
+          'phases_insert',
+          `INSERT OR REPLACE INTO phases
          (number, cwd, name, status, plan_count, goal, depends_on, requirements, section)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      );
-      for (const phase of (parsed.phases || [])) {
-        phaseInsert.run(
-          phase.number || '',
-          cwd,
-          phase.name || '',
-          phase.status || 'incomplete',
-          phase.plan_count != null ? phase.plan_count : 0,
-          phase.goal || null,
-          phase.depends_on ? JSON.stringify(phase.depends_on) : null,
-          phase.requirements ? JSON.stringify(phase.requirements) : null,
-          phase.section || null
         );
-      }
+        for (const phase of (parsed.phases || [])) {
+          phaseInsert.run(
+            phase.number || '',
+            cwd,
+            phase.name || '',
+            phase.status || 'incomplete',
+            phase.plan_count != null ? phase.plan_count : 0,
+            phase.goal || null,
+            phase.depends_on ? JSON.stringify(phase.depends_on) : null,
+            phase.requirements ? JSON.stringify(phase.requirements) : null,
+            phase.section || null
+          );
+        }
 
-      // Insert milestones
-      const msInsert = this._stmt(
-        'milestones_insert',
-        `INSERT INTO milestones (cwd, name, version, status, phase_start, phase_end)
+        // Insert milestones
+        const msInsert = this._stmt(
+          'milestones_insert',
+          `INSERT INTO milestones (cwd, name, version, status, phase_start, phase_end)
          VALUES (?, ?, ?, ?, ?, ?)`
-      );
-      for (const ms of (parsed.milestones || [])) {
-        msInsert.run(
-          cwd,
-          ms.name || '',
-          ms.version || null,
-          ms.status || 'pending',
-          ms.phase_start != null ? ms.phase_start : null,
-          ms.phase_end != null ? ms.phase_end : null
         );
-      }
+        for (const ms of (parsed.milestones || [])) {
+          msInsert.run(
+            cwd,
+            ms.name || '',
+            ms.version || null,
+            ms.status || 'pending',
+            ms.phase_start != null ? ms.phase_start : null,
+            ms.phase_end != null ? ms.phase_end : null
+          );
+        }
 
-      // Insert progress
-      const progInsert = this._stmt(
-        'progress_insert',
-        `INSERT OR REPLACE INTO progress
+        // Insert progress
+        const progInsert = this._stmt(
+          'progress_insert',
+          `INSERT OR REPLACE INTO progress
          (phase, cwd, plans_complete, plans_total, status, completed_date)
          VALUES (?, ?, ?, ?, ?, ?)`
-      );
-      for (const prog of (parsed.progress || [])) {
-        progInsert.run(
-          prog.phase || '',
-          cwd,
-          prog.plans_complete != null ? prog.plans_complete : 0,
-          prog.plans_total != null ? prog.plans_total : 0,
-          prog.status || null,
-          prog.completed_date || null
         );
-      }
+        for (const prog of (parsed.progress || [])) {
+          progInsert.run(
+            prog.phase || '',
+            cwd,
+            prog.plans_complete != null ? prog.plans_complete : 0,
+            prog.plans_total != null ? prog.plans_total : 0,
+            prog.status || null,
+            prog.completed_date || null
+          );
+        }
 
-      // Insert requirements (explicit list or extracted from phases)
-      const reqInsert = this._stmt(
-        'requirements_insert',
-        `INSERT OR REPLACE INTO requirements (req_id, cwd, phase_number, description)
+        // Insert requirements (explicit list or extracted from phases)
+        const reqInsert = this._stmt(
+          'requirements_insert',
+          `INSERT OR REPLACE INTO requirements (req_id, cwd, phase_number, description)
          VALUES (?, ?, ?, ?)`
-      );
-      const requirements = parsed.requirements || _extractRequirementsFromPhases(parsed.phases || []);
-      for (const req of requirements) {
-        reqInsert.run(
-          req.req_id || req.id || '',
-          cwd,
-          req.phase_number || req.phase || null,
-          req.description || null
         );
-      }
+        const requirements = parsed.requirements || _extractRequirementsFromPhases(parsed.phases || []);
+        for (const req of requirements) {
+          reqInsert.run(
+            req.req_id || req.id || '',
+            cwd,
+            req.phase_number || req.phase || null,
+            req.description || null
+          );
+        }
 
-      // Update file_cache mtime
-      if (roadmapPath) {
-        this._updateMtimeInTx(roadmapPath);
-      }
+        // Update file_cache mtime
+        if (roadmapPath) {
+          this._updateMtimeInTx(roadmapPath);
+        }
 
-      this._db.exec('COMMIT');
-    } catch (e) {
-      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
-      // Store failures are non-fatal — cache will be rebuilt on next access
-    }
+        this._db.exec('COMMIT');
+      } catch (e) {
+        try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+        // Store failures are non-fatal — cache will be rebuilt on next access
+      }
+    });
   }
 
   /**
@@ -280,63 +430,67 @@ class PlanningCache {
   storePlan(planPath, cwd, parsed) {
     if (this._isMap()) return;
 
-    try {
-      this._db.exec('BEGIN');
+    const projectRoot = this._resolveProjectRoot(planPath) || cwd;
 
-      // Delete existing plan (CASCADE deletes tasks)
-      this._stmt(
-        'plans_delete_path',
-        'DELETE FROM plans WHERE path = ?'
-      ).run(planPath);
+    withProjectLock(projectRoot, () => {
+      try {
+        this._db.exec('BEGIN');
 
-      // Insert plan row
-      const fm = parsed.frontmatter || {};
-      this._stmt(
-        'plans_insert',
-        `INSERT OR REPLACE INTO plans
+        // Delete existing plan (CASCADE deletes tasks)
+        this._stmt(
+          'plans_delete_path',
+          'DELETE FROM plans WHERE path = ?'
+        ).run(planPath);
+
+        // Insert plan row
+        const fm = parsed.frontmatter || {};
+        this._stmt(
+          'plans_insert',
+          `INSERT OR REPLACE INTO plans
          (path, cwd, phase_number, plan_number, wave, autonomous, objective, task_count, frontmatter_json, raw)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
-        planPath,
-        cwd,
-        fm.phase ? String(fm.phase).split('-')[0] : null,
-        fm.plan != null ? String(fm.plan) : null,
-        fm.wave != null ? fm.wave : null,
-        fm.autonomous != null ? (fm.autonomous ? 1 : 0) : null,
-        parsed.objective || null,
-        (parsed.tasks || []).length,
-        JSON.stringify(fm),
-        parsed.raw || null
-      );
+        ).run(
+          planPath,
+          cwd,
+          fm.phase ? String(fm.phase).split('-')[0] : null,
+          fm.plan != null ? String(fm.plan) : null,
+          fm.wave != null ? fm.wave : null,
+          fm.autonomous != null ? (fm.autonomous ? 1 : 0) : null,
+          parsed.objective || null,
+          (parsed.tasks || []).length,
+          JSON.stringify(fm),
+          parsed.raw || null
+        );
 
-      // Insert task rows
-      const taskInsert = this._stmt(
-        'tasks_insert',
-        `INSERT OR REPLACE INTO tasks
+        // Insert task rows
+        const taskInsert = this._stmt(
+          'tasks_insert',
+          `INSERT OR REPLACE INTO tasks
          (plan_path, idx, type, name, files_json, action, verify, done)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      );
-      for (let i = 0; i < (parsed.tasks || []).length; i++) {
-        const task = parsed.tasks[i];
-        taskInsert.run(
-          planPath,
-          i,
-          task.type || 'auto',
-          task.name || null,
-          task.files ? JSON.stringify(task.files) : null,
-          task.action || null,
-          task.verify || null,
-          task.done || null
         );
+        for (let i = 0; i < (parsed.tasks || []).length; i++) {
+          const task = parsed.tasks[i];
+          taskInsert.run(
+            planPath,
+            i,
+            task.type || 'auto',
+            task.name || null,
+            task.files ? JSON.stringify(task.files) : null,
+            task.action || null,
+            task.verify || null,
+            task.done || null
+          );
+        }
+
+        // Update file_cache mtime
+        this._updateMtimeInTx(planPath);
+
+        this._db.exec('COMMIT');
+      } catch (e) {
+        try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
       }
-
-      // Update file_cache mtime
-      this._updateMtimeInTx(planPath);
-
-      this._db.exec('COMMIT');
-    } catch (e) {
-      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
-    }
+    });
   }
 
   /**

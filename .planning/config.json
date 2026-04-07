@@ -4,5 +4,31 @@
   },
   "workflow": {
     "research": true
+  },
+  "model_settings": {
+    "default_profile": "balanced",
+    "profiles": {
+      "quality": {
+        "model": "gpt-5.4"
+      },
+      "balanced": {
+        "model": "gpt-5.4-mini"
+      },
+      "budget": {
+        "model": "lmstudio/qwen3.5-35b-a3b"
+      }
+    },
+    "agent_overrides": {
+      "bgsd-planner": "gpt-5.4-mini",
+      "bgsd-executor": "gpt-5.4-mini",
+      "bgsd-verifier": "lmstudio/qwen3.5-35b-a3b",
+      "bgsd-plan-checker": "lmstudio/qwen3.5-35b-a3b",
+      "bgsd-codebase-mapper": "lmstudio/qwen3.5-35b-a3b",
+      "bgsd-project-researcher": "lmstudio/qwen3.5-35b-a3b",
+      "bgsd-github-ci": "lmstudio/qwen3.5-9b",
+      "bgsd-phase-researcher": "gpt-5.4-mini",
+      "bgsd-roadmapper": "gpt-5.4-mini",
+      "bgsd-debugger": "gpt-5.4"
+    }
   }
 }

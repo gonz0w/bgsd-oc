@@ -2,6 +2,7 @@
 description: Verifies plans will achieve phase goal before execution. Goal-backward analysis of plan quality. Spawned by /bgsd-plan phase orchestration.
 mode: subagent
 color: "#00FF00"
+model: gpt-4o
 # estimated_tokens: ~9k (system prompt: ~455 lines)
 tools:
   read: true

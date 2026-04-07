@@ -1200,6 +1200,10 @@ describe('Phase 166 completion metadata workflow contracts', () => {
     const executePlan = fs.readFileSync(path.join(process.cwd(), 'workflows', 'execute-plan.md'), 'utf-8');
 
     assert.match(executePlan, /verify:state complete-plan/i, 'workflow should use the batched completion command');
+    assert.match(executePlan, /verify:state validate/i, 'workflow should gate progression on post-write validation');
+    assert.match(executePlan, /immediately follow any batched state write/i, 'workflow should require validation after batched writes');
+    assert.match(executePlan, /retry once/i, 'workflow should allow one transient retry');
+    assert.match(executePlan, /fail closed/i, 'workflow should stop on repeated validation failure');
     assert.match(executePlan, /read back and repair stale STATE or ROADMAP summary fields/i, 'workflow should require focused metadata readback repair');
     assert.match(executePlan, /active plan rather than ambient workspace noise/i, 'workflow should describe the plan-scoped completion contract');
   });

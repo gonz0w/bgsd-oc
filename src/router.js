@@ -1068,7 +1068,7 @@ Use without --exact for fuzzy matching.`);
           } else if (cbSub === 'impact') {
             lazyCodebase().cmdCodebaseImpact(cwd, restArgs.slice(1), raw);
           } else if (cbSub === 'context') {
-            lazyCodebase().cmdCodebaseContext(cwd, restArgs.slice(1), raw);
+            await lazyCodebase().cmdCodebaseContext(cwd, restArgs.slice(1), raw);
           } else if (cbSub === 'lifecycle') {
             lazyCodebase().cmdCodebaseLifecycle(cwd, restArgs.slice(1), raw);
           } else if (cbSub === 'ast') {
@@ -1624,8 +1624,10 @@ Examples:
           lazyWorkflow().cmdWorkflowVerifyStructure(cwd, workflowRestArgs, raw);
         } else if (subCmd === 'savings') {
           lazyWorkflow().cmdWorkflowSavings(cwd, workflowRestArgs, raw);
+        } else if (subCmd === 'hotpath') {
+          lazyWorkflow().cmdWorkflowHotpath(cwd, raw);
         } else {
-          error('Unknown workflow subcommand: ' + subCmd + '. Available: baseline, compare, verify-structure, savings');
+          error('Unknown workflow subcommand: ' + subCmd + '. Available: baseline, compare, verify-structure, savings, hotpath');
         }
         break;
       }

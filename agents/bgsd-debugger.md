@@ -2,6 +2,7 @@
 description: Investigates bugs using scientific method, manages debug sessions, handles checkpoints. Spawned by /bgsd-debug orchestrator.
 mode: subagent
 color: "#FFA500"
+model: gpt-4o
 # estimated_tokens: ~9k (system prompt: ~530 lines)
 tools:
   read: true

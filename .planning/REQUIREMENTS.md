@@ -7,16 +7,16 @@
 
 ### ACCEL — Acceleration Infrastructure
 
-- [ ] **ACCEL-01:** Run `workflow:baseline` before any routing/caching changes and save baseline metrics to `.planning/research/ACCEL-BASELINE.json`
-- [ ] **ACCEL-02:** Add adaptive hot-path telemetry hooks to `orchestration.js` that log which routing paths are actually taken
-- [ ] **ACCEL-03:** Extend `PlanningCache` with TTL-backed computed-value tables for `classifyTaskComplexity` and `routeTask` results
-- [ ] **ACCEL-04:** Add batch freshness check to `PlanningCache` that reads N phase/plan fingerprints in a single SQLite transaction instead of per-file mtime checks
+- [x] **ACCEL-01:** Run `workflow:baseline` before any routing/caching changes and save baseline metrics to `.planning/research/ACCEL-BASELINE.json`
+- [x] **ACCEL-02:** Add adaptive hot-path telemetry hooks to `orchestration.js` that log which routing paths are actually taken
+- [x] **ACCEL-03:** Extend `PlanningCache` with TTL-backed computed-value tables for `classifyTaskComplexity` and `routeTask` results
+- [x] **ACCEL-04:** Add batch freshness check to `PlanningCache` that reads N phase/plan fingerprints in a single SQLite transaction instead of per-file mtime checks
 
 ### FAST — Fast Mode Commands
 
-- [ ] **FAST-01:** Add `discuss-phase --fast` flag that batches low-risk clarification choices and reduces turns for routine phases
-- [ ] **FAST-02:** Add `verify-work --batch N` flag that batches routine test verification (default stays one-at-a-time for ambiguous/high-risk)
-- [ ] **FAST-03:** Add `workflow:hotpath` command that shows which routing paths are most frequently used based on telemetry
+- [x] **FAST-01:** Add `discuss-phase --fast` flag that batches low-risk clarification choices and reduces turns for routine phases
+- [x] **FAST-02:** Add `verify-work --batch N` flag that batches routine test verification (default stays one-at-a-time for ambiguous/high-risk)
+- [x] **FAST-03:** Add `workflow:hotpath` command that shows which routing paths are most frequently used based on telemetry
 
 ### PARALLEL — Parallelization
 
@@ -27,14 +27,14 @@
 
 ### STATE — State Mutation Safety
 
-- [ ] **STATE-01:** Wire `verify:state validate` regression coverage into execute-plan workflow after any batched state write
-- [ ] **STATE-02:** Extend `verify:state complete-plan` with batch transaction support for non-sacred state mutations
-- [ ] **STATE-03:** Never batch sacred data writes (decisions, lessons, trajectories, requirements) — only cache/non-critical state
+- [x] **STATE-01:** Wire `verify:state validate` regression coverage into execute-plan workflow after any batched state write
+- [x] **STATE-02:** Extend `verify:state complete-plan` with batch transaction support for non-sacred state mutations
+- [x] **STATE-03:** Never batch sacred data writes (decisions, lessons, trajectories, requirements) — only cache/non-critical state
 
 ### BUNDLE — Bundle Integrity
 
-- [ ] **BUNDLE-01:** Run `npm run build` smoke test after every plan — bundle parity failures are a recurring issue pattern
-- [ ] **BUNDLE-02:** Run `util:validate-commands --raw` to confirm CLI contract after any routing change
+- [x] **BUNDLE-01:** Run `npm run build` smoke test after every plan — bundle parity failures are a recurring issue pattern
+- [x] **BUNDLE-02:** Run `util:validate-commands --raw` to confirm CLI contract after any routing change
 
 ## Traceability
 

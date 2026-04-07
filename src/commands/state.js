@@ -1049,6 +1049,7 @@ function cmdStateCompletePlan(cwd, options, raw) {
   const decisionRationale = options.decision_rationale || null;
   let completionResult;
   try {
+      // Keep the batched plan completion on the shared atomic mutator path.
       completionResult = applyStateSessionMutation(cwd, {
         type: 'completePlanCore',
         phase: options.phase,

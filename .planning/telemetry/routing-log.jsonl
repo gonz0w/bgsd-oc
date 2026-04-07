@@ -1,0 +1,2 @@
+{"function":"classifyTaskComplexity","key":"1267811651","profile":null,"model":null,"agent":null,"timestamp":"2026-04-06T23:35:03.954Z"}
+{"function":"routeTask","key":"977240780","profile":"budget","model":"gpt-5.4-nano","agent":"bgsd-executor","timestamp":"2026-04-06T23:35:03.955Z"}

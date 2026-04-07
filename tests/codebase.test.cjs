@@ -1140,7 +1140,7 @@ describe('codebase context', () => {
 });
 
 describe('codebase lifecycle', () => {
-  const { LIFECYCLE_DETECTORS, buildLifecycleGraph } = require('../src/lib/lifecycle');
+  const { LIFECYCLE_DETECTORS, buildLifecycleGraph, resolvePhaseDependencies } = require('../src/lib/lifecycle');
 
   // Helper: create a temp project with specific files and run codebase analyze
   function createLifecycleProject(files) {
@@ -1274,6 +1274,44 @@ describe('codebase lifecycle', () => {
     assert.strictEqual(result.stats.edge_count, 0, 'edge_count should be 0');
     assert.strictEqual(result.stats.chain_count, 0, 'chain_count should be 0');
     assert.ok(result.built_at, 'should have built_at timestamp');
+  });
+
+  test('resolvePhaseDependencies returns deterministic chains for the same nodes', () => {
+    const nodes = [
+      {
+        id: 'migration:c',
+        file_or_step: 'c.sql',
+        type: 'migration',
+        must_run_before: [],
+        must_run_after: ['migration:b'],
+        framework: 'generic',
+        confidence: 90,
+      },
+      {
+        id: 'migration:a',
+        file_or_step: 'a.sql',
+        type: 'migration',
+        must_run_before: ['migration:b'],
+        must_run_after: [],
+        framework: 'generic',
+        confidence: 90,
+      },
+      {
+        id: 'migration:b',
+        file_or_step: 'b.sql',
+        type: 'migration',
+        must_run_before: ['migration:c'],
+        must_run_after: ['migration:a'],
+        framework: 'generic',
+        confidence: 90,
+      },
+    ];
+
+    const first = resolvePhaseDependencies(nodes);
+    const second = resolvePhaseDependencies(nodes.slice().reverse());
+
+    assert.deepStrictEqual(first, [['migration:a', 'migration:b', 'migration:c']]);
+    assert.deepStrictEqual(first, second, 'same input graph should always produce the same chain order');
   });
 
   test('buildLifecycleGraph produces chains with topological sort', () => {
@@ -2372,4 +2410,3 @@ describe('discovery parity: legacy vs optimized (Phase 78 Plan 03)', () => {
       'onlyOptimized should be empty (optimized is a subset of legacy here)');
   });
 });
-

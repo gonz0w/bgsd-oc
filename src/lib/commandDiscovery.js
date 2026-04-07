@@ -45,7 +45,8 @@ const COMMAND_ALIASES = {
    'w:b': 'workflow:baseline',
    'w:c': 'workflow:compare',
    'w:v': 'workflow:verify-structure',
-   'w:s': 'workflow:savings'
+    'w:s': 'workflow:savings',
+    'w:h': 'workflow:hotpath'
 };
 
 const COMMAND_CATEGORIES = {
@@ -83,7 +84,7 @@ const COMMAND_CATEGORIES = {
   },
   measurement: {
     name: 'Measurement',
-    commands: ['workflow:baseline', 'workflow:compare', 'workflow:savings']
+    commands: ['workflow:baseline', 'workflow:compare', 'workflow:savings', 'workflow:hotpath']
   }
 };
 

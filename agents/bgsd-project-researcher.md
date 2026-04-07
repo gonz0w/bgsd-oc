@@ -2,6 +2,7 @@
 description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /bgsd-new-project or /bgsd-new-milestone orchestrators.
 mode: subagent
 color: "#00FFFF"
+model: gpt-4o-mini
 # estimated_tokens: ~6k (system prompt: ~350 lines)
 tools:
   read: true

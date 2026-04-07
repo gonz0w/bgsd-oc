@@ -2,6 +2,7 @@
 description: Creates project roadmaps with phase breakdown, requirement mapping, success criteria derivation, and coverage validation. Spawned by /bgsd-new-project orchestrator.
 mode: subagent
 color: "#800080"
+model: gpt-4o-mini
 # estimated_tokens: ~8k (system prompt: ~420 lines)
 tools:
   read: true

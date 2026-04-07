@@ -43,6 +43,10 @@ function classifyMigrationPrefix(basename) {
   return 70;                                       // Alphabetical fallback
 }
 
+function compareNodeIds(left, right) {
+  return String(left).localeCompare(String(right));
+}
+
 
 /**
  * Lifecycle detector registry.
@@ -382,16 +386,20 @@ function buildChains(nodes) {
   if (nodes.length === 0) return [];
 
   var nodeMap = {};
-  for (var i = 0; i < nodes.length; i++) {
-    nodeMap[nodes[i].id] = nodes[i];
+  var sortedNodes = nodes.slice().sort(function(a, b) {
+    return compareNodeIds(a.id, b.id);
+  });
+
+  for (var i = 0; i < sortedNodes.length; i++) {
+    nodeMap[sortedNodes[i].id] = sortedNodes[i];
   }
 
   // Build adjacency and in-degree from must_run_before edges
   var adjacency = {};
   var inDegree = {};
 
-  for (var j = 0; j < nodes.length; j++) {
-    var node = nodes[j];
+  for (var j = 0; j < sortedNodes.length; j++) {
+    var node = sortedNodes[j];
     if (!adjacency[node.id]) adjacency[node.id] = [];
     if (inDegree[node.id] === undefined) inDegree[node.id] = 0;
 
@@ -401,6 +409,12 @@ function buildChains(nodes) {
       if (inDegree[target] === undefined) inDegree[target] = 0;
       inDegree[target]++;
       if (!adjacency[target]) adjacency[target] = [];
+    }
+  }
+
+  for (var key in adjacency) {
+    if (Object.prototype.hasOwnProperty.call(adjacency, key)) {
+      adjacency[key].sort(compareNodeIds);
     }
   }
 
@@ -431,13 +445,20 @@ function buildChains(nodes) {
     return comp;
   }
 
-  for (var ci = 0; ci < nodes.length; ci++) {
-    if (!visited.has(nodes[ci].id)) {
-      var comp = bfsComponent(nodes[ci].id);
+  for (var ci = 0; ci < sortedNodes.length; ci++) {
+    if (!visited.has(sortedNodes[ci].id)) {
+      var comp = bfsComponent(sortedNodes[ci].id);
       comp.forEach(function(id) { visited.add(id); });
       components.push(comp);
     }
   }
+
+  components.sort(function(left, right) {
+    return compareNodeIds(
+      Array.from(left).sort(compareNodeIds)[0],
+      Array.from(right).sort(compareNodeIds)[0]
+    );
+  });
 
   // Topological sort each component (Kahn's algorithm)
   var chains = [];
@@ -465,6 +486,7 @@ function buildChains(nodes) {
     compSet.forEach(function(id) {
       if (localInDegree[id] === 0) queue.push(id);
     });
+    queue.sort(compareNodeIds);
 
     var sorted = [];
     while (queue.length > 0) {
@@ -476,6 +498,7 @@ function buildChains(nodes) {
           localInDegree[edges[ei2]]--;
           if (localInDegree[edges[ei2]] === 0) {
             queue.push(edges[ei2]);
+            queue.sort(compareNodeIds);
           }
         }
       }
@@ -542,7 +565,7 @@ function buildLifecycleGraph(intel, cwd) {
   var cycleData = findCycles({ forward: forward });
 
   // Chain flattening via topological sort
-  var chains = buildChains(nodes);
+  var chains = resolvePhaseDependencies(nodes);
 
   return {
     nodes: nodes,
@@ -560,10 +583,15 @@ function buildLifecycleGraph(intel, cwd) {
   };
 }
 
+function resolvePhaseDependencies(nodes) {
+  return buildChains(nodes || []);
+}
+
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
   LIFECYCLE_DETECTORS: LIFECYCLE_DETECTORS,
   buildLifecycleGraph: buildLifecycleGraph,
+  resolvePhaseDependencies: resolvePhaseDependencies,
 };

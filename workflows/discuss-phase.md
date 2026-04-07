@@ -73,6 +73,10 @@ If the fallback command fails unexpectedly, then tell the user: "bGSD plugin req
 
 Parse the loaded JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`, `resume_summary`.
 
+Parse `$ARGUMENTS` for `--fast`:
+- If `--fast` is present, set `is_fast = true`
+- Pass `is_fast` forward through the workflow state
+
 **If `phase_found` is false:**
 ```
 Phase [X] not found in roadmap. Use /bgsd-inspect progress to see available phases.
@@ -150,6 +154,8 @@ Use questionTemplate('discuss-low-risk-path', 'SINGLE_CHOICE'):
 - "Skip defaults" → record no decision yet, then continue to `present_gray_areas`
 
 **Important:** This fast path only compresses low-risk clarification. It must not bypass locked decisions, deferred ideas, or agent-discretion capture later in the workflow.
+
+If `is_fast` is true and the phase has 2 or fewer gray areas total, skip `present_gray_areas` entirely and go straight to the low-risk confirmation path.
 </step>
 <!-- /section -->
 
@@ -168,6 +174,8 @@ Present the gray areas grouped by priority:
 - High gray areas first
 - Medium gray areas next
 - Low gray areas last (unless already defaulted)
+
+If `is_fast` is true and every gray area was already handled in `low_risk_fast_path`, skip this step and continue directly to `customer_stress_test`.
 
 For each item, show:
 - area name

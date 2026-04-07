@@ -237,6 +237,8 @@ node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state complete-plan \
   --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md" --resume-file "None"
 ```
 
+Immediately follow any batched state write with `verify:state validate` before downstream progression continues. If validation fails after a batched write, allow one retry (retry once) for a transient write/validation glitch; if it still fails, fail closed and stop the run.
+
 This repaired completion path must read back and repair stale STATE summary fields (current plan, total plans, current focus, current phase header, status/progress text) so final metadata matches the active plan rather than ambient workspace noise. After `complete-plan`, verify the top `Current Position` phase line and the detailed `Current focus` block agree; if they diverge, repair STATE.md before reporting success.
 
 If SUMMARY issues ≠ "None": yolo → log. Interactive → present, wait.

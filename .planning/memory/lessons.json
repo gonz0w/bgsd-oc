@@ -853,5 +853,17 @@
     "affected_agents": [
       "bgsd-roadmapper"
     ]
+  },
+  {
+    "id": "cae8f3d0-c6df-49cb-8f3d-a99ac2b046e7",
+    "date": "2026-04-07T00:09:12.551Z",
+    "title": "Derive missing phase directories immediately",
+    "severity": "LOW",
+    "type": "workflow",
+    "root_cause": "Phase research spent time globbing for a phase-specific directory that the init contract had already shown was missing.",
+    "prevention_rule": "When init returns phase_dir null, derive the canonical .planning/phases/<padded>-<slug> path immediately and create it instead of searching for an existing directory.",
+    "affected_agents": [
+      "bgsd-phase-researcher"
+    ]
   }
 ]

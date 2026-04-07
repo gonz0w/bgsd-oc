@@ -31,6 +31,7 @@ const {
 } = require('../src/lib/db');
 
 const { PlanningCache } = require('../src/lib/planning-cache');
+const { resolveLockDir } = require('../src/lib/project-lock');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -183,6 +184,26 @@ function mockParsedPlan(phaseNumber = '001', planNumber = '01') {
     ],
     context: [],
     raw: null,
+  };
+}
+
+function createMockMutationDb(options = {}) {
+  const failOn = options.failOn || (() => false);
+  return {
+    backend: 'sqlite',
+    exec() {},
+    prepare(sql) {
+      return {
+        get() { return null; },
+        all() { return []; },
+        run(...args) {
+          if (failOn(sql, args)) {
+            throw new Error('planned mutation failure');
+          }
+          return { changes: 1 };
+        },
+      };
+    },
   };
 }
 
@@ -433,6 +454,7 @@ describe('Group 3: Mtime Invalidation', () => {
 
     const result = cache.checkFreshness(filePath);
     assert.strictEqual(result, 'missing', 'After invalidateFile, file should be "missing"');
+    assert.ok(!fs.existsSync(resolveLockDir(tempDir)), 'lock should be released after invalidateFile');
   });
 
   it('checkAllFreshness categorizes multiple files correctly', () => {
@@ -737,6 +759,28 @@ describe('Group 5: Plan Store + Query Round-Trip (TBL-02)', () => {
     assert.strictEqual(plan.objective, 'UPDATED objective', 'Objective should be updated');
     assert.strictEqual(plan.tasks.length, 1, 'Should only have 1 task after re-store');
     assert.strictEqual(plan.tasks[0].name, 'Single updated task', 'Task name should be updated');
+  });
+
+  it('releases the project lock after a failing storePlan and allows retry', () => {
+    const { dir, planningDir } = makePlanningDir('bgsd-plan-lock-');
+    const planFile = createTempFile(planningDir, '0001-01-PLAN.md', '# Plan content');
+
+    try {
+      const failingCache = new PlanningCache(createMockMutationDb({
+        failOn(sql) {
+          return sql.includes('INSERT OR REPLACE INTO plans');
+        },
+      }));
+
+      failingCache.storePlan(planFile, dir, mockParsedPlan());
+      assert.ok(!fs.existsSync(resolveLockDir(dir)), 'lock should be released after failed storePlan');
+
+      const retryCache = new PlanningCache(createMockMutationDb());
+      retryCache.storePlan(planFile, dir, mockParsedPlan());
+      assert.ok(!fs.existsSync(resolveLockDir(dir)), 'lock should be released after retrying storePlan');
+    } finally {
+      removeTempDir(dir);
+    }
   });
 });
 

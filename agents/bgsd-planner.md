@@ -2,6 +2,7 @@
 description: Creates executable phase plans with task breakdown, dependency analysis, and goal-backward verification. Spawned by /bgsd-plan phase orchestration.
 mode: subagent
 color: "#00FF00"
+model: gpt-4o
 # estimated_tokens: ~9k (system prompt: ~500 lines)
 tools:
   read: true

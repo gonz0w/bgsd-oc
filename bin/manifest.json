@@ -1,11 +1,12 @@
 {
-  "generated": "2026-04-02T13:46:13.876Z",
+  "generated": "2026-04-07T02:05:18.881Z",
   "files": [
     "VERSION",
     "agents/bgsd-codebase-mapper.md",
     "agents/bgsd-debugger.md",
     "agents/bgsd-executor.md",
     "agents/bgsd-github-ci.md",
+    "agents/bgsd-model-diagnostic.md",
     "agents/bgsd-phase-researcher.md",
     "agents/bgsd-plan-checker.md",
     "agents/bgsd-planner.md",
@@ -14,6 +15,7 @@
     "agents/bgsd-verifier.md",
     "bin/bgsd",
     "bin/bgsd-tools.cjs",
+    "bin/debug-model-override.cjs",
     "bin/format.test.cjs",
     "bin/manifest.json",
     "commands/bgsd-audit-milestone.md",
@@ -154,6 +156,7 @@
     "workflows/set-profile.md",
     "workflows/settings.md",
     "workflows/tdd.md",
+    "workflows/test-model-override.md",
     "workflows/transition.md",
     "workflows/update.md",
     "workflows/verify-work.md"

@@ -2,6 +2,7 @@
 description: Researches how to implement a phase before planning. Produces RESEARCH.md consumed by bgsd-planner. Spawned by /bgsd-plan phase orchestration.
 mode: subagent
 color: "#00FFFF"
+model: gpt-4o-mini
 # estimated_tokens: ~5k (system prompt: ~320 lines)
 tools:
   read: true

@@ -1892,6 +1892,17 @@ Examples:
   bgsd-tools workflow:baseline
   bgsd-tools workflow:baseline --raw`,
 
+  'workflow:hotpath': `Usage: bgsd-tools workflow:hotpath
+
+Show aggregated routing telemetry from .planning/telemetry/routing-log.jsonl.
+
+Output (stderr): Hot-path table with per-function counts and top profile/model.
+Output (stdout): JSON with { log_file, total_entries, hot_paths: [...] }
+
+Examples:
+  bgsd-tools workflow:hotpath
+  bgsd-tools workflow:hotpath --raw`,
+
   'workflow:compare': `Usage: bgsd-tools workflow:compare [<snapshot-a>] [<snapshot-b>]
 
 Compare two workflow baseline snapshots to see per-workflow token deltas.

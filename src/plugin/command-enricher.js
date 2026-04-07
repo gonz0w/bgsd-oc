@@ -419,6 +419,19 @@ export function enrichCommand(input, output, cwd) {
       'bgsd-map-codebase':     'bgsd-codebase-mapper',
       'bgsd-debug':            'bgsd-debugger',
     };
+    const AGENT_MODEL_FIELD = {
+      'bgsd-executor': 'executor_model',
+      'bgsd-verifier': 'verifier_model',
+      'bgsd-planner': 'planner_model',
+      'bgsd-plan-checker': 'checker_model',
+      'bgsd-phase-researcher': 'researcher_model',
+      'bgsd-project-researcher': 'researcher_model',
+      'bgsd-roadmapper': 'roadmapper_model',
+      'bgsd-codebase-mapper': 'mapper_model',
+      'bgsd-debugger': 'debugger_model',
+      'bgsd-reviewer': 'reviewer_model',
+      'bgsd-github-ci': 'ci_model',
+    };
     const agentType = COMMAND_TO_AGENT[command] || null;
     if (agentType) {
       enrichment.agent_type = agentType;
@@ -431,6 +444,10 @@ export function enrichCommand(input, output, cwd) {
       enrichment.selected_profile = modelState.selected_profile;
       enrichment.resolved_model = modelState.resolved_model;
       enrichment.source = modelState.source;
+      const modelField = AGENT_MODEL_FIELD[agentType];
+      if (modelField) {
+        enrichment[modelField] = modelState.resolved_model;
+      }
     }
   } catch { /* model-selection inputs failed */ }
 

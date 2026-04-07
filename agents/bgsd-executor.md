@@ -2,6 +2,7 @@
 description: Executes GSD plans with atomic commits, deviation handling, checkpoint protocols, and state management. Spawned by execute-phase orchestrator or execute-plan command.
 mode: subagent
 color: "#FFFF00"
+model: gpt-4o-mini
 # estimated_tokens: ~4k (system prompt: ~230 lines)
 tools:
   read: true

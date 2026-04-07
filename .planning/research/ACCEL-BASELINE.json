@@ -1,0 +1,1345 @@
+{
+  "version": 1,
+  "timestamp": "2026-04-07T02:08:56.650Z",
+  "workflow_count": 48,
+  "total_tokens": 80223,
+  "workflows": [
+    {
+      "name": "discuss-phase.md",
+      "workflow_tokens": 6140,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 6140,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=\"Run /bgsd-plan phase ${PHASE} --auto. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",\n  subagent_type=\"general\",\n  description=\"Plan Phase ${PHASE}\"\n)"
+        ],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op \"${PHASE}\" --raw)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(${padded_phase}): capture phase context\" --files \"${phase_dir}/${padded_phase}-CONTEXT.md\"",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(state): record phase ${PHASE} context session\" --files .planning/STATE.md",
+          "AUTO_CFG=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.auto_advance 2>/dev/null || echo \"false\")",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.auto_advance true",
+          "prompt=\"Run /bgsd-plan phase ${PHASE} --auto. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op \"${PHASE}\" --raw)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\\n  --phase \"${PHASE}\" \\\n  --step discuss \\\n  --summary \"Discuss context ready for Phase ${PHASE}\" \\\n  --resume-file \"${phase_dir}/${padded_phase}-CONTEXT.md\" \\\n  --next-command \"/bgsd-plan research ${PHASE}\"",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(${padded_phase}): capture phase context\" --files \"${phase_dir}/${padded_phase}-CONTEXT.md\"",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session \\\n  --stopped-at \"Phase ${PHASE} context gathered\" \\\n  --resume-file \"${phase_dir}/${padded_phase}-CONTEXT.md\"\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(state): record phase ${PHASE} context session\" --files .planning/STATE.md",
+          "bash\n   AUTO_CFG=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.auto_advance 2>/dev/null || echo \"false\")",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.auto_advance true",
+          "bgsd-tools lessons:capture"
+        ],
+        "section_markers": [
+          "purpose",
+          "scope_guardrail",
+          "gray_area_identification",
+          "initialize",
+          "handoff_entry",
+          "check_existing",
+          "analyze_phase",
+          "low_risk_fast_path",
+          "present_gray_areas",
+          "discuss_areas",
+          "customer_stress_test",
+          "reassess_after_stress_test",
+          "write_context",
+          "confirm_creation",
+          "confirm_creation",
+          "git_commit",
+          "update_state",
+          "auto_advance",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "execute-phase.md",
+      "workflow_tokens": 5636,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 5636,
+      "structure": {
+        "task_calls": [
+          "Task(subagent_type=\"bgsd-executor\", model=\"{executor_model}\", workdir=\"{workspace_path}\", prompt=\"<objective>Execute plan {plan_number} of phase {phase_number}-{phase_name}. Running in JJ workspace at {workspace_path}.</objective> Tool capability: {capability_level} — agent receives full tool decisions via bgsd-context injection. ...same execution_context, files_to_read, codebase_context, success_criteria as Mode B...\")",
+          "Task(\n    subagent_type=\"bgsd-executor\", model=\"{executor_model}\",\n    prompt=\"\n      <objective>\n      Execute plan {plan_number} of phase {phase_number}-{phase_name}.\n      Commit each task atomically. Create SUMMARY.md. In workspace mode, keep shared planning updates behind finalize instead of mutating STATE.md or ROADMAP.md directly.\n      </objective>\n\n      <execution_context>\n      @__OPENCODE_CONFIG__/bgsd-oc/workflows/execute-plan.md\n      @__OPENCODE_CONFIG__/bgsd-oc/templates/summary.md\n      Load checkpoints.md sections 'types' and 'guidelines' via extract-sections if plan has autonomous: false.\n      Load tdd.md only if plan type is 'tdd'.\n      </execution_context>\n\n      Verification route: {verification_route}. Apply it as: `skip` = structural proof only, `light` = named focused proof plus smoke regression, `full` = named focused proof plus one broad regression gate at plan end or overall verification.\n\n      Use the normalized proof bundle as the source of truth: behavior proof, regression proof, and human verification buckets must report `required` versus `not required` honestly instead of inferring proof scope from plan size.\n\n      If focused verification needs test execution, prefer explicit `node --test <file>...` file lists or direct smoke scripts over `npm test --test-name-pattern`. If a broad gate is already red from unrelated legacy failures, record that baseline separately from the touched-slice proof.\n\n      If a broad node:test file hangs after the targeted regressions already passed, record the attempted gate once, stop retrying the same hanging file, and fall back to rebuilt-runtime plus focused touched-surface checks that directly prove the plan truths.\n\n      For command-surface or docs-heavy work, preserve exact canonical route callouts unless the regression contract is intentionally updated, and validate command-integrity proof against the actual touched surfaced files rather than curated snippets alone. Keep slice regressions scoped to the files and command surfaces the plan owns.\n\n      When changed deliverables include generated runtime artifacts (for example `plugin.js` or `bin/bgsd-tools.cjs`)",
+          "Task(\n  prompt=\"Verify phase {phase_number} goal achievement.\nPhase directory: {phase_dir}\nPhase goal: {goal from ROADMAP.md}\nPhase requirement IDs: {phase_req_ids}\nCheck must_haves against actual codebase.\nAssess intent alignment as a separate judgment from requirement coverage using the active phase intent when available.\nUse the locked verdict ladder `aligned | partial | misaligned`; if the core expected user change missed, force `misaligned`.\nIf no explicit phase-intent block exists, report intent alignment as `not assessed` / unavailable with a plain reason instead of guessing.\nSurface Intent Alignment before or alongside Requirement Coverage in VERIFICATION.md.\nCross-reference requirement IDs from PLAN frontmatter against REQUIREMENTS.md.\nCreate VERIFICATION.md.\",\n  subagent_type=\"bgsd-verifier\",\n  model=\"{verifier_model}\"\n)"
+        ],
+        "cli_commands": [
+          "DEPS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate-dependencies \"${PHASE_NUMBER}\" 2>/dev/null)",
+          "PLAN_INDEX=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:phase-plan-index \"${PHASE_NUMBER}\")",
+          "PLAN_FILES=$(node bgsd-tools.cjs util:frontmatter \"${PLAN_PATH}\" --field files_modified 2>/dev/null)",
+          "[ -n \"$PLAN_FILES\" ] && CODEBASE_CTX=$(node bgsd-tools.cjs util:codebase context --files ${PLAN_FILES} --plan ${PLAN_PATH} 2>/dev/null)",
+          "When changed deliverables include generated runtime artifacts (for example `plugin.js` or `bin/bgsd-tools.cjs`), verify against the repo-local current checkout plus the rebuilt local runtime in this repo. Never trust stale generated artifacts: run `npm run build`, then rerun the focused proof against the rebuilt local runtime before reporting success.",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null",
+          "COMPLETION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase complete \"${PHASE_NUMBER}\")",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(phase-{X}): complete phase execution\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md",
+          "bash\nDEPS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate-dependencies \"${PHASE_NUMBER}\" 2>/dev/null)",
+          "bash\nPLAN_INDEX=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:phase-plan-index \"${PHASE_NUMBER}\")",
+          "bash\n  PLAN_FILES=$(node bgsd-tools.cjs util:frontmatter \"${PLAN_PATH}\" --field files_modified 2>/dev/null)\n  [ -n \"$PLAN_FILES\" ] && CODEBASE_CTX=$(node bgsd-tools.cjs util:codebase context --files ${PLAN_FILES} --plan ${PLAN_PATH} 2>/dev/null)",
+          "bin/bgsd-tools.cjs",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\\n  --phase \"${PHASE_NUMBER}\" \\\n  --step execute \\\n  --summary \"Execution complete for Phase ${PHASE_NUMBER}\" \\\n  --next-command \"/bgsd-verify-work ${PHASE_NUMBER}\"",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null\nCOMPLETION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase complete \"${PHASE_NUMBER}\")\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(phase-{X}): complete phase execution\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md"
+        ],
+        "section_markers": [
+          "purpose",
+          "initialize",
+          "handoff_gating",
+          "handle_branching",
+          "validate_phase",
+          "preflight",
+          "discover_plans",
+          "visualize_execution",
+          "execute_waves",
+          "checkpoint_handling",
+          "aggregate_results",
+          "close_artifacts",
+          "ci_quality_gate",
+          "verify_phase_goal",
+          "update_roadmap",
+          "offer_next",
+          "resumption",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "plan-phase.md",
+      "workflow_tokens": 5578,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 5578,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=\"Read __OPENCODE_CONFIG__/agents/bgsd-phase-researcher.md for instructions.\nResearch Phase {phase_number}: {phase_name}.\nQuestion: What do I need to know to PLAN this phase well?\nRead: {context_path}, {requirements_path}, {state_path}\nUse injected `effective_intent` as the default planning-alignment contract for project, milestone, and phase purpose.\nUse injected `jj_planning_context` only as advisory capability context — do not depend on live workspace inventory and do not auto-route sibling work.\nIf low-overlap evidence is explicit, you may note a manual preference for safe sibling work; otherwise ignore it.\nOnly inspect raw intent source docs when direct source-text review is actually required.\nPhase description: {phase_desc}\nRequirement IDs: {phase_req_ids}\nRead ./AGENTS.md and .agents/skills/ if they exist.\nIf the phase traces to an intent outcome or requirement that links to a milestone PRD, read that PRD (or trace from INTENT/REQUIREMENTS to it)",
+          "Task(\n  prompt=\"Read __OPENCODE_CONFIG__/agents/bgsd-planner.md for instructions.\n\nPhase: {phase_number}, Mode: {standard|gap_closure}\nRead: {state_path}, {roadmap_path}, {requirements_path}, {context_path}, {research_path}\nRead: {assertions_path} (if exists — structured acceptance criteria for requirements)",
+          "Task(\n  prompt=\"Verify Phase {phase} plans.\nRead: {phase_dir}/*-PLAN.md, {roadmap_path}, {requirements_path}, {context_path}\nRun and honor `verify:verify plan-structure` and `verify:verify analyze-plan` for each plan before approval. Warm cold caches with one serial `plan-structure` run before parallel fan-out, retry once on transient internal verifier crashes, and rerun both verifiers after every plan revision instead of carrying forward earlier results. Treat malformed or inconclusive verifier-facing `must_haves` artifacts/key_links metadata as blockers rather than a mere field-presence issue, and block approval on command drift, stale paths, unavailable validation steps, task-order verify hazards, or overscope risk.\nExplicitly map roadmap success criteria to planned tasks after checking context compliance so deferred implementation notes cannot erase promised user-facing outcomes.\nIf this is gap-closure work, treat already-verified requirements as satisfied context and require direct coverage only for unresolved blocker/warning truths or requirements named in the gap input.\nCheck: requirement coverage, task structure, dependencies, must_haves.\",\n  subagent_type=\"bgsd-plan-checker\", model=\"{checker_model}\", description=\"Verify Phase {phase} plans\"\n)",
+          "Task(\n  prompt=\"Read __OPENCODE_CONFIG__/agents/bgsd-planner.md for instructions.\nRevision mode. Read: {phase_dir}/*-PLAN.md\nChecker issues: {structured_issues}. Reread the current plan files first, make targeted updates, then rerun `verify:verify plan-structure` and `verify:verify analyze-plan` against the revised files before returning what changed. Prefer full-file rewrites when splitting XML-heavy plans across files.\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",\n  subagent_type=\"general\", model=\"{planner_model}\", description=\"Revise Phase {phase} plans\"\n)",
+          "Task(prompt=\"Run /bgsd-execute-phase ${PHASE} --auto. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\", subagent_type=\"general\", description=\"Execute Phase ${PHASE}\")"
+        ],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:plan-phase \"${PHASE}\" --raw)",
+          "PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase \"${PHASE}\")",
+          "PHASE_DESC=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase \"${PHASE}\" | jq -r '.section')",
+          "Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.",
+          "LESSONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:list --query \"${PHASE_NAME}\" --limit 8 2>/dev/null)",
+          "ASSERTIONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:assertions list --req ${PHASE_REQ_IDS} 2>/dev/null)",
+          "When planning runtime-guidance or bundle-adjacent work, cite the concrete source modules in `files_modified` and task context; mention generated outputs like `plugin.js` or `bin/bgsd-tools.cjs` only when they are rebuilt deliverables, not as the primary edit target.",
+          "Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.",
+          "Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\",
+          "Task(prompt=\"Run /bgsd-execute-phase ${PHASE} --auto. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\", subagent_type=\"general\", description=\"Execute Phase ${PHASE}\")",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:plan-phase \"${PHASE}\" --raw)",
+          "bash\nPHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase \"${PHASE}\")",
+          "bash\nPHASE_DESC=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase \"${PHASE}\" | jq -r '.section')\nPHASE_REQ_IDS=$(echo \"$PHASE_DESC\" | grep -i \"Requirements:\" | head -1 | sed 's/.*Requirements:\\*\\*\\s*//' | sed 's/[\\[\\]]//g')",
+          "bgsd-tools lessons:capture",
+          "bash\nLESSONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:list --query \"${PHASE_NAME}\" --limit 8 2>/dev/null)",
+          "bash\nASSERTIONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:assertions list --req ${PHASE_REQ_IDS} 2>/dev/null)",
+          "bin/bgsd-tools.cjs",
+          "bgsd-tools lessons:capture",
+          "bgsd-tools lessons:capture",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\\n  --phase \"${PHASE}\" \\\n  --step plan \\\n  --summary \"Plans ready for execution in Phase ${PHASE}\" \\\n  --next-command \"/bgsd-execute-phase ${PHASE}\"",
+          "bgsd-tools lessons:capture"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "execute-plan.md",
+      "workflow_tokens": 4551,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 4551,
+      "structure": {
+        "task_calls": [
+          "Task()",
+          "Task(subagent_type=\"bgsd-executor\", model=executor_model)",
+          "task (blocker)"
+        ],
+        "cli_commands": [
+          "BUDGET=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:context-budget \"${PLAN_PATH}\" 2>/dev/null)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:memory write --store bookmarks --entry '{\"phase\":\"${PHASE}\",\"plan\":\"${PLAN}\",\"task\":${TASK_NUM},\"total_tasks\":${TOTAL_TASKS},\"git_head\":\"'$(jj log -r @- --no-graph -T 'commit_id.shortest(8)')'\"}'",
+          "REVIEW_CTX=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:review ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)",
+          "SCAFFOLD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-generate ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state complete-plan \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap update-plan-progress \"${PHASE}\"",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:requirements mark-complete ${REQ_IDS}",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs({phase}-{plan}): complete [plan-name] plan\" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md",
+          "node bgsd-tools.cjs",
+          "bash\nBUDGET=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:context-budget \"${PLAN_PATH}\" 2>/dev/null)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:memory write --store bookmarks --entry '{\"phase\":\"${PHASE}\",\"plan\":\"${PLAN}\",\"task\":${TASK_NUM},\"total_tasks\":${TOTAL_TASKS},\"git_head\":\"'$(jj log -r @- --no-graph -T 'commit_id.shortest(8)')'\"}'",
+          "bash\nREVIEW_CTX=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:review ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)",
+          "bash\nSCAFFOLD=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-generate ${PHASE_NUM} ${PLAN_NUM} --raw 2>/dev/null)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state complete-plan \\\n  --phase \"${PHASE}\" --plan \"${PLAN}\" --duration \"${DURATION}\" \\\n  --tasks \"${TASK_COUNT}\" --files \"${FILE_COUNT}\" \\\n  --decision-summary \"${DECISION_TEXT}\" --decision-rationale \"${RATIONALE}\" \\\n  --stopped-at \"Completed ${PHASE}-${PLAN}-PLAN.md\" --resume-file \"None\"",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap update-plan-progress \"${PHASE}\"\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:requirements mark-complete ${REQ_IDS}",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs({phase}-{plan}): complete [plan-name] plan\" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md"
+        ],
+        "section_markers": [
+          "init_context",
+          "tool_routing",
+          "identify_plan",
+          "context_budget",
+          "parse_segments",
+          "execute",
+          "tdd_execution",
+          "auto_test",
+          "deviation_rules",
+          "task_commit",
+          "checkpoint_protocol",
+          "verification_gate",
+          "post_execution",
+          "create_summary",
+          "update_position",
+          "update_roadmap",
+          "offer_next",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "verify-work.md",
+      "workflow_tokens": 3908,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3908,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=\"Phase {phase_number}, Mode: gap_closure.\nRead: {phase_dir}/{phase_num}-UAT.md, .planning/STATE.md, .planning/ROADMAP.md\nUse injected `effective_intent` as the default purpose/alignment contract for follow-up plans.\nUse injected `jj_planning_context` as advisory-only capability context — no live workspace inventory and no automatic sibling-work routing.\nIf file-overlap evidence is clearly low risk, manual low-overlap sibling-work preference is allowed.\nTarget the unresolved blocker IDs, truths, or warnings named in the UAT/verification artifact explicitly; do not broaden scope back to already-verified phase requirements unless the gap text says they regressed.\nRequirements: {phase_req_ids}. Read ./AGENTS.md and .agents/skills/ if they exist.\nOutput: Gap closure PLAN.md files.\",\n  subagent_type=\"bgsd-planner\", model=\"{planner_model}\", description=\"Plan gap closure\"\n)",
+          "Task(\n  prompt=\"Phase {phase_number}, goal: close diagnosed gaps.\nRead: {phase_dir}/*-PLAN.md. Re-check only the unresolved truths, blocker IDs, or requirement gaps named in the UAT/verification source, treat already-verified phase requirements as satisfied context, and verify coverage + must_haves.\",\n  subagent_type=\"bgsd-plan-checker\", model=\"{checker_model}\", description=\"Check gap plans\"\n)",
+          "Task(\n  prompt=\"Read __OPENCODE_CONFIG__/agents/bgsd-planner.md for instructions.\nRevision mode. Read: {phase_dir}/*-PLAN.md. Checker issues: {issues}.\nMake targeted updates, return what changed.\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",\n  subagent_type=\"general\", model=\"{planner_model}\", description=\"Revise gap plans\"\n)"
+        ],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\",
+          "node {bgsd-tools-path} lessons suggest 2>/dev/null || true",
+          "Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",",
+          "bin/bgsd-tools.cjs",
+          "bash\nVERIFY_STATUS=\"complete\"\nVERIFY_SUMMARY=\"Verification passed for Phase ${PHASE}\"\nVERIFY_NEXT_COMMAND=\"/bgsd-inspect progress\"\n# If gaps remain instead: VERIFY_STATUS=\"blocked\" and VERIFY_NEXT_COMMAND=\"/bgsd-plan gaps ${PHASE}\"\n\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\\n  --phase \"${PHASE}\" \\\n  --step verify \\\n  --status \"${VERIFY_STATUS}\" \\\n  --summary \"${VERIFY_SUMMARY}\" \\\n  --next-command \"${VERIFY_NEXT_COMMAND}\"",
+          "bash\nnode {bgsd-tools-path} lessons suggest 2>/dev/null || true",
+          "bgsd-tools lessons:capture"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "new-milestone.md",
+      "workflow_tokens": 3300,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3300,
+      "structure": {
+        "task_calls": [
+          "Task(prompt=\"\n<planning_context>\n<files_to_read>\n- .planning/PROJECT.md\n- .planning/REQUIREMENTS.md\n- .planning/research/SUMMARY.md (if exists)"
+        ],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent show",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: evolve intent for milestone v[X.Y]\" --files .planning/INTENT.md",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: start milestone v[X.Y] [Name]\" --files .planning/PROJECT.md .planning/STATE.md .planning/MILESTONE-INTENT.md",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.research true   # or false",
+          "SKILLS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs skills:list)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: define milestone v[X.Y] requirements\" --files .planning/REQUIREMENTS.md",
+          "ROADMAP_CHECK=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: create milestone v[X.Y] roadmap ([N] phases)\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent show",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: evolve intent for milestone v[X.Y]\" --files .planning/INTENT.md",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: start milestone v[X.Y] [Name]\" --files .planning/PROJECT.md .planning/STATE.md .planning/MILESTONE-INTENT.md",
+          "bash\n# Persist choice\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.research true   # or false",
+          "bash\nSKILLS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs skills:list)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs skills:install --source <url>",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: define milestone v[X.Y] requirements\" --files .planning/REQUIREMENTS.md",
+          "bash\nROADMAP_CHECK=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: create milestone v[X.Y] roadmap ([N] phases)\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md"
+        ],
+        "section_markers": [
+          "load_context",
+          "gather_goals",
+          "determine_version",
+          "update_project",
+          "review_intent",
+          "update_state",
+          "cleanup_commit",
+          "resolve_models",
+          "research",
+          "skill_discovery",
+          "define_requirements",
+          "create_roadmap",
+          "done",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "research-phase.md",
+      "workflow_tokens": 3189,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 3189,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=\"<research_type>\nPhase Research — investigating HOW to implement a specific phase well.\n</research_type>\n\n<key_insight>\nThe question is NOT 'which library should I use?'\n\nThe question is: 'What do I not know that I don't know?'\n\nFor this phase, discover:\n- What's the established architecture pattern?\n- What libraries form the standard stack?\n- What problems do people commonly hit?\n- What's SOTA vs what the agent's training thinks is SOTA?\n- What should NOT be hand-rolled?\n</key_insight>\n\n<objective>\nResearch implementation approach for Phase {phase_number}: {phase_name}\nMode: ecosystem\n</objective>\n\n<files_to_read>\n- {requirements_path} (Requirements)",
+          "Task(\n  prompt=\"First, read __OPENCODE_CONFIG__/agents/bgsd-phase-researcher.md for your role and instructions.\\n\\n\" + continuation_prompt + \"\\n\\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",\n  subagent_type=\"general\",\n  model=\"{researcher_model}\",\n  description=\"Continue research Phase {phase}\"\n)"
+        ],
+        "cli_commands": [
+          "PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase \"${PHASE}\")",
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:plan-phase \"${PHASE}\" --raw)",
+          "COLLECT_OUTPUT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs research:collect \"${PHASE_DESCRIPTION}\" ${QUICK_FLAG} 2>/dev/null)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\",
+          "prompt=\"First, read __OPENCODE_CONFIG__/agents/bgsd-phase-researcher.md for your role and instructions.\\n\\n\" + continuation_prompt + \"\\n\\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",",
+          "bash\nPHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap get-phase \"${PHASE}\")",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:plan-phase \"${PHASE}\" --raw)",
+          "bash\n# If --quick flag was passed to this workflow, pass it through to skip collection\nQUICK_FLAG=\"\"\nif [[ \"$*\" == *\"--quick\"* ]]; then\n  QUICK_FLAG=\"--quick\"\nfi\n\nCOLLECT_OUTPUT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs research:collect \"${PHASE_DESCRIPTION}\" ${QUICK_FLAG} 2>/dev/null)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state handoff write \\\n  --phase \"${PHASE}\" \\\n  --step research \\\n  --summary \"Research ready for Phase ${PHASE}\" \\\n  --resume-file \"${research_path}\" \\\n  --next-command \"/bgsd-plan phase ${PHASE}\"",
+          "bgsd-tools lessons:capture"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "tdd.md",
+      "workflow_tokens": 2914,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2914,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd detect-antipattern --phase red --files <modified_files>",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd \"$RED_TEST_CMD\"",
+          "RED_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd \"$RED_TEST_CMD\" --raw)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase \"{phase}\" --plan \"{plan}\" --stage red --proof \"$RED_PROOF\"",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"test({phase}-{plan}): add failing test for {feature}\" \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd detect-antipattern --phase green --files <modified_files>",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd \"$GREEN_TEST_CMD\"",
+          "GREEN_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd \"$GREEN_TEST_CMD\" --raw)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase \"{phase}\" --plan \"{plan}\" --stage green --proof \"$GREEN_PROOF\"",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"feat({phase}-{plan}): implement {feature}\" \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd \"$REFACTOR_TEST_CMD\"",
+          "REFACTOR_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd \"$REFACTOR_TEST_CMD\" --raw)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase \"{phase}\" --plan \"{plan}\" --stage refactor --proof \"$REFACTOR_PROOF\"",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"refactor({phase}-{plan}): clean up {feature}\" \\",
+          "bash\n    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd detect-antipattern --phase red --files <modified_files>",
+          "bash\n      node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd \"$RED_TEST_CMD\"",
+          "bash\n   RED_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-red --test-cmd \"$RED_TEST_CMD\" --raw)\n   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase \"{phase}\" --plan \"{plan}\" --stage red --proof \"$RED_PROOF\"",
+          "bash\n    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"test({phase}-{plan}): add failing test for {feature}\" \\\n      --files <test_file> \\\n      --agent bgsd-executor \\\n      --tdd-phase red",
+          "bash\n    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd detect-antipattern --phase green --files <modified_files>",
+          "bash\n      node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd \"$GREEN_TEST_CMD\"",
+          "bash\n   GREEN_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-green --test-cmd \"$GREEN_TEST_CMD\" --raw)\n   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase \"{phase}\" --plan \"{plan}\" --stage green --proof \"$GREEN_PROOF\"",
+          "bash\n    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"feat({phase}-{plan}): implement {feature}\" \\\n      --files <source_file> \\\n      --agent bgsd-executor \\\n      --tdd-phase green",
+          "bash\n      node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd \"$REFACTOR_TEST_CMD\"",
+          "bash\n   REFACTOR_PROOF=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd validate-refactor --test-cmd \"$REFACTOR_TEST_CMD\" --raw)\n   node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:tdd write-audit --phase \"{phase}\" --plan \"{plan}\" --stage refactor --proof \"$REFACTOR_PROOF\"",
+          "bash\n    node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"refactor({phase}-{plan}): clean up {feature}\" \\\n      --files <modified_files> \\\n      --agent bgsd-executor \\\n      --tdd-phase refactor"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "step",
+          "step",
+          "step",
+          "step",
+          "step"
+        ]
+      }
+    },
+    {
+      "name": "progress.md",
+      "workflow_tokens": 2551,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2551,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)",
+          "ROADMAP=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap analyze)",
+          "STATE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:state-snapshot)",
+          "PROGRESS_BAR=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:progress bar)",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)",
+          "bash\nROADMAP=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap analyze)\nSTATE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:state-snapshot)",
+          "</step>\n\n<step name=\"report\">\n**Generate progress bar from bgsd-tools, then present rich status report:**",
+          "bash\n# Get formatted progress bar\nPROGRESS_BAR=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:progress bar)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "complete-milestone.md",
+      "workflow_tokens": 2542,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2542,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "ROADMAP=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap analyze)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-extract \"$summary\" --fields one_liner | jq -r '.one_liner'",
+          "ARCHIVE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:milestone complete \"v[X.Y]\" --name \"[Name]\")",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: complete v[X.Y] milestone\" --files .planning/milestones/v[X.Y]-ROADMAP.md .planning/milestones/v[X.Y]-REQUIREMENTS.md .planning/milestones/v[X.Y]-DOCS.md .planning/MILESTONES.md .planning/PROJECT.md .planning/STATE.md",
+          "node {bgsd-tools-path} lessons suggest 2>/dev/null || true",
+          "bash\nROADMAP=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:roadmap analyze)",
+          "bash\nfor summary in .planning/phases/*-*/*-SUMMARY.md; do\n  node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-extract \"$summary\" --fields one_liner | jq -r '.one_liner'\ndone",
+          "bash\nARCHIVE=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:milestone complete \"v[X.Y]\" --name \"[Name]\")",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: complete v[X.Y] milestone\" --files .planning/milestones/v[X.Y]-ROADMAP.md .planning/milestones/v[X.Y]-REQUIREMENTS.md .planning/milestones/v[X.Y]-DOCS.md .planning/MILESTONES.md .planning/PROJECT.md .planning/STATE.md",
+          "bash\nnode {bgsd-tools-path} lessons suggest 2>/dev/null || true"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "transition.md",
+      "workflow_tokens": 2453,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2453,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "TRANSITION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase complete \"${current_phase}\")",
+          "PROGRESS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:progress bar)",
+          "RECENT_LESSONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:list --limit 8 2>/dev/null)",
+          "LESSON_SUGGESTIONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:suggest 2>/dev/null)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.auto_advance false",
+          "bash\nTRANSITION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase complete \"${current_phase}\")",
+          "bgsd-tools plan:phase complete",
+          "bash\nPROGRESS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:progress bar)",
+          "bash\nRECENT_LESSONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:list --limit 8 2>/dev/null)\nLESSON_SUGGESTIONS=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs lessons:suggest 2>/dev/null)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-set workflow.auto_advance false"
+        ],
+        "section_markers": [
+          "purpose",
+          "load_state",
+          "verify_completion",
+          "cleanup_handoff",
+          "update_roadmap",
+          "evolve_project",
+          "update_position",
+          "update_reference",
+          "review_context",
+          "update_session",
+          "offer_next",
+          "implicit_tracking",
+          "partial_completion",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "settings.md",
+      "workflow_tokens": 2119,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 2119,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-ensure-section",
+          "INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state load)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-ensure-section\nINIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state load)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "new-project.md",
+      "workflow_tokens": 1820,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1820,
+      "structure": {
+        "task_calls": [
+          "Task(prompt=\"\n<files_to_read>\n- .planning/PROJECT.md\n- .planning/REQUIREMENTS.md\n- .planning/research/SUMMARY.md (if exists)"
+        ],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: initialize project\" --files .planning/PROJECT.md",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent create",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: capture project intent\" --files .planning/INTENT.md",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: add project config\" --files .planning/config.json",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: define v1 requirements\" --files .planning/REQUIREMENTS.md",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: create roadmap ([N] phases)\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md",
+          "bash\nmkdir -p .planning\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: initialize project\" --files .planning/PROJECT.md",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:intent create\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: capture project intent\" --files .planning/INTENT.md",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: add project config\" --files .planning/config.json",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: define v1 requirements\" --files .planning/REQUIREMENTS.md",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate roadmap --repair 2>/dev/null\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: create roadmap ([N] phases)\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md"
+        ],
+        "section_markers": [
+          "purpose",
+          "auto_mode",
+          "setup",
+          "brownfield_check",
+          "auto_mode",
+          "questioning",
+          "write_project",
+          "capture_intent",
+          "preferences",
+          "research",
+          "define_requirements",
+          "create_roadmap",
+          "done",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "plan-milestone-gaps.md",
+      "workflow_tokens": 1810,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1810,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "PHASES=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phases list)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(roadmap): add gap closure phases {N}-{M}\" --files .planning/ROADMAP.md .planning/REQUIREMENTS.md",
+          "bash\n# Get sorted phase list, extract last one\nPHASES=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phases list)\nHIGHEST=$(echo \"$PHASES\" | jq -r '.directories[-1]')",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(roadmap): add gap closure phases {N}-{M}\" --files .planning/ROADMAP.md .planning/REQUIREMENTS.md"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "quick.md",
+      "workflow_tokens": 1741,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1741,
+      "structure": {
+        "task_calls": [
+          "TASK (FULL MODE)",
+          "Task(\n  prompt=\"Mode: ${FULL_MODE?'quick-full':'quick'} | Dir: ${QUICK_DIR} | Task: ${DESCRIPTION}\nRead: .planning/STATE.md, AGENTS.md, .agents/skills/\nSINGLE plan, 1-3 tasks, no research. ${FULL_MODE?'~40% context, must_haves required (truths/artifacts/key_links)",
+          "Task(\n  prompt=\"Check ${QUICK_DIR}/${next_num}-PLAN.md for task: ${DESCRIPTION}. Verify: coverage, files/action/verify/done, key links, 1-3 task scope, must_haves. Skip ROADMAP checks. Return ## VERIFICATION PASSED or ## ISSUES FOUND.\",\n  subagent_type=\"bgsd-plan-checker\",\n  model=\"{checker_model}\",\n  description=\"Check quick plan: ${DESCRIPTION}\"\n)",
+          "Task(\n  prompt=\"Read __OPENCODE_CONFIG__/agents/bgsd-planner.md. Revise ${QUICK_DIR}/${next_num}-PLAN.md. Issues: ${structured_issues}. Targeted updates only, do NOT replan. Return what changed. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",\n  subagent_type=\"general\",\n  model=\"{planner_model}\",\n  description=\"Revise quick plan: ${DESCRIPTION}\"\n)",
+          "Task(\n  prompt=\"Execute quick task ${next_num}: ${DESCRIPTION}\nRead: ${QUICK_DIR}/${next_num}-PLAN.md, .planning/STATE.md, AGENTS.md, .agents/skills/\nExecute all tasks atomically. Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md. Do NOT update ROADMAP.md.\",\n  subagent_type=\"bgsd-executor\",\n  model=\"{executor_model}\",\n  description=\"Execute: ${DESCRIPTION}\"\n)",
+          "Task(\n  prompt=\"Verify quick task: ${DESCRIPTION}. Read: ${QUICK_DIR}/${next_num}-PLAN.md. Check must_haves vs codebase. Create: ${QUICK_DIR}/${next_num}-VERIFICATION.md.\",\n  subagent_type=\"bgsd-verifier\",\n  model=\"{verifier_model}\",\n  description=\"Verify: ${DESCRIPTION}\"\n)"
+        ],
+        "cli_commands": [
+          "prompt=\"Read __OPENCODE_CONFIG__/agents/bgsd-planner.md. Revise ${QUICK_DIR}/${next_num}-PLAN.md. Issues: ${structured_issues}. Targeted updates only, do NOT replan. Return what changed. Before returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",",
+          "CI_ENABLED=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.ci_gate 2>/dev/null || echo \"false\")",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(quick-${next_num}): ${DESCRIPTION}\" --files ${file_list}",
+          "bgsd-tools lessons:capture",
+          "bash\nCI_ENABLED=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-get workflow.ci_gate 2>/dev/null || echo \"false\")",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs(quick-${next_num}): ${DESCRIPTION}\" --files ${file_list}"
+        ],
+        "section_markers": [
+          "parse_args",
+          "initialize",
+          "create_task_dir",
+          "spawn_planner",
+          "plan_checker",
+          "spawn_executor",
+          "ci_quality_gate",
+          "verification",
+          "update_state",
+          "final_commit",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "audit-milestone.md",
+      "workflow_tokens": 1709,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1709,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=\"Check cross-phase integration and E2E flows. Phases: {phase_dirs}. Phase exports: {from SUMMARYs}. API routes: {routes}. Milestone Requirements: {MILESTONE_REQ_IDS with description+phase}. Map each finding to affected REQ-IDs. Verify cross-phase wiring and E2E user flows.\nStart with read-only or shipped-runtime smoke checks when they can answer the audit question; only escalate to rebuild-style commands if the proof cannot be obtained otherwise.\nWhen shipped behavior depends on generated runtimes or parser contracts, compare current source surfaces with the bundled runtime users actually execute.\nRun or require one scoped integration smoke suite aligned to milestone requirements in addition to static source inspection.\nUse current validator state and touched surfaced files as the pass/fail source of truth rather than relying only on older phase-level blocker text.\",\n  subagent_type=\"bgsd-verifier\",\n  model=\"{verifier_model}\"\n)"
+        ],
+        "cli_commands": [
+          "CHECKER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-verifier)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phases list",
+          "PHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:find-phase 01)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-extract \"$summary\" --fields requirements_completed | jq -r '.requirements_completed'",
+          "bash\nCHECKER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-verifier)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phases list",
+          "bash\nPHASE_INFO=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:find-phase 01)",
+          "bash\nfor summary in .planning/phases/*-*/*-SUMMARY.md; do\n  node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:summary-extract \"$summary\" --fields requirements_completed | jq -r '.requirements_completed'\ndone"
+        ],
+        "section_markers": [
+          "initialize",
+          "determine_scope",
+          "read_verifications",
+          "spawn_checker",
+          "collect_results",
+          "requirements_coverage",
+          "aggregate_report",
+          "present_results",
+          "offer_next",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "diagnose-issues.md",
+      "workflow_tokens": 1669,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1669,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=filled_debug_subagent_prompt + \"\\n\\n<files_to_read>\\n- {phase_dir}/{phase_num}-UAT.md\\n- .planning/STATE.md\\n</files_to_read>\\n\\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",\n  subagent_type=\"general\",\n  description=\"Debug: {truth_short}\"\n)"
+        ],
+        "cli_commands": [
+          "prompt=filled_debug_subagent_prompt + \"\\n\\n<files_to_read>\\n- {phase_dir}/{phase_num}-UAT.md\\n- .planning/STATE.md\\n</files_to_read>\\n\\nBefore returning, perform one lessons reflection using the existing lessons subsystem: review your full subagent-visible conversation and tool history for one durable prompt, workflow, tooling, or agent-behavior improvement; if found, capture at most one structured lesson with `bgsd-tools lessons:capture`.\",",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs({phase_num}): add root causes from diagnosis\" --files \".planning/phases/XX-name/{phase_num}-UAT.md\"",
+          "bgsd-tools lessons:capture",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs({phase_num}): add root causes from diagnosis\" --files \".planning/phases/XX-name/{phase_num}-UAT.md\""
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "github-ci.md",
+      "workflow_tokens": 1650,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1650,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=\"\nRun the GitHub CI quality gate.\n\n<spawned_by>github-ci-workflow</spawned_by>\n\n<ci_parameters>\nBRANCH_NAME: ${BRANCH_NAME}\nBASE_BRANCH: ${BASE_BRANCH}\nAUTO_MERGE: ${AUTO_MERGE}\nSCOPE: ${SCOPE}\n</ci_parameters>\n\n<files_to_read>\n- .planning/STATE.md\n- ./AGENTS.md (if exists)"
+        ],
+        "cli_commands": [
+          "GH_PREFLIGHT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs detect:gh-preflight 2>/dev/null)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state add-decision \\",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session \\",
+          "bash\n# Check gh CLI authentication via structured preflight\nGH_PREFLIGHT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs detect:gh-preflight 2>/dev/null)",
+          "bash\n# Record key decisions from CI COMPLETE\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state add-decision \\\n  --phase \"ci\" --summary \"CI: ${STATUS} - ${PASSED} passed, ${FIXED} fixed, ${DISMISSED} dismissed\"\n\n# Update session\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state record-session \\\n  --stopped-at \"CI: ${STATUS} - PR ${PR_URL}\""
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "map-codebase.md",
+      "workflow_tokens": 1633,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1633,
+      "structure": {
+        "task_calls": [
+          "Task(subagent_type=\"bgsd-codebase-mapper\", model=\"{mapper_model}\", run_in_background=true,\n  description=\"Map tech\", prompt=\"Focus: tech. Write STACK.md + INTEGRATIONS.md. {TOOL_GUIDANCE}\")",
+          "Task(subagent_type=\"bgsd-codebase-mapper\", model=\"{mapper_model}\", run_in_background=true,\n  description=\"Map arch\", prompt=\"Focus: arch. Write ARCHITECTURE.md + STRUCTURE.md. {TOOL_GUIDANCE}\")",
+          "Task(subagent_type=\"bgsd-codebase-mapper\", model=\"{mapper_model}\", run_in_background=true,\n  description=\"Map quality\", prompt=\"Focus: quality. Write CONVENTIONS.md + TESTING.md. {TOOL_GUIDANCE}\")",
+          "Task(subagent_type=\"bgsd-codebase-mapper\", model=\"{mapper_model}\", run_in_background=true,\n  description=\"Map concerns\", prompt=\"Focus: concerns. Write CONCERNS.md. {TOOL_GUIDANCE}\")"
+        ],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: map existing codebase\" --files .planning/codebase/*.md",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: map existing codebase\" --files .planning/codebase/*.md"
+        ],
+        "section_markers": [
+          "init_context",
+          "check_existing",
+          "create_structure",
+          "spawn_agents",
+          "collect_confirmations",
+          "verify_output",
+          "scan_secrets",
+          "commit",
+          "offer_next",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "resume-project.md",
+      "workflow_tokens": 1574,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1574,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [],
+        "section_markers": [
+          "initialize",
+          "load_state",
+          "check_incomplete",
+          "present_status",
+          "determine_action",
+          "offer_options",
+          "route_to_workflow",
+          "update_session",
+          "reconstruction",
+          "quick_resume",
+          "success_criteria"
+        ],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "help.md",
+      "workflow_tokens": 1504,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1504,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose"
+        ]
+      }
+    },
+    {
+      "name": "check-todos.md",
+      "workflow_tokens": 1429,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1429,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos \"${AREA}\" --raw)",
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos --raw)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: start work on todo - [title]\" --files .planning/todos/done/[filename] .planning/STATE.md",
+          "bash\nif [ -n \"${AREA}\" ]; then\n  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos \"${AREA}\" --raw)\nelse\n  BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos --raw)\nfi",
+          "bash\ngit rm --cached .planning/todos/pending/[filename] 2>/dev/null || true\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: start work on todo - [title]\" --files .planning/todos/done/[filename] .planning/STATE.md"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "add-todo.md",
+      "workflow_tokens": 1318,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1318,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos --raw)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: capture todo - [title]\" --files .planning/todos/pending/[filename] .planning/STATE.md",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:list-todos --raw)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"docs: capture todo - [title]\" --files .planning/todos/pending/[filename] .planning/STATE.md"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "remove-phase.md",
+      "workflow_tokens": 1296,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1296,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op \"${target}\" --raw)",
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase remove \"${target}\")",
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase remove \"${target}\" --force)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: remove phase {target} ({original-phase-name})\" --files .planning/",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op \"${target}\" --raw)",
+          "Wait for confirmation.\n</step>\n\n<step name=\"execute_removal\">\n**Delegate the entire removal operation to bgsd-tools:**",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase remove \"${target}\")",
+          "If the phase has executed plans (SUMMARY.md files), bgsd-tools will error. Use",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase remove \"${target}\" --force)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: remove phase {target} ({original-phase-name})\" --files .planning/",
+          "bgsd-tools plan:phase remove",
+          "bgsd-tools plan:phase remove"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "update.md",
+      "workflow_tokens": 1280,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1280,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "insert-phase.md",
+      "workflow_tokens": 1106,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1106,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)",
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase insert \"${after_phase}\" \"${description}\")",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)",
+          "Exit.\n</step>\n\n<step name=\"insert_phase\">\n**Delegate the phase insertion to bgsd-tools:**",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase insert \"${after_phase}\" \"${description}\")",
+          "bgsd-tools plan:phase insert"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "step",
+          "step",
+          "step",
+          "step"
+        ]
+      }
+    },
+    {
+      "name": "list-phase-assumptions.md",
+      "workflow_tokens": 1103,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1103,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "health.md",
+      "workflow_tokens": 1101,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1101,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate health $REPAIR_FLAG",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate health",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate health $REPAIR_FLAG",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate health"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "review.md",
+      "workflow_tokens": 1077,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1077,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:review",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:review ${phase_number} ${current_plan}",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:review",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:review ${phase_number} ${current_plan}"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "release.md",
+      "workflow_tokens": 1024,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1024,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:release",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:release"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "pause-work.md",
+      "workflow_tokens": 1003,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 1003,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "timestamp=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:current-timestamp full)",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:memory write --store bookmarks --entry '{\"phase\":\"${PHASE}\",\"plan\":\"${PLAN}\",\"task\":${TASK_NUM},\"total_tasks\":${TOTAL_TASKS},\"paused\":true,\"notes\":\"${PAUSE_REASON}\",\"blockers\":\"${BLOCKERS}\",\"git_head\":\"'$(jj log -r @- --no-graph -T 'commit_id.shortest(8)')'\"}'",
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"wip: [phase-name] paused at task [X]/[Y]\" --files .planning/phases/*/.continue-here.md",
+          "bash\ntimestamp=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:current-timestamp full)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:memory write --store bookmarks --entry '{\"phase\":\"${PHASE}\",\"plan\":\"${PLAN}\",\"task\":${TASK_NUM},\"total_tasks\":${TOTAL_TASKS},\"paused\":true,\"notes\":\"${PAUSE_REASON}\",\"blockers\":\"${BLOCKERS}\",\"git_head\":\"'$(jj log -r @- --no-graph -T 'commit_id.shortest(8)')'\"}'",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"wip: [phase-name] paused at task [X]/[Y]\" --files .planning/phases/*/.continue-here.md"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "debug.md",
+      "workflow_tokens": 990,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 990,
+      "structure": {
+        "task_calls": [
+          "Task(\n  prompt=filled_prompt,\n  subagent_type=\"bgsd-debugger\",\n  model=\"{debugger_model}\",\n  description=\"Debug {slug}\"\n)",
+          "Task(\n  prompt=continuation_prompt,\n  subagent_type=\"bgsd-debugger\",\n  model=\"{debugger_model}\",\n  description=\"Continue debug {slug}\"\n)"
+        ],
+        "cli_commands": [
+          "INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state load)",
+          "DEBUGGER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-debugger --raw)",
+          "bash\nINIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state load)",
+          "bash\nDEBUGGER_MODEL=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:resolve-model bgsd-debugger --raw)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cleanup.md",
+      "workflow_tokens": 962,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 962,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: archive phase directories from completed milestones\" --files .planning/milestones/ .planning/phases/",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:commit \"chore: archive phase directories from completed milestones\" --files .planning/milestones/ .planning/phases/"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "add-phase.md",
+      "workflow_tokens": 927,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 927,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)",
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase add \"${description}\")",
+          "bash\nBGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:progress --raw)",
+          "Exit.\n</step>\n\n<step name=\"add_phase\">\n**Delegate the phase addition to bgsd-tools:**",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs plan:phase add \"${description}\")",
+          "bgsd-tools plan:phase add"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "security.md",
+      "workflow_tokens": 859,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 859,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:security",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:security"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "set-profile.md",
+      "workflow_tokens": 641,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 641,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-ensure-section",
+          "INIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state load)",
+          "bash\nnode __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:config-ensure-section\nINIT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state load)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-context-budget.md",
+      "workflow_tokens": 423,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 423,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:context-budget \"$PLAN_PATH\" 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:context-budget \"$PLAN_PATH\" 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-trace-requirement.md",
+      "workflow_tokens": 413,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 413,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:trace-requirement \"$REQ_ID\" 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:trace-requirement \"$REQ_ID\" 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-validate-deps.md",
+      "workflow_tokens": 373,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 373,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate-dependencies \"$PHASE\" 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate-dependencies \"$PHASE\" 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-search-lessons.md",
+      "workflow_tokens": 365,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 365,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:search-lessons \"$QUERY\" 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:search-lessons \"$QUERY\" 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-rollback-info.md",
+      "workflow_tokens": 349,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 349,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:rollback-info \"$PLAN_ID\" 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:rollback-info \"$PLAN_ID\" 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-velocity.md",
+      "workflow_tokens": 347,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 347,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:velocity 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:velocity 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-validate-config.md",
+      "workflow_tokens": 346,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 346,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate-config 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:validate-config 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-codebase-impact.md",
+      "workflow_tokens": 342,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 342,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "Example: /bgsd-impact bin/bgsd-tools.cjs",
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:codebase impact $FILES 2>/dev/null)",
+          "Usage: /bgsd-impact <files...>\n\nExample: /bgsd-impact bin/bgsd-tools.cjs\nExample: /bgsd-impact src/lib/config.js src/lib/frontmatter.js",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs util:codebase impact $FILES 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-test-run.md",
+      "workflow_tokens": 319,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 319,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:test-run 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:test-run 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-search-decisions.md",
+      "workflow_tokens": 315,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 315,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:search-decisions \"$QUERY\" 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:search-decisions \"$QUERY\" 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "test-model-override.md",
+      "workflow_tokens": 307,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 307,
+      "structure": {
+        "task_calls": [
+          "Task(\n  subagent_type=\"bgsd-model-diagnostic\",\n  model=\"lmstudio/qwen3.5-9b\",\n  description=\"Test lmstudio model\",\n  prompt=\"Report what model you received.\"\n)",
+          "Task(\n  subagent_type=\"bgsd-model-diagnostic\",\n  model=\"{mapper_model}\",\n  description=\"Test mapper_model\",\n  prompt=\"Report what model you received from mapper_model.\"\n)"
+        ],
+        "cli_commands": [],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "purpose",
+          "process"
+        ]
+      }
+    },
+    {
+      "name": "cmd-session-diff.md",
+      "workflow_tokens": 217,
+      "ref_count": 0,
+      "ref_tokens": 0,
+      "total_tokens": 217,
+      "structure": {
+        "task_calls": [],
+        "cli_commands": [
+          "RESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:session-diff 2>/dev/null)",
+          "bash\nRESULT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs execute:session-diff 2>/dev/null)"
+        ],
+        "section_markers": [],
+        "question_blocks": [],
+        "xml_tags": [
+          "process"
+        ]
+      }
+    }
+  ]
+}

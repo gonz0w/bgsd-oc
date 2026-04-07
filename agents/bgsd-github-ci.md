@@ -2,6 +2,7 @@
 description: Pushes changes to a new branch, creates a PR, monitors code scanning checks, fixes issues in a loop, and auto-merges when clean. Spawned by execute-phase, quick, or manual invocation.
 mode: subagent
 color: "#00BFFF"
+model: gpt-4o-mini
 # estimated_tokens: ~5k (system prompt: ~290 lines)
 tools:
   read: true

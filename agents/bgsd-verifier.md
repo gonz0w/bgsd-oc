@@ -2,6 +2,7 @@
 description: Verifies phase goal achievement through goal-backward analysis. Checks codebase delivers what phase promised, not just that tasks completed. Creates VERIFICATION.md report.
 mode: subagent
 color: "#00FF00"
+model: gpt-4o
 # estimated_tokens: ~8k (system prompt: ~390 lines)
 tools:
   read: true

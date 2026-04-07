@@ -535,6 +535,7 @@ describe('state complete-plan command', () => {
     assert.strictEqual(output.completed, true, 'command should succeed');
     assert.strictEqual(output.core.current_plan, 2, 'should advance plan');
     assert.strictEqual(output.core.progress, 50, 'should refresh progress from summaries on disk');
+    assert.strictEqual(output.core.decision_recorded, true, 'should record the decision within the batched core mutation');
     assert.deepStrictEqual(output.warnings, [], 'should have no warnings on happy path');
 
     const content = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
