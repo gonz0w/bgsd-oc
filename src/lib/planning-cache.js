@@ -21,10 +21,18 @@
  */
 
 const fs = require('fs');
-const path = require('path');
-const { withProjectLock } = require('./project-lock');
 
+// TTL for computed values: 10 minutes (stress-tested hybrid value)
 const COMPUTED_TTL_MS = 10 * 60 * 1000;
+
+// Fixed mutex pool size for lock-free CAS per cache key (hash-based slot selection)
+const MUTEX_POOL_SIZE = 256; // Fixed pool, hash-based slot selection
+
+// TDD cache key namespace (Phase 210):
+//   tdd_audit:${plan_path}   — TDD audit data per plan
+//   tdd_proof:${plan_path}   — TDD proof data per plan
+//   tdd_summary:${plan_path} — TDD summary data per plan
+// These keys use the same mutex primitives as spawn_* keys.
 
 // ---------------------------------------------------------------------------
 // PlanningCache class
@@ -37,6 +45,9 @@ class PlanningCache {
   constructor(db) {
     this._db = db;
     this._stmts = {}; // lazy prepared statement cache
+    // SharedArrayBuffer-backed mutex pool for cross-thread cache key synchronization
+    // Int32Array view on raw bytes — Atomics.compareExchange for CAS, Atomics.store for release
+    this._mutexPool = new Int32Array(new SharedArrayBuffer(MUTEX_POOL_SIZE * 4)); // 4 bytes per slot
   }
 
   // -------------------------------------------------------------------------
@@ -67,33 +78,39 @@ class PlanningCache {
   }
 
   /**
-   * Resolve the project root that owns a planning file path.
-   * @param {string} filePath
-   * @returns {string|null}
+   * Map a cache key to a stable mutex slot index (0-255).
+   * Uses djb2-style hash for 32-bit signed integer stability.
+   * @param {string} key
+   * @returns {number} Slot index in range [0, MUTEX_POOL_SIZE)
    * @private
    */
-  _resolveProjectRoot(filePath) {
-    if (!filePath) return null;
-
-    let current = path.resolve(filePath);
-    try {
-      if (fs.existsSync(current) && fs.statSync(current).isFile()) {
-        current = path.dirname(current);
-      }
-    } catch {
-      current = path.dirname(current);
+  _mutexSlotForKey(key) {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = ((hash << 5) - hash) + key.charCodeAt(i);
+      hash = hash & hash; // Keep 32-bit signed integer
     }
+    return Math.abs(hash) % MUTEX_POOL_SIZE;
+  }
 
-    while (true) {
-      if (fs.existsSync(path.join(current, '.planning'))) {
-        return current;
-      }
-      const parent = path.dirname(current);
-      if (parent === current) break;
-      current = parent;
-    }
+  /**
+   * Acquire mutex on a slot via compare-and-swap.
+   * Returns true if lock was acquired (was 0, now 1).
+   * @param {number} slot - Mutex slot index
+   * @returns {boolean}
+   * @private
+   */
+  _acquireMutex(slot) {
+    return Atomics.compareExchange(this._mutexPool, slot, 0, 1) === 0;
+  }
 
-    return path.dirname(path.resolve(filePath));
+  /**
+   * Release mutex on a slot by storing 0.
+   * @param {number} slot - Mutex slot index
+   * @private
+   */
+  _releaseMutex(slot) {
+    Atomics.store(this._mutexPool, slot, 0);
   }
 
   // -------------------------------------------------------------------------
@@ -125,6 +142,80 @@ class PlanningCache {
   }
 
   /**
+   * Get a cached computed value if fresh (TTL not expired).
+   * @param {string} key - Computed value key (e.g., "classifyTaskComplexity:<hash>")
+   * @returns {object|null} Cached value or null if missing/stale
+   */
+  getComputedValue(key) {
+    if (this._isMap()) return null;
+    try {
+      const row = this._stmt(
+        'cv_get',
+        'SELECT value_json, ttl_ms FROM computed_values WHERE key = ?'
+      ).get(key);
+      if (!row) return null;
+      if (Date.now() > row.ttl_ms) {
+        // Expired — delete and return null
+        this._stmt('cv_del', 'DELETE FROM computed_values WHERE key = ?').run(key);
+        return null;
+      }
+      return JSON.parse(row.value_json);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get a cached value with mutex protection for concurrent access safety.
+   * Non-blocking: uses Atomics.waitAsync for spin-wait when slot is contested.
+   *
+   * @param {string} key - Cache key
+   * @returns {{ value: object|null, stale: boolean, locked: boolean }} - Promise resolving to cache entry
+   */
+  getMutexValue(key) {
+    const slot = this._mutexSlotForKey(key);
+
+    // Try lock-free read first (no contention path)
+    const noWait = Atomics.waitAsync(this._mutexPool, slot, 0, 0);
+    if (noWait.async) {
+      // Contention detected — wait non-blocking, then read
+      return noWait.value.then(() => this._getUnlocked(key));
+    }
+
+    // Fast path: no contention, read directly
+    return Promise.resolve(this._getUnlocked(key));
+  }
+
+  /**
+   * Internal unlock read — assumes caller has verified no mutex contention.
+   * @param {string} key
+   * @returns {{ value: object|null, stale: boolean, locked: boolean }}
+   * @private
+   */
+  _getUnlocked(key) {
+    const val = this.getComputedValue(key);
+    return { value: val, stale: val === null, locked: false };
+  }
+
+  /**
+   * Store a computed value with TTL.
+   * @param {string} key
+   * @param {object} value
+   * @param {number} ttlMs - TTL in milliseconds (default: 10min)
+   */
+  setComputedValue(key, value, ttlMs = COMPUTED_TTL_MS) {
+    if (this._isMap()) return;
+    try {
+      this._stmt(
+        'cv_upsert',
+        'INSERT OR REPLACE INTO computed_values (key, value_json, ttl_ms, created_at) VALUES (?, ?, ?, ?)'
+      ).run(key, JSON.stringify(value), Date.now() + ttlMs, new Date().toISOString());
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  /**
    * Store the current mtime of a file in file_cache.
    *
    * @param {string} filePath
@@ -144,54 +235,29 @@ class PlanningCache {
   }
 
   /**
-   * Bulk freshness check for multiple files.
-   *
-   * @param {string[]} filePaths
-   * @returns {{ fresh: string[], stale: string[], missing: string[] }}
-   */
-  checkAllFreshness(filePaths) {
-    return this.batchCheckFreshness(filePaths);
-  }
-
-  /**
-   * Bulk freshness check in a single SQLite transaction.
+   * Bulk freshness check in a SINGLE SQLite transaction.
+   * Returns files categorized by freshness status.
    *
    * @param {string[]} filePaths
    * @returns {{ fresh: string[], stale: string[], missing: string[] }}
    */
   batchCheckFreshness(filePaths) {
     const result = { fresh: [], stale: [], missing: [] };
-    if (!Array.isArray(filePaths) || filePaths.length === 0) {
-      return result;
-    }
-
     if (this._isMap()) {
       for (const fp of filePaths) result.missing.push(fp);
       return result;
     }
-
-    for (const fp of filePaths) {
-      // Pre-fill with missing on unexpected errors below.
-      result.missing.push(fp);
-    }
+    if (filePaths.length === 0) return result;
 
     try {
       this._db.exec('BEGIN');
+      // Single SELECT with IN clause — one SQLite call
       const placeholders = filePaths.map(() => '?').join(',');
-      const rows = this._stmt(
-        'file_cache_batch_get',
+      const rows = this._db.prepare(
         `SELECT file_path, mtime_ms FROM file_cache WHERE file_path IN (${placeholders})`
       ).all(...filePaths);
-      this._db.exec('COMMIT');
-
-      const rowMap = Object.create(null);
-      for (const row of rows) {
-        rowMap[row.file_path] = row.mtime_ms;
-      }
-
-      result.fresh = [];
-      result.stale = [];
-      result.missing = [];
+      const rowMap = {};
+      for (const row of rows) rowMap[row.file_path] = row.mtime_ms;
 
       for (const fp of filePaths) {
         const cachedMtime = rowMap[fp];
@@ -199,65 +265,34 @@ class PlanningCache {
           result.missing.push(fp);
           continue;
         }
-
         try {
           const currentMtime = fs.statSync(fp).mtimeMs;
-          if (currentMtime === cachedMtime) {
-            result.fresh.push(fp);
-          } else {
-            result.stale.push(fp);
-          }
+          if (currentMtime === cachedMtime) result.fresh.push(fp);
+          else result.stale.push(fp);
         } catch {
           result.missing.push(fp);
         }
       }
-
-      return result;
+      this._db.exec('COMMIT');
     } catch {
       try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
-      return { fresh: [], stale: [], missing: [...filePaths] };
-    }
-  }
-
-  /**
-   * Get a cached computed value if its TTL is still valid.
-   * @param {string} key
-   * @returns {object|null}
-   */
-  getComputedValue(key) {
-    if (this._isMap()) return null;
-    try {
-      const row = this._stmt(
-        'cv_get',
-        'SELECT value_json, ttl_ms FROM computed_values WHERE key = ?'
-      ).get(key);
-      if (!row) return null;
-      if (Date.now() > row.ttl_ms) {
-        this._stmt('cv_del', 'DELETE FROM computed_values WHERE key = ?').run(key);
-        return null;
+      // Fallback to per-file on transaction failure
+      for (const fp of filePaths) {
+        const status = this.checkFreshness(fp);
+        result[status].push(fp);
       }
-      return JSON.parse(row.value_json);
-    } catch {
-      return null;
     }
+    return result;
   }
 
   /**
-   * Store a cached computed value with TTL.
-   * @param {string} key
-   * @param {object} value
-   * @param {number} ttlMs
+   * Bulk freshness check for multiple files.
+   *
+   * @param {string[]} filePaths
+   * @returns {{ fresh: string[], stale: string[], missing: string[] }}
    */
-  setComputedValue(key, value, ttlMs = COMPUTED_TTL_MS) {
-    if (this._isMap()) return;
-    try {
-      this._stmt(
-        'cv_upsert',
-        'INSERT OR REPLACE INTO computed_values (key, value_json, ttl_ms, created_at) VALUES (?, ?, ?, ?)'
-      ).run(key, JSON.stringify(value), Date.now() + ttlMs, new Date().toISOString());
-    } catch {
-      // Non-fatal.
-    }
+  checkAllFreshness(filePaths) {
+    return this.batchCheckFreshness(filePaths);
   }
 
   /**
@@ -270,31 +305,61 @@ class PlanningCache {
   invalidateFile(filePath) {
     if (this._isMap()) return;
 
-    const projectRoot = this._resolveProjectRoot(filePath);
-    const mutate = () => {
-      try {
-        this._db.exec('BEGIN');
-        this._stmt(
-          'file_cache_delete',
-          'DELETE FROM file_cache WHERE file_path = ?'
-        ).run(filePath);
-        // Also remove plan+tasks if filePath is a plan path
-        this._stmt(
-          'plans_delete_by_path',
-          'DELETE FROM plans WHERE path = ?'
-        ).run(filePath);
-        this._db.exec('COMMIT');
-      } catch {
-        try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
-      }
-    };
-
-    if (!projectRoot) {
-      mutate();
-      return;
+    try {
+      this._db.exec('BEGIN');
+      this._stmt(
+        'file_cache_delete',
+        'DELETE FROM file_cache WHERE file_path = ?'
+      ).run(filePath);
+      // Also remove plan+tasks if filePath is a plan path
+      this._stmt(
+        'plans_delete_by_path',
+        'DELETE FROM plans WHERE path = ?'
+      ).run(filePath);
+      this._db.exec('COMMIT');
+    } catch {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
     }
+  }
 
-    withProjectLock(projectRoot, mutate);
+  /**
+   * Invalidate a cache key with mutex protection for concurrent access safety.
+   * Uses CAS loop to acquire mutex before invalidation, releases in finally block.
+   *
+   * @param {string} key - Cache key to invalidate
+   */
+  invalidateMutex(key) {
+    const slot = this._mutexSlotForKey(key);
+
+    // CAS loop to acquire mutex
+    while (true) {
+      const old = Atomics.load(this._mutexPool, slot);
+      if (Atomics.compareExchange(this._mutexPool, slot, old, 1) === old) {
+        try {
+          this.invalidateFile(key); // actual invalidation
+        } finally {
+          this._releaseMutex(slot);
+        }
+        return;
+      }
+      // Contended — yield to event loop briefly
+      Atomics.wait(this._mutexPool, slot, 1, 1); // 1ms wait
+    }
+  }
+
+  /**
+   * Get the three TDD cache keys for a given plan path.
+   * Phase 210: TDD audit/proof/summary keys use the same mutex primitives as spawn_* keys.
+   *
+   * @param {string} planPath - Plan path or plan_id
+   * @returns {{ audit: string, proof: string, summary: string }}
+   */
+  getTddMutexKeys(planPath) {
+    return {
+      audit: `tdd_audit:${planPath}`,
+      proof: `tdd_proof:${planPath}`,
+      summary: `tdd_summary:${planPath}`,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -317,101 +382,97 @@ class PlanningCache {
   storeRoadmap(cwd, roadmapPath, parsed) {
     if (this._isMap()) return;
 
-    const projectRoot = this._resolveProjectRoot(roadmapPath) || cwd;
+    try {
+      this._db.exec('BEGIN');
 
-    withProjectLock(projectRoot, () => {
-      try {
-        this._db.exec('BEGIN');
+      // Delete existing data for this cwd
+      this._stmt('phases_delete_cwd', 'DELETE FROM phases WHERE cwd = ?').run(cwd);
+      this._stmt('milestones_delete_cwd', 'DELETE FROM milestones WHERE cwd = ?').run(cwd);
+      this._stmt('progress_delete_cwd', 'DELETE FROM progress WHERE cwd = ?').run(cwd);
+      this._stmt('requirements_delete_cwd', 'DELETE FROM requirements WHERE cwd = ?').run(cwd);
 
-        // Delete existing data for this cwd
-        this._stmt('phases_delete_cwd', 'DELETE FROM phases WHERE cwd = ?').run(cwd);
-        this._stmt('milestones_delete_cwd', 'DELETE FROM milestones WHERE cwd = ?').run(cwd);
-        this._stmt('progress_delete_cwd', 'DELETE FROM progress WHERE cwd = ?').run(cwd);
-        this._stmt('requirements_delete_cwd', 'DELETE FROM requirements WHERE cwd = ?').run(cwd);
-
-        // Insert phases
-        const phaseInsert = this._stmt(
-          'phases_insert',
-          `INSERT OR REPLACE INTO phases
+      // Insert phases
+      const phaseInsert = this._stmt(
+        'phases_insert',
+        `INSERT OR REPLACE INTO phases
          (number, cwd, name, status, plan_count, goal, depends_on, requirements, section)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      for (const phase of (parsed.phases || [])) {
+        phaseInsert.run(
+          phase.number || '',
+          cwd,
+          phase.name || '',
+          phase.status || 'incomplete',
+          phase.plan_count != null ? phase.plan_count : 0,
+          phase.goal || null,
+          phase.depends_on ? JSON.stringify(phase.depends_on) : null,
+          phase.requirements ? JSON.stringify(phase.requirements) : null,
+          phase.section || null
         );
-        for (const phase of (parsed.phases || [])) {
-          phaseInsert.run(
-            phase.number || '',
-            cwd,
-            phase.name || '',
-            phase.status || 'incomplete',
-            phase.plan_count != null ? phase.plan_count : 0,
-            phase.goal || null,
-            phase.depends_on ? JSON.stringify(phase.depends_on) : null,
-            phase.requirements ? JSON.stringify(phase.requirements) : null,
-            phase.section || null
-          );
-        }
+      }
 
-        // Insert milestones
-        const msInsert = this._stmt(
-          'milestones_insert',
-          `INSERT INTO milestones (cwd, name, version, status, phase_start, phase_end)
+      // Insert milestones
+      const msInsert = this._stmt(
+        'milestones_insert',
+        `INSERT INTO milestones (cwd, name, version, status, phase_start, phase_end)
          VALUES (?, ?, ?, ?, ?, ?)`
+      );
+      for (const ms of (parsed.milestones || [])) {
+        msInsert.run(
+          cwd,
+          ms.name || '',
+          ms.version || null,
+          ms.status || 'pending',
+          ms.phase_start != null ? ms.phase_start : null,
+          ms.phase_end != null ? ms.phase_end : null
         );
-        for (const ms of (parsed.milestones || [])) {
-          msInsert.run(
-            cwd,
-            ms.name || '',
-            ms.version || null,
-            ms.status || 'pending',
-            ms.phase_start != null ? ms.phase_start : null,
-            ms.phase_end != null ? ms.phase_end : null
-          );
-        }
+      }
 
-        // Insert progress
-        const progInsert = this._stmt(
-          'progress_insert',
-          `INSERT OR REPLACE INTO progress
+      // Insert progress
+      const progInsert = this._stmt(
+        'progress_insert',
+        `INSERT OR REPLACE INTO progress
          (phase, cwd, plans_complete, plans_total, status, completed_date)
          VALUES (?, ?, ?, ?, ?, ?)`
+      );
+      for (const prog of (parsed.progress || [])) {
+        progInsert.run(
+          prog.phase || '',
+          cwd,
+          prog.plans_complete != null ? prog.plans_complete : 0,
+          prog.plans_total != null ? prog.plans_total : 0,
+          prog.status || null,
+          prog.completed_date || null
         );
-        for (const prog of (parsed.progress || [])) {
-          progInsert.run(
-            prog.phase || '',
-            cwd,
-            prog.plans_complete != null ? prog.plans_complete : 0,
-            prog.plans_total != null ? prog.plans_total : 0,
-            prog.status || null,
-            prog.completed_date || null
-          );
-        }
-
-        // Insert requirements (explicit list or extracted from phases)
-        const reqInsert = this._stmt(
-          'requirements_insert',
-          `INSERT OR REPLACE INTO requirements (req_id, cwd, phase_number, description)
-         VALUES (?, ?, ?, ?)`
-        );
-        const requirements = parsed.requirements || _extractRequirementsFromPhases(parsed.phases || []);
-        for (const req of requirements) {
-          reqInsert.run(
-            req.req_id || req.id || '',
-            cwd,
-            req.phase_number || req.phase || null,
-            req.description || null
-          );
-        }
-
-        // Update file_cache mtime
-        if (roadmapPath) {
-          this._updateMtimeInTx(roadmapPath);
-        }
-
-        this._db.exec('COMMIT');
-      } catch (e) {
-        try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
-        // Store failures are non-fatal — cache will be rebuilt on next access
       }
-    });
+
+      // Insert requirements (explicit list or extracted from phases)
+      const reqInsert = this._stmt(
+        'requirements_insert',
+        `INSERT OR REPLACE INTO requirements (req_id, cwd, phase_number, description)
+         VALUES (?, ?, ?, ?)`
+      );
+      const requirements = parsed.requirements || _extractRequirementsFromPhases(parsed.phases || []);
+      for (const req of requirements) {
+        reqInsert.run(
+          req.req_id || req.id || '',
+          cwd,
+          req.phase_number || req.phase || null,
+          req.description || null
+        );
+      }
+
+      // Update file_cache mtime
+      if (roadmapPath) {
+        this._updateMtimeInTx(roadmapPath);
+      }
+
+      this._db.exec('COMMIT');
+    } catch (e) {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      // Store failures are non-fatal — cache will be rebuilt on next access
+    }
   }
 
   /**
@@ -430,67 +491,63 @@ class PlanningCache {
   storePlan(planPath, cwd, parsed) {
     if (this._isMap()) return;
 
-    const projectRoot = this._resolveProjectRoot(planPath) || cwd;
+    try {
+      this._db.exec('BEGIN');
 
-    withProjectLock(projectRoot, () => {
-      try {
-        this._db.exec('BEGIN');
+      // Delete existing plan (CASCADE deletes tasks)
+      this._stmt(
+        'plans_delete_path',
+        'DELETE FROM plans WHERE path = ?'
+      ).run(planPath);
 
-        // Delete existing plan (CASCADE deletes tasks)
-        this._stmt(
-          'plans_delete_path',
-          'DELETE FROM plans WHERE path = ?'
-        ).run(planPath);
-
-        // Insert plan row
-        const fm = parsed.frontmatter || {};
-        this._stmt(
-          'plans_insert',
-          `INSERT OR REPLACE INTO plans
+      // Insert plan row
+      const fm = parsed.frontmatter || {};
+      this._stmt(
+        'plans_insert',
+        `INSERT OR REPLACE INTO plans
          (path, cwd, phase_number, plan_number, wave, autonomous, objective, task_count, frontmatter_json, raw)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          planPath,
-          cwd,
-          fm.phase ? String(fm.phase).split('-')[0] : null,
-          fm.plan != null ? String(fm.plan) : null,
-          fm.wave != null ? fm.wave : null,
-          fm.autonomous != null ? (fm.autonomous ? 1 : 0) : null,
-          parsed.objective || null,
-          (parsed.tasks || []).length,
-          JSON.stringify(fm),
-          parsed.raw || null
-        );
+      ).run(
+        planPath,
+        cwd,
+        fm.phase ? String(fm.phase).split('-')[0] : null,
+        fm.plan != null ? String(fm.plan) : null,
+        fm.wave != null ? fm.wave : null,
+        fm.autonomous != null ? (fm.autonomous ? 1 : 0) : null,
+        parsed.objective || null,
+        (parsed.tasks || []).length,
+        JSON.stringify(fm),
+        parsed.raw || null
+      );
 
-        // Insert task rows
-        const taskInsert = this._stmt(
-          'tasks_insert',
-          `INSERT OR REPLACE INTO tasks
+      // Insert task rows
+      const taskInsert = this._stmt(
+        'tasks_insert',
+        `INSERT OR REPLACE INTO tasks
          (plan_path, idx, type, name, files_json, action, verify, done)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      for (let i = 0; i < (parsed.tasks || []).length; i++) {
+        const task = parsed.tasks[i];
+        taskInsert.run(
+          planPath,
+          i,
+          task.type || 'auto',
+          task.name || null,
+          task.files ? JSON.stringify(task.files) : null,
+          task.action || null,
+          task.verify || null,
+          task.done || null
         );
-        for (let i = 0; i < (parsed.tasks || []).length; i++) {
-          const task = parsed.tasks[i];
-          taskInsert.run(
-            planPath,
-            i,
-            task.type || 'auto',
-            task.name || null,
-            task.files ? JSON.stringify(task.files) : null,
-            task.action || null,
-            task.verify || null,
-            task.done || null
-          );
-        }
-
-        // Update file_cache mtime
-        this._updateMtimeInTx(planPath);
-
-        this._db.exec('COMMIT');
-      } catch (e) {
-        try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
       }
-    });
+
+      // Update file_cache mtime
+      this._updateMtimeInTx(planPath);
+
+      this._db.exec('COMMIT');
+    } catch (e) {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+    }
   }
 
   /**
@@ -1262,6 +1319,117 @@ class PlanningCache {
 
       this._db.exec('COMMIT');
       return { stored: true };
+    } catch {
+      try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
+      return null;
+    }
+  }
+
+  /**
+   * Batch write for non-sacred session bundles.
+   * Wraps all bundle writes in a single BEGIN/COMMIT/ROLLBACK transaction.
+   * Each bundle is written using the same session write logic as storeSessionBundle.
+   *
+   * @param {string} cwd
+   * @param {Array<{ state?: object, decisions?: object[], blockers?: object[], continuity?: object|null }>} bundles
+   * @returns {{ stored: boolean, count: number }|null} - null on any failure (rollback is automatic)
+   */
+  storeSessionBundleBatch(cwd, bundles) {
+    if (this._isMap()) return null;
+    if (!Array.isArray(bundles) || bundles.length === 0) {
+      return { stored: true, count: 0 };
+    }
+    try {
+      this._db.exec('BEGIN');
+
+      for (const bundle of bundles) {
+        // Write state if present
+        if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'state')) {
+          const state = bundle.state || {};
+          this._stmt(
+            'ssb_state_upsert',
+            `INSERT OR REPLACE INTO session_state
+             (cwd, phase_number, phase_name, total_phases, current_plan, status, last_activity, progress, milestone, data_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            cwd,
+            state.phase_number || null,
+            state.phase_name || null,
+            state.total_phases != null ? state.total_phases : null,
+            state.current_plan || null,
+            state.status || null,
+            state.last_activity || null,
+            state.progress != null ? state.progress : null,
+            state.milestone || null,
+            JSON.stringify(state)
+          );
+        }
+
+        // Write decisions if present
+        if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'decisions')) {
+          this._stmt('ssb_sd_delete', 'DELETE FROM session_decisions WHERE cwd = ?').run(cwd);
+          const decisions = Array.isArray(bundle.decisions) ? bundle.decisions : [];
+          if (decisions.length > 0) {
+            const insertDecision = this._stmt(
+              'ssb_sd_insert',
+              'INSERT INTO session_decisions (cwd, milestone, phase, summary, rationale, timestamp, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            for (const decision of decisions) {
+              insertDecision.run(
+                cwd,
+                decision.milestone || null,
+                decision.phase || null,
+                decision.summary || null,
+                decision.rationale || null,
+                decision.timestamp || null,
+                JSON.stringify(decision)
+              );
+            }
+          }
+        }
+
+        // Write blockers if present
+        if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'blockers')) {
+          this._stmt('ssb_sb_delete', 'DELETE FROM session_blockers WHERE cwd = ?').run(cwd);
+          const blockers = Array.isArray(bundle.blockers) ? bundle.blockers : [];
+          if (blockers.length > 0) {
+            const insertBlocker = this._stmt(
+              'ssb_sb_insert',
+              'INSERT INTO session_blockers (cwd, text, status, created_at, data_json) VALUES (?, ?, ?, ?, ?)'
+            );
+            for (const blocker of blockers) {
+              insertBlocker.run(
+                cwd,
+                blocker.text || '',
+                blocker.status || 'open',
+                blocker.created_at || null,
+                JSON.stringify(blocker)
+              );
+            }
+          }
+        }
+
+        // Write continuity if present
+        if (bundle && Object.prototype.hasOwnProperty.call(bundle, 'continuity')) {
+          if (bundle.continuity) {
+            this._stmt(
+              'ssb_sc_upsert',
+              'INSERT OR REPLACE INTO session_continuity (cwd, last_session, stopped_at, next_step, data_json) VALUES (?, ?, ?, ?, ?)'
+            ).run(
+              cwd,
+              bundle.continuity.last_session || null,
+              bundle.continuity.stopped_at || null,
+              bundle.continuity.next_step || null,
+              JSON.stringify(bundle.continuity)
+            );
+          } else {
+            this._stmt('ssb_sc_delete', 'DELETE FROM session_continuity WHERE cwd = ?').run(cwd);
+          }
+        }
+      }
+
+      this._db.exec('COMMIT');
+      return { stored: true, count: bundles.length };
     } catch {
       try { this._db.exec('ROLLBACK'); } catch { /* ignore */ }
       return null;

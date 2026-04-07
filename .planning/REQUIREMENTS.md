@@ -1,71 +1,100 @@
-# Requirements: v19.3 Workflow Acceleration
+# Requirements: bGSD Plugin v19.4
 
-**Defined:** 2026-04-05
+**Defined:** 2026-04-06
 **Core Value:** Manage and deliver high-quality software with high-quality documentation, while continuously reducing token usage and improving performance.
 
-## Categories
+## v19.4 Requirements
 
-### ACCEL — Acceleration Infrastructure
+Requirements for v19.4 Workflow Acceleration II + TDD Reliability. Each maps to roadmap phases.
 
-- [x] **ACCEL-01:** Run `workflow:baseline` before any routing/caching changes and save baseline metrics to `.planning/research/ACCEL-BASELINE.json`
-- [x] **ACCEL-02:** Add adaptive hot-path telemetry hooks to `orchestration.js` that log which routing paths are actually taken
-- [x] **ACCEL-03:** Extend `PlanningCache` with TTL-backed computed-value tables for `classifyTaskComplexity` and `routeTask` results
-- [x] **ACCEL-04:** Add batch freshness check to `PlanningCache` that reads N phase/plan fingerprints in a single SQLite transaction instead of per-file mtime checks
+### Workflow Acceleration
 
-### FAST — Fast Mode Commands
+- [x] **ACCEL-01**: `/bgsd-deliver-phase --fresh-step-context` pipeline works end-to-end — each step runs in fresh context, reads from snapshot+handoff, writes compact output, clears context, chains to next step
+- [x] **ACCEL-02**: Stop points at checkpoints and interactive decisions are preserved through the full deliver-phase chain
+- [x] **ACCEL-03**: JJ workspace proof gate remains mandatory on all deliver-phase paths — never bypassed by --fast or acceleration flags
+- [x] **ACCEL-04**: Fresh-context chaining works after `/clear` — session can be cleared mid-chain and resumed from disk truth
 
-- [x] **FAST-01:** Add `discuss-phase --fast` flag that batches low-risk clarification choices and reduces turns for routine phases
-- [x] **FAST-02:** Add `verify-work --batch N` flag that batches routine test verification (default stays one-at-a-time for ambiguous/high-risk)
-- [x] **FAST-03:** Add `workflow:hotpath` command that shows which routing paths are most frequently used based on telemetry
+### TDD Reliability
 
-### PARALLEL — Parallelization
+- [x] **TDD-01**: `execute:tdd validate-red` verifies test FAILED for expected missing behavior (not just exit code ≠ 0)
+- [x] **TDD-02**: `execute:tdd validate-green` verifies test PASSED + test file NOT modified during GREEN phase
+- [x] **TDD-03**: `execute:tdd validate-refactor` verifies all tests still pass + no new behavior added (test count unchanged)
+- [x] **TDD-04**: TDD plan structure verification rejects malformed `type:tdd` plans at planning-time — required fields (test_file, impl_files, steps with RED/GREEN/REFACTOR sequence) are present and correctly ordered
+- [x] **TDD-05**: TDD E2E fixture proves RED→GREEN→REFACTOR commit trail in actual repo — automated end-to-end validation of full TDD cycle
+- [x] **TDD-06**: TDD rationale visibility in plan output — selected/skipped rationale surfaced in plan output and summary rendering
+- [x] **TDD-07**: Planner evaluates TDD eligibility for every implementation plan, not only phases with explicit ROADMAP TDD hint
+- [x] **TDD-08**: TDD decision rationale field on every `type:tdd` plan — structured in frontmatter, why TDD was selected or intentionally skipped
 
-- [ ] **PARALLEL-01:** Add mutex-protected cache entries for parallel stages sharing cache layer
-- [ ] **PARALLEL-02:** Add Kahn topological sort verification to `resolvePhaseDependencies` to ensure correct parallel wave ordering
-- [ ] **PARALLEL-03:** Preserve JJ workspace proof gate on all accelerated parallel paths — proof check may be optimized but never bypassed
-- [ ] **PARALLEL-04:** Add `Promise.all` fan-in coordination for independent workflow stage execution using `child_process.spawn`
+### Non-Regression (Must Not Break)
 
-### STATE — State Mutation Safety
-
-- [x] **STATE-01:** Wire `verify:state validate` regression coverage into execute-plan workflow after any batched state write
-- [x] **STATE-02:** Extend `verify:state complete-plan` with batch transaction support for non-sacred state mutations
-- [x] **STATE-03:** Never batch sacred data writes (decisions, lessons, trajectories, requirements) — only cache/non-critical state
-
-### BUNDLE — Bundle Integrity
-
-- [x] **BUNDLE-01:** Run `npm run build` smoke test after every plan — bundle parity failures are a recurring issue pattern
-- [x] **BUNDLE-02:** Run `util:validate-commands --raw` to confirm CLI contract after any routing change
-
-## Traceability
-
-| Requirement | Phase | Source |
-|-------------|-------|--------|
-| ACCEL-01 | 201 | Pitfalls #1 (measure first) |
-| ACCEL-02 | 201 | Pitfalls #5 (adaptive telemetry) |
-| ACCEL-03 | 201 | Stack (SQLite routing cache) |
-| ACCEL-04 | 201 | Stack (batch I/O) |
-| FAST-01 | 201 | Features (--fast mode) |
-| FAST-02 | 201 | Features (--batch mode) |
-| FAST-03 | 201 | Features (hot-path visibility) |
-| PARALLEL-01 | 202 | Pitfalls #2 (cache races) |
-| PARALLEL-02 | 202 | Architecture (Kahn sort) |
-| PARALLEL-03 | 202 | Pitfalls #3 (JJ proof gate) |
-| PARALLEL-04 | 202 | Stack (Promise.all spawn) |
-| STATE-01 | 203 | Pitfalls #4 (state compatibility) |
-| STATE-02 | 203 | Features (batched state) |
-| STATE-03 | 203 | Pitfalls #4 (sacred data) |
-| BUNDLE-01 | All | Pitfalls (bundle parity) |
-| BUNDLE-02 | All | Architecture (CLI contract) |
-
-## Out of Scope
-
-- Async I/O rewrite — synchronous I/O is appropriate for CLI tool
-- New npm dependencies — all work uses existing `node:sqlite`, `node:child_process`, `PlanningCache`
-- Dynamic parallelization — runtime dependency graph auto-detection deferred to v2+
-- Removing quality gates — acceleration without regression
+- [x] **REGR-01**: phase:snapshot continues to work as single CLI call replacing repeated phase discovery
+- [x] **REGR-02**: verify:state complete-plan continues to work as atomic batched state mutation
+- [x] **REGR-03**: Phase handoff artifacts (XX-HANDOFF.json) continue to enable fresh-context chaining between workflow steps
+- [x] **REGR-04**: PlanningCache-backed plan reads continue to work with SQLite-first git-hash+mtime invalidation
+- [x] **REGR-05**: Mutex-protected cache continues to prevent race corruption in parallel stages
+- [x] **REGR-06**: Kahn topological sort with cycle detection continues to order parallel waves correctly
+- [x] **REGR-07**: discuss-phase --fast and verify-work --batch N continue to work as shipped in v19.3
+- [x] **REGR-08**: Deterministic TDD selection with rationale visibility continues as shipped in v16.1
 
 ## Future Requirements
 
-- `/bgsd-deliver-phase --fresh-step-context` — end-to-end fresh-context chained delivery pipeline
-- Dynamic parallelization — runtime dependency graph analysis to auto-detect parallelizable segments
-- Planner self-check quality threshold calibration — when does self-check match standalone checker quality?
+Deferred to future release. Tracked but not in current roadmap.
+
+### Workflow Acceleration (Future)
+
+- **ACCEL-F1**: Dynamic parallelization — runtime dependency graph analysis to auto-detect parallelizable segments
+- **ACCEL-F2**: Planner quality benchmark — measure plan quality delta between self-check-only and self-check+checker phases
+
+### TDD Reliability (Future)
+
+- **TDD-F1**: Dynamic TDD agent spawning per phase — pre-planned parallel waves already shipped, dynamic spawning deferred
+- **TDD-F2**: TDD coverage analysis — measure what percentage of codebase has TDD test coverage
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Async I/O rewrite | CLI tool with short-lived processes (<5s); sync I/O appropriate; batching and caching shipped in v19.3 |
+| Remove interactive discuss/verify steps | Loses quality gate value; defeats structured decision-making purpose; --fast and --batch reduce turns without removing checks |
+| Subagent isolation per TDD phase | High coordination overhead; expensive per-task spawn cost; context compaction + file restriction gates already sufficient |
+| Dynamic agent spawning | Violates agent cap of 9; pre-planned parallel waves via Kahn sort already shipped |
+| Bundle dependency additions | No new npm dependencies — existing stack sufficient for v19.4 |
+| CLI command surface changes | Non-goal per milestone intent; preserves backward compatibility |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status | Notes |
+|-------------|-------|--------|-------|
+| ACCEL-01 | Phase 207 | Complete | Fresh-context chaining pipeline |
+| ACCEL-02 | Phase 207 | Complete | Checkpoint preservation |
+| ACCEL-03 | Phase 207 | Complete | JJ proof gate mandatory |
+| ACCEL-04 | Phase 207 | Complete | /clear-safe resumption |
+| TDD-01 | Phase 206 | Complete | RED gate semantic validation |
+| TDD-02 | Phase 211 | Complete | GREEN gate semantic validation |
+| TDD-03 | Phase 211 | Complete | REFACTOR gate semantic validation |
+| TDD-04 | Phase 211 | Complete | Plan structure verification at planning-time |
+| TDD-05 | Phase 206 | Complete | E2E fixture for TDD cycle |
+| TDD-06 | Phase 212 | Complete | Rationale visibility in output |
+| TDD-07 | Phase 211 | Complete | Eligibility evaluation for ALL plans |
+| TDD-08 | Phase 211 | Complete | Rationale field in plan frontmatter |
+| REGR-01 | All phases | Regression | Must not break phase:snapshot |
+| REGR-02 | All phases | Regression | Must not break verify:state complete-plan |
+| REGR-03 | All phases | Regression | Must not break handoff artifacts |
+| REGR-04 | All phases | Regression | Must not break PlanningCache |
+| REGR-05 | All phases | Regression | Must not break mutex cache |
+| REGR-06 | All phases | Regression | Must not break Kahn sort |
+| REGR-07 | All phases | Regression | Must not break --fast/--batch modes |
+| REGR-08 | All phases | Regression | Must not break TDD selection |
+
+**Coverage:**
+- v19.4 requirements: 17 total (8 P1, 4 P2, 5 non-regression)
+- Mapped to phases: 5 phases
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-04-06*
+*Last updated: 2026-04-06 during v19.4 milestone initialization*

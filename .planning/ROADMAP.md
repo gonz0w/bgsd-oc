@@ -3,65 +3,122 @@
 ## Milestones
 
 - ✅ **v19.1 Execution Simplicity, Speculative Decoding & JJ-First UX** - Phases 188-200 (shipped 2026-04-05)
-- 🚧 **v19.3 Workflow Acceleration** - Phases 201-203 (active)
+- ✅ **v19.3 Workflow Acceleration** - Phases 201-205 (shipped 2026-04-06)
+- ✅ **v19.4 Workflow Acceleration II + TDD Reliability** - Phases 206-214 (shipped 2026-04-06)
 
 ## Overview
 
-v19.3 accelerates workflow execution through measurement-grounded caching, fast-mode commands, and safe parallelization. The milestone first establishes a baseline so all subsequent changes have measurable proof of improvement. It then adds TTL-backed routing tables to PlanningCache, implements `--fast`/`--batch` flags to reduce turns on routine work, hardens parallel stages against cache races while preserving the JJ proof gate, and wires state validation after every batched write so correctness is never sacrificed for speed.
+v19.4 continues v19.3's workflow acceleration and hardens TDD reliability. The milestone implements `/bgsd-deliver-phase --fresh-step-context` for end-to-end fresh-context chaining without giant context windows, implements the stubbed TDD validators (RED/GREEN/REFACTOR gate semantics), wires TDD audit continuity through handoff artifacts, and adds mutex protection for parallel TDD verification stages.
 
 ## Phases
 
-- [x] **Phase 201: Measurement Foundation & Fast Commands** - Establish baseline telemetry, TTL-backed routing cache, batch freshness checks, and --fast/--batch hot-path commands (completed 2026-04-06)
-- [ ] **Phase 202: Parallelization Safety** - Mutex-protected cache entries, Kahn sort verification, preserved JJ proof gate, and Promise.all fan-in coordination
-- [x] **Phase 203: State Mutation Safety** - verify:state validate wired after batched writes, batch transaction support, sacred data never batched (completed 2026-04-07)
+- [x] **Phase 206: TDD Validator Shipping** - Implement cmdTdd validate-red/green/refactor stubs; unblocks all downstream TDD proof consumers (completed 2026-04-06)
+- [x] **Phase 207: Fresh-Context Chaining** - Implement /bgsd-deliver-phase --fresh-step-context; enables end-to-end delivery without giant context windows (completed 2026-04-06)
+- [x] **Phase 208: TDD Audit Continuity** - Wire TDD audit sidecar into handoff artifact inventory; ensure proof survives resume/refresh cycles (completed 2026-04-06)
+- [x] **Phase 209: TDD Gate Hardening** (completed 2026-04-06) - Implement TDD plan structure verification and Phase B/C gate semantics; extends execute:tdd beyond exit-code checks
+- [x] **Phase 210: Parallel TDD Safety** (completed 2026-04-06) - Add mutex protection for TDD cache keys; enables safe parallel TDD verification stages
+- [x] **Phase 211: TDD Gate Hardening Execution** (completed 2026-04-06) - Execute Phase 209 plans to close TDD-02/03/04/07/08 requirements
+- [x] **Phase 212: TDD Rationale Visibility** - Implement TDD rationale visibility (Selected/Skipped surfacing) for Phase 208 (completed 2026-04-06)
+- [x] **Phase 213: Phase 206 Deployment Fix** - Deploy updated CLI to fix installed CLI mismatch (completed 2026-04-06)
+- [x] **Phase 214: runTddVerify Implementation** (completed 2026-04-06) - Replace runTddVerify placeholder with actual verification logic
 
 ## Phase Details
 
-### Phase 201: Measurement Foundation & Fast Commands
-**Goal**: Establish baseline telemetry before any routing/caching changes and implement fast-mode commands that reduce turns for routine phases
-**Depends on**: Phase 200
-**Requirements**: ACCEL-01, ACCEL-02, ACCEL-03, ACCEL-04, FAST-01, FAST-02, FAST-03
+### Phase 206: TDD Validator Shipping
+**Goal**: Production execute:tdd validate-red/green/refactor with proper semantic validation; unblocks all downstream TDD proof consumers
+**Depends on**: Phase 205
+**Requirements**: TDD-01, TDD-05, REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
 **Success Criteria** (what must be TRUE):
-  1. `workflow:baseline` runs and saves metrics to `.planning/research/ACCEL-BASELINE.json` before any routing/caching changes
-  2. `orchestration.js` has adaptive telemetry hooks that log which routing paths are actually taken during execution
-  3. `PlanningCache` stores and retrieves TTL-backed computed-value results for `classifyTaskComplexity` and `routeTask` without recomputing
-  4. Batch freshness checks read N phase/plan fingerprints in a single SQLite transaction instead of per-file mtime checks
-  5. `discuss-phase --fast` batches low-risk clarification choices and reduces turns for routine phases without changing defaults
-  6. `verify-work --batch N` batches routine test verification while defaulting to one-at-a-time for ambiguous or high-risk work
-  7. `workflow:hotpath` command shows which routing paths are most frequently used based on collected telemetry
-**Plans**: 2/2 plans complete
-
-### Phase 202: Parallelization Safety
-**Goal**: Parallel stages share cache safely with mutex protection, verified Kahn-sort ordering, and preserved JJ workspace proof gates on all accelerated paths
-**Depends on**: Phase 201
-**Requirements**: PARALLEL-01, PARALLEL-02, PARALLEL-03, PARALLEL-04
-**Success Criteria** (what must be TRUE):
-  1. Parallel stages using a shared cache layer acquire mutex-protected entries so simultaneous invalidation of the same key returns consistent data
-  2. `resolvePhaseDependencies` Kahn topological sort verification confirms correct parallel wave ordering before dispatch
-  3. JJ workspace proof gate is preserved on all accelerated parallel paths — the proof check may be optimized but is never bypassed
-  4. `Promise.all` fan-in coordinates independent workflow stage execution using `child_process.spawn` without corrupting shared state
-**Plans**: TBD
-
-### Phase 203: State Mutation Safety
-**Goal**: Batched state writes are validated by regression checks and never interleave with sacred data mutations
-**Depends on**: Phase 202
-**Requirements**: STATE-01, STATE-02, STATE-03
-**Success Criteria** (what must be TRUE):
-  1. `verify:state validate` regression coverage runs after any batched state write in the execute-plan workflow and reports before proceeding
-  2. `verify:state complete-plan` extends batch transaction support to non-sacred state mutations with atomic commits
-  3. Sacred data writes (decisions, lessons, trajectories, requirements) are never batched — they always use the canonical single-write path
-  4. `npm run build` smoke test runs after every plan and fails closed on bundle parity issues
-  5. `util:validate-commands --raw` confirms CLI contract validity after any routing change
+  1. `execute:tdd validate-red` verifies test FAILED for expected missing behavior — exit code ≠ 0 alone is insufficient; must detect semantically that the failure is about missing behavior
+  2. `execute:tdd validate-green` verifies test PASSED + test file NOT modified during GREEN phase — prevents false GREEN from modified tests
+  3. `execute:tdd validate-refactor` verifies all tests still pass + no new behavior added — test count unchanged from GREEN
+  4. TDD E2E fixture proves RED→GREEN→REFACTOR commit trail in actual repo — automated end-to-end validation of full TDD cycle
+  5. cmdTdd in misc/recovery.js returns production proof JSON instead of "not yet implemented" stub
 **Plans**: 1/1 plans complete
+
+### Phase 207: Fresh-Context Chaining
+**Goal**: /bgsd-deliver-phase --fresh-step-context pipeline works end-to-end; enables delivery without giant context windows
+**Depends on**: Phase 206
+**Requirements**: ACCEL-01, ACCEL-02, ACCEL-03, ACCEL-04, REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Success Criteria** (what must be TRUE):
+  1. `/bgsd-deliver-phase --fresh-step-context` pipeline runs end-to-end — each step runs in fresh context, reads from snapshot+handoff, writes compact output, clears context, chains to next
+  2. Stop points at checkpoints and interactive decisions are preserved through the full deliver-phase chain — no data loss at decision boundaries
+  3. JJ workspace proof gate remains mandatory on all deliver-phase paths — never bypassed by --fast or acceleration flags
+  4. Fresh-context chaining works after `/clear` — session can be cleared mid-chain and resumed from disk truth
+**Plans**: 1/1 plans complete
+
+### Phase 208: TDD Audit Continuity
+**Goal**: TDD proof survives execute → verify → summary transitions and resume/inspect flows; human-legible rendering in summaries
+**Depends on**: Phase 207
+**Requirements**: TDD-06, REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Success Criteria** (what must be TRUE):
+  1. TDD rationale visibility in plan output — selected/skipped rationale surfaced in plan output and summary rendering
+  2. tdd_audit added to handoff artifact inventory in phase-handoff.js — proof survives resume/refresh cycles
+  3. Human-legible TDD proof rendering in summary:generate — not backtick-wrapped raw tokens but narrative format
+  4. verify:state includes TDD audit sidecar checks — audit continuity verified at state validation
+**Plans**: 1/1 plans complete
+
+### Phase 209: TDD Gate Hardening
+**Goal**: TDD plan structure verification at planning-time; RED/GREEN/REFACTOR gate semantics beyond exit-code checks
+**Depends on**: Phase 208
+**Requirements**: TDD-02, TDD-03, TDD-04, TDD-07, TDD-08, REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Success Criteria** (what must be TRUE):
+  1. TDD plan structure verification rejects malformed type:tdd plans at planning-time — required fields (test_file, impl_files, steps with RED/GREEN/REFACTOR sequence) are present and correctly ordered
+  2. Planner evaluates TDD eligibility for every implementation plan — not only phases with explicit ROADMAP TDD hint
+  3. TDD decision rationale field on every type:tdd plan — structured in frontmatter, why TDD was selected or intentionally skipped
+  4. RED gate verifies test FAILED for expected missing behavior (file-diff per phase)
+  5. GREEN gate verifies test PASSED + test file NOT modified (no-new-behavior enforcement)
+  6. REFACTOR gate verifies all tests still pass + no new behavior added (test count unchanged)
+**Plans**: 1/1 plans planned
+
+### Phase 210: Parallel TDD Safety
+**Goal**: Safe parallel TDD verification stages with mutex-protected cache writes; extends v19.3 mutex infrastructure to TDD-specific cache keys
+**Depends on**: Phase 209
+**Requirements**: REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Success Criteria** (what must be TRUE):
+  1. Mutex per TDD cache key (tdd_audit:${plan_path}, tdd_proof:${plan_path}, tdd_summary:${plan_path}) — prevents simultaneous invalidation races
+  2. Bounded parallelism for TDD batch operations — fan-out limited by mutex availability
+  3. Serial cache-warm call before parallel fan-out — ensures fresh state before concurrent verification
+**Plans**: 1/1 plans complete
+
+### Phase 211: TDD Gate Hardening Execution
+**Goal**: Execute Phase 209 plans to verify TDD-02/03/04/07/08 requirements
+**Depends on**: Phase 209
+**Requirements**: TDD-02, TDD-03, TDD-04, TDD-07, TDD-08, REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Gap Closure**: Closes GAP-R1, GAP-R2, GAP-R3, GAP-R5, GAP-R6
+
+### Phase 212: TDD Rationale Visibility
+**Goal**: Surface TDD rationale (Selected/Skipped) in plan output and summary rendering
+**Depends on**: Phase 208
+**Requirements**: TDD-06, REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Gap Closure**: Closes GAP-R4
+
+### Phase 213: Phase 206 Deployment Fix
+**Goal**: Deploy updated CLI to fix installed CLI mismatch (1287012 bytes vs DEV 1290582 bytes)
+**Depends on**: Phase 206
+**Requirements**: REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Gap Closure**: Closes GAP-I1
+
+### Phase 214: runTddVerify Implementation
+**Goal**: Replace runTddVerify placeholder with actual TDD verification logic
+**Depends on**: Phase 210
+**Requirements**: REGR-01, REGR-02, REGR-03, REGR-04, REGR-05, REGR-06, REGR-07, REGR-08
+**Gap Closure**: Closes GAP-I2
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 201. Measurement Foundation & Fast Commands | 0/2 | Complete    | 2026-04-06 |
-| 202. Parallelization Safety | 0/TBD | Not started | - |
-| 203. State Mutation Safety | 0/TBD | Complete    | 2026-04-07 |
+| 206. TDD Validator Shipping | 0/1 | Complete    | 2026-04-06 |
+| 207. Fresh-Context Chaining | 0/1 | Complete    | 2026-04-06 |
+| 208. TDD Audit Continuity | 0/1 | Complete    | 2026-04-06 |
+| 209. TDD Gate Hardening | 1/1 | Complete | 2026-04-06 |
+| 210. Parallel TDD Safety | 1/1 | Complete    | 2026-04-06 |
+| 211. TDD Gate Hardening Execution | 1/1 | Complete    | 2026-04-06 |
+| 212. TDD Rationale Visibility | 0/1 | Complete    | 2026-04-06 |
+| 213. Phase 206 Deployment Fix | 0/1 | Complete    | 2026-04-06 |
+| 214. runTddVerify Implementation | 1/1 | Complete    | 2026-04-06 |
 
 ---
 
-*Last updated: 2026-04-07 after Phase 203 completion*
+*Last updated: 2026-04-06 during v19.4 roadmap creation*

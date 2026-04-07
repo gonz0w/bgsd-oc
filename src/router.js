@@ -127,6 +127,7 @@ function lazyQuestions() { return _modules.questions || (_modules.questions = re
 function lazyReview() { return _modules.review || (_modules.review = require('./commands/review')); }
 function lazySecurity() { return _modules.security || (_modules.security = require('./commands/security')); }
 function lazyRelease() { return _modules.release || (_modules.release = require('./commands/release')); }
+function lazyDeliver() { return _modules.deliver || (_modules.deliver = require('./commands/deliver')); }
 
 function parseOptionValue(args, flag) {
   const idx = args.indexOf(flag);
@@ -276,7 +277,7 @@ async function main() {
   let namespace = null;
   let remainingArgs = args.slice(1);
   
-  const KNOWN_NAMESPACES = ['init', 'plan', 'phase', 'execute', 'verify', 'review', 'security', 'release', 'workspace', 'util', 'memory', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow', 'questions'];
+  const KNOWN_NAMESPACES = ['init', 'plan', 'phase', 'execute', 'verify', 'review', 'security', 'release', 'workspace', 'util', 'memory', 'research', 'cache', 'audit', 'decisions', 'detect', 'lessons', 'skills', 'workflow', 'questions', 'deliver'];
   
   if (command && command.includes(':')) {
     const colonIdx = command.indexOf(':');
@@ -563,6 +564,23 @@ Use without --exact for fuzzy matching.`);
         break;
       }
 
+      // deliver namespace
+      case 'deliver': {
+        const subcommand = subCmd;
+        if (subcommand === 'phase') {
+          const freshCtxIdx = restArgs.indexOf('--fresh-step-context');
+          const fastIdx = restArgs.indexOf('--fast');
+          const options = {
+            fresh_step_context: freshCtxIdx !== -1,
+            fast: fastIdx !== -1,
+          };
+          lazyDeliver().cmdDeliverPhase(cwd, restArgs[0], options, raw);
+        } else {
+          error('Unknown deliver subcommand. Available: phase');
+        }
+        break;
+      }
+
       // execute namespace
       case 'execute': {
         const subcommand = subCmd;
@@ -589,19 +607,23 @@ Use without --exact for fuzzy matching.`);
           const tddSub = restArgs[0];
           const tddTestCmdIdx = restArgs.indexOf('--test-cmd');
           const tddTestFileIdx = restArgs.indexOf('--test-file');
+          const tddPrevCountIdx = restArgs.indexOf('--prev-count');
           const tddPhaseIdx = restArgs.indexOf('--phase');
           const tddPlanIdx = restArgs.indexOf('--plan');
           const tddStageIdx = restArgs.indexOf('--stage');
           const tddProofIdx = restArgs.indexOf('--proof');
           const tddFilesIdx = restArgs.indexOf('--files');
+          const tddPlanFileIdx = restArgs.indexOf('--plan-file');
           const tddArgs = {
             'test-cmd': tddTestCmdIdx !== -1 ? restArgs[tddTestCmdIdx + 1] : null,
             'test-file': tddTestFileIdx !== -1 ? restArgs[tddTestFileIdx + 1] : null,
+            'prev-count': tddPrevCountIdx !== -1 ? restArgs[tddPrevCountIdx + 1] : null,
             phase: tddPhaseIdx !== -1 ? restArgs[tddPhaseIdx + 1] : null,
             plan: tddPlanIdx !== -1 ? restArgs[tddPlanIdx + 1] : null,
             stage: tddStageIdx !== -1 ? restArgs[tddStageIdx + 1] : null,
             proof: tddProofIdx !== -1 ? restArgs[tddProofIdx + 1] : null,
             files: tddFilesIdx !== -1 ? restArgs[tddFilesIdx + 1] : null,
+            'plan-file': tddPlanFileIdx !== -1 ? restArgs[tddPlanFileIdx + 1] : null,
           };
           lazyMisc().cmdTdd(cwd, tddSub, tddArgs, raw);
         } else if (subcommand === 'finalize-plan') {
@@ -718,6 +740,7 @@ Use without --exact for fuzzy matching.`);
             const decisionRationaleIdx = restArgs.indexOf('--decision-rationale');
             const stoppedIdx = restArgs.indexOf('--stopped-at');
             const resumeIdx = restArgs.indexOf('--resume-file');
+            const dryRunIdx = restArgs.indexOf('--dry-run');
             lazyState().cmdStateCompletePlan(cwd, {
               phase: phaseIdx !== -1 ? restArgs[phaseIdx + 1] : null,
               plan: planIdx !== -1 ? restArgs[planIdx + 1] : null,
@@ -728,6 +751,7 @@ Use without --exact for fuzzy matching.`);
               decision_rationale: decisionRationaleIdx !== -1 ? restArgs[decisionRationaleIdx + 1] : null,
               stopped_at: stoppedIdx !== -1 ? restArgs[stoppedIdx + 1] : null,
                 resume_file: resumeIdx !== -1 ? restArgs[resumeIdx + 1] : 'None',
+              dry_run: dryRunIdx !== -1,
             }, raw);
           } else if (stateSub === 'handoff') {
             lazyState().cmdStateHandoff(cwd, restArgs.slice(1), raw);

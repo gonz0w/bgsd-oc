@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "214",
+  "step": "plan",
+  "status": "complete",
+  "run_id": "214-2026-04-06T20-01-41-916Z",
+  "source_fingerprint": "5e1f0f95c643c875",
+  "created_at": "2026-04-06T20:01:41.916Z",
+  "updated_at": "2026-04-06T20:01:41.916Z",
+  "summary": "Plans ready for execution in Phase 214",
+  "resume_target": {
+    "phase": "214",
+    "step": "plan",
+    "plan": null,
+    "resume_file": null,
+    "next_command": "/bgsd-execute-phase 214"
+  },
+  "context": {}
+}

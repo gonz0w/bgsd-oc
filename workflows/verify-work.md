@@ -25,13 +25,14 @@ Parse `$ARGUMENTS` for optional `--batch N`.
 </step>
 
 <step name="gate_chain_continuation">
-Treat verification handoff state as additive:
-
-- If `resume_summary` is absent: standalone `/bgsd-verify-work` continues to work normally.
-- If `resume_summary` is present and `latest_valid_step` is `execute` or `verify`: use the latest valid artifact as the continuation source.
-- If `resume_summary.valid` is false: fail closed with `repair_guidance` or restart guidance; do not guess continuation from stray UAT files, summaries, or `STATE.md`.
-- If the newest handoff artifact is corrupt: fall back to the latest valid artifact and keep the corrupt file visible via inspect output.
-- If source drift is detected: warn, rebuild from source, validate that the reconstructed handoff state now matches the current expected fingerprint, and only then resume verification.
+```
+Task(
+  prompt="Determine verification continuation action. resume_summary: {resume_summary}, latest_valid_step: {latest_valid_step}, resume_valid: {resume_valid}, stale_sources: {stale_sources}",
+  subagent_type="bgsd-context-bootstrapper",
+  model="gpt-5.4-nano",
+  description="Validate verification handoff"
+)
+```
 </step>
 
 <step name="check_active_session">

@@ -1,0 +1,10 @@
+{
+  "stage": "validate-tdd-plan",
+  "planFile": ".planning/PROJECT.md",
+  "valid": true,
+  "errors": [],
+  "skipped": true,
+  "reason": "Not a type:tdd plan",
+  "timestamp": "2026-04-06T20:40:20.733Z",
+  "gsd_phase": "validate-tdd-plan"
+}

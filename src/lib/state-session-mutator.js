@@ -5,6 +5,21 @@ const { cachedReadFile, invalidateFileCache } = require('./helpers');
 const { PlanningCache } = require('./planning-cache');
 const { withProjectLock } = require('./project-lock');
 const { writeFileAtomic } = require('./atomic-write');
+const { SACRED_STORES } = require('../commands/memory');
+
+// Sacred data boundary: decisions, lessons, trajectories, requirements
+// These always use the canonical single-write path and are NEVER batched.
+const SACRED_DATA_STORES = new Set(['decisions', 'lessons', 'trajectories', 'requirements']);
+
+/**
+ * Check if a store can be batched.
+ * Sacred stores (decisions, lessons, trajectories, requirements) return false.
+ * @param {string} store
+ * @returns {boolean} true if store can be batched, false if sacred
+ */
+function canBatch(store) {
+  return !SACRED_DATA_STORES.has(store);
+}
 
 const DECISIONS_SECTION_PATTERN = /(###?\s*(?:Decisions|Decisions Made|Accumulated.*Decisions)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
 const BLOCKERS_SECTION_PATTERN = /(###?\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
@@ -423,4 +438,5 @@ module.exports = {
   applyStateSessionMutation,
   parseStateMarkdown,
   renderStateMarkdown,
+  canBatch,
 };

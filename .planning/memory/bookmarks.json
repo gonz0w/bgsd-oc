@@ -1,5 +1,21 @@
 [
   {
+    "phase": "203",
+    "plan": "02",
+    "task": 2,
+    "total_tasks": 2,
+    "git_head": "f05fde0e",
+    "timestamp": "2026-04-06T03:30:13.607Z"
+  },
+  {
+    "phase": "203",
+    "plan": "01",
+    "task": 3,
+    "total_tasks": 3,
+    "git_head": "3a2eb2a0",
+    "timestamp": "2026-04-06T03:21:41.385Z"
+  },
+  {
     "phase": "186",
     "plan": "02",
     "task": 2,
@@ -142,21 +158,5 @@
     "total_tasks": 2,
     "git_head": "e6213ad1",
     "timestamp": "2026-04-01T16:00:45.270Z"
-  },
-  {
-    "phase": "178-phase-176-hardening-truth-reconciliation",
-    "plan": "02",
-    "task": 2,
-    "total_tasks": 2,
-    "git_head": "61a00885",
-    "timestamp": "2026-04-01T14:47:58.161Z"
-  },
-  {
-    "phase": "178-phase-176-hardening-truth-reconciliation",
-    "plan": "02",
-    "task": 1,
-    "total_tasks": 2,
-    "git_head": "3df2289a",
-    "timestamp": "2026-04-01T14:46:56.175Z"
   }
 ]

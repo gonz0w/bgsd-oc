@@ -7,6 +7,57 @@ const { extractFrontmatter } = require('./frontmatter');
 const { banner, sectionHeader, formatTable, summaryLine, color, SYMBOLS } = require('./format');
 const { buildCanonicalModelSettings, resolveModelSelectionFromConfig } = require('./helpers');
 
+// ─── Telemetry ─────────────────────────────────────────────────────────────────
+
+const TELEMETRY_LOG_PATH = '.planning/telemetry/routing-log.jsonl';
+
+/**
+ * Log routing telemetry (append-only, coarse + frequency).
+ * @param {string} functionName - e.g., "classifyTaskComplexity", "routeTask"
+ * @param {string} inputsHash - stable hash of inputs for deduplication
+ * @param {object} output - routed output
+ */
+function telemetryLog(functionName, inputsHash, output) {
+  try {
+    const logDir = path.dirname(TELEMETRY_LOG_PATH);
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const entry = {
+      function: functionName,
+      key: inputsHash,
+      profile: output?.profile || null,
+      model: output?.model || null,
+      agent: output?.agent || null,
+      timestamp: new Date().toISOString(),
+    };
+    fs.appendFileSync(TELEMETRY_LOG_PATH, JSON.stringify(entry) + '\n');
+  } catch {
+    // Non-fatal — telemetry must never block routing
+  }
+}
+
+// Simple hash for task inputs — deterministic string representation
+function hashTaskInputs(task) {
+  const str = JSON.stringify({ name: task.name, type: task.type, files: task.files, action: task.action });
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return String(Math.abs(hash));
+}
+
+function hashComplexityInputs(complexity) {
+  const str = JSON.stringify({ score: complexity.score, label: complexity.label, profile: complexity.recommended_profile });
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return String(Math.abs(hash));
+}
+
 // ─── Task XML Parser ─────────────────────────────────────────────────────────
 
 /**
@@ -85,59 +136,6 @@ const PROFILE_PRIORITY = {
   quality: 2,
 };
 
-const TELEMETRY_LOG_PATH = '.planning/telemetry/routing-log.jsonl';
-
-function hashStableValue(value) {
-  const str = JSON.stringify(value || {});
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return String(Math.abs(hash));
-}
-
-function hashTaskInputs(task) {
-  return hashStableValue({
-    name: task?.name,
-    type: task?.type,
-    files: task?.files,
-    action: task?.action,
-  });
-}
-
-function hashComplexityInputs(complexity) {
-  return hashStableValue({
-    score: complexity?.score,
-    label: complexity?.label,
-    profile: complexity?.recommended_profile,
-  });
-}
-
-/**
- * Append coarse routing telemetry without blocking execution.
- */
-function telemetryLog(functionName, inputsHash, outputValue) {
-  try {
-    const logDir = path.dirname(TELEMETRY_LOG_PATH);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-    const entry = {
-      function: functionName,
-      key: inputsHash,
-      profile: outputValue?.profile || null,
-      model: outputValue?.model || null,
-      agent: outputValue?.agent || null,
-      timestamp: new Date().toISOString(),
-    };
-    fs.appendFileSync(TELEMETRY_LOG_PATH, JSON.stringify(entry) + '\n');
-  } catch {
-    // Non-fatal telemetry only.
-  }
-}
-
 /**
  * Score a single task 1-5 based on multiple complexity factors.
  *
@@ -213,19 +211,21 @@ function classifyTaskComplexity(task, context) {
       recommended_profile: PROFILE_MAP[score],
       recommended_agent: 'bgsd-executor',
     };
-    telemetryLog('classifyTaskComplexity', hashTaskInputs(task), result);
+
+    // Telemetry — non-blocking
+    const hash = hashTaskInputs(task);
+    telemetryLog('classifyTaskComplexity', hash, result);
+
     return result;
   } catch (e) {
     debugLog('orchestration.classifyTask', 'classification failed', e);
-    const result = {
+    return {
       score: 3,
       label: 'moderate',
       factors: ['classification error — defaulting'],
       recommended_profile: 'balanced',
       recommended_agent: 'bgsd-executor',
     };
-    telemetryLog('classifyTaskComplexity', hashTaskInputs(task), result);
-    return result;
   }
 }
 
@@ -436,19 +436,21 @@ function routeTask(complexity, config, cwd) {
       agent: 'bgsd-executor',
       reason: `score ${score} (${complexity.label}) recommends ${recommendedProfile} and resolves canonically`,
     };
-    telemetryLog('routeTask', hashComplexityInputs(complexity), result);
+
+    // Telemetry — non-blocking
+    const hash = hashComplexityInputs(complexity);
+    telemetryLog('routeTask', hash, result);
+
     return result;
   } catch (e) {
     debugLog('orchestration.routeTask', 'routing failed', e);
     const resolved = resolveModelSelectionFromConfig({}, 'bgsd-executor');
-    const result = {
+    return {
       profile: 'balanced',
       model: resolved.model,
       agent: 'bgsd-executor',
       reason: 'routing error — defaulting to balanced canonical profile',
     };
-    telemetryLog('routeTask', hashComplexityInputs(complexity), result);
-    return result;
   }
 }
 

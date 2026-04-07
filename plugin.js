@@ -5748,6 +5748,17 @@ var require_decision_rules = __commonJS({
         outputs: ["hyperfine|node"],
         confidence_range: ["HIGH"],
         resolve: resolveBenchmarkMode
+      },
+      // Phase 202: Kahn topological sort for parallel wave ordering
+      {
+        id: "phase-dependencies",
+        name: "Phase Dependencies Kahn Sort",
+        category: "workflow-routing",
+        description: "Kahn topological sort with verification for correct parallel wave ordering",
+        inputs: ["phases"],
+        outputs: ["{ ordered_phases, waves, verification }"],
+        confidence_range: ["HIGH"],
+        resolve: resolvePhaseDependencies
       }
     ];
     var { TAXONOMY, OPTION_TEMPLATES } = require_questions();
@@ -5848,6 +5859,85 @@ var require_decision_rules = __commonJS({
       }
       return { value: "node", confidence: "HIGH", rule_id: "benchmark-mode" };
     }
+    function resolvePhaseDependencies(state) {
+      const { phases: rawPhases } = state || {};
+      const phases = Array.isArray(rawPhases) ? rawPhases : [];
+      const adj = /* @__PURE__ */ new Map();
+      const inDegree = /* @__PURE__ */ new Map();
+      const phaseByNum = /* @__PURE__ */ new Map();
+      for (const p of phases) {
+        const num = String(p.number);
+        adj.set(num, []);
+        inDegree.set(num, 0);
+        phaseByNum.set(num, p);
+      }
+      for (const p of phases) {
+        const deps = p.depends_on || [];
+        for (const dep of deps) {
+          if (adj.has(dep)) {
+            adj.get(dep).push(String(p.number));
+            inDegree.set(String(p.number), (inDegree.get(String(p.number)) || 0) + 1);
+          }
+        }
+      }
+      const queue = [];
+      const ordered = [];
+      for (const [num, degree] of inDegree) {
+        if (degree === 0) queue.push(num);
+      }
+      while (queue.length > 0) {
+        const current = queue.shift();
+        ordered.push(current);
+        for (const neighbor of adj.get(current) || []) {
+          const newDegree = (inDegree.get(neighbor) || 1) - 1;
+          inDegree.set(neighbor, newDegree);
+          if (newDegree === 0) queue.push(neighbor);
+        }
+      }
+      if (ordered.length !== phases.length) {
+        const remaining = phases.filter((p) => !ordered.includes(String(p.number)));
+        return {
+          value: {
+            ordered_phases: [],
+            waves: {},
+            verification: { valid: false, errors: [`cycle detected involving: ${remaining.map((p) => p.number).join(", ")}`] }
+          },
+          confidence: "HIGH",
+          rule_id: "phase-dependencies"
+        };
+      }
+      const waves = {};
+      for (const num of ordered) {
+        const deps = phaseByNum.get(num)?.depends_on || [];
+        let wave = 1;
+        for (const dep of deps) {
+          const depWave = waves[dep] || 1;
+          wave = Math.max(wave, depWave + 1);
+        }
+        waves[num] = wave;
+      }
+      const verificationErrors = [];
+      const orderedSet = new Set(ordered);
+      for (const num of ordered) {
+        const deps = phaseByNum.get(num)?.depends_on || [];
+        for (const dep of deps) {
+          const depIdx = ordered.indexOf(dep);
+          const numIdx = ordered.indexOf(num);
+          if (depIdx >= numIdx) {
+            verificationErrors.push(`${num} depends on ${dep} but ${dep} does not precede ${num} in ordering`);
+          }
+        }
+      }
+      return {
+        value: {
+          ordered_phases: ordered.map((n) => phaseByNum.get(n)),
+          waves,
+          verification: { valid: verificationErrors.length === 0, errors: verificationErrors }
+        },
+        confidence: "HIGH",
+        rule_id: "phase-dependencies"
+      };
+    }
     function evaluateDecisions2(command, state) {
       if (!state || typeof state !== "object") return {};
       const results = {};
@@ -5895,6 +5985,8 @@ var require_decision_rules = __commonJS({
       resolveYamlTransformMode,
       resolveTextReplaceMode,
       resolveBenchmarkMode,
+      // Phase 202: Kahn topological sort
+      resolvePhaseDependencies,
       // Registry and aggregator
       DECISION_REGISTRY,
       evaluateDecisions: evaluateDecisions2
@@ -9205,6 +9297,7 @@ function enrichCommand(input, output, cwd) {
     if (roadmap && roadmap.phases && roadmap.phases.length > 0) {
       enrichment.phases_total = roadmap.phases.length;
       enrichment.phases_complete = roadmap.phases.filter((p) => p.status === "complete").length;
+      enrichment.phases = roadmap.phases;
     }
   } catch {
   }

@@ -396,13 +396,118 @@ function cmdSummaryGenerate(cwd, phaseArg, planArg, raw) {
   const planPath = path.join(phaseDir, planFileName);
   const summaryPath = path.join(phaseDir, `${paddedPhase}-${paddedPlan}-SUMMARY.md`);
 
-  output({
-    message: 'Summary generation not fully implemented',
-    phase: phaseArg,
-    plan: paddedPlan,
-    plan_path: planPath,
-    summary_path: summaryPath
-  }, raw);
+  // Read PLAN.md
+  const planContent = safeReadFile(planPath);
+  if (!planContent) {
+    output({ error: `PLAN.md not readable at ${planPath}` }, raw);
+    return;
+  }
+
+  // Extract tdd_rationale from plan frontmatter
+  const planFrontmatter = extractFrontmatter(planContent);
+  const tddRationale = planFrontmatter.tdd_rationale || null;
+
+  // Find TDD-AUDIT.json files in phase directory
+  const tddAuditFiles = fs.readdirSync(phaseDir)
+    .filter(f => f.endsWith('-TDD-AUDIT.json'))
+    .sort();
+
+  // Render TDD audit narrative if audits exist
+  let tddNarrative = null;
+  if (tddAuditFiles.length > 0) {
+    const narrativeParts = [];
+    // Add TDD Decision section if tdd_rationale exists
+    if (tddRationale) {
+      narrativeParts.push('## TDD Decision\n\n**Rationale:** ' + tddRationale + '\n\n');
+    }
+    narrativeParts.push('## TDD Audit Trail\n');
+    for (const auditFile of tddAuditFiles) {
+      const auditPath = path.join(phaseDir, auditFile);
+      let auditData;
+      try {
+        auditData = JSON.parse(fs.readFileSync(auditPath, 'utf-8'));
+      } catch {
+        continue;
+      }
+
+      const planMatch = auditFile.match(/-(\d+)-TDD-AUDIT\.json$/);
+      const planNum = planMatch ? planMatch[1] : '?';
+      narrativeParts.push(`### Plan ${planNum}\n`);
+
+      // Normalize structure - handle both {phases: {red, green, refactor}} and direct stage objects
+      const source = auditData && typeof auditData === 'object'
+        ? (auditData.phases && typeof auditData.phases === 'object' ? auditData.phases : auditData)
+        : {};
+
+      const stages = ['red', 'green', 'refactor'].filter(s => source[s] && typeof source[s] === 'object');
+
+      for (const stage of stages) {
+        const stageData = source[stage];
+        const targetCommand = stageData.target_command || '';
+        const exitCode = stageData.exit_code;
+        const evidence = stageData.matched_evidence_snippet || '';
+        const commit = stageData.commit || '';
+        const gsdPhase = stageData.gsd_phase || stage;
+
+        // Render as narrative (no backtick-wrapped command tokens)
+        narrativeParts.push(`#### ${stage.toUpperCase()}\n`);
+        if (commit) {
+          narrativeParts.push(`- **Commit:** ${commit}\n`);
+        }
+        if (gsdPhase) {
+          narrativeParts.push(`- **GSD-Phase:** ${gsdPhase}\n`);
+        }
+        if (targetCommand) {
+          // Render command without backticks - just the command text
+          narrativeParts.push(`- **Target command:** ${targetCommand}\n`);
+        }
+        if (exitCode !== undefined) {
+          const exitDesc = exitCode === 0 ? 'passed' : 'failed';
+          narrativeParts.push(`- **Exit status:** ${exitCode} (${exitDesc})\n`);
+        }
+        if (evidence) {
+          // Wrap evidence in quotes for readability, no backticks
+          narrativeParts.push(`- **Matched evidence:** "${evidence}"\n`);
+        }
+        narrativeParts.push('\n');
+      }
+    }
+    tddNarrative = narrativeParts.join('');
+  }
+
+  // Build summary output - if SUMMARY.md already exists, append TDD narrative to it
+  let summaryContent = '';
+  const existingSummary = safeReadFile(summaryPath);
+  if (existingSummary) {
+    // If TDD narrative exists and summary doesn't already have it, append it
+    if (tddNarrative && !existingSummary.includes('## TDD Audit Trail')) {
+      summaryContent = existingSummary.trimEnd() + '\n\n' + tddNarrative;
+    } else {
+      summaryContent = existingSummary;
+    }
+  } else {
+    // No existing summary - create basic structure with TDD narrative if available
+    if (tddNarrative) {
+      summaryContent = tddNarrative;
+    } else {
+      summaryContent = '## Summary\n\nNo TDD audit found for this plan.\n';
+    }
+  }
+
+  // Write summary
+  try {
+    fs.writeFileSync(summaryPath, summaryContent, 'utf-8');
+    output({
+      generated: true,
+      phase: phaseArg,
+      plan: paddedPlan,
+      plan_path: planPath,
+      summary_path: summaryPath,
+      tdd_audits_found: tddAuditFiles.length,
+    }, raw);
+  } catch (e) {
+    output({ error: `Failed to write summary: ${e.message}` }, raw);
+  }
 }
 
 module.exports = {

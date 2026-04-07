@@ -6,6 +6,7 @@ const { output, error, debugLog } = require('../../lib/output');
 const { safeReadFile, cachedReadFile, getArchivedPhaseDirs, getMilestoneInfo, getPhaseTree } = require('../../lib/helpers');
 const { extractFrontmatter } = require('../../lib/frontmatter');
 const { execGit } = require('../../lib/git');
+const { createPlanMetadataContext } = require('../../lib/plan-metadata');
 
 function cmdVerifyPhaseCompleteness(cwd, phase, raw) {
   if (!phase) { error('phase required'); }

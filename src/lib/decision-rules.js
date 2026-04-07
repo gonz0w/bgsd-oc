@@ -5,6 +5,8 @@
 // No file I/O — functions receive pre-computed state objects.
 //
 // Categories: workflow-routing, execution-mode, state-assessment, configuration, argument-parsing
+//
+// Phase 202: resolvePhaseDependencies restored with Kahn sort verification (PARALLEL-02)
 
 // ─── Decision Functions ──────────────────────────────────────────────────────
 
@@ -937,6 +939,18 @@ const DECISION_REGISTRY = [
     confidence_range: ['HIGH'],
     resolve: resolveBenchmarkMode,
   },
+
+  // Phase 202: Kahn topological sort for parallel wave ordering
+  {
+    id: 'phase-dependencies',
+    name: 'Phase Dependencies Kahn Sort',
+    category: 'workflow-routing',
+    description: 'Kahn topological sort with verification for correct parallel wave ordering',
+    inputs: ['phases'],
+    outputs: ['{ ordered_phases, waves, verification }'],
+    confidence_range: ['HIGH'],
+    resolve: resolvePhaseDependencies,
+  },
 ];
 
 // ─── Phase 141: Question taxonomy decision functions ─────────────────────────
@@ -1137,6 +1151,112 @@ function resolveBenchmarkMode(state) {
   return { value: 'node', confidence: 'HIGH', rule_id: 'benchmark-mode' };
 }
 
+// ─── Phase 202: Kahn Topological Sort ─────────────────────────────────────────
+
+/**
+ * Kahn topological sort with declared depends_on verification.
+ * Returns wave-ordered phases and confirms no dependency violations.
+ *
+ * @param {object} state - { phases: Array<{number, depends_on: string[]|null}> }
+ * @returns {{ value: { ordered_phases: Array, waves: object, verification: { valid: boolean, errors: string[] } }, confidence: string, rule_id: string }}
+ */
+function resolvePhaseDependencies(state) {
+  const { phases: rawPhases } = state || {};
+  const phases = Array.isArray(rawPhases) ? rawPhases : [];
+
+  // Build adjacency: phase -> [deps] and in-degree tracking
+  const adj = new Map();
+  const inDegree = new Map();
+  const phaseByNum = new Map();
+
+  for (const p of phases) {
+    const num = String(p.number);
+    adj.set(num, []);
+    inDegree.set(num, 0);
+    phaseByNum.set(num, p);
+  }
+
+  // Build graph edges and compute in-degrees
+  for (const p of phases) {
+    const deps = p.depends_on || [];
+    for (const dep of deps) {
+      if (adj.has(dep)) {
+        adj.get(dep).push(String(p.number));
+        inDegree.set(String(p.number), (inDegree.get(String(p.number)) || 0) + 1);
+      }
+    }
+  }
+
+  // Kahn BFS: process zero in-degree nodes first
+  const queue = [];
+  const ordered = [];
+
+  for (const [num, degree] of inDegree) {
+    if (degree === 0) queue.push(num);
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    ordered.push(current);
+
+    for (const neighbor of (adj.get(current) || [])) {
+      const newDegree = (inDegree.get(neighbor) || 1) - 1;
+      inDegree.set(neighbor, newDegree);
+      if (newDegree === 0) queue.push(neighbor);
+    }
+  }
+
+  // Cycle detection: if not all phases in output, cycles exist
+  if (ordered.length !== phases.length) {
+    const remaining = phases.filter(p => !ordered.includes(String(p.number)));
+    return {
+      value: {
+        ordered_phases: [],
+        waves: {},
+        verification: { valid: false, errors: [`cycle detected involving: ${remaining.map(p => p.number).join(', ')}`] }
+      },
+      confidence: 'HIGH',
+      rule_id: 'phase-dependencies'
+    };
+  }
+
+  // Wave assignment: phase wave = max(dep waves) + 1
+  const waves = {};
+  for (const num of ordered) {
+    const deps = phaseByNum.get(num)?.depends_on || [];
+    let wave = 1;
+    for (const dep of deps) {
+      const depWave = waves[dep] || 1;
+      wave = Math.max(wave, depWave + 1);
+    }
+    waves[num] = wave;
+  }
+
+  // Verification pass: confirm each declared dep precedes its dependent
+  const verificationErrors = [];
+  const orderedSet = new Set(ordered);
+  for (const num of ordered) {
+    const deps = phaseByNum.get(num)?.depends_on || [];
+    for (const dep of deps) {
+      const depIdx = ordered.indexOf(dep);
+      const numIdx = ordered.indexOf(num);
+      if (depIdx >= numIdx) {
+        verificationErrors.push(`${num} depends on ${dep} but ${dep} does not precede ${num} in ordering`);
+      }
+    }
+  }
+
+  return {
+    value: {
+      ordered_phases: ordered.map(n => phaseByNum.get(n)),
+      waves,
+      verification: { valid: verificationErrors.length === 0, errors: verificationErrors }
+    },
+    confidence: 'HIGH',
+    rule_id: 'phase-dependencies'
+  };
+}
+
 // ─── Aggregator ──────────────────────────────────────────────────────────────
 
 /**
@@ -1203,6 +1323,8 @@ module.exports = {
   resolveYamlTransformMode,
   resolveTextReplaceMode,
   resolveBenchmarkMode,
+  // Phase 202: Kahn topological sort
+  resolvePhaseDependencies,
   // Registry and aggregator
   DECISION_REGISTRY,
   evaluateDecisions,

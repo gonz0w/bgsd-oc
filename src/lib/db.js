@@ -352,14 +352,14 @@ const MIGRATIONS = [
     `);
   },
 
-  // Version 6: Phase 201 — computed-value cache for routing and complexity results
+  // Version 6: Phase 201 — TTL-backed computed-value table for orchestration cache
   function migration_v6(rawDb) {
     rawDb.exec(`
       CREATE TABLE IF NOT EXISTS computed_values (
-        key        TEXT PRIMARY KEY,
-        value_json TEXT NOT NULL,
-        ttl_ms     INTEGER NOT NULL,
-        created_at TEXT NOT NULL
+        key         TEXT PRIMARY KEY,
+        value_json  TEXT NOT NULL,
+        ttl_ms      INTEGER NOT NULL,
+        created_at  TEXT NOT NULL
       );
     `);
   },

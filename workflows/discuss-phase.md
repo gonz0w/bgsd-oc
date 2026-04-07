@@ -69,6 +69,10 @@ BGSD_CONTEXT=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs init:phase-op
 
 If the fallback command fails unexpectedly, then tell the user: "bGSD plugin required for v9.0. Install with: npx bgsd-oc"
 
+**Parse `--fast` flag from `$ARGUMENTS`:**
+- If `--fast` is present: set `is_fast = true`
+- This flag is passed forward to subsequent steps via step state
+
 **Load phase discussion context from `<bgsd-context>` JSON or `BGSD_CONTEXT`:**
 
 Parse the loaded JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`, `resume_summary`.
@@ -136,6 +140,15 @@ Before opening the full discussion flow, look for 1-3 low-risk gray areas. These
 - no unresolved tension with locked decisions or deferred ideas
 - safe to treat as a default unless the user objects
 
+**Auto-qualify for --fast mode:**
+If `is_fast` is true AND the phase has ≤2 gray areas total (any priority):
+- Skip `present_gray_areas` entirely — go directly to low_risk_fast_path confirmation
+- The user still sees the low-risk defaults batch and can confirm or discuss one
+- This is NOT the same as auto-locking — the user must still confirm
+
+If `is_fast` is true AND the phase has >2 gray areas:
+- Proceed to `present_gray_areas` normally — --fast only compresses low-risk items, not high-impact decisions
+
 If none qualify: proceed to `present_gray_areas`.
 
 If some qualify, present them as a quick confirmation pass:
@@ -169,6 +182,9 @@ Domain: [What this phase delivers]
 We'll clarify HOW to implement this. (New capabilities belong in other phases.)
 I'll rank the gray areas by impact so we resolve the biggest unknowns first.
 ```
+
+**Early exit for --fast mode:**
+If `is_fast` is true AND all gray areas were handled in `low_risk_fast_path`, skip presenting and go directly to `customer_stress_test`.
 
 Present the gray areas grouped by priority:
 - High gray areas first

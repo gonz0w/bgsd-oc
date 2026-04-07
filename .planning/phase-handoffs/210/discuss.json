@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "phase-handoff",
+  "phase": "210",
+  "step": "discuss",
+  "status": "complete",
+  "run_id": "210-2026-04-06T17-47-35-067Z",
+  "source_fingerprint": "a37280a40bd663a7",
+  "created_at": "2026-04-06T17:47:35.067Z",
+  "updated_at": "2026-04-06T17:47:35.067Z",
+  "summary": "Discuss context ready for Phase 210",
+  "resume_target": {
+    "phase": "210",
+    "step": "discuss",
+    "plan": null,
+    "resume_file": ".planning/phases/210-parallel-tdd-safety/210-CONTEXT.md",
+    "next_command": "/bgsd-plan research 210"
+  },
+  "context": {}
+}

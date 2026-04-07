@@ -169,7 +169,7 @@ function listPhaseHandoffArtifacts(cwd, phase) {
   const dir = getPhaseHandoffDir(cwd, phase);
   if (!fs.existsSync(dir)) return [];
 
-  return fs.readdirSync(dir)
+  const artifacts = fs.readdirSync(dir)
     .filter((name) => name.endsWith('.json'))
     .map((name) => {
       const filePath = path.join(dir, name);
@@ -184,6 +184,7 @@ function listPhaseHandoffArtifacts(cwd, phase) {
         valid: validation.valid,
         errors: validation.errors,
         artifact: validation.artifact,
+        kind: 'handoff',
       };
     })
     .sort((a, b) => {
@@ -192,6 +193,42 @@ function listPhaseHandoffArtifacts(cwd, phase) {
       if (aTime !== bTime) return bTime - aTime;
       return (STEP_ORDER.get(b.step) ?? -1) - (STEP_ORDER.get(a.step) ?? -1);
     });
+
+  // Append TDD audit files as separate artifact entries for visibility in artifact inventory
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (phaseInfo) {
+    const phaseDir = path.join(cwd, phaseInfo.directory);
+    if (fs.existsSync(phaseDir)) {
+      const tddAuditFiles = fs.readdirSync(phaseDir)
+        .filter((name) => name.endsWith('-TDD-AUDIT.json'))
+        .sort();
+      for (const name of tddAuditFiles) {
+        const filePath = path.join(phaseDir, name);
+        const stat = fs.statSync(filePath);
+        const fullPath = path.join(cwd, filePath);
+        let stages = [];
+        try {
+          const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+          stages = normalizeTddAuditStageList(parsed);
+        } catch {
+          stages = [];
+        }
+        artifacts.push({
+          file: filePath,
+          file_path: filePath,
+          step: null,
+          mtime_ms: stat.mtimeMs,
+          valid: true,
+          errors: [],
+          artifact: null,
+          kind: 'tdd_audit',
+          stages,
+        });
+      }
+    }
+  }
+
+  return artifacts;
 }
 
 function selectLatestValidPhaseHandoff(entries) {

@@ -387,6 +387,12 @@ function cmdMemoryWrite(cwd, options, raw) {
     error('Missing --entry (JSON string)');
   }
 
+  // Sacred data boundary: decisions, lessons, trajectories always use the canonical
+  // single-write path. Batch operations are prohibited for sacred stores.
+  if (SACRED_STORES.includes(store)) {
+    // Route to canonical single-write path — NEVER batch
+  }
+
   let entry;
   try {
     entry = JSON.parse(entryJson);
@@ -857,4 +863,5 @@ module.exports = {
   computePruneCandidates,
   MEMORY_SECTIONS,
   MEMORY_METADATA_ORDER,
+  SACRED_STORES,
 };

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-07T02:05:18.881Z",
+  "generated": "2026-04-07T15:40:22.951Z",
   "files": [
     "VERSION",
     "agents/bgsd-codebase-mapper.md",
@@ -130,6 +130,7 @@
     "workflows/cmd-velocity.md",
     "workflows/complete-milestone.md",
     "workflows/debug.md",
+    "workflows/deliver-phase.md",
     "workflows/diagnose-issues.md",
     "workflows/discuss-phase.md",
     "workflows/execute-phase.md",

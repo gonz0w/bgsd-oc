@@ -245,6 +245,17 @@ If SUMMARY issues ≠ "None": yolo → log. Interactive → present, wait.
 </step>
 <!-- /section -->
 
+<!-- section: state_validation_gate -->
+<step name="state_validation_gate">
+Run `verify:state validate` as a regression checkpoint after all batched state writes:
+```bash
+VALIDATION=$(node __OPENCODE_CONFIG__/bgsd-oc/bin/bgsd-tools.cjs verify:state validate --raw 2>/dev/null)
+echo "$VALIDATION"
+```
+If status != 'clean': STOP, report issues, do not proceed to next plan or git commit.
+</step>
+<!-- /section -->
+
 <!-- section: update_roadmap -->
 <step name="update_roadmap">
 ```bash
